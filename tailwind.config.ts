@@ -25,17 +25,21 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#E31837",
+          DEFAULT: "#E31837", // Auto-Strada red
           foreground: "#FFFFFF",
         },
         secondary: {
-          DEFAULT: "#2A2A2A",
+          DEFAULT: "#2A2A2A", // Dark gray
           foreground: "#FFFFFF",
         },
         accent: {
-          DEFAULT: "#F5F5F5",
+          DEFAULT: "#F5F5F5", // Light gray
           foreground: "#1A1A1A",
         },
+        footer: {
+          DEFAULT: "#222222", // Footer background
+          text: "#999999", // Footer text
+        }
       },
       keyframes: {
         "fade-in": {

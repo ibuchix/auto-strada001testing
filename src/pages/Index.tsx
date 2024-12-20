@@ -1,10 +1,11 @@
 import { Navigation } from "@/components/Navigation";
 import { Hero } from "@/components/Hero";
+import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <Navigation />
       <Hero />
       
@@ -48,12 +49,14 @@ const Index = () => {
       <section className="py-20 bg-accent">
         <div className="container text-center">
           <h2 className="text-3xl font-bold mb-6">Ready to Sell Your Car?</h2>
-          <p className="text-xl text-gray-600 mb-8">Join thousands of satisfied customers who've sold their cars through Autostr</p>
+          <p className="text-xl text-gray-600 mb-8">Join thousands of satisfied customers who've sold their cars through Auto-Strada</p>
           <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg">
             Get Started Now
           </Button>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 };
