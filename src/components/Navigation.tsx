@@ -7,8 +7,12 @@ export const Navigation = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
-            <img src="/lovable-uploads/754c0f97-ac22-4d56-a8e8-65d603b620b0.png" alt="Auto-Strada Logo" className="h-8" />
-            <span className="text-xl font-bold text-primary">Auto-Strada</span>
+            <img 
+              src="/lovable-uploads/73e3d564-2962-4f87-ac08-8949a33b0d8d.png" 
+              alt="Auto-Strada Logo" 
+              className="h-8" 
+            />
+            <span className="text-xl font-bold text-primary tracking-tight">Auto-Strada</span>
           </Link>
           
           <div className="hidden md:flex items-center space-x-8">
