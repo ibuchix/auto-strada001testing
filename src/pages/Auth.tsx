@@ -10,6 +10,46 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const syncLocalValuations = async (userId: string) => {
+    const localValuations = JSON.parse(localStorage.getItem('carValuations') || '[]');
+    
+    if (localValuations.length > 0) {
+      for (const valuation of localValuations) {
+        const { error: insertError } = await supabase
+          .from('cars')
+          .insert({
+            seller_id: userId,
+            title: `${valuation.make} ${valuation.model} ${valuation.year}`,
+            registration_number: valuation.registration,
+            make: valuation.make,
+            model: valuation.model,
+            year: valuation.year,
+            valuation_data: valuation,
+            vin: 'PENDING',
+            mileage: 0,
+            price: valuation.valuation
+          });
+
+        if (insertError) {
+          console.error('Error syncing valuation:', insertError);
+          toast({
+            title: "Sync Error",
+            description: "Failed to sync some valuations. Please try again later.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Clear local storage after successful sync
+      localStorage.removeItem('carValuations');
+      toast({
+        title: "Valuations Synced",
+        description: "Your previous car valuations have been synced to your account.",
+      });
+    }
+  };
+
   useEffect(() => {
     // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -34,8 +74,8 @@ const Auth = () => {
             .from('dealers')
             .insert({
               user_id: session?.user.id,
-              dealership_name: session?.user.email?.split('@')[0] || 'New Dealership', // Default name
-              license_number: 'PENDING', // Default license number
+              dealership_name: session?.user.email?.split('@')[0] || 'New Dealership',
+              license_number: 'PENDING',
             });
 
           if (dealerError) {
@@ -48,6 +88,9 @@ const Auth = () => {
             return;
           }
         }
+
+        // Sync local valuations after successful sign in
+        await syncLocalValuations(session.user.id);
 
         toast({
           title: "Welcome!",
