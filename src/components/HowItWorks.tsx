@@ -7,41 +7,41 @@ export const HowItWorks = () => {
           <div className="text-center">
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <img
-                src="/lovable-uploads/6663a294-e346-42e7-b9c4-768dcd5536a4.png"
+                src="https://images.unsplash.com/photo-1542282088-72c9c27ed0cd"
                 alt="Step 1"
-                className="w-16 h-16 mx-auto mb-4"
+                className="w-16 h-16 mx-auto mb-4 rounded-full object-cover"
               />
-              <p className="text-sm">Enter your registration number</p>
+              <p className="text-sm text-subtitle">Enter your registration number</p>
             </div>
           </div>
           <div className="text-center">
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <img
-                src="/lovable-uploads/73e3d564-2962-4f87-ac08-8949a33b0d8d.png"
+                src="https://images.unsplash.com/photo-1560250097-0b93528c311a"
                 alt="Step 2"
-                className="w-16 h-16 mx-auto mb-4"
+                className="w-16 h-16 mx-auto mb-4 rounded-full object-cover"
               />
-              <p className="text-sm">We verify your car details</p>
+              <p className="text-sm text-subtitle">We verify your car details</p>
             </div>
           </div>
           <div className="text-center">
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <img
-                src="/lovable-uploads/73e3d564-2962-4f87-ac08-8949a33b0d8d.png"
+                src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e"
                 alt="Step 3"
-                className="w-16 h-16 mx-auto mb-4"
+                className="w-16 h-16 mx-auto mb-4 rounded-full object-cover"
               />
-              <p className="text-sm">Receive offers from verified dealers</p>
+              <p className="text-sm text-subtitle">Receive offers from verified dealers</p>
             </div>
           </div>
           <div className="text-center">
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <img
-                src="/lovable-uploads/73e3d564-2962-4f87-ac08-8949a33b0d8d.png"
+                src="https://images.unsplash.com/photo-1550355291-a566597f1385"
                 alt="Step 4"
-                className="w-16 h-16 mx-auto mb-4"
+                className="w-16 h-16 mx-auto mb-4 rounded-full object-cover"
               />
-              <p className="text-sm">Choose the best offer and sell your car</p>
+              <p className="text-sm text-subtitle">Choose the best offer and sell your car</p>
             </div>
           </div>
         </div>

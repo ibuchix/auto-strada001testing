@@ -11,10 +11,10 @@ export const BottomCTA = () => {
           <Input
             type="text"
             placeholder="ENTER REG"
-            className="h-14 text-center text-lg border-2 border-[#333333] bg-white placeholder:text-[#333333] rounded-none"
+            className="h-14 text-center text-lg border-2 border-secondary bg-white placeholder:text-secondary rounded-none"
           />
           <Button 
-            className="w-full h-14 bg-[#333333] hover:bg-[#444444] text-white text-lg rounded-none flex items-center justify-center gap-2"
+            className="w-full h-14 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-none flex items-center justify-center gap-2"
           >
             VALUE YOUR CAR
             <ChevronRight className="w-6 h-6" />
