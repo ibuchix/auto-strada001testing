@@ -1,10 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { createHash } from 'https://deno.land/std@0.177.0/hash/mod.ts'
 
-const calculateChecksum = (apiId: string, apiSecret: string, registration: string) => {
+const calculateChecksum = async (apiId: string, apiSecret: string, registration: string) => {
   const input = apiId + apiSecret + registration;
-  return createHash('md5').update(input).toString();
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
 Deno.serve(async (req) => {
@@ -35,7 +38,7 @@ Deno.serve(async (req) => {
     }
 
     // Calculate checksum
-    const checksum = calculateChecksum(apiId, apiSecret, registration)
+    const checksum = await calculateChecksum(apiId, apiSecret, registration)
 
     // Make API request
     const response = await fetch(
