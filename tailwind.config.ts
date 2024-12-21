@@ -19,7 +19,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        montserrat: ['Montserrat', 'sans-serif'],
+        kanit: ['Kanit', 'sans-serif'],
+        oswald: ['Oswald', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -28,21 +29,25 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#E31837", // Auto-Strada red
+          DEFAULT: "#DC143C",
           foreground: "#FFFFFF",
         },
         secondary: {
-          DEFAULT: "#2A2A2A", // Dark gray
+          DEFAULT: "#383B39",
           foreground: "#FFFFFF",
         },
-        accent: {
-          DEFAULT: "#F5F5F5", // Light gray
-          foreground: "#1A1A1A",
+        iris: {
+          DEFAULT: "#4B4DED",
+          light: "#EFEFFD",
         },
-        footer: {
-          DEFAULT: "#222222", // Footer background
-          text: "#999999", // Footer text
-        }
+        dark: "#0E0E2C",
+        success: "#21CA6F",
+        accent: {
+          DEFAULT: "#ECF1F4",
+          foreground: "#222020",
+        },
+        body: "#222020",
+        subtitle: "#6A6A77",
       },
       keyframes: {
         "fade-in": {
