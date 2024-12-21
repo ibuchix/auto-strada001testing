@@ -4,11 +4,15 @@ import { useAuth } from "@/components/AuthProvider";
 import { Navigation } from "@/components/Navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeBids } from "@/hooks/useRealtimeBids";
 
 const DealerDashboard = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Initialize real-time bid notifications
+  useRealtimeBids();
 
   useEffect(() => {
     if (!session) {
