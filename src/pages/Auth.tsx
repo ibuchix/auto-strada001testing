@@ -60,8 +60,8 @@ const Auth = () => {
                       buttonBorderWidth: '2px',
                     },
                     radii: {
-                      borderRadiusButton: '0.5rem',
-                      borderRadiusInput: '0.5rem',
+                      buttonBorderRadius: '0.5rem',
+                      inputBorderRadius: '0.5rem',
                     },
                     fonts: {
                       bodyFontFamily: 'Kanit, sans-serif',
