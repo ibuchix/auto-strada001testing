@@ -59,9 +59,9 @@ const Auth = () => {
                       inputBorderWidth: '1px',
                       buttonBorderWidth: '2px',
                     },
-                    borderRadius: {
-                      button: '0.5rem',
-                      input: '0.5rem',
+                    radii: {
+                      borderRadiusButton: '0.5rem',
+                      borderRadiusInput: '0.5rem',
                     },
                     fonts: {
                       bodyFontFamily: 'Kanit, sans-serif',
