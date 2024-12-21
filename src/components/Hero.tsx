@@ -17,7 +17,7 @@ export const Hero = () => {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#f3f3f3]">
+    <div className="relative h-[600px] flex items-center justify-center overflow-hidden bg-[#f3f3f3]">
       {/* Red Triangle */}
       <div className="absolute top-0 left-0 w-1/3 h-1/3 bg-[#ea384c] transform -skew-x-12 -translate-x-16 -translate-y-16">
         <div className="absolute inset-0 grid grid-cols-8 grid-rows-8 opacity-30">
