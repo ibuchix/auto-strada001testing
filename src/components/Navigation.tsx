@@ -3,10 +3,30 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { useEffect, useState } from "react";
 
 export const Navigation = () => {
   const { session } = useAuth();
   const { toast } = useToast();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session) {
+      const fetchUserRole = async () => {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!error && profile) {
+          setUserRole(profile.role);
+        }
+      };
+
+      fetchUserRole();
+    }
+  }, [session]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -43,13 +63,23 @@ export const Navigation = () => {
               Partners
             </Link>
             {session ? (
-              <Button 
-                variant="outline" 
-                className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
-                onClick={handleSignOut}
-              >
-                Sign Out
-              </Button>
+              <>
+                {userRole && (
+                  <Link 
+                    to={`/dashboard/${userRole}`} 
+                    className="text-primary hover:text-primary/80 transition-colors font-semibold"
+                  >
+                    Dashboard
+                  </Link>
+                )}
+                <Button 
+                  variant="outline" 
+                  className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
+                  onClick={handleSignOut}
+                >
+                  Sign Out
+                </Button>
+              </>
             ) : (
               <Link to="/auth">
                 <Button 
