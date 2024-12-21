@@ -30,22 +30,20 @@ export const ValuationForm = () => {
         throw new Error('No data received from valuation service');
       }
 
-      const { error: insertError } = await supabase
-        .from('cars')
-        .insert({
-          seller_id: '00000000-0000-0000-0000-000000000000', // Anonymous user ID
-          title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
-          registration_number: registration,
-          make: valuationData.make,
-          model: valuationData.model,
-          year: valuationData.year,
-          valuation_data: valuationData,
-          vin: valuationData.vin || 'PENDING',
-          mileage: 0,
-          price: valuationData.valuation || 0
-        });
+      // Store the valuation data in localStorage instead of the database for anonymous users
+      const valuationResult = {
+        make: valuationData.make,
+        model: valuationData.model,
+        year: valuationData.year,
+        registration: registration,
+        valuation: valuationData.valuation || 0,
+        timestamp: new Date().toISOString()
+      };
 
-      if (insertError) throw insertError;
+      // Store in localStorage
+      const previousValuations = JSON.parse(localStorage.getItem('carValuations') || '[]');
+      previousValuations.unshift(valuationResult);
+      localStorage.setItem('carValuations', JSON.stringify(previousValuations.slice(0, 5))); // Keep last 5 valuations
 
       toast.success("Vehicle valuation completed successfully!");
       setRegistration("");
