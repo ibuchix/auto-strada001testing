@@ -4,12 +4,21 @@ import { Auth as SupabaseAuth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { Navigation } from "@/components/Navigation";
 
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/');
+      }
+    });
+
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN") {
         toast({
@@ -24,32 +33,54 @@ const Auth = () => {
   }, [navigate, toast]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-bold tracking-tight text-primary">
-            Welcome to Auto-Strada
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Sign in to your account or create a new one
-          </p>
-        </div>
-        <div className="mt-8 bg-white p-8 rounded-lg shadow">
-          <SupabaseAuth 
-            supabaseClient={supabase} 
-            appearance={{ 
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: '#DC143C',
-                    brandAccent: '#c01235',
+    <div className="min-h-screen bg-background">
+      <Navigation />
+      <div className="container mx-auto px-4 pt-24">
+        <div className="max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="p-8">
+            <h2 className="text-3xl font-bold text-primary mb-6 text-center font-kanit">
+              Welcome to Auto-Strada
+            </h2>
+            <p className="text-secondary mb-8 text-center">
+              Sign in to your account or create a new one
+            </p>
+            <SupabaseAuth 
+              supabaseClient={supabase} 
+              appearance={{ 
+                theme: ThemeSupa,
+                variables: {
+                  default: {
+                    colors: {
+                      brand: '#DC143C',
+                      brandAccent: '#383B39',
+                      brandButtonText: 'white',
+                    },
+                    borderWidths: {
+                      buttonBorder: '2px',
+                      inputBorder: '1px',
+                    },
+                    borderRadius: {
+                      button: '0.5rem',
+                      input: '0.5rem',
+                    },
+                    fonts: {
+                      bodyText: 'Kanit, sans-serif',
+                      buttonText: 'Kanit, sans-serif',
+                      inputText: 'Kanit, sans-serif',
+                      labelText: 'Kanit, sans-serif',
+                    },
                   },
                 },
-              },
-            }}
-            providers={[]}
-          />
+                className: {
+                  button: 'bg-primary hover:bg-secondary transition-colors duration-200',
+                  input: 'border-gray-300 focus:border-primary',
+                  label: 'text-secondary font-medium',
+                },
+              }}
+              providers={[]}
+              redirectTo={window.location.origin}
+            />
+          </div>
         </div>
       </div>
     </div>
