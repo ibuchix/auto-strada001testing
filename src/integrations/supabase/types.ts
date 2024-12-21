@@ -135,39 +135,54 @@ export type Database = {
           description: string | null
           id: string
           images: string[] | null
+          make: string | null
           mileage: number
+          model: string | null
           price: number
+          registration_number: string | null
           seller_id: string
           status: string | null
           title: string
           updated_at: string | null
+          valuation_data: Json | null
           vin: string
+          year: number | null
         }
         Insert: {
           created_at?: string | null
           description?: string | null
           id?: string
           images?: string[] | null
+          make?: string | null
           mileage: number
+          model?: string | null
           price: number
+          registration_number?: string | null
           seller_id: string
           status?: string | null
           title: string
           updated_at?: string | null
+          valuation_data?: Json | null
           vin: string
+          year?: number | null
         }
         Update: {
           created_at?: string | null
           description?: string | null
           id?: string
           images?: string[] | null
+          make?: string | null
           mileage?: number
+          model?: string | null
           price?: number
+          registration_number?: string | null
           seller_id?: string
           status?: string | null
           title?: string
           updated_at?: string | null
+          valuation_data?: Json | null
           vin?: string
+          year?: number | null
         }
         Relationships: [
           {
