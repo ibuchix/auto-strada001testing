@@ -9,7 +9,247 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      bids: {
+        Row: {
+          amount: number
+          car_id: string
+          created_at: string | null
+          dealer_id: string
+          id: string
+          status: string | null
+        }
+        Insert: {
+          amount: number
+          car_id: string
+          created_at?: string | null
+          dealer_id: string
+          id?: string
+          status?: string | null
+        }
+        Update: {
+          amount?: number
+          car_id?: string
+          created_at?: string | null
+          dealer_id?: string
+          id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bids_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bids_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      buyer_watchlist: {
+        Row: {
+          buyer_id: string
+          car_id: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          buyer_id: string
+          car_id: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          buyer_id?: string
+          car_id?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_watchlist_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_watchlist_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      car_status_logs: {
+        Row: {
+          car_id: string
+          created_at: string | null
+          id: string
+          new_status: string | null
+          old_status: string | null
+          updated_by: string
+        }
+        Insert: {
+          car_id: string
+          created_at?: string | null
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          updated_by: string
+        }
+        Update: {
+          car_id?: string
+          created_at?: string | null
+          id?: string
+          new_status?: string | null
+          old_status?: string | null
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "car_status_logs_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "car_status_logs_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cars: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          images: string[] | null
+          mileage: number
+          price: number
+          seller_id: string
+          status: string | null
+          title: string
+          updated_at: string | null
+          vin: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          mileage: number
+          price: number
+          seller_id: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          vin: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          images?: string[] | null
+          mileage?: number
+          price?: number
+          seller_id?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          vin?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cars_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dealers: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          dealership_name: string
+          id: string
+          license_number: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          dealership_name: string
+          id?: string
+          license_number: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          dealership_name?: string
+          id?: string
+          license_number?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          password_hash: string
+          phone_number: string | null
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          password_hash: string
+          phone_number?: string | null
+          role: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          password_hash?: string
+          phone_number?: string | null
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
