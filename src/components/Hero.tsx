@@ -17,22 +17,19 @@ export const Hero = () => {
   };
 
   return (
-    <div className="relative h-[600px] flex items-center justify-center overflow-hidden bg-[#f3f3f3]">
-      {/* Red Triangle */}
-      <div className="absolute top-0 left-0 w-1/3 h-1/3 bg-primary transform -skew-x-12 -translate-x-16 -translate-y-16">
-        <div className="absolute inset-0 grid grid-cols-8 grid-rows-8 opacity-30">
+    <div className="relative h-[600px] flex items-center justify-center overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-[#f3f3f3]">
+        <div className="absolute inset-0 grid grid-cols-8 grid-rows-8 opacity-10">
           {Array.from({ length: 64 }).map((_, i) => (
-            <div key={i} className="border border-white/20" />
+            <div key={i} className="border border-secondary/20" />
           ))}
         </div>
       </div>
-      
-      {/* Gray Triangle */}
-      <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-secondary transform skew-x-12 translate-x-16 translate-y-16" />
-      
+
       {/* Content */}
       <div className="container relative z-10 max-w-4xl mx-auto px-4">
-        <div className="text-left max-w-2xl">
+        <div className="text-center max-w-2xl mx-auto">
           <h1 className="text-5xl font-bold mb-6">
             <span className="text-primary">Sell</span> your car with ease
           </h1>
@@ -41,20 +38,20 @@ export const Hero = () => {
             you their best price
           </p>
           
-          <form onSubmit={handleValuation} className="space-y-4 max-w-md">
+          <form onSubmit={handleValuation} className="space-y-4 max-w-sm mx-auto">
             <Input
               type="text"
               placeholder="ENTER REG"
               value={registration}
               onChange={(e) => setRegistration(e.target.value)}
-              className="h-14 text-center text-lg border-2 border-secondary bg-white placeholder:text-secondary rounded-none"
+              className="h-12 text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md"
             />
             <Button 
               type="submit" 
-              className="w-full h-14 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-none flex items-center justify-center gap-2"
+              className="w-full h-12 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-md flex items-center justify-center gap-2"
             >
               VALUE YOUR CAR
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-5 h-5" />
             </Button>
           </form>
 
@@ -63,7 +60,7 @@ export const Hero = () => {
             <img
               src="/lovable-uploads/754c0f97-ac22-4d56-a8e8-65d603b620b0.png"
               alt="CarVertical"
-              className="h-8"
+              className="h-8 mx-auto"
             />
           </div>
         </div>
