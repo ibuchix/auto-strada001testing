@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
 import { Navigation } from "@/components/Navigation";
@@ -12,45 +12,69 @@ const DealerDashboard = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
 
   useRealtimeBids();
 
   useEffect(() => {
-    if (!session) {
-      navigate('/auth');
-      return;
-    }
-
-    const checkRole = async () => {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to verify user role",
-          variant: "destructive",
-        });
+    const checkAccess = async () => {
+      if (!session) {
+        navigate('/auth');
         return;
       }
 
-      if (profile.role !== 'dealer') {
+      try {
+        // First check if user has dealer role
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError || profile.role !== 'dealer') {
+          navigate('/');
+          toast({
+            title: "Access Denied",
+            description: "This page is only accessible to dealers",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Then check if dealer record exists
+        const { data: dealer, error: dealerError } = await supabase
+          .from('dealers')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (dealerError) {
+          console.error('Error fetching dealer record:', dealerError);
+          navigate('/');
+          toast({
+            title: "Error",
+            description: "Failed to verify dealer status. Please contact support.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error checking dealer access:', error);
         navigate('/');
         toast({
-          title: "Access Denied",
-          description: "This page is only accessible to dealers",
+          title: "Error",
+          description: "An unexpected error occurred. Please try again.",
           variant: "destructive",
         });
       }
     };
 
-    checkRole();
+    checkAccess();
   }, [session, navigate, toast]);
 
-  if (!session) return null;
+  if (!session || isLoading) return null;
 
   return (
     <div className="min-h-screen bg-accent">

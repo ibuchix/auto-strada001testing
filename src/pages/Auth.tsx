@@ -19,8 +19,36 @@ const Auth = () => {
     });
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN") {
+        // If the user is a dealer, create their dealer record
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session?.user.id)
+          .single();
+
+        if (profile?.role === 'dealer') {
+          // Create dealer record
+          const { error: dealerError } = await supabase
+            .from('dealers')
+            .insert({
+              user_id: session?.user.id,
+              dealership_name: session?.user.email?.split('@')[0] || 'New Dealership', // Default name
+              license_number: 'PENDING', // Default license number
+            });
+
+          if (dealerError) {
+            console.error('Error creating dealer record:', dealerError);
+            toast({
+              title: "Error",
+              description: "Failed to create dealer profile. Please contact support.",
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+
         toast({
           title: "Welcome!",
           description: "You have successfully signed in.",
