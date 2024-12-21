@@ -3,17 +3,68 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ChevronRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/AuthProvider";
 
 export const Hero = () => {
   const [registration, setRegistration] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { session } = useAuth();
 
-  const handleValuation = (e: React.FormEvent) => {
+  const handleValuation = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!registration) {
       toast.error("Please enter your registration number");
       return;
     }
-    toast.success("Getting your car details...");
+
+    if (!session?.user) {
+      toast.error("Please sign in to get a valuation");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { data: valuationData, error: valuationError } = await supabase.functions.invoke('get-car-valuation', {
+        body: { registration }
+      });
+
+      if (valuationError) throw valuationError;
+
+      if (!valuationData) {
+        throw new Error('No data received from valuation service');
+      }
+
+      // Store the car data in Supabase
+      const { error: insertError } = await supabase
+        .from('cars')
+        .insert({
+          seller_id: session.user.id,
+          title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
+          registration_number: registration,
+          make: valuationData.make,
+          model: valuationData.model,
+          year: valuationData.year,
+          valuation_data: valuationData,
+          // Set reasonable defaults for required fields
+          vin: valuationData.vin || 'PENDING',
+          mileage: 0,
+          price: valuationData.valuation || 0
+        });
+
+      if (insertError) throw insertError;
+
+      toast.success("Vehicle valuation completed successfully!");
+      setRegistration("");
+      
+    } catch (error) {
+      console.error('Valuation error:', error);
+      toast.error(error.message || "Failed to get vehicle valuation");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -45,12 +96,14 @@ export const Hero = () => {
               value={registration}
               onChange={(e) => setRegistration(e.target.value)}
               className="h-12 text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md"
+              disabled={isLoading}
             />
             <Button 
               type="submit" 
               className="w-full h-12 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-md flex items-center justify-center gap-2"
+              disabled={isLoading}
             >
-              VALUE YOUR CAR
+              {isLoading ? "GETTING VALUATION..." : "VALUE YOUR CAR"}
               <ChevronRight className="w-5 h-5" />
             </Button>
           </form>
