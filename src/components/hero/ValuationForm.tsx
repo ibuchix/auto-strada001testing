@@ -4,23 +4,16 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/components/AuthProvider";
 
 export const ValuationForm = () => {
   const [registration, setRegistration] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { session } = useAuth();
 
   const handleValuation = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!registration) {
       toast.error("Please enter your registration number");
-      return;
-    }
-
-    if (!session?.user) {
-      toast.error("Please sign in to get a valuation");
       return;
     }
 
@@ -40,7 +33,7 @@ export const ValuationForm = () => {
       const { error: insertError } = await supabase
         .from('cars')
         .insert({
-          seller_id: session.user.id,
+          seller_id: '00000000-0000-0000-0000-000000000000', // Anonymous user ID
           title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
           registration_number: registration,
           make: valuationData.make,
