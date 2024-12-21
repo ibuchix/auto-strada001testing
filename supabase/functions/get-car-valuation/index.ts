@@ -4,11 +4,13 @@ import { crypto } from "https://deno.land/std/crypto/mod.ts";
 
 const calculateChecksum = (apiId: string, apiSecret: string, registration: string) => {
   const input = apiId + apiSecret + registration;
-  // Use the crypto.subtle.digestSync method from Deno's std/crypto
+  console.log('Calculating checksum for input:', input);
   const hash = crypto.subtle.digestSync("MD5", new TextEncoder().encode(input));
-  return Array.from(new Uint8Array(hash))
+  const checksum = Array.from(new Uint8Array(hash))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+  console.log('Generated checksum:', checksum);
+  return checksum;
 };
 
 Deno.serve(async (req) => {
@@ -18,6 +20,7 @@ Deno.serve(async (req) => {
 
   try {
     const { registration } = await req.json();
+    console.log('Received registration:', registration);
     
     if (!registration) {
       return new Response(
@@ -30,6 +33,9 @@ Deno.serve(async (req) => {
     const apiId = Deno.env.get('CAR_API_ID');
     const apiSecret = Deno.env.get('CAR_API_SECRET');
 
+    console.log('API ID:', apiId);
+    console.log('API Secret exists:', !!apiSecret);
+
     if (!apiId || !apiSecret) {
       console.error('API credentials not configured');
       return new Response(
@@ -40,20 +46,31 @@ Deno.serve(async (req) => {
 
     // Calculate checksum
     const checksum = calculateChecksum(apiId, apiSecret, registration);
-    console.log('Making API request with:', { apiId, registration, checksum });
+    
+    // Construct API URL
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${registration}/odometer:0/currency:PLN`;
+    console.log('Making API request to:', apiUrl);
 
     // Make API request
-    const response = await fetch(
-      `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${registration}/odometer:0/currency:PLN`
-    );
+    const response = await fetch(apiUrl);
+    
+    console.log('API Response Status:', response.status);
+    const responseText = await response.text();
+    console.log('API Response Body:', responseText);
 
     if (!response.ok) {
-      console.error('API request failed:', await response.text());
-      throw new Error('Failed to fetch car data');
+      throw new Error(`Failed to fetch car data: ${responseText}`);
     }
 
-    const carData = await response.json();
-    console.log('Received car data:', carData);
+    let carData;
+    try {
+      carData = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse API response:', e);
+      throw new Error('Invalid response from valuation service');
+    }
+
+    console.log('Parsed car data:', carData);
 
     return new Response(
       JSON.stringify(carData),
