@@ -1,7 +1,21 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 export const Navigation = () => {
+  const { session } = useAuth();
+  const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: "Signed out",
+      description: "You have been successfully signed out.",
+    });
+  };
+
   return (
     <nav className="fixed top-0 w-full bg-white shadow-sm z-50">
       <div className="container mx-auto px-4 py-4">
@@ -28,12 +42,24 @@ export const Navigation = () => {
             <Link to="/partners" className="text-secondary hover:text-primary transition-colors">
               Partners
             </Link>
-            <Button 
-              variant="outline" 
-              className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
-            >
-              Sign In
-            </Button>
+            {session ? (
+              <Button 
+                variant="outline" 
+                className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
+                onClick={handleSignOut}
+              >
+                Sign Out
+              </Button>
+            ) : (
+              <Link to="/auth">
+                <Button 
+                  variant="outline" 
+                  className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
+                >
+                  Sign In
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </div>
