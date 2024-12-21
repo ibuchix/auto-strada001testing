@@ -30,15 +30,6 @@ export const Hero = () => {
       {/* Gray Triangle */}
       <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-[#333333] transform skew-x-12 translate-x-16 translate-y-16" />
       
-      {/* Car Image */}
-      <div className="absolute bottom-0 right-0 w-1/2">
-        <img
-          src="/lovable-uploads/159a3fac-5452-46dd-bc62-84ed729108f8.png"
-          alt="Featured Car"
-          className="w-full h-auto object-contain"
-        />
-      </div>
-      
       {/* Content */}
       <div className="container relative z-10 max-w-4xl mx-auto px-4">
         <div className="text-left max-w-2xl">
