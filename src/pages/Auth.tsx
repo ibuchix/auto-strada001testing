@@ -79,6 +79,19 @@ const Auth = () => {
               }}
               providers={[]}
               redirectTo={window.location.origin}
+              view="sign_up"
+              additionalData={{
+                role: {
+                  type: 'select',
+                  options: [
+                    { label: 'Buyer', value: 'buyer' },
+                    { label: 'Seller', value: 'seller' },
+                    { label: 'Dealer', value: 'dealer' }
+                  ],
+                  required: true,
+                  label: 'Select your role'
+                }
+              }}
             />
           </div>
         </div>
