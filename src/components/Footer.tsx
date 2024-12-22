@@ -9,9 +9,9 @@ export const Footer = () => {
           <div>
             <div className="flex items-center space-x-2 mb-6">
               <img 
-                src="/lovable-uploads/73e3d564-2962-4f87-ac08-8949a33b0d8d.png" 
+                src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" 
                 alt="Auto-Strada Logo" 
-                className="h-8" 
+                className="h-16" 
               />
             </div>
             <div className="flex space-x-4">
@@ -27,10 +27,10 @@ export const Footer = () => {
             </div>
             <div className="mt-6 space-y-2">
               <a href="#" className="block">
-                <img src="/lovable-uploads/73e3d564-2962-4f87-ac08-8949a33b0d8d.png" alt="App Store" className="h-10" />
+                <img src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" alt="App Store" className="h-12" />
               </a>
               <a href="#" className="block">
-                <img src="/lovable-uploads/73e3d564-2962-4f87-ac08-8949a33b0d8d.png" alt="Play Store" className="h-10" />
+                <img src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" alt="Play Store" className="h-12" />
               </a>
             </div>
           </div>

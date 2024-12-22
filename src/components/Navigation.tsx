@@ -42,11 +42,10 @@ export const Navigation = () => {
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
             <img 
-              src="/lovable-uploads/73e3d564-2962-4f87-ac08-8949a33b0d8d.png" 
+              src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" 
               alt="Auto-Strada Logo" 
-              className="h-8" 
+              className="h-12" 
             />
-            <span className="text-xl font-bold text-primary tracking-tight">Auto-Strada</span>
           </Link>
           
           <div className="hidden md:flex items-center space-x-8">
