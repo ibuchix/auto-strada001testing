@@ -10,6 +10,7 @@ import BuyerDashboard from "./pages/BuyerDashboard";
 import SellerDashboard from "./pages/SellerDashboard";
 import DealerDashboard from "./pages/DealerDashboard";
 import Sellers from "./pages/Sellers";
+import Dealers from "./pages/Dealers";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/dashboard/seller" element={<SellerDashboard />} />
             <Route path="/dashboard/dealer" element={<DealerDashboard />} />
             <Route path="/sellers" element={<Sellers />} />
+            <Route path="/dealers" element={<Dealers />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
