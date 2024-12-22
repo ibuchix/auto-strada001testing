@@ -16,31 +16,31 @@ export const Hero = () => {
   const brands = [
     { 
       name: "Porsche", 
-      logo: "https://images.unsplash.com/photo-1611656825455-391ab85aa676?w=200&h=100&fit=crop&auto=format" 
+      logo: "https://www.carlogos.org/car-logos/porsche-logo-2100x1100.png" 
     },
     { 
       name: "Mercedes", 
-      logo: "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=200&h=100&fit=crop&auto=format" 
+      logo: "https://www.carlogos.org/logo/Mercedes-Benz-logo-2011-1920x1080.png" 
     },
     { 
       name: "BMW", 
-      logo: "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=200&h=100&fit=crop&auto=format" 
+      logo: "https://www.carlogos.org/car-logos/bmw-logo-2020-gray.png" 
     },
     { 
       name: "Peugeot", 
-      logo: "https://images.unsplash.com/photo-1630165356623-f21145b4f667?w=200&h=100&fit=crop&auto=format" 
+      logo: "https://www.carlogos.org/car-logos/peugeot-logo-2010-black.png" 
     },
     { 
       name: "Jaguar", 
-      logo: "https://images.unsplash.com/photo-1580274455191-1c62238fa333?w=200&h=100&fit=crop&auto=format" 
+      logo: "https://www.carlogos.org/car-logos/jaguar-logo-2012-black.png" 
     },
     { 
       name: "Range Rover", 
-      logo: "https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?w=200&h=100&fit=crop&auto=format" 
+      logo: "https://www.carlogos.org/car-logos/range-rover-logo-2010-black.png" 
     },
     { 
       name: "Rolls Royce", 
-      logo: "https://images.unsplash.com/photo-1631295868223-63265b40d9e4?w=200&h=100&fit=crop&auto=format" 
+      logo: "https://www.carlogos.org/car-logos/rolls-royce-logo-black.png" 
     },
   ];
 
@@ -71,7 +71,7 @@ export const Hero = () => {
                   loop: true,
                 }}
                 plugins={[plugin.current]}
-                className="w-full max-w-lg mx-auto rounded-full bg-accent/30 py-6"
+                className="w-full max-w-lg mx-auto py-6"
               >
                 <CarouselContent className="-ml-2">
                   {brands.map((brand, index) => (
@@ -80,7 +80,7 @@ export const Hero = () => {
                         <img
                           src={brand.logo}
                           alt={brand.name}
-                          className="h-8 w-auto mx-auto opacity-75 hover:opacity-100 transition-opacity object-contain filter grayscale hover:grayscale-0"
+                          className="h-8 w-auto mx-auto opacity-40 hover:opacity-70 transition-opacity object-contain"
                         />
                       </div>
                     </CarouselItem>
