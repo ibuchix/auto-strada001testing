@@ -1,73 +1,101 @@
 import { Navigation } from "@/components/Navigation";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
 
 const Dealers = () => {
+  const navigate = useNavigate();
+
   return (
-    <div className="min-h-screen bg-accent">
+    <div className="min-h-screen bg-gradient-to-b from-white to-accent/30">
       <Navigation />
+      
+      {/* Hero Section */}
       <div className="container mx-auto px-4 pt-24 pb-12">
-        <div className="mb-8 animate-fade-in">
-          <h1 className="text-4xl font-bold text-primary mb-2">Find Trusted Dealers</h1>
-          <p className="text-subtitle">Connect with verified automotive dealers in your area.</p>
+        <div className="max-w-4xl mx-auto text-center mb-16 animate-fade-in">
+          <h1 className="text-6xl font-bold text-dark mb-6">
+            Join Our Network of <span className="text-primary">Professional</span> Dealers
+          </h1>
+          <p className="text-xl text-subtitle mb-8 max-w-2xl mx-auto">
+            Connect with verified sellers and expand your inventory with our trusted automotive marketplace
+          </p>
+          <Button 
+            onClick={() => navigate("/auth")}
+            className="h-14 px-8 bg-primary hover:bg-primary/90 text-white text-lg rounded-xl"
+          >
+            Join Now <ChevronRight className="ml-2" />
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-fade-in [animation-delay:200ms]">
-          {/* Benefits Cards */}
-          <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="h-12 w-12 bg-iris-light rounded-full flex items-center justify-center mb-4">
-              <svg className="h-6 w-6 text-iris" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-              </svg>
+        {/* Stats Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+          {[
+            { number: "500+", label: "Active Sellers" },
+            { number: "1000+", label: "Cars Listed" },
+            { number: "£2M+", label: "Total Sales" },
+          ].map((stat, index) => (
+            <div key={index} className="text-center p-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow">
+              <div className="text-4xl font-bold text-primary mb-2">{stat.number}</div>
+              <div className="text-subtitle">{stat.label}</div>
             </div>
-            <h3 className="text-xl font-bold text-dark mb-2">Verified Dealers</h3>
-            <p className="text-subtitle">All dealers on our platform are thoroughly vetted and licensed.</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="h-12 w-12 bg-iris-light rounded-full flex items-center justify-center mb-4">
-              <svg className="h-6 w-6 text-iris" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-dark mb-2">Competitive Pricing</h3>
-            <p className="text-subtitle">Get the best deals through our network of trusted dealers.</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="h-12 w-12 bg-iris-light rounded-full flex items-center justify-center mb-4">
-              <svg className="h-6 w-6 text-iris" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-dark mb-2">Quick Response</h3>
-            <p className="text-subtitle">Get responses from multiple dealers within hours.</p>
-          </div>
+          ))}
         </div>
 
-        <div className="mt-16 bg-white p-8 rounded-lg shadow-md animate-fade-in [animation-delay:400ms]">
-          <h2 className="text-3xl font-bold text-dark mb-6">Why Choose Our Dealers?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-primary">1</span>
-              </div>
-              <h3 className="text-xl font-bold text-dark mb-2">Verified Quality</h3>
-              <p className="text-subtitle">All dealers undergo thorough verification process.</p>
+        {/* Benefits Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+          {[
+            {
+              title: "Verified Sellers",
+              description: "Access a network of pre-vetted sellers with quality vehicles",
+              icon: (
+                <div className="h-14 w-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
+                  <svg className="h-7 w-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+              ),
+            },
+            {
+              title: "Competitive Pricing",
+              description: "Get the best deals through our transparent bidding system",
+              icon: (
+                <div className="h-14 w-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
+                  <svg className="h-7 w-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              ),
+            },
+            {
+              title: "Quick Response",
+              description: "Real-time notifications and instant bidding capabilities",
+              icon: (
+                <div className="h-14 w-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
+                  <svg className="h-7 w-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+              ),
+            },
+          ].map((benefit, index) => (
+            <div key={index} className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
+              {benefit.icon}
+              <h3 className="text-xl font-bold text-dark mb-4">{benefit.title}</h3>
+              <p className="text-subtitle">{benefit.description}</p>
             </div>
-            <div className="text-center">
-              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-primary">2</span>
-              </div>
-              <h3 className="text-xl font-bold text-dark mb-2">Fair Pricing</h3>
-              <p className="text-subtitle">Transparent pricing and competitive offers.</p>
-            </div>
-            <div className="text-center">
-              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-primary">3</span>
-              </div>
-              <h3 className="text-xl font-bold text-dark mb-2">Expert Service</h3>
-              <p className="text-subtitle">Professional and knowledgeable dealer network.</p>
-            </div>
-          </div>
+          ))}
+        </div>
+
+        {/* CTA Section */}
+        <div className="bg-gradient-to-r from-primary/90 to-primary p-12 rounded-3xl text-white text-center">
+          <h2 className="text-4xl font-bold mb-6">Ready to Get Started?</h2>
+          <p className="text-lg mb-8 opacity-90">Join our network of professional dealers and start growing your business today</p>
+          <Button 
+            onClick={() => navigate("/auth")}
+            className="h-14 px-8 bg-white text-primary hover:bg-white/90 text-lg rounded-xl"
+          >
+            Create Dealer Account <ChevronRight className="ml-2" />
+          </Button>
         </div>
       </div>
     </div>
