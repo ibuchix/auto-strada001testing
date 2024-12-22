@@ -4,11 +4,15 @@ import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Navigation = () => {
   const { session } = useAuth();
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (session) {
@@ -36,6 +40,51 @@ export const Navigation = () => {
     });
   };
 
+  const NavLinks = () => (
+    <>
+      <Link to="/sellers" className="text-secondary hover:text-primary transition-colors">
+        Sellers
+      </Link>
+      <Link to="/dealers" className="text-secondary hover:text-primary transition-colors">
+        Dealers
+      </Link>
+      <Link to="/faq" className="text-secondary hover:text-primary transition-colors">
+        FAQ
+      </Link>
+      <Link to="/partners" className="text-secondary hover:text-primary transition-colors">
+        Partners
+      </Link>
+      {session ? (
+        <>
+          {userRole && (
+            <Link 
+              to={`/dashboard/${userRole}`} 
+              className="text-primary hover:text-primary/80 transition-colors font-semibold"
+            >
+              Dashboard
+            </Link>
+          )}
+          <Button 
+            variant="outline" 
+            className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
+            onClick={handleSignOut}
+          >
+            Sign Out
+          </Button>
+        </>
+      ) : (
+        <Link to="/auth">
+          <Button 
+            variant="outline" 
+            className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
+          >
+            Sign In
+          </Button>
+        </Link>
+      )}
+    </>
+  );
+
   return (
     <nav className="fixed top-0 w-full bg-white shadow-sm z-50">
       <div className="container mx-auto px-4 py-4">
@@ -48,48 +97,24 @@ export const Navigation = () => {
             />
           </Link>
           
-          <div className="hidden md:flex items-center space-x-8">
-            <Link to="/sellers" className="text-secondary hover:text-primary transition-colors">
-              Sellers
-            </Link>
-            <Link to="/dealers" className="text-secondary hover:text-primary transition-colors">
-              Dealers
-            </Link>
-            <Link to="/faq" className="text-secondary hover:text-primary transition-colors">
-              FAQ
-            </Link>
-            <Link to="/partners" className="text-secondary hover:text-primary transition-colors">
-              Partners
-            </Link>
-            {session ? (
-              <>
-                {userRole && (
-                  <Link 
-                    to={`/dashboard/${userRole}`} 
-                    className="text-primary hover:text-primary/80 transition-colors font-semibold"
-                  >
-                    Dashboard
-                  </Link>
-                )}
-                <Button 
-                  variant="outline" 
-                  className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
-                  onClick={handleSignOut}
-                >
-                  Sign Out
+          {isMobile ? (
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
                 </Button>
-              </>
-            ) : (
-              <Link to="/auth">
-                <Button 
-                  variant="outline" 
-                  className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
-                >
-                  Sign In
-                </Button>
-              </Link>
-            )}
-          </div>
+              </SheetTrigger>
+              <SheetContent>
+                <div className="flex flex-col space-y-4 mt-8">
+                  <NavLinks />
+                </div>
+              </SheetContent>
+            </Sheet>
+          ) : (
+            <div className="hidden md:flex items-center space-x-8">
+              <NavLinks />
+            </div>
+          )}
         </div>
       </div>
     </nav>
