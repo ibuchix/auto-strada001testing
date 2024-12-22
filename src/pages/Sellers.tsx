@@ -27,11 +27,9 @@ const Sellers = () => {
             {/* Value Your Car */}
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div className="bg-accent p-8 rounded-2xl">
-                <img
-                  src="/lovable-uploads/c321d882-4530-4724-b7c1-d0c5fbe57d04.png"
-                  alt="Value your car"
-                  className="w-full h-auto rounded-lg shadow-lg"
-                />
+                <div className="aspect-video bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center">
+                  <div className="text-4xl font-bold text-primary">01</div>
+                </div>
               </div>
               <div>
                 <h2 className="text-3xl font-bold mb-4">Value your car</h2>
@@ -50,22 +48,18 @@ const Sellers = () => {
                 </p>
               </div>
               <div className="order-1 md:order-2 bg-accent p-8 rounded-2xl">
-                <img
-                  src="/lovable-uploads/c321d882-4530-4724-b7c1-d0c5fbe57d04.png"
-                  alt="Profile vehicle"
-                  className="w-full h-auto rounded-lg shadow-lg"
-                />
+                <div className="aspect-video bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center">
+                  <div className="text-4xl font-bold text-primary">02</div>
+                </div>
               </div>
             </div>
 
             {/* Reserve Price */}
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div className="bg-accent p-8 rounded-2xl">
-                <img
-                  src="/lovable-uploads/c321d882-4530-4724-b7c1-d0c5fbe57d04.png"
-                  alt="Reserve price"
-                  className="w-full h-auto rounded-lg shadow-lg"
-                />
+                <div className="aspect-video bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center">
+                  <div className="text-4xl font-bold text-primary">03</div>
+                </div>
               </div>
               <div>
                 <h2 className="text-3xl font-bold mb-4">Get a reserve price set</h2>
@@ -84,22 +78,18 @@ const Sellers = () => {
                 </p>
               </div>
               <div className="order-1 md:order-2 bg-accent p-8 rounded-2xl">
-                <img
-                  src="/lovable-uploads/c321d882-4530-4724-b7c1-d0c5fbe57d04.png"
-                  alt="Highest bid"
-                  className="w-full h-auto rounded-lg shadow-lg"
-                />
+                <div className="aspect-video bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center">
+                  <div className="text-4xl font-bold text-primary">04</div>
+                </div>
               </div>
             </div>
 
             {/* Finalize Sale */}
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div className="bg-accent p-8 rounded-2xl">
-                <img
-                  src="/lovable-uploads/c321d882-4530-4724-b7c1-d0c5fbe57d04.png"
-                  alt="Finalize sale"
-                  className="w-full h-auto rounded-lg shadow-lg"
-                />
+                <div className="aspect-video bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center">
+                  <div className="text-4xl font-bold text-primary">05</div>
+                </div>
               </div>
               <div>
                 <h2 className="text-3xl font-bold mb-4">Finalise the sale</h2>
