@@ -71,7 +71,7 @@ export const Hero = () => {
                   <img
                     src={brand.logo}
                     alt={brand.name}
-                    className="h-12 w-auto mx-auto opacity-70 hover:opacity-100 transition-opacity duration-300 object-contain"
+                    className="h-12 w-auto mx-auto opacity-100 hover:scale-110 transition-all duration-300 object-contain"
                   />
                 </div>
               ))}
