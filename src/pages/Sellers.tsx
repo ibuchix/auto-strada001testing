@@ -1,75 +1,137 @@
 import { Navigation } from "@/components/Navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const Sellers = () => {
   return (
-    <div className="min-h-screen bg-accent">
+    <div className="min-h-screen bg-white">
       <Navigation />
-      <div className="container mx-auto px-4 pt-24 pb-12">
-        <div className="mb-8 animate-fade-in">
-          <h1 className="text-4xl font-bold text-primary mb-2">Sell Your Car</h1>
-          <p className="text-subtitle">Get the best value for your vehicle with our trusted network of dealers.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-fade-in [animation-delay:200ms]">
-          {/* Benefits Cards */}
-          <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="h-12 w-12 bg-iris-light rounded-full flex items-center justify-center mb-4">
-              <svg className="h-6 w-6 text-iris" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-dark mb-2">Competitive Pricing</h3>
-            <p className="text-subtitle">Get the best market value for your vehicle through our competitive bidding system.</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="h-12 w-12 bg-iris-light rounded-full flex items-center justify-center mb-4">
-              <svg className="h-6 w-6 text-iris" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-dark mb-2">Secure Process</h3>
-            <p className="text-subtitle">Our platform ensures safe and secure transactions with verified dealers.</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="h-12 w-12 bg-iris-light rounded-full flex items-center justify-center mb-4">
-              <svg className="h-6 w-6 text-iris" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-dark mb-2">Fast Process</h3>
-            <p className="text-subtitle">Get multiple offers quickly and complete the sale on your timeline.</p>
+      
+      {/* Hero Section */}
+      <section className="pt-24 pb-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent -skew-y-6 transform origin-top-left" />
+        <div className="container mx-auto px-4 relative">
+          <div className="max-w-3xl mx-auto text-center">
+            <h1 className="text-5xl md:text-6xl font-bold mb-6">How it works</h1>
+            <p className="text-xl text-subtitle mb-8">
+              Sell your car without having to choose between price and convenience
+            </p>
           </div>
         </div>
+      </section>
 
-        <div className="mt-16 bg-white p-8 rounded-lg shadow-md animate-fade-in [animation-delay:400ms]">
-          <h2 className="text-3xl font-bold text-dark mb-6">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-primary">1</span>
+      {/* Process Steps */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="space-y-24">
+            {/* Value Your Car */}
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div className="bg-accent p-8 rounded-2xl">
+                <img
+                  src="/lovable-uploads/c321d882-4530-4724-b7c1-d0c5fbe57d04.png"
+                  alt="Value your car"
+                  className="w-full h-auto rounded-lg shadow-lg"
+                />
               </div>
-              <h3 className="text-xl font-bold text-dark mb-2">List Your Car</h3>
-              <p className="text-subtitle">Create a detailed listing with photos and specifications.</p>
+              <div>
+                <h2 className="text-3xl font-bold mb-4">Value your car</h2>
+                <p className="text-subtitle text-lg">
+                  Our smart valuation tool provides a free, straight-forward using the market data. All you need to do is enter your reg and tell us your car's mileage.
+                </p>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-primary">2</span>
+
+            {/* Profile Vehicle */}
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div className="order-2 md:order-1">
+                <h2 className="text-3xl font-bold mb-4">Profile your vehicle</h2>
+                <p className="text-subtitle text-lg">
+                  You can easily guide us with your car specs & its features. You will be required to take or upload photos of your car.
+                </p>
               </div>
-              <h3 className="text-xl font-bold text-dark mb-2">Receive Bids</h3>
-              <p className="text-subtitle">Get competitive offers from our network of verified dealers.</p>
+              <div className="order-1 md:order-2 bg-accent p-8 rounded-2xl">
+                <img
+                  src="/lovable-uploads/c321d882-4530-4724-b7c1-d0c5fbe57d04.png"
+                  alt="Profile vehicle"
+                  className="w-full h-auto rounded-lg shadow-lg"
+                />
+              </div>
             </div>
-            <div className="text-center">
-              <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl font-bold text-primary">3</span>
+
+            {/* Reserve Price */}
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div className="bg-accent p-8 rounded-2xl">
+                <img
+                  src="/lovable-uploads/c321d882-4530-4724-b7c1-d0c5fbe57d04.png"
+                  alt="Reserve price"
+                  className="w-full h-auto rounded-lg shadow-lg"
+                />
               </div>
-              <h3 className="text-xl font-bold text-dark mb-2">Complete Sale</h3>
-              <p className="text-subtitle">Accept the best offer and finalize the sale securely.</p>
+              <div>
+                <h2 className="text-3xl font-bold mb-4">Get a reserve price set</h2>
+                <p className="text-subtitle text-lg">
+                  After completing your profile, we would assess your vehicle, set a reserve price and let us know when you're available, it will then be listed for sale.
+                </p>
+              </div>
+            </div>
+
+            {/* Highest Bid */}
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div className="order-2 md:order-1">
+                <h2 className="text-3xl font-bold mb-4">Obtain your highest bid</h2>
+                <p className="text-subtitle text-lg">
+                  Our pool of dealers would compete to give you the best price in our online daily sale. Once your reserve is hit/pass, after the dealer will reach out to complete the sale.
+                </p>
+              </div>
+              <div className="order-1 md:order-2 bg-accent p-8 rounded-2xl">
+                <img
+                  src="/lovable-uploads/c321d882-4530-4724-b7c1-d0c5fbe57d04.png"
+                  alt="Highest bid"
+                  className="w-full h-auto rounded-lg shadow-lg"
+                />
+              </div>
+            </div>
+
+            {/* Finalize Sale */}
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div className="bg-accent p-8 rounded-2xl">
+                <img
+                  src="/lovable-uploads/c321d882-4530-4724-b7c1-d0c5fbe57d04.png"
+                  alt="Finalize sale"
+                  className="w-full h-auto rounded-lg shadow-lg"
+                />
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold mb-4">Finalise the sale</h2>
+                <p className="text-subtitle text-lg">
+                  Next, the dealer makes an arrangement to collect your car for free at a convenient time. They will check your vehicle to ensure that it matches your profile and all payment is made before collection.
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 bg-primary">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-4xl font-bold text-white mb-8">
+            And you've sold a car without any hassle, thanks to Auto-Strada
+          </h2>
+          <div className="max-w-md mx-auto space-y-4">
+            <Input 
+              placeholder="Enter Reg" 
+              className="bg-white text-center text-lg"
+            />
+            <Button 
+              className="w-full bg-secondary hover:bg-secondary/90 text-white text-lg py-6"
+            >
+              Value your car
+              <span className="ml-2">→</span>
+            </Button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
