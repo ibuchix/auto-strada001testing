@@ -10,7 +10,7 @@ import { useRef } from "react";
 
 export const Hero = () => {
   const plugin = useRef(
-    Autoplay({ delay: 2000, stopOnInteraction: false })
+    Autoplay({ delay: 3500, stopOnInteraction: false })
   );
 
   const brands = [
@@ -71,7 +71,7 @@ export const Hero = () => {
                   loop: true,
                 }}
                 plugins={[plugin.current]}
-                className="w-full max-w-lg mx-auto py-6"
+                className="w-full max-w-lg mx-auto py-6 bg-gradient-to-b from-white to-gray-50"
               >
                 <CarouselContent className="-ml-2">
                   {brands.map((brand, index) => (
@@ -80,7 +80,7 @@ export const Hero = () => {
                         <img
                           src={brand.logo}
                           alt={brand.name}
-                          className="h-8 w-auto mx-auto opacity-40 hover:opacity-70 transition-opacity object-contain"
+                          className="h-10 w-auto mx-auto opacity-70 hover:opacity-100 transition-opacity object-contain"
                         />
                       </div>
                     </CarouselItem>
