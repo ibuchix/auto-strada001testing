@@ -10,7 +10,7 @@ export const Footer = () => {
             <div className="flex items-center space-x-2 mb-6">
               <img 
                 src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" 
-                alt="Autostrada Logo" 
+                alt="Auto-Strada Logo" 
                 className="h-16" 
               />
             </div>
@@ -36,7 +36,7 @@ export const Footer = () => {
           </div>
           
           <div>
-            <h3 className="text-white font-semibold mb-4">About Autostrada</h3>
+            <h3 className="text-white font-semibold mb-4">About Auto-Strada</h3>
             <ul className="space-y-2">
               <li><Link to="/about" className="hover:text-white transition-colors">About Us</Link></li>
               <li><Link to="/blog" className="hover:text-white transition-colors">Blog</Link></li>
@@ -56,7 +56,7 @@ export const Footer = () => {
           <div>
             <h3 className="text-white font-semibold mb-4">For dealers</h3>
             <ul className="space-y-2">
-              <li><Link to="/dealer-signup" className="hover:text-white transition-colors">Autostrada for dealers</Link></li>
+              <li><Link to="/dealer-signup" className="hover:text-white transition-colors">Auto-Strada for dealers</Link></li>
               <li><Link to="/terms" className="hover:text-white transition-colors">Terms & Conditions</Link></li>
               <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
             </ul>
@@ -66,7 +66,7 @@ export const Footer = () => {
         <div className="border-t border-gray-700 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-sm mb-4 md:mb-0">
-              © Autostrada {new Date().getFullYear()}. All rights reserved.
+              © Auto-Strada {new Date().getFullYear()}. All rights reserved.
             </div>
             <div className="flex space-x-4 text-sm">
               <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>

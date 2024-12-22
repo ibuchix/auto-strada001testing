@@ -43,7 +43,7 @@ export const Navigation = () => {
           <Link to="/" className="flex items-center space-x-2">
             <img 
               src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" 
-              alt="Autostrada Logo" 
+              alt="Auto-Strada Logo" 
               className="h-12" 
             />
           </Link>
