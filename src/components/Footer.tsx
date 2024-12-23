@@ -25,21 +25,12 @@ export const Footer = () => {
                 <Instagram size={20} />
               </a>
             </div>
-            <div className="mt-6 space-y-2">
-              <a href="#" className="block">
-                <img src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" alt="App Store" className="h-12" />
-              </a>
-              <a href="#" className="block">
-                <img src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" alt="Play Store" className="h-12" />
-              </a>
-            </div>
           </div>
           
           <div>
             <h3 className="text-white font-semibold mb-4">About Auto-Strada</h3>
             <ul className="space-y-2">
               <li><Link to="/about" className="hover:text-white transition-colors">About Us</Link></li>
-              <li><Link to="/blog" className="hover:text-white transition-colors">Blog</Link></li>
               <li><Link to="/contact" className="hover:text-white transition-colors">Contact</Link></li>
             </ul>
           </div>
@@ -71,7 +62,6 @@ export const Footer = () => {
             <div className="flex space-x-4 text-sm">
               <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
               <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
-              <Link to="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link>
             </div>
           </div>
         </div>
