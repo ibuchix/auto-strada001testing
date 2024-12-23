@@ -47,12 +47,18 @@ Deno.serve(async (req) => {
     // Calculate checksum
     const checksum = calculateChecksum(apiId, apiSecret, registration);
     
-    // Construct API URL
+    // Construct API URL - Fixed the URL construction
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${registration}/odometer:0/currency:PLN`;
     console.log('Making API request to:', apiUrl);
 
-    // Make API request
-    const response = await fetch(apiUrl);
+    // Make API request with proper headers
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
     
     console.log('API Response Status:', response.status);
     const responseText = await response.text();
