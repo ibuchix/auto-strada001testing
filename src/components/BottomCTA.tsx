@@ -10,7 +10,7 @@ export const BottomCTA = () => {
         <div className="max-w-md mx-auto space-y-4">
           <Input
             type="text"
-            placeholder="ENTER REG"
+            placeholder="ENTER VIN"
             className="h-14 text-center text-lg border-2 border-secondary bg-white placeholder:text-secondary rounded-none"
           />
           <Button 
