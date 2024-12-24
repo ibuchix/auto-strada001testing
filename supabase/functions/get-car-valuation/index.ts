@@ -15,7 +15,6 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -38,21 +37,12 @@ Deno.serve(async (req) => {
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
     
-    // Construct the full URL with query parameters
-    const url = new URL('https://bp.autoiso.pl/api/v3/getVinValuation');
-    url.searchParams.append('apiuid', apiId);
-    url.searchParams.append('checksum', checksum);
-    url.searchParams.append('vin', vin);
-    url.searchParams.append('odometer', '50000');
-    url.searchParams.append('currency', 'PLN');
-    url.searchParams.append('lang', 'en');
-    url.searchParams.append('country', 'PL');
-    url.searchParams.append('condition', 'good');
-    url.searchParams.append('equipment_level', 'standard');
+    // Construct API URL according to documentation format
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:en/country:PL/condition:good/equipment_level:standard`;
+    
+    console.log('Making API request to:', apiUrl);
 
-    console.log('Making API request to:', url.toString());
-
-    const response = await fetch(url.toString(), {
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -69,15 +59,21 @@ Deno.serve(async (req) => {
     const responseData = await response.json();
     console.log('API Response:', responseData);
 
+    // Check for API-specific error responses
+    if (responseData.apiStatus === 'ER') {
+      console.error('API returned error:', responseData);
+      throw new Error(responseData.message || 'API returned an error');
+    }
+
     // Transform the API response into our expected format
     const valuationResult = {
-      make: responseData.manufacturer || 'Not available',
+      make: responseData.manufacturer || responseData.make || 'Not available',
       model: responseData.model || 'Not available',
-      year: responseData.year_of_production || null,
+      year: responseData.year_of_production || responseData.year || null,
       vin: vin,
-      transmission: responseData.transmission_type || 'Not available',
-      fuelType: responseData.fuel_type || 'Not available',
-      valuation: responseData.market_value || 0
+      transmission: responseData.transmission_type || responseData.transmission || 'Not available',
+      fuelType: responseData.fuel_type || responseData.fuelType || 'Not available',
+      valuation: responseData.market_value || responseData.value || 0
     };
 
     return new Response(JSON.stringify(valuationResult), { 
