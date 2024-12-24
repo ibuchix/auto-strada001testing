@@ -45,15 +45,18 @@ Deno.serve(async (req) => {
     // Calculate checksum
     const checksum = calculateChecksum(apiId, apiSecret, vin);
     
-    // Construct API URL with proper encoding and English language parameter
+    // Construct API URL with proper encoding and all required parameters
     const baseUrl = 'https://bp.autoiso.pl/api/v3/getVinValuation';
     const params = new URLSearchParams({
       'apiuid': apiId,
       'checksum': checksum,
       'vin': vin,
-      'odometer': '0',
+      'odometer': '50000', // Add a default mileage
       'currency': 'PLN',
-      'lang': 'en'  // Add language parameter for English responses
+      'lang': 'en',  // English responses
+      'country': 'PL', // Required parameter for Poland
+      'condition': 'good', // Vehicle condition
+      'equipment_level': 'standard' // Standard equipment level
     });
 
     const apiUrl = `${baseUrl}?${params.toString()}`;
