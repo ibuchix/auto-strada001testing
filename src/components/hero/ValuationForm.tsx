@@ -29,14 +29,19 @@ export const ValuationForm = () => {
 
     try {
       const { data: valuationData, error: valuationError } = await supabase.functions.invoke('get-car-valuation', {
-        body: { registration: vin } // keeping registration as the key for backend compatibility
+        body: { registration: vin }
       });
 
-      if (valuationError) throw valuationError;
+      if (valuationError) {
+        console.error('Valuation error:', valuationError);
+        throw valuationError;
+      }
 
       if (!valuationData) {
         throw new Error('No data received from valuation service');
       }
+
+      console.log('Received valuation data:', valuationData);
 
       // Store the valuation data in localStorage instead of the database for anonymous users
       const valuationResult = {
