@@ -3,11 +3,9 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { crypto } from "https://deno.land/std/crypto/mod.ts";
 
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
-  // Concatenate the strings without any spaces or special characters
   const input = `${apiId}${apiSecret}${vin}`;
   console.log('Input string for checksum:', input);
   
-  // Create MD5 hash
   const hash = crypto.subtle.digestSync("MD5", new TextEncoder().encode(input));
   const checksum = Array.from(new Uint8Array(hash))
     .map(b => b.toString(16).padStart(2, '0'))
@@ -18,7 +16,6 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -31,7 +28,6 @@ Deno.serve(async (req) => {
       throw new Error('VIN number is required');
     }
 
-    // Get API credentials from environment variables
     const apiId = Deno.env.get('CAR_API_ID');
     const apiSecret = Deno.env.get('CAR_API_SECRET');
 
@@ -40,55 +36,47 @@ Deno.serve(async (req) => {
       throw new Error('API configuration error');
     }
 
-    console.log('Using API ID:', apiId);
-    
-    // Calculate checksum
     const checksum = calculateChecksum(apiId, apiSecret, vin);
     
-    // Construct API URL with proper encoding and all required parameters
+    // Construct the API URL with all required parameters
     const baseUrl = 'https://bp.autoiso.pl/api/v3/getVinValuation';
     const params = new URLSearchParams({
-      'apiuid': apiId,
-      'checksum': checksum,
-      'vin': vin,
-      'odometer': '50000', // Add a default mileage
-      'currency': 'PLN',
-      'lang': 'en',  // English responses
-      'country': 'PL', // Required parameter for Poland
-      'condition': 'good', // Vehicle condition
-      'equipment_level': 'standard' // Standard equipment level
+      apiuid: apiId,
+      checksum: checksum,
+      vin: vin,
+      odometer: '50000',
+      currency: 'PLN',
+      lang: 'en',
+      country: 'PL',
+      condition: 'good',
+      equipment_level: 'standard'
     });
 
-    const apiUrl = `${baseUrl}?${params.toString()}`;
+    const apiUrl = `${baseUrl}?${params}`;
     console.log('Making API request to:', apiUrl);
 
-    // Make API request
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    });
-    
+    const response = await fetch(apiUrl);
     console.log('API Response Status:', response.status);
-    const responseText = await response.text();
-    console.log('API Response Body:', responseText);
+    
+    const responseData = await response.json();
+    console.log('API Response Data:', responseData);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch car data: ${responseText}`);
+    if (responseData.apiStatus === 'ER') {
+      throw new Error(responseData.message || 'Failed to get vehicle data');
     }
 
-    let carData;
-    try {
-      carData = JSON.parse(responseText);
-    } catch (e) {
-      console.error('Failed to parse API response:', e);
-      throw new Error('Invalid response from valuation service');
-    }
+    // Transform the API response into our expected format
+    const valuationResult = {
+      make: responseData.manufacturer || 'Not available',
+      model: responseData.model || 'Not available',
+      year: responseData.year_of_production || null,
+      vin: vin,
+      transmission: responseData.transmission_type || 'Not available',
+      fuelType: responseData.fuel_type || 'Not available',
+      valuation: responseData.market_value || 0
+    };
 
-    // Return the response with CORS headers
-    return new Response(JSON.stringify(carData), { 
+    return new Response(JSON.stringify(valuationResult), { 
       headers: { 
         ...corsHeaders,
         'Content-Type': 'application/json'
@@ -98,7 +86,16 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error:', error.message);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        make: 'Not available',
+        model: 'Not available',
+        year: null,
+        vin: vin || '',
+        transmission: 'Not available',
+        fuelType: 'Not available',
+        valuation: 0
+      }),
       { 
         status: 500,
         headers: { 
