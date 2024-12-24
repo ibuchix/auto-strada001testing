@@ -1,4 +1,3 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { crypto } from "https://deno.land/std/crypto/mod.ts";
 
@@ -16,6 +15,7 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
 };
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -38,32 +38,36 @@ Deno.serve(async (req) => {
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
     
-    // Construct the API URL with all required parameters
-    const baseUrl = 'https://bp.autoiso.pl/api/v3/getVinValuation';
-    const params = new URLSearchParams({
-      apiuid: apiId,
-      checksum: checksum,
-      vin: vin,
-      odometer: '50000',
-      currency: 'PLN',
-      lang: 'en',
-      country: 'PL',
-      condition: 'good',
-      equipment_level: 'standard'
+    // Construct the full URL with query parameters
+    const url = new URL('https://bp.autoiso.pl/api/v3/getVinValuation');
+    url.searchParams.append('apiuid', apiId);
+    url.searchParams.append('checksum', checksum);
+    url.searchParams.append('vin', vin);
+    url.searchParams.append('odometer', '50000');
+    url.searchParams.append('currency', 'PLN');
+    url.searchParams.append('lang', 'en');
+    url.searchParams.append('country', 'PL');
+    url.searchParams.append('condition', 'good');
+    url.searchParams.append('equipment_level', 'standard');
+
+    console.log('Making API request to:', url.toString());
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
     });
 
-    const apiUrl = `${baseUrl}?${params}`;
-    console.log('Making API request to:', apiUrl);
-
-    const response = await fetch(apiUrl);
-    console.log('API Response Status:', response.status);
-    
-    const responseData = await response.json();
-    console.log('API Response Data:', responseData);
-
-    if (responseData.apiStatus === 'ER') {
-      throw new Error(responseData.message || 'Failed to get vehicle data');
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
+
+    const responseData = await response.json();
+    console.log('API Response:', responseData);
 
     // Transform the API response into our expected format
     const valuationResult = {
@@ -84,14 +88,15 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Error:', error.message);
+    console.error('Error:', error);
+    
     return new Response(
       JSON.stringify({ 
         error: error.message,
         make: 'Not available',
         model: 'Not available',
         year: null,
-        vin: vin || '',
+        vin: '',
         transmission: 'Not available',
         fuelType: 'Not available',
         valuation: 0
