@@ -50,6 +50,8 @@ export const ValuationForm = () => {
         year: valuationData.year,
         vin: vin,
         valuation: valuationData.valuation || 0,
+        transmission: valuationData.transmission_type || 'Not available',
+        fuelType: valuationData.fuel_type || 'Not available',
         timestamp: new Date().toISOString()
       };
 
@@ -98,10 +100,10 @@ export const ValuationForm = () => {
             <DialogTitle>Your Vehicle Valuation</DialogTitle>
           </DialogHeader>
           {valuationResult && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-subtitle">Make</p>
+                  <p className="text-sm text-subtitle">Manufacturer</p>
                   <p className="font-medium">{valuationResult.make}</p>
                 </div>
                 <div>
@@ -109,18 +111,26 @@ export const ValuationForm = () => {
                   <p className="font-medium">{valuationResult.model}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-subtitle">Year</p>
+                  <p className="text-sm text-subtitle">Year of Production</p>
                   <p className="font-medium">{valuationResult.year}</p>
                 </div>
                 <div>
                   <p className="text-sm text-subtitle">VIN</p>
                   <p className="font-medium">{valuationResult.vin}</p>
                 </div>
+                <div>
+                  <p className="text-sm text-subtitle">Transmission</p>
+                  <p className="font-medium">{valuationResult.transmission}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-subtitle">Fuel Type</p>
+                  <p className="font-medium">{valuationResult.fuelType}</p>
+                </div>
               </div>
               <div className="border-t pt-4">
-                <p className="text-sm text-subtitle mb-1">Estimated Value</p>
+                <p className="text-sm text-subtitle mb-1">Estimated Market Value</p>
                 <p className="text-2xl font-bold text-primary">
-                  £{valuationResult.valuation.toLocaleString()}
+                  PLN {valuationResult.valuation.toLocaleString()}
                 </p>
               </div>
             </div>
