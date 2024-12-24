@@ -1,15 +1,9 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ChevronRight } from "lucide-react";
+import { Dialog } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ValuationInput } from "./ValuationInput";
+import { ValuationResult } from "./ValuationResult";
 
 export const ValuationForm = () => {
   const [vin, setVin] = useState("");
@@ -43,7 +37,6 @@ export const ValuationForm = () => {
 
       console.log('Received valuation data:', valuationData);
 
-      // Store the valuation data in localStorage instead of the database for anonymous users
       const valuationResult = {
         make: valuationData.make,
         model: valuationData.model,
@@ -58,7 +51,7 @@ export const ValuationForm = () => {
       // Store in localStorage
       const previousValuations = JSON.parse(localStorage.getItem('carValuations') || '[]');
       previousValuations.unshift(valuationResult);
-      localStorage.setItem('carValuations', JSON.stringify(previousValuations.slice(0, 5))); // Keep last 5 valuations
+      localStorage.setItem('carValuations', JSON.stringify(previousValuations.slice(0, 5)));
 
       setValuationResult(valuationResult);
       setShowDialog(true);
@@ -75,67 +68,15 @@ export const ValuationForm = () => {
 
   return (
     <>
-      <form onSubmit={handleValuation} className="space-y-4 max-w-sm mx-auto">
-        <Input
-          type="text"
-          placeholder="ENTER VIN"
-          value={vin}
-          onChange={(e) => setVin(e.target.value)}
-          className="h-12 text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md"
-          disabled={isLoading}
-        />
-        <Button 
-          type="submit" 
-          className="w-full h-12 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-md flex items-center justify-center gap-2"
-          disabled={isLoading}
-        >
-          {isLoading ? "GETTING VALUATION..." : "VALUE YOUR CAR"}
-          <ChevronRight className="w-5 h-5" />
-        </Button>
-      </form>
+      <ValuationInput
+        vin={vin}
+        isLoading={isLoading}
+        onVinChange={setVin}
+        onSubmit={handleValuation}
+      />
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Your Vehicle Valuation</DialogTitle>
-          </DialogHeader>
-          {valuationResult && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-subtitle">Manufacturer</p>
-                  <p className="font-medium">{valuationResult.make}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-subtitle">Model</p>
-                  <p className="font-medium">{valuationResult.model}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-subtitle">Year of Production</p>
-                  <p className="font-medium">{valuationResult.year}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-subtitle">VIN</p>
-                  <p className="font-medium">{valuationResult.vin}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-subtitle">Transmission</p>
-                  <p className="font-medium">{valuationResult.transmission}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-subtitle">Fuel Type</p>
-                  <p className="font-medium">{valuationResult.fuelType}</p>
-                </div>
-              </div>
-              <div className="border-t pt-4">
-                <p className="text-sm text-subtitle mb-1">Estimated Market Value</p>
-                <p className="text-2xl font-bold text-primary">
-                  PLN {valuationResult.valuation.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          )}
-        </DialogContent>
+        <ValuationResult valuationResult={valuationResult} />
       </Dialog>
     </>
   );
