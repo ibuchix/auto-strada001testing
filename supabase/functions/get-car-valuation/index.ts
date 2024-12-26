@@ -35,10 +35,11 @@ Deno.serve(async (req) => {
       throw new Error('API configuration error');
     }
 
+    console.log('API Credentials:', { apiId });
     const checksum = calculateChecksum(apiId, apiSecret, vin);
     
-    // Changed lang parameter from 'en' to 'pl' for Polish language
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
+    // Using all possible parameters to get maximum data
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard/detailed:true`;
     
     console.log('Making API request to:', apiUrl);
 
@@ -57,7 +58,7 @@ Deno.serve(async (req) => {
     }
 
     const responseData = await response.json();
-    console.log('API Response:', responseData);
+    console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
 
     // Check for API-specific error responses
     if (responseData.apiStatus === 'ER') {
@@ -65,16 +66,47 @@ Deno.serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
-    // Transform the API response into our expected format
+    // Try to extract data from various possible response structures
     const valuationResult = {
-      make: responseData.manufacturer || responseData.make || responseData.marka || 'Not available',
-      model: responseData.model || responseData.model_name || 'Not available',
-      year: responseData.year_of_production || responseData.year || responseData.rok_produkcji || null,
+      make: responseData.marka || 
+            responseData.manufacturer || 
+            responseData.make || 
+            responseData.vehicle?.make ||
+            'Not available',
+            
+      model: responseData.model || 
+             responseData.model_name || 
+             responseData.vehicle?.model ||
+             'Not available',
+             
+      year: responseData.rok_produkcji || 
+            responseData.year_of_production || 
+            responseData.year || 
+            responseData.vehicle?.year ||
+            null,
+            
       vin: vin,
-      transmission: responseData.transmission_type || responseData.transmission || responseData.skrzynia_biegow || 'Not available',
-      fuelType: responseData.fuel_type || responseData.fuelType || responseData.rodzaj_paliwa || 'Not available',
-      valuation: responseData.market_value || responseData.value || responseData.wartosc_rynkowa || 0
+      
+      transmission: responseData.skrzynia_biegow || 
+                   responseData.transmission_type || 
+                   responseData.transmission || 
+                   responseData.vehicle?.transmission ||
+                   'Not available',
+                   
+      fuelType: responseData.rodzaj_paliwa || 
+                responseData.fuel_type || 
+                responseData.fuelType || 
+                responseData.vehicle?.fuelType ||
+                'Not available',
+                
+      valuation: responseData.wartosc_rynkowa || 
+                 responseData.market_value || 
+                 responseData.value || 
+                 responseData.vehicle?.value ||
+                 0
     };
+
+    console.log('Transformed valuation result:', valuationResult);
 
     return new Response(JSON.stringify(valuationResult), { 
       headers: { 
