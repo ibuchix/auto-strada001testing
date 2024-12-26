@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
     
-    // Construct API URL according to documentation format
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:en/country:PL/condition:good/equipment_level:standard`;
+    // Changed lang parameter from 'en' to 'pl' for Polish language
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
     
     console.log('Making API request to:', apiUrl);
 
@@ -67,13 +67,13 @@ Deno.serve(async (req) => {
 
     // Transform the API response into our expected format
     const valuationResult = {
-      make: responseData.manufacturer || responseData.make || 'Not available',
-      model: responseData.model || 'Not available',
-      year: responseData.year_of_production || responseData.year || null,
+      make: responseData.manufacturer || responseData.make || responseData.marka || 'Not available',
+      model: responseData.model || responseData.model_name || 'Not available',
+      year: responseData.year_of_production || responseData.year || responseData.rok_produkcji || null,
       vin: vin,
-      transmission: responseData.transmission_type || responseData.transmission || 'Not available',
-      fuelType: responseData.fuel_type || responseData.fuelType || 'Not available',
-      valuation: responseData.market_value || responseData.value || 0
+      transmission: responseData.transmission_type || responseData.transmission || responseData.skrzynia_biegow || 'Not available',
+      fuelType: responseData.fuel_type || responseData.fuelType || responseData.rodzaj_paliwa || 'Not available',
+      valuation: responseData.market_value || responseData.value || responseData.wartosc_rynkowa || 0
     };
 
     return new Response(JSON.stringify(valuationResult), { 
