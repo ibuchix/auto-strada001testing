@@ -27,15 +27,18 @@ Deno.serve(async (req) => {
       throw new Error('VIN number is required');
     }
 
-    const apiId = Deno.env.get('CAR_API_ID');
+    // Using hardcoded API ID as per documentation
+    const apiId = 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET');
 
-    if (!apiId || !apiSecret) {
-      throw new Error('API configuration error: Missing credentials');
+    if (!apiSecret) {
+      throw new Error('API configuration error: Missing API secret');
     }
 
+    console.log('Using API ID:', apiId);
+
     const checksum = calculateChecksum(apiId, apiSecret, vin);
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN`;
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
 
     console.log('Constructed API URL:', apiUrl);
 
@@ -49,6 +52,7 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('API Error Response:', errorText);
       throw new Error(`API request failed: ${response.status} ${response.statusText}. Details: ${errorText}`);
     }
 
@@ -56,6 +60,7 @@ Deno.serve(async (req) => {
     console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
 
     if (responseData.apiStatus === 'ER') {
+      console.error('API Error Status:', responseData);
       throw new Error(responseData.message || 'API returned an error');
     }
 
