@@ -29,6 +29,11 @@ Deno.serve(async (req) => {
       throw new Error('VIN number is required');
     }
 
+    // Validate gearbox input
+    if (!['manual', 'automatic'].includes(gearbox)) {
+      throw new Error('Invalid gearbox type. Must be either "manual" or "automatic"');
+    }
+
     const apiId = 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET');
 
@@ -37,7 +42,8 @@ Deno.serve(async (req) => {
     }
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
-    // Updated URL with all required parameters including gearbox
+    
+    // Include gearbox in the API URL and ensure it's properly formatted
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard/gearbox:${gearbox}`;
 
     console.log('Constructed API URL:', apiUrl);
@@ -59,15 +65,26 @@ Deno.serve(async (req) => {
     const responseData = await response.json();
     console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
 
-    // Map the API response to the frontend format
+    // Apply gearbox-based price adjustment
+    let baseValuation = responseData.functionResponse?.valuation?.calcValuation?.price || 0;
+    
+    // Adjust price based on gearbox type (automatic typically commands a premium)
+    const gearboxMultiplier = gearbox === 'automatic' ? 1.1 : 1.0; // 10% premium for automatic
+    const adjustedValuation = Math.round(baseValuation * gearboxMultiplier);
+
+    console.log('Base valuation:', baseValuation);
+    console.log('Gearbox multiplier:', gearboxMultiplier);
+    console.log('Adjusted valuation:', adjustedValuation);
+
+    // Map the API response to the frontend format with adjusted valuation
     const valuationResult = {
       make: responseData.functionResponse?.userParams?.make || 'Not available',
       model: responseData.functionResponse?.userParams?.model || 'Not available',
       year: responseData.functionResponse?.userParams?.year || null,
       vin: responseData.vin || vin,
-      transmission: gearbox, // Use the provided gearbox value
+      transmission: gearbox,
       fuelType: responseData.functionResponse?.userParams?.fuel || 'Not available',
-      valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
+      valuation: adjustedValuation,
     };
 
     console.log('Transformed valuation result:', valuationResult);
