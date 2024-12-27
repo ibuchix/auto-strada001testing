@@ -35,8 +35,7 @@ Deno.serve(async (req) => {
     }
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
-    // Using getVinInfo endpoint which provides basic vehicle information
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinInfo/apiuid:${apiId}/checksum:${checksum}/vin:${vin}`;
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN`;
 
     console.log('Constructed API URL:', apiUrl);
 
@@ -60,17 +59,15 @@ Deno.serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
-    // Extract data from the vehicle object in the response
-    const vehicleData = responseData.vehicle || responseData;
-    
+    // Extract data from the response
     const valuationResult = {
-      make: vehicleData.marka || vehicleData.make || 'Not available',
-      model: vehicleData.model || 'Not available',
-      year: vehicleData.rok_produkcji || vehicleData.year || null,
+      make: responseData.marka || responseData.manufacturer || 'Not available',
+      model: responseData.model || 'Not available',
+      year: responseData.rok_produkcji || responseData.year || null,
       vin: vin,
-      transmission: vehicleData.skrzynia_biegow || vehicleData.transmission || 'Not available',
-      fuelType: vehicleData.rodzaj_paliwa || vehicleData.fuel_type || 'Not available',
-      valuation: 50000 // Default value since we're using getVinInfo endpoint
+      transmission: responseData.skrzynia_biegow || responseData.transmission_type || 'Not available',
+      fuelType: responseData.rodzaj_paliwa || responseData.fuel_type || 'Not available',
+      valuation: responseData.wartosc_rynkowa || responseData.market_value || 0
     };
 
     console.log('Transformed valuation result:', valuationResult);
