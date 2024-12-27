@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
     console.log('Using API ID:', apiId);
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
+    // Updated URL to use Polish language (lang:pl) and Polish currency
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
 
     console.log('Making API request to:', apiUrl);
