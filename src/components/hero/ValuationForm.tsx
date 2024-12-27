@@ -8,6 +8,7 @@ import { ValuationResult } from "./ValuationResult";
 export const ValuationForm = () => {
   const [vin, setVin] = useState("");
   const [mileage, setMileage] = useState("");
+  const [gearbox, setGearbox] = useState("manual");
   const [isLoading, setIsLoading] = useState(false);
   const [valuationResult, setValuationResult] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
@@ -25,13 +26,19 @@ export const ValuationForm = () => {
       return;
     }
 
+    if (!gearbox) {
+      toast.error("Please select your vehicle's transmission type");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const { data: valuationData, error: valuationError } = await supabase.functions.invoke('get-car-valuation', {
         body: { 
           registration: vin,
-          mileage: parseInt(mileage)
+          mileage: parseInt(mileage),
+          gearbox: gearbox
         }
       });
 
@@ -52,7 +59,7 @@ export const ValuationForm = () => {
         year: valuationData.year,
         vin: vin,
         valuation: valuationData.valuation || 0,
-        transmission: valuationData.transmission || 'Not available',
+        transmission: gearbox,
         fuelType: valuationData.fuelType || 'Not available',
         timestamp: new Date().toISOString()
       };
@@ -67,6 +74,7 @@ export const ValuationForm = () => {
       toast.success("Vehicle valuation completed successfully!");
       setVin("");
       setMileage("");
+      setGearbox("manual");
       
     } catch (error) {
       console.error('Valuation error:', error);
@@ -81,9 +89,11 @@ export const ValuationForm = () => {
       <ValuationInput
         vin={vin}
         mileage={mileage}
+        gearbox={gearbox}
         isLoading={isLoading}
         onVinChange={setVin}
         onMileageChange={setMileage}
+        onGearboxChange={setGearbox}
         onSubmit={handleValuation}
       />
 

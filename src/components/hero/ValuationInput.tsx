@@ -1,27 +1,33 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 interface ValuationInputProps {
   vin: string;
   mileage: string;
+  gearbox: string;
   isLoading: boolean;
   onVinChange: (value: string) => void;
   onMileageChange: (value: string) => void;
+  onGearboxChange: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
 
 export const ValuationInput = ({ 
   vin, 
   mileage,
+  gearbox,
   isLoading, 
   onVinChange,
-  onMileageChange, 
+  onMileageChange,
+  onGearboxChange,
   onSubmit 
 }: ValuationInputProps) => {
   return (
-    <form onSubmit={onSubmit} className="space-y-4 max-w-sm mx-auto">
-      <div className="space-y-3">
+    <form onSubmit={onSubmit} className="space-y-6 max-w-sm mx-auto">
+      <div className="space-y-4">
         <Input
           type="text"
           placeholder="ENTER VIN"
@@ -39,6 +45,22 @@ export const ValuationInput = ({
           disabled={isLoading}
           min="0"
         />
+        <div className="bg-white border-2 border-secondary/20 rounded-md p-4">
+          <RadioGroup
+            value={gearbox}
+            onValueChange={onGearboxChange}
+            className="flex gap-6"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="manual" id="manual" />
+              <Label htmlFor="manual" className="font-medium cursor-pointer">Manual</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="automatic" id="automatic" />
+              <Label htmlFor="automatic" className="font-medium cursor-pointer">Automatic</Label>
+            </div>
+          </RadioGroup>
+        </div>
       </div>
       <Button 
         type="submit" 
