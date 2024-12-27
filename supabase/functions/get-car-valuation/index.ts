@@ -1,32 +1,11 @@
-import { corsHeaders } from '../_shared/cors.ts'
-import { crypto } from "https://deno.land/std/crypto/mod.ts";
-
-// Updated interface to match the actual API response structure
-interface ValuationResponse {
-  functionResponse?: {
-    userParams?: {
-      make?: string;
-      model?: string;
-      year?: number;
-      gearbox?: string;
-      fuel?: string;
-    };
-    valuation?: {
-      calcValuation?: {
-        price?: number;
-      };
-    };
-  };
-  vin?: string;
-  message?: string;
-  status?: string;
-}
+import { corsHeaders } from '../_shared/cors.ts';
+import { crypto } from 'https://deno.land/std/crypto/mod.ts';
 
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
   const input = `${apiId}${apiSecret}${vin}`;
   console.log('Input string for checksum:', input);
 
-  const hash = crypto.subtle.digestSync("MD5", new TextEncoder().encode(input));
+  const hash = crypto.subtle.digestSync('MD5', new TextEncoder().encode(input));
   const checksum = Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
@@ -48,19 +27,17 @@ Deno.serve(async (req) => {
       throw new Error('VIN number is required');
     }
 
-    const apiId = 'AUTOSTRA';
+    const apiId = 'AUTOSTRA'; // Static API ID
     const apiSecret = Deno.env.get('CAR_API_SECRET');
 
     if (!apiSecret) {
       throw new Error('API configuration error: Missing API secret');
     }
 
-    console.log('Using API ID:', apiId);
-
     const checksum = calculateChecksum(apiId, apiSecret, vin);
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}`;
 
-    console.log('Making API request to:', apiUrl);
+    console.log('Constructed API URL:', apiUrl);
 
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -76,27 +53,22 @@ Deno.serve(async (req) => {
       throw new Error(`API request failed: ${response.status} ${response.statusText}. Details: ${errorText}`);
     }
 
-    const responseData: ValuationResponse = await response.json();
+    const responseData = await response.json();
     console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
 
-    if (responseData.status === 'ER') {
-      console.error('API Error Status:', responseData);
-      throw new Error(responseData.message || 'API returned an error');
-    }
-
-    // Updated field mapping to match the new response structure
+    // Map the API response to the frontend format
     const valuationResult = {
       make: responseData.functionResponse?.userParams?.make || 'Not available',
       model: responseData.functionResponse?.userParams?.model || 'Not available',
       year: responseData.functionResponse?.userParams?.year || null,
-      vin: responseData.vin || vin,
+      vin: responseData.vin || 'Not available',
       transmission: responseData.functionResponse?.userParams?.gearbox || 'Not available',
       fuelType: responseData.functionResponse?.userParams?.fuel || 'Not available',
       valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
     };
 
     console.log('Transformed valuation result:', valuationResult);
-    
+
     return new Response(JSON.stringify(valuationResult), {
       headers: {
         ...corsHeaders,
