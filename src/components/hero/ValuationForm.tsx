@@ -7,6 +7,7 @@ import { ValuationResult } from "./ValuationResult";
 
 export const ValuationForm = () => {
   const [vin, setVin] = useState("");
+  const [mileage, setMileage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [valuationResult, setValuationResult] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
@@ -19,11 +20,19 @@ export const ValuationForm = () => {
       return;
     }
 
+    if (!mileage) {
+      toast.error("Please enter your vehicle's mileage");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const { data: valuationData, error: valuationError } = await supabase.functions.invoke('get-car-valuation', {
-        body: { registration: vin }
+        body: { 
+          registration: vin,
+          mileage: parseInt(mileage)
+        }
       });
 
       if (valuationError) {
@@ -43,8 +52,8 @@ export const ValuationForm = () => {
         year: valuationData.year,
         vin: vin,
         valuation: valuationData.valuation || 0,
-        transmission: valuationData.transmission_type || 'Not available',
-        fuelType: valuationData.fuel_type || 'Not available',
+        transmission: valuationData.transmission || 'Not available',
+        fuelType: valuationData.fuelType || 'Not available',
         timestamp: new Date().toISOString()
       };
 
@@ -57,6 +66,7 @@ export const ValuationForm = () => {
       setShowDialog(true);
       toast.success("Vehicle valuation completed successfully!");
       setVin("");
+      setMileage("");
       
     } catch (error) {
       console.error('Valuation error:', error);
@@ -70,8 +80,10 @@ export const ValuationForm = () => {
     <>
       <ValuationInput
         vin={vin}
+        mileage={mileage}
         isLoading={isLoading}
         onVinChange={setVin}
+        onMileageChange={setMileage}
         onSubmit={handleValuation}
       />
 

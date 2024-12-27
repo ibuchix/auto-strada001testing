@@ -20,8 +20,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { registration: vin } = await req.json();
+    const { registration: vin, mileage = 50000 } = await req.json();
     console.log('Received VIN:', vin);
+    console.log('Received mileage:', mileage);
 
     if (!vin) {
       throw new Error('VIN number is required');
@@ -35,8 +36,8 @@ Deno.serve(async (req) => {
     }
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
-    // Updated URL with all required parameters
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
+    // Updated URL with all required parameters including mileage
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
 
     console.log('Constructed API URL:', apiUrl);
 
