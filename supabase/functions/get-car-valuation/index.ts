@@ -1,14 +1,20 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { crypto } from "https://deno.land/std/crypto/mod.ts";
 
+// Updated interface based on actual API response structure
 interface ValuationResponse {
   status?: string;
-  marka?: string;
-  model?: string;
-  rok_produkcji?: string;
-  skrzynia_biegow?: string;
-  rodzaj_paliwa?: string;
-  wartosc_rynkowa?: string;
+  dane_pojazdu?: {
+    marka?: string;
+    model?: string;
+    rok_produkcji?: string;
+    skrzynia_biegow?: string;
+    rodzaj_paliwa?: string;
+  };
+  wartosc_rynkowa?: {
+    wartosc?: string;
+    waluta?: string;
+  };
   message?: string;
 }
 
@@ -51,7 +57,7 @@ Deno.serve(async (req) => {
     const checksum = calculateChecksum(apiId, apiSecret, vin);
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
 
-    console.log('Constructed API URL:', apiUrl);
+    console.log('Making API request to:', apiUrl);
 
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -82,17 +88,18 @@ Deno.serve(async (req) => {
       return isNaN(numericValue) ? 0 : numericValue;
     };
 
-    // Map Polish field names to English with proper type handling
+    // Map fields from nested structure with proper type handling
     const valuationResult = {
-      make: responseData.marka || 'Not available',
-      model: responseData.model || 'Not available',
-      year: responseData.rok_produkcji ? parseInt(responseData.rok_produkcji) : null,
+      make: responseData.dane_pojazdu?.marka || 'Not available',
+      model: responseData.dane_pojazdu?.model || 'Not available',
+      year: responseData.dane_pojazdu?.rok_produkcji ? parseInt(responseData.dane_pojazdu.rok_produkcji) : null,
       vin: vin,
-      transmission: responseData.skrzynia_biegow || 'Not available',
-      fuelType: responseData.rodzaj_paliwa || 'Not available',
-      valuation: parseNumericValue(responseData.wartosc_rynkowa)
+      transmission: responseData.dane_pojazdu?.skrzynia_biegow || 'Not available',
+      fuelType: responseData.dane_pojazdu?.rodzaj_paliwa || 'Not available',
+      valuation: parseNumericValue(responseData.wartosc_rynkowa?.wartosc)
     };
 
+    console.log('Vehicle Data Structure:', responseData.dane_pojazdu ? Object.keys(responseData.dane_pojazdu) : 'No vehicle data');
     console.log('Transformed valuation result:', valuationResult);
     
     return new Response(JSON.stringify(valuationResult), {
