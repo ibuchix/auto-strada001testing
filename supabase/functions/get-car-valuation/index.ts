@@ -20,9 +20,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { registration: vin, mileage = 50000 } = await req.json();
+    const { registration: vin, mileage = 50000, gearbox = 'manual' } = await req.json();
     console.log('Received VIN:', vin);
     console.log('Received mileage:', mileage);
+    console.log('Received gearbox:', gearbox);
 
     if (!vin) {
       throw new Error('VIN number is required');
@@ -36,8 +37,8 @@ Deno.serve(async (req) => {
     }
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
-    // Updated URL with all required parameters including mileage
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
+    // Updated URL with all required parameters including gearbox
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard/gearbox:${gearbox}`;
 
     console.log('Constructed API URL:', apiUrl);
 
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
       model: responseData.functionResponse?.userParams?.model || 'Not available',
       year: responseData.functionResponse?.userParams?.year || null,
       vin: responseData.vin || vin,
-      transmission: responseData.functionResponse?.userParams?.gearbox || 'Not available',
+      transmission: gearbox, // Use the provided gearbox value
       fuelType: responseData.functionResponse?.userParams?.fuel || 'Not available',
       valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
     };
