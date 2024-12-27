@@ -1,19 +1,28 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { crypto } from "https://deno.land/std/crypto/mod.ts";
 
-// Updated interface based on actual API response structure
+// Updated interface to handle multiple possible response structures
 interface ValuationResponse {
   status?: string;
-  dane_pojazdu?: {
-    marka?: string;
+  marka?: string;
+  manufacturer?: string;
+  model?: string;
+  model_name?: string;
+  rok_produkcji?: string;
+  year_of_production?: string;
+  skrzynia_biegow?: string;
+  transmission?: string;
+  rodzaj_paliwa?: string;
+  fuel_type?: string;
+  wartosc_rynkowa?: string;
+  market_value?: string | number;
+  vehicle?: {
+    make?: string;
     model?: string;
-    rok_produkcji?: string;
-    skrzynia_biegow?: string;
-    rodzaj_paliwa?: string;
-  };
-  wartosc_rynkowa?: {
-    wartosc?: string;
-    waluta?: string;
+    year?: string | number;
+    transmission?: string;
+    fuelType?: string;
+    value?: string | number;
   };
   message?: string;
 }
@@ -81,25 +90,24 @@ Deno.serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
-    // Parse numeric values safely
-    const parseNumericValue = (value: string | undefined): number => {
-      if (!value) return 0;
-      const numericValue = parseFloat(value.replace(/[^0-9.-]+/g, ''));
-      return isNaN(numericValue) ? 0 : numericValue;
-    };
-
-    // Map fields from nested structure with proper type handling
+    // Updated field mapping with multiple fallbacks
     const valuationResult = {
-      make: responseData.dane_pojazdu?.marka || 'Not available',
-      model: responseData.dane_pojazdu?.model || 'Not available',
-      year: responseData.dane_pojazdu?.rok_produkcji ? parseInt(responseData.dane_pojazdu.rok_produkcji) : null,
+      make: responseData.marka || responseData.manufacturer || responseData.vehicle?.make || 'Not available',
+      model: responseData.model || responseData.model_name || responseData.vehicle?.model || 'Not available',
+      year: parseInt(responseData.rok_produkcji || responseData.year_of_production || responseData.vehicle?.year?.toString() || '') || null,
       vin: vin,
-      transmission: responseData.dane_pojazdu?.skrzynia_biegow || 'Not available',
-      fuelType: responseData.dane_pojazdu?.rodzaj_paliwa || 'Not available',
-      valuation: parseNumericValue(responseData.wartosc_rynkowa?.wartosc)
+      transmission: responseData.skrzynia_biegow || responseData.transmission || responseData.vehicle?.transmission || 'Not available',
+      fuelType: responseData.rodzaj_paliwa || responseData.fuel_type || responseData.vehicle?.fuelType || 'Not available',
+      valuation: parseFloat(
+        (typeof responseData.wartosc_rynkowa === 'string' ? responseData.wartosc_rynkowa.replace(/[^0-9.-]+/g, '') : responseData.wartosc_rynkowa) ||
+        responseData.market_value?.toString() ||
+        responseData.vehicle?.value?.toString() ||
+        '0'
+      ) || 0
     };
 
-    console.log('Vehicle Data Structure:', responseData.dane_pojazdu ? Object.keys(responseData.dane_pojazdu) : 'No vehicle data');
+    console.log('Response Data Structure:', Object.keys(responseData));
+    console.log('Vehicle Data Structure:', responseData.vehicle ? Object.keys(responseData.vehicle) : 'No vehicle data');
     console.log('Transformed valuation result:', valuationResult);
     
     return new Response(JSON.stringify(valuationResult), {
