@@ -64,15 +64,15 @@ Deno.serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
-    // Extract data from the response
+    // Map Polish field names to English
     const valuationResult = {
-      make: responseData.marka || responseData.manufacturer || 'Not available',
+      make: responseData.marka || 'Not available',
       model: responseData.model || 'Not available',
-      year: responseData.rok_produkcji || responseData.year || null,
+      year: parseInt(responseData.rok_produkcji) || null,
       vin: vin,
-      transmission: responseData.skrzynia_biegow || responseData.transmission_type || 'Not available',
-      fuelType: responseData.rodzaj_paliwa || responseData.fuel_type || 'Not available',
-      valuation: responseData.wartosc_rynkowa || responseData.market_value || 0
+      transmission: responseData.skrzynia_biegow || 'Not available',
+      fuelType: responseData.rodzaj_paliwa || 'Not available',
+      valuation: parseFloat(responseData.wartosc_rynkowa?.replace(/[^0-9.-]+/g, '')) || 0
     };
 
     console.log('Transformed valuation result:', valuationResult);
