@@ -1,6 +1,17 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { crypto } from "https://deno.land/std/crypto/mod.ts";
 
+interface ValuationResponse {
+  status?: string;
+  marka?: string;
+  model?: string;
+  rok_produkcji?: string;
+  skrzynia_biegow?: string;
+  rodzaj_paliwa?: string;
+  wartosc_rynkowa?: string;
+  message?: string;
+}
+
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
   const input = `${apiId}${apiSecret}${vin}`;
   console.log('Input string for checksum:', input);
@@ -56,26 +67,34 @@ Deno.serve(async (req) => {
       throw new Error(`API request failed: ${response.status} ${response.statusText}. Details: ${errorText}`);
     }
 
-    const responseData = await response.json();
+    const responseData: ValuationResponse = await response.json();
     console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
 
-    if (responseData.apiStatus === 'ER') {
+    if (responseData.status === 'ER') {
       console.error('API Error Status:', responseData);
       throw new Error(responseData.message || 'API returned an error');
     }
 
-    // Map Polish field names to English
+    // Parse numeric values safely
+    const parseNumericValue = (value: string | undefined): number => {
+      if (!value) return 0;
+      const numericValue = parseFloat(value.replace(/[^0-9.-]+/g, ''));
+      return isNaN(numericValue) ? 0 : numericValue;
+    };
+
+    // Map Polish field names to English with proper type handling
     const valuationResult = {
       make: responseData.marka || 'Not available',
       model: responseData.model || 'Not available',
-      year: parseInt(responseData.rok_produkcji) || null,
+      year: responseData.rok_produkcji ? parseInt(responseData.rok_produkcji) : null,
       vin: vin,
       transmission: responseData.skrzynia_biegow || 'Not available',
       fuelType: responseData.rodzaj_paliwa || 'Not available',
-      valuation: parseFloat(responseData.wartosc_rynkowa?.replace(/[^0-9.-]+/g, '')) || 0
+      valuation: parseNumericValue(responseData.wartosc_rynkowa)
     };
 
     console.log('Transformed valuation result:', valuationResult);
+    
     return new Response(JSON.stringify(valuationResult), {
       headers: {
         ...corsHeaders,
