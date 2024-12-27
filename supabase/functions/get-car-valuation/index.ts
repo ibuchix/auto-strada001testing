@@ -1,30 +1,25 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { crypto } from "https://deno.land/std/crypto/mod.ts";
 
-// Updated interface to handle multiple possible response structures
+// Updated interface to match the actual API response structure
 interface ValuationResponse {
-  status?: string;
-  marka?: string;
-  manufacturer?: string;
-  model?: string;
-  model_name?: string;
-  rok_produkcji?: string;
-  year_of_production?: string;
-  skrzynia_biegow?: string;
-  transmission?: string;
-  rodzaj_paliwa?: string;
-  fuel_type?: string;
-  wartosc_rynkowa?: string;
-  market_value?: string | number;
-  vehicle?: {
-    make?: string;
-    model?: string;
-    year?: string | number;
-    transmission?: string;
-    fuelType?: string;
-    value?: string | number;
+  functionResponse?: {
+    userParams?: {
+      make?: string;
+      model?: string;
+      year?: number;
+      gearbox?: string;
+      fuel?: string;
+    };
+    valuation?: {
+      calcValuation?: {
+        price?: number;
+      };
+    };
   };
+  vin?: string;
   message?: string;
+  status?: string;
 }
 
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
@@ -53,7 +48,6 @@ Deno.serve(async (req) => {
       throw new Error('VIN number is required');
     }
 
-    // Using hardcoded API ID as per documentation
     const apiId = 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET');
 
@@ -64,7 +58,6 @@ Deno.serve(async (req) => {
     console.log('Using API ID:', apiId);
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
-    // Updated URL to use Polish language (lang:pl) and Polish currency
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:50000/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
 
     console.log('Making API request to:', apiUrl);
@@ -91,24 +84,17 @@ Deno.serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
-    // Updated field mapping with multiple fallbacks
+    // Updated field mapping to match the new response structure
     const valuationResult = {
-      make: responseData.marka || responseData.manufacturer || responseData.vehicle?.make || 'Not available',
-      model: responseData.model || responseData.model_name || responseData.vehicle?.model || 'Not available',
-      year: parseInt(responseData.rok_produkcji || responseData.year_of_production || responseData.vehicle?.year?.toString() || '') || null,
-      vin: vin,
-      transmission: responseData.skrzynia_biegow || responseData.transmission || responseData.vehicle?.transmission || 'Not available',
-      fuelType: responseData.rodzaj_paliwa || responseData.fuel_type || responseData.vehicle?.fuelType || 'Not available',
-      valuation: parseFloat(
-        (typeof responseData.wartosc_rynkowa === 'string' ? responseData.wartosc_rynkowa.replace(/[^0-9.-]+/g, '') : responseData.wartosc_rynkowa) ||
-        responseData.market_value?.toString() ||
-        responseData.vehicle?.value?.toString() ||
-        '0'
-      ) || 0
+      make: responseData.functionResponse?.userParams?.make || 'Not available',
+      model: responseData.functionResponse?.userParams?.model || 'Not available',
+      year: responseData.functionResponse?.userParams?.year || null,
+      vin: responseData.vin || vin,
+      transmission: responseData.functionResponse?.userParams?.gearbox || 'Not available',
+      fuelType: responseData.functionResponse?.userParams?.fuel || 'Not available',
+      valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
     };
 
-    console.log('Response Data Structure:', Object.keys(responseData));
-    console.log('Vehicle Data Structure:', responseData.vehicle ? Object.keys(responseData.vehicle) : 'No vehicle data');
     console.log('Transformed valuation result:', valuationResult);
     
     return new Response(JSON.stringify(valuationResult), {
