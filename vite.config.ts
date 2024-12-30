@@ -8,6 +8,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    // Add middleware to handle client-side routing
+    middlewareMode: false,
+  },
+  preview: {
+    // Handle client-side routing in preview mode
+    historyApiFallback: true,
   },
   plugins: [
     react(),
