@@ -17,8 +17,8 @@ export const useCarListingForm = (userId?: string) => {
     defaultValues: getFormDefaults(),
   });
 
-  useLoadDraft(form, userId, setCarId, setLastSaved);
-  useFormAutoSave(form, userId, carId, setLastSaved, valuationData);
+  useLoadDraft(form, setCarId, setLastSaved, userId);
+  useFormAutoSave(form, setLastSaved, valuationData, userId, carId);
 
   const onSubmit = async (data: CarListingFormData) => {
     setIsSubmitting(true);

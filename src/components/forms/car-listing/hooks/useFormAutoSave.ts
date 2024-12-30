@@ -5,10 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const useFormAutoSave = (
   form: UseFormReturn<CarListingFormData>,
-  userId?: string,
-  carId?: string,
   setLastSaved: (date: Date) => void,
-  valuationData: any
+  valuationData: any,
+  userId?: string,
+  carId?: string
 ) => {
   useEffect(() => {
     const autoSave = async () => {

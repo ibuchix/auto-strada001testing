@@ -3,12 +3,13 @@ import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { isCarFeatures } from "@/utils/typeGuards";
+import { getDefaultCarFeatures } from "@/utils/typeGuards";
 
 export const useLoadDraft = (
   form: UseFormReturn<CarListingFormData>,
-  userId?: string,
   setCarId: (id: string) => void,
-  setLastSaved: (date: Date) => void
+  setLastSaved: (date: Date) => void,
+  userId?: string
 ) => {
   useEffect(() => {
     const loadDraft = async () => {
