@@ -94,6 +94,8 @@ export type Database = {
           file_path: string
           file_type: string
           id: string
+          image_metadata: Json | null
+          thumbnail_path: string | null
           upload_status: string
           uploaded_by: string | null
         }
@@ -103,6 +105,8 @@ export type Database = {
           file_path: string
           file_type: string
           id?: string
+          image_metadata?: Json | null
+          thumbnail_path?: string | null
           upload_status: string
           uploaded_by?: string | null
         }
@@ -112,6 +116,8 @@ export type Database = {
           file_path?: string
           file_type?: string
           id?: string
+          image_metadata?: Json | null
+          thumbnail_path?: string | null
           upload_status?: string
           uploaded_by?: string | null
         }
@@ -203,6 +209,7 @@ export type Database = {
             | Database["public"]["Enums"]["service_history_type"]
             | null
           status: string | null
+          thumbnails: Json | null
           title: string
           updated_at: string | null
           valuation_data: Json | null
@@ -244,6 +251,7 @@ export type Database = {
             | Database["public"]["Enums"]["service_history_type"]
             | null
           status?: string | null
+          thumbnails?: Json | null
           title: string
           updated_at?: string | null
           valuation_data?: Json | null
@@ -285,6 +293,7 @@ export type Database = {
             | Database["public"]["Enums"]["service_history_type"]
             | null
           status?: string | null
+          thumbnails?: Json | null
           title?: string
           updated_at?: string | null
           valuation_data?: Json | null

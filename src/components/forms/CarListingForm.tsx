@@ -10,15 +10,32 @@ import { AdditionalInfoSection } from "./car-listing/AdditionalInfoSection";
 import { SellerNotesSection } from "./car-listing/SellerNotesSection";
 import { useAuth } from "@/components/AuthProvider";
 import { useCarListingForm } from "./car-listing/hooks/useCarListingForm";
+import { toast } from "sonner";
 
 export const CarListingForm = () => {
   const navigate = useNavigate();
   const { session } = useAuth();
   const { form, isSubmitting, carId, lastSaved, onSubmit } = useCarListingForm(session?.user.id);
 
+  const handleSubmit = async (data: any) => {
+    // Validate title and description lengths
+    if (data.title && data.title.length > 100) {
+      toast.error("Title must be 100 characters or less");
+      return;
+    }
+
+    if (data.description && data.description.length > 2000) {
+      toast.error("Description must be 2000 characters or less");
+      return;
+    }
+
+    // Proceed with form submission
+    await onSubmit(data);
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
         {lastSaved && (
           <p className="text-sm text-muted-foreground">
             Last saved: {new Date(lastSaved).toLocaleTimeString()}
