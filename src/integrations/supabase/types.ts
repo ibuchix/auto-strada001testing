@@ -181,8 +181,10 @@ export type Database = {
           id: string
           images: string[] | null
           is_damaged: boolean | null
+          is_draft: boolean | null
           is_registered_in_poland: boolean | null
           is_selling_on_behalf: boolean | null
+          last_saved: string | null
           make: string | null
           mileage: number
           model: string | null
@@ -216,8 +218,10 @@ export type Database = {
           id?: string
           images?: string[] | null
           is_damaged?: boolean | null
+          is_draft?: boolean | null
           is_registered_in_poland?: boolean | null
           is_selling_on_behalf?: boolean | null
+          last_saved?: string | null
           make?: string | null
           mileage: number
           model?: string | null
@@ -251,8 +255,10 @@ export type Database = {
           id?: string
           images?: string[] | null
           is_damaged?: boolean | null
+          is_draft?: boolean | null
           is_registered_in_poland?: boolean | null
           is_selling_on_behalf?: boolean | null
+          last_saved?: string | null
           make?: string | null
           mileage?: number
           model?: string | null
