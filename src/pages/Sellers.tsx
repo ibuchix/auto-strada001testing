@@ -31,11 +31,11 @@ const Sellers = () => {
       
       {/* Hero Section */}
       <section className="pt-32 pb-16 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent -skew-y-6 transform origin-top-left" />
+        <div className="absolute inset-0 bg-gradient-to-br from-iris-light to-transparent -skew-y-6 transform origin-top-left" />
         <div className="container mx-auto px-4 relative">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              Sell your car in <span className="text-primary">3 simple steps</span>
+              Sell your car in <span className="text-iris">3 simple steps</span>
             </h1>
             <p className="text-xl text-subtitle mb-8">
               Get the best price for your car without the hassle of private buyers or low-ball offers
@@ -50,7 +50,7 @@ const Sellers = () => {
               />
               <Button 
                 type="submit"
-                className="w-full h-14 bg-primary hover:bg-primary/90 text-white text-lg"
+                className="w-full h-14 bg-iris hover:bg-iris/90 text-white text-lg"
               >
                 Start Selling
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -61,7 +61,7 @@ const Sellers = () => {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-accent">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -82,7 +82,7 @@ const Sellers = () => {
               }
             ].map((benefit, index) => (
               <div key={index} className="bg-white p-6 rounded-xl shadow-sm">
-                <benefit.icon className="w-12 h-12 text-primary mb-4" />
+                <benefit.icon className="w-12 h-12 text-iris mb-4" />
                 <h3 className="text-xl font-bold mb-2">{benefit.title}</h3>
                 <p className="text-subtitle">{benefit.description}</p>
               </div>
@@ -125,14 +125,14 @@ const Sellers = () => {
               <div key={index} className="grid md:grid-cols-2 gap-12 items-center">
                 <div className={`${index % 2 === 1 ? "md:order-2" : ""}`}>
                   <div className="bg-accent p-8 rounded-2xl">
-                    <div className="aspect-video bg-gradient-to-br from-primary/20 to-iris/20 rounded-lg flex items-center justify-center">
-                      <step.icon className="w-24 h-24 text-primary" />
+                    <div className="aspect-video bg-gradient-to-br from-iris-light to-iris/20 rounded-lg flex items-center justify-center">
+                      <step.icon className="w-24 h-24 text-iris" />
                     </div>
                   </div>
                 </div>
                 <div className={`${index % 2 === 1 ? "md:order-1" : ""}`}>
                   <div className="flex items-start gap-4">
-                    <span className="text-4xl font-bold text-primary/20">{step.step}</span>
+                    <span className="text-4xl font-bold text-iris/20">{step.step}</span>
                     <div>
                       <h3 className="text-2xl font-bold mb-4">{step.title}</h3>
                       <p className="text-subtitle text-lg leading-relaxed">
@@ -148,7 +148,7 @@ const Sellers = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-primary">
+      <section className="py-16 bg-iris">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold text-white mb-8">
             Ready to sell your car?
