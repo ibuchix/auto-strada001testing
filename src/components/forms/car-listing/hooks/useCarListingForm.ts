@@ -9,6 +9,7 @@ import { useLoadDraft } from "./useLoadDraft";
 import { Database } from "@/integrations/supabase/types";
 
 type Cars = Database["public"]["Tables"]["cars"]["Insert"];
+type Json = Database["public"]["Tables"]["cars"]["Insert"]["features"];
 
 export const useCarListingForm = (userId?: string) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,6 +32,9 @@ export const useCarListingForm = (userId?: string) => {
         throw new Error("Missing required vehicle information");
       }
 
+      // Convert CarFeatures to Json type
+      const features = data.features as unknown as Json;
+
       // Prepare car data with proper typing
       const carData: Cars = {
         id: carId,
@@ -47,7 +51,7 @@ export const useCarListingForm = (userId?: string) => {
         mobile_number: data.mobileNumber,
         is_damaged: data.isDamaged,
         is_registered_in_poland: data.isRegisteredInPoland,
-        features: data.features,
+        features,
         seat_material: data.seatMaterial,
         number_of_keys: parseInt(data.numberOfKeys),
         has_tool_pack: data.hasToolPack,
