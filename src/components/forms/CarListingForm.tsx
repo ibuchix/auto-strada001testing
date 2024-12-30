@@ -5,23 +5,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { PersonalDetailsSection } from "./car-listing/PersonalDetailsSection";
+import { VehicleStatusSection } from "./car-listing/VehicleStatusSection";
+import { FeaturesSection } from "./car-listing/FeaturesSection";
+import { CarListingFormData } from "@/types/forms";
 
 export const CarListingForm = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
 
-  const form = useForm({
+  const form = useForm<CarListingFormData>({
     defaultValues: {
       name: "",
       address: "",
@@ -42,11 +39,11 @@ export const CarListingForm = () => {
       isSellingOnBehalf: false,
       hasPrivatePlate: false,
       financeAmount: "",
-      financeDocument: null as File | null,
+      financeDocument: null,
     },
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: CarListingFormData) => {
     setIsSubmitting(true);
     try {
       const { error } = await supabase.from('cars').insert({
@@ -79,232 +76,64 @@ export const CarListingForm = () => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <PersonalDetailsSection form={form} />
+        <VehicleStatusSection form={form} />
+        <FeaturesSection form={form} />
+
         <div className="space-y-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Full Name</FormLabel>
-                <FormControl>
-                  <Input {...field} required />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="address"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Address</FormLabel>
-                <FormControl>
-                  <Input {...field} required />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="mobileNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Mobile Number</FormLabel>
-                <FormControl>
-                  <Input {...field} type="tel" required />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
+          <Label>Additional Information</Label>
           <div className="space-y-4">
-            <Label>Vehicle Status</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="isDamaged"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel>Vehicle is damaged</FormLabel>
-                  </FormItem>
-                )}
-              />
+            <div className="space-y-4">
+              <Label>Seat Material</Label>
+              <RadioGroup
+                value={form.watch("seatMaterial")}
+                onValueChange={(value) => form.setValue("seatMaterial", value as CarListingFormData["seatMaterial"])}
+                className="grid grid-cols-2 gap-4"
+              >
+                {["cloth", "leather", "half leather", "suede"].map((material) => (
+                  <div key={material} className="flex items-center space-x-2">
+                    <RadioGroupItem value={material} id={material} />
+                    <Label htmlFor={material} className="capitalize">
+                      {material}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
 
-              <FormField
-                control={form.control}
-                name="isRegisteredInPoland"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel>Registered in Poland</FormLabel>
-                  </FormItem>
-                )}
-              />
+            <div className="space-y-4">
+              <Label>Number of Keys</Label>
+              <RadioGroup
+                value={form.watch("numberOfKeys")}
+                onValueChange={(value) => form.setValue("numberOfKeys", value as "1" | "2")}
+                className="grid grid-cols-2 gap-4"
+              >
+                {["1", "2"].map((number) => (
+                  <div key={number} className="flex items-center space-x-2">
+                    <RadioGroupItem value={number} id={`keys-${number}`} />
+                    <Label htmlFor={`keys-${number}`}>{number} Key{number === "2" && "s"}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
             </div>
           </div>
+        </div>
 
-          <div className="space-y-4">
-            <Label>Vehicle Features</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries({
-                satNav: "Satellite Navigation",
-                panoramicRoof: "Panoramic Roof",
-                reverseCamera: "Reverse Camera",
-                heatedSeats: "Heated Seats",
-                upgradedSound: "Upgraded Sound System",
-              }).map(([key, label]) => (
-                <FormField
-                  key={key}
-                  control={form.control}
-                  name={`features.${key}`}
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel>{label}</FormLabel>
-                    </FormItem>
-                  )}
-                />
-              ))}
-            </div>
-          </div>
-
-          <FormField
-            control={form.control}
-            name="seatMaterial"
-            render={({ field }) => (
-              <FormItem className="space-y-2">
-                <FormLabel>Seat Material</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    className="grid grid-cols-2 gap-4"
-                  >
-                    {["cloth", "leather", "half leather", "suede"].map((material) => (
-                      <div key={material} className="flex items-center space-x-2">
-                        <RadioGroupItem value={material} id={material} />
-                        <Label htmlFor={material} className="capitalize">
-                          {material}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-              </FormItem>
-            )}
+        <div className="space-y-4">
+          <Label>Finance Information</Label>
+          <Input
+            type="number"
+            placeholder="Outstanding Finance Amount (PLN)"
+            {...form.register("financeAmount")}
           />
-
-          <FormField
-            control={form.control}
-            name="numberOfKeys"
-            render={({ field }) => (
-              <FormItem className="space-y-2">
-                <FormLabel>Number of Keys</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    className="grid grid-cols-2 gap-4"
-                  >
-                    {["1", "2"].map((number) => (
-                      <div key={number} className="flex items-center space-x-2">
-                        <RadioGroupItem value={number} id={`keys-${number}`} />
-                        <Label htmlFor={`keys-${number}`}>{number} Key{number === "2" && "s"}</Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-              </FormItem>
-            )}
+          <Input
+            type="file"
+            accept=".pdf,.doc,.docx"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) form.setValue("financeDocument", file);
+            }}
           />
-
-          <div className="space-y-4">
-            <Label>Additional Information</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { name: "hasToolPack", label: "Standard Tool Pack Included" },
-                { name: "hasDocumentation", label: "Vehicle Documentation Included" },
-                { name: "isSellingOnBehalf", label: "Selling on Someone's Behalf" },
-                { name: "hasPrivatePlate", label: "Has Private Plate" },
-              ].map(({ name, label }) => (
-                <FormField
-                  key={name}
-                  control={form.control}
-                  name={name}
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel>{label}</FormLabel>
-                    </FormItem>
-                  )}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <Label>Finance Information</Label>
-            <FormField
-              control={form.control}
-              name="financeAmount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Outstanding Finance Amount (PLN)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="financeDocument"
-              render={({ field: { value, onChange, ...field } }) => (
-                <FormItem>
-                  <FormLabel>Finance Settlement Document</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) onChange(file);
-                      }}
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </div>
         </div>
 
         <Button
