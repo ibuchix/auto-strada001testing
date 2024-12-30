@@ -23,7 +23,8 @@ export const useCarListingForm = (userId?: string) => {
   const onSubmit = async (data: CarListingFormData) => {
     setIsSubmitting(true);
     try {
-      const { data: carData, error } = await supabase.from('cars').upsert({
+      // Remove any undefined or null values to prevent database errors
+      const carData = {
         id: carId,
         seller_id: userId,
         ...valuationData,
@@ -43,11 +44,22 @@ export const useCarListingForm = (userId?: string) => {
         service_history_type: data.serviceHistoryType,
         seller_notes: data.sellerNotes,
         is_draft: false,
-      }).select().single();
+      };
+
+      // Filter out undefined and null values
+      const filteredCarData = Object.fromEntries(
+        Object.entries(carData).filter(([_, value]) => value !== undefined && value !== null)
+      );
+
+      const { data: savedCar, error } = await supabase
+        .from('cars')
+        .upsert(filteredCarData)
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setCarId(carData.id);
+      setCarId(savedCar.id);
       toast.success("Basic information saved. Please upload the required photos.");
     } catch (error) {
       console.error('Error listing car:', error);
