@@ -84,7 +84,7 @@ const Sellers = () => {
               <div key={index} className="bg-white p-6 rounded-xl shadow-sm">
                 <benefit.icon className="w-12 h-12 text-primary mb-4" />
                 <h3 className="text-xl font-bold mb-2">{benefit.title}</h3>
-                <p className="text-subtitle">{benefit.description}</p>
+                <p className="text-subtitle group-hover:text-primary transition-colors">{benefit.description}</p>
               </div>
             ))}
           </div>
