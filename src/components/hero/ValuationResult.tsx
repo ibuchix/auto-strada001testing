@@ -2,7 +2,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -17,7 +20,15 @@ interface ValuationResultProps {
 }
 
 export const ValuationResult = ({ valuationResult }: ValuationResultProps) => {
+  const navigate = useNavigate();
+
   if (!valuationResult) return null;
+
+  const handleListCar = () => {
+    // Store valuation data in localStorage to access it in the listing form
+    localStorage.setItem('valuationData', JSON.stringify(valuationResult));
+    navigate('/sell-my-car');
+  };
 
   return (
     <DialogContent className="sm:max-w-md">
@@ -58,6 +69,14 @@ export const ValuationResult = ({ valuationResult }: ValuationResultProps) => {
           </p>
         </div>
       </div>
+      <DialogFooter>
+        <Button 
+          onClick={handleListCar}
+          className="w-full bg-secondary hover:bg-secondary/90 text-white"
+        >
+          List This Car
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 };

@@ -133,13 +133,24 @@ export type Database = {
         Row: {
           created_at: string | null
           description: string | null
+          features: Json | null
+          finance_amount: number | null
+          finance_document_url: string | null
+          has_documentation: boolean | null
+          has_private_plate: boolean | null
+          has_tool_pack: boolean | null
           id: string
           images: string[] | null
+          is_damaged: boolean | null
+          is_registered_in_poland: boolean | null
+          is_selling_on_behalf: boolean | null
           make: string | null
           mileage: number
           model: string | null
+          number_of_keys: number | null
           price: number
           registration_number: string | null
+          seat_material: string | null
           seller_id: string
           status: string | null
           title: string
@@ -151,13 +162,24 @@ export type Database = {
         Insert: {
           created_at?: string | null
           description?: string | null
+          features?: Json | null
+          finance_amount?: number | null
+          finance_document_url?: string | null
+          has_documentation?: boolean | null
+          has_private_plate?: boolean | null
+          has_tool_pack?: boolean | null
           id?: string
           images?: string[] | null
+          is_damaged?: boolean | null
+          is_registered_in_poland?: boolean | null
+          is_selling_on_behalf?: boolean | null
           make?: string | null
           mileage: number
           model?: string | null
+          number_of_keys?: number | null
           price: number
           registration_number?: string | null
+          seat_material?: string | null
           seller_id: string
           status?: string | null
           title: string
@@ -169,13 +191,24 @@ export type Database = {
         Update: {
           created_at?: string | null
           description?: string | null
+          features?: Json | null
+          finance_amount?: number | null
+          finance_document_url?: string | null
+          has_documentation?: boolean | null
+          has_private_plate?: boolean | null
+          has_tool_pack?: boolean | null
           id?: string
           images?: string[] | null
+          is_damaged?: boolean | null
+          is_registered_in_poland?: boolean | null
+          is_selling_on_behalf?: boolean | null
           make?: string | null
           mileage?: number
           model?: string | null
+          number_of_keys?: number | null
           price?: number
           registration_number?: string | null
+          seat_material?: string | null
           seller_id?: string
           status?: string | null
           title?: string
