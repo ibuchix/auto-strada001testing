@@ -13,8 +13,9 @@ import { VehicleStatusSection } from "./car-listing/VehicleStatusSection";
 import { FeaturesSection } from "./car-listing/FeaturesSection";
 import { PhotoUploadSection } from "./car-listing/PhotoUploadSection";
 import { ServiceHistorySection } from "./car-listing/ServiceHistorySection";
-import { CarListingFormData, CarFeatures } from "@/types/forms";
+import { CarListingFormData } from "@/types/forms";
 import { useAuth } from "@/components/AuthProvider";
+import { isCarFeatures, getDefaultCarFeatures } from "@/utils/typeGuards";
 
 export const CarListingForm = () => {
   const navigate = useNavigate();
@@ -31,13 +32,7 @@ export const CarListingForm = () => {
       mobileNumber: "",
       isDamaged: false,
       isRegisteredInPoland: false,
-      features: {
-        satNav: false,
-        panoramicRoof: false,
-        reverseCamera: false,
-        heatedSeats: false,
-        upgradedSound: false,
-      },
+      features: getDefaultCarFeatures(),
       seatMaterial: "cloth",
       numberOfKeys: "1",
       hasToolPack: false,
@@ -71,14 +66,10 @@ export const CarListingForm = () => {
         setCarId(draft.id);
         setLastSaved(new Date(draft.last_saved));
         
-        // Ensure features is properly typed
-        const features: CarFeatures = draft.features as CarFeatures || {
-          satNav: false,
-          panoramicRoof: false,
-          reverseCamera: false,
-          heatedSeats: false,
-          upgradedSound: false,
-        };
+        // Use type guard to validate features
+        const features = isCarFeatures(draft.features) 
+          ? draft.features 
+          : getDefaultCarFeatures();
 
         // Cast seat_material to the correct type
         const seatMaterial = draft.seat_material as CarListingFormData["seatMaterial"] || "cloth";
@@ -105,7 +96,6 @@ export const CarListingForm = () => {
     loadDraft();
   }, [session?.user.id]);
 
-  // Autosave functionality
   useEffect(() => {
     const autoSave = async () => {
       if (!session?.user.id) return;
