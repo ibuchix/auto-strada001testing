@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import { getFormDefaults } from "./useFormDefaults";
 import { useFormAutoSave } from "./useFormAutoSave";
 import { useLoadDraft } from "./useLoadDraft";
+import { Database } from "@/integrations/supabase/types";
+
+type Cars = Database["public"]["Tables"]["cars"]["Insert"];
 
 export const useCarListingForm = (userId?: string) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,11 +26,22 @@ export const useCarListingForm = (userId?: string) => {
   const onSubmit = async (data: CarListingFormData) => {
     setIsSubmitting(true);
     try {
-      // Remove any undefined or null values to prevent database errors
-      const carData = {
+      // Ensure required fields are present
+      if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
+        throw new Error("Missing required vehicle information");
+      }
+
+      // Prepare car data with proper typing
+      const carData: Cars = {
         id: carId,
         seller_id: userId,
-        ...valuationData,
+        title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
+        vin: valuationData.vin,
+        mileage: valuationData.mileage,
+        price: valuationData.valuation,
+        make: valuationData.make,
+        model: valuationData.model,
+        year: valuationData.year,
         name: data.name,
         address: data.address,
         mobile_number: data.mobileNumber,
@@ -46,10 +60,10 @@ export const useCarListingForm = (userId?: string) => {
         is_draft: false,
       };
 
-      // Filter out undefined and null values
+      // Filter out undefined and null values while maintaining type safety
       const filteredCarData = Object.fromEntries(
-        Object.entries(carData).filter(([_, value]) => value !== undefined && value !== null)
-      );
+        Object.entries(carData).filter(([_, value]) => value !== undefined)
+      ) as Cars;
 
       const { data: savedCar, error } = await supabase
         .from('cars')
