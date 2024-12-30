@@ -170,6 +170,7 @@ export type Database = {
       cars: {
         Row: {
           additional_photos: string[] | null
+          address: string | null
           created_at: string | null
           description: string | null
           features: Json | null
@@ -187,7 +188,9 @@ export type Database = {
           last_saved: string | null
           make: string | null
           mileage: number
+          mobile_number: string | null
           model: string | null
+          name: string | null
           number_of_keys: number | null
           price: number
           registration_number: string | null
@@ -207,6 +210,7 @@ export type Database = {
         }
         Insert: {
           additional_photos?: string[] | null
+          address?: string | null
           created_at?: string | null
           description?: string | null
           features?: Json | null
@@ -224,7 +228,9 @@ export type Database = {
           last_saved?: string | null
           make?: string | null
           mileage: number
+          mobile_number?: string | null
           model?: string | null
+          name?: string | null
           number_of_keys?: number | null
           price: number
           registration_number?: string | null
@@ -244,6 +250,7 @@ export type Database = {
         }
         Update: {
           additional_photos?: string[] | null
+          address?: string | null
           created_at?: string | null
           description?: string | null
           features?: Json | null
@@ -261,7 +268,9 @@ export type Database = {
           last_saved?: string | null
           make?: string | null
           mileage?: number
+          mobile_number?: string | null
           model?: string | null
+          name?: string | null
           number_of_keys?: number | null
           price?: number
           registration_number?: string | null
