@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { getDefaultCarFeatures, isCarFeatures } from "@/utils/typeGuards";
+import { getFormDefaults } from "./useFormDefaults";
+import { useFormAutoSave } from "./useFormAutoSave";
+import { useLoadDraft } from "./useLoadDraft";
 
 export const useCarListingForm = (userId?: string) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -12,116 +14,11 @@ export const useCarListingForm = (userId?: string) => {
   const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
 
   const form = useForm<CarListingFormData>({
-    defaultValues: {
-      name: "",
-      address: "",
-      mobileNumber: "",
-      isDamaged: false,
-      isRegisteredInPoland: false,
-      features: getDefaultCarFeatures(),
-      seatMaterial: "cloth",
-      numberOfKeys: "1",
-      hasToolPack: false,
-      hasDocumentation: false,
-      isSellingOnBehalf: false,
-      hasPrivatePlate: false,
-      financeAmount: "",
-      financeDocument: null,
-      serviceHistoryType: "none",
-      sellerNotes: "",
-    },
+    defaultValues: getFormDefaults(),
   });
 
-  // Load existing draft
-  useEffect(() => {
-    const loadDraft = async () => {
-      if (!userId) return;
-
-      const { data: draft, error } = await supabase
-        .from('cars')
-        .select('*')
-        .eq('seller_id', userId)
-        .eq('is_draft', true)
-        .single();
-
-      if (error) {
-        console.error('Error loading draft:', error);
-        return;
-      }
-
-      if (draft) {
-        setCarId(draft.id);
-        setLastSaved(new Date(draft.last_saved));
-        
-        const features = isCarFeatures(draft.features) 
-          ? draft.features 
-          : getDefaultCarFeatures();
-
-        const seatMaterial = draft.seat_material as CarListingFormData["seatMaterial"] || "cloth";
-
-        form.reset({
-          name: draft.name || "",
-          address: draft.address || "",
-          mobileNumber: draft.mobile_number || "",
-          isDamaged: draft.is_damaged || false,
-          isRegisteredInPoland: draft.is_registered_in_poland || false,
-          features,
-          seatMaterial,
-          numberOfKeys: draft.number_of_keys?.toString() as "1" | "2" || "1",
-          hasToolPack: draft.has_tool_pack || false,
-          hasDocumentation: draft.has_documentation || false,
-          isSellingOnBehalf: draft.is_selling_on_behalf || false,
-          hasPrivatePlate: draft.has_private_plate || false,
-          financeAmount: draft.finance_amount?.toString() || "",
-          serviceHistoryType: draft.service_history_type || "none",
-          sellerNotes: draft.seller_notes || "",
-        });
-      }
-    };
-
-    loadDraft();
-  }, [userId]);
-
-  useEffect(() => {
-    const autoSave = async () => {
-      if (!userId) return;
-
-      const formData = form.getValues();
-      try {
-        const { error } = await supabase.from('cars').upsert({
-          id: carId,
-          seller_id: userId,
-          ...valuationData,
-          name: formData.name,
-          address: formData.address,
-          mobile_number: formData.mobileNumber,
-          is_damaged: formData.isDamaged,
-          is_registered_in_poland: formData.isRegisteredInPoland,
-          features: formData.features,
-          seat_material: formData.seatMaterial,
-          number_of_keys: parseInt(formData.numberOfKeys),
-          has_tool_pack: formData.hasToolPack,
-          has_documentation: formData.hasDocumentation,
-          is_selling_on_behalf: formData.isSellingOnBehalf,
-          has_private_plate: formData.hasPrivatePlate,
-          finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
-          service_history_type: formData.serviceHistoryType,
-          seller_notes: formData.sellerNotes,
-          is_draft: true,
-          last_saved: new Date().toISOString(),
-        });
-
-        if (error) throw error;
-        
-        setLastSaved(new Date());
-      } catch (error) {
-        console.error('Error autosaving:', error);
-      }
-    };
-
-    const timer = setTimeout(autoSave, 3000);
-    return () => clearTimeout(timer);
-  }, [form.watch(), userId]);
+  useLoadDraft(form, userId, setCarId, setLastSaved);
+  useFormAutoSave(form, userId, carId, setLastSaved, valuationData);
 
   const onSubmit = async (data: CarListingFormData) => {
     setIsSubmitting(true);
