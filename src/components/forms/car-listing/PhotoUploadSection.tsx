@@ -6,7 +6,7 @@ import { usePhotoUpload } from "./photo-upload/usePhotoUpload";
 import { PhotoUploadSectionProps } from "./photo-upload/types";
 
 export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => {
-  const { isUploading, handleFileUpload } = usePhotoUpload(carId);
+  const { isUploading, uploadProgress, handleFileUpload } = usePhotoUpload(carId);
 
   const handleAdditionalPhotos = (files: File[]) => {
     files.forEach((file, index) => {
@@ -19,6 +19,7 @@ export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => 
       <RequiredPhotos
         isUploading={isUploading}
         onFileSelect={handleFileUpload}
+        progress={uploadProgress}
       />
       <AdditionalPhotos
         isUploading={isUploading}

@@ -5,6 +5,7 @@ import { CarPhotoData } from "./types";
 
 export const usePhotoUpload = (carId?: string) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleFileUpload = async (file: File, type: string) => {
     if (!carId) {
@@ -67,6 +68,10 @@ export const usePhotoUpload = (carId?: string) => {
 
       if (updateError) throw updateError;
 
+      // Update progress
+      const newProgress = (Object.values(typedCarData.required_photos || {}).filter(Boolean).length + 1);
+      setUploadProgress(newProgress);
+
       toast.success(`${type} uploaded successfully`);
     } catch (error) {
       console.error('Upload error:', error);
@@ -76,5 +81,5 @@ export const usePhotoUpload = (carId?: string) => {
     }
   };
 
-  return { isUploading, handleFileUpload };
+  return { isUploading, uploadProgress, handleFileUpload };
 };
