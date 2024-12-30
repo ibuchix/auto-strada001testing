@@ -8,12 +8,32 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    // Add middleware to handle client-side routing
-    middlewareMode: false,
+    proxy: {
+      // Handle client-side routing in development
+      "/*": {
+        target: "http://localhost:8080",
+        bypass: (req) => {
+          // Return index.html for all non-asset requests
+          if (!req.url.includes(".")) {
+            return "/index.html";
+          }
+        },
+      },
+    },
   },
   preview: {
-    // Handle client-side routing in preview mode
-    historyApiFallback: true,
+    port: 8080,
+    proxy: {
+      // Handle client-side routing in preview/production
+      "/*": {
+        target: "http://localhost:8080",
+        bypass: (req) => {
+          if (!req.url.includes(".")) {
+            return "/index.html";
+          }
+        },
+      },
+    },
   },
   plugins: [
     react(),
