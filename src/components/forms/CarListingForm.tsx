@@ -33,6 +33,21 @@ export const CarListingForm = () => {
     await onSubmit(data);
   };
 
+  // Check if required fields are filled
+  const isFormValid = () => {
+    const values = form.getValues();
+    const requiredFields = {
+      name: values.name,
+      address: values.address,
+      mobileNumber: values.mobileNumber,
+      serviceHistoryType: values.serviceHistoryType,
+      seatMaterial: values.seatMaterial,
+      numberOfKeys: values.numberOfKeys,
+    };
+
+    return Object.values(requiredFields).every(value => value !== undefined && value !== '');
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
@@ -52,7 +67,7 @@ export const CarListingForm = () => {
         <Button
           type="submit"
           className="w-full bg-secondary hover:bg-secondary/90 text-white"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !isFormValid()}
         >
           {isSubmitting ? "Saving Information..." : carId ? "Update Information" : "Save Information"}
         </Button>
