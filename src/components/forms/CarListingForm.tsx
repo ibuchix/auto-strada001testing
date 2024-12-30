@@ -7,6 +7,7 @@ import { FeaturesSection } from "./car-listing/FeaturesSection";
 import { PhotoUploadSection } from "./car-listing/PhotoUploadSection";
 import { ServiceHistorySection } from "./car-listing/ServiceHistorySection";
 import { AdditionalInfoSection } from "./car-listing/AdditionalInfoSection";
+import { SellerNotesSection } from "./car-listing/SellerNotesSection";
 import { useAuth } from "@/components/AuthProvider";
 import { useCarListingForm } from "./car-listing/hooks/useCarListingForm";
 
@@ -29,6 +30,7 @@ export const CarListingForm = () => {
         <FeaturesSection form={form} />
         <ServiceHistorySection form={form} carId={carId} />
         <AdditionalInfoSection form={form} />
+        <SellerNotesSection form={form} />
 
         <Button
           type="submit"

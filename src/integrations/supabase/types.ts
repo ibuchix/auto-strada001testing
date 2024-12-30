@@ -197,6 +197,7 @@ export type Database = {
           required_photos: Json | null
           seat_material: string | null
           seller_id: string
+          seller_notes: string | null
           service_history_files: string[] | null
           service_history_type:
             | Database["public"]["Enums"]["service_history_type"]
@@ -237,6 +238,7 @@ export type Database = {
           required_photos?: Json | null
           seat_material?: string | null
           seller_id: string
+          seller_notes?: string | null
           service_history_files?: string[] | null
           service_history_type?:
             | Database["public"]["Enums"]["service_history_type"]
@@ -277,6 +279,7 @@ export type Database = {
           required_photos?: Json | null
           seat_material?: string | null
           seller_id?: string
+          seller_notes?: string | null
           service_history_files?: string[] | null
           service_history_type?:
             | Database["public"]["Enums"]["service_history_type"]

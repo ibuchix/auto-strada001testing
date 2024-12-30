@@ -28,6 +28,7 @@ export const useCarListingForm = (userId?: string) => {
       financeAmount: "",
       financeDocument: null,
       serviceHistoryType: "none",
+      sellerNotes: "",
     },
   });
 
@@ -73,6 +74,7 @@ export const useCarListingForm = (userId?: string) => {
           hasPrivatePlate: draft.has_private_plate || false,
           financeAmount: draft.finance_amount?.toString() || "",
           serviceHistoryType: draft.service_history_type || "none",
+          sellerNotes: draft.seller_notes || "",
         });
       }
     };
@@ -104,6 +106,7 @@ export const useCarListingForm = (userId?: string) => {
           has_private_plate: formData.hasPrivatePlate,
           finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
           service_history_type: formData.serviceHistoryType,
+          seller_notes: formData.sellerNotes,
           is_draft: true,
           last_saved: new Date().toISOString(),
         });
@@ -141,6 +144,7 @@ export const useCarListingForm = (userId?: string) => {
         has_private_plate: data.hasPrivatePlate,
         finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
         service_history_type: data.serviceHistoryType,
+        seller_notes: data.sellerNotes,
         is_draft: false,
       }).select().single();
 
