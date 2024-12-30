@@ -132,7 +132,7 @@ const Sellers = () => {
                 </div>
                 <div className={`${index % 2 === 1 ? "md:order-1" : ""}`}>
                   <div className="flex items-start gap-4">
-                    <span className="text-4xl font-bold text-secondary/20">{step.step}</span>
+                    <span className="text-4xl font-bold text-primary">{step.step}</span>
                     <div>
                       <h3 className="text-2xl font-bold mb-4">{step.title}</h3>
                       <p className="text-subtitle text-lg leading-relaxed">
