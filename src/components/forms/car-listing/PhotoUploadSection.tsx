@@ -46,10 +46,26 @@ export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => 
 
       if (logError) throw logError;
 
-      // Update the car's required_photos or additional_photos
-      const updates = type.includes('additional') 
-        ? { additional_photos: supabase.sql`array_append(additional_photos, ${filePath})` }
-        : { required_photos: supabase.sql`jsonb_set(required_photos, '{${type}}', '"${filePath}"')` };
+      // Get current car data
+      const { data: carData, error: fetchError } = await supabase
+        .from('cars')
+        .select('required_photos, additional_photos')
+        .eq('id', carId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update the car's photos
+      const updates = type.includes('additional')
+        ? {
+            additional_photos: [...(carData.additional_photos || []), filePath]
+          }
+        : {
+            required_photos: {
+              ...(carData.required_photos || {}),
+              [type]: filePath
+            }
+          };
 
       const { error: updateError } = await supabase
         .from('cars')

@@ -45,11 +45,20 @@ export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProp
 
       const uploadedPaths = await Promise.all(uploadPromises);
 
+      // Get current service history files
+      const { data: carData, error: fetchError } = await supabase
+        .from('cars')
+        .select('service_history_files')
+        .eq('id', carId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
       // Update the car's service history files
       const { error: updateError } = await supabase
         .from('cars')
         .update({
-          service_history_files: supabase.sql`array_cat(service_history_files, ${uploadedPaths})`
+          service_history_files: [...(carData.service_history_files || []), ...uploadedPaths]
         })
         .eq('id', carId);
 
