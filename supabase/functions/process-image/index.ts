@@ -1,15 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
-import Sharp from 'https://esm.sh/sharp@0.32.6'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const MAX_WIDTH = 2000;
-const MAX_HEIGHT = 2000;
-const THUMBNAIL_SIZE = 300;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -31,62 +28,29 @@ serve(async (req) => {
       throw new Error('File must be an image')
     }
 
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = new Uint8Array(arrayBuffer)
-
-    // Process image with Sharp
-    const image = Sharp(buffer)
-    const metadata = await image.metadata()
-
-    // Validate dimensions and resize if necessary
-    if (metadata.width && metadata.height) {
-      if (metadata.width > MAX_WIDTH || metadata.height > MAX_HEIGHT) {
-        image.resize(MAX_WIDTH, MAX_HEIGHT, {
-          fit: 'inside',
-          withoutEnlargement: true
-        })
-      }
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error('File size must be less than 5MB')
     }
-
-    // Generate thumbnail
-    const thumbnail = image.clone().resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
-      fit: 'cover',
-      position: 'centre'
-    })
-
-    // Process both images
-    const [processedBuffer, thumbnailBuffer] = await Promise.all([
-      image.toBuffer(),
-      thumbnail.toBuffer()
-    ])
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Upload processed image and thumbnail
+    // Upload original image
     const fileExt = file.name.split('.').pop()
     const filePath = `${carId}/${type}.${fileExt}`
-    const thumbnailPath = `${carId}/thumb_${type}.${fileExt}`
 
-    const [imageUpload, thumbnailUpload] = await Promise.all([
-      supabase.storage
-        .from('car-files')
-        .upload(filePath, processedBuffer, {
-          contentType: file.type,
-          upsert: true
-        }),
-      supabase.storage
-        .from('car-files')
-        .upload(thumbnailPath, thumbnailBuffer, {
-          contentType: file.type,
-          upsert: true
-        })
-    ])
+    const { error: uploadError } = await supabase.storage
+      .from('car-files')
+      .upload(filePath, file, {
+        contentType: file.type,
+        upsert: true
+      })
 
-    if (imageUpload.error || thumbnailUpload.error) {
-      throw new Error('Failed to upload files')
+    if (uploadError) {
+      throw new Error('Failed to upload file')
     }
 
     // Log the upload
@@ -97,8 +61,11 @@ serve(async (req) => {
         file_path: filePath,
         file_type: type,
         upload_status: 'completed',
-        image_metadata: metadata,
-        thumbnail_path: thumbnailPath
+        image_metadata: {
+          size: file.size,
+          type: file.type,
+          name: file.name
+        }
       })
 
     // Update car's photos
@@ -106,12 +73,7 @@ serve(async (req) => {
       await supabase
         .from('cars')
         .update({
-          additional_photos: supabase.sql`array_append(additional_photos, ${filePath})`,
-          thumbnails: supabase.sql`jsonb_set(
-            thumbnails,
-            array[${type}],
-            ${thumbnailPath}
-          )`
+          additional_photos: supabase.sql`array_append(additional_photos, ${filePath})`
         })
         .eq('id', carId)
     } else {
@@ -122,11 +84,6 @@ serve(async (req) => {
             required_photos,
             array[${type}],
             ${filePath}
-          )`,
-          thumbnails: supabase.sql`jsonb_set(
-            thumbnails,
-            array[${type}],
-            ${thumbnailPath}
           )`
         })
         .eq('id', carId)
@@ -134,10 +91,8 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        message: 'Image processed and uploaded successfully',
-        filePath,
-        thumbnailPath,
-        metadata 
+        message: 'Image uploaded successfully',
+        filePath
       }),
       { 
         headers: { 

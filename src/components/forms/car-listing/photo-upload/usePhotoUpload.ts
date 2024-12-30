@@ -49,7 +49,7 @@ export const usePhotoUpload = (carId?: string) => {
         throw new Error(error.details || 'Failed to upload image');
       }
 
-      const { filePath, thumbnailPath } = await response.json();
+      const { filePath } = await response.json();
 
       // Update progress
       const newProgress = uploadProgress + 1;
