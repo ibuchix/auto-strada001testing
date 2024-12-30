@@ -87,6 +87,44 @@ export type Database = {
           },
         ]
       }
+      car_file_uploads: {
+        Row: {
+          car_id: string | null
+          created_at: string | null
+          file_path: string
+          file_type: string
+          id: string
+          upload_status: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          car_id?: string | null
+          created_at?: string | null
+          file_path: string
+          file_type: string
+          id?: string
+          upload_status: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          car_id?: string | null
+          created_at?: string | null
+          file_path?: string
+          file_type?: string
+          id?: string
+          upload_status?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "car_file_uploads_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       car_status_logs: {
         Row: {
           car_id: string
@@ -131,6 +169,7 @@ export type Database = {
       }
       cars: {
         Row: {
+          additional_photos: string[] | null
           created_at: string | null
           description: string | null
           features: Json | null
@@ -150,8 +189,13 @@ export type Database = {
           number_of_keys: number | null
           price: number
           registration_number: string | null
+          required_photos: Json | null
           seat_material: string | null
           seller_id: string
+          service_history_files: string[] | null
+          service_history_type:
+            | Database["public"]["Enums"]["service_history_type"]
+            | null
           status: string | null
           title: string
           updated_at: string | null
@@ -160,6 +204,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          additional_photos?: string[] | null
           created_at?: string | null
           description?: string | null
           features?: Json | null
@@ -179,8 +224,13 @@ export type Database = {
           number_of_keys?: number | null
           price: number
           registration_number?: string | null
+          required_photos?: Json | null
           seat_material?: string | null
           seller_id: string
+          service_history_files?: string[] | null
+          service_history_type?:
+            | Database["public"]["Enums"]["service_history_type"]
+            | null
           status?: string | null
           title: string
           updated_at?: string | null
@@ -189,6 +239,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          additional_photos?: string[] | null
           created_at?: string | null
           description?: string | null
           features?: Json | null
@@ -208,8 +259,13 @@ export type Database = {
           number_of_keys?: number | null
           price?: number
           registration_number?: string | null
+          required_photos?: Json | null
           seat_material?: string | null
           seller_id?: string
+          service_history_files?: string[] | null
+          service_history_type?:
+            | Database["public"]["Enums"]["service_history_type"]
+            | null
           status?: string | null
           title?: string
           updated_at?: string | null
@@ -330,7 +386,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      service_history_type: "full" | "partial" | "none" | "not_due"
     }
     CompositeTypes: {
       [_ in never]: never

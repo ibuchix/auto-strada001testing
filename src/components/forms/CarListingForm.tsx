@@ -11,11 +11,14 @@ import { useForm } from "react-hook-form";
 import { PersonalDetailsSection } from "./car-listing/PersonalDetailsSection";
 import { VehicleStatusSection } from "./car-listing/VehicleStatusSection";
 import { FeaturesSection } from "./car-listing/FeaturesSection";
+import { PhotoUploadSection } from "./car-listing/PhotoUploadSection";
+import { ServiceHistorySection } from "./car-listing/ServiceHistorySection";
 import { CarListingFormData } from "@/types/forms";
 
 export const CarListingForm = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [carId, setCarId] = useState<string>();
   const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
 
   const form = useForm<CarListingFormData>({
@@ -40,13 +43,14 @@ export const CarListingForm = () => {
       hasPrivatePlate: false,
       financeAmount: "",
       financeDocument: null,
+      serviceHistoryType: "none",
     },
   });
 
   const onSubmit = async (data: CarListingFormData) => {
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('cars').insert({
+      const { data: carData, error } = await supabase.from('cars').insert({
         ...valuationData,
         seller_id: (await supabase.auth.getUser()).data.user?.id,
         is_damaged: data.isDamaged,
@@ -59,12 +63,13 @@ export const CarListingForm = () => {
         is_selling_on_behalf: data.isSellingOnBehalf,
         has_private_plate: data.hasPrivatePlate,
         finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
-      });
+        service_history_type: data.serviceHistoryType,
+      }).select().single();
 
       if (error) throw error;
 
-      toast.success("Car listed successfully!");
-      navigate('/dashboard/seller');
+      setCarId(carData.id);
+      toast.success("Basic information saved. Please upload the required photos.");
     } catch (error) {
       console.error('Error listing car:', error);
       toast.error("Failed to list car. Please try again.");
@@ -79,6 +84,7 @@ export const CarListingForm = () => {
         <PersonalDetailsSection form={form} />
         <VehicleStatusSection form={form} />
         <FeaturesSection form={form} />
+        <ServiceHistorySection form={form} carId={carId} />
 
         <div className="space-y-4">
           <Label>Additional Information</Label>
@@ -141,8 +147,22 @@ export const CarListingForm = () => {
           className="w-full bg-secondary hover:bg-secondary/90 text-white"
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Listing Car..." : "List Car"}
+          {isSubmitting ? "Saving Information..." : carId ? "Update Information" : "Save Information"}
         </Button>
+
+        {carId && (
+          <div className="space-y-8">
+            <PhotoUploadSection form={form} carId={carId} />
+            
+            <Button
+              type="button"
+              className="w-full bg-primary hover:bg-primary/90 text-white"
+              onClick={() => navigate('/dashboard/seller')}
+            >
+              Complete Listing
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   );

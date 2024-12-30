@@ -21,4 +21,5 @@ export interface CarListingFormData {
   hasPrivatePlate: boolean;
   financeAmount: string;
   financeDocument: File | null;
+  serviceHistoryType: "full" | "partial" | "none" | "not_due";
 }
