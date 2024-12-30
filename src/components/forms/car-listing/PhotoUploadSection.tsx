@@ -12,6 +12,11 @@ interface PhotoUploadSectionProps {
   carId?: string;
 }
 
+interface CarPhotoData {
+  required_photos: Record<string, string | null>;
+  additional_photos: string[];
+}
+
 export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => {
   const [isUploading, setIsUploading] = useState(false);
 
@@ -55,14 +60,16 @@ export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => 
 
       if (fetchError) throw fetchError;
 
+      const typedCarData = carData as CarPhotoData;
+
       // Update the car's photos
       const updates = type.includes('additional')
         ? {
-            additional_photos: [...(carData.additional_photos || []), filePath]
+            additional_photos: [...(typedCarData.additional_photos || []), filePath]
           }
         : {
             required_photos: {
-              ...(carData.required_photos || {}),
+              ...(typedCarData.required_photos || {}),
               [type]: filePath
             }
           };
