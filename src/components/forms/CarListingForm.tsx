@@ -13,7 +13,7 @@ import { VehicleStatusSection } from "./car-listing/VehicleStatusSection";
 import { FeaturesSection } from "./car-listing/FeaturesSection";
 import { PhotoUploadSection } from "./car-listing/PhotoUploadSection";
 import { ServiceHistorySection } from "./car-listing/ServiceHistorySection";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, CarFeatures } from "@/types/forms";
 import { useAuth } from "@/components/AuthProvider";
 
 export const CarListingForm = () => {
@@ -70,20 +70,27 @@ export const CarListingForm = () => {
       if (draft) {
         setCarId(draft.id);
         setLastSaved(new Date(draft.last_saved));
+        
+        // Ensure features is properly typed
+        const features: CarFeatures = draft.features as CarFeatures || {
+          satNav: false,
+          panoramicRoof: false,
+          reverseCamera: false,
+          heatedSeats: false,
+          upgradedSound: false,
+        };
+
+        // Cast seat_material to the correct type
+        const seatMaterial = draft.seat_material as CarListingFormData["seatMaterial"] || "cloth";
+
         form.reset({
           name: draft.name || "",
           address: draft.address || "",
           mobileNumber: draft.mobile_number || "",
           isDamaged: draft.is_damaged || false,
           isRegisteredInPoland: draft.is_registered_in_poland || false,
-          features: draft.features || {
-            satNav: false,
-            panoramicRoof: false,
-            reverseCamera: false,
-            heatedSeats: false,
-            upgradedSound: false,
-          },
-          seatMaterial: draft.seat_material || "cloth",
+          features,
+          seatMaterial,
           numberOfKeys: draft.number_of_keys?.toString() as "1" | "2" || "1",
           hasToolPack: draft.has_tool_pack || false,
           hasDocumentation: draft.has_documentation || false,
