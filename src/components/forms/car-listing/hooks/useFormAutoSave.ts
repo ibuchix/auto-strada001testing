@@ -47,7 +47,6 @@ export const useFormAutoSave = (
       }
     };
 
-    const timer = setTimeout(autoSave, 3000);
-    return () => clearTimeout(timer);
+    autoSave();
   }, [form.watch(), userId]);
 };
