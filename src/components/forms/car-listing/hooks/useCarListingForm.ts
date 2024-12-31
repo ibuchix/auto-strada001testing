@@ -60,35 +60,30 @@ export const useCarListingForm = (userId?: string) => {
     };
   };
 
-  const saveCarData = async (carData: Cars) => {
-    const { data: savedCar, error } = await supabase
-      .from('cars')
-      .upsert(carData)
-      .select()
-      .maybeSingle();
-
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
-
-    if (!savedCar) {
-      throw new Error('Failed to save car data');
-    }
-
-    return savedCar;
-  };
-
   const onSubmit = async (data: CarListingFormData) => {
-    if (isSubmitting) return;
+    if (isSubmitting) return { success: false };
     
     setIsSubmitting(true);
     
     try {
       const carData = prepareCarData(data);
-      const savedCar = await saveCarData(carData);
+      const { data: savedCar, error } = await supabase
+        .from('cars')
+        .upsert(carData)
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      if (!savedCar) {
+        throw new Error('Failed to save car data');
+      }
+
       setCarId(savedCar.id);
-      toast.success("Basic information saved. Please upload the required photos.");
+      return { success: true, carId: savedCar.id };
     } catch (error: any) {
       console.error('Error listing car:', error);
       throw error;

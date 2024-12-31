@@ -46,28 +46,14 @@ export const CarListingForm = () => {
       return;
     }
 
-    const submitPromise = new Promise(async (resolve, reject) => {
-      try {
-        await onSubmit(data);
-        resolve(true);
-      } catch (error: any) {
-        reject(error);
-      }
-    });
-
     try {
-      await Promise.race([
-        submitPromise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("Request timed out")), 30000)
-        )
-      ]);
-    } catch (error: any) {
-      if (error.message === "Request timed out") {
-        toast.error("The request took too long. Please try again.");
-      } else {
-        toast.error(error.message || "Failed to save information");
+      const result = await onSubmit(data);
+      if (result.success) {
+        toast.success("Information saved successfully");
       }
+    } catch (error: any) {
+      console.error('Form submission error:', error);
+      toast.error(error.message || "Failed to save information");
     }
   };
 
