@@ -79,22 +79,20 @@ export const useCarListingForm = (userId?: string) => {
         Object.entries(carData).filter(([_, value]) => value !== undefined)
       ) as Cars;
 
-      // Set up timeout using Promise.race
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timed out')), 30000);
-      });
-
-      const queryPromise = supabase
+      const { data: savedCar, error } = await supabase
         .from('cars')
         .upsert(filteredCarData)
         .select()
         .single();
 
-      const result = await Promise.race([queryPromise, timeoutPromise]) as any;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error('Request timed out. Please try again.');
+        }
+        throw error;
+      }
 
-      if (result.error) throw result.error;
-
-      setCarId(result.data.id);
+      setCarId(savedCar.id);
       toast.success("Basic information saved. Please upload the required photos.");
     } catch (error: any) {
       console.error('Error listing car:', error);
