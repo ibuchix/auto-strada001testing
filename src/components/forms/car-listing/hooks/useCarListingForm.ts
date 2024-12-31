@@ -84,7 +84,8 @@ export const useCarListingForm = (userId?: string) => {
           .from('cars')
           .upsert(filteredCarData)
           .select()
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(30000); // Increased timeout to 30 seconds
 
         if (error) {
           console.error('Supabase error:', error);
