@@ -79,30 +79,23 @@ export const useCarListingForm = (userId?: string) => {
         Object.entries(carData).filter(([_, value]) => value !== undefined)
       ) as Cars;
 
-      // Set a timeout for the request
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      // Set up timeout using Promise.race
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timed out')), 30000);
+      });
 
-      try {
-        const { data: savedCar, error } = await supabase
-          .from('cars')
-          .upsert(filteredCarData)
-          .select()
-          .single()
-          .abortSignal(controller.signal);
+      const queryPromise = supabase
+        .from('cars')
+        .upsert(filteredCarData)
+        .select()
+        .single();
 
-        clearTimeout(timeoutId);
+      const result = await Promise.race([queryPromise, timeoutPromise]) as any;
 
-        if (error) throw error;
+      if (result.error) throw result.error;
 
-        setCarId(savedCar.id);
-        toast.success("Basic information saved. Please upload the required photos.");
-      } catch (error: any) {
-        if (error.name === 'AbortError') {
-          throw new Error('Request timed out');
-        }
-        throw error;
-      }
+      setCarId(result.data.id);
+      toast.success("Basic information saved. Please upload the required photos.");
     } catch (error: any) {
       console.error('Error listing car:', error);
       toast.error(error.message || "Failed to list car. Please try again.");
