@@ -24,20 +24,23 @@ export const useCarListingForm = (userId?: string) => {
   useLoadDraft(form, setCarId, setLastSaved, userId);
   useFormAutoSave(form, setLastSaved, valuationData, userId, carId);
 
+  const validateValuationData = () => {
+    const requiredFields = ['make', 'model', 'vin', 'mileage', 'valuation'];
+    const missingFields = requiredFields.filter(field => !valuationData[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required vehicle information: ${missingFields.join(', ')}`);
+    }
+  };
+
   const onSubmit = async (data: CarListingFormData) => {
-    if (isSubmitting) return; // Prevent multiple submissions
+    if (isSubmitting) return;
     
     setIsSubmitting(true);
+    
     try {
-      // Add timeout to the Promise
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timed out')), 30000); // 30 second timeout
-      });
-
-      // Ensure required fields are present
-      if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
-        throw new Error("Missing required vehicle information");
-      }
+      // Validate valuation data first
+      validateValuationData();
 
       // Convert CarFeatures to Json type
       const features = data.features as unknown as Json;
@@ -76,27 +79,33 @@ export const useCarListingForm = (userId?: string) => {
         Object.entries(carData).filter(([_, value]) => value !== undefined)
       ) as Cars;
 
-      // Race between the actual request and the timeout
-      const { data: savedCar, error } = await Promise.race([
-        supabase
+      // Set a timeout for the request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      try {
+        const { data: savedCar, error } = await supabase
           .from('cars')
           .upsert(filteredCarData)
           .select()
-          .single(),
-        timeoutPromise
-      ]) as any;
+          .single()
+          .abortSignal(controller.signal);
 
-      if (error) throw error;
+        clearTimeout(timeoutId);
 
-      setCarId(savedCar.id);
-      toast.success("Basic information saved. Please upload the required photos.");
+        if (error) throw error;
+
+        setCarId(savedCar.id);
+        toast.success("Basic information saved. Please upload the required photos.");
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timed out');
+        }
+        throw error;
+      }
     } catch (error: any) {
       console.error('Error listing car:', error);
-      if (error.message === 'Request timed out') {
-        toast.error("Request timed out. Please try again.");
-      } else {
-        toast.error("Failed to list car. Please try again.");
-      }
+      toast.error(error.message || "Failed to list car. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
