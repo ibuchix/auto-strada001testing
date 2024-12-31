@@ -79,21 +79,32 @@ export const useCarListingForm = (userId?: string) => {
         Object.entries(carData).filter(([_, value]) => value !== undefined)
       ) as Cars;
 
-      const { data: savedCar, error } = await supabase
-        .from('cars')
-        .upsert(filteredCarData)
-        .select()
-        .single();
+      try {
+        const { data: savedCar, error } = await supabase
+          .from('cars')
+          .upsert(filteredCarData)
+          .select()
+          .maybeSingle();
 
-      if (error) {
+        if (error) {
+          console.error('Supabase error:', error);
+          throw new Error(error.message);
+        }
+
+        if (!savedCar) {
+          throw new Error('Failed to save car data');
+        }
+
+        setCarId(savedCar.id);
+        toast.success("Basic information saved. Please upload the required photos.");
+      } catch (error: any) {
         if (error.code === 'PGRST116') {
-          throw new Error('Request timed out. Please try again.');
+          toast.error('The request timed out. Please try again.');
+        } else {
+          toast.error(error.message || 'Failed to save car information');
         }
         throw error;
       }
-
-      setCarId(savedCar.id);
-      toast.success("Basic information saved. Please upload the required photos.");
     } catch (error: any) {
       console.error('Error listing car:', error);
       toast.error(error.message || "Failed to list car. Please try again.");
