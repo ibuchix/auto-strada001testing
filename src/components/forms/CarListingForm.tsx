@@ -50,7 +50,8 @@ export const CarListingForm = () => {
       value !== undefined && 
       value !== null && 
       value !== '' && 
-      value !== 0
+      typeof value === 'string' && 
+      value.length > 0
     );
   };
 
