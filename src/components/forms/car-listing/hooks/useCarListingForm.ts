@@ -84,7 +84,10 @@ export const useCarListingForm = (userId?: string) => {
       
       const { data: savedCar, error } = await supabase
         .from('cars')
-        .upsert(carData)
+        .upsert(carData, {
+          onConflict: 'id',
+          returning: 'representation'
+        })
         .select()
         .single();
 
