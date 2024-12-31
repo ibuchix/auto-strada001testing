@@ -29,30 +29,30 @@ export const CarListingForm = () => {
       return;
     }
 
-    // Proceed with form submission
-    await onSubmit(data);
-  };
-
-  // Check if required fields are filled
-  const isFormValid = () => {
-    const values = form.getValues();
+    // Check if required fields are filled
     const requiredFields = {
-      name: values.name,
-      address: values.address,
-      mobileNumber: values.mobileNumber,
-      serviceHistoryType: values.serviceHistoryType,
-      seatMaterial: values.seatMaterial,
-      numberOfKeys: values.numberOfKeys,
+      name: data.name,
+      address: data.address,
+      mobileNumber: data.mobileNumber,
+      serviceHistoryType: data.serviceHistoryType,
+      seatMaterial: data.seatMaterial,
+      numberOfKeys: data.numberOfKeys,
     };
 
-    // Check if any required field is undefined, null, or empty string
-    return Object.values(requiredFields).every(value => 
-      value !== undefined && 
-      value !== null && 
-      value !== '' && 
-      typeof value === 'string' && 
-      value.length > 0
-    );
+    const missingFields = Object.entries(requiredFields)
+      .filter(([_, value]) => !value)
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+
+    try {
+      await onSubmit(data);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save information");
+    }
   };
 
   return (

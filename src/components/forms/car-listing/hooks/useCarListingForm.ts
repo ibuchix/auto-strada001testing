@@ -24,16 +24,11 @@ export const useCarListingForm = (userId?: string) => {
   useLoadDraft(form, setCarId, setLastSaved, userId);
   useFormAutoSave(form, setLastSaved, valuationData, userId, carId);
 
-  const validateValuationData = () => {
-    const requiredFields = ['make', 'model', 'vin', 'mileage', 'valuation'];
-    const missingFields = requiredFields.filter(field => !valuationData[field]);
-    
-    if (missingFields.length > 0) {
-      throw new Error(`Missing required vehicle information: ${missingFields.join(', ')}`);
-    }
-  };
-
   const prepareCarData = (data: CarListingFormData): Cars => {
+    if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
+      throw new Error("Please complete the vehicle valuation first");
+    }
+
     // Convert CarFeatures to Json type
     const features = data.features as unknown as Json;
 
@@ -71,7 +66,7 @@ export const useCarListingForm = (userId?: string) => {
       .from('cars')
       .upsert(carData)
       .select()
-      .maybeSingle();
+      .single();
 
     if (error) {
       console.error('Supabase error:', error);
@@ -91,20 +86,13 @@ export const useCarListingForm = (userId?: string) => {
     setIsSubmitting(true);
     
     try {
-      validateValuationData();
-
       const carData = prepareCarData(data);
-      const filteredCarData = Object.fromEntries(
-        Object.entries(carData).filter(([_, value]) => value !== undefined)
-      ) as Cars;
-
-      const savedCar = await saveCarData(filteredCarData);
+      const savedCar = await saveCarData(carData);
       setCarId(savedCar.id);
       toast.success("Basic information saved. Please upload the required photos.");
-
     } catch (error: any) {
       console.error('Error listing car:', error);
-      toast.error(error.message || "Failed to list car. Please try again.");
+      throw error;
     } finally {
       setIsSubmitting(false);
     }
