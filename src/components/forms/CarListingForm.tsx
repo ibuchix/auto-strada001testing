@@ -18,7 +18,6 @@ export const CarListingForm = () => {
   const { form, isSubmitting, carId, lastSaved, onSubmit } = useCarListingForm(session?.user.id);
 
   const handleSubmit = async (data: any) => {
-    // Validate title and description lengths
     if (data.title && data.title.length > 100) {
       toast.error("Title must be 100 characters or less");
       return;
@@ -29,7 +28,6 @@ export const CarListingForm = () => {
       return;
     }
 
-    // Check if required fields are filled
     const requiredFields = {
       name: data.name,
       address: data.address,
@@ -48,10 +46,28 @@ export const CarListingForm = () => {
       return;
     }
 
+    const submitPromise = new Promise(async (resolve, reject) => {
+      try {
+        await onSubmit(data);
+        resolve(true);
+      } catch (error: any) {
+        reject(error);
+      }
+    });
+
     try {
-      await onSubmit(data);
+      await Promise.race([
+        submitPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Request timed out")), 30000)
+        )
+      ]);
     } catch (error: any) {
-      toast.error(error.message || "Failed to save information");
+      if (error.message === "Request timed out") {
+        toast.error("The request took too long. Please try again.");
+      } else {
+        toast.error(error.message || "Failed to save information");
+      }
     }
   };
 

@@ -29,7 +29,6 @@ export const useCarListingForm = (userId?: string) => {
       throw new Error("Please complete the vehicle valuation first");
     }
 
-    // Convert CarFeatures to Json type
     const features = data.features as unknown as Json;
 
     return {
@@ -66,7 +65,7 @@ export const useCarListingForm = (userId?: string) => {
       .from('cars')
       .upsert(carData)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Supabase error:', error);
