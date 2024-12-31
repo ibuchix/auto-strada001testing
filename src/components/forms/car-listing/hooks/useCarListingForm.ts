@@ -31,13 +31,12 @@ export const useCarListingForm = (userId?: string) => {
       throw new Error("User must be logged in to save car information");
     }
 
-    // Convert CarFeatures to a plain object that matches the Json type
     const features = {
-      satNav: data.features.satNav,
-      panoramicRoof: data.features.panoramicRoof,
-      reverseCamera: data.features.reverseCamera,
-      heatedSeats: data.features.heatedSeats,
-      upgradedSound: data.features.upgradedSound
+      satNav: data.features.satNav || false,
+      panoramicRoof: data.features.panoramicRoof || false,
+      reverseCamera: data.features.reverseCamera || false,
+      heatedSeats: data.features.heatedSeats || false,
+      upgradedSound: data.features.upgradedSound || false
     };
 
     return {
@@ -70,13 +69,18 @@ export const useCarListingForm = (userId?: string) => {
   };
 
   const onSubmit = async (data: CarListingFormData): Promise<boolean> => {
-    if (isSubmitting) return false;
+    console.log('Starting form submission...');
+    if (isSubmitting) {
+      console.log('Form is already submitting, returning...');
+      return false;
+    }
     
     setIsSubmitting(true);
+    console.log('Form data being submitted:', data);
     
     try {
       const carData = prepareCarData(data);
-      console.log('Submitting car data:', carData);
+      console.log('Prepared car data:', carData);
       
       const { data: savedCar, error } = await supabase
         .from('cars')

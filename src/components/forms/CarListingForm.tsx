@@ -18,6 +18,8 @@ export const CarListingForm = () => {
   const { form, isSubmitting, carId, lastSaved, onSubmit } = useCarListingForm(session?.user.id);
 
   const handleSubmit = async (data: any) => {
+    console.log('Form submission started');
+    
     if (data.title && data.title.length > 100) {
       toast.error("Title must be 100 characters or less");
       return;
@@ -47,6 +49,7 @@ export const CarListingForm = () => {
     }
 
     try {
+      console.log('Submitting form data:', data);
       const success = await onSubmit(data);
       if (success) {
         toast.success("Information saved successfully");
