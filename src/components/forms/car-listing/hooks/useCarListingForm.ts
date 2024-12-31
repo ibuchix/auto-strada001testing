@@ -31,7 +31,14 @@ export const useCarListingForm = (userId?: string) => {
       throw new Error("User must be logged in to save car information");
     }
 
-    const features = data.features;
+    // Convert CarFeatures to a plain object that matches the Json type
+    const features = {
+      satNav: data.features.satNav,
+      panoramicRoof: data.features.panoramicRoof,
+      reverseCamera: data.features.reverseCamera,
+      heatedSeats: data.features.heatedSeats,
+      upgradedSound: data.features.upgradedSound
+    };
 
     return {
       id: carId,
