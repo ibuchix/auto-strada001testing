@@ -47,8 +47,8 @@ export const CarListingForm = () => {
     }
 
     try {
-      const result = await onSubmit(data);
-      if (result.success) {
+      const success = await onSubmit(data);
+      if (success) {
         toast.success("Information saved successfully");
       }
     } catch (error: any) {

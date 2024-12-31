@@ -2,14 +2,12 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { getFormDefaults } from "./useFormDefaults";
-import { useFormAutoSave } from "./useFormAutoSave";
-import { useLoadDraft } from "./useLoadDraft";
 import { Database } from "@/integrations/supabase/types";
+import { getFormDefaults } from "./useFormDefaults";
+import { useLoadDraft } from "./useLoadDraft";
+import { useFormAutoSave } from "./useFormAutoSave";
 
 type Cars = Database["public"]["Tables"]["cars"]["Insert"];
-type Json = Database["public"]["Tables"]["cars"]["Insert"]["features"];
 
 export const useCarListingForm = (userId?: string) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,7 +27,11 @@ export const useCarListingForm = (userId?: string) => {
       throw new Error("Please complete the vehicle valuation first");
     }
 
-    const features = data.features as unknown as Json;
+    if (!userId) {
+      throw new Error("User must be logged in to save car information");
+    }
+
+    const features = data.features;
 
     return {
       id: carId,
@@ -61,7 +63,7 @@ export const useCarListingForm = (userId?: string) => {
   };
 
   const onSubmit = async (data: CarListingFormData) => {
-    if (isSubmitting) return { success: false };
+    if (isSubmitting) return false;
     
     setIsSubmitting(true);
     
@@ -71,19 +73,15 @@ export const useCarListingForm = (userId?: string) => {
         .from('cars')
         .upsert(carData)
         .select()
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error('Supabase error:', error);
         throw error;
       }
 
-      if (!savedCar) {
-        throw new Error('Failed to save car data');
-      }
-
       setCarId(savedCar.id);
-      return { success: true, carId: savedCar.id };
+      return true;
     } catch (error: any) {
       console.error('Error listing car:', error);
       throw error;
