@@ -32,11 +32,11 @@ export const useCarListingForm = (userId?: string) => {
     }
 
     const features = {
-      satNav: data.features.satNav || false,
-      panoramicRoof: data.features.panoramicRoof || false,
-      reverseCamera: data.features.reverseCamera || false,
-      heatedSeats: data.features.heatedSeats || false,
-      upgradedSound: data.features.upgradedSound || false
+      satNav: data.features?.satNav || false,
+      panoramicRoof: data.features?.panoramicRoof || false,
+      reverseCamera: data.features?.reverseCamera || false,
+      heatedSeats: data.features?.heatedSeats || false,
+      upgradedSound: data.features?.upgradedSound || false
     };
 
     return {
@@ -95,9 +95,10 @@ export const useCarListingForm = (userId?: string) => {
 
       console.log('Car saved successfully:', savedCar);
       setCarId(savedCar.id);
+      setLastSaved(new Date());
       return true;
     } catch (error: any) {
-      console.error('Error listing car:', error);
+      console.error('Error saving car:', error);
       throw error;
     } finally {
       setIsSubmitting(false);
