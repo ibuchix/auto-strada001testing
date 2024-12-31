@@ -25,8 +25,15 @@ export const useCarListingForm = (userId?: string) => {
   useFormAutoSave(form, setLastSaved, valuationData, userId, carId);
 
   const onSubmit = async (data: CarListingFormData) => {
+    if (isSubmitting) return; // Prevent multiple submissions
+    
     setIsSubmitting(true);
     try {
+      // Add timeout to the Promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timed out')), 30000); // 30 second timeout
+      });
+
       // Ensure required fields are present
       if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
         throw new Error("Missing required vehicle information");
@@ -69,19 +76,27 @@ export const useCarListingForm = (userId?: string) => {
         Object.entries(carData).filter(([_, value]) => value !== undefined)
       ) as Cars;
 
-      const { data: savedCar, error } = await supabase
-        .from('cars')
-        .upsert(filteredCarData)
-        .select()
-        .single();
+      // Race between the actual request and the timeout
+      const { data: savedCar, error } = await Promise.race([
+        supabase
+          .from('cars')
+          .upsert(filteredCarData)
+          .select()
+          .single(),
+        timeoutPromise
+      ]) as any;
 
       if (error) throw error;
 
       setCarId(savedCar.id);
       toast.success("Basic information saved. Please upload the required photos.");
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error listing car:', error);
-      toast.error("Failed to list car. Please try again.");
+      if (error.message === 'Request timed out') {
+        toast.error("Request timed out. Please try again.");
+      } else {
+        toast.error("Failed to list car. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
