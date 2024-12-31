@@ -69,13 +69,15 @@ export const useCarListingForm = (userId?: string) => {
     };
   };
 
-  const onSubmit = async (data: CarListingFormData) => {
+  const onSubmit = async (data: CarListingFormData): Promise<boolean> => {
     if (isSubmitting) return false;
     
     setIsSubmitting(true);
     
     try {
       const carData = prepareCarData(data);
+      console.log('Submitting car data:', carData);
+      
       const { data: savedCar, error } = await supabase
         .from('cars')
         .upsert(carData)
@@ -87,6 +89,7 @@ export const useCarListingForm = (userId?: string) => {
         throw error;
       }
 
+      console.log('Car saved successfully:', savedCar);
       setCarId(savedCar.id);
       return true;
     } catch (error: any) {
