@@ -45,7 +45,13 @@ export const CarListingForm = () => {
       numberOfKeys: values.numberOfKeys,
     };
 
-    return Object.values(requiredFields).every(value => value !== undefined && value !== '');
+    // Check if any required field is undefined, null, or empty string
+    return Object.values(requiredFields).every(value => 
+      value !== undefined && 
+      value !== null && 
+      value !== '' && 
+      value !== 0
+    );
   };
 
   return (
@@ -67,7 +73,7 @@ export const CarListingForm = () => {
         <Button
           type="submit"
           className="w-full bg-secondary hover:bg-secondary/90 text-white"
-          disabled={isSubmitting || !isFormValid()}
+          disabled={isSubmitting}
         >
           {isSubmitting ? "Saving Information..." : carId ? "Update Information" : "Save Information"}
         </Button>
