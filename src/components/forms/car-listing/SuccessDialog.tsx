@@ -6,10 +6,20 @@ import { useNavigate } from "react-router-dom";
 interface SuccessDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onClose?: () => void;
 }
 
-export const SuccessDialog = ({ open, onOpenChange }: SuccessDialogProps) => {
+export const SuccessDialog = ({ open, onOpenChange, onClose }: SuccessDialogProps) => {
   const navigate = useNavigate();
+
+  const handleClose = () => {
+    onOpenChange(false);
+    if (onClose) {
+      onClose();
+    } else {
+      navigate('/dashboard/seller');
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -28,10 +38,7 @@ export const SuccessDialog = ({ open, onOpenChange }: SuccessDialogProps) => {
             </p>
             <Button 
               className="mt-6 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-full sm:w-auto"
-              onClick={() => {
-                onOpenChange(false);
-                navigate('/dashboard/seller');
-              }}
+              onClick={handleClose}
             >
               Go to Dashboard
             </Button>

@@ -16,22 +16,19 @@ import { FormSubmitButton } from "./car-listing/FormSubmitButton";
 import { SuccessDialog } from "./car-listing/SuccessDialog";
 import { UploadProgress } from "./car-listing/UploadProgress";
 import { LastSaved } from "./car-listing/LastSaved";
+import { supabase } from "@/integrations/supabase/client";
 
 export const CarListingForm = () => {
   const { session } = useAuth();
   const { form, isSubmitting, carId, lastSaved, onSubmit } = useCarListingForm(session?.user.id);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (data: any) => {
     try {
-      if (!session?.user.id) {
-        toast.error("You must be logged in to submit a listing");
-        navigate("/auth");
-        return;
-      }
-
+      setSubmitting(true);
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
       if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
         toast.error("Please complete the vehicle valuation first");
@@ -72,16 +69,51 @@ export const CarListingForm = () => {
         return;
       }
 
-      const success = await onSubmit(data);
-      
-      if (success) {
-        setShowSuccessDialog(true);
-      } else {
-        toast.error("Failed to submit listing");
+      // Create a new car listing
+      const { data: carData, error: carError } = await supabase
+        .from('cars')
+        .insert({
+          seller_id: session?.user.id,
+          title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
+          vin: valuationData.vin,
+          mileage: valuationData.mileage,
+          price: valuationData.valuation,
+          make: valuationData.make,
+          model: valuationData.model,
+          year: valuationData.year,
+          valuation_data: valuationData,
+          name: data.name,
+          address: data.address,
+          mobile_number: data.mobileNumber,
+          is_damaged: data.isDamaged,
+          is_registered_in_poland: data.isRegisteredInPoland,
+          features: data.features,
+          seat_material: data.seatMaterial,
+          number_of_keys: parseInt(data.numberOfKeys),
+          has_tool_pack: data.hasToolPack,
+          has_documentation: data.hasDocumentation,
+          is_selling_on_behalf: data.isSellingOnBehalf,
+          has_private_plate: data.hasPrivatePlate,
+          finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
+          service_history_type: data.serviceHistoryType,
+          seller_notes: data.sellerNotes,
+          is_draft: false,
+          required_photos: uploadedPhotos
+        })
+        .select()
+        .single();
+
+      if (carError) {
+        throw carError;
       }
+
+      toast.success("Listing submitted successfully!");
+      setShowSuccessDialog(true);
     } catch (error: any) {
       console.error('Form submission error:', error);
       toast.error(error.message || "Failed to submit listing");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -133,13 +165,14 @@ export const CarListingForm = () => {
             </Card>
           </div>
 
-          <FormSubmitButton isSubmitting={isSubmitting} />
+          <FormSubmitButton isSubmitting={submitting} />
         </form>
       </Form>
 
       <SuccessDialog 
         open={showSuccessDialog} 
         onOpenChange={setShowSuccessDialog}
+        onClose={() => navigate('/dashboard/seller')}
       />
     </>
   );
