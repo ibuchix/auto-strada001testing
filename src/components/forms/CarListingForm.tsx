@@ -18,48 +18,51 @@ export const CarListingForm = () => {
   const { form, isSubmitting, carId, lastSaved, onSubmit } = useCarListingForm(session?.user.id);
 
   const handleSubmit = async (data: any) => {
-    console.log('Form submission started with data:', data);
-    
-    if (!session?.user.id) {
-      toast.error("You must be logged in to save car information");
-      return;
-    }
-
-    if (data.title && data.title.length > 100) {
-      toast.error("Title must be 100 characters or less");
-      return;
-    }
-
-    if (data.description && data.description.length > 2000) {
-      toast.error("Description must be 2000 characters or less");
-      return;
-    }
-
-    const requiredFields = {
-      name: data.name,
-      address: data.address,
-      mobileNumber: data.mobileNumber,
-      serviceHistoryType: data.serviceHistoryType,
-      seatMaterial: data.seatMaterial,
-      numberOfKeys: data.numberOfKeys,
-    };
-
-    const missingFields = Object.entries(requiredFields)
-      .filter(([_, value]) => !value)
-      .map(([key]) => key);
-
-    if (missingFields.length > 0) {
-      toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
-      return;
-    }
-
     try {
-      console.log('Attempting to save car information...');
+      console.log('Form submission started with data:', data);
+      
+      if (!session?.user.id) {
+        toast.error("You must be logged in to save car information");
+        return;
+      }
+
+      if (data.title && data.title.length > 100) {
+        toast.error("Title must be 100 characters or less");
+        return;
+      }
+
+      if (data.description && data.description.length > 2000) {
+        toast.error("Description must be 2000 characters or less");
+        return;
+      }
+
+      const requiredFields = {
+        name: data.name,
+        address: data.address,
+        mobileNumber: data.mobileNumber,
+        serviceHistoryType: data.serviceHistoryType,
+        seatMaterial: data.seatMaterial,
+        numberOfKeys: data.numberOfKeys,
+      };
+
+      const missingFields = Object.entries(requiredFields)
+        .filter(([_, value]) => !value)
+        .map(([key]) => key);
+
+      if (missingFields.length > 0) {
+        toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
+        return;
+      }
+
       const success = await onSubmit(data);
       
       if (success) {
         console.log('Car information saved successfully');
         toast.success("Information saved successfully");
+        // Only show photo upload section after successful save
+        if (!carId) {
+          window.scrollTo(0, 0);
+        }
       } else {
         console.log('Failed to save car information');
         toast.error("Failed to save information");

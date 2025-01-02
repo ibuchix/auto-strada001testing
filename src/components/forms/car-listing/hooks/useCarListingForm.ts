@@ -69,11 +69,7 @@ export const useCarListingForm = (userId?: string) => {
   };
 
   const onSubmit = async (data: CarListingFormData): Promise<boolean> => {
-    console.log('Starting form submission...');
-    if (isSubmitting) {
-      console.log('Form is already submitting, returning...');
-      return false;
-    }
+    if (isSubmitting) return false;
     
     setIsSubmitting(true);
     console.log('Form data being submitted:', data);
@@ -82,18 +78,11 @@ export const useCarListingForm = (userId?: string) => {
       const carData = prepareCarData(data);
       console.log('Prepared car data:', carData);
       
-      const { data: savedCar, error } = await Promise.race([
-        supabase
-          .from('cars')
-          .upsert(carData, {
-            onConflict: 'id'
-          })
-          .select()
-          .single(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database operation timed out')), 10000)
-        )
-      ]) as { data: any, error: any };
+      const { data: savedCar, error } = await supabase
+        .from('cars')
+        .upsert(carData)
+        .select()
+        .single();
 
       if (error) {
         console.error('Supabase error:', error);
