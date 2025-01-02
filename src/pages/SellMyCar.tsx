@@ -1,8 +1,26 @@
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { CarListingForm } from "@/components/forms/CarListingForm";
+import { useAuth } from "@/components/AuthProvider";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const SellMyCar = () => {
+  const { session } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!session) {
+      toast.error("Please sign in to create a listing");
+      navigate("/auth");
+    }
+  }, [session, navigate]);
+
+  if (!session) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen">
       <Navigation />
