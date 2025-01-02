@@ -22,7 +22,13 @@ export const CarListingForm = () => {
       console.log('Form submission started with data:', data);
       
       if (!session?.user.id) {
-        toast.error("You must be logged in to save car information");
+        toast.error("You must be logged in to submit a listing");
+        return;
+      }
+
+      const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
+      if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
+        toast.error("Please complete the vehicle valuation first");
         return;
       }
 
@@ -54,20 +60,20 @@ export const CarListingForm = () => {
         return;
       }
 
-      console.log('Attempting to save car information...');
+      console.log('Attempting to save car listing...');
       const success = await onSubmit(data);
       
       if (success) {
-        console.log('Car information saved successfully with ID:', carId);
-        toast.success("Information saved successfully");
+        console.log('Car listing saved successfully with ID:', carId);
+        toast.success("Listing submitted successfully");
         navigate('/dashboard/seller');
       } else {
-        console.error('Failed to save car information - no success response');
-        toast.error("Failed to save information");
+        console.error('Failed to save car listing');
+        toast.error("Failed to submit listing");
       }
     } catch (error: any) {
       console.error('Form submission error:', error);
-      toast.error(error.message || "Failed to save information");
+      toast.error(error.message || "Failed to submit listing");
     }
   };
 
@@ -119,10 +125,10 @@ export const CarListingForm = () => {
 
         <Button
           type="submit"
-          className="w-full bg-primary hover:bg-primary/90 text-white"
+          className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Saving..." : "Submit Listing"}
+          {isSubmitting ? "Submitting..." : "Submit Listing"}
         </Button>
       </form>
     </Form>
