@@ -18,16 +18,6 @@ export const useFormSubmission = (userId?: string) => {
         return;
       }
 
-      if (data.title && data.title.length > 100) {
-        toast.error("Title must be 100 characters or less");
-        return;
-      }
-
-      if (data.description && data.description.length > 2000) {
-        toast.error("Description must be 2000 characters or less");
-        return;
-      }
-
       const requiredFields = {
         name: data.name,
         address: data.address,
@@ -69,7 +59,7 @@ export const useFormSubmission = (userId?: string) => {
           mobile_number: data.mobileNumber,
           is_damaged: data.isDamaged,
           is_registered_in_poland: data.isRegisteredInPoland,
-          features: data.features,
+          features: JSON.stringify(data.features),
           seat_material: data.seatMaterial,
           number_of_keys: parseInt(data.numberOfKeys),
           has_tool_pack: data.hasToolPack,

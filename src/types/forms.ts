@@ -24,4 +24,6 @@ export interface CarListingFormData {
   serviceHistoryType: "full" | "partial" | "none" | "not_due";
   sellerNotes?: string;
   uploadedPhotos: string[];
+  title?: string;
+  description?: string;
 }
