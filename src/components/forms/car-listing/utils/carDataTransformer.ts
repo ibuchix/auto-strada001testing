@@ -10,7 +10,7 @@ export const prepareCarFeatures = (features: CarListingFormData['features']): Js
 });
 
 export const prepareCarData = (data: CarListingFormData, userId: string, valuationData: any) => {
-  console.log('Starting car data preparation with valuation data:', valuationData);
+  console.log('Starting car data preparation with:', { data, valuationData });
 
   // Validate required valuation data
   if (!valuationData?.make || !valuationData?.model || !valuationData?.vin || 
@@ -23,10 +23,16 @@ export const prepareCarData = (data: CarListingFormData, userId: string, valuati
   const title = `${valuationData.make} ${valuationData.model} ${valuationData.year}`.trim();
   if (!title) {
     console.error('Failed to generate valid title from:', { make: valuationData.make, model: valuationData.model, year: valuationData.year });
-    throw new Error("Unable to generate listing title from valuation data");
+    throw new Error("Unable to generate listing title");
   }
 
   console.log('Generated title:', title);
+
+  // Validate required form data
+  if (!data.numberOfKeys || !data.seatMaterial) {
+    console.error('Missing required form data:', { numberOfKeys: data.numberOfKeys, seatMaterial: data.seatMaterial });
+    throw new Error("Please fill in all required fields");
+  }
 
   const carData = {
     seller_id: userId,

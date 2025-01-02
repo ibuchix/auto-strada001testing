@@ -30,7 +30,7 @@ export const CarListingForm = () => {
       return;
     }
 
-    // Basic validation with logging
+    // Validate required fields
     if (!data.name || !data.address || !data.mobileNumber) {
       console.error('Missing personal details:', { name: data.name, address: data.address, mobileNumber: data.mobileNumber });
       toast.error("Please fill in all required personal details");
@@ -52,6 +52,14 @@ export const CarListingForm = () => {
     if (!data.uploadedPhotos || data.uploadedPhotos.length === 0) {
       console.error('No photos uploaded');
       toast.error("Please upload at least one photo");
+      return;
+    }
+
+    // Get valuation data
+    const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
+    if (!valuationData.make || !valuationData.model || !valuationData.year) {
+      console.error('Missing valuation data');
+      toast.error("Please complete the vehicle valuation first");
       return;
     }
 

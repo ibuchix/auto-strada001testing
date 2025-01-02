@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { prepareCarData } from "../utils/carDataTransformer";
-import { insertCarListing } from "../utils/supabaseQueries";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useFormSubmission = (userId?: string) => {
   const [submitting, setSubmitting] = useState(false);
@@ -33,9 +33,18 @@ export const useFormSubmission = (userId?: string) => {
       const carData = prepareCarData(data, userId, valuationData);
       console.log('Prepared car data:', carData);
 
-      await insertCarListing(carData);
+      const { error } = await supabase
+        .from('cars')
+        .insert(carData)
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
       console.log('Form submitted successfully');
-      
       toast.success("Listing submitted successfully!");
       setShowSuccessDialog(true);
       
