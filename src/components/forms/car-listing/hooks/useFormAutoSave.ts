@@ -2,6 +2,10 @@ import { useEffect, useRef, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+const SAVE_DEBOUNCE_TIME = 2000; // 2 seconds debounce
+const SAVE_TIMEOUT = 10000; // 10 seconds timeout
 
 export const useFormAutoSave = (
   form: UseFormReturn<CarListingFormData>,
@@ -12,17 +16,18 @@ export const useFormAutoSave = (
 ) => {
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const previousDataRef = useRef<string>("");
+  const isSavingRef = useRef(false);
 
   const saveData = useCallback(async (formData: CarListingFormData) => {
-    if (!userId) return;
+    if (!userId || isSavingRef.current) return;
 
     const currentData = JSON.stringify(formData);
     if (currentData === previousDataRef.current) return;
-    
-    previousDataRef.current = currentData;
+
+    isSavingRef.current = true;
 
     try {
-      const { error } = await supabase.from('cars').upsert({
+      const savePromise = supabase.from('cars').upsert({
         id: carId,
         seller_id: userId,
         ...valuationData,
@@ -45,11 +50,24 @@ export const useFormAutoSave = (
         last_saved: new Date().toISOString(),
       });
 
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Save operation timed out')), SAVE_TIMEOUT);
+      });
+
+      // Race between the save operation and the timeout
+      const { error } = await Promise.race([savePromise, timeoutPromise]);
+
       if (error) throw error;
       
+      previousDataRef.current = currentData;
       setLastSaved(new Date());
+      console.log('Auto-save successful');
     } catch (error) {
       console.error('Error autosaving:', error);
+      toast.error('Failed to save changes. Will retry automatically.');
+    } finally {
+      isSavingRef.current = false;
     }
   }, [userId, carId, valuationData, setLastSaved]);
 
@@ -62,7 +80,7 @@ export const useFormAutoSave = (
 
     saveTimeoutRef.current = setTimeout(() => {
       saveData(formData);
-    }, 2000);
+    }, SAVE_DEBOUNCE_TIME);
 
     return () => {
       if (saveTimeoutRef.current) {
