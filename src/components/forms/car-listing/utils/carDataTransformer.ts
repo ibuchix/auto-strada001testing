@@ -14,9 +14,17 @@ export const prepareCarData = (data: CarListingFormData, userId: string, valuati
     throw new Error("Please complete the vehicle valuation first");
   }
 
+  // Ensure we have a valid title by combining make, model, and year
+  const title = `${valuationData.make} ${valuationData.model} ${valuationData.year || ''}`.trim();
+  if (!title) {
+    throw new Error("Unable to generate listing title from valuation data");
+  }
+
+  console.log('Preparing car data with title:', title);
+
   return {
     seller_id: userId,
-    title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
+    title, // Now we ensure this is always set
     vin: valuationData.vin,
     mileage: valuationData.mileage,
     price: valuationData.valuation,
