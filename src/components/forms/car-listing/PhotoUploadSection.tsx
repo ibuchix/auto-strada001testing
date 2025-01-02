@@ -6,7 +6,11 @@ import { usePhotoUpload } from "./photo-upload/usePhotoUpload";
 import { PhotoUploadSectionProps } from "./photo-upload/types";
 import { useEffect } from "react";
 
-export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => {
+interface ExtendedPhotoUploadSectionProps extends PhotoUploadSectionProps {
+  onProgressUpdate?: (progress: number) => void;
+}
+
+export const PhotoUploadSection = ({ form, carId, onProgressUpdate }: ExtendedPhotoUploadSectionProps) => {
   const { isUploading, uploadProgress, uploadedFiles, handleFileUpload } = usePhotoUpload(carId);
 
   useEffect(() => {
@@ -14,6 +18,12 @@ export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => 
       form.setValue('uploadedPhotos', uploadedFiles);
     }
   }, [uploadedFiles, form]);
+
+  useEffect(() => {
+    if (onProgressUpdate) {
+      onProgressUpdate(uploadProgress);
+    }
+  }, [uploadProgress, onProgressUpdate]);
 
   const handleAdditionalPhotos = (files: File[]) => {
     files.forEach((file, index) => {

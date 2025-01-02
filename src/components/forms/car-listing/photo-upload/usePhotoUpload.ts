@@ -50,12 +50,10 @@ export const usePhotoUpload = (carId?: string) => {
         throw new Error('Failed to upload file');
       }
 
-      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('car-files')
         .getPublicUrl(filePath);
 
-      // Log the upload in the car_file_uploads table
       const { error: logError } = await supabase
         .from('car_file_uploads')
         .insert({
@@ -75,25 +73,36 @@ export const usePhotoUpload = (carId?: string) => {
         throw new Error('Failed to log file upload');
       }
 
-      // Update the cars table with the new photo
       if (type.startsWith('additional_')) {
+        const { data: currentPhotos } = await supabase
+          .from('cars')
+          .select('additional_photos')
+          .eq('id', carId)
+          .single();
+
+        const updatedPhotos = [...(currentPhotos?.additional_photos || []), publicUrl];
+
         const { error: updateError } = await supabase
           .from('cars')
-          .update({
-            additional_photos: [...(await supabase.from('cars').select('additional_photos').eq('id', carId).single()).data?.additional_photos || [], publicUrl]
-          })
+          .update({ additional_photos: updatedPhotos })
           .eq('id', carId);
 
         if (updateError) throw updateError;
       } else {
+        const { data: currentPhotos } = await supabase
+          .from('cars')
+          .select('required_photos')
+          .eq('id', carId)
+          .single();
+
+        const updatedPhotos = {
+          ...(currentPhotos?.required_photos || {}),
+          [type]: publicUrl
+        };
+
         const { error: updateError } = await supabase
           .from('cars')
-          .update({
-            required_photos: {
-              ...(await supabase.from('cars').select('required_photos').eq('id', carId).single()).data?.required_photos,
-              [type]: publicUrl
-            }
-          })
+          .update({ required_photos: updatedPhotos })
           .eq('id', carId);
 
         if (updateError) throw updateError;
@@ -101,7 +110,7 @@ export const usePhotoUpload = (carId?: string) => {
 
       setUploadedFiles(prev => [...prev, publicUrl]);
       setUploadProgress(prev => prev + (100 / (type.startsWith('additional_') ? 5 : 9))); // 9 required photos or 5 additional
-      toast.success(`${type} uploaded successfully`);
+      toast.success(`Photo uploaded successfully`);
     } catch (error) {
       console.error('Upload error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to upload image');
