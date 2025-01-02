@@ -36,7 +36,6 @@ Deno.serve(async (req) => {
     }
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
-    // Updated URL with all required parameters including mileage
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
 
     console.log('Constructed API URL:', apiUrl);

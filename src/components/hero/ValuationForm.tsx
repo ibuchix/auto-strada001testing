@@ -64,14 +64,14 @@ export const ValuationForm = () => {
         timestamp: new Date().toISOString()
       };
 
-      // Store in localStorage
-      const previousValuations = JSON.parse(localStorage.getItem('carValuations') || '[]');
-      previousValuations.unshift(valuationResult);
-      localStorage.setItem('carValuations', JSON.stringify(previousValuations.slice(0, 5)));
+      // Store in localStorage for the listing form to use
+      localStorage.setItem('valuationData', JSON.stringify(valuationResult));
 
       setValuationResult(valuationResult);
       setShowDialog(true);
       toast.success("Vehicle valuation completed successfully!");
+      
+      // Reset form
       setVin("");
       setMileage("");
       setGearbox("manual");
