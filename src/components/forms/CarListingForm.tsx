@@ -67,12 +67,13 @@ export const CarListingForm = () => {
         return;
       }
 
-      const uploadedPhotos = form.getValues('uploadedPhotos');
-      if (!uploadedPhotos || uploadedPhotos.length === 0) {
+      const uploadedPhotos = form.getValues('uploadedPhotos') || [];
+      if (uploadedPhotos.length === 0) {
         toast.error("Please upload at least one photo");
         return;
       }
 
+      setIsSubmitting(true);
       console.log('Attempting to save car listing...');
       const success = await onSubmit(data);
       
@@ -86,13 +87,15 @@ export const CarListingForm = () => {
     } catch (error: any) {
       console.error('Form submission error:', error);
       toast.error(error.message || "Failed to submit listing");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8 max-w-4xl mx-auto">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8 w-full max-w-4xl mx-auto px-4 md:px-6">
           {lastSaved && (
             <p className="text-sm text-subtitle italic">
               Last saved: {new Date(lastSaved).toLocaleTimeString()}
@@ -100,33 +103,33 @@ export const CarListingForm = () => {
           )}
           
           <div className="space-y-6">
-            <Card className="p-6">
-              <h2 className="text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Personal Details</h2>
+            <Card className="p-4 md:p-6">
+              <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Personal Details</h2>
               <PersonalDetailsSection form={form} />
             </Card>
 
-            <Card className="p-6">
-              <h2 className="text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Vehicle Status</h2>
+            <Card className="p-4 md:p-6">
+              <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Vehicle Status</h2>
               <VehicleStatusSection form={form} />
             </Card>
 
-            <Card className="p-6">
-              <h2 className="text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Features</h2>
+            <Card className="p-4 md:p-6">
+              <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Features</h2>
               <FeaturesSection form={form} />
             </Card>
 
-            <Card className="p-6">
-              <h2 className="text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Service History</h2>
+            <Card className="p-4 md:p-6">
+              <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Service History</h2>
               <ServiceHistorySection form={form} carId={carId} />
             </Card>
 
-            <Card className="p-6">
-              <h2 className="text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Additional Information</h2>
+            <Card className="p-4 md:p-6">
+              <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Additional Information</h2>
               <AdditionalInfoSection form={form} />
             </Card>
 
-            <Card className="p-6">
-              <h2 className="text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Photos</h2>
+            <Card className="p-4 md:p-6">
+              <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Photos</h2>
               <PhotoUploadSection 
                 form={form} 
                 carId={carId} 
@@ -140,38 +143,47 @@ export const CarListingForm = () => {
               )}
             </Card>
 
-            <Card className="p-6">
-              <h2 className="text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Seller Notes</h2>
+            <Card className="p-4 md:p-6">
+              <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Seller Notes</h2>
               <SellerNotesSection form={form} />
             </Card>
           </div>
 
-          <Button
-            type="submit"
-            className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-4 text-lg"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Submitting..." : "Submit Listing"}
-          </Button>
+          <div className="sticky bottom-0 bg-white p-4 shadow-lg rounded-t-lg border-t">
+            <Button
+              type="submit"
+              className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-semibold py-4 text-lg rounded-md transition-all duration-200 ease-in-out"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                  <span>Submitting...</span>
+                </div>
+              ) : (
+                "Submit Listing"
+              )}
+            </Button>
+          </div>
         </form>
       </Form>
 
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-6 w-6 text-success" />
+            <DialogTitle className="flex items-center gap-2 text-2xl font-oswald">
+              <CheckCircle2 className="h-6 w-6 text-[#21CA6F]" />
               Listing Submitted Successfully
             </DialogTitle>
             <DialogDescription className="text-center pt-4">
-              <p className="mb-4">
+              <p className="mb-4 text-base">
                 Your car listing has been submitted and is pending review. Our team will review your listing within 24 hours.
               </p>
               <p className="text-sm text-subtitle">
                 You will receive a notification once your listing is live.
               </p>
               <Button 
-                className="mt-6 bg-primary hover:bg-primary/90 text-white"
+                className="mt-6 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-full sm:w-auto"
                 onClick={() => {
                   setShowSuccessDialog(false);
                   navigate('/dashboard/seller');
