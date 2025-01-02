@@ -6,6 +6,7 @@ import { Database } from "@/integrations/supabase/types";
 import { getFormDefaults } from "./useFormDefaults";
 import { useLoadDraft } from "./useLoadDraft";
 import { useFormAutoSave } from "./useFormAutoSave";
+import { toast } from "sonner";
 
 type Cars = Database["public"]["Tables"]["cars"]["Insert"];
 
@@ -41,6 +42,7 @@ export const useCarListingForm = (userId?: string) => {
       upgradedSound: data.features?.upgradedSound || false
     };
 
+    // Only include the fields that exist in the database
     return {
       id: carId,
       seller_id: userId,
@@ -67,6 +69,7 @@ export const useCarListingForm = (userId?: string) => {
       service_history_type: data.serviceHistoryType,
       seller_notes: data.sellerNotes,
       is_draft: false,
+      valuation_data: valuationData, // Store the complete valuation data as JSON
     };
   };
 

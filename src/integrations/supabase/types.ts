@@ -305,7 +305,7 @@ export type Database = {
             foreignKeyName: "cars_seller_id_fkey"
             columns: ["seller_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
