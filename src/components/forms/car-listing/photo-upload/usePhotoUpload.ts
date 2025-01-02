@@ -4,6 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
+interface RequiredPhotos {
+  [key: string]: string | null;
+}
+
 export const usePhotoUpload = (carId?: string) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -80,10 +84,11 @@ export const usePhotoUpload = (carId?: string) => {
           .eq('id', carId)
           .single();
 
-        const additionalPhotos = currentPhotos?.additional_photos || [];
-        const updatedPhotos = Array.isArray(additionalPhotos) 
-          ? [...additionalPhotos, publicUrl]
-          : [publicUrl];
+        const additionalPhotos = Array.isArray(currentPhotos?.additional_photos) 
+          ? currentPhotos.additional_photos 
+          : [];
+
+        const updatedPhotos = [...additionalPhotos, publicUrl];
 
         const { error: updateError } = await supabase
           .from('cars')
@@ -98,8 +103,12 @@ export const usePhotoUpload = (carId?: string) => {
           .eq('id', carId)
           .single();
 
-        const requiredPhotos = currentPhotos?.required_photos || {};
-        const updatedPhotos = {
+        // Ensure we have a valid object for required_photos
+        const requiredPhotos: RequiredPhotos = (
+          typeof currentPhotos?.required_photos === 'object' && currentPhotos?.required_photos !== null
+        ) ? currentPhotos.required_photos : {};
+
+        const updatedPhotos: RequiredPhotos = {
           ...requiredPhotos,
           [type]: publicUrl
         };
