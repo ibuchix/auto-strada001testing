@@ -77,7 +77,16 @@ export const useFormSubmission = (userId?: string) => {
       const { error } = await supabase
         .from('cars')
         .insert(carData)
-        .select('id, title, make, model, year, price, mileage, status')
+        .select(`
+          id,
+          title,
+          make,
+          model,
+          year,
+          price,
+          mileage,
+          status
+        `)
         .single();
 
       if (error) {
