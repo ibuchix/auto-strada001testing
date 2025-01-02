@@ -7,6 +7,7 @@ import { SuccessDialog } from "./car-listing/SuccessDialog";
 import { LastSaved } from "./car-listing/LastSaved";
 import { FormSections } from "./car-listing/FormSections";
 import { useFormSubmission } from "./car-listing/hooks/useFormSubmission";
+import { toast } from "sonner";
 
 export const CarListingForm = () => {
   const { session } = useAuth();
@@ -22,6 +23,28 @@ export const CarListingForm = () => {
 
   const onSubmit = async (data: any) => {
     console.log('Form onSubmit triggered with data:', data);
+    
+    // Basic validation
+    if (!data.name || !data.address || !data.mobileNumber) {
+      toast.error("Please fill in all required personal details");
+      return;
+    }
+
+    if (!data.serviceHistoryType) {
+      toast.error("Please select a service history type");
+      return;
+    }
+
+    if (!data.seatMaterial || !data.numberOfKeys) {
+      toast.error("Please fill in all required additional information");
+      return;
+    }
+
+    if (!data.uploadedPhotos || data.uploadedPhotos.length === 0) {
+      toast.error("Please upload at least one photo");
+      return;
+    }
+
     await handleSubmit(data);
   };
 
