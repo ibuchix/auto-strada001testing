@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { CarPhotoData } from "./types";
+import { supabase } from "@/integrations/supabase/client";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const usePhotoUpload = (carId?: string) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
 
   const validateFile = (file: File): boolean => {
     if (!file.type.startsWith('image/')) {
@@ -34,27 +35,73 @@ export const usePhotoUpload = (carId?: string) => {
 
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', type);
-      formData.append('carId', carId);
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${carId}/${type}_${Date.now()}.${fileExt}`;
 
-      const response = await fetch('/api/process-image', {
-        method: 'POST',
-        body: formData,
-      });
+      const { error: uploadError } = await supabase.storage
+        .from('car-files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.details || 'Failed to upload image');
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error('Failed to upload file');
       }
 
-      const { filePath } = await response.json();
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('car-files')
+        .getPublicUrl(filePath);
 
-      // Update progress
-      const newProgress = uploadProgress + 1;
-      setUploadProgress(newProgress);
+      // Log the upload in the car_file_uploads table
+      const { error: logError } = await supabase
+        .from('car_file_uploads')
+        .insert({
+          car_id: carId,
+          file_path: filePath,
+          file_type: type,
+          upload_status: 'completed',
+          image_metadata: {
+            size: file.size,
+            type: file.type,
+            name: file.name
+          }
+        });
 
+      if (logError) {
+        console.error('Log error:', logError);
+        throw new Error('Failed to log file upload');
+      }
+
+      // Update the cars table with the new photo
+      if (type.startsWith('additional_')) {
+        const { error: updateError } = await supabase
+          .from('cars')
+          .update({
+            additional_photos: supabase.sql`array_append(additional_photos, ${publicUrl})`
+          })
+          .eq('id', carId);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: updateError } = await supabase
+          .from('cars')
+          .update({
+            required_photos: supabase.sql`jsonb_set(
+              required_photos,
+              array[${type}],
+              ${JSON.stringify(publicUrl)}
+            )`
+          })
+          .eq('id', carId);
+
+        if (updateError) throw updateError;
+      }
+
+      setUploadedFiles(prev => [...prev, publicUrl]);
+      setUploadProgress(prev => prev + (100 / (type.startsWith('additional_') ? 5 : 9))); // 9 required photos or 5 additional
       toast.success(`${type} uploaded successfully`);
     } catch (error) {
       console.error('Upload error:', error);
@@ -64,5 +111,5 @@ export const usePhotoUpload = (carId?: string) => {
     }
   };
 
-  return { isUploading, uploadProgress, handleFileUpload };
+  return { isUploading, uploadProgress, uploadedFiles, handleFileUpload };
 };

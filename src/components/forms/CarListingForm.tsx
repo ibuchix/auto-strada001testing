@@ -60,6 +60,13 @@ export const CarListingForm = () => {
         return;
       }
 
+      // Check if photos have been uploaded
+      const uploadedPhotos = form.getValues('uploadedPhotos');
+      if (!uploadedPhotos || uploadedPhotos.length === 0) {
+        toast.error("Please upload at least one photo");
+        return;
+      }
+
       console.log('Attempting to save car listing...');
       const success = await onSubmit(data);
       

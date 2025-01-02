@@ -4,9 +4,16 @@ import { RequiredPhotos } from "./photo-upload/RequiredPhotos";
 import { AdditionalPhotos } from "./photo-upload/AdditionalPhotos";
 import { usePhotoUpload } from "./photo-upload/usePhotoUpload";
 import { PhotoUploadSectionProps } from "./photo-upload/types";
+import { useEffect } from "react";
 
 export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => {
-  const { isUploading, uploadProgress, handleFileUpload } = usePhotoUpload(carId);
+  const { isUploading, uploadProgress, uploadedFiles, handleFileUpload } = usePhotoUpload(carId);
+
+  useEffect(() => {
+    if (uploadedFiles.length > 0) {
+      form.setValue('uploadedPhotos', uploadedFiles);
+    }
+  }, [uploadedFiles, form]);
 
   const handleAdditionalPhotos = (files: File[]) => {
     files.forEach((file, index) => {
