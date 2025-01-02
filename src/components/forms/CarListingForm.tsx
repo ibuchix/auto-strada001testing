@@ -107,13 +107,13 @@ export const CarListingForm = () => {
           </div>
 
           <div className="rounded-lg border p-6 space-y-6">
-            <h2 className="text-xl font-semibold">Seller Notes</h2>
-            <SellerNotesSection form={form} />
+            <h2 className="text-xl font-semibold">Photos</h2>
+            <PhotoUploadSection form={form} carId={carId} />
           </div>
 
           <div className="rounded-lg border p-6 space-y-6">
-            <h2 className="text-xl font-semibold">Photos</h2>
-            <PhotoUploadSection form={form} carId={carId} />
+            <h2 className="text-xl font-semibold">Seller Notes</h2>
+            <SellerNotesSection form={form} />
           </div>
         </div>
 
