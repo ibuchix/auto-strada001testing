@@ -13,17 +13,21 @@ export const useFormSubmission = (userId?: string) => {
     console.log('Starting form submission with data:', data);
     
     if (!userId) {
+      console.error('No user ID provided');
       toast.error("Please sign in to submit a listing");
       return;
     }
 
     try {
       setSubmitting(true);
+      console.log('Setting submitting state to true');
 
       // Get valuation data from localStorage
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
+      console.log('Retrieved valuation data:', valuationData);
       
       if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
+        console.error('Missing valuation data:', valuationData);
         toast.error("Please complete the vehicle valuation first");
         return;
       }
@@ -77,6 +81,7 @@ export const useFormSubmission = (userId?: string) => {
       console.error('Form submission error:', error);
       toast.error(error.message || "Failed to submit listing");
     } finally {
+      console.log('Setting submitting state to false');
       setSubmitting(false);
     }
   };

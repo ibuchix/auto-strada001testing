@@ -22,30 +22,47 @@ export const CarListingForm = () => {
   } = useFormSubmission(session?.user.id);
 
   const onSubmit = async (data: any) => {
-    console.log('Form onSubmit triggered with data:', data);
+    console.log('Form submission started with data:', data);
     
-    // Basic validation
+    if (!session?.user.id) {
+      console.error('No user session found');
+      toast.error("Please sign in to submit a listing");
+      return;
+    }
+
+    // Basic validation with logging
     if (!data.name || !data.address || !data.mobileNumber) {
+      console.error('Missing personal details:', { name: data.name, address: data.address, mobileNumber: data.mobileNumber });
       toast.error("Please fill in all required personal details");
       return;
     }
 
     if (!data.serviceHistoryType) {
+      console.error('Missing service history type');
       toast.error("Please select a service history type");
       return;
     }
 
     if (!data.seatMaterial || !data.numberOfKeys) {
+      console.error('Missing additional information:', { seatMaterial: data.seatMaterial, numberOfKeys: data.numberOfKeys });
       toast.error("Please fill in all required additional information");
       return;
     }
 
     if (!data.uploadedPhotos || data.uploadedPhotos.length === 0) {
+      console.error('No photos uploaded');
       toast.error("Please upload at least one photo");
       return;
     }
 
-    await handleSubmit(data);
+    console.log('All validation passed, proceeding with submission');
+    try {
+      await handleSubmit(data);
+      console.log('Form submitted successfully');
+    } catch (error) {
+      console.error('Form submission error:', error);
+      toast.error("Failed to submit listing. Please try again.");
+    }
   };
 
   return (
