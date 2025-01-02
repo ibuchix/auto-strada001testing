@@ -103,10 +103,12 @@ export const usePhotoUpload = (carId?: string) => {
           .eq('id', carId)
           .single();
 
-        // Ensure we have a valid object for required_photos
+        // Cast the required_photos to our RequiredPhotos type after validating it's an object
         const requiredPhotos: RequiredPhotos = (
-          typeof currentPhotos?.required_photos === 'object' && currentPhotos?.required_photos !== null
-        ) ? currentPhotos.required_photos : {};
+          typeof currentPhotos?.required_photos === 'object' && 
+          currentPhotos?.required_photos !== null && 
+          !Array.isArray(currentPhotos?.required_photos)
+        ) ? currentPhotos.required_photos as RequiredPhotos : {};
 
         const updatedPhotos: RequiredPhotos = {
           ...requiredPhotos,
