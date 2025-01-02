@@ -35,14 +35,14 @@ export const useFormSubmission = (userId?: string) => {
 
       // Convert features to a JSON-compatible object
       const features: Json = {
-        satNav: data.features.satNav,
-        panoramicRoof: data.features.panoramicRoof,
-        reverseCamera: data.features.reverseCamera,
-        heatedSeats: data.features.heatedSeats,
-        upgradedSound: data.features.upgradedSound
+        satNav: data.features.satNav || false,
+        panoramicRoof: data.features.panoramicRoof || false,
+        reverseCamera: data.features.reverseCamera || false,
+        heatedSeats: data.features.heatedSeats || false,
+        upgradedSound: data.features.upgradedSound || false
       };
 
-      // Prepare the car data - only include fields that exist in the database
+      // Explicitly define the fields we want to insert
       const carData = {
         seller_id: userId,
         title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
@@ -76,7 +76,9 @@ export const useFormSubmission = (userId?: string) => {
 
       const { error } = await supabase
         .from('cars')
-        .insert(carData);
+        .insert(carData)
+        .select('id')
+        .single();
 
       if (error) {
         console.error('Supabase error:', error);
