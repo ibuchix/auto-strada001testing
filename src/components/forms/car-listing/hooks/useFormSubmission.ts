@@ -21,17 +21,20 @@ export const useFormSubmission = (userId?: string) => {
 
     try {
       setSubmitting(true);
-      console.log('Setting submitting state to true');
 
       // Get valuation data from localStorage
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
       console.log('Retrieved valuation data:', valuationData);
 
+      if (!valuationData.make || !valuationData.model || !valuationData.year) {
+        throw new Error('Missing required valuation data');
+      }
+
       const carData = prepareCarData(data, userId, valuationData);
       console.log('Prepared car data:', carData);
 
       await insertCarListing(carData);
-      console.log('Car listing submitted successfully');
+      console.log('Form submitted successfully');
       
       toast.success("Listing submitted successfully!");
       setShowSuccessDialog(true);
@@ -40,7 +43,6 @@ export const useFormSubmission = (userId?: string) => {
       console.error('Form submission error:', error);
       toast.error(error.message || "Failed to submit listing");
     } finally {
-      console.log('Setting submitting state to false');
       setSubmitting(false);
     }
   };

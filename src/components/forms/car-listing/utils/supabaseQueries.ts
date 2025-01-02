@@ -1,8 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const insertCarListing = async (carData: any) => {
-  console.log('Inserting car listing with data:', carData);
+  console.log('Attempting to insert car listing with data:', carData);
   
+  if (!carData.title) {
+    console.error('Missing required title in car data');
+    throw new Error('Car title is required');
+  }
+
   const { data, error } = await supabase
     .from('cars')
     .insert(carData)

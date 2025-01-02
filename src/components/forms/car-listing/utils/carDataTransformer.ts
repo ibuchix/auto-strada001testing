@@ -10,21 +10,27 @@ export const prepareCarFeatures = (features: CarListingFormData['features']): Js
 });
 
 export const prepareCarData = (data: CarListingFormData, userId: string, valuationData: any) => {
-  if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
+  console.log('Starting car data preparation with valuation data:', valuationData);
+
+  // Validate required valuation data
+  if (!valuationData?.make || !valuationData?.model || !valuationData?.vin || 
+      !valuationData?.mileage || !valuationData?.valuation || !valuationData?.year) {
+    console.error('Missing required valuation data:', valuationData);
     throw new Error("Please complete the vehicle valuation first");
   }
 
-  // Ensure we have a valid title by combining make, model, and year
-  const title = `${valuationData.make} ${valuationData.model} ${valuationData.year || ''}`.trim();
+  // Generate and validate title
+  const title = `${valuationData.make} ${valuationData.model} ${valuationData.year}`.trim();
   if (!title) {
+    console.error('Failed to generate valid title from:', { make: valuationData.make, model: valuationData.model, year: valuationData.year });
     throw new Error("Unable to generate listing title from valuation data");
   }
 
-  console.log('Preparing car data with title:', title);
+  console.log('Generated title:', title);
 
-  return {
+  const carData = {
     seller_id: userId,
-    title, // Now we ensure this is always set
+    title,
     vin: valuationData.vin,
     mileage: valuationData.mileage,
     price: valuationData.valuation,
@@ -50,4 +56,7 @@ export const prepareCarData = (data: CarListingFormData, userId: string, valuati
     required_photos: data.uploadedPhotos,
     is_draft: false
   };
+
+  console.log('Prepared car data:', carData);
+  return carData;
 };
