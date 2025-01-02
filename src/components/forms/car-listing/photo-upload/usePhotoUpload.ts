@@ -81,7 +81,7 @@ export const usePhotoUpload = (carId?: string) => {
           .single();
 
         const updatedPhotos = currentPhotos?.additional_photos 
-          ? [...currentPhotos.additional_photos, publicUrl]
+          ? [...(currentPhotos.additional_photos as string[]), publicUrl]
           : [publicUrl];
 
         const { error: updateError } = await supabase

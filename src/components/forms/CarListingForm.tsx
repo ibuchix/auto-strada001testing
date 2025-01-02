@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { PersonalDetailsSection } from "./car-listing/PersonalDetailsSection";
 import { VehicleStatusSection } from "./car-listing/VehicleStatusSection";
@@ -12,13 +11,13 @@ import { useAuth } from "@/components/AuthProvider";
 import { useCarListingForm } from "./car-listing/hooks/useCarListingForm";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { FormSubmitButton } from "./car-listing/FormSubmitButton";
+import { SuccessDialog } from "./car-listing/SuccessDialog";
+import { UploadProgress } from "./car-listing/UploadProgress";
+import { LastSaved } from "./car-listing/LastSaved";
 
 export const CarListingForm = () => {
-  const navigate = useNavigate();
   const { session } = useAuth();
   const { form, isSubmitting, carId, lastSaved, onSubmit } = useCarListingForm(session?.user.id);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -73,7 +72,6 @@ export const CarListingForm = () => {
         return;
       }
 
-      setIsSubmitting(true);
       console.log('Attempting to save car listing...');
       const success = await onSubmit(data);
       
@@ -87,8 +85,6 @@ export const CarListingForm = () => {
     } catch (error: any) {
       console.error('Form submission error:', error);
       toast.error(error.message || "Failed to submit listing");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -96,11 +92,7 @@ export const CarListingForm = () => {
     <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8 w-full max-w-4xl mx-auto px-4 md:px-6">
-          {lastSaved && (
-            <p className="text-sm text-subtitle italic">
-              Last saved: {new Date(lastSaved).toLocaleTimeString()}
-            </p>
-          )}
+          <LastSaved timestamp={lastSaved ? new Date(lastSaved) : null} />
           
           <div className="space-y-6">
             <Card className="p-4 md:p-6">
@@ -135,12 +127,7 @@ export const CarListingForm = () => {
                 carId={carId} 
                 onProgressUpdate={setUploadProgress}
               />
-              {uploadProgress > 0 && uploadProgress < 100 && (
-                <div className="mt-4">
-                  <Progress value={uploadProgress} className="h-2" />
-                  <p className="text-sm text-subtitle mt-2">Upload progress: {Math.round(uploadProgress)}%</p>
-                </div>
-              )}
+              <UploadProgress progress={uploadProgress} />
             </Card>
 
             <Card className="p-4 md:p-6">
@@ -149,52 +136,14 @@ export const CarListingForm = () => {
             </Card>
           </div>
 
-          <div className="sticky bottom-0 bg-white p-4 shadow-lg rounded-t-lg border-t">
-            <Button
-              type="submit"
-              className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-semibold py-4 text-lg rounded-md transition-all duration-200 ease-in-out"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-                  <span>Submitting...</span>
-                </div>
-              ) : (
-                "Submit Listing"
-              )}
-            </Button>
-          </div>
+          <FormSubmitButton isSubmitting={isSubmitting} />
         </form>
       </Form>
 
-      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-2xl font-oswald">
-              <CheckCircle2 className="h-6 w-6 text-[#21CA6F]" />
-              Listing Submitted Successfully
-            </DialogTitle>
-            <DialogDescription className="text-center pt-4">
-              <p className="mb-4 text-base">
-                Your car listing has been submitted and is pending review. Our team will review your listing within 24 hours.
-              </p>
-              <p className="text-sm text-subtitle">
-                You will receive a notification once your listing is live.
-              </p>
-              <Button 
-                className="mt-6 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-full sm:w-auto"
-                onClick={() => {
-                  setShowSuccessDialog(false);
-                  navigate('/dashboard/seller');
-                }}
-              >
-                Go to Dashboard
-              </Button>
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+      <SuccessDialog 
+        open={showSuccessDialog} 
+        onOpenChange={setShowSuccessDialog}
+      />
     </>
   );
 };
