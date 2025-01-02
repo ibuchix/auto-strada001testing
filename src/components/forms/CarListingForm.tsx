@@ -22,13 +22,13 @@ export const CarListingForm = () => {
   const { form, isSubmitting, carId, lastSaved, onSubmit } = useCarListingForm(session?.user.id);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const navigate = useNavigate();
 
   const handleSubmit = async (data: any) => {
     try {
-      console.log('Form submission started with data:', data);
-      
       if (!session?.user.id) {
         toast.error("You must be logged in to submit a listing");
+        navigate("/auth");
         return;
       }
 
@@ -72,14 +72,11 @@ export const CarListingForm = () => {
         return;
       }
 
-      console.log('Attempting to save car listing...');
       const success = await onSubmit(data);
       
       if (success) {
-        console.log('Car listing saved successfully with ID:', carId);
         setShowSuccessDialog(true);
       } else {
-        console.error('Failed to save car listing');
         toast.error("Failed to submit listing");
       }
     } catch (error: any) {

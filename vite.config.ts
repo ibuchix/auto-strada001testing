@@ -7,11 +7,17 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    cors: true, // Enable CORS
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Origin", "Content-Type", "Accept", "Authorization"],
+      credentials: true
+    },
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Origin, Content-Type, Accept, Authorization",
+      "Access-Control-Allow-Credentials": "true"
     },
     proxy: {
       "/api": {
@@ -19,11 +25,9 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         secure: false,
       },
-      // Handle client-side routing in development
       "/*": {
         target: "http://localhost:8080",
         bypass: (req) => {
-          // Return index.html for all non-asset requests
           if (req?.url && !req.url.includes(".")) {
             return "/index.html";
           }
@@ -33,11 +37,17 @@ export default defineConfig(({ mode }) => ({
   },
   preview: {
     port: 8080,
-    cors: true, // Enable CORS
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST", "PUT", DELETE, "OPTIONS"],
+      allowedHeaders: ["Origin", "Content-Type", "Accept", "Authorization"],
+      credentials: true
+    },
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Origin, Content-Type, Accept, Authorization",
+      "Access-Control-Allow-Credentials": "true"
     },
     proxy: {
       "/api": {
@@ -45,7 +55,6 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         secure: false,
       },
-      // Handle client-side routing in preview/production
       "/*": {
         target: "http://localhost:8080",
         bypass: (req) => {
