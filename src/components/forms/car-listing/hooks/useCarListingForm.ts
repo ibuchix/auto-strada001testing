@@ -42,7 +42,6 @@ export const useCarListingForm = (userId?: string) => {
       upgradedSound: data.features?.upgradedSound || false
     };
 
-    // Only include the fields that exist in the database
     return {
       id: carId,
       seller_id: userId,
@@ -69,7 +68,7 @@ export const useCarListingForm = (userId?: string) => {
       service_history_type: data.serviceHistoryType,
       seller_notes: data.sellerNotes,
       is_draft: false,
-      valuation_data: valuationData, // Store the complete valuation data as JSON
+      valuation_data: valuationData,
     };
   };
 
