@@ -42,7 +42,7 @@ export const useFormSubmission = (userId?: string) => {
         upgradedSound: data.features.upgradedSound || false
       };
 
-      // Explicitly define the fields we want to insert
+      // Explicitly define all fields we want to insert
       const carData = {
         seller_id: userId,
         title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
@@ -79,13 +79,34 @@ export const useFormSubmission = (userId?: string) => {
         .insert(carData)
         .select(`
           id,
+          seller_id,
           title,
+          description,
+          vin,
+          mileage,
+          price,
+          status,
           make,
           model,
           year,
-          price,
-          mileage,
-          status
+          valuation_data,
+          is_damaged,
+          is_registered_in_poland,
+          features,
+          seat_material,
+          number_of_keys,
+          has_tool_pack,
+          has_documentation,
+          is_selling_on_behalf,
+          has_private_plate,
+          finance_amount,
+          service_history_type,
+          seller_notes,
+          required_photos,
+          is_draft,
+          name,
+          address,
+          mobile_number
         `)
         .single();
 
