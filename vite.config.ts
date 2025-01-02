@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // Common CORS headers
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://lovable.dev",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token",
   "Access-Control-Allow-Credentials": "true",
@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     cors: {
-      origin: "*",
+      origin: "https://lovable.dev",
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization", "X-CSRF-Token"],
       credentials: true,
@@ -54,7 +54,7 @@ export default defineConfig(({ mode }) => ({
   preview: {
     port: 8080,
     cors: {
-      origin: "*",
+      origin: "https://lovable.dev",
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization", "X-CSRF-Token"],
       credentials: true,
