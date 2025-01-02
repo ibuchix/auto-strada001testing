@@ -17,7 +17,11 @@ export const useCarListingForm = (userId?: string) => {
   const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
 
   const form = useForm<CarListingFormData>({
-    defaultValues: getFormDefaults(),
+    defaultValues: {
+      ...getFormDefaults(),
+      numberOfKeys: "1", // Set default value for numberOfKeys
+      seatMaterial: "cloth", // Set default value for seatMaterial
+    },
   });
 
   useLoadDraft(form, setCarId, setLastSaved, userId);
@@ -26,12 +30,18 @@ export const useCarListingForm = (userId?: string) => {
   const prepareCarData = (data: CarListingFormData): Cars => {
     console.log('Preparing car data with valuation:', valuationData);
     
-    if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
+    if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation || !valuationData.year) {
+      console.error('Missing valuation data:', valuationData);
       throw new Error("Please complete the vehicle valuation first");
     }
 
     if (!userId) {
       throw new Error("User must be logged in to save car information");
+    }
+
+    if (!data.numberOfKeys || !data.seatMaterial) {
+      console.error('Missing required fields:', { numberOfKeys: data.numberOfKeys, seatMaterial: data.seatMaterial });
+      throw new Error("Please fill in all required fields");
     }
 
     const features = {
@@ -42,10 +52,15 @@ export const useCarListingForm = (userId?: string) => {
       upgradedSound: data.features?.upgradedSound || false
     };
 
+    const title = `${valuationData.make} ${valuationData.model} ${valuationData.year}`.trim();
+    if (!title) {
+      throw new Error("Unable to generate listing title");
+    }
+
     return {
       id: carId,
       seller_id: userId,
-      title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
+      title,
       vin: valuationData.vin,
       mileage: valuationData.mileage,
       price: valuationData.valuation,
