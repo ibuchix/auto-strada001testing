@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
+import { Json } from "@/integrations/supabase/types";
 
 export const useFormSubmission = (userId?: string) => {
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +33,15 @@ export const useFormSubmission = (userId?: string) => {
         return;
       }
 
+      // Convert features to a JSON-compatible object
+      const features: Json = {
+        satNav: data.features.satNav,
+        panoramicRoof: data.features.panoramicRoof,
+        reverseCamera: data.features.reverseCamera,
+        heatedSeats: data.features.heatedSeats,
+        upgradedSound: data.features.upgradedSound
+      };
+
       // Prepare the car data - only include fields that exist in the database
       const carData = {
         seller_id: userId,
@@ -48,7 +58,7 @@ export const useFormSubmission = (userId?: string) => {
         mobile_number: data.mobileNumber,
         is_damaged: data.isDamaged,
         is_registered_in_poland: data.isRegisteredInPoland,
-        features: data.features,
+        features,
         seat_material: data.seatMaterial,
         number_of_keys: parseInt(data.numberOfKeys),
         has_tool_pack: data.hasToolPack,
