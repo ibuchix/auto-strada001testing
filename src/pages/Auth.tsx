@@ -154,13 +154,13 @@ const Auth = () => {
               }}
               providers={[]}
               redirectTo={window.location.origin}
-              onError={(error) => {
-                console.error('Auth error:', error);
-                toast({
-                  title: "Authentication Error",
-                  description: error.message || "Failed to authenticate. Please try again.",
-                  variant: "destructive",
-                });
+              localization={{
+                variables: {
+                  sign_in: {
+                    email_label: 'Email',
+                    password_label: 'Password',
+                  },
+                },
               }}
             />
           </div>
