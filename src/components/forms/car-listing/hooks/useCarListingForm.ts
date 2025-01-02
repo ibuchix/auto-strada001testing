@@ -23,6 +23,8 @@ export const useCarListingForm = (userId?: string) => {
   useFormAutoSave(form, setLastSaved, valuationData, userId, carId);
 
   const prepareCarData = (data: CarListingFormData): Cars => {
+    console.log('Preparing car data with valuation:', valuationData);
+    
     if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
       throw new Error("Please complete the vehicle valuation first");
     }
@@ -90,9 +92,14 @@ export const useCarListingForm = (userId?: string) => {
       }
 
       console.log('Car saved successfully:', savedCar);
-      setCarId(savedCar.id);
-      setLastSaved(new Date());
-      return true;
+      if (savedCar?.id) {
+        setCarId(savedCar.id);
+        setLastSaved(new Date());
+        return true;
+      } else {
+        console.error('No car ID returned from save operation');
+        return false;
+      }
     } catch (error: any) {
       console.error('Error saving car:', error);
       throw error;

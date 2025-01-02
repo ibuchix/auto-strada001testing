@@ -54,17 +54,18 @@ export const CarListingForm = () => {
         return;
       }
 
+      console.log('Attempting to save car information...');
       const success = await onSubmit(data);
       
       if (success) {
-        console.log('Car information saved successfully');
+        console.log('Car information saved successfully with ID:', carId);
         toast.success("Information saved successfully");
         // Only show photo upload section after successful save
         if (!carId) {
           window.scrollTo(0, 0);
         }
       } else {
-        console.log('Failed to save car information');
+        console.error('Failed to save car information - no success response');
         toast.error("Failed to save information");
       }
     } catch (error: any) {
