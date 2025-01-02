@@ -80,8 +80,9 @@ export const usePhotoUpload = (carId?: string) => {
           .eq('id', carId)
           .single();
 
-        const updatedPhotos = currentPhotos?.additional_photos 
-          ? [...(currentPhotos.additional_photos as string[]), publicUrl]
+        const additionalPhotos = currentPhotos?.additional_photos || [];
+        const updatedPhotos = Array.isArray(additionalPhotos) 
+          ? [...additionalPhotos, publicUrl]
           : [publicUrl];
 
         const { error: updateError } = await supabase
@@ -97,8 +98,9 @@ export const usePhotoUpload = (carId?: string) => {
           .eq('id', carId)
           .single();
 
+        const requiredPhotos = currentPhotos?.required_photos || {};
         const updatedPhotos = {
-          ...(currentPhotos?.required_photos || {}),
+          ...requiredPhotos,
           [type]: publicUrl
         };
 
