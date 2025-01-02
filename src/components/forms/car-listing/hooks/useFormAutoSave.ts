@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,11 +10,23 @@ export const useFormAutoSave = (
   userId?: string,
   carId?: string
 ) => {
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const previousDataRef = useRef<string>("");
+
   useEffect(() => {
     const autoSave = async () => {
       if (!userId) return;
 
       const formData = form.getValues();
+      const currentData = JSON.stringify(formData);
+
+      // Only save if data has actually changed
+      if (currentData === previousDataRef.current) {
+        return;
+      }
+
+      previousDataRef.current = currentData;
+
       try {
         const { error } = await supabase.from('cars').upsert({
           id: carId,
@@ -47,6 +59,19 @@ export const useFormAutoSave = (
       }
     };
 
-    autoSave();
-  }, [form.watch(), userId]);
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set a new timeout for debouncing
+    saveTimeoutRef.current = setTimeout(autoSave, 2000);
+
+    // Cleanup function
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [form.watch(), userId, carId]);
 };
