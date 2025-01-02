@@ -41,7 +41,6 @@ const Auth = () => {
         }
       }
 
-      // Clear local storage after successful sync
       localStorage.removeItem('carValuations');
       toast({
         title: "Valuations Synced",
@@ -60,12 +59,12 @@ const Auth = () => {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN") {
+      if (event === "SIGNED_IN" && session) {
         // If the user is a dealer, create their dealer record
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
-          .eq('id', session?.user.id)
+          .eq('id', session.user.id)
           .single();
 
         if (profile?.role === 'dealer') {
@@ -73,8 +72,8 @@ const Auth = () => {
           const { error: dealerError } = await supabase
             .from('dealers')
             .insert({
-              user_id: session?.user.id,
-              dealership_name: session?.user.email?.split('@')[0] || 'New Dealership',
+              user_id: session.user.id,
+              dealership_name: session.user.email?.split('@')[0] || 'New Dealership',
               license_number: 'PENDING',
             });
 
@@ -97,6 +96,11 @@ const Auth = () => {
           description: "You have successfully signed in.",
         });
         navigate("/");
+      } else if (event === "SIGNED_OUT") {
+        toast({
+          title: "Signed out",
+          description: "You have been successfully signed out.",
+        });
       }
     });
 
@@ -150,18 +154,13 @@ const Auth = () => {
               }}
               providers={[]}
               redirectTo={window.location.origin}
-              view="sign_up"
-              additionalData={{
-                role: {
-                  type: 'select',
-                  options: [
-                    { label: 'Buyer', value: 'buyer' },
-                    { label: 'Seller', value: 'seller' },
-                    { label: 'Dealer', value: 'dealer' }
-                  ],
-                  required: true,
-                  label: 'Select your role'
-                }
+              onError={(error) => {
+                console.error('Auth error:', error);
+                toast({
+                  title: "Authentication Error",
+                  description: error.message || "Failed to authenticate. Please try again.",
+                  variant: "destructive",
+                });
               }}
             />
           </div>
