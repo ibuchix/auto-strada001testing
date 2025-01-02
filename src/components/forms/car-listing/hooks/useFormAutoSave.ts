@@ -3,6 +3,7 @@ import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PostgrestError } from "@supabase/supabase-js";
 
 const SAVE_DEBOUNCE_TIME = 2000; // 2 seconds debounce
 const SAVE_TIMEOUT = 10000; // 10 seconds timeout
@@ -48,17 +49,17 @@ export const useFormAutoSave = (
         seller_notes: formData.sellerNotes,
         is_draft: true,
         last_saved: new Date().toISOString(),
-      });
+      }).select();
 
       // Create a timeout promise
-      const timeoutPromise = new Promise((_, reject) => {
+      const timeoutPromise = new Promise<{ error: PostgrestError }>((_, reject) => {
         setTimeout(() => reject(new Error('Save operation timed out')), SAVE_TIMEOUT);
       });
 
       // Race between the save operation and the timeout
-      const { error } = await Promise.race([savePromise, timeoutPromise]);
+      const result = await Promise.race([savePromise, timeoutPromise]);
 
-      if (error) throw error;
+      if (result.error) throw result.error;
       
       previousDataRef.current = currentData;
       setLastSaved(new Date());
