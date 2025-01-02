@@ -13,15 +13,31 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
+import { toast } from "sonner";
 
 const Sellers = () => {
   const [vin, setVin] = useState("");
   const navigate = useNavigate();
+  const { session } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (vin) {
-      navigate('/sell-my-car', { state: { vin } });
+    
+    if (!vin.trim()) {
+      toast.error("Please enter a VIN number");
+      return;
+    }
+
+    try {
+      // Store VIN in localStorage for the listing form
+      localStorage.setItem('tempVIN', vin);
+      
+      // Navigate to valuation page
+      navigate('/sell-my-car');
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error("Something went wrong. Please try again.");
     }
   };
 
