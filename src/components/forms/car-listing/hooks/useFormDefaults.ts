@@ -1,21 +1,19 @@
 import { CarListingFormData } from "@/types/forms";
-import { getDefaultCarFeatures } from "@/utils/typeGuards";
 
-export const getFormDefaults = (): CarListingFormData => ({
-  name: "",
-  address: "",
-  mobileNumber: "",
+export const getFormDefaults = (): Partial<CarListingFormData> => ({
+  features: {
+    satNav: false,
+    panoramicRoof: false,
+    reverseCamera: false,
+    heatedSeats: false,
+    upgradedSound: false
+  },
   isDamaged: false,
   isRegisteredInPoland: false,
-  features: getDefaultCarFeatures(),
-  seatMaterial: "cloth",
-  numberOfKeys: "1",
   hasToolPack: false,
   hasDocumentation: false,
   isSellingOnBehalf: false,
   hasPrivatePlate: false,
-  financeAmount: "",
   financeDocument: null,
-  serviceHistoryType: "none",
-  sellerNotes: "",
+  uploadedPhotos: [],
 });

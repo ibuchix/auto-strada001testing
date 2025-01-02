@@ -23,4 +23,5 @@ export interface CarListingFormData {
   financeDocument: File | null;
   serviceHistoryType: "full" | "partial" | "none" | "not_due";
   sellerNotes?: string;
+  uploadedPhotos: string[];
 }

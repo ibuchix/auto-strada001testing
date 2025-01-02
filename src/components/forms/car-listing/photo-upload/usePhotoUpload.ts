@@ -80,7 +80,7 @@ export const usePhotoUpload = (carId?: string) => {
         const { error: updateError } = await supabase
           .from('cars')
           .update({
-            additional_photos: supabase.sql`array_append(additional_photos, ${publicUrl})`
+            additional_photos: [...(await supabase.from('cars').select('additional_photos').eq('id', carId).single()).data?.additional_photos || [], publicUrl]
           })
           .eq('id', carId);
 
@@ -89,11 +89,10 @@ export const usePhotoUpload = (carId?: string) => {
         const { error: updateError } = await supabase
           .from('cars')
           .update({
-            required_photos: supabase.sql`jsonb_set(
-              required_photos,
-              array[${type}],
-              ${JSON.stringify(publicUrl)}
-            )`
+            required_photos: {
+              ...(await supabase.from('cars').select('required_photos').eq('id', carId).single()).data?.required_photos,
+              [type]: publicUrl
+            }
           })
           .eq('id', carId);
 
