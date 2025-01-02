@@ -60,10 +60,7 @@ export const CarListingForm = () => {
       if (success) {
         console.log('Car information saved successfully with ID:', carId);
         toast.success("Information saved successfully");
-        // Only show photo upload section after successful save
-        if (!carId) {
-          window.scrollTo(0, 0);
-        }
+        navigate('/dashboard/seller');
       } else {
         console.error('Failed to save car information - no success response');
         toast.error("Failed to save information");
@@ -83,34 +80,50 @@ export const CarListingForm = () => {
           </p>
         )}
         
-        <PersonalDetailsSection form={form} />
-        <VehicleStatusSection form={form} />
-        <FeaturesSection form={form} />
-        <ServiceHistorySection form={form} carId={carId} />
-        <AdditionalInfoSection form={form} />
-        <SellerNotesSection form={form} />
+        <div className="space-y-8">
+          <div className="rounded-lg border p-6 space-y-6">
+            <h2 className="text-xl font-semibold">Personal Details</h2>
+            <PersonalDetailsSection form={form} />
+          </div>
+
+          <div className="rounded-lg border p-6 space-y-6">
+            <h2 className="text-xl font-semibold">Vehicle Status</h2>
+            <VehicleStatusSection form={form} />
+          </div>
+
+          <div className="rounded-lg border p-6 space-y-6">
+            <h2 className="text-xl font-semibold">Features</h2>
+            <FeaturesSection form={form} />
+          </div>
+
+          <div className="rounded-lg border p-6 space-y-6">
+            <h2 className="text-xl font-semibold">Service History</h2>
+            <ServiceHistorySection form={form} carId={carId} />
+          </div>
+
+          <div className="rounded-lg border p-6 space-y-6">
+            <h2 className="text-xl font-semibold">Additional Information</h2>
+            <AdditionalInfoSection form={form} />
+          </div>
+
+          <div className="rounded-lg border p-6 space-y-6">
+            <h2 className="text-xl font-semibold">Seller Notes</h2>
+            <SellerNotesSection form={form} />
+          </div>
+
+          <div className="rounded-lg border p-6 space-y-6">
+            <h2 className="text-xl font-semibold">Photos</h2>
+            <PhotoUploadSection form={form} carId={carId} />
+          </div>
+        </div>
 
         <Button
           type="submit"
-          className="w-full bg-secondary hover:bg-secondary/90 text-white"
+          className="w-full bg-primary hover:bg-primary/90 text-white"
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Saving Information..." : carId ? "Update Information" : "Save Information"}
+          {isSubmitting ? "Saving..." : "Submit Listing"}
         </Button>
-
-        {carId && (
-          <div className="space-y-8">
-            <PhotoUploadSection form={form} carId={carId} />
-            
-            <Button
-              type="button"
-              className="w-full bg-primary hover:bg-primary/90 text-white"
-              onClick={() => navigate('/dashboard/seller')}
-            >
-              Complete Listing
-            </Button>
-          </div>
-        )}
       </form>
     </Form>
   );
