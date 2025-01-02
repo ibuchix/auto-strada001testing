@@ -10,8 +10,16 @@ export const useFormSubmission = (userId?: string) => {
   const navigate = useNavigate();
 
   const handleSubmit = async (data: CarListingFormData) => {
+    console.log('Form submission started with data:', data);
+    
     try {
       setSubmitting(true);
+      
+      if (!userId) {
+        toast.error("Please sign in to submit a listing");
+        return;
+      }
+
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
       if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation) {
         toast.error("Please complete the vehicle valuation first");
@@ -42,7 +50,9 @@ export const useFormSubmission = (userId?: string) => {
         return;
       }
 
-      const { error: carError } = await supabase
+      console.log('Preparing car data for submission...');
+
+      const { error: insertError } = await supabase
         .from('cars')
         .insert({
           seller_id: userId,
@@ -70,17 +80,18 @@ export const useFormSubmission = (userId?: string) => {
           service_history_type: data.serviceHistoryType,
           seller_notes: data.sellerNotes,
           is_draft: false,
-          required_photos: uploadedPhotos
-        })
-        .select()
-        .single();
+          required_photos: data.uploadedPhotos
+        });
 
-      if (carError) {
-        throw carError;
+      if (insertError) {
+        console.error('Supabase insert error:', insertError);
+        throw insertError;
       }
 
+      console.log('Car listing submitted successfully');
       toast.success("Listing submitted successfully!");
       setShowSuccessDialog(true);
+      
     } catch (error: any) {
       console.error('Form submission error:', error);
       toast.error(error.message || "Failed to submit listing");

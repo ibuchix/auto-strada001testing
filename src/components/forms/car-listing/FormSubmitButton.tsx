@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 interface FormSubmitButtonProps {
   isSubmitting: boolean;
@@ -14,7 +15,7 @@ export const FormSubmitButton = ({ isSubmitting }: FormSubmitButtonProps) => {
       >
         {isSubmitting ? (
           <div className="flex items-center justify-center space-x-2">
-            <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+            <Loader2 className="h-4 w-4 animate-spin" />
             <span>Submitting...</span>
           </div>
         ) : (

@@ -20,10 +20,15 @@ export const CarListingForm = () => {
     navigate 
   } = useFormSubmission(session?.user.id);
 
+  const onSubmit = async (data: any) => {
+    console.log('Form onSubmit triggered with data:', data);
+    await handleSubmit(data);
+  };
+
   return (
     <>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8 w-full max-w-4xl mx-auto px-4 md:px-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full max-w-4xl mx-auto px-4 md:px-6">
           <LastSaved timestamp={lastSaved ? new Date(lastSaved) : null} />
           
           <FormSections
