@@ -32,7 +32,7 @@ export const useFormSubmission = (userId?: string) => {
         return;
       }
 
-      // Prepare the car data
+      // Prepare the car data - only include fields that exist in the database
       const carData = {
         seller_id: userId,
         title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
@@ -48,7 +48,7 @@ export const useFormSubmission = (userId?: string) => {
         mobile_number: data.mobileNumber,
         is_damaged: data.isDamaged,
         is_registered_in_poland: data.isRegisteredInPoland,
-        features: JSON.stringify(data.features),
+        features: data.features,
         seat_material: data.seatMaterial,
         number_of_keys: parseInt(data.numberOfKeys),
         has_tool_pack: data.hasToolPack,
