@@ -19,8 +19,6 @@ export const CarListingForm = () => {
 
   const handleSubmit = async (data: any) => {
     try {
-      console.log('Form submission started with data:', data);
-      
       if (!session?.user.id) {
         toast.error("You must be logged in to save car information");
         return;
@@ -54,15 +52,16 @@ export const CarListingForm = () => {
         return;
       }
 
-      console.log('Attempting to save car information...');
+      console.log('Attempting to save car information...', data);
       const success = await onSubmit(data);
       
       if (success) {
         console.log('Car information saved successfully with ID:', carId);
         toast.success("Information saved successfully");
-        // Only show photo upload section after successful save
+        
+        // Scroll to photo upload section if this is the first save
         if (!carId) {
-          window.scrollTo(0, 0);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }
       } else {
         console.error('Failed to save car information - no success response');
@@ -92,7 +91,7 @@ export const CarListingForm = () => {
 
         <Button
           type="submit"
-          className="w-full bg-secondary hover:bg-secondary/90 text-white"
+          className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Saving Information..." : carId ? "Update Information" : "Save Information"}
@@ -104,7 +103,7 @@ export const CarListingForm = () => {
             
             <Button
               type="button"
-              className="w-full bg-primary hover:bg-primary/90 text-white"
+              className="w-full bg-[#383B39] hover:bg-[#383B39]/90 text-white"
               onClick={() => navigate('/dashboard/seller')}
             >
               Complete Listing
