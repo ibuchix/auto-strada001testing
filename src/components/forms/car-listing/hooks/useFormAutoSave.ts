@@ -33,6 +33,10 @@ export const useFormAutoSave = (
     try {
       const title = `${valuationData.make} ${valuationData.model} ${valuationData.year}`.trim();
       
+      if (!valuationData.mileage || valuationData.mileage <= 0) {
+        throw new Error("Invalid mileage value");
+      }
+
       const carData: CarInsert = {
         id: carId,
         seller_id: userId,
