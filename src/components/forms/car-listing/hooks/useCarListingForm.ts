@@ -21,8 +21,8 @@ export const useCarListingForm = (userId?: string) => {
       ...getFormDefaults(),
       numberOfKeys: "1",
       seatMaterial: "cloth",
-      fuel_type: valuationData.fuel_type || '',
-      transmission: valuationData.transmission || '',
+      fuel_type: valuationData.fuel_type || null,
+      transmission: valuationData.transmission || null,
     },
   });
 
