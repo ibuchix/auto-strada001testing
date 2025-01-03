@@ -10,7 +10,8 @@ export const useLoadDraft = (
   form: UseFormReturn<CarListingFormData>,
   setCarId: (id: string) => void,
   setLastSaved: (date: Date) => void,
-  userId?: string
+  userId?: string,
+  draftId?: string
 ) => {
   useEffect(() => {
     const loadDraft = async () => {
@@ -22,6 +23,7 @@ export const useLoadDraft = (
           .select('*')
           .eq('seller_id', userId)
           .eq('is_draft', true)
+          .eq(draftId ? 'id' : 'is_draft', draftId || true)
           .maybeSingle();
 
         if (error) {
@@ -67,5 +69,5 @@ export const useLoadDraft = (
     };
 
     loadDraft();
-  }, [userId]);
+  }, [userId, draftId]);
 };

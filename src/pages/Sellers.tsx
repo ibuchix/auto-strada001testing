@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { HeroSection } from "@/components/sellers/HeroSection";
 import { BenefitsSection } from "@/components/sellers/BenefitsSection";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { md5 } from "js-md5";
 
 const Sellers = () => {
@@ -41,13 +40,11 @@ const Sellers = () => {
       
       const valuationData = await response.json();
       
-      // Store data in localStorage for the listing form
       localStorage.setItem('valuationData', JSON.stringify(valuationData));
       localStorage.setItem('tempVIN', vin);
       localStorage.setItem('tempMileage', mileage);
       localStorage.setItem('tempGearbox', gearbox);
       
-      // Navigate to valuation page
       navigate('/sell-my-car');
     } catch (error) {
       console.error('Error:', error);
