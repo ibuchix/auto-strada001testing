@@ -57,14 +57,14 @@ Deno.serve(async (req) => {
     const responseData = await response.json();
     console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
 
-    // Map the API response to the frontend format
+    // Map the API response to the frontend format, now including fuel_type and transmission
     const valuationResult = {
       make: responseData.functionResponse?.userParams?.make || 'Not available',
       model: responseData.functionResponse?.userParams?.model || 'Not available',
       year: responseData.functionResponse?.userParams?.year || null,
       vin: responseData.vin || vin,
       transmission: responseData.functionResponse?.userParams?.gearbox || 'Not available',
-      fuelType: responseData.functionResponse?.userParams?.fuel || 'Not available',
+      fuel_type: responseData.functionResponse?.userParams?.fuel || 'Not available',
       valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
     };
 
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
         year: null,
         vin: '',
         transmission: 'Not available',
-        fuelType: 'Not available',
+        fuel_type: 'Not available',
         valuation: 0,
       }),
       {
