@@ -1,8 +1,8 @@
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { FormSubmissionResult } from "../types/submission";
-import { validateFormData } from "./validation";
 import { Json } from "@/integrations/supabase/types";
+import { validateFormData } from "./validation";
 
 export const handleFormSubmission = async (
   data: CarListingFormData,
@@ -36,6 +36,8 @@ export const handleFormSubmission = async (
       heatedSeats: data.features?.heatedSeats || false,
       upgradedSound: data.features?.upgradedSound || false
     };
+
+    console.log('Preparing car data with valuation:', valuationData);
 
     const carData = {
       seller_id: userId,
@@ -76,8 +78,12 @@ export const handleFormSubmission = async (
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
 
+    console.log('Car saved successfully:', savedCar);
     return {
       success: true,
       data: savedCar
