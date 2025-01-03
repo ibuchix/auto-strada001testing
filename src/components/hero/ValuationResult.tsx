@@ -5,7 +5,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -16,17 +15,12 @@ interface ValuationResultProps {
     transmission: string;
     valuation: number;
     mileage: number;
-  } | null;
+  };
+  onContinue: () => void;
 }
 
-export const ValuationResult = ({ valuationResult }: ValuationResultProps) => {
-  const navigate = useNavigate();
-
+export const ValuationResult = ({ valuationResult, onContinue }: ValuationResultProps) => {
   if (!valuationResult) return null;
-
-  const handleListCar = () => {
-    navigate('/sell-my-car');
-  };
 
   return (
     <DialogContent className="sm:max-w-md">
@@ -69,7 +63,7 @@ export const ValuationResult = ({ valuationResult }: ValuationResultProps) => {
       </div>
       <DialogFooter>
         <Button 
-          onClick={handleListCar}
+          onClick={onContinue}
           className="w-full bg-secondary hover:bg-secondary/90 text-white"
         >
           List This Car

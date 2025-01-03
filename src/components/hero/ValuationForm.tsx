@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./ValuationResult";
+import { toast } from "sonner";
 
 export const ValuationForm = () => {
   const [vin, setVin] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [mileage, setMileage] = useState("");
+  const [gearbox, setGearbox] = useState("manual");
+  const [isLoading, setIsLoading] = useState(false);
   const [valuationResult, setValuationResult] = useState<any>(null);
   const navigate = useNavigate();
 
@@ -14,13 +17,23 @@ export const ValuationForm = () => {
     e.preventDefault();
     
     if (!vin.trim()) {
+      toast.error("Please enter your VIN number");
       return;
     }
 
-    setLoading(true);
+    if (!mileage.trim()) {
+      toast.error("Please enter your vehicle's mileage");
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('get-car-valuation', {
-        body: { vin }
+        body: { 
+          vin,
+          mileage: parseInt(mileage),
+          gearbox 
+        }
       });
 
       if (error) {
@@ -34,15 +47,12 @@ export const ValuationForm = () => {
       const valuationData = data.data;
       console.log('Received valuation data:', valuationData);
 
-      // Store the valuation data in localStorage
-      const gearbox = valuationData.gearbox?.toLowerCase() === 'automatic' ? 'automatic' : 'manual';
-
       const transformedResult = {
         make: valuationData.make,
         model: valuationData.model,
         year: valuationData.year,
         vin: valuationData.vin,
-        mileage: valuationData.mileage,
+        mileage: parseInt(mileage),
         transmission: gearbox,
         valuation: valuationData.valuation || 0,
         timestamp: new Date().toISOString()
@@ -52,11 +62,13 @@ export const ValuationForm = () => {
       localStorage.setItem('valuationData', JSON.stringify(transformedResult));
 
       setValuationResult(transformedResult);
+      toast.success("Valuation completed successfully!");
     } catch (error: any) {
       console.error('Valuation error:', error);
+      toast.error(error.message || "Failed to get valuation");
       setValuationResult({ error: error.message });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -68,13 +80,17 @@ export const ValuationForm = () => {
     <div className="w-full max-w-md mx-auto">
       <ValuationInput 
         vin={vin}
-        onChange={setVin}
+        mileage={mileage}
+        gearbox={gearbox}
+        isLoading={isLoading}
+        onVinChange={setVin}
+        onMileageChange={setMileage}
+        onGearboxChange={setGearbox}
         onSubmit={handleSubmit}
-        loading={loading}
       />
-      {valuationResult && (
+      {valuationResult && !valuationResult.error && (
         <ValuationResult 
-          result={valuationResult}
+          valuationResult={valuationResult}
           onContinue={handleContinue}
         />
       )}

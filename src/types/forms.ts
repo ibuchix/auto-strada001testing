@@ -1,4 +1,5 @@
 export interface CarFeatures {
+  [key: string]: boolean;
   satNav: boolean;
   panoramicRoof: boolean;
   reverseCamera: boolean;
