@@ -53,7 +53,7 @@ export const ValuationForm = () => {
 
       console.log('Received valuation data:', valuationData);
 
-      // Transform the data to use snake_case consistently
+      // Transform the data using snake_case for database compatibility
       const transformedResult = {
         make: valuationData.make,
         model: valuationData.model,
@@ -61,7 +61,7 @@ export const ValuationForm = () => {
         vin: vin,
         mileage: parseInt(mileage),
         transmission: gearbox,
-        fuel_type: valuationData.fuel_type || 'Not available',
+        fuel_type: valuationData.fuel_type || null,
         valuation: valuationData.valuation || 0,
         timestamp: new Date().toISOString()
       };
