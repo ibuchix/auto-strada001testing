@@ -37,6 +37,18 @@ export const useFormAutoSave = (
         throw new Error("Invalid mileage value");
       }
 
+      // Check if a car with this VIN already exists (excluding the current car being edited)
+      const { data: existingCar } = await supabase
+        .from('cars')
+        .select('id')
+        .eq('vin', valuationData.vin)
+        .neq('id', carId || '')
+        .maybeSingle();
+
+      if (existingCar) {
+        throw new Error("A car with this VIN number already exists");
+      }
+
       const carData: CarInsert = {
         id: carId,
         seller_id: userId,
@@ -83,9 +95,9 @@ export const useFormAutoSave = (
       previousDataRef.current = currentData;
       setLastSaved(new Date());
       console.log('Auto-save successful');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error autosaving:', error);
-      toast.error('Failed to save changes. Will retry automatically.');
+      toast.error(error.message || 'Failed to save changes. Will retry automatically.');
     } finally {
       isSavingRef.current = false;
     }
