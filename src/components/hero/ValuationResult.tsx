@@ -26,16 +26,6 @@ export const ValuationResult = ({ valuationResult }: ValuationResultProps) => {
   if (!valuationResult) return null;
 
   const handleListCar = () => {
-    // Store valuation data with snake_case keys to match database schema
-    const valuationData = {
-      ...valuationResult,
-      gearbox: valuationResult.transmission, // Map transmission to gearbox for consistency
-      fuel_type: valuationResult.fuel_type,
-      mileage: valuationResult.mileage,
-    };
-    
-    console.log('Storing valuation data:', valuationData);
-    localStorage.setItem('valuationData', JSON.stringify(valuationData));
     navigate('/sell-my-car');
   };
 

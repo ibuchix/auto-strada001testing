@@ -59,10 +59,10 @@ export const ValuationForm = () => {
         model: valuationData.model,
         year: valuationData.year,
         vin: vin,
-        valuation: valuationData.valuation || 0,
+        mileage: parseInt(mileage),
         transmission: gearbox,
         fuel_type: valuationData.fuel_type || 'Not available',
-        mileage: parseInt(mileage),
+        valuation: valuationData.valuation || 0,
         timestamp: new Date().toISOString()
       };
 
