@@ -14,7 +14,7 @@ interface ValuationResultProps {
     year: number;
     vin: string;
     transmission: string;
-    fuelType: string;
+    fuel_type: string;
     valuation: number;
   } | null;
 }
@@ -25,8 +25,16 @@ export const ValuationResult = ({ valuationResult }: ValuationResultProps) => {
   if (!valuationResult) return null;
 
   const handleListCar = () => {
-    // Store valuation data in localStorage to access it in the listing form
-    localStorage.setItem('valuationData', JSON.stringify(valuationResult));
+    // Store valuation data with snake_case keys to match database schema
+    const valuationData = {
+      ...valuationResult,
+      gearbox: valuationResult.transmission, // Map transmission to gearbox for consistency
+      fuel_type: valuationResult.fuel_type,
+      mileage: valuationResult.mileage || 0,
+    };
+    
+    console.log('Storing valuation data:', valuationData);
+    localStorage.setItem('valuationData', JSON.stringify(valuationData));
     navigate('/sell-my-car');
   };
 
@@ -59,7 +67,7 @@ export const ValuationResult = ({ valuationResult }: ValuationResultProps) => {
           </div>
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">Fuel Type</p>
-            <p className="font-medium text-dark">{valuationResult.fuelType}</p>
+            <p className="font-medium text-dark">{valuationResult.fuel_type}</p>
           </div>
         </div>
         <div className="border-t pt-6">
