@@ -10,6 +10,8 @@ export const handleFormSubmission = async (
   valuationData: any
 ): Promise<FormSubmissionResult> => {
   try {
+    console.log('Starting form submission with data:', { data, valuationData });
+    
     const validationErrors = validateFormData(data);
     if (validationErrors.length > 0) {
       return {
@@ -63,8 +65,7 @@ export const handleFormSubmission = async (
       vin: valuationData.vin,
       mileage: valuationData.mileage,
       price: valuationData.valuation,
-      // Map the transmission and fuel type correctly from valuation data
-      transmission: valuationData.gearbox || null,
+      transmission: valuationData.transmission || null,
       fuel_type: valuationData.fuel_type || null,
       valuation_data: valuationData,
       is_draft: false

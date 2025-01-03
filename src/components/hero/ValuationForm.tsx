@@ -53,21 +53,23 @@ export const ValuationForm = () => {
 
       console.log('Received valuation data:', valuationData);
 
-      const valuationResult = {
+      // Transform the data to use snake_case consistently
+      const transformedResult = {
         make: valuationData.make,
         model: valuationData.model,
         year: valuationData.year,
         vin: vin,
         valuation: valuationData.valuation || 0,
         transmission: gearbox,
-        fuelType: valuationData.fuelType || 'Not available',
+        fuel_type: valuationData.fuel_type || 'Not available',
+        mileage: parseInt(mileage),
         timestamp: new Date().toISOString()
       };
 
-      // Store in localStorage for the listing form to use
-      localStorage.setItem('valuationData', JSON.stringify(valuationResult));
+      console.log('Transformed valuation data:', transformedResult);
+      localStorage.setItem('valuationData', JSON.stringify(transformedResult));
 
-      setValuationResult(valuationResult);
+      setValuationResult(transformedResult);
       setShowDialog(true);
       toast.success("Vehicle valuation completed successfully!");
       
