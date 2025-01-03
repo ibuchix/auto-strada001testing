@@ -20,9 +20,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { registration: vin, mileage = 50000 } = await req.json();
+    const { registration: vin, mileage = 50000, gearbox = 'manual' } = await req.json();
     console.log('Received VIN:', vin);
     console.log('Received mileage:', mileage);
+    console.log('Received gearbox:', gearbox);
 
     if (!vin) {
       throw new Error('VIN number is required');
@@ -36,7 +37,8 @@ Deno.serve(async (req) => {
     }
 
     const checksum = calculateChecksum(apiId, apiSecret, vin);
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
+    const baseUrl = 'https://bp.autoiso.pl/api/v3/getVinValuation';
+    const apiUrl = `${baseUrl}/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
 
     console.log('Constructed API URL:', apiUrl);
 
@@ -57,13 +59,13 @@ Deno.serve(async (req) => {
     const responseData = await response.json();
     console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
 
-    // Map the API response to the frontend format, now including fuel_type and transmission
+    // Map the API response to the frontend format
     const valuationResult = {
       make: responseData.functionResponse?.userParams?.make || 'Not available',
       model: responseData.functionResponse?.userParams?.model || 'Not available',
       year: responseData.functionResponse?.userParams?.year || null,
       vin: responseData.vin || vin,
-      transmission: responseData.functionResponse?.userParams?.gearbox || 'Not available',
+      transmission: gearbox,
       fuel_type: responseData.functionResponse?.userParams?.fuel || 'Not available',
       valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
     };
