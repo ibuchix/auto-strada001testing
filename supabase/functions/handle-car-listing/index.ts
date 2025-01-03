@@ -66,7 +66,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Store the search result
+    // Store the search result with complete valuation data
     const { error: searchError } = await supabase
       .from('vin_search_results')
       .insert({
@@ -79,14 +79,14 @@ serve(async (req) => {
       console.error('Error storing search result:', searchError)
     }
 
+    // Return only the fields that match our database schema
     return new Response(
       JSON.stringify({
         make: valuationData.make,
         model: valuationData.model,
         year: valuationData.year,
         vin: vin,
-        transmission: gearbox,
-        fuelType: valuationData.fuelType,
+        mileage: mileage,
         valuation: valuationData.valuation
       }),
       { 
