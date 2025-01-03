@@ -1,55 +1,31 @@
 import { CarListingFormData } from "@/types/forms";
-import { Json } from "@/integrations/supabase/types";
+import { Database } from "@/integrations/supabase/types";
 
-export const prepareCarFeatures = (features: CarListingFormData['features']): Json => ({
-  satNav: features?.satNav || false,
-  panoramicRoof: features?.panoramicRoof || false,
-  reverseCamera: features?.reverseCamera || false,
-  heatedSeats: features?.heatedSeats || false,
-  upgradedSound: features?.upgradedSound || false
-});
+type CarInsert = Database['public']['Tables']['cars']['Insert'];
 
-export const prepareCarData = (data: CarListingFormData, userId: string, valuationData: any) => {
-  console.log('Starting car data preparation with:', { data, valuationData });
-
-  // Validate required valuation data
-  if (!valuationData?.make || !valuationData?.model || !valuationData?.vin || 
-      !valuationData?.mileage || !valuationData?.valuation || !valuationData?.year) {
-    console.error('Missing required valuation data:', valuationData);
+export const prepareCarData = (
+  data: CarListingFormData,
+  valuationData: any,
+  userId: string
+): CarInsert => {
+  if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation || !valuationData.year) {
     throw new Error("Please complete the vehicle valuation first");
   }
 
-  // Generate and validate title
   const title = `${valuationData.make} ${valuationData.model} ${valuationData.year}`.trim();
   if (!title) {
-    console.error('Failed to generate valid title from:', { make: valuationData.make, model: valuationData.model, year: valuationData.year });
     throw new Error("Unable to generate listing title");
   }
 
-  console.log('Generated title:', title);
-
-  // Validate required form data
-  if (!data.numberOfKeys || !data.seatMaterial) {
-    console.error('Missing required form data:', { numberOfKeys: data.numberOfKeys, seatMaterial: data.seatMaterial });
-    throw new Error("Please fill in all required fields");
-  }
-
-  const carData = {
+  return {
     seller_id: userId,
     title,
-    vin: valuationData.vin,
-    mileage: valuationData.mileage,
-    price: valuationData.valuation,
-    make: valuationData.make,
-    model: valuationData.model,
-    year: valuationData.year,
-    valuation_data: valuationData,
     name: data.name,
     address: data.address,
     mobile_number: data.mobileNumber,
     is_damaged: data.isDamaged,
     is_registered_in_poland: data.isRegisteredInPoland,
-    features: prepareCarFeatures(data.features),
+    features: data.features,
     seat_material: data.seatMaterial,
     number_of_keys: parseInt(data.numberOfKeys),
     has_tool_pack: data.hasToolPack,
@@ -59,11 +35,14 @@ export const prepareCarData = (data: CarListingFormData, userId: string, valuati
     finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
     service_history_type: data.serviceHistoryType,
     seller_notes: data.sellerNotes,
-    required_photos: data.uploadedPhotos,
-    is_draft: false,
-    transmission: valuationData.transmission || null
+    make: valuationData.make,
+    model: valuationData.model,
+    year: valuationData.year,
+    vin: valuationData.vin,
+    mileage: valuationData.mileage,
+    price: valuationData.valuation,
+    transmission: valuationData.transmission || null,
+    valuation_data: valuationData,
+    is_draft: true
   };
-
-  console.log('Prepared car data:', carData);
-  return carData;
 };

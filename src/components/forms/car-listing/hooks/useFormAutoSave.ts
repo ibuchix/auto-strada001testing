@@ -1,15 +1,8 @@
 import { useEffect, useRef, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { PostgrestError } from "@supabase/supabase-js";
-import { Database } from "@/integrations/supabase/types";
-
-const SAVE_DEBOUNCE_TIME = 2000;
-const SAVE_TIMEOUT = 10000;
-
-type CarInsert = Database['public']['Tables']['cars']['Insert'];
+import { saveFormData } from "../utils/formSaveUtils";
+import { SAVE_DEBOUNCE_TIME } from "../constants";
 
 export const useFormAutoSave = (
   form: UseFormReturn<CarListingFormData>,
@@ -22,7 +15,7 @@ export const useFormAutoSave = (
   const previousDataRef = useRef<string>("");
   const isSavingRef = useRef(false);
 
-  const saveData = useCallback(async (formData: CarListingFormData) => {
+  const handleSave = useCallback(async (formData: CarListingFormData) => {
     if (!userId || isSavingRef.current) return;
 
     const currentData = JSON.stringify(formData);
@@ -31,73 +24,12 @@ export const useFormAutoSave = (
     isSavingRef.current = true;
 
     try {
-      const title = `${valuationData.make} ${valuationData.model} ${valuationData.year}`.trim();
-      
-      if (!valuationData.mileage || valuationData.mileage <= 0) {
-        throw new Error("Invalid mileage value");
-      }
-
-      // Check if a car with this VIN already exists (excluding the current car being edited)
-      const { data: existingCar } = await supabase
-        .from('cars')
-        .select('id')
-        .eq('vin', valuationData.vin)
-        .neq('id', carId || '')
-        .maybeSingle();
-
-      if (existingCar) {
-        throw new Error("A car with this VIN number already exists");
-      }
-
-      const carData: CarInsert = {
-        id: carId,
-        seller_id: userId,
-        title,
-        make: valuationData.make,
-        model: valuationData.model,
-        year: valuationData.year,
-        vin: valuationData.vin,
-        mileage: valuationData.mileage,
-        price: valuationData.valuation,
-        name: formData.name,
-        address: formData.address,
-        mobile_number: formData.mobileNumber,
-        is_damaged: formData.isDamaged,
-        is_registered_in_poland: formData.isRegisteredInPoland,
-        features: formData.features,
-        seat_material: formData.seatMaterial,
-        number_of_keys: parseInt(formData.numberOfKeys),
-        has_tool_pack: formData.hasToolPack,
-        has_documentation: formData.hasDocumentation,
-        is_selling_on_behalf: formData.isSellingOnBehalf,
-        has_private_plate: formData.hasPrivatePlate,
-        finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
-        service_history_type: formData.serviceHistoryType,
-        seller_notes: formData.sellerNotes,
-        is_draft: true,
-        last_saved: new Date().toISOString(),
-        transmission: valuationData.transmission || null
-      };
-
-      const savePromise = supabase
-        .from('cars')
-        .upsert(carData)
-        .select();
-
-      const timeoutPromise = new Promise<{ error: PostgrestError }>((_, reject) => {
-        setTimeout(() => reject(new Error('Save operation timed out')), SAVE_TIMEOUT);
-      });
-
-      const result = await Promise.race([savePromise, timeoutPromise]);
-
-      if (result.error) throw result.error;
-      
+      await saveFormData(formData, userId, valuationData, carId);
       previousDataRef.current = currentData;
       setLastSaved(new Date());
       console.log('Auto-save successful');
     } catch (error: any) {
       console.error('Error autosaving:', error);
-      toast.error(error.message || 'Failed to save changes. Will retry automatically.');
     } finally {
       isSavingRef.current = false;
     }
@@ -111,7 +43,7 @@ export const useFormAutoSave = (
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-      saveData(formData);
+      handleSave(formData);
     }, SAVE_DEBOUNCE_TIME);
 
     return () => {
@@ -119,5 +51,5 @@ export const useFormAutoSave = (
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [form.watch(), saveData]);
+  }, [form.watch(), handleSave]);
 };
