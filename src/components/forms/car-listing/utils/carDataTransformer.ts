@@ -60,7 +60,9 @@ export const prepareCarData = (data: CarListingFormData, userId: string, valuati
     service_history_type: data.serviceHistoryType,
     seller_notes: data.sellerNotes,
     required_photos: data.uploadedPhotos,
-    is_draft: false
+    is_draft: false,
+    fuel_type: valuationData.fuel_type || null,
+    transmission: valuationData.transmission || null
   };
 
   console.log('Prepared car data:', carData);
