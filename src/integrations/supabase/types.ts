@@ -405,12 +405,57 @@ export type Database = {
         }
         Relationships: []
       }
+      vin_search_results: {
+        Row: {
+          created_at: string | null
+          id: string
+          search_data: Json | null
+          user_id: string | null
+          vin: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          search_data?: Json | null
+          user_id?: string | null
+          vin: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          search_data?: Json | null
+          user_id?: string | null
+          vin?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      append_additional_photo: {
+        Args: {
+          car_id: string
+          photo_path: string
+        }
+        Returns: string[]
+      }
+      append_service_history: {
+        Args: {
+          car_id: string
+          file_path: string
+        }
+        Returns: string[]
+      }
+      update_required_photos: {
+        Args: {
+          car_id: string
+          photo_path: string
+          photo_type: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       service_history_type: "full" | "partial" | "none" | "not_due"
