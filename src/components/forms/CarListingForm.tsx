@@ -7,13 +7,16 @@ import { SuccessDialog } from "./car-listing/SuccessDialog";
 import { LastSaved } from "./car-listing/LastSaved";
 import { FormSections } from "./car-listing/FormSections";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { handleFormSubmission } from "./car-listing/utils/submission";
 
 export const CarListingForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { session } = useAuth();
-  const { form, carId, lastSaved } = useCarListingForm(session?.user.id);
+  const draftId = location.state?.draftId;
+  
+  const { form, carId, lastSaved } = useCarListingForm(session?.user.id, draftId);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -28,7 +31,7 @@ export const CarListingForm = () => {
     setSubmitting(true);
     try {
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
-      const result = await handleFormSubmission(data, session.user.id, valuationData);
+      const result = await handleFormSubmission(data, session.user.id, valuationData, carId);
 
       if (result.success) {
         toast.success("Your listing has been submitted successfully!");

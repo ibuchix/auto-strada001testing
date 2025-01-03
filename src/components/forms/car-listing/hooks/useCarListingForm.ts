@@ -6,11 +6,10 @@ import { useLoadDraft } from "./useLoadDraft";
 import { useFormAutoSave } from "./useFormAutoSave";
 import { useFormSubmission } from "./useFormSubmission";
 
-export const useCarListingForm = (userId?: string) => {
-  const [carId, setCarId] = useState<string>();
+export const useCarListingForm = (userId?: string, draftId?: string) => {
+  const [carId, setCarId] = useState<string>(draftId || '');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   
-  // Get all valuation data from localStorage
   const valuationData = {
     ...JSON.parse(localStorage.getItem('valuationData') || '{}'),
     mileage: parseInt(localStorage.getItem('tempMileage') || '0'),
@@ -27,7 +26,7 @@ export const useCarListingForm = (userId?: string) => {
     },
   });
 
-  useLoadDraft(form, setCarId, setLastSaved, userId);
+  useLoadDraft(form, setCarId, setLastSaved, userId, draftId);
   useFormAutoSave(form, setLastSaved, valuationData, userId, carId);
   const formSubmission = useFormSubmission(userId);
 

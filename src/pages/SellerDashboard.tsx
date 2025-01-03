@@ -176,7 +176,7 @@ const SellerDashboard = () => {
                         <Button 
                           variant="outline"
                           size="sm"
-                          onClick={() => navigate(`/sell-my-car/${listing.id}`)}
+                          onClick={() => navigate('/sell-my-car', { state: { draftId: listing.id } })}
                           className="flex items-center gap-2"
                         >
                           {listing.is_draft ? 'Continue Editing' : 'View Listing'}
