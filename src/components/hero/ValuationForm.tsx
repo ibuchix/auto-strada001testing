@@ -1,64 +1,48 @@
 import { useState } from "react";
-import { toast } from "sonner";
-import { Dialog } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./ValuationResult";
 
 export const ValuationForm = () => {
   const [vin, setVin] = useState("");
-  const [mileage, setMileage] = useState("");
-  const [gearbox, setGearbox] = useState("manual");
-  const [isLoading, setIsLoading] = useState(false);
-  const [valuationResult, setValuationResult] = useState(null);
-  const [showDialog, setShowDialog] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [valuationResult, setValuationResult] = useState<any>(null);
+  const navigate = useNavigate();
 
-  const handleValuation = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!vin) {
-      toast.error("Please enter your vehicle's VIN number");
+    if (!vin.trim()) {
       return;
     }
 
-    if (!mileage) {
-      toast.error("Please enter your vehicle's mileage");
-      return;
-    }
-
-    if (!gearbox) {
-      toast.error("Please select your vehicle's transmission type");
-      return;
-    }
-
-    setIsLoading(true);
-
+    setLoading(true);
     try {
-      const { data: valuationData, error: valuationError } = await supabase.functions.invoke('get-car-valuation', {
-        body: { 
-          registration: vin,
-          mileage: parseInt(mileage),
-          gearbox: gearbox
-        }
+      const { data, error } = await supabase.functions.invoke('get-car-valuation', {
+        body: { vin }
       });
 
-      if (valuationError) {
-        console.error('Valuation error:', valuationError);
-        throw valuationError;
+      if (error) {
+        throw error;
       }
 
-      if (!valuationData) {
-        throw new Error('No data received from valuation service');
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to get valuation');
       }
 
+      const valuationData = data.data;
       console.log('Received valuation data:', valuationData);
+
+      // Store the valuation data in localStorage
+      const gearbox = valuationData.gearbox?.toLowerCase() === 'automatic' ? 'automatic' : 'manual';
 
       const transformedResult = {
         make: valuationData.make,
         model: valuationData.model,
         year: valuationData.year,
-        vin: vin,
-        mileage: parseInt(mileage),
+        vin: valuationData.vin,
+        mileage: valuationData.mileage,
         transmission: gearbox,
         valuation: valuationData.valuation || 0,
         timestamp: new Date().toISOString()
@@ -68,38 +52,32 @@ export const ValuationForm = () => {
       localStorage.setItem('valuationData', JSON.stringify(transformedResult));
 
       setValuationResult(transformedResult);
-      setShowDialog(true);
-      toast.success("Vehicle valuation completed successfully!");
-      
-      // Reset form
-      setVin("");
-      setMileage("");
-      setGearbox("manual");
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error('Valuation error:', error);
-      toast.error(error.message || "Failed to get vehicle valuation");
+      setValuationResult({ error: error.message });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  return (
-    <>
-      <ValuationInput
-        vin={vin}
-        mileage={mileage}
-        gearbox={gearbox}
-        isLoading={isLoading}
-        onVinChange={setVin}
-        onMileageChange={setMileage}
-        onGearboxChange={setGearbox}
-        onSubmit={handleValuation}
-      />
+  const handleContinue = () => {
+    navigate('/sell-my-car');
+  };
 
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <ValuationResult valuationResult={valuationResult} />
-      </Dialog>
-    </>
+  return (
+    <div className="w-full max-w-md mx-auto">
+      <ValuationInput 
+        vin={vin}
+        onChange={setVin}
+        onSubmit={handleSubmit}
+        loading={loading}
+      />
+      {valuationResult && (
+        <ValuationResult 
+          result={valuationResult}
+          onContinue={handleContinue}
+        />
+      )}
+    </div>
   );
 };
