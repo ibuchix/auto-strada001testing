@@ -4,7 +4,6 @@ import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PostgrestError } from "@supabase/supabase-js";
-import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
 
 const SAVE_DEBOUNCE_TIME = 2000;
 const SAVE_TIMEOUT = 10000;
@@ -29,29 +28,34 @@ export const useFormAutoSave = (
     isSavingRef.current = true;
 
     try {
-      const carData = transformObjectToSnakeCase({
+      const carData = {
         id: carId,
-        sellerId: userId,
-        ...valuationData,
+        seller_id: userId,
+        make: valuationData.make,
+        model: valuationData.model,
+        year: valuationData.year,
+        vin: valuationData.vin,
+        mileage: valuationData.mileage,
+        price: valuationData.valuation,
         name: formData.name,
         address: formData.address,
-        mobileNumber: formData.mobileNumber,
-        isDamaged: formData.isDamaged,
-        isRegisteredInPoland: formData.isRegisteredInPoland,
+        mobile_number: formData.mobileNumber,
+        is_damaged: formData.isDamaged,
+        is_registered_in_poland: formData.isRegisteredInPoland,
         features: formData.features,
-        seatMaterial: formData.seatMaterial,
-        numberOfKeys: parseInt(formData.numberOfKeys),
-        hasToolPack: formData.hasToolPack,
-        hasDocumentation: formData.hasDocumentation,
-        isSellingOnBehalf: formData.isSellingOnBehalf,
-        hasPrivatePlate: formData.hasPrivatePlate,
-        financeAmount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
-        serviceHistoryType: formData.serviceHistoryType,
-        sellerNotes: formData.sellerNotes,
-        isDraft: true,
-        lastSaved: new Date().toISOString(),
+        seat_material: formData.seatMaterial,
+        number_of_keys: parseInt(formData.numberOfKeys),
+        has_tool_pack: formData.hasToolPack,
+        has_documentation: formData.hasDocumentation,
+        is_selling_on_behalf: formData.isSellingOnBehalf,
+        has_private_plate: formData.hasPrivatePlate,
+        finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
+        service_history_type: formData.serviceHistoryType,
+        seller_notes: formData.sellerNotes,
+        is_draft: true,
+        last_saved: new Date().toISOString(),
         transmission: valuationData.transmission || null
-      });
+      };
 
       const savePromise = supabase
         .from('cars')

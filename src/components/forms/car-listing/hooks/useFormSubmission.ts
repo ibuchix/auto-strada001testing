@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
 
 export const useFormSubmission = (userId?: string) => {
   const [submitting, setSubmitting] = useState(false);
@@ -24,8 +23,8 @@ export const useFormSubmission = (userId?: string) => {
       throw new Error("Unable to generate listing title");
     }
 
-    return transformObjectToSnakeCase({
-      sellerId: userId,
+    return {
+      seller_id: userId,
       title,
       vin: valuationData.vin,
       mileage: valuationData.mileage,
@@ -35,23 +34,23 @@ export const useFormSubmission = (userId?: string) => {
       year: valuationData.year,
       name: data.name,
       address: data.address,
-      mobileNumber: data.mobileNumber,
-      isDamaged: data.isDamaged,
-      isRegisteredInPoland: data.isRegisteredInPoland,
+      mobile_number: data.mobileNumber,
+      is_damaged: data.isDamaged,
+      is_registered_in_poland: data.isRegisteredInPoland,
       features: data.features,
-      seatMaterial: data.seatMaterial,
-      numberOfKeys: parseInt(data.numberOfKeys),
-      hasToolPack: data.hasToolPack,
-      hasDocumentation: data.hasDocumentation,
-      isSellingOnBehalf: data.isSellingOnBehalf,
-      hasPrivatePlate: data.hasPrivatePlate,
-      financeAmount: data.financeAmount ? parseFloat(data.financeAmount) : null,
-      serviceHistoryType: data.serviceHistoryType,
-      sellerNotes: data.sellerNotes,
-      isDraft: false,
-      valuationData: valuationData,
+      seat_material: data.seatMaterial,
+      number_of_keys: parseInt(data.numberOfKeys),
+      has_tool_pack: data.hasToolPack,
+      has_documentation: data.hasDocumentation,
+      is_selling_on_behalf: data.isSellingOnBehalf,
+      has_private_plate: data.hasPrivatePlate,
+      finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
+      service_history_type: data.serviceHistoryType,
+      seller_notes: data.sellerNotes,
+      is_draft: false,
+      valuation_data: valuationData,
       transmission: valuationData.transmission || null
-    });
+    };
   };
 
   const handleSubmit = async (data: CarListingFormData) => {
