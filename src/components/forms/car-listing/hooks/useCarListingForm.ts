@@ -19,8 +19,8 @@ export const useCarListingForm = (userId?: string) => {
   const form = useForm<CarListingFormData>({
     defaultValues: {
       ...getFormDefaults(),
-      numberOfKeys: "1", // Set default value for numberOfKeys
-      seatMaterial: "cloth", // Set default value for seatMaterial
+      numberOfKeys: "1",
+      seatMaterial: "cloth",
     },
   });
 
@@ -84,6 +84,8 @@ export const useCarListingForm = (userId?: string) => {
       seller_notes: data.sellerNotes,
       is_draft: false,
       valuation_data: valuationData,
+      fuel_type: valuationData.fuel_type,
+      transmission: valuationData.transmission
     };
   };
 
