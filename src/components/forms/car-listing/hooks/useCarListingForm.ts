@@ -21,6 +21,8 @@ export const useCarListingForm = (userId?: string) => {
       ...getFormDefaults(),
       numberOfKeys: "1",
       seatMaterial: "cloth",
+      fuel_type: valuationData.fuel_type || '',
+      transmission: valuationData.transmission || '',
     },
   });
 
@@ -57,7 +59,6 @@ export const useCarListingForm = (userId?: string) => {
       throw new Error("Unable to generate listing title");
     }
 
-    // Ensure we're using snake_case for database columns
     return {
       id: carId,
       seller_id: userId,
@@ -85,9 +86,8 @@ export const useCarListingForm = (userId?: string) => {
       seller_notes: data.sellerNotes,
       is_draft: false,
       valuation_data: valuationData,
-      // Use the correct snake_case column names
-      fuel_type: valuationData.fuelType || null,
-      transmission: valuationData.gearbox || null
+      fuel_type: valuationData.fuel_type || null,
+      transmission: valuationData.transmission || null
     };
   };
 
