@@ -6,6 +6,7 @@ import { Database } from "@/integrations/supabase/types";
 import { getFormDefaults } from "./useFormDefaults";
 import { useLoadDraft } from "./useLoadDraft";
 import { useFormAutoSave } from "./useFormAutoSave";
+import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
 import { toast } from "sonner";
 
 type Cars = Database["public"]["Tables"]["cars"]["Insert"];
@@ -59,9 +60,10 @@ export const useCarListingForm = (userId?: string) => {
       throw new Error("Unable to generate listing title");
     }
 
-    return {
+    // Transform the data to snake_case before sending to Supabase
+    const carData = transformObjectToSnakeCase({
       id: carId,
-      seller_id: userId,
+      sellerId: userId,
       title,
       vin: valuationData.vin,
       mileage: valuationData.mileage,
@@ -71,24 +73,26 @@ export const useCarListingForm = (userId?: string) => {
       year: valuationData.year,
       name: data.name,
       address: data.address,
-      mobile_number: data.mobileNumber,
-      is_damaged: data.isDamaged,
-      is_registered_in_poland: data.isRegisteredInPoland,
+      mobileNumber: data.mobileNumber,
+      isDamaged: data.isDamaged,
+      isRegisteredInPoland: data.isRegisteredInPoland,
       features,
-      seat_material: data.seatMaterial,
-      number_of_keys: parseInt(data.numberOfKeys),
-      has_tool_pack: data.hasToolPack,
-      has_documentation: data.hasDocumentation,
-      is_selling_on_behalf: data.isSellingOnBehalf,
-      has_private_plate: data.hasPrivatePlate,
-      finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
-      service_history_type: data.serviceHistoryType,
-      seller_notes: data.sellerNotes,
-      is_draft: false,
-      valuation_data: valuationData,
-      fuel_type: valuationData.fuel_type || null,
+      seatMaterial: data.seatMaterial,
+      numberOfKeys: parseInt(data.numberOfKeys),
+      hasToolPack: data.hasToolPack,
+      hasDocumentation: data.hasDocumentation,
+      isSellingOnBehalf: data.isSellingOnBehalf,
+      hasPrivatePlate: data.hasPrivatePlate,
+      financeAmount: data.financeAmount ? parseFloat(data.financeAmount) : null,
+      serviceHistoryType: data.serviceHistoryType,
+      sellerNotes: data.sellerNotes,
+      isDraft: false,
+      valuationData: valuationData,
+      fuelType: valuationData.fuel_type || null,
       transmission: valuationData.transmission || null
-    };
+    });
+
+    return carData as Cars;
   };
 
   const onSubmit = async (data: CarListingFormData): Promise<boolean> => {
