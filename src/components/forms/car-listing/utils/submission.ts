@@ -61,11 +61,14 @@ export const handleFormSubmission = async (
       vin: valuationData.vin,
       mileage: valuationData.mileage,
       price: valuationData.valuation,
-      fuel_type: valuationData.gearbox || null,
-      transmission: valuationData.transmission || null,
+      // Map the transmission and fuel type correctly from valuation data
+      transmission: valuationData.gearbox || null,
+      fuel_type: valuationData.fuel_type || null,
       valuation_data: valuationData,
       is_draft: false
     };
+
+    console.log('Submitting car data:', carData);
 
     const { data: savedCar, error } = await supabase
       .from('cars')
