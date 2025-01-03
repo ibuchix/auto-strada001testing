@@ -1,6 +1,6 @@
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
-import { transformCarDataForSubmission } from "./carDataTransformer";
+import { prepareCarData } from "./carDataTransformer";
 
 export const handleFormSubmission = async (
   data: CarListingFormData,
@@ -9,7 +9,7 @@ export const handleFormSubmission = async (
   carId?: string
 ) => {
   try {
-    const transformedData = transformCarDataForSubmission(data, userId, valuationData);
+    const transformedData = prepareCarData(data, valuationData, userId);
 
     if (carId) {
       const { error } = await supabase
