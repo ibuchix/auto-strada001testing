@@ -15,9 +15,13 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { toast } from "sonner";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 const Sellers = () => {
   const [vin, setVin] = useState("");
+  const [mileage, setMileage] = useState("");
+  const [gearbox, setGearbox] = useState("manual");
   const navigate = useNavigate();
   const { session } = useAuth();
 
@@ -29,9 +33,16 @@ const Sellers = () => {
       return;
     }
 
+    if (!mileage.trim()) {
+      toast.error("Please enter your vehicle's mileage");
+      return;
+    }
+
     try {
-      // Store VIN in localStorage for the listing form
+      // Store data in localStorage for the listing form
       localStorage.setItem('tempVIN', vin);
+      localStorage.setItem('tempMileage', mileage);
+      localStorage.setItem('tempGearbox', gearbox);
       
       // Navigate to valuation page
       navigate('/sell-my-car');
@@ -62,8 +73,32 @@ const Sellers = () => {
                 placeholder="Enter your VIN number"
                 value={vin}
                 onChange={(e) => setVin(e.target.value)}
-                className="h-14 text-center text-lg"
+                className="h-12 text-center text-lg"
               />
+              <Input
+                type="number"
+                placeholder="Enter mileage (KM)"
+                value={mileage}
+                onChange={(e) => setMileage(e.target.value)}
+                className="h-12 text-center text-lg"
+                min="0"
+              />
+              <div className="bg-white border-2 border-secondary/20 rounded-md p-4">
+                <RadioGroup
+                  value={gearbox}
+                  onValueChange={setGearbox}
+                  className="flex gap-6 justify-center"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="manual" id="manual" />
+                    <Label htmlFor="manual" className="font-medium cursor-pointer">Manual</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="automatic" id="automatic" />
+                    <Label htmlFor="automatic" className="font-medium cursor-pointer">Automatic</Label>
+                  </div>
+                </RadioGroup>
+              </div>
               <Button 
                 type="submit"
                 className="w-full h-14 bg-secondary hover:bg-secondary/90 text-white text-lg"
@@ -177,6 +212,30 @@ const Sellers = () => {
               onChange={(e) => setVin(e.target.value)}
               className="bg-white text-center text-lg h-14"
             />
+            <Input
+              type="number"
+              placeholder="Enter mileage (KM)"
+              value={mileage}
+              onChange={(e) => setMileage(e.target.value)}
+              className="bg-white text-center text-lg h-14"
+              min="0"
+            />
+            <div className="bg-white border-2 border-white/20 rounded-md p-4">
+              <RadioGroup
+                value={gearbox}
+                onValueChange={setGearbox}
+                className="flex gap-6 justify-center"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="manual" id="manual-cta" />
+                  <Label htmlFor="manual-cta" className="font-medium cursor-pointer text-white">Manual</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="automatic" id="automatic-cta" />
+                  <Label htmlFor="automatic-cta" className="font-medium cursor-pointer text-white">Automatic</Label>
+                </div>
+              </RadioGroup>
+            </div>
             <Button 
               type="submit"
               className="w-full bg-primary hover:bg-primary/90 text-white text-lg h-14"
