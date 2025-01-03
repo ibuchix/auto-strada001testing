@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
+
+type CarInsert = Database['public']['Tables']['cars']['Insert'];
 
 export const useFormSubmission = (userId?: string) => {
   const [submitting, setSubmitting] = useState(false);
@@ -23,7 +26,7 @@ export const useFormSubmission = (userId?: string) => {
       throw new Error("Unable to generate listing title");
     }
 
-    return {
+    const carData: CarInsert = {
       seller_id: userId,
       title,
       vin: valuationData.vin,
@@ -51,6 +54,8 @@ export const useFormSubmission = (userId?: string) => {
       valuation_data: valuationData,
       transmission: valuationData.transmission || null
     };
+
+    return carData;
   };
 
   const handleSubmit = async (data: CarListingFormData) => {

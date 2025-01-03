@@ -4,7 +4,6 @@ import { Dialog } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./ValuationResult";
-import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
 
 export const ValuationForm = () => {
   const [vin, setVin] = useState("");
@@ -54,8 +53,7 @@ export const ValuationForm = () => {
 
       console.log('Received valuation data:', valuationData);
 
-      // Transform the data to snake_case before storing
-      const transformedResult = transformObjectToSnakeCase({
+      const transformedResult = {
         make: valuationData.make,
         model: valuationData.model,
         year: valuationData.year,
@@ -64,7 +62,7 @@ export const ValuationForm = () => {
         transmission: gearbox,
         valuation: valuationData.valuation || 0,
         timestamp: new Date().toISOString()
-      });
+      };
 
       console.log('Transformed valuation data:', transformedResult);
       localStorage.setItem('valuationData', JSON.stringify(transformedResult));

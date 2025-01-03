@@ -4,9 +4,12 @@ import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PostgrestError } from "@supabase/supabase-js";
+import { Database } from "@/integrations/supabase/types";
 
 const SAVE_DEBOUNCE_TIME = 2000;
 const SAVE_TIMEOUT = 10000;
+
+type CarInsert = Database['public']['Tables']['cars']['Insert'];
 
 export const useFormAutoSave = (
   form: UseFormReturn<CarListingFormData>,
@@ -28,9 +31,12 @@ export const useFormAutoSave = (
     isSavingRef.current = true;
 
     try {
-      const carData = {
+      const title = `${valuationData.make} ${valuationData.model} ${valuationData.year}`.trim();
+      
+      const carData: CarInsert = {
         id: carId,
         seller_id: userId,
+        title,
         make: valuationData.make,
         model: valuationData.model,
         year: valuationData.year,
