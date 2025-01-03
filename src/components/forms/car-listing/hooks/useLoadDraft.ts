@@ -22,7 +22,7 @@ export const useLoadDraft = (
           .select('*')
           .eq('seller_id', userId)
           .eq('is_draft', true)
-          .maybeSingle(); // Changed from single() to maybeSingle()
+          .maybeSingle();
 
         if (error) {
           console.error('Error loading draft:', error);
@@ -57,6 +57,7 @@ export const useLoadDraft = (
             serviceHistoryType: draft.service_history_type || "none",
             sellerNotes: draft.seller_notes || "",
             uploadedPhotos: [],
+            transmission: draft.transmission || null
           });
         }
       } catch (error) {
