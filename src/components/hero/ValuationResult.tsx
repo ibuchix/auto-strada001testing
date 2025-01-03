@@ -16,6 +16,7 @@ interface ValuationResultProps {
     transmission: string;
     fuel_type: string;
     valuation: number;
+    mileage: number;
   } | null;
 }
 
@@ -30,7 +31,7 @@ export const ValuationResult = ({ valuationResult }: ValuationResultProps) => {
       ...valuationResult,
       gearbox: valuationResult.transmission, // Map transmission to gearbox for consistency
       fuel_type: valuationResult.fuel_type,
-      mileage: valuationResult.mileage || 0,
+      mileage: valuationResult.mileage,
     };
     
     console.log('Storing valuation data:', valuationData);
@@ -68,6 +69,10 @@ export const ValuationResult = ({ valuationResult }: ValuationResultProps) => {
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">Fuel Type</p>
             <p className="font-medium text-dark">{valuationResult.fuel_type}</p>
+          </div>
+          <div className="bg-accent/50 p-4 rounded-lg">
+            <p className="text-sm text-subtitle mb-1">Mileage</p>
+            <p className="font-medium text-dark">{valuationResult.mileage.toLocaleString()} km</p>
           </div>
         </div>
         <div className="border-t pt-6">
