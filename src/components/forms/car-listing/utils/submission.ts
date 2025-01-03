@@ -39,7 +39,7 @@ export const handleFormSubmission = async (
 
     const carData = {
       seller_id: userId,
-      title, // Add the required title field
+      title,
       name: data.name,
       address: data.address,
       mobile_number: data.mobileNumber,
@@ -61,8 +61,8 @@ export const handleFormSubmission = async (
       vin: valuationData.vin,
       mileage: valuationData.mileage,
       price: valuationData.valuation,
-      fuel_type: valuationData.fuelType || null,
-      transmission: valuationData.gearbox || null,
+      fuel_type: valuationData.gearbox || null,
+      transmission: valuationData.transmission || null,
       valuation_data: valuationData,
       is_draft: false
     };
