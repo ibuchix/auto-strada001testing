@@ -2,6 +2,7 @@ import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { FormSubmissionResult } from "../types/submission";
 import { validateFormData } from "./validation";
+import { Json } from "@/integrations/supabase/types";
 
 export const handleFormSubmission = async (
   data: CarListingFormData,
@@ -24,14 +25,27 @@ export const handleFormSubmission = async (
       };
     }
 
+    // Generate title from valuation data
+    const title = `${valuationData.make} ${valuationData.model} ${valuationData.year}`.trim();
+
+    // Convert features to Json type
+    const features: Json = {
+      satNav: data.features?.satNav || false,
+      panoramicRoof: data.features?.panoramicRoof || false,
+      reverseCamera: data.features?.reverseCamera || false,
+      heatedSeats: data.features?.heatedSeats || false,
+      upgradedSound: data.features?.upgradedSound || false
+    };
+
     const carData = {
       seller_id: userId,
+      title, // Add the required title field
       name: data.name,
       address: data.address,
       mobile_number: data.mobileNumber,
       is_damaged: data.isDamaged,
       is_registered_in_poland: data.isRegisteredInPoland,
-      features: data.features,
+      features,
       seat_material: data.seatMaterial,
       number_of_keys: parseInt(data.numberOfKeys),
       has_tool_pack: data.hasToolPack,

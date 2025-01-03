@@ -13,3 +13,13 @@ export interface ValidationError {
   field: string;
   message: string;
 }
+
+export interface CarDataTransformed extends Omit<Cars, 'features'> {
+  features: {
+    satNav: boolean;
+    panoramicRoof: boolean;
+    reverseCamera: boolean;
+    heatedSeats: boolean;
+    upgradedSound: boolean;
+  };
+}
