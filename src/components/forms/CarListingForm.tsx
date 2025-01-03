@@ -6,10 +6,9 @@ import { FormSubmitButton } from "./car-listing/FormSubmitButton";
 import { SuccessDialog } from "./car-listing/SuccessDialog";
 import { LastSaved } from "./car-listing/LastSaved";
 import { FormSections } from "./car-listing/FormSections";
-import { useFormSubmission } from "./car-listing/hooks/useFormSubmission";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { handleFormSubmission } from "./car-listing/utils/submission";
 
 export const CarListingForm = () => {
   const navigate = useNavigate();
@@ -20,91 +19,26 @@ export const CarListingForm = () => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   const onSubmit = async (data: any) => {
-    console.log('Form submission started with data:', data);
-    
     if (!session?.user.id) {
-      console.error('No user session found');
       toast.error("Please sign in to submit a listing");
       navigate("/auth");
       return;
     }
 
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-
-      // Validate required fields
-      if (!data.name || !data.address || !data.mobileNumber) {
-        console.error('Missing personal details:', { name: data.name, address: data.address, mobileNumber: data.mobileNumber });
-        toast.error("Please fill in all required personal details");
-        return;
-      }
-
-      if (!data.serviceHistoryType) {
-        console.error('Missing service history type');
-        toast.error("Please select a service history type");
-        return;
-      }
-
-      if (!data.seatMaterial || !data.numberOfKeys) {
-        console.error('Missing additional information:', { seatMaterial: data.seatMaterial, numberOfKeys: data.numberOfKeys });
-        toast.error("Please fill in all required additional information");
-        return;
-      }
-
-      if (!data.uploadedPhotos || data.uploadedPhotos.length === 0) {
-        console.error('No photos uploaded');
-        toast.error("Please upload at least one photo");
-        return;
-      }
-
-      // Get valuation data
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
-      if (!valuationData.make || !valuationData.model || !valuationData.year) {
-        console.error('Missing valuation data');
-        toast.error("Please complete the vehicle valuation first");
-        return;
+      const result = await handleFormSubmission(data, session.user.id, valuationData);
+
+      if (result.success) {
+        toast.success("Your listing has been submitted successfully!");
+        setShowSuccessDialog(true);
+      } else {
+        toast.error(result.error || "Failed to submit listing");
       }
-
-      console.log('All validation passed, proceeding with submission');
-
-      // Prepare car data
-      const carData = {
-        ...data,
-        seller_id: session.user.id,
-        valuation_data: valuationData,
-        make: valuationData.make,
-        model: valuationData.model,
-        year: valuationData.year,
-        vin: valuationData.vin,
-        mileage: valuationData.mileage,
-        price: valuationData.valuation,
-        fuel_type: valuationData.fuelType || null,
-        transmission: valuationData.gearbox || null,
-        is_draft: false
-      };
-
-      console.log('Submitting car data:', carData);
-
-      const { error } = await form.handleSubmit(async () => {
-        const { data: savedCar, error: submitError } = await supabase
-          .from('cars')
-          .upsert(carData)
-          .select()
-          .single();
-
-        if (submitError) throw submitError;
-        return savedCar;
-      })();
-
-      if (error) throw error;
-
-      console.log('Form submitted successfully');
-      toast.success("Your listing has been submitted successfully!");
-      setShowSuccessDialog(true);
-
     } catch (error: any) {
       console.error('Form submission error:', error);
-      toast.error(error.message || "Failed to submit listing. Please try again.");
+      toast.error(error.message || "Failed to submit listing");
     } finally {
       setSubmitting(false);
     }
