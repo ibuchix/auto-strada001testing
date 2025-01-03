@@ -22,7 +22,6 @@ export const useCarListingForm = (userId?: string) => {
       ...getFormDefaults(),
       numberOfKeys: "1",
       seatMaterial: "cloth",
-      fuel_type: valuationData.fuel_type || null,
       transmission: valuationData.transmission || null,
     },
   });
@@ -88,7 +87,6 @@ export const useCarListingForm = (userId?: string) => {
       sellerNotes: data.sellerNotes,
       isDraft: false,
       valuationData: valuationData,
-      fuelType: valuationData.fuel_type || null,
       transmission: valuationData.transmission || null
     });
 

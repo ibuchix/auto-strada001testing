@@ -62,7 +62,6 @@ export const ValuationForm = () => {
         vin: vin,
         mileage: parseInt(mileage),
         transmission: gearbox,
-        fuelType: valuationData.fuel_type || null,
         valuation: valuationData.valuation || 0,
         timestamp: new Date().toISOString()
       });

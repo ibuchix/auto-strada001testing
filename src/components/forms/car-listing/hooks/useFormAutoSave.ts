@@ -49,6 +49,7 @@ export const useFormAutoSave = (
         seller_notes: formData.sellerNotes,
         is_draft: true,
         last_saved: new Date().toISOString(),
+        transmission: valuationData.transmission || null
       }).select();
 
       // Create a timeout promise

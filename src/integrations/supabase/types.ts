@@ -182,7 +182,6 @@ export type Database = {
           features: Json | null
           finance_amount: number | null
           finance_document_url: string | null
-          fuel_type: string | null
           has_documentation: boolean | null
           has_private_plate: boolean | null
           has_tool_pack: boolean | null
@@ -226,7 +225,6 @@ export type Database = {
           features?: Json | null
           finance_amount?: number | null
           finance_document_url?: string | null
-          fuel_type?: string | null
           has_documentation?: boolean | null
           has_private_plate?: boolean | null
           has_tool_pack?: boolean | null
@@ -270,7 +268,6 @@ export type Database = {
           features?: Json | null
           finance_amount?: number | null
           finance_document_url?: string | null
-          fuel_type?: string | null
           has_documentation?: boolean | null
           has_private_plate?: boolean | null
           has_tool_pack?: boolean | null

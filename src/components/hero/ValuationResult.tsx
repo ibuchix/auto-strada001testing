@@ -14,7 +14,6 @@ interface ValuationResultProps {
     year: number;
     vin: string;
     transmission: string;
-    fuel_type: string | null;
     valuation: number;
     mileage: number;
   } | null;
@@ -55,10 +54,6 @@ export const ValuationResult = ({ valuationResult }: ValuationResultProps) => {
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">Transmission</p>
             <p className="font-medium text-dark capitalize">{valuationResult.transmission}</p>
-          </div>
-          <div className="bg-accent/50 p-4 rounded-lg">
-            <p className="text-sm text-subtitle mb-1">Fuel Type</p>
-            <p className="font-medium text-dark">{valuationResult.fuel_type || 'Not available'}</p>
           </div>
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">Mileage</p>
