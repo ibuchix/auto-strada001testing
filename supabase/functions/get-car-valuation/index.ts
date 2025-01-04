@@ -13,6 +13,7 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
 
 // Edge function handler
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -32,8 +33,15 @@ Deno.serve(async (req) => {
 
     console.log('Constructed API URL:', apiUrl);
 
-    // Make the API request
-    const response = await fetch(apiUrl);
+    // Make the API request with additional headers
+    const response = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'AutoStra-Valuation/1.0',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('API Error Response:', errorText);
@@ -52,7 +60,7 @@ Deno.serve(async (req) => {
         model: responseData.functionResponse?.userParams?.model || 'Not available',
         year: responseData.functionResponse?.userParams?.year || null,
         vin: responseData.vin || vin,
-        fuel_type: responseData.functionResponse?.userParams?.fuel || 'Not available',
+        transmission: responseData.functionResponse?.userParams?.transmission || 'Not available',
         valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
         mileage,
       },
@@ -76,7 +84,7 @@ Deno.serve(async (req) => {
           model: 'Not available',
           year: null,
           vin: '',
-          fuel_type: 'Not available',
+          transmission: 'Not available',
           valuation: 0,
           mileage: 0,
         },

@@ -44,6 +44,7 @@ export const ValuationForm = () => {
 
       console.log('Sending valuation request with:', { vin, mileage, gearbox });
 
+      // Call the Edge Function instead of the external API directly
       const { data, error } = await supabase.functions.invoke('get-car-valuation', {
         body: { 
           vin: vin.trim(),
