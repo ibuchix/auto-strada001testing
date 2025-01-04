@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { HeroSection } from "@/components/sellers/HeroSection";
 import { BenefitsSection } from "@/components/sellers/BenefitsSection";
-import { md5 } from "js-md5";
+import { supabase } from "@/integrations/supabase/client";
 
 const Sellers = () => {
   const [vin, setVin] = useState("");
@@ -26,21 +26,23 @@ const Sellers = () => {
     }
 
     try {
-      const API_ID = "AUTOSTRA";
-      const API_SECRET = "A4FTFH54C3E37P2D34A16A7A4V41XKBF";
-      const checksum = md5(API_ID + API_SECRET + vin);
-      
-      const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-      
-      const response = await fetch(valuationUrl);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch valuation data');
+      // Call our Edge Function instead of the external API directly
+      const { data, error } = await supabase.functions.invoke('get-car-valuation', {
+        body: {
+          vin: vin,
+          mileage: parseInt(mileage)
+        }
+      });
+
+      if (error) {
+        console.error('Valuation error:', error);
+        throw new Error(error.message);
       }
+
+      console.log('Valuation response:', data);
       
-      const valuationData = await response.json();
-      
-      localStorage.setItem('valuationData', JSON.stringify(valuationData));
+      // Store the valuation data and form inputs
+      localStorage.setItem('valuationData', JSON.stringify(data));
       localStorage.setItem('tempVIN', vin);
       localStorage.setItem('tempMileage', mileage);
       localStorage.setItem('tempGearbox', gearbox);
