@@ -15,6 +15,7 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
 };
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -42,12 +43,14 @@ Deno.serve(async (req) => {
 
     console.log('Constructed API URL:', apiUrl);
 
+    // Use fetch with a proxy request configuration
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Origin': 'https://bp.autoiso.pl'
+        'User-Agent': 'AutostraAPI/1.0',
+        'Referer': 'https://bp.autoiso.pl'
       },
     });
 
