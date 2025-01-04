@@ -21,6 +21,8 @@ Deno.serve(async (req) => {
   try {
     // Extract VIN and mileage from the request
     const { vin, mileage = 50000 } = await req.json();
+    console.log('Received request with:', { vin, mileage });
+    
     if (!vin) throw new Error('VIN number is required');
 
     const apiId = 'AUTOSTRA';
@@ -29,9 +31,10 @@ Deno.serve(async (req) => {
 
     // Construct API URL
     const checksum = calculateChecksum(apiId, apiSecret, vin);
+    console.log('Generated checksum:', checksum);
+    
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
-
-    console.log('Constructed API URL:', apiUrl);
+    console.log('Making request to:', apiUrl);
 
     // Make the API request with additional headers
     const response = await fetch(apiUrl, {
@@ -42,6 +45,9 @@ Deno.serve(async (req) => {
       }
     });
 
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('API Error Response:', errorText);
@@ -50,7 +56,12 @@ Deno.serve(async (req) => {
 
     // Parse the response
     const responseData = await response.json();
-    console.log('Raw API Response:', responseData);
+    console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
+
+    // Log specific parts of the response we're trying to access
+    console.log('Function Response:', responseData.functionResponse);
+    console.log('User Params:', responseData.functionResponse?.userParams);
+    console.log('Valuation Data:', responseData.functionResponse?.valuation);
 
     // Transform response for frontend
     const valuationResult = {
@@ -66,6 +77,8 @@ Deno.serve(async (req) => {
       },
     };
 
+    console.log('Transformed response:', valuationResult);
+
     return new Response(JSON.stringify(valuationResult), {
       headers: {
         ...corsHeaders,
@@ -73,7 +86,10 @@ Deno.serve(async (req) => {
       },
     });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+    });
 
     return new Response(
       JSON.stringify({
