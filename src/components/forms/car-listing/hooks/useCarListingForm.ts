@@ -7,8 +7,8 @@ import { useFormAutoSave } from "./useFormAutoSave";
 import { useFormSubmission } from "./useFormSubmission";
 
 export const useCarListingForm = (userId?: string, draftId?: string) => {
-  // Only set carId if draftId is provided and not empty
-  const [carId, setCarId] = useState<string>(draftId && draftId.trim() !== '' ? draftId : '');
+  // Initialize carId as empty string unless we have a valid draftId
+  const [carId, setCarId] = useState<string>("");
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   
   const valuationData = {
@@ -27,8 +27,8 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
     },
   });
 
-  // Only pass draftId if it exists and is not empty
-  useLoadDraft(form, setCarId, setLastSaved, userId, draftId && draftId.trim() !== '' ? draftId : undefined);
+  // Only load draft if we have both userId and a valid draftId
+  useLoadDraft(form, setCarId, setLastSaved, userId, draftId);
   useFormAutoSave(form, setLastSaved, valuationData, userId, carId);
   const formSubmission = useFormSubmission(userId);
 
