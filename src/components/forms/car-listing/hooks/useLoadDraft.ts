@@ -24,8 +24,8 @@ export const useLoadDraft = (
           .eq('seller_id', userId)
           .eq('is_draft', true);
 
-        // Only add the draftId condition if it exists and is not empty
-        if (draftId && draftId.trim() !== '') {
+        // Only add the draftId condition if it exists
+        if (draftId) {
           query = query.eq('id', draftId);
         }
 
