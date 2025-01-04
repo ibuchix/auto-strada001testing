@@ -52,9 +52,7 @@ export const ValuationForm = () => {
         }
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (!data.success) {
         throw new Error(data.message || 'Failed to get valuation');

@@ -45,8 +45,9 @@ Deno.serve(async (req) => {
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
-        Accept: 'application/json',
+        'Accept': 'application/json',
         'Content-Type': 'application/json',
+        'Origin': 'https://bp.autoiso.pl'
       },
     });
 
@@ -70,6 +71,7 @@ Deno.serve(async (req) => {
         transmission: gearbox,
         fuel_type: responseData.functionResponse?.userParams?.fuel || 'Not available',
         valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
+        mileage: mileage
       }
     };
 
@@ -96,6 +98,7 @@ Deno.serve(async (req) => {
           transmission: 'Not available',
           fuel_type: 'Not available',
           valuation: 0,
+          mileage: 0
         }
       }),
       {
