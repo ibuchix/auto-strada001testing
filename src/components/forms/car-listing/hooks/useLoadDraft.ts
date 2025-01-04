@@ -18,13 +18,18 @@ export const useLoadDraft = (
       if (!userId) return;
 
       try {
-        const { data: draft, error } = await supabase
+        let query = supabase
           .from('cars')
           .select('*')
           .eq('seller_id', userId)
-          .eq('is_draft', true)
-          .eq(draftId ? 'id' : 'is_draft', draftId || true)
-          .maybeSingle();
+          .eq('is_draft', true);
+
+        // Only add the draftId condition if it exists and is not empty
+        if (draftId && draftId.trim() !== '') {
+          query = query.eq('id', draftId);
+        }
+
+        const { data: draft, error } = await query.maybeSingle();
 
         if (error) {
           console.error('Error loading draft:', error);
