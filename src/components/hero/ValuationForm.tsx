@@ -40,9 +40,11 @@ export const ValuationForm = () => {
         return;
       }
 
+      console.log('Sending valuation request with:', { vin, mileage, gearbox });
+
       const { data, error } = await supabase.functions.invoke('get-car-valuation', {
         body: { 
-          vin,
+          vin: vin.trim(),
           mileage: parseInt(mileage),
           gearbox 
         }
@@ -59,26 +61,18 @@ export const ValuationForm = () => {
       const valuationData = data.data;
       console.log('Received valuation data:', valuationData);
 
-      const transformedResult = {
-        make: valuationData.make,
-        model: valuationData.model,
-        year: valuationData.year,
-        vin: valuationData.vin,
-        mileage: parseInt(mileage),
-        transmission: gearbox,
-        valuation: valuationData.valuation || 0,
-        timestamp: new Date().toISOString()
-      };
+      // Store the valuation data in localStorage
+      localStorage.setItem('valuationData', JSON.stringify(valuationData));
+      localStorage.setItem('tempVIN', vin);
+      localStorage.setItem('tempMileage', mileage);
+      localStorage.setItem('tempGearbox', gearbox);
 
-      console.log('Transformed valuation data:', transformedResult);
-      localStorage.setItem('valuationData', JSON.stringify(transformedResult));
-
-      setValuationResult(transformedResult);
+      setValuationResult(valuationData);
       toast.success("Valuation completed successfully!");
     } catch (error: any) {
       console.error('Valuation error:', error);
       toast.error(error.message || "Failed to get valuation");
-      setValuationResult({ error: error.message });
+      setValuationResult(null);
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +94,7 @@ export const ValuationForm = () => {
         onGearboxChange={setGearbox}
         onSubmit={handleSubmit}
       />
-      {valuationResult && !valuationResult.error && (
+      {valuationResult && (
         <ValuationResult 
           valuationResult={valuationResult}
           onContinue={handleContinue}
