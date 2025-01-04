@@ -36,14 +36,12 @@ Deno.serve(async (req) => {
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
     console.log('Making request to:', apiUrl);
 
-    // Make the API request with specific headers required by the API
+    // Make the API request with only required headers
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'AutoStra-Valuation/1.0',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
         'X-API-Key': apiId,
         'X-Checksum': checksum
       }
