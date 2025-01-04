@@ -14,13 +14,15 @@ interface ValuationResultProps {
     vin: string;
     transmission: string;
     valuation: number;
-    mileage: number;
   };
   onContinue: () => void;
 }
 
 export const ValuationResult = ({ valuationResult, onContinue }: ValuationResultProps) => {
   if (!valuationResult) return null;
+
+  // Get the stored mileage from localStorage
+  const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
 
   return (
     <DialogContent className="sm:max-w-md">
@@ -51,7 +53,7 @@ export const ValuationResult = ({ valuationResult, onContinue }: ValuationResult
           </div>
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">Mileage</p>
-            <p className="font-medium text-dark">{valuationResult.mileage.toLocaleString()} km</p>
+            <p className="font-medium text-dark">{mileage.toLocaleString()} km</p>
           </div>
         </div>
         <div className="border-t pt-6">
