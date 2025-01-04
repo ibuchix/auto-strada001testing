@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { registration: vin, mileage = 50000, gearbox = 'manual' } = await req.json();
+    const { vin, mileage = 50000, gearbox = 'manual' } = await req.json();
     console.log('Received VIN:', vin);
     console.log('Received mileage:', mileage);
     console.log('Received gearbox:', gearbox);
@@ -61,13 +61,16 @@ Deno.serve(async (req) => {
 
     // Map the API response to the frontend format
     const valuationResult = {
-      make: responseData.functionResponse?.userParams?.make || 'Not available',
-      model: responseData.functionResponse?.userParams?.model || 'Not available',
-      year: responseData.functionResponse?.userParams?.year || null,
-      vin: responseData.vin || vin,
-      transmission: gearbox,
-      fuel_type: responseData.functionResponse?.userParams?.fuel || 'Not available',
-      valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
+      success: true,
+      data: {
+        make: responseData.functionResponse?.userParams?.make || 'Not available',
+        model: responseData.functionResponse?.userParams?.model || 'Not available',
+        year: responseData.functionResponse?.userParams?.year || null,
+        vin: responseData.vin || vin,
+        transmission: gearbox,
+        fuel_type: responseData.functionResponse?.userParams?.fuel || 'Not available',
+        valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
+      }
     };
 
     console.log('Transformed valuation result:', valuationResult);
@@ -83,14 +86,17 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        error: error.message,
-        make: 'Not available',
-        model: 'Not available',
-        year: null,
-        vin: '',
-        transmission: 'Not available',
-        fuel_type: 'Not available',
-        valuation: 0,
+        success: false,
+        message: error.message,
+        data: {
+          make: 'Not available',
+          model: 'Not available',
+          year: null,
+          vin: '',
+          transmission: 'Not available',
+          fuel_type: 'Not available',
+          valuation: 0,
+        }
       }),
       {
         status: 500,
