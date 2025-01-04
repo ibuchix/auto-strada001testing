@@ -1,69 +1,50 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { crypto } from 'https://deno.land/std/crypto/mod.ts';
 
+// Function to calculate checksum
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
   const input = `${apiId}${apiSecret}${vin}`;
-  console.log('Input string for checksum:', input);
-
   const hash = crypto.subtle.digestSync('MD5', new TextEncoder().encode(input));
   const checksum = Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
-
-  console.log('Generated checksum:', checksum);
   return checksum;
 };
 
+// Edge function handler
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { vin, mileage = 50000, gearbox = 'manual' } = await req.json();
-    console.log('Received VIN:', vin);
-    console.log('Received mileage:', mileage);
-    console.log('Received gearbox:', gearbox);
-
-    if (!vin) {
-      throw new Error('VIN number is required');
-    }
+    // Extract VIN and mileage from the request
+    const { vin, mileage = 50000 } = await req.json();
+    if (!vin) throw new Error('VIN number is required');
 
     const apiId = 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET');
+    if (!apiSecret) throw new Error('API configuration error: Missing API secret');
 
-    if (!apiSecret) {
-      throw new Error('API configuration error: Missing API secret');
-    }
-
+    // Construct API URL
     const checksum = calculateChecksum(apiId, apiSecret, vin);
-    const baseUrl = 'https://bp.autoiso.pl/api/v3/getVinValuation';
-    const apiUrl = `${baseUrl}/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
 
     console.log('Constructed API URL:', apiUrl);
 
-    // Use fetch with a proxy request configuration
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'AutostraAPI/1.0',
-        'Referer': 'https://bp.autoiso.pl'
-      },
-    });
-
+    // Make the API request
+    const response = await fetch(apiUrl);
     if (!response.ok) {
       const errorText = await response.text();
       console.error('API Error Response:', errorText);
-      throw new Error(`API request failed: ${response.status} ${response.statusText}. Details: ${errorText}`);
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
+    // Parse the response
     const responseData = await response.json();
-    console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
+    console.log('Raw API Response:', responseData);
 
-    // Map the API response to the frontend format
+    // Transform response for frontend
     const valuationResult = {
       success: true,
       data: {
@@ -71,14 +52,11 @@ Deno.serve(async (req) => {
         model: responseData.functionResponse?.userParams?.model || 'Not available',
         year: responseData.functionResponse?.userParams?.year || null,
         vin: responseData.vin || vin,
-        transmission: gearbox,
         fuel_type: responseData.functionResponse?.userParams?.fuel || 'Not available',
         valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
-        mileage: mileage
-      }
+        mileage,
+      },
     };
-
-    console.log('Transformed valuation result:', valuationResult);
 
     return new Response(JSON.stringify(valuationResult), {
       headers: {
@@ -98,11 +76,10 @@ Deno.serve(async (req) => {
           model: 'Not available',
           year: null,
           vin: '',
-          transmission: 'Not available',
           fuel_type: 'Not available',
           valuation: 0,
-          mileage: 0
-        }
+          mileage: 0,
+        },
       }),
       {
         status: 500,
