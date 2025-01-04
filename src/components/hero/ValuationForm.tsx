@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./ValuationResult";
 import { toast } from "sonner";
+import { Dialog } from "@/components/ui/dialog";
 
 export const ValuationForm = () => {
   const [vin, setVin] = useState("");
@@ -11,6 +12,7 @@ export const ValuationForm = () => {
   const [gearbox, setGearbox] = useState("manual");
   const [isLoading, setIsLoading] = useState(false);
   const [valuationResult, setValuationResult] = useState<any>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,6 +70,7 @@ export const ValuationForm = () => {
       localStorage.setItem('tempGearbox', gearbox);
 
       setValuationResult(valuationData);
+      setDialogOpen(true);
       toast.success("Valuation completed successfully!");
     } catch (error: any) {
       console.error('Valuation error:', error);
@@ -79,6 +82,7 @@ export const ValuationForm = () => {
   };
 
   const handleContinue = () => {
+    setDialogOpen(false);
     navigate('/sell-my-car');
   };
 
@@ -94,12 +98,14 @@ export const ValuationForm = () => {
         onGearboxChange={setGearbox}
         onSubmit={handleSubmit}
       />
-      {valuationResult && (
-        <ValuationResult 
-          valuationResult={valuationResult}
-          onContinue={handleContinue}
-        />
-      )}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        {valuationResult && (
+          <ValuationResult 
+            valuationResult={valuationResult}
+            onContinue={handleContinue}
+          />
+        )}
+      </Dialog>
     </div>
   );
 };
