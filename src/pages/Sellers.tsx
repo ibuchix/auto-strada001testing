@@ -26,23 +26,26 @@ const Sellers = () => {
     }
 
     try {
-      // Call our Edge Function instead of the external API directly
       const { data, error } = await supabase.functions.invoke('get-car-valuation', {
         body: {
           vin: vin,
-          mileage: parseInt(mileage)
+          mileage: parseInt(mileage),
         }
       });
 
       if (error) {
         console.error('Valuation error:', error);
-        throw new Error(error.message);
+        toast.error("Failed to get vehicle valuation. Please try again.");
+        return;
       }
 
-      console.log('Valuation response:', data);
-      
+      if (!data?.success) {
+        toast.error(data?.message || "Failed to get vehicle valuation. Please try again.");
+        return;
+      }
+
       // Store the valuation data and form inputs
-      localStorage.setItem('valuationData', JSON.stringify(data));
+      localStorage.setItem('valuationData', JSON.stringify(data.data));
       localStorage.setItem('tempVIN', vin);
       localStorage.setItem('tempMileage', mileage);
       localStorage.setItem('tempGearbox', gearbox);

@@ -1,7 +1,6 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { crypto } from 'https://deno.land/std/crypto/mod.ts';
 
-// Function to calculate checksum
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
   const input = `${apiId}${apiSecret}${vin}`;
   const hash = crypto.subtle.digestSync('MD5', new TextEncoder().encode(input));
@@ -11,15 +10,12 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
   return checksum;
 };
 
-// Edge function handler
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Extract VIN and mileage from the request
     const { vin, mileage = 50000 } = await req.json();
     console.log('Received request with:', { vin, mileage });
     
@@ -29,14 +25,12 @@ Deno.serve(async (req) => {
     const apiSecret = Deno.env.get('CAR_API_SECRET');
     if (!apiSecret) throw new Error('API configuration error: Missing API secret');
 
-    // Construct API URL
     const checksum = calculateChecksum(apiId, apiSecret, vin);
     console.log('Generated checksum:', checksum);
     
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
     console.log('Making request to:', apiUrl);
 
-    // Make the API request with only required headers
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
@@ -47,25 +41,15 @@ Deno.serve(async (req) => {
       }
     });
 
-    console.log('Response status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error('API Error Response:', errorText);
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    // Parse the response
     const responseData = await response.json();
     console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
 
-    // Log specific parts of the response we're trying to access
-    console.log('Function Response:', responseData.functionResponse);
-    console.log('User Params:', responseData.functionResponse?.userParams);
-    console.log('Valuation Data:', responseData.functionResponse?.valuation);
-
-    // Transform response for frontend
     const valuationResult = {
       success: true,
       data: {
@@ -78,8 +62,6 @@ Deno.serve(async (req) => {
         mileage,
       },
     };
-
-    console.log('Transformed response:', valuationResult);
 
     return new Response(JSON.stringify(valuationResult), {
       headers: {
