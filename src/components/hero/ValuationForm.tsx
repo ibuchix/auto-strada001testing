@@ -30,14 +30,15 @@ export const ValuationForm = () => {
 
     setIsLoading(true);
     try {
-      // Check if VIN already exists
-      const { data: existingCar } = await supabase
+      // First, check for existing published listing
+      const { data: publishedCar } = await supabase
         .from('cars')
         .select('id')
         .eq('vin', vin)
+        .eq('is_draft', false)
         .maybeSingle();
 
-      if (existingCar) {
+      if (publishedCar) {
         toast.error("This VIN number is already registered in our system");
         return;
       }
