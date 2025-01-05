@@ -1,10 +1,13 @@
 import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 
+const DEALER_WEBAPP_URL = "https://dealers.autostrada.com"; // This will be your dealer platform URL
+
 const Dealers = () => {
-  const navigate = useNavigate();
+  const handleDealerRedirect = () => {
+    window.location.href = DEALER_WEBAPP_URL;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-accent/30">
@@ -20,10 +23,10 @@ const Dealers = () => {
             Connect with verified sellers and expand your inventory with our trusted automotive marketplace
           </p>
           <Button 
-            onClick={() => navigate("/auth")}
+            onClick={handleDealerRedirect}
             className="h-14 px-8 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-xl"
           >
-            Join Now <ChevronRight className="ml-2" />
+            Access Dealer Platform <ChevronRight className="ml-2" />
           </Button>
         </div>
 
@@ -67,12 +70,12 @@ const Dealers = () => {
               ),
             },
             {
-              title: "Quick Response",
-              description: "Real-time notifications and instant bidding capabilities",
+              title: "Dedicated Platform",
+              description: "Access your exclusive dealer dashboard with specialized tools",
               icon: (
                 <div className="h-14 w-14 bg-iris/10 rounded-xl flex items-center justify-center mb-6">
                   <svg className="h-7 w-7 text-iris" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                   </svg>
                 </div>
               ),
@@ -89,12 +92,12 @@ const Dealers = () => {
         {/* CTA Section */}
         <div className="bg-gradient-to-r from-iris to-iris/90 p-12 rounded-3xl text-white text-center">
           <h2 className="text-4xl font-bold mb-6">Ready to Get Started?</h2>
-          <p className="text-lg mb-8 opacity-90">Join our network of professional dealers and start growing your business today</p>
+          <p className="text-lg mb-8 opacity-90">Access your dedicated dealer platform and start growing your business today</p>
           <Button 
-            onClick={() => navigate("/auth")}
+            onClick={handleDealerRedirect}
             className="h-14 px-8 bg-white text-iris hover:bg-white/90 text-lg rounded-xl"
           >
-            Create Dealer Account <ChevronRight className="ml-2" />
+            Go to Dealer Platform <ChevronRight className="ml-2" />
           </Button>
         </div>
       </div>
