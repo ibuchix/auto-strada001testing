@@ -46,7 +46,7 @@ export const ListingCard = ({ id, title, price, status, isDraft, onStatusChange 
             Status: <span className="capitalize">{isDraft ? 'Draft' : status}</span>
           </p>
           <p className="text-primary font-semibold mt-1">
-            £{price?.toLocaleString()}
+            PLN {price?.toLocaleString()}
           </p>
         </div>
         <div className="flex gap-2">
