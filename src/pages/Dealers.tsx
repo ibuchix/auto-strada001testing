@@ -2,7 +2,8 @@ import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 
-const DEALER_WEBAPP_URL = "https://dealers.autostrada.com"; // This will be your dealer platform URL
+const DEALER_WEBAPP_URL = "http://localhost:8080"; // During development, point to local dealer webapp
+// const DEALER_WEBAPP_URL = "https://dealers.autostrada.com"; // Production URL (commented for now)
 
 const Dealers = () => {
   const handleDealerRedirect = () => {
