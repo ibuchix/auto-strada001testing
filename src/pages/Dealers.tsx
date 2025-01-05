@@ -7,9 +7,14 @@ const DEALER_WEBAPP_URL = "http://localhost:8080"; // During development, point 
 
 const Dealers = () => {
   const handleDealerRedirect = () => {
-    // Ensure the URL is properly formatted
-    const url = new URL(DEALER_WEBAPP_URL).toString();
-    window.location.href = url;
+    try {
+      // Remove any trailing slashes and clean the URL
+      const cleanUrl = DEALER_WEBAPP_URL.replace(/\/+$/, '');
+      console.log('Redirecting to:', cleanUrl); // Debug log
+      window.location.href = cleanUrl;
+    } catch (error) {
+      console.error('Error redirecting to dealer webapp:', error);
+    }
   };
 
   return (
