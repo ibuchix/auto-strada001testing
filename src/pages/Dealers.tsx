@@ -6,8 +6,8 @@ const DEALER_WEBAPP_URL = "https://aukcja.auto-strada.pl";
 const Dealers = () => {
   const handleDealerRedirect = () => {
     try {
-      console.log('Redirecting to:', DEALER_WEBAPP_URL); // Debug log
-      window.location.href = DEALER_WEBAPP_URL;
+      console.log('Redirecting to dealer platform...'); // Debug log
+      window.open(DEALER_WEBAPP_URL, '_blank', 'noopener,noreferrer');
     } catch (error) {
       console.error('Error redirecting to dealer webapp:', error);
     }
