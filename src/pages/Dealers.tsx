@@ -7,7 +7,9 @@ const DEALER_WEBAPP_URL = "http://localhost:8080"; // During development, point 
 
 const Dealers = () => {
   const handleDealerRedirect = () => {
-    window.location.href = DEALER_WEBAPP_URL;
+    // Ensure the URL is properly formatted
+    const url = new URL(DEALER_WEBAPP_URL).toString();
+    window.location.href = url;
   };
 
   return (
