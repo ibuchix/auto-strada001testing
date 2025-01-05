@@ -451,6 +451,10 @@ export type Database = {
         }
         Returns: string[]
       }
+      cleanup_old_listings: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       update_required_photos: {
         Args: {
           car_id: string
