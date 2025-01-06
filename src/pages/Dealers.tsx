@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 
-const DEALER_WEBAPP_URL = "https://aukcja.auto-strada.pl";
+const DEALER_WEBAPP_URL = "http://localhost:8080/dashboard";
 
 const Dealers = () => {
   const { toast } = useToast();
