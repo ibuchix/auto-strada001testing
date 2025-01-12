@@ -33,10 +33,16 @@ export const ValuationForm = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Manual valuation error:', error);
+        toast.error("Failed to get valuation. Please try again later.");
+        return;
+      }
 
       if (!response.success) {
-        throw new Error(response.message || 'Failed to get valuation');
+        console.error('Manual valuation failed:', response);
+        toast.error(response.message || "Failed to get valuation");
+        return;
       }
 
       const valuationData = response.data;
@@ -52,8 +58,7 @@ export const ValuationForm = () => {
       toast.success("Valuation completed successfully!");
     } catch (error: any) {
       console.error('Manual valuation error:', error);
-      toast.error(error.message || "Failed to get valuation");
-      setValuationResult(null);
+      toast.error("Failed to get valuation. Please try again later.");
     } finally {
       setIsLoading(false);
     }
@@ -96,13 +101,29 @@ export const ValuationForm = () => {
         }
       });
 
-      if (error) throw error;
-
-      if (!data.success) {
+      if (error) {
+        console.error('VIN valuation error:', error);
         toast.error("Could not find vehicle with this VIN. Would you like to enter details manually?", {
           action: {
             label: "Enter Manually",
-            onClick: () => setShowManualForm(true)
+            onClick: () => {
+              setShowManualForm(true);
+              setIsLoading(false);
+            }
+          },
+        });
+        return;
+      }
+
+      if (!data.success) {
+        console.error('VIN valuation failed:', data);
+        toast.error("Could not find vehicle with this VIN. Would you like to enter details manually?", {
+          action: {
+            label: "Enter Manually",
+            onClick: () => {
+              setShowManualForm(true);
+              setIsLoading(false);
+            }
           },
         });
         return;
@@ -124,10 +145,12 @@ export const ValuationForm = () => {
       toast.error("Could not find vehicle with this VIN. Would you like to enter details manually?", {
         action: {
           label: "Enter Manually",
-          onClick: () => setShowManualForm(true)
+          onClick: () => {
+            setShowManualForm(true);
+            setIsLoading(false);
+          }
         },
       });
-      setValuationResult(null);
     } finally {
       setIsLoading(false);
     }
