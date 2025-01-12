@@ -61,7 +61,6 @@ Deno.serve(async (req) => {
         throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
       }
 
-      // For manual entry, create checksum from concatenated values
       const manualInput = `${make}${model}${year}${mileage}`;
       checksum = await calculateChecksum(apiId, apiSecret, manualInput);
       const encodedMake = encodeURIComponent(make);
@@ -118,39 +117,53 @@ Deno.serve(async (req) => {
       throw new Error(responseData.error.message || 'API returned an error');
     }
 
-    // Try different response structures
+    // Extract valuation price from response
     let valuationPrice;
     
-    // Try manual valuation structure
+    // Log the response structure for debugging
+    console.log('Response structure:', {
+      functionResponse: responseData.functionResponse,
+      valuation: responseData.valuation,
+      price: responseData.price,
+      data: responseData.data
+    });
+
+    // Try to extract price from various possible response structures
     if (responseData?.functionResponse?.valuation?.calcValuation?.price) {
       valuationPrice = responseData.functionResponse.valuation.calcValuation.price;
-    }
-    // Try VIN valuation structure
-    else if (responseData?.valuation?.price) {
+      console.log('Found price in calcValuation:', valuationPrice);
+    } else if (responseData?.valuation?.price) {
       valuationPrice = responseData.valuation.price;
-    }
-    // Try direct price field
-    else if (responseData?.price) {
+      console.log('Found price in valuation:', valuationPrice);
+    } else if (responseData?.price) {
       valuationPrice = responseData.price;
-    }
-    // Try nested price field
-    else if (responseData?.data?.price) {
+      console.log('Found direct price:', valuationPrice);
+    } else if (responseData?.data?.price) {
       valuationPrice = responseData.data.price;
+      console.log('Found price in data:', valuationPrice);
+    } else if (responseData?.functionResponse?.price) {
+      valuationPrice = responseData.functionResponse.price;
+      console.log('Found price in functionResponse:', valuationPrice);
     }
 
     if (!valuationPrice) {
-      console.error('Could not find valuation price in response:', responseData);
-      throw new Error('Unable to extract valuation price from response');
+      console.error('Could not find valuation price. Full response:', JSON.stringify(responseData, null, 2));
+      throw new Error('Could not find valuation price in API response');
     }
+
+    // Extract make and model from response
+    const extractedMake = isManualEntry ? make : responseData?.functionResponse?.userParams?.make || responseData?.make || 'Not available';
+    const extractedModel = isManualEntry ? model : responseData?.functionResponse?.userParams?.model || responseData?.model || 'Not available';
+    const extractedYear = isManualEntry ? year : responseData?.functionResponse?.userParams?.year || responseData?.year || null;
 
     const valuationResult = {
       success: true,
       data: {
-        make: isManualEntry ? make : responseData.functionResponse?.userParams?.make || 'Not available',
-        model: isManualEntry ? model : responseData.functionResponse?.userParams?.model || 'Not available',
-        year: isManualEntry ? year : responseData.functionResponse?.userParams?.year || null,
-        vin: isManualEntry ? null : responseData.vin || vin,
-        transmission: gearbox || 'Not available',
+        make: extractedMake,
+        model: extractedModel,
+        year: extractedYear,
+        vin: isManualEntry ? null : vin,
+        transmission: gearbox,
         valuation: valuationPrice,
         mileage,
       },
