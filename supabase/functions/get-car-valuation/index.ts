@@ -6,33 +6,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ValuationRequest {
-  vin?: string;
-  make?: string;
-  model?: string;
-  year?: number;
-  mileage: number;
-  gearbox: string;
-  isManualEntry?: boolean;
-}
-
-interface ValuationResponse {
-  make: string;
-  model: string;
-  year: number | null;
-  vin: string;
-  transmission: string;
-  valuation: number;
-  mileage: number;
-}
-
 function calculateChecksum(apiId: string, apiSecret: string, vin: string): string {
+  console.log('Calculating checksum for:', { apiId, vin });
   const input = `${apiId}${apiSecret}${vin}`;
   return createHash('md5').update(input).toString();
 }
 
 function extractPrice(responseData: any): number | null {
-  console.log('Extracting price from API response:', JSON.stringify(responseData, null, 2));
+  console.log('Extracting price from:', JSON.stringify(responseData, null, 2));
 
   if (typeof responseData?.price === 'number') return responseData.price;
   if (typeof responseData?.valuation?.price === 'number') return responseData.valuation.price;
@@ -79,8 +60,8 @@ serve(async (req) => {
       throw new Error('API credentials not configured');
     }
 
-    const requestData: ValuationRequest = await req.json();
-    console.log('Processing valuation request:', requestData);
+    const requestData = await req.json();
+    console.log('Processing request data:', requestData);
 
     if (!requestData) {
       throw new Error('Request data is required');
@@ -102,6 +83,8 @@ serve(async (req) => {
       console.log('Calling manual valuation API:', url);
 
       const response = await fetch(url);
+      console.log('Manual API Response status:', response.status);
+      
       if (!response.ok) {
         throw new Error(`API responded with status: ${response.status}`);
       }
@@ -136,6 +119,8 @@ serve(async (req) => {
       console.log('Calling VIN valuation API:', url);
 
       const response = await fetch(url);
+      console.log('VIN API Response status:', response.status);
+      
       if (!response.ok) {
         throw new Error(`API responded with status: ${response.status}`);
       }
