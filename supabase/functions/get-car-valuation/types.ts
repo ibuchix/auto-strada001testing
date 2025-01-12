@@ -17,8 +17,3 @@ export interface ValuationResponse {
   valuation: number;
   mileage: number;
 }
-
-export interface ValidationError {
-  field: string;
-  message: string;
-}

@@ -4,6 +4,8 @@ import { ValuationRequest } from "./types.ts";
 import { handleManualValuation, handleVinValuation } from "./services/valuationService.ts";
 
 serve(async (req) => {
+  console.log('Received request:', req.method);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -11,11 +13,17 @@ serve(async (req) => {
 
   try {
     const requestData: ValuationRequest = await req.json();
-    console.log('Received valuation request:', requestData);
+    console.log('Processing valuation request:', requestData);
+
+    if (!requestData) {
+      throw new Error('Request data is required');
+    }
 
     const valuationResult = requestData.isManualEntry 
       ? await handleManualValuation(requestData)
       : await handleVinValuation(requestData);
+
+    console.log('Valuation completed successfully:', valuationResult);
 
     return new Response(
       JSON.stringify({
@@ -45,7 +53,7 @@ serve(async (req) => {
           ...corsHeaders,
           'Content-Type': 'application/json',
         },
-        status: 500,
+        status: 400,
       }
     );
   }

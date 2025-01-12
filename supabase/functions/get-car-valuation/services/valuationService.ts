@@ -35,7 +35,6 @@ export const handleManualValuation = async (data: ValuationRequest): Promise<Val
 
     const valuationPrice = extractPrice(responseData);
     if (!valuationPrice) {
-      console.error('Could not determine valuation price from API response:', responseData);
       throw new Error('Could not determine valuation price from API response');
     }
 
@@ -84,7 +83,6 @@ export const handleVinValuation = async (data: ValuationRequest): Promise<Valuat
 
     const valuationPrice = extractPrice(responseData);
     if (!valuationPrice) {
-      console.error('Could not determine valuation price from API response:', responseData);
       throw new Error('Could not determine valuation price from API response');
     }
 
