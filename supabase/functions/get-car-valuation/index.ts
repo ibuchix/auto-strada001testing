@@ -2,11 +2,14 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { crypto } from 'https://deno.land/std/crypto/mod.ts';
 
 const calculateChecksum = async (apiId: string, apiSecret: string, input: string) => {
+  console.log('Calculating checksum with input:', input);
   const encoder = new TextEncoder();
   const data = encoder.encode(apiId + apiSecret + input);
   const hashBuffer = await crypto.subtle.digest('MD5', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  console.log('Generated checksum:', checksum);
+  return checksum;
 };
 
 const validateManualEntry = (data: any) => {
@@ -33,14 +36,13 @@ const validateManualEntry = (data: any) => {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { vin, mileage = 50000, gearbox = 'manual', make, model, year, isManualEntry = false } = await req.json();
-    console.log('Received request with:', { vin, mileage, gearbox, make, model, year, isManualEntry });
+    console.log('Received request:', { vin, mileage, gearbox, make, model, year, isManualEntry });
 
     const apiId = 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET');
@@ -50,8 +52,6 @@ Deno.serve(async (req) => {
       throw new Error('API configuration error: Missing API secret');
     }
 
-    console.log('API Configuration:', { apiId, hasApiSecret: !!apiSecret });
-    
     let apiUrl: string;
     let checksum: string;
 
@@ -61,7 +61,9 @@ Deno.serve(async (req) => {
         throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
       }
 
-      checksum = await calculateChecksum(apiId, apiSecret, `${make}${model}${year}`);
+      // For manual entry, create checksum from concatenated values
+      const manualInput = `${make}${model}${year}${mileage}`;
+      checksum = await calculateChecksum(apiId, apiSecret, manualInput);
       const encodedMake = encodeURIComponent(make);
       const encodedModel = encodeURIComponent(model);
       
@@ -110,9 +112,16 @@ Deno.serve(async (req) => {
       throw new Error('Invalid JSON response from valuation service');
     }
 
+    // Check for specific error responses from the API
+    if (responseData.error) {
+      console.error('API returned error:', responseData.error);
+      throw new Error(responseData.error.message || 'API returned an error');
+    }
+
+    // Validate the response structure
     if (!responseData?.functionResponse?.valuation?.calcValuation?.price) {
       console.error('Invalid response structure:', responseData);
-      throw new Error('Unable to calculate valuation. Invalid response from valuation service.');
+      throw new Error('Unable to calculate valuation. Invalid response structure from valuation service.');
     }
 
     const valuationResult = {
@@ -127,6 +136,8 @@ Deno.serve(async (req) => {
         mileage,
       },
     };
+
+    console.log('Returning valuation result:', valuationResult);
 
     return new Response(JSON.stringify(valuationResult), {
       headers: {
