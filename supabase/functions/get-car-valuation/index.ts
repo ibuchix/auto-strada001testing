@@ -1,181 +1,204 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from '../_shared/cors.ts';
-import { crypto } from 'https://deno.land/std/crypto/mod.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
 
-const calculateChecksum = async (apiId: string, apiSecret: string, input: string) => {
-  console.log('Calculating checksum with input:', input);
-  const encoder = new TextEncoder();
-  const data = encoder.encode(apiId + apiSecret + input);
-  const hashBuffer = await crypto.subtle.digest('MD5', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  console.log('Generated checksum:', checksum);
-  return checksum;
+interface ValuationRequest {
+  vin?: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  mileage: number;
+  gearbox: string;
+}
+
+interface ValidationError {
+  field: string;
+  message: string;
+}
+
+interface ValuationResponse {
+  make: string;
+  model: string;
+  year: number | null;
+  vin: string;
+  transmission: string;
+  valuation: number;
+  mileage: number;
+}
+
+const extractPrice = (responseData: any): number | null => {
+  const pricePaths = [
+    'price',
+    'valuation.price',
+    'functionResponse.price',
+    'functionResponse.valuation.price',
+    'functionResponse.valuation.calcValuation.price'
+  ];
+
+  for (const path of pricePaths) {
+    const value = path.split('.').reduce((obj, key) => obj?.[key], responseData);
+    if (typeof value === 'number') {
+      console.log(`Found price at path ${path}:`, value);
+      return value;
+    }
+  }
+
+  return null;
 };
 
-const validateManualEntry = (data: any) => {
-  const currentYear = new Date().getFullYear();
-  const errors = [];
+const validateManualEntry = (data: Partial<ValuationRequest>): ValidationError[] => {
+  const errors: ValidationError[] = [];
 
-  if (!data.make || typeof data.make !== 'string' || data.make.length < 2) {
-    errors.push('Invalid make');
+  if (!data.make?.trim()) {
+    errors.push({ field: 'make', message: 'Make is required' });
   }
-  if (!data.model || typeof data.model !== 'string' || data.model.length < 2) {
-    errors.push('Invalid model');
+  if (!data.model?.trim()) {
+    errors.push({ field: 'model', message: 'Model is required' });
   }
-  if (!data.year || isNaN(data.year) || data.year < 1900 || data.year > currentYear) {
-    errors.push('Invalid year');
+  if (!data.year || data.year < 1900 || data.year > new Date().getFullYear()) {
+    errors.push({ field: 'year', message: 'Invalid year' });
   }
-  if (!data.mileage || isNaN(data.mileage) || data.mileage < 0 || data.mileage > 999999) {
-    errors.push('Invalid mileage');
+  if (!data.mileage || data.mileage < 0) {
+    errors.push({ field: 'mileage', message: 'Invalid mileage' });
   }
-  if (!data.transmission || !['manual', 'automatic'].includes(data.transmission)) {
-    errors.push('Invalid transmission type');
+  if (!data.gearbox || !['manual', 'automatic'].includes(data.gearbox.toLowerCase())) {
+    errors.push({ field: 'gearbox', message: 'Invalid transmission type' });
   }
 
   return errors;
 };
 
-Deno.serve(async (req) => {
+const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
+  const input = `${apiId}${apiSecret}${vin}`;
+  return createHash('md5').update(input).toString();
+};
+
+const handleManualValuation = async (data: ValuationRequest): Promise<ValuationResponse> => {
+  console.log('Processing manual valuation for:', data);
+
+  const errors = validateManualEntry(data);
+  if (errors.length > 0) {
+    throw new Error(`Validation failed: ${errors.map(e => `${e.field}: ${e.message}`).join(', ')}`);
+  }
+
+  // For manual valuations, we'll use a simplified API call
+  const apiId = Deno.env.get('CAR_API_ID');
+  const apiSecret = Deno.env.get('CAR_API_SECRET');
+
+  if (!apiId || !apiSecret) {
+    throw new Error('API credentials not configured');
+  }
+
+  // Use a default VIN for manual valuations
+  const checksum = calculateChecksum(apiId, apiSecret, 'MANUAL');
+  const baseUrl = 'https://bp.autoiso.pl/api/v3/getManualValuation';
+  
+  const url = `${baseUrl}/apiuid:${apiId}/checksum:${checksum}/make:${data.make}/model:${data.model}/year:${data.year}/odometer:${data.mileage}/transmission:${data.gearbox}/currency:PLN`;
+
+  console.log('Calling manual valuation API:', url);
+
+  const response = await fetch(url);
+  const responseData = await response.json();
+
+  console.log('Manual valuation API response:', responseData);
+
+  const valuationPrice = extractPrice(responseData);
+  if (!valuationPrice) {
+    throw new Error('Could not determine valuation price from API response');
+  }
+
+  return {
+    make: data.make || 'Not available',
+    model: data.model || 'Not available',
+    year: data.year || null,
+    vin: '',
+    transmission: data.gearbox || 'Not available',
+    valuation: valuationPrice,
+    mileage: data.mileage
+  };
+};
+
+const handleVinValuation = async (data: ValuationRequest): Promise<ValuationResponse> => {
+  console.log('Processing VIN-based valuation for:', data);
+
+  if (!data.vin) {
+    throw new Error('VIN is required for VIN-based valuation');
+  }
+
+  const apiId = Deno.env.get('CAR_API_ID');
+  const apiSecret = Deno.env.get('CAR_API_SECRET');
+
+  if (!apiId || !apiSecret) {
+    throw new Error('API credentials not configured');
+  }
+
+  const checksum = calculateChecksum(apiId, apiSecret, data.vin);
+  const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${data.vin}/odometer:${data.mileage}/currency:PLN`;
+
+  console.log('Calling VIN valuation API:', url);
+
+  const response = await fetch(url);
+  const responseData = await response.json();
+
+  console.log('VIN valuation API response:', responseData);
+
+  const valuationPrice = extractPrice(responseData);
+  if (!valuationPrice) {
+    throw new Error('Could not determine valuation price from API response');
+  }
+
+  // Extract vehicle details from response
+  const make = responseData?.make || responseData?.functionResponse?.make || 'Not available';
+  const model = responseData?.model || responseData?.functionResponse?.model || 'Not available';
+  const year = responseData?.year || responseData?.functionResponse?.year || null;
+
+  return {
+    make,
+    model,
+    year,
+    vin: data.vin,
+    transmission: data.gearbox || 'Not available',
+    valuation: valuationPrice,
+    mileage: data.mileage
+  };
+};
+
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { vin, mileage = 50000, gearbox = 'manual', make, model, year, isManualEntry = false } = await req.json();
-    console.log('Received request:', { vin, mileage, gearbox, make, model, year, isManualEntry });
+    const requestData: ValuationRequest = await req.json();
+    console.log('Received valuation request:', requestData);
 
-    const apiId = 'AUTOSTRA';
-    const apiSecret = Deno.env.get('CAR_API_SECRET');
-    
-    if (!apiSecret) {
-      console.error('API configuration error: Missing API secret');
-      throw new Error('API configuration error: Missing API secret');
-    }
+    const isManualEntry = !requestData.vin;
+    const valuationResult = isManualEntry 
+      ? await handleManualValuation(requestData)
+      : await handleVinValuation(requestData);
 
-    let apiUrl: string;
-    let checksum: string;
-
-    if (isManualEntry) {
-      console.log('Processing manual entry valuation');
-      const validationErrors = validateManualEntry({ make, model, year, mileage, transmission: gearbox });
-      if (validationErrors.length > 0) {
-        throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Valuation completed successfully',
+        data: valuationResult
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
       }
+    );
 
-      const manualInput = `${make}${model}${year}${mileage}`;
-      checksum = await calculateChecksum(apiId, apiSecret, manualInput);
-      const encodedMake = encodeURIComponent(make);
-      const encodedModel = encodeURIComponent(model);
-      
-      apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/make:${encodedMake}/model:${encodedModel}/year:${year}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard/checksum:${checksum}`;
-      
-      console.log('Manual valuation request URL:', apiUrl);
-    } else {
-      if (!vin || typeof vin !== 'string' || vin.length < 10) {
-        throw new Error('Invalid VIN number');
-      }
-
-      checksum = await calculateChecksum(apiId, apiSecret, vin);
-      apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
-      
-      console.log('VIN valuation request URL:', apiUrl);
-    }
-
-    const headers = {
-      'Accept': 'application/json',
-      'Cache-Control': 'no-cache',
-      'X-API-Key': apiId,
-      'X-Checksum': checksum,
-    };
-    
-    console.log('Making API request with headers:', headers);
-    
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: headers
-    });
-
-    const responseText = await response.text();
-    console.log('Raw API response:', responseText);
-
-    if (!response.ok) {
-      console.error('API Error Response:', responseText, 'Status:', response.status);
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-    }
-
-    let responseData;
-    try {
-      responseData = JSON.parse(responseText);
-      console.log('Parsed API response:', responseData);
-    } catch (error) {
-      console.error('Failed to parse API response:', error);
-      throw new Error('Invalid JSON response from valuation service');
-    }
-
-    if (responseData.error) {
-      console.error('API returned error:', responseData.error);
-      throw new Error(responseData.error.message || 'API returned an error');
-    }
-
-    let valuationPrice = null;
-    
-    // For manual valuation, the price might be in a different location
-    if (isManualEntry && responseData?.functionResponse?.valuation?.price) {
-      valuationPrice = responseData.functionResponse.valuation.price;
-      console.log('Found manual valuation price:', valuationPrice);
-    } else {
-      // Try different paths for VIN-based valuation
-      if (responseData?.price) {
-        valuationPrice = responseData.price;
-      } else if (responseData?.valuation?.price) {
-        valuationPrice = responseData.valuation.price;
-      } else if (responseData?.functionResponse?.price) {
-        valuationPrice = responseData.functionResponse.price;
-      } else if (responseData?.functionResponse?.valuation?.calcValuation?.price) {
-        valuationPrice = responseData.functionResponse.valuation.calcValuation.price;
-      }
-    }
-
-    if (!valuationPrice && valuationPrice !== 0) {
-      console.error('Could not find valuation price. Full response:', JSON.stringify(responseData, null, 2));
-      throw new Error('Could not find valuation price in API response');
-    }
-
-    const extractedMake = isManualEntry ? make : responseData?.make || responseData?.functionResponse?.make || 'Not available';
-    const extractedModel = isManualEntry ? model : responseData?.model || responseData?.functionResponse?.model || 'Not available';
-    const extractedYear = isManualEntry ? year : responseData?.year || responseData?.functionResponse?.year || null;
-
-    const valuationResult = {
-      success: true,
-      data: {
-        make: extractedMake,
-        model: extractedModel,
-        year: extractedYear,
-        vin: isManualEntry ? null : vin,
-        transmission: gearbox,
-        valuation: valuationPrice,
-        mileage,
-      },
-    };
-
-    console.log('Returning valuation result:', valuationResult);
-
-    return new Response(JSON.stringify(valuationResult), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-      },
-    });
   } catch (error) {
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-    });
+    console.error('Valuation error:', error);
 
     return new Response(
       JSON.stringify({
         success: false,
-        message: error.message || 'Unable to calculate valuation. Please try again or contact support.',
+        message: error.message || 'An error occurred during valuation',
         data: {
           make: 'Not available',
           model: 'Not available',
@@ -183,15 +206,15 @@ Deno.serve(async (req) => {
           vin: '',
           transmission: 'Not available',
           valuation: 0,
-          mileage: 0,
-        },
+          mileage: 0
+        }
       }),
       {
-        status: 500,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',
         },
+        status: 500,
       }
     );
   }
