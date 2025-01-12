@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./ValuationResult";
-import { toast } from "sonner";
 import { Dialog } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { ManualValuationForm, ManualValuationData } from "./ManualValuationForm";
 
 export const ValuationForm = () => {
