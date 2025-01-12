@@ -118,8 +118,15 @@ Deno.serve(async (req) => {
       throw new Error(responseData.error.message || 'API returned an error');
     }
 
-    // Validate the response structure
-    if (!responseData?.functionResponse?.valuation?.calcValuation?.price) {
+    // First try to access the data using the manual valuation response structure
+    let valuationPrice = responseData?.functionResponse?.valuation?.calcValuation?.price;
+    
+    // If that's not available, try the VIN valuation response structure
+    if (!valuationPrice && responseData?.valuation?.price) {
+      valuationPrice = responseData.valuation.price;
+    }
+
+    if (!valuationPrice) {
       console.error('Invalid response structure:', responseData);
       throw new Error('Unable to calculate valuation. Invalid response structure from valuation service.');
     }
@@ -132,7 +139,7 @@ Deno.serve(async (req) => {
         year: isManualEntry ? year : responseData.functionResponse?.userParams?.year || null,
         vin: isManualEntry ? null : responseData.vin || vin,
         transmission: gearbox || 'Not available',
-        valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
+        valuation: valuationPrice,
         mileage,
       },
     };
