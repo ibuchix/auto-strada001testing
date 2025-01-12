@@ -1,8 +1,7 @@
 import { corsHeaders } from '../_shared/cors.ts';
 import { crypto } from 'https://deno.land/std/crypto/mod.ts';
 
-const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
-  const input = `${apiId}${apiSecret}${vin}`;
+const calculateChecksum = (apiId: string, apiSecret: string, input: string) => {
   const hash = crypto.subtle.digestSync('MD5', new TextEncoder().encode(input));
   const checksum = Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -61,9 +60,10 @@ Deno.serve(async (req) => {
         throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
       }
 
+      // For manual entry, calculate checksum using make+model+year
+      const manualChecksum = calculateChecksum(apiId, apiSecret, `${make}${model}${year}`);
       apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/make:${make}/model:${model}/year:${year}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
       
-      const manualChecksum = calculateChecksum(apiId, apiSecret, `${make}${model}${year}`);
       console.log('Manual valuation request:', { apiUrl, checksum: manualChecksum });
       
       const response = await fetch(apiUrl, {
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Manual API Error Response:', errorText);
+        console.error('Manual API Error Response:', errorText, 'Status:', response.status);
         throw new Error(`Manual API request failed: ${response.status} ${response.statusText}`);
       }
 
@@ -90,9 +90,9 @@ Deno.serve(async (req) => {
       }
 
       const checksum = calculateChecksum(apiId, apiSecret, vin);
-      console.log('VIN valuation request:', { vin, checksum });
-      
       apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
+      
+      console.log('VIN valuation request:', { vin, checksum });
       
       const response = await fetch(apiUrl, {
         method: 'GET',
