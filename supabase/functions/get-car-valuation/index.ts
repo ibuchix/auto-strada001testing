@@ -15,7 +15,7 @@ function calculateChecksum(apiId: string, apiSecret: string, vin: string): strin
 }
 
 function extractPrice(responseData: any): number | null {
-  console.log('Extracting price from:', JSON.stringify(responseData, null, 2));
+  console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
 
   // Direct price field
   if (typeof responseData?.price === 'number') {
@@ -41,12 +41,25 @@ function extractPrice(responseData: any): number | null {
     return responseData.functionResponse.valuation.price;
   }
 
+  // Check for estimated_value field
+  if (typeof responseData?.estimated_value === 'number') {
+    console.log('Found estimated value:', responseData.estimated_value);
+    return responseData.estimated_value;
+  }
+
+  // Check for value field
+  if (typeof responseData?.value === 'number') {
+    console.log('Found value:', responseData.value);
+    return responseData.value;
+  }
+
   // Check for any numeric price field recursively
   const findPrice = (obj: any): number | null => {
     if (!obj || typeof obj !== 'object') return null;
     
     for (const [key, value] of Object.entries(obj)) {
-      if (key.toLowerCase().includes('price') && typeof value === 'number') {
+      const lowerKey = key.toLowerCase();
+      if ((lowerKey.includes('price') || lowerKey.includes('value')) && typeof value === 'number') {
         console.log(`Found price in field ${key}:`, value);
         return value;
       }
@@ -71,14 +84,12 @@ function extractPrice(responseData: any): number | null {
 serve(async (req) => {
   console.log('Received request:', req.method);
 
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Verify environment variables
     const apiId = Deno.env.get('CAR_API_ID');
     const apiSecret = Deno.env.get('CAR_API_SECRET');
 
@@ -111,13 +122,14 @@ serve(async (req) => {
 
       const response = await fetch(url);
       console.log('Manual API Response status:', response.status);
+      console.log('Manual API Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         throw new Error(`API responded with status: ${response.status}`);
       }
       
       const responseData = await response.json();
-      console.log('Manual valuation API response:', responseData);
+      console.log('Manual valuation API response:', JSON.stringify(responseData, null, 2));
 
       const valuationPrice = extractPrice(responseData);
       if (!valuationPrice) {
@@ -150,7 +162,9 @@ serve(async (req) => {
       console.log('VIN API Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
-        throw new Error(`API responded with status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`API responded with status: ${response.status}. Response: ${errorText}`);
       }
       
       const responseData = await response.json();
@@ -158,6 +172,7 @@ serve(async (req) => {
 
       const valuationPrice = extractPrice(responseData);
       if (!valuationPrice) {
+        console.error('Failed to extract price from response:', responseData);
         throw new Error('Could not determine valuation price from API response');
       }
 
