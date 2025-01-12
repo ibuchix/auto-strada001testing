@@ -111,7 +111,6 @@ Deno.serve(async (req) => {
       throw new Error('Invalid JSON response from valuation service');
     }
 
-    // Check for specific error responses from the API
     if (responseData.error) {
       console.error('API returned error:', responseData.error);
       throw new Error(responseData.error.message || 'API returned an error');
@@ -120,30 +119,28 @@ Deno.serve(async (req) => {
     // Extract valuation price from response
     let valuationPrice;
     
-    // Log the response structure for debugging
-    console.log('Response structure:', {
-      functionResponse: responseData.functionResponse,
-      valuation: responseData.valuation,
-      price: responseData.price,
-      data: responseData.data
-    });
+    // Log the full response for debugging
+    console.log('Full response structure:', JSON.stringify(responseData, null, 2));
 
-    // Try to extract price from various possible response structures
-    if (responseData?.functionResponse?.valuation?.calcValuation?.price) {
-      valuationPrice = responseData.functionResponse.valuation.calcValuation.price;
-      console.log('Found price in calcValuation:', valuationPrice);
-    } else if (responseData?.valuation?.price) {
+    // Try to extract price from the main response structure first
+    if (responseData?.price) {
+      valuationPrice = responseData.price;
+      console.log('Found price in root:', valuationPrice);
+    } 
+    // Then try the valuation object
+    else if (responseData?.valuation?.price) {
       valuationPrice = responseData.valuation.price;
       console.log('Found price in valuation:', valuationPrice);
-    } else if (responseData?.price) {
-      valuationPrice = responseData.price;
-      console.log('Found direct price:', valuationPrice);
-    } else if (responseData?.data?.price) {
-      valuationPrice = responseData.data.price;
-      console.log('Found price in data:', valuationPrice);
-    } else if (responseData?.functionResponse?.price) {
+    }
+    // Then try the function response
+    else if (responseData?.functionResponse?.price) {
       valuationPrice = responseData.functionResponse.price;
       console.log('Found price in functionResponse:', valuationPrice);
+    }
+    // Finally try the nested calculation
+    else if (responseData?.functionResponse?.valuation?.calcValuation?.price) {
+      valuationPrice = responseData.functionResponse.valuation.calcValuation.price;
+      console.log('Found price in calcValuation:', valuationPrice);
     }
 
     if (!valuationPrice) {
@@ -151,10 +148,10 @@ Deno.serve(async (req) => {
       throw new Error('Could not find valuation price in API response');
     }
 
-    // Extract make and model from response
-    const extractedMake = isManualEntry ? make : responseData?.functionResponse?.userParams?.make || responseData?.make || 'Not available';
-    const extractedModel = isManualEntry ? model : responseData?.functionResponse?.userParams?.model || responseData?.model || 'Not available';
-    const extractedYear = isManualEntry ? year : responseData?.functionResponse?.userParams?.year || responseData?.year || null;
+    // Extract vehicle details
+    const extractedMake = isManualEntry ? make : responseData?.make || responseData?.functionResponse?.make || 'Not available';
+    const extractedModel = isManualEntry ? model : responseData?.model || responseData?.functionResponse?.model || 'Not available';
+    const extractedYear = isManualEntry ? year : responseData?.year || responseData?.functionResponse?.year || null;
 
     const valuationResult = {
       success: true,
