@@ -18,10 +18,10 @@ export const ValuationForm = () => {
   const navigate = useNavigate();
 
   const handleManualSubmit = async (data: ManualValuationData) => {
+    console.log('Starting manual valuation with data:', data);
     setIsLoading(true);
-    try {
-      console.log('Sending manual valuation request with:', data);
 
+    try {
       const { data: response, error } = await supabase.functions.invoke('get-car-valuation', {
         body: { 
           make: data.make,
@@ -32,6 +32,8 @@ export const ValuationForm = () => {
           isManualEntry: true
         }
       });
+
+      console.log('Manual valuation response:', response);
 
       if (error) {
         console.error('Manual valuation error:', error);
@@ -88,10 +90,11 @@ export const ValuationForm = () => {
 
       if (publishedCar) {
         toast.error("This VIN number is already registered in our system");
+        setIsLoading(false);
         return;
       }
 
-      console.log('Sending valuation request with:', { vin, mileage, gearbox });
+      console.log('Sending VIN valuation request:', { vin, mileage, gearbox });
 
       const { data, error } = await supabase.functions.invoke('get-car-valuation', {
         body: { 
@@ -101,28 +104,13 @@ export const ValuationForm = () => {
         }
       });
 
-      if (error) {
-        console.error('VIN valuation error:', error);
+      if (error || !data.success) {
+        console.error('VIN valuation error:', error || data);
         toast.error("Could not find vehicle with this VIN. Would you like to enter details manually?", {
           action: {
             label: "Enter Manually",
             onClick: () => {
               setShowManualForm(true);
-              setIsLoading(false);
-            }
-          },
-        });
-        return;
-      }
-
-      if (!data.success) {
-        console.error('VIN valuation failed:', data);
-        toast.error("Could not find vehicle with this VIN. Would you like to enter details manually?", {
-          action: {
-            label: "Enter Manually",
-            onClick: () => {
-              setShowManualForm(true);
-              setIsLoading(false);
             }
           },
         });
@@ -130,7 +118,7 @@ export const ValuationForm = () => {
       }
 
       const valuationData = data.data;
-      console.log('Received valuation data:', valuationData);
+      console.log('Received VIN valuation data:', valuationData);
 
       localStorage.setItem('valuationData', JSON.stringify(valuationData));
       localStorage.setItem('tempVIN', vin);
@@ -147,7 +135,6 @@ export const ValuationForm = () => {
           label: "Enter Manually",
           onClick: () => {
             setShowManualForm(true);
-            setIsLoading(false);
           }
         },
       });
@@ -183,7 +170,10 @@ export const ValuationForm = () => {
       </Dialog>
       <ManualValuationForm 
         isOpen={showManualForm}
-        onClose={() => setShowManualForm(false)}
+        onClose={() => {
+          setShowManualForm(false);
+          setIsLoading(false);
+        }}
         onSubmit={handleManualSubmit}
         mileage={mileage}
         transmission={gearbox}
