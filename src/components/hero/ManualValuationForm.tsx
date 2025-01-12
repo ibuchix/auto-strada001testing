@@ -5,14 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
-
-interface ManualValuationFormProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: ManualValuationData) => void;
-  mileage?: string;
-  transmission?: string;
-}
+import { toast } from "sonner";
 
 export interface ManualValuationData {
   make: string;
@@ -20,6 +13,14 @@ export interface ManualValuationData {
   year: string;
   mileage: string;
   transmission: string;
+}
+
+interface ManualValuationFormProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: ManualValuationData) => void;
+  mileage?: string;
+  transmission?: string;
 }
 
 export const ManualValuationForm = ({ 
@@ -41,21 +42,41 @@ export const ManualValuationForm = ({
 
   const validateForm = () => {
     const newErrors: Partial<ManualValuationData> = {};
+    const currentYear = new Date().getFullYear();
     
-    if (!formData.make.trim()) newErrors.make = "Make is required";
-    if (!formData.model.trim()) newErrors.model = "Model is required";
-    if (!formData.year.trim()) newErrors.year = "Year is required";
-    if (!formData.mileage.trim()) newErrors.mileage = "Mileage is required";
-    if (!formData.transmission) newErrors.transmission = "Transmission is required";
-    
-    const yearNum = parseInt(formData.year);
-    if (yearNum < 1900 || yearNum > new Date().getFullYear()) {
-      newErrors.year = "Please enter a valid year";
+    // Make validation
+    if (!formData.make.trim()) {
+      newErrors.make = "Make is required";
+    } else if (formData.make.length < 2) {
+      newErrors.make = "Make must be at least 2 characters";
     }
 
+    // Model validation
+    if (!formData.model.trim()) {
+      newErrors.model = "Model is required";
+    } else if (formData.model.length < 2) {
+      newErrors.model = "Model must be at least 2 characters";
+    }
+
+    // Year validation
+    const yearNum = parseInt(formData.year);
+    if (!formData.year.trim()) {
+      newErrors.year = "Year is required";
+    } else if (yearNum < 1900 || yearNum > currentYear) {
+      newErrors.year = `Year must be between 1900 and ${currentYear}`;
+    }
+
+    // Mileage validation
     const mileageNum = parseInt(formData.mileage);
-    if (isNaN(mileageNum) || mileageNum < 0) {
-      newErrors.mileage = "Please enter a valid mileage";
+    if (!formData.mileage.trim()) {
+      newErrors.mileage = "Mileage is required";
+    } else if (isNaN(mileageNum) || mileageNum < 0 || mileageNum > 999999) {
+      newErrors.mileage = "Please enter a valid mileage between 0 and 999,999";
+    }
+
+    // Transmission validation
+    if (!formData.transmission) {
+      newErrors.transmission = "Transmission type is required";
     }
 
     setErrors(newErrors);
@@ -64,8 +85,22 @@ export const ManualValuationForm = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Validating form data:', formData);
+    
     if (validateForm()) {
+      console.log('Form validation passed, submitting:', formData);
       onSubmit(formData);
+    } else {
+      console.log('Form validation failed:', errors);
+      toast.error("Please correct the errors in the form");
+    }
+  };
+
+  const handleInputChange = (field: keyof ManualValuationData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
 
@@ -85,7 +120,7 @@ export const ManualValuationForm = ({
               placeholder="e.g., BMW"
               className={`border ${errors.make ? 'border-primary' : 'border-gray-200'}`}
               value={formData.make}
-              onChange={(e) => setFormData({ ...formData, make: e.target.value })}
+              onChange={(e) => handleInputChange('make', e.target.value)}
             />
             {errors.make && (
               <div className="flex items-center gap-2 text-primary text-sm mt-1">
@@ -94,6 +129,7 @@ export const ManualValuationForm = ({
               </div>
             )}
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="model" className="text-body">Model</Label>
             <Input
@@ -101,7 +137,7 @@ export const ManualValuationForm = ({
               placeholder="e.g., X5"
               className={`border ${errors.model ? 'border-primary' : 'border-gray-200'}`}
               value={formData.model}
-              onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+              onChange={(e) => handleInputChange('model', e.target.value)}
             />
             {errors.model && (
               <div className="flex items-center gap-2 text-primary text-sm mt-1">
@@ -110,6 +146,7 @@ export const ManualValuationForm = ({
               </div>
             )}
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="year" className="text-body">Year</Label>
             <Input
@@ -120,7 +157,7 @@ export const ManualValuationForm = ({
               placeholder="e.g., 2020"
               className={`border ${errors.year ? 'border-primary' : 'border-gray-200'}`}
               value={formData.year}
-              onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+              onChange={(e) => handleInputChange('year', e.target.value)}
             />
             {errors.year && (
               <div className="flex items-center gap-2 text-primary text-sm mt-1">
@@ -129,16 +166,18 @@ export const ManualValuationForm = ({
               </div>
             )}
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="mileage" className="text-body">Mileage (KM)</Label>
             <Input
               id="mileage"
               type="number"
               min="0"
+              max="999999"
               placeholder="e.g., 50000"
               className={`border ${errors.mileage ? 'border-primary' : 'border-gray-200'}`}
               value={formData.mileage}
-              onChange={(e) => setFormData({ ...formData, mileage: e.target.value })}
+              onChange={(e) => handleInputChange('mileage', e.target.value)}
             />
             {errors.mileage && (
               <div className="flex items-center gap-2 text-primary text-sm mt-1">
@@ -147,11 +186,12 @@ export const ManualValuationForm = ({
               </div>
             )}
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="transmission" className="text-body">Transmission</Label>
             <Select
               value={formData.transmission}
-              onValueChange={(value) => setFormData({ ...formData, transmission: value })}
+              onValueChange={(value) => handleInputChange('transmission', value)}
             >
               <SelectTrigger className={`w-full border ${errors.transmission ? 'border-primary' : 'border-gray-200'}`}>
                 <SelectValue placeholder="Select transmission" />
@@ -168,6 +208,7 @@ export const ManualValuationForm = ({
               </div>
             )}
           </div>
+
           <div className="flex justify-end space-x-2 pt-4">
             <Button 
               type="button" 

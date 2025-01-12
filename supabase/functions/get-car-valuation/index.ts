@@ -10,6 +10,29 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string) => {
   return checksum;
 };
 
+const validateManualEntry = (data: any) => {
+  const currentYear = new Date().getFullYear();
+  const errors = [];
+
+  if (!data.make || typeof data.make !== 'string' || data.make.length < 2) {
+    errors.push('Invalid make');
+  }
+  if (!data.model || typeof data.model !== 'string' || data.model.length < 2) {
+    errors.push('Invalid model');
+  }
+  if (!data.year || isNaN(data.year) || data.year < 1900 || data.year > currentYear) {
+    errors.push('Invalid year');
+  }
+  if (!data.mileage || isNaN(data.mileage) || data.mileage < 0 || data.mileage > 999999) {
+    errors.push('Invalid mileage');
+  }
+  if (!data.transmission || !['manual', 'automatic'].includes(data.transmission)) {
+    errors.push('Invalid transmission type');
+  }
+
+  return errors;
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -19,8 +42,14 @@ Deno.serve(async (req) => {
     const { vin, mileage = 50000, gearbox = 'manual', make, model, year, isManualEntry = false } = await req.json();
     console.log('Received request with:', { vin, mileage, gearbox, make, model, year, isManualEntry });
     
-    if (!isManualEntry && !vin) throw new Error('VIN number is required');
-    if (isManualEntry && (!make || !model || !year)) throw new Error('Make, model, and year are required for manual entry');
+    if (isManualEntry) {
+      const validationErrors = validateManualEntry({ make, model, year, mileage, transmission: gearbox });
+      if (validationErrors.length > 0) {
+        throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
+      }
+    } else if (!vin) {
+      throw new Error('VIN number is required for non-manual entry');
+    }
 
     const apiId = 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET');
@@ -30,10 +59,8 @@ Deno.serve(async (req) => {
     let responseData: any;
 
     if (isManualEntry) {
-      // For manual entry, construct a different API URL with make, model, year
       apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/make:${make}/model:${model}/year:${year}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
       
-      // Calculate checksum differently for manual valuation
       const manualChecksum = calculateChecksum(apiId, apiSecret, `${make}${model}${year}`);
       console.log('Generated manual checksum:', manualChecksum);
       
@@ -54,8 +81,8 @@ Deno.serve(async (req) => {
       }
 
       responseData = await response.json();
+      console.log('Manual valuation response:', responseData);
     } else {
-      // Original VIN-based valuation
       const checksum = calculateChecksum(apiId, apiSecret, vin);
       console.log('Generated VIN checksum:', checksum);
       
@@ -79,9 +106,12 @@ Deno.serve(async (req) => {
       }
 
       responseData = await response.json();
+      console.log('VIN valuation response:', responseData);
     }
 
-    console.log('Raw API Response:', JSON.stringify(responseData, null, 2));
+    if (!responseData?.functionResponse?.valuation?.calcValuation?.price) {
+      throw new Error('Unable to calculate valuation. Please try again or contact support.');
+    }
 
     const valuationResult = {
       success: true,
