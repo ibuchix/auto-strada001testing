@@ -36,7 +36,6 @@ const validateManualEntry = (data: any) => {
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -121,6 +120,7 @@ Deno.serve(async (req) => {
     
     console.log('Full response structure:', JSON.stringify(responseData, null, 2));
 
+    // Enhanced price extraction logic
     if (responseData?.price) {
       valuationPrice = responseData.price;
       console.log('Found price in root:', valuationPrice);
@@ -137,8 +137,24 @@ Deno.serve(async (req) => {
       valuationPrice = responseData.functionResponse.valuation.calcValuation.price;
       console.log('Found price in calcValuation:', valuationPrice);
     }
+    // New: Try to find price in any nested object
+    else {
+      const findPrice = (obj: any): number | null => {
+        if (!obj || typeof obj !== 'object') return null;
+        if (typeof obj.price === 'number') return obj.price;
+        for (const key in obj) {
+          const result = findPrice(obj[key]);
+          if (result !== null) return result;
+        }
+        return null;
+      };
+      valuationPrice = findPrice(responseData);
+      if (valuationPrice) {
+        console.log('Found price in nested object:', valuationPrice);
+      }
+    }
 
-    if (!valuationPrice) {
+    if (!valuationPrice && valuationPrice !== 0) {
       console.error('Could not find valuation price. Full response:', JSON.stringify(responseData, null, 2));
       throw new Error('Could not find valuation price in API response');
     }
