@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
     let checksum: string;
 
     if (isManualEntry) {
+      console.log('Processing manual entry valuation');
       const validationErrors = validateManualEntry({ make, model, year, mileage, transmission: gearbox });
       if (validationErrors.length > 0) {
         throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
@@ -116,41 +117,22 @@ Deno.serve(async (req) => {
       throw new Error(responseData.error.message || 'API returned an error');
     }
 
-    let valuationPrice;
+    let valuationPrice = null;
     
-    console.log('Full response structure:', JSON.stringify(responseData, null, 2));
-
-    // Enhanced price extraction logic
-    if (responseData?.price) {
-      valuationPrice = responseData.price;
-      console.log('Found price in root:', valuationPrice);
-    } 
-    else if (responseData?.valuation?.price) {
-      valuationPrice = responseData.valuation.price;
-      console.log('Found price in valuation:', valuationPrice);
-    }
-    else if (responseData?.functionResponse?.price) {
-      valuationPrice = responseData.functionResponse.price;
-      console.log('Found price in functionResponse:', valuationPrice);
-    }
-    else if (responseData?.functionResponse?.valuation?.calcValuation?.price) {
-      valuationPrice = responseData.functionResponse.valuation.calcValuation.price;
-      console.log('Found price in calcValuation:', valuationPrice);
-    }
-    // New: Try to find price in any nested object
-    else {
-      const findPrice = (obj: any): number | null => {
-        if (!obj || typeof obj !== 'object') return null;
-        if (typeof obj.price === 'number') return obj.price;
-        for (const key in obj) {
-          const result = findPrice(obj[key]);
-          if (result !== null) return result;
-        }
-        return null;
-      };
-      valuationPrice = findPrice(responseData);
-      if (valuationPrice) {
-        console.log('Found price in nested object:', valuationPrice);
+    // For manual valuation, the price might be in a different location
+    if (isManualEntry && responseData?.functionResponse?.valuation?.price) {
+      valuationPrice = responseData.functionResponse.valuation.price;
+      console.log('Found manual valuation price:', valuationPrice);
+    } else {
+      // Try different paths for VIN-based valuation
+      if (responseData?.price) {
+        valuationPrice = responseData.price;
+      } else if (responseData?.valuation?.price) {
+        valuationPrice = responseData.valuation.price;
+      } else if (responseData?.functionResponse?.price) {
+        valuationPrice = responseData.functionResponse.price;
+      } else if (responseData?.functionResponse?.valuation?.calcValuation?.price) {
+        valuationPrice = responseData.functionResponse.valuation.calcValuation.price;
       }
     }
 
