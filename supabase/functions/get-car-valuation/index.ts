@@ -62,7 +62,10 @@ Deno.serve(async (req) => {
 
       // For manual entry, calculate checksum using make+model+year
       const manualChecksum = calculateChecksum(apiId, apiSecret, `${make}${model}${year}`);
-      apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/make:${make}/model:${model}/year:${year}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
+      const encodedMake = encodeURIComponent(make);
+      const encodedModel = encodeURIComponent(model);
+      
+      apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/make:${encodedMake}/model:${encodedModel}/year:${year}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
       
       console.log('Manual valuation request:', { apiUrl, checksum: manualChecksum });
       
