@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
     
     let apiUrl: string;
     let responseData: any;
+    let checksum: string;
 
     if (isManualEntry) {
       const validationErrors = validateManualEntry({ make, model, year, mileage, transmission: gearbox });
@@ -60,62 +61,47 @@ Deno.serve(async (req) => {
         throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
       }
 
-      // For manual entry, calculate checksum using make+model+year
-      const manualChecksum = calculateChecksum(apiId, apiSecret, `${make}${model}${year}`);
+      checksum = calculateChecksum(apiId, apiSecret, `${make}${model}${year}`);
       const encodedMake = encodeURIComponent(make);
       const encodedModel = encodeURIComponent(model);
       
       apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/make:${encodedMake}/model:${encodedModel}/year:${year}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
       
-      console.log('Manual valuation request:', { apiUrl, checksum: manualChecksum });
-      
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
-          'X-API-Key': apiId,
-          'X-Checksum': manualChecksum
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Manual API Error Response:', errorText, 'Status:', response.status);
-        throw new Error(`Manual API request failed: ${response.status} ${response.statusText}`);
-      }
-
-      responseData = await response.json();
-      console.log('Manual valuation response:', responseData);
+      console.log('Manual valuation request:', { apiUrl });
     } else {
       if (!vin || typeof vin !== 'string' || vin.length < 10) {
         throw new Error('Invalid VIN number');
       }
 
-      const checksum = calculateChecksum(apiId, apiSecret, vin);
+      checksum = calculateChecksum(apiId, apiSecret, vin);
       apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
       
       console.log('VIN valuation request:', { vin, checksum });
-      
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
-          'X-API-Key': apiId,
-          'X-Checksum': checksum
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('VIN API Error Response:', errorText, 'Status:', response.status);
-        throw new Error(`VIN API request failed: ${response.status} ${response.statusText}`);
-      }
-
-      responseData = await response.json();
-      console.log('VIN valuation response:', responseData);
     }
+
+    const headers = {
+      'Accept': 'application/json',
+      'Cache-Control': 'no-cache',
+      'X-API-Key': apiId,
+      'X-Checksum': checksum,
+      'Content-Type': 'application/json'
+    };
+    
+    console.log('Making API request with headers:', headers);
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: headers
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText, 'Status:', response.status);
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    responseData = await response.json();
+    console.log('API response:', responseData);
 
     if (!responseData?.functionResponse?.valuation?.calcValuation?.price) {
       console.error('Invalid response structure:', responseData);
