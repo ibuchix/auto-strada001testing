@@ -118,17 +118,29 @@ Deno.serve(async (req) => {
       throw new Error(responseData.error.message || 'API returned an error');
     }
 
-    // First try to access the data using the manual valuation response structure
-    let valuationPrice = responseData?.functionResponse?.valuation?.calcValuation?.price;
+    // Try different response structures
+    let valuationPrice;
     
-    // If that's not available, try the VIN valuation response structure
-    if (!valuationPrice && responseData?.valuation?.price) {
+    // Try manual valuation structure
+    if (responseData?.functionResponse?.valuation?.calcValuation?.price) {
+      valuationPrice = responseData.functionResponse.valuation.calcValuation.price;
+    }
+    // Try VIN valuation structure
+    else if (responseData?.valuation?.price) {
       valuationPrice = responseData.valuation.price;
+    }
+    // Try direct price field
+    else if (responseData?.price) {
+      valuationPrice = responseData.price;
+    }
+    // Try nested price field
+    else if (responseData?.data?.price) {
+      valuationPrice = responseData.data.price;
     }
 
     if (!valuationPrice) {
-      console.error('Invalid response structure:', responseData);
-      throw new Error('Unable to calculate valuation. Invalid response structure from valuation service.');
+      console.error('Could not find valuation price in response:', responseData);
+      throw new Error('Unable to extract valuation price from response');
     }
 
     const valuationResult = {
