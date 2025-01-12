@@ -75,7 +75,7 @@ export type Database = {
             foreignKeyName: "buyer_watchlist_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -162,13 +162,6 @@ export type Database = {
             columns: ["car_id"]
             isOneToOne: false
             referencedRelation: "cars"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "car_status_logs_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -316,37 +309,52 @@ export type Database = {
       dealers: {
         Row: {
           address: string | null
+          business_registry_number: string
           created_at: string | null
           dealership_name: string
           id: string
+          is_verified: boolean
           license_number: string
+          supervisor_name: string
+          tax_id: string
           updated_at: string | null
           user_id: string
+          verification_status: string
         }
         Insert: {
           address?: string | null
+          business_registry_number: string
           created_at?: string | null
           dealership_name: string
           id?: string
+          is_verified?: boolean
           license_number: string
+          supervisor_name: string
+          tax_id: string
           updated_at?: string | null
           user_id: string
+          verification_status?: string
         }
         Update: {
           address?: string | null
+          business_registry_number?: string
           created_at?: string | null
           dealership_name?: string
           id?: string
+          is_verified?: boolean
           license_number?: string
+          supervisor_name?: string
+          tax_id?: string
           updated_at?: string | null
           user_id?: string
+          verification_status?: string
         }
         Relationships: [
           {
             foreignKeyName: "dealers_user_id_fkey"
             columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
+            isOneToOne: true
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -370,39 +378,6 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string | null
           id?: string
-          role?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      users: {
-        Row: {
-          created_at: string | null
-          email: string
-          id: string
-          name: string
-          password_hash: string
-          phone_number: string | null
-          role: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          id?: string
-          name: string
-          password_hash: string
-          phone_number?: string | null
-          role: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          id?: string
-          name?: string
-          password_hash?: string
-          phone_number?: string | null
           role?: string
           updated_at?: string | null
         }
@@ -451,7 +426,29 @@ export type Database = {
         }
         Returns: string[]
       }
+      check_dealer_email_exists: {
+        Args: {
+          email_to_check: string
+        }
+        Returns: boolean
+      }
+      check_email_exists: {
+        Args: {
+          email_to_check: string
+        }
+        Returns: boolean
+      }
+      cleanup_failed_dealer_registration: {
+        Args: {
+          user_id_param: string
+        }
+        Returns: undefined
+      }
       cleanup_old_listings: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_orphaned_users: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
