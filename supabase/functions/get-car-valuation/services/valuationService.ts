@@ -26,8 +26,12 @@ export const handleManualValuation = async (data: ValuationRequest): Promise<Val
 
   try {
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+    
     const responseData = await response.json();
-    console.log('Manual valuation API response:', JSON.stringify(responseData, null, 2));
+    console.log('Manual valuation API response:', responseData);
 
     const valuationPrice = extractPrice(responseData);
     if (!valuationPrice) {
@@ -71,8 +75,12 @@ export const handleVinValuation = async (data: ValuationRequest): Promise<Valuat
 
   try {
     const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+    
     const responseData = await response.json();
-    console.log('VIN valuation API response:', JSON.stringify(responseData, null, 2));
+    console.log('VIN valuation API response:', responseData);
 
     const valuationPrice = extractPrice(responseData);
     if (!valuationPrice) {

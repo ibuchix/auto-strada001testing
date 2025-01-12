@@ -1,5 +1,5 @@
 export const extractPrice = (responseData: any): number | null => {
-  console.log('API Response:', JSON.stringify(responseData, null, 2));
+  console.log('Extracting price from API response:', JSON.stringify(responseData, null, 2));
 
   // Direct price field
   if (typeof responseData?.price === 'number') {
