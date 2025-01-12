@@ -5,6 +5,7 @@ import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./ValuationResult";
 import { toast } from "sonner";
 import { Dialog } from "@/components/ui/dialog";
+import { ManualValuationForm, ManualValuationData } from "./ManualValuationForm";
 
 export const ValuationForm = () => {
   const [vin, setVin] = useState("");
@@ -13,7 +14,50 @@ export const ValuationForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [valuationResult, setValuationResult] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
   const navigate = useNavigate();
+
+  const handleManualSubmit = async (data: ManualValuationData) => {
+    setIsLoading(true);
+    try {
+      console.log('Sending manual valuation request with:', data);
+
+      const { data: response, error } = await supabase.functions.invoke('get-car-valuation', {
+        body: { 
+          make: data.make,
+          model: data.model,
+          year: parseInt(data.year),
+          mileage: parseInt(data.mileage),
+          gearbox: data.transmission,
+          isManualEntry: true
+        }
+      });
+
+      if (error) throw error;
+
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to get valuation');
+      }
+
+      const valuationData = response.data;
+      console.log('Received valuation data:', valuationData);
+
+      localStorage.setItem('valuationData', JSON.stringify(valuationData));
+      localStorage.setItem('tempMileage', data.mileage);
+      localStorage.setItem('tempGearbox', data.transmission);
+
+      setValuationResult(valuationData);
+      setShowManualForm(false);
+      setDialogOpen(true);
+      toast.success("Valuation completed successfully!");
+    } catch (error: any) {
+      console.error('Manual valuation error:', error);
+      toast.error(error.message || "Failed to get valuation");
+      setValuationResult(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +74,6 @@ export const ValuationForm = () => {
 
     setIsLoading(true);
     try {
-      // First, check for existing published listing
       const { data: publishedCar } = await supabase
         .from('cars')
         .select('id')
@@ -45,7 +88,6 @@ export const ValuationForm = () => {
 
       console.log('Sending valuation request with:', { vin, mileage, gearbox });
 
-      // Call the Edge Function instead of the external API directly
       const { data, error } = await supabase.functions.invoke('get-car-valuation', {
         body: { 
           vin: vin.trim(),
@@ -57,13 +99,18 @@ export const ValuationForm = () => {
       if (error) throw error;
 
       if (!data.success) {
-        throw new Error(data.message || 'Failed to get valuation');
+        toast.error("Could not find vehicle with this VIN. Would you like to enter details manually?", {
+          action: {
+            label: "Enter Manually",
+            onClick: () => setShowManualForm(true)
+          },
+        });
+        return;
       }
 
       const valuationData = data.data;
       console.log('Received valuation data:', valuationData);
 
-      // Store the valuation data in localStorage
       localStorage.setItem('valuationData', JSON.stringify(valuationData));
       localStorage.setItem('tempVIN', vin);
       localStorage.setItem('tempMileage', mileage);
@@ -74,7 +121,12 @@ export const ValuationForm = () => {
       toast.success("Valuation completed successfully!");
     } catch (error: any) {
       console.error('Valuation error:', error);
-      toast.error(error.message || "Failed to get valuation");
+      toast.error("Could not find vehicle with this VIN. Would you like to enter details manually?", {
+        action: {
+          label: "Enter Manually",
+          onClick: () => setShowManualForm(true)
+        },
+      });
       setValuationResult(null);
     } finally {
       setIsLoading(false);
@@ -106,6 +158,13 @@ export const ValuationForm = () => {
           />
         )}
       </Dialog>
+      <ManualValuationForm 
+        isOpen={showManualForm}
+        onClose={() => setShowManualForm(false)}
+        onSubmit={handleManualSubmit}
+        mileage={mileage}
+        transmission={gearbox}
+      />
     </div>
   );
 };
