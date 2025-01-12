@@ -10,6 +10,7 @@ interface ValuationRequest {
   year?: number;
   mileage: number;
   gearbox: string;
+  isManualEntry?: boolean;
 }
 
 interface ValidationError {
@@ -28,45 +29,45 @@ interface ValuationResponse {
 }
 
 const extractPrice = (responseData: any): number | null => {
-  const pricePaths = [
-    'price',
-    'valuation.price',
-    'functionResponse.price',
-    'functionResponse.valuation.price',
-    'functionResponse.valuation.calcValuation.price'
-  ];
+  console.log('API Response:', JSON.stringify(responseData, null, 2));
 
-  for (const path of pricePaths) {
-    const value = path.split('.').reduce((obj, key) => obj?.[key], responseData);
-    if (typeof value === 'number') {
-      console.log(`Found price at path ${path}:`, value);
-      return value;
+  // Direct price field
+  if (typeof responseData?.price === 'number') {
+    return responseData.price;
+  }
+
+  // Check valuation object
+  if (typeof responseData?.valuation?.price === 'number') {
+    return responseData.valuation.price;
+  }
+
+  // Check functionResponse object
+  if (typeof responseData?.functionResponse?.price === 'number') {
+    return responseData.functionResponse.price;
+  }
+
+  // Check nested valuation object
+  if (typeof responseData?.functionResponse?.valuation?.price === 'number') {
+    return responseData.functionResponse.valuation.price;
+  }
+
+  // Check for any numeric price field recursively
+  const findPrice = (obj: any): number | null => {
+    if (!obj || typeof obj !== 'object') return null;
+    
+    for (const [key, value] of Object.entries(obj)) {
+      if (key.toLowerCase().includes('price') && typeof value === 'number') {
+        return value;
+      }
+      if (typeof value === 'object') {
+        const nestedPrice = findPrice(value);
+        if (nestedPrice !== null) return nestedPrice;
+      }
     }
-  }
+    return null;
+  };
 
-  return null;
-};
-
-const validateManualEntry = (data: Partial<ValuationRequest>): ValidationError[] => {
-  const errors: ValidationError[] = [];
-
-  if (!data.make?.trim()) {
-    errors.push({ field: 'make', message: 'Make is required' });
-  }
-  if (!data.model?.trim()) {
-    errors.push({ field: 'model', message: 'Model is required' });
-  }
-  if (!data.year || data.year < 1900 || data.year > new Date().getFullYear()) {
-    errors.push({ field: 'year', message: 'Invalid year' });
-  }
-  if (!data.mileage || data.mileage < 0) {
-    errors.push({ field: 'mileage', message: 'Invalid mileage' });
-  }
-  if (!data.gearbox || !['manual', 'automatic'].includes(data.gearbox.toLowerCase())) {
-    errors.push({ field: 'gearbox', message: 'Invalid transmission type' });
-  }
-
-  return errors;
+  return findPrice(responseData);
 };
 
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
@@ -77,12 +78,6 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
 const handleManualValuation = async (data: ValuationRequest): Promise<ValuationResponse> => {
   console.log('Processing manual valuation for:', data);
 
-  const errors = validateManualEntry(data);
-  if (errors.length > 0) {
-    throw new Error(`Validation failed: ${errors.map(e => `${e.field}: ${e.message}`).join(', ')}`);
-  }
-
-  // For manual valuations, we'll use a simplified API call
   const apiId = Deno.env.get('CAR_API_ID');
   const apiSecret = Deno.env.get('CAR_API_SECRET');
 
@@ -98,25 +93,30 @@ const handleManualValuation = async (data: ValuationRequest): Promise<ValuationR
 
   console.log('Calling manual valuation API:', url);
 
-  const response = await fetch(url);
-  const responseData = await response.json();
+  try {
+    const response = await fetch(url);
+    const responseData = await response.json();
+    console.log('Manual valuation API response:', JSON.stringify(responseData, null, 2));
 
-  console.log('Manual valuation API response:', responseData);
+    const valuationPrice = extractPrice(responseData);
+    if (!valuationPrice) {
+      console.error('Could not determine valuation price from API response:', responseData);
+      throw new Error('Could not determine valuation price from API response');
+    }
 
-  const valuationPrice = extractPrice(responseData);
-  if (!valuationPrice) {
-    throw new Error('Could not determine valuation price from API response');
+    return {
+      make: data.make || 'Not available',
+      model: data.model || 'Not available',
+      year: data.year || null,
+      vin: '',
+      transmission: data.gearbox || 'Not available',
+      valuation: valuationPrice,
+      mileage: data.mileage
+    };
+  } catch (error) {
+    console.error('Manual valuation API error:', error);
+    throw error;
   }
-
-  return {
-    make: data.make || 'Not available',
-    model: data.model || 'Not available',
-    year: data.year || null,
-    vin: '',
-    transmission: data.gearbox || 'Not available',
-    valuation: valuationPrice,
-    mileage: data.mileage
-  };
 };
 
 const handleVinValuation = async (data: ValuationRequest): Promise<ValuationResponse> => {
@@ -138,30 +138,30 @@ const handleVinValuation = async (data: ValuationRequest): Promise<ValuationResp
 
   console.log('Calling VIN valuation API:', url);
 
-  const response = await fetch(url);
-  const responseData = await response.json();
+  try {
+    const response = await fetch(url);
+    const responseData = await response.json();
+    console.log('VIN valuation API response:', JSON.stringify(responseData, null, 2));
 
-  console.log('VIN valuation API response:', responseData);
+    const valuationPrice = extractPrice(responseData);
+    if (!valuationPrice) {
+      console.error('Could not determine valuation price from API response:', responseData);
+      throw new Error('Could not determine valuation price from API response');
+    }
 
-  const valuationPrice = extractPrice(responseData);
-  if (!valuationPrice) {
-    throw new Error('Could not determine valuation price from API response');
+    return {
+      make: responseData?.make || responseData?.functionResponse?.make || 'Not available',
+      model: responseData?.model || responseData?.functionResponse?.model || 'Not available',
+      year: responseData?.year || responseData?.functionResponse?.year || null,
+      vin: data.vin,
+      transmission: data.gearbox || 'Not available',
+      valuation: valuationPrice,
+      mileage: data.mileage
+    };
+  } catch (error) {
+    console.error('VIN valuation API error:', error);
+    throw error;
   }
-
-  // Extract vehicle details from response
-  const make = responseData?.make || responseData?.functionResponse?.make || 'Not available';
-  const model = responseData?.model || responseData?.functionResponse?.model || 'Not available';
-  const year = responseData?.year || responseData?.functionResponse?.year || null;
-
-  return {
-    make,
-    model,
-    year,
-    vin: data.vin,
-    transmission: data.gearbox || 'Not available',
-    valuation: valuationPrice,
-    mileage: data.mileage
-  };
 };
 
 serve(async (req) => {
@@ -173,8 +173,7 @@ serve(async (req) => {
     const requestData: ValuationRequest = await req.json();
     console.log('Received valuation request:', requestData);
 
-    const isManualEntry = !requestData.vin;
-    const valuationResult = isManualEntry 
+    const valuationResult = requestData.isManualEntry 
       ? await handleManualValuation(requestData)
       : await handleVinValuation(requestData);
 
