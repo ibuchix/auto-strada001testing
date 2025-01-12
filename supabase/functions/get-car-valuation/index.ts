@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createHash } from "https://deno.land/std@0.177.0/crypto/mod.ts";
+import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
+import { encode } from "https://deno.land/std@0.177.0/encoding/hex.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,7 +10,8 @@ const corsHeaders = {
 function calculateChecksum(apiId: string, apiSecret: string, vin: string): string {
   console.log('Calculating checksum for:', { apiId, vin });
   const input = `${apiId}${apiSecret}${vin}`;
-  return createHash('md5').update(input).toString();
+  const hash = crypto.subtle.digestSync("MD5", new TextEncoder().encode(input));
+  return encode(new Uint8Array(hash));
 }
 
 function extractPrice(responseData: any): number | null {
