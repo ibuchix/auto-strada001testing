@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Auth as SupabaseAuth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
 
 const Auth = () => {
@@ -68,13 +68,16 @@ const Auth = () => {
           .single();
 
         if (profile?.role === 'dealer') {
-          // Create dealer record
+          // Create dealer record with all required fields
           const { error: dealerError } = await supabase
             .from('dealers')
             .insert({
               user_id: session.user.id,
               dealership_name: session.user.email?.split('@')[0] || 'New Dealership',
               license_number: 'PENDING',
+              supervisor_name: 'Pending Update',
+              tax_id: 'PENDING',
+              business_registry_number: 'PENDING'
             });
 
           if (dealerError) {
