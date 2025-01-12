@@ -17,19 +17,37 @@ function calculateChecksum(apiId: string, apiSecret: string, vin: string): strin
 function extractPrice(responseData: any): number | null {
   console.log('Extracting price from:', JSON.stringify(responseData, null, 2));
 
-  if (typeof responseData?.price === 'number') return responseData.price;
-  if (typeof responseData?.valuation?.price === 'number') return responseData.valuation.price;
-  if (typeof responseData?.functionResponse?.price === 'number') return responseData.functionResponse.price;
+  // Direct price field
+  if (typeof responseData?.price === 'number') {
+    console.log('Found direct price:', responseData.price);
+    return responseData.price;
+  }
+
+  // Check valuation object
+  if (typeof responseData?.valuation?.price === 'number') {
+    console.log('Found price in valuation object:', responseData.valuation.price);
+    return responseData.valuation.price;
+  }
+
+  // Check functionResponse object
+  if (typeof responseData?.functionResponse?.price === 'number') {
+    console.log('Found price in functionResponse:', responseData.functionResponse.price);
+    return responseData.functionResponse.price;
+  }
+
+  // Check nested valuation object
   if (typeof responseData?.functionResponse?.valuation?.price === 'number') {
+    console.log('Found price in nested valuation:', responseData.functionResponse.valuation.price);
     return responseData.functionResponse.valuation.price;
   }
 
-  // Recursive search for price field
+  // Check for any numeric price field recursively
   const findPrice = (obj: any): number | null => {
     if (!obj || typeof obj !== 'object') return null;
     
     for (const [key, value] of Object.entries(obj)) {
       if (key.toLowerCase().includes('price') && typeof value === 'number') {
+        console.log(`Found price in field ${key}:`, value);
         return value;
       }
       if (typeof value === 'object') {
@@ -40,7 +58,14 @@ function extractPrice(responseData: any): number | null {
     return null;
   };
 
-  return findPrice(responseData);
+  const recursivePrice = findPrice(responseData);
+  if (recursivePrice !== null) {
+    console.log('Found price through recursive search:', recursivePrice);
+    return recursivePrice;
+  }
+
+  console.log('No valid price found in response');
+  return null;
 }
 
 serve(async (req) => {
@@ -122,13 +147,14 @@ serve(async (req) => {
 
       const response = await fetch(url);
       console.log('VIN API Response status:', response.status);
+      console.log('VIN API Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         throw new Error(`API responded with status: ${response.status}`);
       }
       
       const responseData = await response.json();
-      console.log('VIN valuation API response:', responseData);
+      console.log('VIN valuation API response:', JSON.stringify(responseData, null, 2));
 
       const valuationPrice = extractPrice(responseData);
       if (!valuationPrice) {
