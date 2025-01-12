@@ -34,6 +34,7 @@ export const ValuationForm = () => {
         onMileageChange={setMileage}
         onGearboxChange={setGearbox}
         onSubmit={handleVinSubmit}
+        onManualEntry={() => setShowManualForm(true)}
       />
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         {valuationResult && (
@@ -45,10 +46,7 @@ export const ValuationForm = () => {
       </Dialog>
       <ManualValuationForm 
         isOpen={showManualForm}
-        onClose={() => {
-          console.log('Closing manual form');
-          setShowManualForm(false);
-        }}
+        onClose={() => setShowManualForm(false)}
         onSubmit={handleManualSubmit}
         mileage={mileage}
         transmission={gearbox}
