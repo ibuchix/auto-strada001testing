@@ -50,17 +50,19 @@ function validateRequest(data: ManualValuationRequest) {
   }
   
   const validTransmissions = ['manual', 'automatic'];
-  if (!validTransmissions.includes(data.transmission.toLowerCase())) {
+  if (!validTransmissions.includes(data.transmission)) {
     errors.push('Invalid transmission type');
   }
   
   const validFuelTypes = ['petrol', 'diesel', 'electric', 'hybrid'];
-  if (!validFuelTypes.includes(data.fuel.toLowerCase())) {
+  console.log('Checking fuel type:', data.fuel, 'Valid types:', validFuelTypes);
+  if (!validFuelTypes.includes(data.fuel)) {
     errors.push('Invalid fuel type');
   }
   
   const validCountries = ['PL', 'DE', 'UK'];
-  if (!validCountries.includes(data.country.toUpperCase())) {
+  console.log('Checking country:', data.country, 'Valid countries:', validCountries);
+  if (!validCountries.includes(data.country)) {
     errors.push('Invalid country');
   }
   
