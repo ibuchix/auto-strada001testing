@@ -43,10 +43,12 @@ function validateRequest(data: ManualValuationRequest) {
 }
 
 serve(async (req) => {
-  console.log('Received manual valuation request:', req.method);
-
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {
@@ -55,6 +57,10 @@ serve(async (req) => {
 
     if (!apiId || !apiSecret) {
       throw new Error('API credentials not configured');
+    }
+
+    if (req.method !== 'POST') {
+      throw new Error('Method not allowed');
     }
 
     const requestData: ManualValuationRequest = await req.json();
