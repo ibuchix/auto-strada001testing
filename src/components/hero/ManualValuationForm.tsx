@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useState } from "react";
 import { FormFields } from "./manual-valuation/FormFields";
 import { FormActions } from "./manual-valuation/FormActions";
@@ -46,7 +46,7 @@ export const ManualValuationForm = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Validating form data:', formData);
+    console.log('Manual form submission:', formData);
     
     if (validateForm(formData)) {
       console.log('Form validation passed, submitting:', formData);
@@ -61,6 +61,9 @@ export const ManualValuationForm = ({
           <DialogTitle className="text-2xl font-oswald font-bold text-dark text-center mb-4">
             Enter Vehicle Details
           </DialogTitle>
+          <DialogDescription className="text-center text-subtitle">
+            Please provide your vehicle details for an accurate valuation
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <FormFields 

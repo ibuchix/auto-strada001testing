@@ -77,7 +77,10 @@ export const ValuationInput = ({
         <Button 
           type="button"
           variant="outline"
-          onClick={onManualEntry}
+          onClick={(e) => {
+            e.preventDefault();
+            onManualEntry();
+          }}
           className="w-full h-12 text-lg border-2 border-secondary/20"
         >
           <Edit2 className="mr-2 h-5 w-5" />
