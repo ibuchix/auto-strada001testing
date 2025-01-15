@@ -93,22 +93,28 @@ export const useValuationForm = () => {
         return;
       }
 
-      console.log('Calling get-car-valuation function with:', { vin, mileage, gearbox });
-      const { data, error } = await supabase.functions.invoke('get-car-valuation', {
+      console.log('Invoking get-car-valuation function with:', { vin, mileage, gearbox });
+      const response = await supabase.functions.invoke('get-car-valuation', {
         body: { 
           vin: vin.trim(),
           mileage: parseInt(mileage),
           gearbox 
+        },
+        headers: {
+          'Content-Type': 'application/json',
         }
       });
 
-      console.log('Response from get-car-valuation:', { data, error });
+      console.log('Full response from get-car-valuation:', response);
 
-      if (error) {
-        console.error('Valuation error:', error);
+      if (response.error) {
+        console.error('Valuation error:', response.error);
         handleValuationError();
         return;
       }
+
+      const data = response.data;
+      console.log('Response data:', data);
 
       if (!data?.success) {
         console.error('Valuation failed:', data);
@@ -117,13 +123,20 @@ export const useValuationForm = () => {
       }
 
       const valuationData = data.data;
-      console.log('Received valuation data:', valuationData);
+      console.log('Processing valuation data:', valuationData);
+      
+      if (!valuationData) {
+        console.error('No valuation data received');
+        handleValuationError();
+        return;
+      }
+
       storeValuationData(valuationData);
       setValuationResult(valuationData);
       setDialogOpen(true);
       toast.success("Valuation completed successfully!");
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error during valuation:', error);
       handleValuationError();
     } finally {
       setIsLoading(false);

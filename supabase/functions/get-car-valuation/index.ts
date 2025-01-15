@@ -2,22 +2,19 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { calculateChecksum } from "./utils/checksum.ts";
 
-const API_ID = Deno.env.get('CAR_API_ID');
-const API_SECRET = Deno.env.get('CAR_API_SECRET');
+const API_ID = 'AUTOSTRA';
+const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
 
 serve(async (req) => {
+  console.log('Received request:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate API credentials first
-    if (!API_ID || !API_SECRET) {
-      console.error('Missing API credentials:', { API_ID_exists: !!API_ID, API_SECRET_exists: !!API_SECRET });
-      throw new Error('API configuration is incomplete. Please check the environment variables.');
-    }
-
     const { vin, mileage, gearbox } = await req.json();
     console.log('Processing VIN valuation request:', { vin, mileage, gearbox });
 
@@ -25,7 +22,7 @@ serve(async (req) => {
       throw new Error('VIN and mileage are required');
     }
 
-    // Calculate checksum using the provided API credentials
+    // Calculate checksum using the hardcoded API credentials
     const checksum = calculateChecksum(API_ID, API_SECRET, vin);
     console.log('Calculated checksum:', checksum);
 
@@ -52,6 +49,8 @@ serve(async (req) => {
       valuation: responseData.price || responseData.valuation?.price || responseData.estimated_value || responseData.value,
       currency: "PLN"
     };
+
+    console.log('Transformed valuation data:', valuationData);
 
     return new Response(
       JSON.stringify({
