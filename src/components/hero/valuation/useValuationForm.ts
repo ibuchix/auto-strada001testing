@@ -93,6 +93,7 @@ export const useValuationForm = () => {
         return;
       }
 
+      console.log('Calling get-car-valuation function with:', { vin, mileage, gearbox });
       const { data, error } = await supabase.functions.invoke('get-car-valuation', {
         body: { 
           vin: vin.trim(),
@@ -101,17 +102,22 @@ export const useValuationForm = () => {
         }
       });
 
+      console.log('Response from get-car-valuation:', { data, error });
+
       if (error) {
+        console.error('Valuation error:', error);
         handleValuationError();
         return;
       }
 
       if (!data?.success) {
+        console.error('Valuation failed:', data);
         handleValuationError();
         return;
       }
 
       const valuationData = data.data;
+      console.log('Received valuation data:', valuationData);
       storeValuationData(valuationData);
       setValuationResult(valuationData);
       setDialogOpen(true);
