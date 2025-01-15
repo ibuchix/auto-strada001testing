@@ -13,16 +13,21 @@ serve(async (req) => {
       throw new Error('Method not allowed');
     }
 
+    // Log raw request
+    console.log('Raw request headers:', req.headers);
     const requestData = await req.json();
-    console.log('Raw request data:', requestData);
+    console.log('Raw request data:', JSON.stringify(requestData, null, 2));
 
+    // Log data normalization
     const normalizedData = normalizeData(requestData);
-    console.log('Normalized data:', normalizedData);
+    console.log('Normalized data:', JSON.stringify(normalizedData, null, 2));
 
+    // Log validation process
     const validationResult = validateRequest(normalizedData);
-    console.log('Validation result:', validationResult);
+    console.log('Validation result:', JSON.stringify(validationResult, null, 2));
 
     if (!validationResult.isValid) {
+      console.log('Validation failed with errors:', validationResult.errors);
       return new Response(
         JSON.stringify({
           success: false,
@@ -52,6 +57,8 @@ serve(async (req) => {
         currency: normalizedData.country === 'PL' ? 'PLN' : 'EUR'
       }
     };
+
+    console.log('Sending response:', JSON.stringify(mockValuation, null, 2));
 
     return new Response(
       JSON.stringify(mockValuation),
