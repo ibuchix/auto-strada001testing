@@ -17,14 +17,15 @@ interface ManualValuationRequest {
   country: string;
 }
 
-function sanitizeData(data: ManualValuationRequest): ManualValuationRequest {
+function sanitizeData(data: any): ManualValuationRequest {
   return {
-    ...data,
-    make: data.make?.trim(),
-    model: data.model?.trim(),
-    fuel: data.fuel?.trim().toLowerCase(),
-    country: data.country?.trim().toUpperCase(),
-    transmission: data.transmission?.trim().toLowerCase(),
+    make: String(data.make || '').trim(),
+    model: String(data.model || '').trim(),
+    year: Number(data.year),
+    mileage: Number(data.mileage),
+    fuel: String(data.fuel || '').trim().toLowerCase(),
+    country: String(data.country || '').trim().toUpperCase(),
+    transmission: String(data.transmission || '').trim().toLowerCase(),
   };
 }
 
@@ -41,10 +42,12 @@ function validateRequest(data: ManualValuationRequest) {
   const errors = [];
   if (!data.make?.trim()) errors.push('Make is required');
   if (!data.model?.trim()) errors.push('Model is required');
-  if (!data.year || data.year < 1900 || data.year > new Date().getFullYear() + 1) {
+  if (!data.year || isNaN(data.year) || data.year < 1900 || data.year > new Date().getFullYear() + 1) {
     errors.push('Invalid year');
   }
-  if (!data.mileage || data.mileage < 0) errors.push('Invalid mileage');
+  if (!data.mileage || isNaN(data.mileage) || data.mileage < 0) {
+    errors.push('Invalid mileage');
+  }
   
   const validTransmissions = ['manual', 'automatic'];
   const normalizedTransmission = data.transmission?.toLowerCase();
@@ -95,10 +98,10 @@ serve(async (req) => {
       throw new Error('Method not allowed');
     }
 
-    const rawRequestData: ManualValuationRequest = await req.json();
+    const rawRequestData = await req.json();
     console.log('Raw request data:', rawRequestData);
 
-    // Sanitize the input data
+    // Sanitize and convert types for the input data
     const requestData = sanitizeData(rawRequestData);
     console.log('Sanitized request data:', requestData);
 
@@ -108,22 +111,7 @@ serve(async (req) => {
     const checksum = calculateChecksum(apiId, apiSecret, requestData.make, requestData.model);
     
     // Construct URL with sanitized parameters
-    const params = new URLSearchParams({
-      'apiuid': apiId,
-      'checksum': checksum,
-      'make': requestData.make,
-      'model': requestData.model,
-      'year': requestData.year.toString(),
-      'odometer': requestData.mileage.toString(),
-      'transmission': requestData.transmission,
-      'currency': 'PLN',
-      'country': requestData.country,
-      'fuel': requestData.fuel
-    });
-
-    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/${Array.from(params.entries())
-      .map(([key, value]) => `${key}:${encodeURIComponent(value)}`)
-      .join('/')}`;
+    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/checksum:${checksum}/make:${encodeURIComponent(requestData.make)}/model:${encodeURIComponent(requestData.model)}/year:${requestData.year}/odometer:${requestData.mileage}/transmission:${requestData.transmission}/currency:PLN/country:${requestData.country}/fuel:${requestData.fuel}`;
     
     console.log('Making API request to:', url);
     
@@ -150,7 +138,7 @@ serve(async (req) => {
       throw new Error(`API Error: ${responseData.message}`);
     }
 
-    // Extract price from response with more detailed logging
+    // Extract price from response
     let valuationPrice = null;
     if (responseData && typeof responseData === 'object') {
       console.log('Attempting to extract price from response structure:', JSON.stringify(responseData));
