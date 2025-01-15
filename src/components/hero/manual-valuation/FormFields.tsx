@@ -15,22 +15,22 @@ interface FormFieldsProps {
   onInputChange: (field: keyof ManualValuationData, value: string) => void;
 }
 
-const countryOptions: { display: string; value: CountryCode }[] = [
-  { display: "Poland", value: "PL" },
-  { display: "Germany", value: "DE" },
-  { display: "United Kingdom", value: "UK" }
+const countryOptions: { value: CountryCode; display: string }[] = [
+  { value: "PL", display: "PL" },
+  { value: "DE", display: "DE" },
+  { value: "UK", display: "UK" }
 ];
 
-const fuelOptions: { display: string; value: FuelType }[] = [
-  { display: "Petrol", value: "petrol" },
-  { display: "Diesel", value: "diesel" },
-  { display: "Electric", value: "electric" },
-  { display: "Hybrid", value: "hybrid" }
+const fuelOptions: { value: FuelType; display: string }[] = [
+  { value: "petrol", display: "petrol" },
+  { value: "diesel", display: "diesel" },
+  { value: "electric", display: "electric" },
+  { value: "hybrid", display: "hybrid" }
 ];
 
-const transmissionOptions: { display: string; value: TransmissionType }[] = [
-  { display: "Manual", value: "manual" },
-  { display: "Automatic", value: "automatic" }
+const transmissionOptions: { value: TransmissionType; display: string }[] = [
+  { value: "manual", display: "manual" },
+  { value: "automatic", display: "automatic" }
 ];
 
 export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps) => {

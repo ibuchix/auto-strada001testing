@@ -3,15 +3,20 @@ import { useState } from "react";
 import { FormFields } from "./manual-valuation/FormFields";
 import { FormActions } from "./manual-valuation/FormActions";
 import { useFormValidation } from "./manual-valuation/useFormValidation";
+import { Database } from "@/integrations/supabase/types";
+
+type TransmissionType = Database['public']['Enums']['car_transmission_type'];
+type FuelType = Database['public']['Enums']['car_fuel_type'];
+type CountryCode = Database['public']['Enums']['car_country_code'];
 
 export interface ManualValuationData {
   make: string;
   model: string;
   year: string;
   mileage: string;
-  transmission: 'manual' | 'automatic';
-  fuel: 'petrol' | 'diesel' | 'electric' | 'hybrid';
-  country: 'PL' | 'DE' | 'UK';
+  transmission: TransmissionType;
+  fuel: FuelType;
+  country: CountryCode;
 }
 
 interface ManualValuationFormProps {
@@ -19,7 +24,7 @@ interface ManualValuationFormProps {
   onClose: () => void;
   onSubmit: (data: ManualValuationData) => void;
   mileage?: string;
-  transmission?: 'manual' | 'automatic';
+  transmission?: TransmissionType;
 }
 
 export const ManualValuationForm = ({ 
