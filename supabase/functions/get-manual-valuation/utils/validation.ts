@@ -59,9 +59,10 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
   }
 
   // Transmission validation
-  if (!data.transmission || !VALID_TRANSMISSION_TYPES.includes(data.transmission)) {
+  const normalizedTransmission = data.transmission?.toLowerCase();
+  if (!normalizedTransmission || !VALID_TRANSMISSION_TYPES.includes(normalizedTransmission as TransmissionType)) {
     console.log('Transmission validation failed:', {
-      value: data.transmission,
+      value: normalizedTransmission,
       validOptions: VALID_TRANSMISSION_TYPES
     });
     errors.push('Invalid transmission type');
@@ -69,21 +70,27 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
 
   // Fuel type validation with case-insensitive comparison
   const normalizedFuel = data.fuel?.toLowerCase();
+  console.log('Checking fuel type:', {
+    original: data.fuel,
+    normalized: normalizedFuel,
+    validOptions: VALID_FUEL_TYPES,
+    isValid: VALID_FUEL_TYPES.includes(normalizedFuel as FuelType)
+  });
+  
   if (!normalizedFuel || !VALID_FUEL_TYPES.includes(normalizedFuel as FuelType)) {
-    console.log('Fuel type validation failed:', {
-      value: normalizedFuel,
-      validOptions: VALID_FUEL_TYPES
-    });
     errors.push('Invalid fuel type');
   }
 
   // Country code validation with case-insensitive comparison
   const normalizedCountry = data.country?.toUpperCase();
+  console.log('Checking country code:', {
+    original: data.country,
+    normalized: normalizedCountry,
+    validOptions: VALID_COUNTRY_CODES,
+    isValid: VALID_COUNTRY_CODES.includes(normalizedCountry as CountryCode)
+  });
+  
   if (!normalizedCountry || !VALID_COUNTRY_CODES.includes(normalizedCountry as CountryCode)) {
-    console.log('Country code validation failed:', {
-      value: normalizedCountry,
-      validOptions: VALID_COUNTRY_CODES
-    });
     errors.push('Invalid country code');
   }
 
