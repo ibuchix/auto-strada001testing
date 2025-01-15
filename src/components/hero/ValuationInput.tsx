@@ -7,11 +7,11 @@ import { Label } from "@/components/ui/label";
 interface ValuationInputProps {
   vin: string;
   mileage: string;
-  gearbox: string;
+  gearbox: 'manual' | 'automatic';
   isLoading: boolean;
   onVinChange: (value: string) => void;
   onMileageChange: (value: string) => void;
-  onGearboxChange: (value: string) => void;
+  onGearboxChange: (value: 'manual' | 'automatic') => void;
   onSubmit: (e: React.FormEvent) => void;
   onManualEntry: () => void;
 }

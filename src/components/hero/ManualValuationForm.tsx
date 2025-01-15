@@ -9,9 +9,9 @@ export interface ManualValuationData {
   model: string;
   year: string;
   mileage: string;
-  transmission: string;
-  fuel: string;
-  country: string;
+  transmission: 'manual' | 'automatic';
+  fuel: 'petrol' | 'diesel' | 'electric' | 'hybrid';
+  country: 'PL' | 'DE' | 'UK';
 }
 
 interface ManualValuationFormProps {
@@ -19,7 +19,7 @@ interface ManualValuationFormProps {
   onClose: () => void;
   onSubmit: (data: ManualValuationData) => void;
   mileage?: string;
-  transmission?: string;
+  transmission?: 'manual' | 'automatic';
 }
 
 export const ManualValuationForm = ({ 
@@ -53,15 +53,7 @@ export const ManualValuationForm = ({
     console.log('Form data before submission:', formData);
     
     if (validateForm(formData)) {
-      // Transform the data before submission
-      const transformedData = {
-        ...formData,
-        fuel: formData.fuel.toLowerCase(),
-        country: formData.country.toUpperCase()
-      };
-      
-      console.log('Submitting transformed data:', transformedData);
-      onSubmit(transformedData);
+      onSubmit(formData);
     }
   };
 

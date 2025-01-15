@@ -204,7 +204,9 @@ export type Database = {
           status: string | null
           thumbnails: Json | null
           title: string
-          transmission: string | null
+          transmission:
+            | Database["public"]["Enums"]["car_transmission_type"]
+            | null
           updated_at: string | null
           valuation_data: Json | null
           vin: string
@@ -247,7 +249,9 @@ export type Database = {
           status?: string | null
           thumbnails?: Json | null
           title: string
-          transmission?: string | null
+          transmission?:
+            | Database["public"]["Enums"]["car_transmission_type"]
+            | null
           updated_at?: string | null
           valuation_data?: Json | null
           vin: string
@@ -290,7 +294,9 @@ export type Database = {
           status?: string | null
           thumbnails?: Json | null
           title?: string
-          transmission?: string | null
+          transmission?:
+            | Database["public"]["Enums"]["car_transmission_type"]
+            | null
           updated_at?: string | null
           valuation_data?: Json | null
           vin?: string
@@ -462,6 +468,9 @@ export type Database = {
       }
     }
     Enums: {
+      car_country_code: "PL" | "DE" | "UK"
+      car_fuel_type: "petrol" | "diesel" | "electric" | "hybrid"
+      car_transmission_type: "manual" | "automatic"
       service_history_type: "full" | "partial" | "none" | "not_due"
     }
     CompositeTypes: {
