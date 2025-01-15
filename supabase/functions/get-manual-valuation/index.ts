@@ -25,6 +25,8 @@ function calculateChecksum(apiId: string, apiSecret: string, make: string, model
 }
 
 function validateRequest(data: ManualValuationRequest) {
+  console.log('Validating request data:', JSON.stringify(data, null, 2));
+  
   const errors = [];
   if (!data.make?.trim()) errors.push('Make is required');
   if (!data.model?.trim()) errors.push('Model is required');
@@ -32,17 +34,26 @@ function validateRequest(data: ManualValuationRequest) {
     errors.push('Invalid year');
   }
   if (!data.mileage || data.mileage < 0) errors.push('Invalid mileage');
-  if (!['manual', 'automatic'].includes(data.transmission?.toLowerCase())) {
+  
+  const validTransmissions = ['manual', 'automatic'];
+  if (!validTransmissions.includes(data.transmission?.toLowerCase())) {
     errors.push('Invalid transmission type');
   }
-  if (!['petrol', 'diesel', 'electric', 'hybrid'].includes(data.fuel?.toLowerCase())) {
+  
+  const validFuelTypes = ['petrol', 'diesel', 'electric', 'hybrid'];
+  console.log('Checking fuel type:', data.fuel, 'Valid types:', validFuelTypes);
+  if (!validFuelTypes.includes(data.fuel?.toLowerCase())) {
     errors.push('Invalid fuel type');
   }
-  if (!['PL', 'DE', 'UK'].includes(data.country)) {
+  
+  const validCountries = ['PL', 'DE', 'UK'];
+  console.log('Checking country:', data.country, 'Valid countries:', validCountries);
+  if (!validCountries.includes(data.country?.toUpperCase())) {
     errors.push('Invalid country');
   }
   
   if (errors.length > 0) {
+    console.error('Validation errors:', errors);
     throw new Error(`Validation failed: ${errors.join(', ')}`);
   }
 }
@@ -50,7 +61,6 @@ function validateRequest(data: ManualValuationRequest) {
 serve(async (req) => {
   console.log('Received request:', req.method);
   
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
       headers: corsHeaders,
@@ -74,24 +84,31 @@ serve(async (req) => {
     const requestData: ManualValuationRequest = await req.json();
     console.log('Processing manual entry valuation for:', requestData);
 
-    // Validate request data
-    validateRequest(requestData);
+    // Normalize the data before validation
+    const normalizedData = {
+      ...requestData,
+      fuel: requestData.fuel?.toLowerCase(),
+      transmission: requestData.transmission?.toLowerCase(),
+      country: requestData.country?.toUpperCase()
+    };
 
-    const checksum = calculateChecksum(apiId, apiSecret, requestData.make, requestData.model);
-    const transmission = requestData.transmission?.toLowerCase() === 'automatic' ? 'automatic' : 'manual';
+    // Validate request data
+    validateRequest(normalizedData);
+
+    const checksum = calculateChecksum(apiId, apiSecret, normalizedData.make, normalizedData.model);
     
     // Construct URL with all required parameters
     const params = new URLSearchParams({
       'apiuid': apiId,
       'checksum': checksum,
-      'make': requestData.make,
-      'model': requestData.model,
-      'year': requestData.year.toString(),
-      'odometer': requestData.mileage.toString(),
-      'transmission': transmission,
+      'make': normalizedData.make,
+      'model': normalizedData.model,
+      'year': normalizedData.year.toString(),
+      'odometer': normalizedData.mileage.toString(),
+      'transmission': normalizedData.transmission,
       'currency': 'PLN',
-      'country': requestData.country,
-      'fuel': requestData.fuel.toLowerCase()
+      'country': normalizedData.country,
+      'fuel': normalizedData.fuel
     });
 
     const url = `https://bp.autoiso.pl/api/v3/getManualValuation/${Array.from(params.entries())
@@ -145,12 +162,12 @@ serve(async (req) => {
     }
 
     const result = {
-      make: requestData.make,
-      model: requestData.model,
-      year: requestData.year,
-      transmission: transmission,
+      make: normalizedData.make,
+      model: normalizedData.model,
+      year: normalizedData.year,
+      transmission: normalizedData.transmission,
       valuation: valuationPrice,
-      mileage: requestData.mileage
+      mileage: normalizedData.mileage
     };
 
     console.log('Manual valuation completed successfully:', result);
