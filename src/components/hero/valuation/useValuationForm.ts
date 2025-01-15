@@ -23,12 +23,15 @@ export const useValuationForm = () => {
 
     try {
       const { data: response, error } = await supabase.functions.invoke('get-manual-valuation', {
-        body: { 
+        body: JSON.stringify({ 
           make: data.make,
           model: data.model,
           year: parseInt(data.year),
           mileage: parseInt(data.mileage),
           transmission: data.transmission,
+        }),
+        headers: {
+          'Content-Type': 'application/json'
         }
       });
 
