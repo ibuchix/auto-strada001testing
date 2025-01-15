@@ -80,14 +80,14 @@ export const useValuationForm = () => {
     setIsLoading(true);
     try {
       console.log('Checking for existing VIN in database');
-      const { data: publishedCar, error: vinCheckError } = await supabase
+      const { data: existingCar, error: vinCheckError } = await supabase
         .from('cars')
-        .select('id')
+        .select('id, make, model, year, mileage, price, valuation_data')
         .eq('vin', vin)
         .eq('is_draft', false)
         .maybeSingle();
 
-      console.log('VIN check result:', { publishedCar, vinCheckError });
+      console.log('VIN check result:', { existingCar, vinCheckError });
 
       if (vinCheckError) {
         console.error('VIN check error:', vinCheckError);
@@ -96,9 +96,21 @@ export const useValuationForm = () => {
         return;
       }
 
-      if (publishedCar) {
-        console.log('VIN already exists in database');
-        toast.error("This VIN number is already registered in our system");
+      if (existingCar) {
+        console.log('Found existing car:', existingCar);
+        // Use existing car data to create a valuation result
+        const existingValuation = {
+          make: existingCar.make,
+          model: existingCar.model,
+          year: existingCar.year,
+          vin: vin,
+          transmission: gearbox,
+          valuation: existingCar.valuation_data?.valuation || existingCar.price,
+          isExisting: true
+        };
+
+        setValuationResult(existingValuation);
+        setDialogOpen(true);
         setIsLoading(false);
         return;
       }

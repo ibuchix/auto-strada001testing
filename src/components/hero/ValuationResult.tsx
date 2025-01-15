@@ -5,6 +5,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -14,6 +15,7 @@ interface ValuationResultProps {
     vin: string;
     transmission: string;
     valuation: number;
+    isExisting?: boolean;
   };
   onContinue: () => void;
 }
@@ -27,8 +29,25 @@ export const ValuationResult = ({ valuationResult, onContinue }: ValuationResult
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
-        <DialogTitle className="text-2xl font-bold text-center mb-6">Your Vehicle Valuation</DialogTitle>
+        <DialogTitle className="text-2xl font-bold text-center mb-6">
+          {valuationResult.isExisting 
+            ? "Similar Vehicle Found!" 
+            : "Your Vehicle Valuation"
+          }
+        </DialogTitle>
       </DialogHeader>
+
+      {valuationResult.isExisting && (
+        <div className="bg-accent/50 p-4 rounded-lg mb-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-primary mt-0.5" />
+            <p className="text-sm text-subtitle">
+              We found a similar vehicle in our system. Based on this, here's an estimated valuation for your car. Would you like to list yours?
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-accent/50 p-4 rounded-lg">
@@ -57,7 +76,12 @@ export const ValuationResult = ({ valuationResult, onContinue }: ValuationResult
           </div>
         </div>
         <div className="border-t pt-6">
-          <p className="text-sm text-subtitle mb-2">Estimated Market Value</p>
+          <p className="text-sm text-subtitle mb-2">
+            {valuationResult.isExisting 
+              ? "Estimated Value (Based on Similar Vehicle)" 
+              : "Estimated Market Value"
+            }
+          </p>
           <p className="text-3xl font-bold text-primary">
             PLN {valuationResult.valuation.toLocaleString()}
           </p>
@@ -68,7 +92,10 @@ export const ValuationResult = ({ valuationResult, onContinue }: ValuationResult
           onClick={onContinue}
           className="w-full bg-secondary hover:bg-secondary/90 text-white"
         >
-          List This Car
+          {valuationResult.isExisting 
+            ? "List My Car" 
+            : "List This Car"
+          }
         </Button>
       </DialogFooter>
     </DialogContent>
