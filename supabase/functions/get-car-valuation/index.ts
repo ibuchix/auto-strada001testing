@@ -36,16 +36,21 @@ serve(async (req) => {
     let checksum: string;
 
     if (requestData.isManualEntry) {
-      // Manual valuation path
-      console.log('Processing manual valuation for:', requestData);
+      // Manual entry valuation path
+      console.log('Processing manual entry valuation for:', requestData);
       
       if (!requestData.make || !requestData.model || !requestData.year || !requestData.mileage) {
         throw new Error('Make, model, year, and mileage are required for manual valuation');
       }
 
-      // For manual valuation, use 'MANUAL' as VIN for checksum
-      checksum = calculateChecksum(apiId, apiSecret, 'MANUAL');
-      url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/checksum:${checksum}/make:${requestData.make}/model:${requestData.model}/year:${requestData.year}/odometer:${requestData.mileage}/transmission:${requestData.transmission || 'manual'}/currency:PLN`;
+      // For manual entry valuation, use 'MANUAL_ENTRY' as VIN for checksum to distinguish from transmission type
+      checksum = calculateChecksum(apiId, apiSecret, 'MANUAL_ENTRY');
+      
+      // Ensure transmission is correctly passed as either 'manual' or 'automatic'
+      const transmission = requestData.transmission?.toLowerCase() === 'automatic' ? 'automatic' : 'manual';
+      console.log('Using transmission type:', transmission);
+
+      url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/checksum:${checksum}/make:${requestData.make}/model:${requestData.model}/year:${requestData.year}/odometer:${requestData.mileage}/transmission:${transmission}/currency:PLN`;
     } else {
       // VIN-based valuation path
       if (!requestData.vin) {
@@ -53,7 +58,8 @@ serve(async (req) => {
       }
 
       checksum = calculateChecksum(apiId, apiSecret, requestData.vin);
-      url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${requestData.vin}/odometer:${requestData.mileage}/currency:PLN`;
+      const transmission = requestData.gearbox?.toLowerCase() === 'automatic' ? 'automatic' : 'manual';
+      url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${requestData.vin}/odometer:${requestData.mileage}/transmission:${transmission}/currency:PLN`;
     }
 
     console.log('Making API request to:', url);
@@ -87,7 +93,7 @@ serve(async (req) => {
       model: requestData.model || responseData?.model || 'Not available',
       year: requestData.year || responseData?.year || null,
       vin: requestData.vin || '',
-      transmission: requestData.transmission || 'manual',
+      transmission: requestData.transmission || requestData.gearbox || 'manual',
       valuation: valuationPrice,
       mileage: requestData.mileage
     };

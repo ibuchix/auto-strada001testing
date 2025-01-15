@@ -90,13 +90,13 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="transmission" className="text-body">Transmission</Label>
+        <Label htmlFor="transmission" className="text-body">Transmission Type</Label>
         <Select
           value={formData.transmission}
           onValueChange={(value) => onInputChange('transmission', value)}
         >
           <SelectTrigger className={`w-full border ${errors.transmission ? 'border-primary' : 'border-gray-200'}`}>
-            <SelectValue placeholder="Select transmission" />
+            <SelectValue placeholder="Select transmission type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="manual">Manual</SelectItem>
