@@ -2,8 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { calculateChecksum } from "./utils/checksum.ts";
 
-const API_ID = Deno.env.get('CAR_API_ID') || '';
-const API_SECRET = Deno.env.get('CAR_API_SECRET') || '';
+const API_ID = Deno.env.get('CAR_API_ID');
+const API_SECRET = Deno.env.get('CAR_API_SECRET');
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -12,6 +12,12 @@ serve(async (req) => {
   }
 
   try {
+    // Validate API credentials first
+    if (!API_ID || !API_SECRET) {
+      console.error('Missing API credentials:', { API_ID_exists: !!API_ID, API_SECRET_exists: !!API_SECRET });
+      throw new Error('API configuration is incomplete. Please check the environment variables.');
+    }
+
     const { vin, mileage, gearbox } = await req.json();
     console.log('Processing VIN valuation request:', { vin, mileage, gearbox });
 
