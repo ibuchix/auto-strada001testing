@@ -1,33 +1,16 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useValuationState } from "./hooks/useValuationState";
+import { checkExistingVin, getValuation, createExistingValuation } from "./services/valuationService";
 import { ManualValuationData } from "../ManualValuationForm";
-import { Database } from "@/integrations/supabase/types";
-
-type TransmissionType = Database['public']['Enums']['car_transmission_type'];
-
-interface ValuationData {
-  valuation?: number;
-  make?: string;
-  model?: string;
-  year?: number;
-  [key: string]: any;
-}
 
 export const useValuationForm = () => {
-  const [vin, setVin] = useState("");
-  const [mileage, setMileage] = useState("");
-  const [gearbox, setGearbox] = useState<TransmissionType>("manual");
-  const [isLoading, setIsLoading] = useState(false);
-  const [valuationResult, setValuationResult] = useState<any>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [showManualForm, setShowManualForm] = useState(false);
   const navigate = useNavigate();
-
+  const { formState, setters } = useValuationState();
+  
   const handleManualSubmit = async (data: ManualValuationData) => {
     console.log('Starting manual valuation with data:', data);
-    setIsLoading(true);
+    setters.setIsLoading(true);
 
     try {
       const { data: response, error } = await supabase.functions.invoke('get-manual-valuation', {
@@ -40,17 +23,8 @@ export const useValuationForm = () => {
         }
       });
 
-      if (error) {
-        console.error('Manual valuation error:', error);
-        toast.error("Failed to get valuation. Please try again later.");
-        return;
-      }
-
-      if (!response.success) {
-        console.error('Manual valuation failed:', response);
-        toast.error(response.message || "Failed to get valuation");
-        return;
-      }
+      if (error) throw error;
+      if (!response.success) throw new Error(response.message || "Failed to get valuation");
 
       const valuationData = response.data;
       console.log('Received valuation data:', valuationData);
@@ -59,158 +33,92 @@ export const useValuationForm = () => {
       localStorage.setItem('tempMileage', data.mileage);
       localStorage.setItem('tempGearbox', data.transmission);
 
-      setValuationResult(valuationData);
-      setShowManualForm(false);
-      setDialogOpen(true);
+      setters.setValuationResult(valuationData);
+      setters.setShowManualForm(false);
+      setters.setDialogOpen(true);
       toast.success("Valuation completed successfully!");
     } catch (error: any) {
       console.error('Manual valuation error:', error);
       toast.error("Failed to get valuation. Please try again later.");
     } finally {
-      setIsLoading(false);
+      setters.setIsLoading(false);
     }
   };
 
   const handleVinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Starting VIN validation with:', { vin, mileage, gearbox });
+    console.log('Starting VIN validation with:', { 
+      vin: formState.vin, 
+      mileage: formState.mileage, 
+      gearbox: formState.gearbox 
+    });
     
-    if (!vin.trim()) {
+    if (!formState.vin.trim()) {
       toast.error("Please enter your VIN number");
       return;
     }
 
-    if (!mileage.trim()) {
+    if (!formState.mileage.trim()) {
       toast.error("Please enter your vehicle's mileage");
       return;
     }
 
-    setIsLoading(true);
+    setters.setIsLoading(true);
     try {
-      console.log('Checking for existing VIN in database');
-      const { data: existingCar, error: vinCheckError } = await supabase
-        .from('cars')
-        .select('id, make, model, year, mileage, price, valuation_data')
-        .eq('vin', vin)
-        .eq('is_draft', false)
-        .maybeSingle();
-
-      console.log('VIN check result:', { existingCar, vinCheckError });
-
-      if (vinCheckError) {
-        console.error('VIN check error:', vinCheckError);
-        toast.error("Error checking VIN. Please try again.");
-        setIsLoading(false);
-        return;
-      }
+      const existingCar = await checkExistingVin(formState.vin);
 
       if (existingCar) {
         console.log('Found existing car:', existingCar);
-        const valuationData = existingCar.valuation_data as ValuationData;
-        
-        // Use existing car data to create a valuation result
-        const existingValuation = {
-          make: existingCar.make || 'Not available',
-          model: existingCar.model || 'Not available',
-          year: existingCar.year || new Date().getFullYear(),
-          vin: vin,
-          transmission: gearbox,
-          valuation: valuationData?.valuation || existingCar.price || 0,
-          isExisting: true
-        };
+        const valuationData = existingCar.valuation_data as any;
+        const existingValuation = createExistingValuation(
+          existingCar, 
+          formState.vin, 
+          formState.gearbox, 
+          valuationData
+        );
 
-        setValuationResult(existingValuation);
-        setDialogOpen(true);
-        setIsLoading(false);
+        setters.setValuationResult(existingValuation);
+        setters.setDialogOpen(true);
         return;
       }
 
-      console.log('Proceeding with Edge Function call');
-      const { data, error } = await supabase.functions.invoke('get-car-valuation', {
-        body: { 
-          vin: vin.trim(),
-          mileage: parseInt(mileage),
-          gearbox 
-        }
-      });
-
-      console.log('Edge Function response:', { data, error });
-
-      if (error) {
-        console.error('Valuation error:', error);
-        toast.error("Failed to get vehicle valuation. Please try entering details manually.", {
-          action: {
-            label: "Enter Manually",
-            onClick: () => setShowManualForm(true)
-          }
-        });
-        return;
-      }
-
-      if (!data?.success) {
-        console.error('Valuation failed:', data);
-        toast.error(data?.message || "Failed to get vehicle valuation. Please try entering details manually.", {
-          action: {
-            label: "Enter Manually",
-            onClick: () => setShowManualForm(true)
-          }
-        });
-        return;
-      }
-
-      const valuationData = data.data;
-      console.log('Processing valuation data:', valuationData);
-      
-      if (!valuationData) {
-        console.error('No valuation data received');
-        toast.error("Failed to get vehicle valuation. Please try entering details manually.", {
-          action: {
-            label: "Enter Manually",
-            onClick: () => setShowManualForm(true)
-          }
-        });
-        return;
-      }
+      const valuationData = await getValuation(
+        formState.vin, 
+        parseInt(formState.mileage), 
+        formState.gearbox
+      );
 
       localStorage.setItem('valuationData', JSON.stringify(valuationData));
-      localStorage.setItem('tempVIN', vin);
-      localStorage.setItem('tempMileage', mileage);
-      localStorage.setItem('tempGearbox', gearbox);
+      localStorage.setItem('tempVIN', formState.vin);
+      localStorage.setItem('tempMileage', formState.mileage);
+      localStorage.setItem('tempGearbox', formState.gearbox);
 
-      setValuationResult(valuationData);
-      setDialogOpen(true);
+      setters.setValuationResult(valuationData);
+      setters.setDialogOpen(true);
       toast.success("Valuation completed successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error during valuation:', error);
       toast.error("Failed to get vehicle valuation. Please try entering details manually.", {
         action: {
           label: "Enter Manually",
-          onClick: () => setShowManualForm(true)
+          onClick: () => setters.setShowManualForm(true)
         }
       });
     } finally {
-      setIsLoading(false);
+      setters.setIsLoading(false);
     }
   };
 
   const handleContinue = () => {
-    setDialogOpen(false);
+    setters.setDialogOpen(false);
     navigate('/sell-my-car');
   };
 
   return {
-    vin,
-    setVin,
-    mileage,
-    setMileage,
-    gearbox,
-    setGearbox,
-    isLoading,
-    valuationResult,
-    dialogOpen,
-    setDialogOpen,
-    showManualForm,
-    setShowManualForm,
+    ...formState,
+    setVin: setters.setVin,
+    setMileage: setters.setMileage,
+    setGearbox: setters.setGearbox,
     handleManualSubmit,
     handleVinSubmit,
     handleContinue
