@@ -94,27 +94,21 @@ export const useValuationForm = () => {
       }
 
       console.log('Invoking get-car-valuation function with:', { vin, mileage, gearbox });
-      const response = await supabase.functions.invoke('get-car-valuation', {
+      const { data, error } = await supabase.functions.invoke('get-car-valuation', {
         body: { 
           vin: vin.trim(),
           mileage: parseInt(mileage),
           gearbox 
-        },
-        headers: {
-          'Content-Type': 'application/json',
         }
       });
 
-      console.log('Full response from get-car-valuation:', response);
+      console.log('Response from get-car-valuation:', { data, error });
 
-      if (response.error) {
-        console.error('Valuation error:', response.error);
+      if (error) {
+        console.error('Valuation error:', error);
         handleValuationError();
         return;
       }
-
-      const data = response.data;
-      console.log('Response data:', data);
 
       if (!data?.success) {
         console.error('Valuation failed:', data);
@@ -131,7 +125,11 @@ export const useValuationForm = () => {
         return;
       }
 
-      storeValuationData(valuationData);
+      localStorage.setItem('valuationData', JSON.stringify(valuationData));
+      localStorage.setItem('tempVIN', vin);
+      localStorage.setItem('tempMileage', mileage);
+      localStorage.setItem('tempGearbox', gearbox);
+
       setValuationResult(valuationData);
       setDialogOpen(true);
       toast.success("Valuation completed successfully!");
@@ -153,13 +151,6 @@ export const useValuationForm = () => {
         }
       },
     });
-  };
-
-  const storeValuationData = (valuationData: any) => {
-    localStorage.setItem('valuationData', JSON.stringify(valuationData));
-    localStorage.setItem('tempVIN', vin);
-    localStorage.setItem('tempMileage', mileage);
-    localStorage.setItem('tempGearbox', gearbox);
   };
 
   const handleContinue = () => {
