@@ -114,7 +114,7 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
         <Label htmlFor="fuel">Fuel Type</Label>
         <Select
           value={formData.fuel}
-          onValueChange={(value) => onInputChange('fuel', value)}
+          onValueChange={(value) => onInputChange('fuel', value.toLowerCase())}
         >
           <SelectTrigger className={errors.fuel ? 'border-primary' : ''}>
             <SelectValue placeholder="Select fuel type" />
