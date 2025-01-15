@@ -19,14 +19,12 @@ const fuelOptions: { value: FuelType; display: string }[] = [
   { value: "petrol", display: "Petrol" },
   { value: "diesel", display: "Diesel" },
   { value: "electric", display: "Electric" },
-  { value: "hybrid", display: "Hybrid" },
-  { value: "lpg", display: "LPG" }
+  { value: "hybrid", display: "Hybrid" }
 ];
 
 const transmissionOptions: { value: TransmissionType; display: string }[] = [
   { value: "manual", display: "Manual" },
-  { value: "automatic", display: "Automatic" },
-  { value: "semi_automatic", display: "Semi-Automatic" }
+  { value: "automatic", display: "Automatic" }
 ];
 
 const countryOptions: { value: CountryCode; display: string }[] = [
