@@ -16,9 +16,9 @@ interface FormFieldsProps {
 }
 
 const countryOptions: { value: CountryCode; display: string }[] = [
-  { value: "PL", display: "PL" },
-  { value: "DE", display: "DE" },
-  { value: "UK", display: "UK" }
+  { value: "PL", display: "pl" },
+  { value: "DE", display: "de" },
+  { value: "UK", display: "uk" }
 ];
 
 const fuelOptions: { value: FuelType; display: string }[] = [
