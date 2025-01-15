@@ -35,17 +35,14 @@ export const ManualValuationForm = ({
     year: '',
     mileage: mileage,
     transmission: transmission,
-    fuel: 'petrol', // Set default value to a valid fuel type
+    fuel: 'petrol',
     country: 'PL'
   });
 
   const { errors, validateForm, setErrors } = useFormValidation();
 
   const handleInputChange = (field: keyof ManualValuationData, value: string) => {
-    // For fuel type, ensure it's lowercase to match API requirements
-    const processedValue = field === 'fuel' ? value.toLowerCase() : value;
-    
-    setFormData(prev => ({ ...prev, [field]: processedValue }));
+    setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
@@ -53,11 +50,18 @@ export const ManualValuationForm = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Manual form submission with fuel type:', formData.fuel);
+    console.log('Form data before submission:', formData);
     
     if (validateForm(formData)) {
-      console.log('Form validation passed, submitting:', formData);
-      onSubmit(formData);
+      // Transform the data before submission
+      const transformedData = {
+        ...formData,
+        fuel: formData.fuel.toLowerCase(),
+        country: formData.country.toUpperCase()
+      };
+      
+      console.log('Submitting transformed data:', transformedData);
+      onSubmit(transformedData);
     }
   };
 
