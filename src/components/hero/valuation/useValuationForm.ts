@@ -92,12 +92,14 @@ export const useValuationForm = () => {
       if (vinCheckError) {
         console.error('VIN check error:', vinCheckError);
         toast.error("Error checking VIN. Please try again.");
+        setIsLoading(false);
         return;
       }
 
       if (publishedCar) {
         console.log('VIN already exists in database');
         toast.error("This VIN number is already registered in our system");
+        setIsLoading(false);
         return;
       }
 
