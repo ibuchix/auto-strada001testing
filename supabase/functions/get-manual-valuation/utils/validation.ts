@@ -1,5 +1,13 @@
-import { FuelType, CountryCode, TransmissionType } from '../types/enums.ts';
+import { Database } from "@/integrations/supabase/types";
 import { ManualValuationRequest, ValidationResult } from '../types/validation.ts';
+
+type FuelType = Database['public']['Enums']['car_fuel_type'];
+type CountryCode = Database['public']['Enums']['car_country_code'];
+type TransmissionType = Database['public']['Enums']['car_transmission_type'];
+
+const VALID_FUEL_TYPES: FuelType[] = ['petrol', 'diesel', 'electric', 'hybrid'];
+const VALID_COUNTRY_CODES: CountryCode[] = ['PL', 'DE', 'UK'];
+const VALID_TRANSMISSION_TYPES: TransmissionType[] = ['manual', 'automatic'];
 
 export function normalizeData(data: any): Partial<ManualValuationRequest> {
   console.log('Normalizing data:', data);
@@ -32,22 +40,24 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
     errors.push('Invalid mileage');
   }
 
-  // Enum validations with detailed logging
-  if (!Object.values(TransmissionType).includes(data.transmission as TransmissionType)) {
+  // Transmission validation
+  if (!data.transmission || !VALID_TRANSMISSION_TYPES.includes(data.transmission as TransmissionType)) {
     errors.push('Invalid transmission type');
-    console.log('Available transmission types:', Object.values(TransmissionType));
+    console.log('Available transmission types:', VALID_TRANSMISSION_TYPES);
     console.log('Received transmission:', data.transmission);
   }
 
-  if (!Object.values(FuelType).includes(data.fuel as FuelType)) {
+  // Fuel type validation
+  if (!data.fuel || !VALID_FUEL_TYPES.includes(data.fuel as FuelType)) {
     errors.push('Invalid fuel type');
-    console.log('Available fuel types:', Object.values(FuelType));
+    console.log('Available fuel types:', VALID_FUEL_TYPES);
     console.log('Received fuel type:', data.fuel);
   }
 
-  if (!Object.values(CountryCode).includes(data.country as CountryCode)) {
+  // Country code validation
+  if (!data.country || !VALID_COUNTRY_CODES.includes(data.country as CountryCode)) {
     errors.push('Invalid country code');
-    console.log('Available country codes:', Object.values(CountryCode));
+    console.log('Available country codes:', VALID_COUNTRY_CODES);
     console.log('Received country:', data.country);
   }
 

@@ -7,7 +7,7 @@ type CountryCode = Database['public']['Enums']['car_country_code'];
 type TransmissionType = Database['public']['Enums']['car_transmission_type'];
 
 const isValidFuelType = (value: string): value is FuelType => {
-  return ['petrol', 'diesel', 'electric', 'hybrid', 'lpg'].includes(value);
+  return ['petrol', 'diesel', 'electric', 'hybrid'].includes(value);
 };
 
 const isValidCountryCode = (value: string): value is CountryCode => {
@@ -15,7 +15,7 @@ const isValidCountryCode = (value: string): value is CountryCode => {
 };
 
 const isValidTransmissionType = (value: string): value is TransmissionType => {
-  return ['manual', 'automatic', 'semi_automatic'].includes(value);
+  return ['manual', 'automatic'].includes(value);
 };
 
 export const useFormValidation = () => {
@@ -26,12 +26,12 @@ export const useFormValidation = () => {
     const currentYear = new Date().getFullYear();
 
     // Validate make
-    if (!data.make.trim()) {
+    if (!data.make?.trim()) {
       newErrors.make = 'Make is required';
     }
 
     // Validate model
-    if (!data.model.trim()) {
+    if (!data.model?.trim()) {
       newErrors.model = 'Model is required';
     }
 
