@@ -18,31 +18,38 @@ interface ManualValuationRequest {
 }
 
 function calculateChecksum(apiId: string, apiSecret: string, make: string, model: string): string {
-  console.log('Calculating checksum for manual entry');
+  console.log('Calculating checksum for manual entry:', { make, model });
   const input = `${apiId}${apiSecret}${make}${model}`;
   const hash = crypto.subtle.digestSync("MD5", new TextEncoder().encode(input));
   return encode(new Uint8Array(hash));
 }
 
 function validateRequest(data: ManualValuationRequest) {
-  if (!data.make?.trim()) throw new Error('Make is required');
-  if (!data.model?.trim()) throw new Error('Model is required');
+  const errors = [];
+  if (!data.make?.trim()) errors.push('Make is required');
+  if (!data.model?.trim()) errors.push('Model is required');
   if (!data.year || data.year < 1900 || data.year > new Date().getFullYear() + 1) {
-    throw new Error('Invalid year');
+    errors.push('Invalid year');
   }
-  if (!data.mileage || data.mileage < 0) throw new Error('Invalid mileage');
+  if (!data.mileage || data.mileage < 0) errors.push('Invalid mileage');
   if (!['manual', 'automatic'].includes(data.transmission?.toLowerCase())) {
-    throw new Error('Invalid transmission type');
+    errors.push('Invalid transmission type');
   }
   if (!['petrol', 'diesel', 'electric', 'hybrid'].includes(data.fuel?.toLowerCase())) {
-    throw new Error('Invalid fuel type');
+    errors.push('Invalid fuel type');
   }
   if (!['PL', 'DE', 'UK'].includes(data.country)) {
-    throw new Error('Invalid country');
+    errors.push('Invalid country');
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(`Validation failed: ${errors.join(', ')}`);
   }
 }
 
 serve(async (req) => {
+  console.log('Received request:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
@@ -56,6 +63,7 @@ serve(async (req) => {
     const apiSecret = Deno.env.get('CAR_API_SECRET');
 
     if (!apiId || !apiSecret) {
+      console.error('API credentials not configured');
       throw new Error('API credentials not configured');
     }
 
@@ -71,22 +79,43 @@ serve(async (req) => {
 
     const checksum = calculateChecksum(apiId, apiSecret, requestData.make, requestData.model);
     const transmission = requestData.transmission?.toLowerCase() === 'automatic' ? 'automatic' : 'manual';
-    console.log('Using transmission type:', transmission);
-
+    
     // Construct URL with all required parameters
-    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${encodeURIComponent(apiId)}/checksum:${encodeURIComponent(checksum)}/make:${encodeURIComponent(requestData.make)}/model:${encodeURIComponent(requestData.model)}/year:${encodeURIComponent(requestData.year)}/odometer:${encodeURIComponent(requestData.mileage)}/transmission:${encodeURIComponent(transmission)}/currency:PLN/country:${encodeURIComponent(requestData.country)}/fuel:${encodeURIComponent(requestData.fuel)}`;
+    const params = new URLSearchParams({
+      'apiuid': apiId,
+      'checksum': checksum,
+      'make': requestData.make,
+      'model': requestData.model,
+      'year': requestData.year.toString(),
+      'odometer': requestData.mileage.toString(),
+      'transmission': transmission,
+      'currency': 'PLN',
+      'country': requestData.country,
+      'fuel': requestData.fuel.toLowerCase()
+    });
+
+    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/${Array.from(params.entries())
+      .map(([key, value]) => `${key}:${encodeURIComponent(value)}`)
+      .join('/')}`;
     
     console.log('Making API request to:', url);
+    
     const response = await fetch(url);
+    const responseText = await response.text();
+    console.log('Raw API Response:', responseText);
     
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error Response:', errorText);
-      throw new Error(`API responded with status: ${response.status}. Response: ${errorText}`);
+      console.error('API Error Response:', responseText);
+      throw new Error(`API responded with status: ${response.status}. Response: ${responseText}`);
     }
     
-    const responseData = await response.json();
-    console.log('Manual valuation API response:', responseData);
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse API response:', e);
+      throw new Error('Invalid response from valuation API');
+    }
 
     // Check for API-specific error responses
     if (responseData.apiStatus === 'ER') {
@@ -100,16 +129,12 @@ serve(async (req) => {
       console.log('Attempting to extract price from response structure:', JSON.stringify(responseData));
       
       if (typeof responseData.price === 'number') {
-        console.log('Found price directly in response');
         valuationPrice = responseData.price;
       } else if (responseData.valuation && typeof responseData.valuation.price === 'number') {
-        console.log('Found price in valuation object');
         valuationPrice = responseData.valuation.price;
       } else if (typeof responseData.estimated_value === 'number') {
-        console.log('Found price in estimated_value');
         valuationPrice = responseData.estimated_value;
       } else if (typeof responseData.value === 'number') {
-        console.log('Found price in value');
         valuationPrice = responseData.value;
       }
     }
