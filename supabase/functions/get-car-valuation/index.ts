@@ -21,6 +21,7 @@ serve(async (req) => {
     let parsedBody;
     try {
       parsedBody = JSON.parse(requestBody);
+      console.log('Parsed request body:', parsedBody);
     } catch (parseError) {
       console.error('Failed to parse request body:', parseError);
       throw new Error('Invalid JSON in request body');
@@ -42,18 +43,19 @@ serve(async (req) => {
     console.log('Calling API:', apiUrl);
 
     const response = await fetch(apiUrl);
+    console.log('API Response status:', response.status);
+    
     const responseText = await response.text();
     console.log('Raw API Response:', responseText);
 
     let responseData;
     try {
       responseData = JSON.parse(responseText);
+      console.log('Parsed API Response:', responseData);
     } catch (parseError) {
       console.error('Failed to parse API response:', parseError);
       throw new Error('Invalid JSON response from API');
     }
-    
-    console.log('Parsed API Response:', responseData);
 
     if (!response.ok) {
       throw new Error(`API responded with status: ${response.status}`);
