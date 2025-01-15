@@ -15,7 +15,18 @@ serve(async (req) => {
   }
 
   try {
-    const { vin, mileage, gearbox } = await req.json();
+    const requestBody = await req.text();
+    console.log('Raw request body:', requestBody);
+
+    let parsedBody;
+    try {
+      parsedBody = JSON.parse(requestBody);
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      throw new Error('Invalid JSON in request body');
+    }
+
+    const { vin, mileage, gearbox } = parsedBody;
     console.log('Processing VIN valuation request:', { vin, mileage, gearbox });
 
     if (!vin || !mileage) {
@@ -31,8 +42,18 @@ serve(async (req) => {
     console.log('Calling API:', apiUrl);
 
     const response = await fetch(apiUrl);
-    const responseData = await response.json();
-    console.log('API Response:', responseData);
+    const responseText = await response.text();
+    console.log('Raw API Response:', responseText);
+
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse API response:', parseError);
+      throw new Error('Invalid JSON response from API');
+    }
+    
+    console.log('Parsed API Response:', responseData);
 
     if (!response.ok) {
       throw new Error(`API responded with status: ${response.status}`);
