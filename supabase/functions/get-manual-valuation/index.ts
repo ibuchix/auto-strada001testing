@@ -13,6 +13,8 @@ interface ManualValuationRequest {
   year: number;
   mileage: number;
   transmission: string;
+  fuel: string;
+  country: string;
 }
 
 function calculateChecksum(apiId: string, apiSecret: string, make: string, model: string): string {
@@ -31,6 +33,12 @@ function validateRequest(data: ManualValuationRequest) {
   if (!data.mileage || data.mileage < 0) throw new Error('Invalid mileage');
   if (!['manual', 'automatic'].includes(data.transmission?.toLowerCase())) {
     throw new Error('Invalid transmission type');
+  }
+  if (!['petrol', 'diesel', 'electric', 'hybrid'].includes(data.fuel?.toLowerCase())) {
+    throw new Error('Invalid fuel type');
+  }
+  if (!['PL', 'DE', 'UK'].includes(data.country)) {
+    throw new Error('Invalid country');
   }
 }
 
@@ -59,8 +67,8 @@ serve(async (req) => {
     const transmission = requestData.transmission?.toLowerCase() === 'automatic' ? 'automatic' : 'manual';
     console.log('Using transmission type:', transmission);
 
-    // Construct URL with proper encoding and all required parameters
-    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${encodeURIComponent(apiId)}/checksum:${encodeURIComponent(checksum)}/make:${encodeURIComponent(requestData.make)}/model:${encodeURIComponent(requestData.model)}/year:${encodeURIComponent(requestData.year)}/odometer:${encodeURIComponent(requestData.mileage)}/transmission:${encodeURIComponent(transmission)}/currency:PLN/country:PL/fuel:petrol`;
+    // Construct URL with all required parameters
+    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${encodeURIComponent(apiId)}/checksum:${encodeURIComponent(checksum)}/make:${encodeURIComponent(requestData.make)}/model:${encodeURIComponent(requestData.model)}/year:${encodeURIComponent(requestData.year)}/odometer:${encodeURIComponent(requestData.mileage)}/transmission:${encodeURIComponent(transmission)}/currency:PLN/country:${encodeURIComponent(requestData.country)}/fuel:${encodeURIComponent(requestData.fuel)}`;
     
     console.log('Making API request to:', url);
     const response = await fetch(url);
