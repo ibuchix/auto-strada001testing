@@ -6,17 +6,9 @@ type FuelType = Database['public']['Enums']['car_fuel_type'];
 type CountryCode = Database['public']['Enums']['car_country_code'];
 type TransmissionType = Database['public']['Enums']['car_transmission_type'];
 
-const isValidFuelType = (value: string): value is FuelType => {
-  return ['petrol', 'diesel', 'electric', 'hybrid'].includes(value);
-};
-
-const isValidCountryCode = (value: string): value is CountryCode => {
-  return ['PL', 'DE', 'UK'].includes(value);
-};
-
-const isValidTransmissionType = (value: string): value is TransmissionType => {
-  return ['manual', 'automatic'].includes(value);
-};
+const VALID_FUEL_TYPES: FuelType[] = ['petrol', 'diesel', 'electric', 'hybrid'];
+const VALID_COUNTRY_CODES: CountryCode[] = ['PL', 'DE', 'UK'];
+const VALID_TRANSMISSION_TYPES: TransmissionType[] = ['manual', 'automatic'];
 
 export const useFormValidation = () => {
   const [errors, setErrors] = useState<Partial<Record<keyof ManualValuationData, string>>>({});
@@ -53,17 +45,17 @@ export const useFormValidation = () => {
     }
 
     // Validate transmission
-    if (!data.transmission || !isValidTransmissionType(data.transmission)) {
+    if (!data.transmission || !VALID_TRANSMISSION_TYPES.includes(data.transmission as TransmissionType)) {
       newErrors.transmission = 'Please select a valid transmission type';
     }
 
     // Validate fuel type
-    if (!data.fuel || !isValidFuelType(data.fuel)) {
+    if (!data.fuel || !VALID_FUEL_TYPES.includes(data.fuel as FuelType)) {
       newErrors.fuel = 'Please select a valid fuel type';
     }
 
     // Validate country
-    if (!data.country || !isValidCountryCode(data.country)) {
+    if (!data.country || !VALID_COUNTRY_CODES.includes(data.country as CountryCode)) {
       newErrors.country = 'Please select a valid country';
     }
 
