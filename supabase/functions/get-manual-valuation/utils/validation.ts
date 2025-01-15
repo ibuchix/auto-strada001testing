@@ -12,9 +12,9 @@ export function normalizeData(data: any): Partial<ManualValuationRequest> {
     model: String(data.model || '').trim(),
     year: Number(data.year),
     mileage: Number(data.mileage),
-    transmission: String(data.transmission || '').toLowerCase().trim() as TransmissionType,
-    fuel: String(data.fuel || '').toLowerCase().trim() as FuelType,
-    country: String(data.country || '').toUpperCase().trim() as CountryCode,
+    transmission: String(data.transmission || '').toLowerCase() as TransmissionType,
+    fuel: String(data.fuel || '').toLowerCase() as FuelType,
+    country: String(data.country || '').toUpperCase() as CountryCode,
   };
 }
 
@@ -27,7 +27,8 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
   if (!data.model?.trim()) errors.push('Model is required');
   
   // Year validation
-  if (!data.year || isNaN(data.year) || data.year < 1900 || data.year > new Date().getFullYear() + 1) {
+  const currentYear = new Date().getFullYear();
+  if (!data.year || isNaN(data.year) || data.year < 1900 || data.year > currentYear + 1) {
     errors.push('Invalid year');
   }
 
