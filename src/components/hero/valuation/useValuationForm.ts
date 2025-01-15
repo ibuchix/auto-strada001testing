@@ -95,10 +95,13 @@ export const useValuationForm = () => {
 
       console.log('Invoking get-car-valuation function with:', { vin, mileage, gearbox });
       const { data, error } = await supabase.functions.invoke('get-car-valuation', {
-        body: { 
+        body: JSON.stringify({ 
           vin: vin.trim(),
           mileage: parseInt(mileage),
           gearbox 
+        }),
+        headers: {
+          'Content-Type': 'application/json'
         }
       });
 
