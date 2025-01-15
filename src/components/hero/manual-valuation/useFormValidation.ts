@@ -1,52 +1,37 @@
 import { useState } from "react";
 import { ManualValuationData } from "../ManualValuationForm";
-import { toast } from "sonner";
 
 export const useFormValidation = () => {
-  const [errors, setErrors] = useState<Partial<ManualValuationData>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof ManualValuationData, string>>>({});
 
-  const validateForm = (formData: ManualValuationData) => {
-    const newErrors: Partial<ManualValuationData> = {};
+  const validateForm = (data: ManualValuationData) => {
+    const newErrors: Partial<Record<keyof ManualValuationData, string>> = {};
     const currentYear = new Date().getFullYear();
-    
-    if (!formData.make.trim()) {
-      newErrors.make = "Make is required";
-    } else if (formData.make.length < 2) {
-      newErrors.make = "Make must be at least 2 characters";
+
+    if (!data.make?.trim()) {
+      newErrors.make = 'Make is required';
     }
 
-    if (!formData.model.trim()) {
-      newErrors.model = "Model is required";
-    } else if (formData.model.length < 2) {
-      newErrors.model = "Model must be at least 2 characters";
+    if (!data.model?.trim()) {
+      newErrors.model = 'Model is required';
     }
 
-    const yearNum = parseInt(formData.year);
-    if (!formData.year.trim()) {
-      newErrors.year = "Year is required";
-    } else if (yearNum < 1900 || yearNum > currentYear) {
-      newErrors.year = `Year must be between 1900 and ${currentYear}`;
+    const year = parseInt(data.year);
+    if (!year || year < 1900 || year > currentYear + 1) {
+      newErrors.year = 'Please enter a valid year';
     }
 
-    const mileageNum = parseInt(formData.mileage);
-    if (!formData.mileage.trim()) {
-      newErrors.mileage = "Mileage is required";
-    } else if (isNaN(mileageNum) || mileageNum < 0 || mileageNum > 999999) {
-      newErrors.mileage = "Please enter a valid mileage between 0 and 999,999";
+    const mileage = parseInt(data.mileage);
+    if (!mileage || mileage < 0) {
+      newErrors.mileage = 'Please enter a valid mileage';
     }
 
-    if (!formData.transmission) {
-      newErrors.transmission = "Transmission type is required";
+    if (!['manual', 'automatic'].includes(data.transmission?.toLowerCase())) {
+      newErrors.transmission = 'Please select a transmission type';
     }
 
     setErrors(newErrors);
-    
-    if (Object.keys(newErrors).length > 0) {
-      toast.error("Please correct the errors in the form");
-      return false;
-    }
-    
-    return true;
+    return Object.keys(newErrors).length === 0;
   };
 
   return { errors, validateForm, setErrors };

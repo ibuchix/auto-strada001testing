@@ -6,23 +6,23 @@ import { ManualValuationData } from "../ManualValuationForm";
 
 interface FormFieldsProps {
   formData: ManualValuationData;
-  errors: Partial<ManualValuationData>;
+  errors: Partial<Record<keyof ManualValuationData, string>>;
   onInputChange: (field: keyof ManualValuationData, value: string) => void;
 }
 
 export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps) => {
   const currentYear = new Date().getFullYear();
-
+  
   return (
-    <>
-      <div className="space-y-2">
-        <Label htmlFor="make" className="text-body">Make</Label>
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="make">Make</Label>
         <Input
           id="make"
-          placeholder="e.g., BMW"
-          className={`border ${errors.make ? 'border-primary' : 'border-gray-200'}`}
           value={formData.make}
           onChange={(e) => onInputChange('make', e.target.value)}
+          placeholder="e.g., BMW"
+          className={errors.make ? 'border-primary' : ''}
         />
         {errors.make && (
           <div className="flex items-center gap-2 text-primary text-sm mt-1">
@@ -32,14 +32,14 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="model" className="text-body">Model</Label>
+      <div>
+        <Label htmlFor="model">Model</Label>
         <Input
           id="model"
-          placeholder="e.g., X5"
-          className={`border ${errors.model ? 'border-primary' : 'border-gray-200'}`}
           value={formData.model}
           onChange={(e) => onInputChange('model', e.target.value)}
+          placeholder="e.g., X5"
+          className={errors.model ? 'border-primary' : ''}
         />
         {errors.model && (
           <div className="flex items-center gap-2 text-primary text-sm mt-1">
@@ -49,17 +49,17 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="year" className="text-body">Year</Label>
+      <div>
+        <Label htmlFor="year">Year</Label>
         <Input
           id="year"
           type="number"
           min="1900"
-          max={currentYear}
-          placeholder="e.g., 2020"
-          className={`border ${errors.year ? 'border-primary' : 'border-gray-200'}`}
+          max={currentYear + 1}
           value={formData.year}
           onChange={(e) => onInputChange('year', e.target.value)}
+          placeholder="e.g., 2020"
+          className={errors.year ? 'border-primary' : ''}
         />
         {errors.year && (
           <div className="flex items-center gap-2 text-primary text-sm mt-1">
@@ -69,17 +69,16 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="mileage" className="text-body">Mileage (KM)</Label>
+      <div>
+        <Label htmlFor="mileage">Mileage (KM)</Label>
         <Input
           id="mileage"
           type="number"
           min="0"
-          max="999999"
-          placeholder="e.g., 50000"
-          className={`border ${errors.mileage ? 'border-primary' : 'border-gray-200'}`}
           value={formData.mileage}
           onChange={(e) => onInputChange('mileage', e.target.value)}
+          placeholder="e.g., 50000"
+          className={errors.mileage ? 'border-primary' : ''}
         />
         {errors.mileage && (
           <div className="flex items-center gap-2 text-primary text-sm mt-1">
@@ -89,13 +88,13 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="transmission" className="text-body">Transmission Type</Label>
+      <div>
+        <Label htmlFor="transmission">Transmission</Label>
         <Select
           value={formData.transmission}
           onValueChange={(value) => onInputChange('transmission', value)}
         >
-          <SelectTrigger className={`w-full border ${errors.transmission ? 'border-primary' : 'border-gray-200'}`}>
+          <SelectTrigger className={errors.transmission ? 'border-primary' : ''}>
             <SelectValue placeholder="Select transmission type" />
           </SelectTrigger>
           <SelectContent>
@@ -110,6 +109,10 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
           </div>
         )}
       </div>
-    </>
+
+      {/* Hidden fields with default values */}
+      <input type="hidden" name="fuel" value={formData.fuel} />
+      <input type="hidden" name="country" value={formData.country} />
+    </div>
   );
 };

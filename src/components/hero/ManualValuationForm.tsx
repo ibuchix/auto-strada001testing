@@ -10,6 +10,8 @@ export interface ManualValuationData {
   year: string;
   mileage: string;
   transmission: string;
+  fuel: string;
+  country: string;
 }
 
 interface ManualValuationFormProps {
@@ -32,7 +34,9 @@ export const ManualValuationForm = ({
     model: '',
     year: '',
     mileage: mileage,
-    transmission: transmission
+    transmission: transmission,
+    fuel: 'petrol', // Default value as required by API
+    country: 'PL'   // Default value as required by API
   });
 
   const { errors, validateForm, setErrors } = useFormValidation();
