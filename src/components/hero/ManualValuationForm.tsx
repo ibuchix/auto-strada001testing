@@ -40,8 +40,8 @@ export const ManualValuationForm = ({
     year: '',
     mileage: mileage,
     transmission: transmission,
-    fuel: 'petrol',
-    country: 'PL'
+    fuel: 'petrol', // Set default fuel type
+    country: 'PL' // Set default country code
   });
 
   const { errors, validateForm, setErrors } = useFormValidation();
