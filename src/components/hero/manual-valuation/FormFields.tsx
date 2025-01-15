@@ -10,9 +10,34 @@ interface FormFieldsProps {
   onInputChange: (field: keyof ManualValuationData, value: string) => void;
 }
 
+// Map display names to country codes
+const countryOptions = [
+  { display: "Poland", value: "PL" },
+  { display: "Germany", value: "DE" },
+  { display: "United Kingdom", value: "UK" }
+];
+
+// Map display names to lowercase fuel types
+const fuelOptions = [
+  { display: "Petrol", value: "petrol" },
+  { display: "Diesel", value: "diesel" },
+  { display: "Electric", value: "electric" },
+  { display: "Hybrid", value: "hybrid" }
+];
+
 export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps) => {
   const currentYear = new Date().getFullYear();
   
+  // Helper to get display name for country
+  const getCountryDisplay = (code: string) => {
+    return countryOptions.find(option => option.value === code)?.display || code;
+  };
+
+  // Helper to get display name for fuel
+  const getFuelDisplay = (type: string) => {
+    return fuelOptions.find(option => option.value === type)?.display || type;
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -114,16 +139,17 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
         <Label htmlFor="fuel">Fuel Type</Label>
         <Select
           value={formData.fuel}
-          onValueChange={(value) => onInputChange('fuel', value.toLowerCase())}
+          onValueChange={(value) => onInputChange('fuel', value)}
         >
           <SelectTrigger className={errors.fuel ? 'border-primary' : ''}>
             <SelectValue placeholder="Select fuel type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="petrol">Petrol</SelectItem>
-            <SelectItem value="diesel">Diesel</SelectItem>
-            <SelectItem value="electric">Electric</SelectItem>
-            <SelectItem value="hybrid">Hybrid</SelectItem>
+            {fuelOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.display}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         {errors.fuel && (
@@ -144,9 +170,11 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
             <SelectValue placeholder="Select country" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="PL">Poland</SelectItem>
-            <SelectItem value="DE">Germany</SelectItem>
-            <SelectItem value="UK">United Kingdom</SelectItem>
+            {countryOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.display}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         {errors.country && (
