@@ -3,6 +3,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle } from "lucide-react";
 import { ManualValuationData } from "../ManualValuationForm";
+import { Database } from "@/integrations/supabase/types";
+
+type TransmissionType = Database['public']['Enums']['car_transmission_type'];
+type FuelType = Database['public']['Enums']['car_fuel_type'];
+type CountryCode = Database['public']['Enums']['car_country_code'];
 
 interface FormFieldsProps {
   formData: ManualValuationData;
@@ -10,33 +15,26 @@ interface FormFieldsProps {
   onInputChange: (field: keyof ManualValuationData, value: string) => void;
 }
 
-// Map display names to country codes
-const countryOptions = [
+const countryOptions: { display: string; value: CountryCode }[] = [
   { display: "Poland", value: "PL" },
   { display: "Germany", value: "DE" },
   { display: "United Kingdom", value: "UK" }
 ];
 
-// Map display names to lowercase fuel types
-const fuelOptions = [
+const fuelOptions: { display: string; value: FuelType }[] = [
   { display: "Petrol", value: "petrol" },
   { display: "Diesel", value: "diesel" },
   { display: "Electric", value: "electric" },
   { display: "Hybrid", value: "hybrid" }
 ];
 
+const transmissionOptions: { display: string; value: TransmissionType }[] = [
+  { display: "Manual", value: "manual" },
+  { display: "Automatic", value: "automatic" }
+];
+
 export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps) => {
   const currentYear = new Date().getFullYear();
-  
-  // Helper to get display name for country
-  const getCountryDisplay = (code: string) => {
-    return countryOptions.find(option => option.value === code)?.display || code;
-  };
-
-  // Helper to get display name for fuel
-  const getFuelDisplay = (type: string) => {
-    return fuelOptions.find(option => option.value === type)?.display || type;
-  };
 
   return (
     <div className="space-y-4">
@@ -117,14 +115,17 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
         <Label htmlFor="transmission">Transmission</Label>
         <Select
           value={formData.transmission}
-          onValueChange={(value) => onInputChange('transmission', value)}
+          onValueChange={(value: TransmissionType) => onInputChange('transmission', value)}
         >
           <SelectTrigger className={errors.transmission ? 'border-primary' : ''}>
             <SelectValue placeholder="Select transmission type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="manual">Manual</SelectItem>
-            <SelectItem value="automatic">Automatic</SelectItem>
+            {transmissionOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.display}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         {errors.transmission && (
@@ -139,7 +140,7 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
         <Label htmlFor="fuel">Fuel Type</Label>
         <Select
           value={formData.fuel}
-          onValueChange={(value) => onInputChange('fuel', value)}
+          onValueChange={(value: FuelType) => onInputChange('fuel', value)}
         >
           <SelectTrigger className={errors.fuel ? 'border-primary' : ''}>
             <SelectValue placeholder="Select fuel type" />
@@ -164,7 +165,7 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
         <Label htmlFor="country">Country</Label>
         <Select
           value={formData.country}
-          onValueChange={(value) => onInputChange('country', value)}
+          onValueChange={(value: CountryCode) => onInputChange('country', value)}
         >
           <SelectTrigger className={errors.country ? 'border-primary' : ''}>
             <SelectValue placeholder="Select country" />

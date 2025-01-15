@@ -3,11 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ManualValuationData } from "../ManualValuationForm";
+import { Database } from "@/integrations/supabase/types";
+
+type TransmissionType = Database['public']['Enums']['car_transmission_type'];
 
 export const useValuationForm = () => {
   const [vin, setVin] = useState("");
   const [mileage, setMileage] = useState("");
-  const [gearbox, setGearbox] = useState("manual");
+  const [gearbox, setGearbox] = useState<TransmissionType>("manual");
   const [isLoading, setIsLoading] = useState(false);
   const [valuationResult, setValuationResult] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
