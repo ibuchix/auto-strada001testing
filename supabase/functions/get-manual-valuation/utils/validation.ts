@@ -1,4 +1,5 @@
-import { FuelType, CountryCode, TransmissionType, ManualValuationRequest, ValidationResult } from '../types/validation.ts';
+import { FuelType, CountryCode, TransmissionType } from '../types/enums.ts';
+import { ManualValuationRequest, ValidationResult } from '../types/validation.ts';
 
 export function normalizeData(data: any): Partial<ManualValuationRequest> {
   console.log('Normalizing data:', data);
@@ -31,9 +32,11 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
     errors.push('Invalid mileage');
   }
 
-  // Enum validations
+  // Enum validations with detailed logging
   if (!Object.values(TransmissionType).includes(data.transmission as TransmissionType)) {
     errors.push('Invalid transmission type');
+    console.log('Available transmission types:', Object.values(TransmissionType));
+    console.log('Received transmission:', data.transmission);
   }
 
   if (!Object.values(FuelType).includes(data.fuel as FuelType)) {

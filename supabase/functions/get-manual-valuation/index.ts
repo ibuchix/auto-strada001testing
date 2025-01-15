@@ -1,19 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
-import { encode } from "https://deno.land/std@0.177.0/encoding/hex.ts";
 import { normalizeData, validateRequest } from "./utils/validation.ts";
+import { calculateChecksum, fetchValuation } from "./utils/api.ts";
 import { ManualValuationRequest } from "./types/validation.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-function calculateChecksum(apiId: string, apiSecret: string, make: string, model: string): string {
-  const input = `${apiId}${apiSecret}${make}${model}`;
-  const hash = crypto.subtle.digestSync("MD5", new TextEncoder().encode(input));
-  return encode(new Uint8Array(hash));
-}
 
 serve(async (req) => {
   console.log('Received request:', req.method);
@@ -53,12 +46,7 @@ serve(async (req) => {
 
     const data = normalizedData as ManualValuationRequest;
     const checksum = calculateChecksum(apiId, apiSecret, data.make, data.model);
-    
-    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/checksum:${checksum}/make:${encodeURIComponent(data.make)}/model:${encodeURIComponent(data.model)}/year:${data.year}/odometer:${data.mileage}/transmission:${data.transmission}/currency:PLN/country:${data.country}/fuel:${data.fuel}`;
-    
-    console.log('Making API request to:', url);
-    
-    const response = await fetch(url);
+    const response = await fetchValuation(apiId, checksum, data);
     const responseText = await response.text();
     console.log('Raw API Response:', responseText);
     
