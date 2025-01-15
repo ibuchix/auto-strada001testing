@@ -17,6 +17,17 @@ interface ManualValuationRequest {
   country: string;
 }
 
+function sanitizeData(data: ManualValuationRequest): ManualValuationRequest {
+  return {
+    ...data,
+    make: data.make?.trim(),
+    model: data.model?.trim(),
+    fuel: data.fuel?.trim().toLowerCase(),
+    country: data.country?.trim().toUpperCase(),
+    transmission: data.transmission?.trim().toLowerCase(),
+  };
+}
+
 function calculateChecksum(apiId: string, apiSecret: string, make: string, model: string): string {
   console.log('Calculating checksum for manual entry:', { make, model });
   const input = `${apiId}${apiSecret}${make}${model}`;
@@ -36,19 +47,22 @@ function validateRequest(data: ManualValuationRequest) {
   if (!data.mileage || data.mileage < 0) errors.push('Invalid mileage');
   
   const validTransmissions = ['manual', 'automatic'];
-  if (!validTransmissions.includes(data.transmission?.toLowerCase())) {
+  const normalizedTransmission = data.transmission?.toLowerCase();
+  if (!validTransmissions.includes(normalizedTransmission)) {
     errors.push('Invalid transmission type');
   }
   
   const validFuelTypes = ['petrol', 'diesel', 'electric', 'hybrid'];
-  console.log('Checking fuel type:', data.fuel, 'Valid types:', validFuelTypes);
-  if (!validFuelTypes.includes(data.fuel?.toLowerCase())) {
+  const normalizedFuel = data.fuel?.toLowerCase();
+  console.log('Checking fuel type:', normalizedFuel, 'Valid types:', validFuelTypes);
+  if (!validFuelTypes.includes(normalizedFuel)) {
     errors.push('Invalid fuel type');
   }
   
   const validCountries = ['PL', 'DE', 'UK'];
-  console.log('Checking country:', data.country, 'Valid countries:', validCountries);
-  if (!validCountries.includes(data.country?.toUpperCase())) {
+  const normalizedCountry = data.country?.toUpperCase();
+  console.log('Checking country:', normalizedCountry, 'Valid countries:', validCountries);
+  if (!validCountries.includes(normalizedCountry)) {
     errors.push('Invalid country');
   }
   
@@ -81,34 +95,30 @@ serve(async (req) => {
       throw new Error('Method not allowed');
     }
 
-    const requestData: ManualValuationRequest = await req.json();
-    console.log('Processing manual entry valuation for:', requestData);
+    const rawRequestData: ManualValuationRequest = await req.json();
+    console.log('Raw request data:', rawRequestData);
 
-    // Normalize the data before validation
-    const normalizedData = {
-      ...requestData,
-      fuel: requestData.fuel?.toLowerCase(),
-      transmission: requestData.transmission?.toLowerCase(),
-      country: requestData.country?.toUpperCase()
-    };
+    // Sanitize the input data
+    const requestData = sanitizeData(rawRequestData);
+    console.log('Sanitized request data:', requestData);
 
-    // Validate request data
-    validateRequest(normalizedData);
+    // Validate sanitized data
+    validateRequest(requestData);
 
-    const checksum = calculateChecksum(apiId, apiSecret, normalizedData.make, normalizedData.model);
+    const checksum = calculateChecksum(apiId, apiSecret, requestData.make, requestData.model);
     
-    // Construct URL with all required parameters
+    // Construct URL with sanitized parameters
     const params = new URLSearchParams({
       'apiuid': apiId,
       'checksum': checksum,
-      'make': normalizedData.make,
-      'model': normalizedData.model,
-      'year': normalizedData.year.toString(),
-      'odometer': normalizedData.mileage.toString(),
-      'transmission': normalizedData.transmission,
+      'make': requestData.make,
+      'model': requestData.model,
+      'year': requestData.year.toString(),
+      'odometer': requestData.mileage.toString(),
+      'transmission': requestData.transmission,
       'currency': 'PLN',
-      'country': normalizedData.country,
-      'fuel': normalizedData.fuel
+      'country': requestData.country,
+      'fuel': requestData.fuel
     });
 
     const url = `https://bp.autoiso.pl/api/v3/getManualValuation/${Array.from(params.entries())
@@ -162,12 +172,12 @@ serve(async (req) => {
     }
 
     const result = {
-      make: normalizedData.make,
-      model: normalizedData.model,
-      year: normalizedData.year,
-      transmission: normalizedData.transmission,
+      make: requestData.make,
+      model: requestData.model,
+      year: requestData.year,
+      transmission: requestData.transmission,
       valuation: valuationPrice,
-      mileage: normalizedData.mileage
+      mileage: requestData.mileage
     };
 
     console.log('Manual valuation completed successfully:', result);
