@@ -40,13 +40,14 @@ export const ManualValuationForm = ({
     year: '',
     mileage: mileage,
     transmission: transmission,
-    fuel: 'petrol', // Set default fuel type
-    country: 'PL' // Set default country code
+    fuel: 'petrol' as FuelType,
+    country: 'PL' as CountryCode
   });
 
   const { errors, validateForm, setErrors } = useFormValidation();
 
   const handleInputChange = (field: keyof ManualValuationData, value: string) => {
+    console.log('Handling input change:', { field, value });
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));

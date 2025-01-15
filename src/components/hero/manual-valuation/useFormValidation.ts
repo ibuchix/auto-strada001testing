@@ -14,6 +14,7 @@ export const useFormValidation = () => {
   const [errors, setErrors] = useState<Partial<Record<keyof ManualValuationData, string>>>({});
 
   const validateForm = (data: ManualValuationData) => {
+    console.log('Validating form data:', data);
     const newErrors: Partial<Record<keyof ManualValuationData, string>> = {};
     const currentYear = new Date().getFullYear();
 
@@ -45,20 +46,33 @@ export const useFormValidation = () => {
     }
 
     // Validate transmission
-    if (!data.transmission || !VALID_TRANSMISSION_TYPES.includes(data.transmission as TransmissionType)) {
+    if (!data.transmission || !VALID_TRANSMISSION_TYPES.includes(data.transmission)) {
+      console.log('Transmission validation failed:', {
+        value: data.transmission,
+        validOptions: VALID_TRANSMISSION_TYPES
+      });
       newErrors.transmission = 'Please select a valid transmission type';
     }
 
     // Validate fuel type
     if (!data.fuel || !VALID_FUEL_TYPES.includes(data.fuel as FuelType)) {
+      console.log('Fuel type validation failed:', {
+        value: data.fuel,
+        validOptions: VALID_FUEL_TYPES
+      });
       newErrors.fuel = 'Please select a valid fuel type';
     }
 
     // Validate country
     if (!data.country || !VALID_COUNTRY_CODES.includes(data.country as CountryCode)) {
+      console.log('Country code validation failed:', {
+        value: data.country,
+        validOptions: VALID_COUNTRY_CODES
+      });
       newErrors.country = 'Please select a valid country';
     }
 
+    console.log('Validation errors:', newErrors);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
