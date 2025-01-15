@@ -112,7 +112,7 @@ export const useValuationForm = () => {
 
       if (error) {
         console.error('Valuation error:', error);
-        toast.error("Failed to get vehicle valuation. Please try again or enter details manually.", {
+        toast.error("Failed to get vehicle valuation. Please try entering details manually.", {
           action: {
             label: "Enter Manually",
             onClick: () => setShowManualForm(true)
