@@ -18,8 +18,8 @@ export function normalizeData(data: any): Partial<ManualValuationRequest> {
     year: Number(data.year),
     mileage: Number(data.mileage),
     transmission: normalizeString(String(data.transmission || '')),
-    fuel: normalizeString(String(data.fuel || '')),
-    country: String(data.country || '').toUpperCase().trim(),
+    fuel: normalizeString(String(data.fuel || 'petrol')), // Default to petrol if not provided
+    country: String(data.country || 'PL').toUpperCase().trim(), // Default to PL if not provided
   };
   
   console.log('Normalized data:', JSON.stringify(normalized, null, 2));
@@ -75,24 +75,22 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
 
   // Fuel type validation with case-insensitive comparison
   const normalizedFuel = normalizeString(String(data.fuel));
-  if (!data.fuel || !VALID_FUEL_TYPES.includes(normalizedFuel as FuelType)) {
+  if (!VALID_FUEL_TYPES.includes(normalizedFuel as FuelType)) {
     console.log('Fuel type validation failed:', {
       value: data.fuel,
       normalized: normalizedFuel,
-      validOptions: VALID_FUEL_TYPES,
-      isValid: VALID_FUEL_TYPES.includes(normalizedFuel as FuelType)
+      validOptions: VALID_FUEL_TYPES
     });
     errors.push(`Invalid fuel type. Must be one of: ${VALID_FUEL_TYPES.join(', ')}`);
   }
 
   // Country code validation with case-insensitive comparison
   const normalizedCountry = String(data.country).toUpperCase().trim();
-  if (!data.country || !VALID_COUNTRY_CODES.includes(normalizedCountry as CountryCode)) {
+  if (!VALID_COUNTRY_CODES.includes(normalizedCountry as CountryCode)) {
     console.log('Country code validation failed:', {
       value: data.country,
       normalized: normalizedCountry,
-      validOptions: VALID_COUNTRY_CODES,
-      isValid: VALID_COUNTRY_CODES.includes(normalizedCountry as CountryCode)
+      validOptions: VALID_COUNTRY_CODES
     });
     errors.push(`Invalid country code. Must be one of: ${VALID_COUNTRY_CODES.join(', ')}`);
   }

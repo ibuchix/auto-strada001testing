@@ -52,8 +52,10 @@ serve(async (req) => {
         year: normalizedData.year,
         mileage: normalizedData.mileage,
         transmission: normalizedData.transmission,
+        fuel: normalizedData.fuel,
+        country: normalizedData.country,
         valuation: valuationAmount,
-        currency: "PLN"
+        currency: normalizedData.country === 'PL' ? 'PLN' : 'EUR'
       }
     }
 
