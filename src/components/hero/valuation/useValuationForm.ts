@@ -7,6 +7,11 @@ import { Database } from "@/integrations/supabase/types";
 
 type TransmissionType = Database['public']['Enums']['car_transmission_type'];
 
+interface ValuationData {
+  valuation?: number;
+  [key: string]: any;
+}
+
 export const useValuationForm = () => {
   const [vin, setVin] = useState("");
   const [mileage, setMileage] = useState("");
@@ -98,6 +103,8 @@ export const useValuationForm = () => {
 
       if (existingCar) {
         console.log('Found existing car:', existingCar);
+        const valuationData = existingCar.valuation_data as ValuationData;
+        
         // Use existing car data to create a valuation result
         const existingValuation = {
           make: existingCar.make,
@@ -105,7 +112,7 @@ export const useValuationForm = () => {
           year: existingCar.year,
           vin: vin,
           transmission: gearbox,
-          valuation: existingCar.valuation_data?.valuation || existingCar.price,
+          valuation: valuationData?.valuation || existingCar.price,
           isExisting: true
         };
 
