@@ -106,13 +106,23 @@ export const useValuationForm = () => {
 
       if (error) {
         console.error('Valuation error:', error);
-        handleValuationError();
+        toast.error("Failed to get vehicle valuation. Please try again or enter details manually.", {
+          action: {
+            label: "Enter Manually",
+            onClick: () => setShowManualForm(true)
+          }
+        });
         return;
       }
 
       if (!data?.success) {
         console.error('Valuation failed:', data);
-        handleValuationError();
+        toast.error(data?.message || "Failed to get vehicle valuation. Please try entering details manually.", {
+          action: {
+            label: "Enter Manually",
+            onClick: () => setShowManualForm(true)
+          }
+        });
         return;
       }
 
@@ -121,7 +131,12 @@ export const useValuationForm = () => {
       
       if (!valuationData) {
         console.error('No valuation data received');
-        handleValuationError();
+        toast.error("Failed to get vehicle valuation. Please try entering details manually.", {
+          action: {
+            label: "Enter Manually",
+            onClick: () => setShowManualForm(true)
+          }
+        });
         return;
       }
 
@@ -135,22 +150,15 @@ export const useValuationForm = () => {
       toast.success("Valuation completed successfully!");
     } catch (error) {
       console.error('Error during valuation:', error);
-      handleValuationError();
+      toast.error("Failed to get vehicle valuation. Please try entering details manually.", {
+        action: {
+          label: "Enter Manually",
+          onClick: () => setShowManualForm(true)
+        }
+      });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleValuationError = () => {
-    toast.error("Could not find vehicle with this VIN. Would you like to enter details manually?", {
-      action: {
-        label: "Enter Manually",
-        onClick: () => {
-          console.log('Manual entry requested');
-          setShowManualForm(true);
-        }
-      },
-    });
   };
 
   const handleContinue = () => {
