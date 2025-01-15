@@ -23,15 +23,12 @@ export const useValuationForm = () => {
 
     try {
       const { data: response, error } = await supabase.functions.invoke('get-manual-valuation', {
-        body: JSON.stringify({ 
+        body: {
           make: data.make,
           model: data.model,
           year: parseInt(data.year),
           mileage: parseInt(data.mileage),
           transmission: data.transmission,
-        }),
-        headers: {
-          'Content-Type': 'application/json'
         }
       });
 
@@ -98,13 +95,10 @@ export const useValuationForm = () => {
 
       console.log('Invoking get-car-valuation function with:', { vin, mileage, gearbox });
       const { data, error } = await supabase.functions.invoke('get-car-valuation', {
-        body: JSON.stringify({ 
+        body: { 
           vin: vin.trim(),
           mileage: parseInt(mileage),
           gearbox 
-        }),
-        headers: {
-          'Content-Type': 'application/json'
         }
       });
 
