@@ -59,33 +59,30 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
   }
 
   // Transmission validation
-  const normalizedTransmission = data.transmission?.toLowerCase();
-  if (!normalizedTransmission || !VALID_TRANSMISSION_TYPES.includes(normalizedTransmission as TransmissionType)) {
+  if (!data.transmission || !VALID_TRANSMISSION_TYPES.includes(data.transmission)) {
     console.log('Transmission validation failed:', {
-      value: normalizedTransmission,
+      value: data.transmission,
       validOptions: VALID_TRANSMISSION_TYPES
     });
     errors.push('Invalid transmission type');
   }
 
   // Fuel type validation
-  const normalizedFuel = data.fuel?.toLowerCase();
-  if (!normalizedFuel || !VALID_FUEL_TYPES.includes(normalizedFuel as FuelType)) {
+  if (!data.fuel || !VALID_FUEL_TYPES.includes(data.fuel)) {
     console.log('Fuel type validation failed:', {
-      value: normalizedFuel,
+      value: data.fuel,
       validOptions: VALID_FUEL_TYPES,
-      isValid: VALID_FUEL_TYPES.includes(normalizedFuel as FuelType)
+      isValid: VALID_FUEL_TYPES.includes(data.fuel as FuelType)
     });
     errors.push('Invalid fuel type');
   }
 
   // Country code validation
-  const normalizedCountry = data.country?.toUpperCase();
-  if (!normalizedCountry || !VALID_COUNTRY_CODES.includes(normalizedCountry as CountryCode)) {
+  if (!data.country || !VALID_COUNTRY_CODES.includes(data.country)) {
     console.log('Country code validation failed:', {
-      value: normalizedCountry,
+      value: data.country,
       validOptions: VALID_COUNTRY_CODES,
-      isValid: VALID_COUNTRY_CODES.includes(normalizedCountry as CountryCode)
+      isValid: VALID_COUNTRY_CODES.includes(data.country as CountryCode)
     });
     errors.push('Invalid country code');
   }
