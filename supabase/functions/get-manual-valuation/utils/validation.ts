@@ -62,8 +62,7 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
   if (!data.transmission || !VALID_TRANSMISSION_TYPES.includes(data.transmission)) {
     console.log('Transmission validation failed:', {
       value: data.transmission,
-      validOptions: VALID_TRANSMISSION_TYPES,
-      received: data.transmission
+      validOptions: VALID_TRANSMISSION_TYPES
     });
     errors.push('Invalid transmission type');
   }
