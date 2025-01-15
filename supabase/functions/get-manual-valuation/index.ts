@@ -15,11 +15,23 @@ interface ManualValuationRequest {
   transmission: string;
 }
 
-function calculateChecksum(apiId: string, apiSecret: string): string {
+function calculateChecksum(apiId: string, apiSecret: string, make: string, model: string): string {
   console.log('Calculating checksum for manual entry');
-  const input = `${apiId}${apiSecret}MANUAL_ENTRY`;
+  const input = `${apiId}${apiSecret}${make}${model}`;
   const hash = crypto.subtle.digestSync("MD5", new TextEncoder().encode(input));
   return encode(new Uint8Array(hash));
+}
+
+function validateRequest(data: ManualValuationRequest) {
+  if (!data.make?.trim()) throw new Error('Make is required');
+  if (!data.model?.trim()) throw new Error('Model is required');
+  if (!data.year || data.year < 1900 || data.year > new Date().getFullYear() + 1) {
+    throw new Error('Invalid year');
+  }
+  if (!data.mileage || data.mileage < 0) throw new Error('Invalid mileage');
+  if (!['manual', 'automatic'].includes(data.transmission?.toLowerCase())) {
+    throw new Error('Invalid transmission type');
+  }
 }
 
 serve(async (req) => {
@@ -40,16 +52,15 @@ serve(async (req) => {
     const requestData: ManualValuationRequest = await req.json();
     console.log('Processing manual entry valuation for:', requestData);
 
-    if (!requestData.make || !requestData.model || !requestData.year || !requestData.mileage) {
-      throw new Error('Make, model, year, and mileage are required for manual valuation');
-    }
+    // Validate request data
+    validateRequest(requestData);
 
-    const checksum = calculateChecksum(apiId, apiSecret);
+    const checksum = calculateChecksum(apiId, apiSecret, requestData.make, requestData.model);
     const transmission = requestData.transmission?.toLowerCase() === 'automatic' ? 'automatic' : 'manual';
     console.log('Using transmission type:', transmission);
 
-    // Construct URL with proper encoding for special characters
-    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${encodeURIComponent(apiId)}/checksum:${encodeURIComponent(checksum)}/make:${encodeURIComponent(requestData.make)}/model:${encodeURIComponent(requestData.model)}/year:${encodeURIComponent(requestData.year)}/odometer:${encodeURIComponent(requestData.mileage)}/transmission:${encodeURIComponent(transmission)}/currency:PLN`;
+    // Construct URL with proper encoding and all required parameters
+    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${encodeURIComponent(apiId)}/checksum:${encodeURIComponent(checksum)}/make:${encodeURIComponent(requestData.make)}/model:${encodeURIComponent(requestData.model)}/year:${encodeURIComponent(requestData.year)}/odometer:${encodeURIComponent(requestData.mileage)}/transmission:${encodeURIComponent(transmission)}/currency:PLN/country:PL/fuel:petrol`;
     
     console.log('Making API request to:', url);
     const response = await fetch(url);
@@ -62,6 +73,12 @@ serve(async (req) => {
     
     const responseData = await response.json();
     console.log('Manual valuation API response:', responseData);
+
+    // Check for API-specific error responses
+    if (responseData.apiStatus === 'ER') {
+      console.error('API returned error:', responseData.message);
+      throw new Error(`API Error: ${responseData.message}`);
+    }
 
     // Extract price from response with more detailed logging
     let valuationPrice = null;
