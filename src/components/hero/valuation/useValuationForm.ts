@@ -9,6 +9,9 @@ type TransmissionType = Database['public']['Enums']['car_transmission_type'];
 
 interface ValuationData {
   valuation?: number;
+  make?: string;
+  model?: string;
+  year?: number;
   [key: string]: any;
 }
 
@@ -107,12 +110,12 @@ export const useValuationForm = () => {
         
         // Use existing car data to create a valuation result
         const existingValuation = {
-          make: existingCar.make,
-          model: existingCar.model,
-          year: existingCar.year,
+          make: existingCar.make || 'Not available',
+          model: existingCar.model || 'Not available',
+          year: existingCar.year || new Date().getFullYear(),
           vin: vin,
           transmission: gearbox,
-          valuation: valuationData?.valuation || existingCar.price,
+          valuation: valuationData?.valuation || existingCar.price || 0,
           isExisting: true
         };
 

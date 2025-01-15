@@ -26,6 +26,11 @@ export const ValuationResult = ({ valuationResult, onContinue }: ValuationResult
   // Get the stored mileage from localStorage
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
 
+  // Ensure valuation is a number
+  const valuationAmount = typeof valuationResult.valuation === 'number' 
+    ? valuationResult.valuation 
+    : 0;
+
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
@@ -83,7 +88,7 @@ export const ValuationResult = ({ valuationResult, onContinue }: ValuationResult
             }
           </p>
           <p className="text-3xl font-bold text-primary">
-            PLN {valuationResult.valuation.toLocaleString()}
+            PLN {valuationAmount.toLocaleString()}
           </p>
         </div>
       </div>
