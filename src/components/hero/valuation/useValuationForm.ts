@@ -19,22 +19,13 @@ export const useValuationForm = () => {
     setIsLoading(true);
 
     try {
-      console.log('Making manual valuation request with:', {
-        make: data.make,
-        model: data.model,
-        year: data.year,
-        mileage: data.mileage,
-        transmission: data.transmission,
-      });
-
-      const { data: response, error } = await supabase.functions.invoke('get-car-valuation', {
+      const { data: response, error } = await supabase.functions.invoke('get-manual-valuation', {
         body: { 
           make: data.make,
           model: data.model,
           year: parseInt(data.year),
           mileage: parseInt(data.mileage),
-          gearbox: data.transmission,
-          isManualEntry: true
+          transmission: data.transmission,
         }
       });
 
