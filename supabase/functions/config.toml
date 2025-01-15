@@ -1,7 +1,9 @@
 project_id = "sdvakfhmoaoucmhbhwvy"
 
-[functions.get-car-valuation]
-verify_jwt = false
+[api]
+enabled = true
+url = "https://sdvakfhmoaoucmhbhwvy.supabase.co/functions/v1"
 
-[functions.get-manual-valuation]
-verify_jwt = false
+[[headers]]
+for = "/get-manual-valuation"
+values = { Access-Control-Allow-Origin = "*" }
