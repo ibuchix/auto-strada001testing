@@ -48,7 +48,8 @@ serve(async (req) => {
     const transmission = requestData.transmission?.toLowerCase() === 'automatic' ? 'automatic' : 'manual';
     console.log('Using transmission type:', transmission);
 
-    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/checksum:${checksum}/make:${requestData.make}/model:${requestData.model}/year:${requestData.year}/odometer:${requestData.mileage}/transmission:${transmission}/currency:PLN`;
+    // Construct URL with proper encoding for special characters
+    const url = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${encodeURIComponent(apiId)}/checksum:${encodeURIComponent(checksum)}/make:${encodeURIComponent(requestData.make)}/model:${encodeURIComponent(requestData.model)}/year:${encodeURIComponent(requestData.year)}/odometer:${encodeURIComponent(requestData.mileage)}/transmission:${encodeURIComponent(transmission)}/currency:PLN`;
     
     console.log('Making API request to:', url);
     const response = await fetch(url);
@@ -62,14 +63,27 @@ serve(async (req) => {
     const responseData = await response.json();
     console.log('Manual valuation API response:', responseData);
 
-    // Extract price from response
+    // Extract price from response with more detailed logging
     let valuationPrice = null;
-    if (typeof responseData?.price === 'number') valuationPrice = responseData.price;
-    else if (typeof responseData?.valuation?.price === 'number') valuationPrice = responseData.valuation.price;
-    else if (typeof responseData?.estimated_value === 'number') valuationPrice = responseData.estimated_value;
-    else if (typeof responseData?.value === 'number') valuationPrice = responseData.value;
+    if (responseData && typeof responseData === 'object') {
+      console.log('Attempting to extract price from response structure:', JSON.stringify(responseData));
+      
+      if (typeof responseData.price === 'number') {
+        console.log('Found price directly in response');
+        valuationPrice = responseData.price;
+      } else if (responseData.valuation && typeof responseData.valuation.price === 'number') {
+        console.log('Found price in valuation object');
+        valuationPrice = responseData.valuation.price;
+      } else if (typeof responseData.estimated_value === 'number') {
+        console.log('Found price in estimated_value');
+        valuationPrice = responseData.estimated_value;
+      } else if (typeof responseData.value === 'number') {
+        console.log('Found price in value');
+        valuationPrice = responseData.value;
+      }
+    }
 
-    if (!valuationPrice) {
+    if (!valuationPrice && valuationPrice !== 0) {
       console.error('Failed to extract price from response:', responseData);
       throw new Error('Could not determine valuation price from API response');
     }
