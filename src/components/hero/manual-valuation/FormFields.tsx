@@ -110,9 +110,52 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
         )}
       </div>
 
-      {/* Hidden fields with default values */}
-      <input type="hidden" name="fuel" value={formData.fuel} />
-      <input type="hidden" name="country" value={formData.country} />
+      <div>
+        <Label htmlFor="fuel">Fuel Type</Label>
+        <Select
+          value={formData.fuel}
+          onValueChange={(value) => onInputChange('fuel', value)}
+        >
+          <SelectTrigger className={errors.fuel ? 'border-primary' : ''}>
+            <SelectValue placeholder="Select fuel type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="petrol">Petrol</SelectItem>
+            <SelectItem value="diesel">Diesel</SelectItem>
+            <SelectItem value="electric">Electric</SelectItem>
+            <SelectItem value="hybrid">Hybrid</SelectItem>
+          </SelectContent>
+        </Select>
+        {errors.fuel && (
+          <div className="flex items-center gap-2 text-primary text-sm mt-1">
+            <AlertCircle className="h-4 w-4" />
+            <span>{errors.fuel}</span>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <Label htmlFor="country">Country</Label>
+        <Select
+          value={formData.country}
+          onValueChange={(value) => onInputChange('country', value)}
+        >
+          <SelectTrigger className={errors.country ? 'border-primary' : ''}>
+            <SelectValue placeholder="Select country" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="PL">Poland</SelectItem>
+            <SelectItem value="DE">Germany</SelectItem>
+            <SelectItem value="UK">United Kingdom</SelectItem>
+          </SelectContent>
+        </Select>
+        {errors.country && (
+          <div className="flex items-center gap-2 text-primary text-sm mt-1">
+            <AlertCircle className="h-4 w-4" />
+            <span>{errors.country}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
