@@ -80,20 +80,28 @@ export const useValuationForm = () => {
     setIsLoading(true);
     try {
       console.log('Checking for existing VIN in database');
-      const { data: publishedCar } = await supabase
+      const { data: publishedCar, error: vinCheckError } = await supabase
         .from('cars')
         .select('id')
         .eq('vin', vin)
         .eq('is_draft', false)
         .maybeSingle();
 
-      if (publishedCar) {
-        toast.error("This VIN number is already registered in our system");
-        setIsLoading(false);
+      console.log('VIN check result:', { publishedCar, vinCheckError });
+
+      if (vinCheckError) {
+        console.error('VIN check error:', vinCheckError);
+        toast.error("Error checking VIN. Please try again.");
         return;
       }
 
-      console.log('Invoking get-car-valuation function with:', { vin, mileage, gearbox });
+      if (publishedCar) {
+        console.log('VIN already exists in database');
+        toast.error("This VIN number is already registered in our system");
+        return;
+      }
+
+      console.log('Proceeding with Edge Function call');
       const { data, error } = await supabase.functions.invoke('get-car-valuation', {
         body: { 
           vin: vin.trim(),
@@ -102,7 +110,7 @@ export const useValuationForm = () => {
         }
       });
 
-      console.log('Response from get-car-valuation:', { data, error });
+      console.log('Edge Function response:', { data, error });
 
       if (error) {
         console.error('Valuation error:', error);
