@@ -48,11 +48,12 @@ serve(async (req) => {
     const checksum = calculateChecksum(API_ID, API_SECRET, vin);
     console.log('Calculated checksum:', checksum);
 
+    // Updated API URL to include transmission parameter
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
     console.log('Calling API:', apiUrl);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const response = await fetch(apiUrl, {
@@ -100,9 +101,9 @@ serve(async (req) => {
 
       // Extract and transform the valuation data with enhanced validation
       const valuationData = {
-        make: responseData.make || responseData.functionResponse?.make || 'Unknown',
-        model: responseData.model || responseData.functionResponse?.model || 'Unknown',
-        year: responseData.year || responseData.functionResponse?.year || new Date().getFullYear(),
+        make: responseData.make || responseData.functionResponse?.make || responseData.vehicle?.make || 'Unknown',
+        model: responseData.model || responseData.functionResponse?.model || responseData.vehicle?.model || 'Unknown',
+        year: responseData.year || responseData.functionResponse?.year || responseData.vehicle?.year || new Date().getFullYear(),
         vin: vin,
         mileage: mileage,
         transmission: gearbox || 'manual',
