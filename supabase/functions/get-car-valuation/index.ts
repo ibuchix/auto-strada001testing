@@ -46,11 +46,17 @@ serve(async (req) => {
     
     console.log('Calculated checksum:', checksumHex);
 
-    // First API call - Get vehicle details
+    // First API call - Get vehicle details with timeout and error handling
     const detailsUrl = `https://bp.autoiso.pl/api/v3/getVinDetails/apiuid:${API_ID}/checksum:${checksumHex}/vin:${vin}`;
     console.log('Calling vehicle details API:', detailsUrl);
 
-    const detailsResponse = await fetch(detailsUrl);
+    const detailsResponse = await Promise.race([
+      fetch(detailsUrl),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('API timeout')), 10000)
+      )
+    ]);
+
     if (!detailsResponse.ok) {
       throw new Error(`Vehicle details API error: ${detailsResponse.status}`);
     }
@@ -58,11 +64,17 @@ serve(async (req) => {
     const detailsData = await detailsResponse.json();
     console.log('Vehicle details API response:', detailsData);
 
-    // Second API call - Get valuation
+    // Second API call - Get valuation with timeout and error handling
     const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksumHex}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
     console.log('Calling valuation API:', valuationUrl);
 
-    const valuationResponse = await fetch(valuationUrl);
+    const valuationResponse = await Promise.race([
+      fetch(valuationUrl),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('API timeout')), 10000)
+      )
+    ]);
+
     if (!valuationResponse.ok) {
       throw new Error(`Valuation API error: ${valuationResponse.status}`);
     }
