@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ValuationResult } from "../types";
 import { Database } from "@/integrations/supabase/types";
-import { extractPrice } from "../../../../supabase/functions/get-car-valuation/utils/priceExtractor";
+import { extractPrice } from "@/utils/priceExtractor";
 
 type TransmissionType = Database['public']['Enums']['car_transmission_type'];
 
