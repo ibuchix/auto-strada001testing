@@ -36,7 +36,6 @@ serve(async (req) => {
     const checksum = calculateChecksum(API_ID, API_SECRET, vin);
     console.log('Calculated checksum:', checksum);
 
-    // Construct the API URL properly without any trailing colons
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
     console.log('Calling API:', apiUrl);
 
@@ -51,12 +50,14 @@ serve(async (req) => {
       responseData = JSON.parse(responseText);
       console.log('Parsed API Response:', responseData);
       
-      // Enhanced logging for price ranges
-      console.log('Price Ranges:', {
-        minimumPrice: responseData.minimum_price || responseData.min_price || 'Not available',
-        maximumPrice: responseData.maximum_price || responseData.max_price || 'Not available',
-        averagePrice: responseData.average_price || responseData.price || 'Not available',
-        currency: 'PLN'
+      // Enhanced logging for price data
+      console.log('Price Data Found:', {
+        price: responseData.price,
+        averagePrice: responseData.average_price,
+        estimatedValue: responseData.estimated_value,
+        valuationPrice: responseData.valuation?.price,
+        functionResponsePrice: responseData.functionResponse?.price,
+        allPriceFields: Object.keys(responseData).filter(key => key.toLowerCase().includes('price'))
       });
       
     } catch (parseError) {
@@ -68,7 +69,7 @@ serve(async (req) => {
       throw new Error(`API responded with status: ${response.status}`);
     }
 
-    // Extract and transform the valuation data
+    // Extract and transform the valuation data with enhanced price extraction
     const valuationData = {
       make: responseData.make || responseData.functionResponse?.make,
       model: responseData.model || responseData.functionResponse?.model,
@@ -77,7 +78,7 @@ serve(async (req) => {
       mileage: mileage,
       transmission: gearbox || 'manual',
       valuation: responseData.price || responseData.valuation?.price || responseData.estimated_value || responseData.value,
-      averagePrice: responseData.average_price || responseData.price,
+      averagePrice: responseData.average_price || responseData.price || responseData.estimated_value || responseData.valuation?.price,
       currency: "PLN"
     };
 
