@@ -34,7 +34,13 @@ export const getValuation = async (
     throw new Error(data?.message || "Failed to get vehicle valuation");
   }
 
-  return data.data;
+  // Transform the response to include averagePrice
+  const transformedData: ValuationResult = {
+    ...data.data,
+    averagePrice: data.data.averagePrice || data.data.price || data.data.valuation,
+  };
+
+  return transformedData;
 };
 
 export const createExistingValuation = (
@@ -43,13 +49,19 @@ export const createExistingValuation = (
   gearbox: TransmissionType,
   valuationData?: ValuationData
 ): ValuationResult => {
+  const averagePrice = valuationData?.averagePrice || 
+                      valuationData?.price || 
+                      valuationData?.valuation || 
+                      existingCar.price || 
+                      0;
+
   return {
     make: existingCar.make || 'Not available',
     model: existingCar.model || 'Not available',
     year: existingCar.year || new Date().getFullYear(),
     vin: vin,
     transmission: gearbox,
-    valuation: valuationData?.valuation || existingCar.price || 0,
+    averagePrice: averagePrice,
     isExisting: true
   };
 };

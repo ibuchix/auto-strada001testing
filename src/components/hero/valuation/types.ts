@@ -4,6 +4,8 @@ type TransmissionType = Database['public']['Enums']['car_transmission_type'];
 
 export interface ValuationData {
   valuation?: number;
+  price?: number;
+  averagePrice?: number;
   make?: string;
   model?: string;
   year?: number;
@@ -16,7 +18,8 @@ export interface ValuationResult {
   year: number;
   vin: string;
   transmission: TransmissionType;
-  valuation: number;
+  valuation?: number;
+  averagePrice?: number;
   isExisting?: boolean;
 }
 
