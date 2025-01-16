@@ -16,6 +16,8 @@ interface ValuationResultProps {
     transmission: string;
     valuation?: number;
     averagePrice?: number;
+    minimumPrice?: number;
+    maximumPrice?: number;
     isExisting?: boolean;
   };
   onContinue: () => void;
@@ -26,7 +28,6 @@ export const ValuationResult = ({ valuationResult, onContinue, onClose }: Valuat
   if (!valuationResult) return null;
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-  const valuationAmount = valuationResult.averagePrice || valuationResult.valuation || 0;
 
   return (
     <DialogContent className="sm:max-w-md">
@@ -77,16 +78,32 @@ export const ValuationResult = ({ valuationResult, onContinue, onClose }: Valuat
             <p className="font-medium text-dark">{mileage.toLocaleString()} km</p>
           </div>
         </div>
-        <div className="border-t pt-6">
-          <p className="text-sm text-subtitle mb-2">
-            {valuationResult.isExisting 
-              ? "Estimated Value (Based on Similar Vehicle)" 
-              : "Estimated Market Value"
-            }
-          </p>
-          <p className="text-3xl font-bold text-primary">
-            PLN {valuationAmount.toLocaleString()}
-          </p>
+        <div className="border-t pt-6 space-y-4">
+          <div>
+            <p className="text-sm text-subtitle mb-2">
+              {valuationResult.isExisting 
+                ? "Estimated Value (Based on Similar Vehicle)" 
+                : "Estimated Market Value"
+              }
+            </p>
+            <p className="text-3xl font-bold text-primary">
+              PLN {(valuationResult.averagePrice || valuationResult.valuation || 0).toLocaleString()}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-subtitle mb-1">Minimum Price</p>
+              <p className="font-medium text-dark">
+                PLN {(valuationResult.minimumPrice || 0).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-subtitle mb-1">Maximum Price</p>
+              <p className="font-medium text-dark">
+                PLN {(valuationResult.maximumPrice || 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
       <DialogFooter className="flex flex-col sm:flex-row gap-3">
