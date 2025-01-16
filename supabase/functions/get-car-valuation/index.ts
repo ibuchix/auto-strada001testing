@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { calculateChecksum } from "./utils/checksum.ts";
 
 const API_ID = 'AUTOSTRA';
 const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
@@ -39,44 +38,59 @@ serve(async (req) => {
     console.log('Processing request for:', { vin, mileage, gearbox });
 
     // Calculate checksum
-    const checksum = calculateChecksum(API_ID, API_SECRET, vin);
-    console.log('Calculated checksum:', checksum);
+    const input = `${API_ID}${API_SECRET}${vin}`;
+    const checksum = await crypto.subtle.digest(
+      "MD5",
+      new TextEncoder().encode(input)
+    );
+    const checksumHex = Array.from(new Uint8Array(checksum))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    console.log('Calculated checksum:', checksumHex);
 
     // First API call - Get vehicle details
-    const detailsUrl = `https://bp.autoiso.pl/api/v3/getVinDetails/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}`;
+    const detailsUrl = `https://bp.autoiso.pl/api/v3/getVinDetails/apiuid:${API_ID}/checksum:${checksumHex}/vin:${vin}`;
     console.log('Calling vehicle details API:', detailsUrl);
 
     const detailsResponse = await fetch(detailsUrl);
-    const detailsData = await detailsResponse.json();
-    console.log('Vehicle details API response:', detailsData);
-
     if (!detailsResponse.ok) {
       throw new Error(`Vehicle details API error: ${detailsResponse.status}`);
     }
 
+    const detailsData = await detailsResponse.json();
+    console.log('Vehicle details API response:', detailsData);
+
     // Second API call - Get valuation
-    const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
+    const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksumHex}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
     console.log('Calling valuation API:', valuationUrl);
 
     const valuationResponse = await fetch(valuationUrl);
-    const valuationData = await valuationResponse.json();
-    console.log('Valuation API response:', valuationData);
-
     if (!valuationResponse.ok) {
       throw new Error(`Valuation API error: ${valuationResponse.status}`);
     }
 
-    // Combine and transform the data
+    const valuationData = await valuationResponse.json();
+    console.log('Valuation API response:', valuationData);
+
+    // Extract and validate the vehicle details
+    const make = detailsData?.make || valuationData?.make || 'Unknown';
+    const model = detailsData?.model || valuationData?.model || 'Unknown';
+    const year = detailsData?.year || valuationData?.year || new Date().getFullYear();
+    const price = valuationData?.price || valuationData?.valuation?.price || null;
+    const marketValue = valuationData?.market_value || valuationData?.average_price || null;
+
+    // Combine the data
     const combinedData = {
-      make: detailsData?.make || valuationData?.make || 'Unknown',
-      model: detailsData?.model || valuationData?.model || 'Unknown',
-      year: detailsData?.year || valuationData?.year || new Date().getFullYear(),
-      vin: vin,
+      make,
+      model,
+      year,
+      vin,
       transmission: gearbox || 'manual',
-      valuation: valuationData?.price || valuationData?.valuation?.price || null,
-      averagePrice: valuationData?.average_price || valuationData?.market_value || null,
+      valuation: price,
+      averagePrice: marketValue,
       currency: "PLN",
-      mileage: mileage,
+      mileage,
       isExisting: false
     };
 
