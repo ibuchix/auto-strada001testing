@@ -1,9 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 
 const API_ID = 'AUTOSTRA';
 const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
+
+async function calculateChecksum(vin: string): Promise<string> {
+  const input = `${API_ID}${API_SECRET}${vin}`;
+  console.log('Checksum input:', input);
+  
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  console.log('Calculated checksum:', checksum);
+  return checksum;
+}
 
 serve(async (req) => {
   console.log('Request received:', new Date().toISOString());
@@ -38,18 +51,12 @@ serve(async (req) => {
 
     console.log('Processing request for:', { vin, mileage, gearbox });
 
-    // Calculate checksum using MD5
-    const input = `${API_ID}${API_SECRET}${vin}`;
-    const encoder = new TextEncoder();
-    const data = encoder.encode(input);
-    const hashBuffer = await crypto.subtle.digest('MD5', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const checksumHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    console.log('Calculated checksum:', checksumHex);
+    // Calculate checksum
+    const checksum = await calculateChecksum(vin);
+    console.log('Using checksum for API requests:', checksum);
 
     // First API call - Get vehicle details
-    const detailsUrl = `https://bp.autoiso.pl/api/v3/getVinDetails/apiuid:${API_ID}/checksum:${checksumHex}/vin:${vin}`;
+    const detailsUrl = `https://bp.autoiso.pl/api/v3/getVinDetails/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}`;
     console.log('Calling vehicle details API:', detailsUrl);
 
     let detailsResponse;
@@ -61,26 +68,34 @@ serve(async (req) => {
         }
       });
       console.log('Details API Response Status:', detailsResponse.status);
+      
+      const detailsText = await detailsResponse.text();
+      console.log('Raw Details API Response:', detailsText);
+      
+      try {
+        detailsResponse = { ok: detailsResponse.ok, json: JSON.parse(detailsText) };
+      } catch (e) {
+        console.error('Failed to parse details response:', e);
+        throw new Error('Invalid JSON in details response');
+      }
     } catch (error) {
       console.error('Failed to fetch vehicle details:', error);
       throw new Error('Failed to connect to vehicle details API');
     }
 
     if (!detailsResponse.ok) {
-      const errorText = await detailsResponse.text();
       console.error('Vehicle details API error:', {
         status: detailsResponse.status,
-        statusText: detailsResponse.statusText,
-        body: errorText
+        response: detailsResponse.json
       });
       throw new Error(`Vehicle details API error: ${detailsResponse.status}`);
     }
 
-    const detailsData = await detailsResponse.json();
+    const detailsData = detailsResponse.json;
     console.log('Vehicle details API response:', detailsData);
 
     // Second API call - Get valuation
-    const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksumHex}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
+    const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
     console.log('Calling valuation API:', valuationUrl);
 
     let valuationResponse;
@@ -92,22 +107,30 @@ serve(async (req) => {
         }
       });
       console.log('Valuation API Response Status:', valuationResponse.status);
+      
+      const valuationText = await valuationResponse.text();
+      console.log('Raw Valuation API Response:', valuationText);
+      
+      try {
+        valuationResponse = { ok: valuationResponse.ok, json: JSON.parse(valuationText) };
+      } catch (e) {
+        console.error('Failed to parse valuation response:', e);
+        throw new Error('Invalid JSON in valuation response');
+      }
     } catch (error) {
       console.error('Failed to fetch valuation:', error);
       throw new Error('Failed to connect to valuation API');
     }
 
     if (!valuationResponse.ok) {
-      const errorText = await valuationResponse.text();
       console.error('Valuation API error:', {
         status: valuationResponse.status,
-        statusText: valuationResponse.statusText,
-        body: errorText
+        response: valuationResponse.json
       });
       throw new Error(`Valuation API error: ${valuationResponse.status}`);
     }
 
-    const valuationData = await valuationResponse.json();
+    const valuationData = valuationResponse.json;
     console.log('Valuation API response:', valuationData);
 
     // Extract and validate the vehicle details
@@ -128,7 +151,7 @@ serve(async (req) => {
       averagePrice: marketValue,
       currency: "PLN",
       mileage,
-      isExisting: false
+      isExisting: make !== 'Unknown' || model !== 'Unknown'
     };
 
     console.log('Final transformed data:', combinedData);
