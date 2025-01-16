@@ -35,6 +35,7 @@ export const ValuationResult = ({
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = !!valuationResult.error;
   const hasValuation = !hasError && (valuationResult.valuation || valuationResult.averagePrice);
+  const displayPrice = valuationResult.valuation || valuationResult.averagePrice || 0;
 
   if (hasError) {
     return (
@@ -125,21 +126,23 @@ export const ValuationResult = ({
             <p className="font-medium text-dark">{mileage.toLocaleString()} km</p>
           </div>
         </div>
+
         {hasValuation && (
-          <div className="border-t pt-6">
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
             <p className="text-sm text-subtitle mb-2">
               {valuationResult.isExisting 
                 ? "Estimated Value (Based on Similar Vehicle)" 
                 : "Estimated Market Value"
               }
             </p>
-            <p className="text-3xl font-bold text-primary">
-              PLN {(valuationResult.averagePrice || valuationResult.valuation || 0).toLocaleString()}
+            <p className="text-4xl font-bold text-primary">
+              PLN {displayPrice.toLocaleString()}
             </p>
           </div>
         )}
       </div>
-      <DialogFooter className="flex flex-col sm:flex-row gap-3">
+
+      <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
         <Button 
           variant="outline"
           onClick={onClose}
