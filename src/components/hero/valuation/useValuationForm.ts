@@ -24,8 +24,25 @@ export const useValuationForm = () => {
         }
       });
 
-      if (error) throw error;
-      if (!response.success) throw new Error(response.message || "Failed to get valuation");
+      if (error) {
+        console.error('Manual valuation error:', error);
+        setters.setValuationResult({
+          ...data,
+          error: error.message || "Failed to get valuation. Please try again."
+        });
+        setters.setDialogOpen(true);
+        return;
+      }
+
+      if (!response.success) {
+        console.error('Manual valuation failed:', response.message);
+        setters.setValuationResult({
+          ...data,
+          error: response.message || "Failed to get valuation. Please try again."
+        });
+        setters.setDialogOpen(true);
+        return;
+      }
 
       const valuationData = response.data;
       console.log('Received valuation data:', valuationData);
@@ -40,7 +57,11 @@ export const useValuationForm = () => {
       toast.success("Valuation completed successfully!");
     } catch (error: any) {
       console.error('Manual valuation error:', error);
-      toast.error(error.message || "Failed to get valuation. Please try again later.");
+      setters.setValuationResult({
+        ...data,
+        error: error.message || "An unexpected error occurred. Please try again."
+      });
+      setters.setDialogOpen(true);
     } finally {
       setters.setIsLoading(false);
     }
@@ -100,6 +121,10 @@ export const useValuationForm = () => {
         formState.gearbox
       );
 
+      if (!valuationData) {
+        throw new Error("Could not retrieve valuation data");
+      }
+
       localStorage.setItem('valuationData', JSON.stringify(valuationData));
       localStorage.setItem('tempVIN', formState.vin);
       localStorage.setItem('tempMileage', formState.mileage);
@@ -110,15 +135,25 @@ export const useValuationForm = () => {
       toast.success("Valuation completed successfully!");
     } catch (error: any) {
       console.error('Error during valuation:', error);
-      toast.error(error.message || "Failed to get vehicle valuation. Please try entering details manually.", {
-        action: {
-          label: "Enter Manually",
-          onClick: () => setters.setShowManualForm(true)
-        }
+      setters.setValuationResult({
+        make: '',
+        model: '',
+        year: new Date().getFullYear(),
+        vin: formState.vin,
+        transmission: formState.gearbox,
+        error: error.message || "Failed to get vehicle valuation. Please try entering details manually."
       });
+      setters.setDialogOpen(true);
     } finally {
       setters.setIsLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    setters.setDialogOpen(false);
+    setters.setValuationResult(null);
+    setters.setVin('');
+    setters.setMileage('');
   };
 
   const handleContinue = () => {
@@ -134,6 +169,7 @@ export const useValuationForm = () => {
     handleManualSubmit,
     handleVinSubmit,
     handleContinue,
+    handleRetry,
     setDialogOpen: setters.setDialogOpen,
     setShowManualForm: setters.setShowManualForm
   };

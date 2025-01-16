@@ -9,6 +9,7 @@ export interface ValuationData {
   make?: string;
   model?: string;
   year?: number;
+  error?: string;
   [key: string]: any;
 }
 
@@ -21,6 +22,7 @@ export interface ValuationResult {
   valuation?: number;
   averagePrice?: number;
   isExisting?: boolean;
+  error?: string;
 }
 
 export interface ValuationState {

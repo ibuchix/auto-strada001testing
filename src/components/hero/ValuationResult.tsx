@@ -5,7 +5,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -17,15 +17,64 @@ interface ValuationResultProps {
     valuation?: number;
     averagePrice?: number;
     isExisting?: boolean;
+    error?: string;
   };
   onContinue: () => void;
   onClose: () => void;
+  onRetry?: () => void;
 }
 
-export const ValuationResult = ({ valuationResult, onContinue, onClose }: ValuationResultProps) => {
+export const ValuationResult = ({ 
+  valuationResult, 
+  onContinue, 
+  onClose,
+  onRetry 
+}: ValuationResultProps) => {
   if (!valuationResult) return null;
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
+  const hasError = !!valuationResult.error;
+  const hasValuation = !hasError && (valuationResult.valuation || valuationResult.averagePrice);
+
+  if (hasError) {
+    return (
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold text-center mb-6 flex items-center justify-center gap-2">
+            <AlertTriangle className="h-6 w-6 text-primary" />
+            Valuation Error
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <p className="text-center text-subtitle">
+            {valuationResult.error || "We couldn't get a valuation for your vehicle at this time."}
+          </p>
+          <p className="text-sm text-center text-subtitle">
+            Please try again or enter your details manually.
+          </p>
+        </div>
+
+        <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
+          <Button 
+            variant="outline"
+            onClick={onClose}
+            className="w-full sm:w-auto"
+          >
+            Close
+          </Button>
+          {onRetry && (
+            <Button 
+              onClick={onRetry}
+              className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
+            >
+              Try Again
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    );
+  }
 
   return (
     <DialogContent className="sm:max-w-md">
@@ -53,15 +102,15 @@ export const ValuationResult = ({ valuationResult, onContinue, onClose }: Valuat
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">Manufacturer</p>
-            <p className="font-medium text-dark">{valuationResult.make}</p>
+            <p className="font-medium text-dark">{valuationResult.make || 'N/A'}</p>
           </div>
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">Model</p>
-            <p className="font-medium text-dark">{valuationResult.model}</p>
+            <p className="font-medium text-dark">{valuationResult.model || 'N/A'}</p>
           </div>
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">Year</p>
-            <p className="font-medium text-dark">{valuationResult.year}</p>
+            <p className="font-medium text-dark">{valuationResult.year || 'N/A'}</p>
           </div>
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">VIN</p>
@@ -69,24 +118,26 @@ export const ValuationResult = ({ valuationResult, onContinue, onClose }: Valuat
           </div>
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">Transmission</p>
-            <p className="font-medium text-dark capitalize">{valuationResult.transmission}</p>
+            <p className="font-medium text-dark capitalize">{valuationResult.transmission || 'N/A'}</p>
           </div>
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle mb-1">Mileage</p>
             <p className="font-medium text-dark">{mileage.toLocaleString()} km</p>
           </div>
         </div>
-        <div className="border-t pt-6">
-          <p className="text-sm text-subtitle mb-2">
-            {valuationResult.isExisting 
-              ? "Estimated Value (Based on Similar Vehicle)" 
-              : "Estimated Market Value"
-            }
-          </p>
-          <p className="text-3xl font-bold text-primary">
-            PLN {(valuationResult.averagePrice || valuationResult.valuation || 0).toLocaleString()}
-          </p>
-        </div>
+        {hasValuation && (
+          <div className="border-t pt-6">
+            <p className="text-sm text-subtitle mb-2">
+              {valuationResult.isExisting 
+                ? "Estimated Value (Based on Similar Vehicle)" 
+                : "Estimated Market Value"
+              }
+            </p>
+            <p className="text-3xl font-bold text-primary">
+              PLN {(valuationResult.averagePrice || valuationResult.valuation || 0).toLocaleString()}
+            </p>
+          </div>
+        )}
       </div>
       <DialogFooter className="flex flex-col sm:flex-row gap-3">
         <Button 
