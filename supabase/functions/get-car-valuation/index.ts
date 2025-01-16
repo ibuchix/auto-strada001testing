@@ -38,7 +38,7 @@ serve(async (req) => {
 
     console.log('Processing request for:', { vin, mileage, gearbox });
 
-    // Calculate checksum using the crypto module
+    // Calculate checksum
     const input = `${API_ID}${API_SECRET}${vin}`;
     const checksumHex = createHash("md5")
       .update(input)
@@ -50,20 +50,27 @@ serve(async (req) => {
     const detailsUrl = `https://bp.autoiso.pl/api/v3/getVinDetails/apiuid:${API_ID}/checksum:${checksumHex}/vin:${vin}`;
     console.log('Calling vehicle details API:', detailsUrl);
 
-    const detailsResponse = await fetch(detailsUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'AutoStra-API-Client/1.0'
-      }
-    });
+    let detailsResponse;
+    try {
+      detailsResponse = await fetch(detailsUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'AutoStra-API-Client/1.0'
+        }
+      });
+      console.log('Details API Response Status:', detailsResponse.status);
+    } catch (error) {
+      console.error('Failed to fetch vehicle details:', error);
+      throw new Error('Failed to connect to vehicle details API');
+    }
 
     if (!detailsResponse.ok) {
+      const errorText = await detailsResponse.text();
       console.error('Vehicle details API error:', {
         status: detailsResponse.status,
-        statusText: detailsResponse.statusText
+        statusText: detailsResponse.statusText,
+        body: errorText
       });
-      const errorText = await detailsResponse.text();
-      console.error('Error response:', errorText);
       throw new Error(`Vehicle details API error: ${detailsResponse.status}`);
     }
 
@@ -74,20 +81,27 @@ serve(async (req) => {
     const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksumHex}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
     console.log('Calling valuation API:', valuationUrl);
 
-    const valuationResponse = await fetch(valuationUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'AutoStra-API-Client/1.0'
-      }
-    });
+    let valuationResponse;
+    try {
+      valuationResponse = await fetch(valuationUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'AutoStra-API-Client/1.0'
+        }
+      });
+      console.log('Valuation API Response Status:', valuationResponse.status);
+    } catch (error) {
+      console.error('Failed to fetch valuation:', error);
+      throw new Error('Failed to connect to valuation API');
+    }
 
     if (!valuationResponse.ok) {
+      const errorText = await valuationResponse.text();
       console.error('Valuation API error:', {
         status: valuationResponse.status,
-        statusText: valuationResponse.statusText
+        statusText: valuationResponse.statusText,
+        body: errorText
       });
-      const errorText = await valuationResponse.text();
-      console.error('Error response:', errorText);
       throw new Error(`Valuation API error: ${valuationResponse.status}`);
     }
 
