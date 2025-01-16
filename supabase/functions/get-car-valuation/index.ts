@@ -36,6 +36,7 @@ serve(async (req) => {
     const checksum = calculateChecksum(API_ID, API_SECRET, vin);
     console.log('Calculated checksum:', checksum);
 
+    // Construct the API URL properly without any trailing colons
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
     console.log('Calling API:', apiUrl);
 
@@ -76,8 +77,6 @@ serve(async (req) => {
       mileage: mileage,
       transmission: gearbox || 'manual',
       valuation: responseData.price || responseData.valuation?.price || responseData.estimated_value || responseData.value,
-      minimumPrice: responseData.minimum_price || responseData.min_price,
-      maximumPrice: responseData.maximum_price || responseData.max_price,
       averagePrice: responseData.average_price || responseData.price,
       currency: "PLN"
     };
