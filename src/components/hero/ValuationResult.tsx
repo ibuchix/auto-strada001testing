@@ -14,7 +14,8 @@ interface ValuationResultProps {
     year: number;
     vin: string;
     transmission: string;
-    valuation: number;
+    valuation?: number;
+    averagePrice?: number;
     isExisting?: boolean;
   };
   onContinue: () => void;
@@ -25,9 +26,7 @@ export const ValuationResult = ({ valuationResult, onContinue, onClose }: Valuat
   if (!valuationResult) return null;
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-  const valuationAmount = typeof valuationResult.valuation === 'number' 
-    ? valuationResult.valuation 
-    : 0;
+  const valuationAmount = valuationResult.averagePrice || valuationResult.valuation || 0;
 
   return (
     <DialogContent className="sm:max-w-md">
