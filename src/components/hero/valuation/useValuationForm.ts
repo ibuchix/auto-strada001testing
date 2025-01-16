@@ -40,7 +40,7 @@ export const useValuationForm = () => {
       toast.success("Valuation completed successfully!");
     } catch (error: any) {
       console.error('Manual valuation error:', error);
-      toast.error("Failed to get valuation. Please try again later.");
+      toast.error(error.message || "Failed to get valuation. Please try again later.");
     } finally {
       setters.setIsLoading(false);
     }
@@ -61,6 +61,17 @@ export const useValuationForm = () => {
 
     if (!formState.mileage.trim()) {
       toast.error("Please enter your vehicle's mileage");
+      return;
+    }
+
+    const mileageNum = parseInt(formState.mileage);
+    if (isNaN(mileageNum) || mileageNum <= 0 || mileageNum >= 1000000) {
+      toast.error("Please enter a valid mileage between 0 and 1,000,000 km");
+      return;
+    }
+
+    if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(formState.vin)) {
+      toast.error("Please enter a valid 17-character VIN");
       return;
     }
 
@@ -85,7 +96,7 @@ export const useValuationForm = () => {
 
       const valuationData = await getValuation(
         formState.vin, 
-        parseInt(formState.mileage), 
+        mileageNum, 
         formState.gearbox
       );
 
@@ -99,7 +110,7 @@ export const useValuationForm = () => {
       toast.success("Valuation completed successfully!");
     } catch (error: any) {
       console.error('Error during valuation:', error);
-      toast.error("Failed to get vehicle valuation. Please try entering details manually.", {
+      toast.error(error.message || "Failed to get vehicle valuation. Please try entering details manually.", {
         action: {
           label: "Enter Manually",
           onClick: () => setters.setShowManualForm(true)
@@ -122,6 +133,8 @@ export const useValuationForm = () => {
     setGearbox: setters.setGearbox,
     handleManualSubmit,
     handleVinSubmit,
-    handleContinue
+    handleContinue,
+    setDialogOpen: setters.setDialogOpen,
+    setShowManualForm: setters.setShowManualForm
   };
 };
