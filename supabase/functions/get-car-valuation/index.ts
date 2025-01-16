@@ -28,7 +28,6 @@ serve(async (req) => {
 
     const { vin, mileage, gearbox } = parsedBody;
     
-    // Input validation
     if (!vin || typeof vin !== 'string' || vin.length < 11) {
       throw new Error('Invalid VIN format');
     }
@@ -37,17 +36,13 @@ serve(async (req) => {
       throw new Error('Invalid mileage value');
     }
 
-    console.log('Processing VIN valuation request:', {
-      vin,
-      mileage,
-      gearbox,
-      timestamp: new Date().toISOString()
-    });
+    console.log('Processing request for:', { vin, mileage, gearbox });
 
+    // Calculate checksum
     const checksum = calculateChecksum(API_ID, API_SECRET, vin);
     console.log('Calculated checksum:', checksum);
 
-    // First API call to get vehicle details
+    // First API call - Get vehicle details
     const detailsUrl = `https://bp.autoiso.pl/api/v3/getVinDetails/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}`;
     console.log('Calling vehicle details API:', detailsUrl);
 
@@ -55,7 +50,11 @@ serve(async (req) => {
     const detailsData = await detailsResponse.json();
     console.log('Vehicle details API response:', detailsData);
 
-    // Second API call to get valuation
+    if (!detailsResponse.ok) {
+      throw new Error(`Vehicle details API error: ${detailsResponse.status}`);
+    }
+
+    // Second API call - Get valuation
     const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
     console.log('Calling valuation API:', valuationUrl);
 
@@ -63,17 +62,22 @@ serve(async (req) => {
     const valuationData = await valuationResponse.json();
     console.log('Valuation API response:', valuationData);
 
+    if (!valuationResponse.ok) {
+      throw new Error(`Valuation API error: ${valuationResponse.status}`);
+    }
+
     // Combine and transform the data
     const combinedData = {
       make: detailsData?.make || valuationData?.make || 'Unknown',
       model: detailsData?.model || valuationData?.model || 'Unknown',
       year: detailsData?.year || valuationData?.year || new Date().getFullYear(),
       vin: vin,
-      mileage: mileage,
       transmission: gearbox || 'manual',
       valuation: valuationData?.price || valuationData?.valuation?.price || null,
       averagePrice: valuationData?.average_price || valuationData?.market_value || null,
-      currency: "PLN"
+      currency: "PLN",
+      mileage: mileage,
+      isExisting: false
     };
 
     console.log('Final transformed data:', combinedData);
