@@ -432,6 +432,14 @@ export type Database = {
         }
         Returns: string[]
       }
+      calculate_checksum: {
+        Args: {
+          api_id: string
+          api_secret: string
+          vin: string
+        }
+        Returns: string
+      }
       check_dealer_email_exists: {
         Args: {
           email_to_check: string

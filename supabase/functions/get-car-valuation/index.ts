@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { createHash } from "https://deno.land/std@0.177.0/crypto/mod.ts";
+import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 
 const API_ID = 'AUTOSTRA';
 const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
@@ -38,11 +38,13 @@ serve(async (req) => {
 
     console.log('Processing request for:', { vin, mileage, gearbox });
 
-    // Calculate checksum
+    // Calculate checksum using MD5
     const input = `${API_ID}${API_SECRET}${vin}`;
-    const checksumHex = createHash("md5")
-      .update(input)
-      .toString();
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    const hashBuffer = await crypto.subtle.digest('MD5', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const checksumHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     
     console.log('Calculated checksum:', checksumHex);
 
