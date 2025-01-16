@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
+import { createHash } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const API_ID = 'AUTOSTRA';
