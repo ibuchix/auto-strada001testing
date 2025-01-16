@@ -1,10 +1,7 @@
 export interface ValuationRequest {
-  vin?: string;
-  make?: string;
-  model?: string;
-  year?: number;
+  vin: string;
   mileage: number;
-  gearbox: string;
+  gearbox?: string;
   isManualEntry?: boolean;
 }
 
@@ -14,6 +11,9 @@ export interface ValuationResponse {
   year: number | null;
   vin: string;
   transmission: string;
-  valuation: number;
+  valuation: number | null;
+  averagePrice: number | null;
   mileage: number;
+  rawDetails?: any;
+  rawValuation?: any;
 }
