@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const API_ID = 'AUTOSTRA';
@@ -6,13 +7,11 @@ const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
 
 async function calculateChecksum(vin: string): Promise<string> {
   const input = `${API_ID}${API_SECRET}${vin}`;
-  console.log('Checksum input:', input);
+  console.log('Calculating checksum for input:', input);
   
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('MD5', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const hash = createHash('md5');
+  hash.update(input);
+  const checksum = hash.toString();
   
   console.log('Calculated checksum:', checksum);
   return checksum;
