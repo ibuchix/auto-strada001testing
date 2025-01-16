@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useValuationState } from "./hooks/useValuationState";
-import { checkExistingVin, getValuation, createExistingValuation } from "./services/valuationService";
+import { getValuation } from "./services/valuationService";
 import { ManualValuationData } from "../ManualValuationForm";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -114,23 +114,7 @@ export const useValuationForm = () => {
 
     setters.setIsLoading(true);
     try {
-      const existingCar = await checkExistingVin(formState.vin);
-
-      if (existingCar) {
-        console.log('Found existing car:', existingCar);
-        const valuationData = existingCar.valuation_data as any;
-        const existingValuation = createExistingValuation(
-          existingCar, 
-          formState.vin, 
-          formState.gearbox, 
-          valuationData
-        );
-
-        setters.setValuationResult(existingValuation);
-        setters.setDialogOpen(true);
-        return;
-      }
-
+      // Always get a fresh valuation from the API
       const valuationData = await getValuation(
         formState.vin, 
         mileageNum, 
