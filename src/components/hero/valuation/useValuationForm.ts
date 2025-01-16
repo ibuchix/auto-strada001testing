@@ -28,6 +28,7 @@ export const useValuationForm = () => {
         console.error('Manual valuation error:', error);
         setters.setValuationResult({
           ...data,
+          vin: 'MANUAL',
           error: error.message || "Failed to get valuation. Please try again."
         });
         setters.setDialogOpen(true);
@@ -38,6 +39,7 @@ export const useValuationForm = () => {
         console.error('Manual valuation failed:', response.message);
         setters.setValuationResult({
           ...data,
+          vin: 'MANUAL',
           error: response.message || "Failed to get valuation. Please try again."
         });
         setters.setDialogOpen(true);
@@ -51,7 +53,10 @@ export const useValuationForm = () => {
       localStorage.setItem('tempMileage', data.mileage);
       localStorage.setItem('tempGearbox', data.transmission);
 
-      setters.setValuationResult(valuationData);
+      setters.setValuationResult({
+        ...valuationData,
+        vin: 'MANUAL'
+      });
       setters.setShowManualForm(false);
       setters.setDialogOpen(true);
       toast.success("Valuation completed successfully!");
@@ -59,6 +64,7 @@ export const useValuationForm = () => {
       console.error('Manual valuation error:', error);
       setters.setValuationResult({
         ...data,
+        vin: 'MANUAL',
         error: error.message || "An unexpected error occurred. Please try again."
       });
       setters.setDialogOpen(true);
