@@ -8,7 +8,6 @@ const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
 serve(async (req) => {
   console.log('Received request:', req.method);
   
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
@@ -34,11 +33,9 @@ serve(async (req) => {
       throw new Error('VIN and mileage are required');
     }
 
-    // Calculate checksum using the hardcoded API credentials
     const checksum = calculateChecksum(API_ID, API_SECRET, vin);
     console.log('Calculated checksum:', checksum);
 
-    // Construct the API URL with all required parameters
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
     console.log('Calling API:', apiUrl);
 
@@ -52,6 +49,15 @@ serve(async (req) => {
     try {
       responseData = JSON.parse(responseText);
       console.log('Parsed API Response:', responseData);
+      
+      // Enhanced logging for price ranges
+      console.log('Price Ranges:', {
+        minimumPrice: responseData.minimum_price || responseData.min_price || 'Not available',
+        maximumPrice: responseData.maximum_price || responseData.max_price || 'Not available',
+        averagePrice: responseData.average_price || responseData.price || 'Not available',
+        currency: 'PLN'
+      });
+      
     } catch (parseError) {
       console.error('Failed to parse API response:', parseError);
       throw new Error('Invalid JSON response from API');
@@ -70,6 +76,9 @@ serve(async (req) => {
       mileage: mileage,
       transmission: gearbox || 'manual',
       valuation: responseData.price || responseData.valuation?.price || responseData.estimated_value || responseData.value,
+      minimumPrice: responseData.minimum_price || responseData.min_price,
+      maximumPrice: responseData.maximum_price || responseData.max_price,
+      averagePrice: responseData.average_price || responseData.price,
       currency: "PLN"
     };
 

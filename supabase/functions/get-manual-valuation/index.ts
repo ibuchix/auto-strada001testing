@@ -5,7 +5,6 @@ import { normalizeData, validateRequest } from "./utils/validation.ts"
 console.log("Manual valuation function started")
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -15,11 +14,9 @@ serve(async (req) => {
       throw new Error('Method not allowed')
     }
 
-    // Get the request body
     const requestData = await req.json()
     console.log('Received request data:', JSON.stringify(requestData, null, 2))
 
-    // Normalize and validate the data
     const normalizedData = normalizeData(requestData)
     console.log('Normalized data:', JSON.stringify(normalizedData, null, 2))
 
@@ -40,8 +37,18 @@ serve(async (req) => {
       )
     }
 
-    // Mock valuation calculation for now
-    const valuationAmount = Math.floor(Math.random() * (50000 - 20000) + 20000)
+    // Mock valuation calculation with price ranges
+    const baseValue = Math.floor(Math.random() * (50000 - 20000) + 20000)
+    const priceRanges = {
+      minimumPrice: Math.floor(baseValue * 0.8),
+      maximumPrice: Math.floor(baseValue * 1.2),
+      averagePrice: baseValue
+    }
+
+    console.log('Calculated price ranges:', {
+      ...priceRanges,
+      currency: normalizedData.country === 'PL' ? 'PLN' : 'EUR'
+    })
 
     const response = {
       success: true,
@@ -54,10 +61,12 @@ serve(async (req) => {
         transmission: normalizedData.transmission,
         fuel: normalizedData.fuel,
         country: normalizedData.country,
-        valuation: valuationAmount,
+        ...priceRanges,
         currency: normalizedData.country === 'PL' ? 'PLN' : 'EUR'
       }
     }
+
+    console.log('Final response:', JSON.stringify(response, null, 2))
 
     return new Response(
       JSON.stringify(response),
