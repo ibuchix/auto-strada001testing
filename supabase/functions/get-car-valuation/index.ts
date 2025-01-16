@@ -11,7 +11,7 @@ async function calculateChecksum(vin: string): Promise<string> {
   
   const hash = createHash('md5');
   hash.update(input);
-  const checksum = hash.toString();
+  const checksum = hash.toString('hex');
   
   console.log('Calculated checksum:', checksum);
   return checksum;
