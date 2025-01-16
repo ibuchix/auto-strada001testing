@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ValuationResult } from "../types";
 import { Database } from "@/integrations/supabase/types";
+import { extractPrice } from "../../../../supabase/functions/get-car-valuation/utils/priceExtractor";
 
 type TransmissionType = Database['public']['Enums']['car_transmission_type'];
 
@@ -9,6 +10,8 @@ export const getValuation = async (
   mileage: number, 
   gearbox: TransmissionType
 ): Promise<ValuationResult> => {
+  console.log('Getting valuation for:', { vin, mileage, gearbox });
+  
   const { data, error } = await supabase.functions.invoke('get-car-valuation', {
     body: { 
       vin: vin.trim(),
@@ -22,11 +25,23 @@ export const getValuation = async (
     throw new Error(data?.message || "Failed to get vehicle valuation");
   }
 
-  // Transform the response to include averagePrice
+  console.log('API Response:', data);
+
+  // Extract price using the utility function
+  const price = extractPrice(data.data);
+  console.log('Extracted price:', price);
+
   const transformedData: ValuationResult = {
     ...data.data,
-    averagePrice: data.data.averagePrice || data.data.price || data.data.valuation,
+    make: data.data.make || 'Not available',
+    model: data.data.model || 'Not available',
+    year: parseInt(data.data.year) || new Date().getFullYear(),
+    vin: vin,
+    transmission: gearbox,
+    valuation: price,
+    averagePrice: price || data.data.averagePrice || data.data.price || data.data.valuation
   };
 
+  console.log('Transformed valuation data:', transformedData);
   return transformedData;
 };
