@@ -69,99 +69,64 @@ serve(async (req) => {
     const detailsUrl = `https://bp.autoiso.pl/api/v3/getVinDetails/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}`;
     console.log('Calling vehicle details API:', detailsUrl);
 
-    let detailsResponse;
-    try {
-      detailsResponse = await fetch(detailsUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'AutoStra-API-Client/1.0'
-        }
-      });
-      console.log('Details API Response Status:', detailsResponse.status);
-      
-      const detailsText = await detailsResponse.text();
-      console.log('Raw Details API Response:', detailsText);
-      
-      try {
-        detailsResponse = { ok: detailsResponse.ok, json: JSON.parse(detailsText) };
-      } catch (e) {
-        console.error('Failed to parse details response:', e);
-        throw new Error('Invalid JSON in details response');
+    const detailsResponse = await fetch(detailsUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'AutoStra-API-Client/1.0'
       }
-    } catch (error) {
-      console.error('Failed to fetch vehicle details:', error);
-      throw new Error('Failed to connect to vehicle details API');
-    }
+    });
 
     if (!detailsResponse.ok) {
-      console.error('Vehicle details API error:', {
-        status: detailsResponse.status,
-        response: detailsResponse.json
-      });
       throw new Error(`Vehicle details API error: ${detailsResponse.status}`);
     }
 
-    const detailsData = detailsResponse.json;
+    const detailsData = await detailsResponse.json();
     console.log('Vehicle details API response:', detailsData);
 
     // Second API call - Get valuation
     const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox || 'manual'}/currency:PLN`;
     console.log('Calling valuation API:', valuationUrl);
 
-    let valuationResponse;
-    try {
-      valuationResponse = await fetch(valuationUrl, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'AutoStra-API-Client/1.0'
-        }
-      });
-      console.log('Valuation API Response Status:', valuationResponse.status);
-      
-      const valuationText = await valuationResponse.text();
-      console.log('Raw Valuation API Response:', valuationText);
-      
-      try {
-        valuationResponse = { ok: valuationResponse.ok, json: JSON.parse(valuationText) };
-      } catch (e) {
-        console.error('Failed to parse valuation response:', e);
-        throw new Error('Invalid JSON in valuation response');
+    const valuationResponse = await fetch(valuationUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'AutoStra-API-Client/1.0'
       }
-    } catch (error) {
-      console.error('Failed to fetch valuation:', error);
-      throw new Error('Failed to connect to valuation API');
-    }
+    });
 
     if (!valuationResponse.ok) {
-      console.error('Valuation API error:', {
-        status: valuationResponse.status,
-        response: valuationResponse.json
-      });
       throw new Error(`Valuation API error: ${valuationResponse.status}`);
     }
 
-    const valuationData = valuationResponse.json;
+    const valuationData = await valuationResponse.json();
     console.log('Valuation API response:', valuationData);
 
     // Extract and validate the vehicle details
-    const make = detailsData?.make || valuationData?.make || 'Unknown';
-    const model = detailsData?.model || valuationData?.model || 'Unknown';
-    const year = detailsData?.year || valuationData?.year || new Date().getFullYear();
-    const price = valuationData?.price || valuationData?.valuation?.price || null;
-    const marketValue = valuationData?.market_value || valuationData?.average_price || null;
+    const make = detailsData?.make || valuationData?.make || detailsData?.vehicle?.make;
+    const model = detailsData?.model || valuationData?.model || detailsData?.vehicle?.model;
+    const year = detailsData?.year || valuationData?.year || detailsData?.vehicle?.year;
+    const price = valuationData?.price || valuationData?.valuation?.price || valuationData?.market_value;
+    const marketValue = valuationData?.market_value || valuationData?.average_price || price;
+
+    // If we don't have basic vehicle details, try to extract from response data
+    const vehicleInfo = detailsData?.vehicle || detailsData?.data || {};
+    const extractedMake = vehicleInfo.make || vehicleInfo.manufacturer;
+    const extractedModel = vehicleInfo.model || vehicleInfo.type;
 
     // Combine the data
     const combinedData = {
-      make,
-      model,
-      year,
+      make: make || extractedMake || 'Unknown',
+      model: model || extractedModel || 'Unknown',
+      year: year || new Date().getFullYear(),
       vin,
       transmission: gearbox || 'manual',
       valuation: price,
       averagePrice: marketValue,
       currency: "PLN",
       mileage,
-      isExisting: make !== 'Unknown' || model !== 'Unknown'
+      isExisting: !!(make || extractedMake || model || extractedModel),
+      rawDetails: detailsData,
+      rawValuation: valuationData
     };
 
     console.log('Final transformed data:', combinedData);
