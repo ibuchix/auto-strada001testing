@@ -27,8 +27,11 @@ export const useValuationForm = () => {
       if (error) {
         console.error('Manual valuation error:', error);
         setters.setValuationResult({
-          ...data,
+          make: data.make,
+          model: data.model,
+          year: parseInt(data.year),
           vin: 'MANUAL',
+          transmission: data.transmission,
           error: error.message || "Failed to get valuation. Please try again."
         });
         setters.setDialogOpen(true);
@@ -38,8 +41,11 @@ export const useValuationForm = () => {
       if (!response.success) {
         console.error('Manual valuation failed:', response.message);
         setters.setValuationResult({
-          ...data,
+          make: data.make,
+          model: data.model,
+          year: parseInt(data.year),
           vin: 'MANUAL',
+          transmission: data.transmission,
           error: response.message || "Failed to get valuation. Please try again."
         });
         setters.setDialogOpen(true);
@@ -55,7 +61,8 @@ export const useValuationForm = () => {
 
       setters.setValuationResult({
         ...valuationData,
-        vin: 'MANUAL'
+        vin: 'MANUAL',
+        year: parseInt(data.year)
       });
       setters.setShowManualForm(false);
       setters.setDialogOpen(true);
@@ -63,8 +70,11 @@ export const useValuationForm = () => {
     } catch (error: any) {
       console.error('Manual valuation error:', error);
       setters.setValuationResult({
-        ...data,
+        make: data.make,
+        model: data.model,
+        year: parseInt(data.year),
         vin: 'MANUAL',
+        transmission: data.transmission,
         error: error.message || "An unexpected error occurred. Please try again."
       });
       setters.setDialogOpen(true);
