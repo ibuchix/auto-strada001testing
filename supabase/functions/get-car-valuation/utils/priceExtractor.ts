@@ -1,41 +1,47 @@
 export const extractPrice = (responseData: any): number | null => {
-  console.log('Extracting price from API response:', JSON.stringify(responseData, null, 2));
+  console.log('Extracting price from response:', JSON.stringify(responseData, null, 2));
 
-  // Direct price field
-  if (typeof responseData?.price === 'number') {
-    return responseData.price;
+  // Direct price fields with validation
+  const directPrices = [
+    responseData?.price,
+    responseData?.valuation?.price,
+    responseData?.functionResponse?.price,
+    responseData?.functionResponse?.valuation?.price,
+    responseData?.estimated_value,
+    responseData?.value
+  ].filter(price => typeof price === 'number' && price > 0);
+
+  if (directPrices.length > 0) {
+    console.log('Found direct price:', directPrices[0]);
+    return directPrices[0];
   }
 
-  // Check valuation object
-  if (typeof responseData?.valuation?.price === 'number') {
-    return responseData.valuation.price;
-  }
-
-  // Check functionResponse object
-  if (typeof responseData?.functionResponse?.price === 'number') {
-    return responseData.functionResponse.price;
-  }
-
-  // Check nested valuation object
-  if (typeof responseData?.functionResponse?.valuation?.price === 'number') {
-    return responseData.functionResponse.valuation.price;
-  }
-
-  // Check for any numeric price field recursively
-  const findPrice = (obj: any): number | null => {
-    if (!obj || typeof obj !== 'object') return null;
+  // Recursive search for any valid price field
+  const findPrice = (obj: any, depth = 0): number | null => {
+    if (!obj || typeof obj !== 'object' || depth > 3) return null;
     
     for (const [key, value] of Object.entries(obj)) {
-      if (key.toLowerCase().includes('price') && typeof value === 'number') {
+      // Check if the current value is a valid price
+      if (key.toLowerCase().includes('price') && typeof value === 'number' && value > 0) {
+        console.log(`Found nested price in field "${key}":`, value);
         return value;
       }
-      if (typeof value === 'object') {
-        const nestedPrice = findPrice(value);
+      
+      // Recursively check nested objects
+      if (value && typeof value === 'object') {
+        const nestedPrice = findPrice(value, depth + 1);
         if (nestedPrice !== null) return nestedPrice;
       }
     }
     return null;
   };
 
-  return findPrice(responseData);
+  const recursivePrice = findPrice(responseData);
+  if (recursivePrice !== null) {
+    console.log('Found price through recursive search:', recursivePrice);
+    return recursivePrice;
+  }
+
+  console.log('No valid price found in response');
+  return null;
 };
