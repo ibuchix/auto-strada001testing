@@ -18,15 +18,13 @@ interface ValuationResultProps {
     isExisting?: boolean;
   };
   onContinue: () => void;
+  onClose: () => void;
 }
 
-export const ValuationResult = ({ valuationResult, onContinue }: ValuationResultProps) => {
+export const ValuationResult = ({ valuationResult, onContinue, onClose }: ValuationResultProps) => {
   if (!valuationResult) return null;
 
-  // Get the stored mileage from localStorage
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-
-  // Ensure valuation is a number
   const valuationAmount = typeof valuationResult.valuation === 'number' 
     ? valuationResult.valuation 
     : 0;
@@ -92,10 +90,17 @@ export const ValuationResult = ({ valuationResult, onContinue }: ValuationResult
           </p>
         </div>
       </div>
-      <DialogFooter>
+      <DialogFooter className="flex flex-col sm:flex-row gap-3">
+        <Button 
+          variant="outline"
+          onClick={onClose}
+          className="w-full sm:w-auto"
+        >
+          Close
+        </Button>
         <Button 
           onClick={onContinue}
-          className="w-full bg-secondary hover:bg-secondary/90 text-white"
+          className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
         >
           {valuationResult.isExisting 
             ? "List My Car" 

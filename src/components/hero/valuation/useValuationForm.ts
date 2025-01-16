@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useValuationState } from "./hooks/useValuationState";
 import { checkExistingVin, getValuation, createExistingValuation } from "./services/valuationService";
 import { ManualValuationData } from "../ManualValuationForm";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useValuationForm = () => {
   const navigate = useNavigate();

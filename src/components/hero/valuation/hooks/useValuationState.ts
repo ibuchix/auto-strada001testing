@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ValuationState } from "../types";
+import { ValuationState, ValuationResult } from "../types";
 import { Database } from "@/integrations/supabase/types";
 
 type TransmissionType = Database['public']['Enums']['car_transmission_type'];
@@ -9,7 +9,7 @@ export const useValuationState = () => {
   const [mileage, setMileage] = useState("");
   const [gearbox, setGearbox] = useState<TransmissionType>("manual");
   const [isLoading, setIsLoading] = useState(false);
-  const [valuationResult, setValuationResult] = useState<any>(null);
+  const [valuationResult, setValuationResult] = useState<ValuationResult | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
 
@@ -21,7 +21,9 @@ export const useValuationState = () => {
       isLoading,
       valuationResult,
       dialogOpen,
-      showManualForm
+      showManualForm,
+      setDialogOpen,
+      setShowManualForm
     },
     setters: {
       setVin,

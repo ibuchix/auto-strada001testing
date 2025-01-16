@@ -15,12 +15,12 @@ export const ValuationForm = () => {
     isLoading,
     valuationResult,
     dialogOpen,
-    setDialogOpen,
     showManualForm,
-    setShowManualForm,
     handleManualSubmit,
     handleVinSubmit,
-    handleContinue
+    handleContinue,
+    setDialogOpen,
+    setShowManualForm
   } = useValuationForm();
 
   return (
@@ -28,11 +28,11 @@ export const ValuationForm = () => {
       <ValuationInput 
         vin={vin}
         mileage={mileage}
-        gearbox={gearbox as 'manual' | 'automatic'}
+        gearbox={gearbox}
         isLoading={isLoading}
         onVinChange={setVin}
         onMileageChange={setMileage}
-        onGearboxChange={(value: 'manual' | 'automatic') => setGearbox(value)}
+        onGearboxChange={setGearbox}
         onSubmit={handleVinSubmit}
         onManualEntry={() => setShowManualForm(true)}
       />
@@ -41,6 +41,7 @@ export const ValuationForm = () => {
           <ValuationResult 
             valuationResult={valuationResult}
             onContinue={handleContinue}
+            onClose={() => setDialogOpen(false)}
           />
         )}
       </Dialog>
@@ -49,7 +50,7 @@ export const ValuationForm = () => {
         onClose={() => setShowManualForm(false)}
         onSubmit={handleManualSubmit}
         mileage={mileage}
-        transmission={gearbox as 'manual' | 'automatic'}
+        transmission={gearbox}
       />
     </div>
   );
