@@ -458,6 +458,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      log_vin_search: {
+        Args: {
+          search_vin: string
+          search_result: Json
+          searcher_id?: string
+        }
+        Returns: undefined
+      }
       update_required_photos: {
         Args: {
           car_id: string
