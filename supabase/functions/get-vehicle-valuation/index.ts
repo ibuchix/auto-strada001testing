@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createHash } from "https://deno.land/std/hash/mod.ts";
-import { encode } from "https://deno.land/std@0.168.0/encoding/hex.ts";
+import md5 from "https://deno.land/x/md5@v1.0.2/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 interface ValuationRequest {
@@ -25,8 +24,7 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
   console.log('API Secret length:', apiSecret.length);
   
   try {
-    const hash = createHash('md5').update(input).digest();
-    const checksum = encode(hash);
+    const checksum = md5(input);
     console.log('Generated checksum:', checksum);
     return checksum;
   } catch (error) {
