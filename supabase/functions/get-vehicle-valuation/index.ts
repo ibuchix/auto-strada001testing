@@ -4,8 +4,9 @@ import { encodeHex } from "https://deno.land/std@0.168.0/encoding/hex.ts";
 
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
   const input = `${apiId}${apiSecret}${vin}`;
-  console.log('Input string for checksum:', input);
-
+  console.log('Input string for checksum (length):', input.length);
+  console.log('API Secret length:', apiSecret.length);
+  
   // Generate MD5 checksum using crypto API
   const hash = new Uint8Array(
     crypto.subtle.digestSync(
@@ -17,6 +18,40 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
 
   console.log('Generated checksum:', checksum);
   return checksum;
+};
+
+const validateApiSecret = (apiSecret: string | undefined): string => {
+  if (!apiSecret) {
+    console.error('CAR_API_SECRET is not set in environment variables');
+    throw new Error('API secret is missing from environment configuration');
+  }
+  
+  if (apiSecret.length !== 32) {
+    console.error(`Invalid API secret length: ${apiSecret.length}, expected 32 characters`);
+    throw new Error('Invalid API secret format');
+  }
+  
+  return apiSecret;
+};
+
+const constructApiUrl = (params: {
+  apiId: string;
+  checksum: string;
+  vin: string;
+  mileage: number;
+}): string => {
+  const baseUrl = 'https://bp.autoiso.pl/api/v3/getVinValuation';
+  const url = `${baseUrl}/apiuid:${params.apiId}/checksum:${params.checksum}/vin:${params.vin}/odometer:${params.mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
+  
+  console.log('Constructed API URL components:', {
+    baseUrl,
+    apiId: params.apiId,
+    checksum: params.checksum,
+    vin: params.vin,
+    mileage: params.mileage
+  });
+  
+  return url;
 };
 
 Deno.serve(async (req) => {
@@ -32,19 +67,12 @@ Deno.serve(async (req) => {
       throw new Error('VIN number is required');
     }
 
-    const apiId = 'AUTOSTRA'; // Hardcoded as per API docs
-    const apiSecret = Deno.env.get('CAR_API_SECRET'); // Fetch from environment variables
-
-    if (!apiSecret) {
-      throw new Error('API secret is missing');
-    }
-
+    const apiId = 'AUTOSTRA';
+    const apiSecret = validateApiSecret(Deno.env.get('CAR_API_SECRET'));
     const checksum = calculateChecksum(apiId, apiSecret, vin);
+    const apiUrl = constructApiUrl({ apiId, checksum, vin, mileage });
 
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
-
-    console.log('Constructed API URL:', apiUrl);
-
+    console.log('Making request to external API...');
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
@@ -55,7 +83,11 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('API Error Response:', errorText);
+      console.error('API Error Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
       throw new Error(`API request failed: ${response.status} ${response.statusText}. Details: ${errorText}`);
     }
 
@@ -67,7 +99,6 @@ Deno.serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
-    // Transform API response to match frontend expectations
     const valuationResult = {
       make: responseData.functionResponse?.userParams?.make || 'Not available',
       model: responseData.functionResponse?.userParams?.model || 'Not available',
