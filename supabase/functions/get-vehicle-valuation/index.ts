@@ -1,14 +1,19 @@
 import { corsHeaders } from '../_shared/cors.ts';
-import { createHash } from 'https://deno.land/std/hash/mod.ts';
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+import { encodeHex } from "https://deno.land/std@0.168.0/encoding/hex.ts";
 
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
   const input = `${apiId}${apiSecret}${vin}`;
   console.log('Input string for checksum:', input);
 
-  // Generate MD5 checksum
-  const hash = createHash('md5');
-  hash.update(input);
-  const checksum = hash.toString();
+  // Generate MD5 checksum using crypto API
+  const hash = new Uint8Array(
+    crypto.subtle.digestSync(
+      "MD5",
+      new TextEncoder().encode(input)
+    )
+  );
+  const checksum = encodeHex(hash);
 
   console.log('Generated checksum:', checksum);
   return checksum;
