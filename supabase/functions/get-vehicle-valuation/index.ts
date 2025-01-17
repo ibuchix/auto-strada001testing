@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
-import { encodeHex } from "https://deno.land/std@0.168.0/encoding/hex.ts";
+import { encode } from "https://deno.land/std@0.168.0/encoding/hex.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,7 +35,7 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
         new TextEncoder().encode(input)
       )
     );
-    const checksum = encodeHex(hash);
+    const checksum = encode(hash);
     console.log('Generated checksum:', checksum);
     return checksum;
   } catch (error) {
