@@ -1,7 +1,6 @@
-import { ValuationRequest, ValuationResponse } from "../types.ts";
 import { calculateChecksum } from "../utils/checksum.ts";
+import { ValuationRequest, ValuationResponse } from "../types.ts";
 import { extractVehicleDetails } from "../utils/vehicleDataExtractor.ts";
-import { corsHeaders } from "../utils/cors.ts";
 
 const API_BASE_URL = 'https://bp.autoiso.pl/api/v3';
 
@@ -56,7 +55,7 @@ export async function getVehicleValuation(data: ValuationRequest): Promise<Valua
   }
 
   try {
-    const checksum = calculateChecksum(apiId, apiSecret, data.vin);
+    const checksum = await calculateChecksum(apiId, apiSecret, data.vin);
     console.log('Using checksum:', checksum);
 
     const [detailsData, valuationData] = await Promise.all([

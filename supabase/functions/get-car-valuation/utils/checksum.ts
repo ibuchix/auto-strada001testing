@@ -1,4 +1,6 @@
-export function calculateChecksum(apiId: string, apiSecret: string, vin: string): string {
+import { corsHeaders } from "./cors.ts";
+
+export async function calculateChecksum(apiId: string, apiSecret: string, vin: string): Promise<string> {
   console.log('Calculating checksum for:', { apiId, vin });
   const input = `${apiId}${apiSecret}${vin}`;
   
@@ -6,8 +8,8 @@ export function calculateChecksum(apiId: string, apiSecret: string, vin: string)
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
   
-  // Calculate MD5 hash
-  const hashBuffer = crypto.subtle.digestSync('MD5', data);
+  // Calculate MD5 hash asynchronously
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
   
   // Convert to hex string
   const hashArray = Array.from(new Uint8Array(hashBuffer));
