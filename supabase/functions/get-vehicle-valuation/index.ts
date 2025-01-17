@@ -20,7 +20,7 @@ interface ValuationResponse {
 
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
   const input = `${apiId}${apiSecret}${vin}`;
-  console.log('Input string for checksum (length):', input.length);
+  console.log('Input string for checksum:', input);
   console.log('API Secret length:', apiSecret.length);
   
   try {
