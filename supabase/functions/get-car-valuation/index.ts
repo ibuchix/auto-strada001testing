@@ -1,9 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "./utils/cors.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 import { getVehicleValuation } from "./services/valuationService.ts";
 
 serve(async (req) => {
-  console.log('Request received:', new Date().toISOString());
+  console.log('Valuation request received:', new Date().toISOString());
   
   if (req.method === 'OPTIONS') {
     console.log('Handling CORS preflight request');
@@ -24,7 +24,7 @@ serve(async (req) => {
     }
 
     const valuationResult = await getVehicleValuation(parsedBody);
-    console.log('Valuation completed:', valuationResult);
+    console.log('Valuation completed successfully:', valuationResult);
 
     return new Response(
       JSON.stringify({
@@ -41,7 +41,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error processing request:', error);
+    console.error('Error processing valuation request:', error);
     return new Response(
       JSON.stringify({
         success: false,

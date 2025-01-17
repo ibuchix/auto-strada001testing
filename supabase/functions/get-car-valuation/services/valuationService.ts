@@ -14,7 +14,7 @@ async function calculateChecksum(vin: string): Promise<string> {
   }
 
   const input = `${API_ID}${apiSecret}${vin}`;
-  console.log('Raw input string (length):', input.length);
+  console.log('Raw input string length:', input.length);
 
   // Calculate MD5 hash using js-md5
   const checksum = md5(input);
@@ -35,6 +35,7 @@ async function calculateChecksum(vin: string): Promise<string> {
 
   if (testChecksum !== expectedTestChecksum) {
     console.error('Test case validation failed - checksum calculation might be incorrect');
+    throw new Error('Checksum validation failed - please check API configuration');
   }
 
   return checksum;
@@ -138,9 +139,7 @@ export async function getVehicleValuation(data: ValuationRequest): Promise<Valua
       ...vehicleInfo,
       vin: data.vin,
       transmission: data.gearbox || 'manual',
-      mileage: data.mileage,
-      rawDetails: detailsData,
-      rawValuation: valuationData
+      mileage: data.mileage
     };
   } catch (error) {
     console.error('Valuation error:', error);
