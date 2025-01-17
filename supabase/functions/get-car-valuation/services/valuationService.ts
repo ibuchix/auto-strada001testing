@@ -1,15 +1,51 @@
-import { calculateChecksum } from "../utils/checksum.ts";
+import md5 from "js-md5";
 import { ValuationRequest, ValuationResponse } from "../types.ts";
 import { extractVehicleDetails } from "../utils/vehicleDataExtractor.ts";
 
 const API_BASE_URL = 'https://bp.autoiso.pl/api/v3';
+const API_ID = 'AUTOSTRA';
 
-async function fetchVehicleDetails(apiId: string, checksum: string, vin: string) {
-  const detailsUrl = `${API_BASE_URL}/getVinDetails/apiuid:${apiId}/checksum:${checksum}/vin:${vin}`;
-  console.log('Fetching vehicle details from:', detailsUrl);
+async function calculateChecksum(vin: string): Promise<string> {
+  console.log('Starting checksum calculation for VIN:', vin);
+  
+  const apiSecret = Deno.env.get('CAR_API_SECRET');
+  if (!apiSecret) {
+    throw new Error('API secret is not configured');
+  }
+
+  const input = `${API_ID}${apiSecret}${vin}`;
+  console.log('Raw input string (length):', input.length);
+
+  // Calculate MD5 hash using js-md5
+  const checksum = md5(input);
+  console.log('Calculated checksum:', checksum);
+
+  // Validate with test case
+  const testVin = 'WAUZZZ8K79A090954';
+  const testInput = `${API_ID}${apiSecret}${testVin}`;
+  const testChecksum = md5(testInput);
+  const expectedTestChecksum = '6c6f042d5c5c4ce3c3b3a7e752547ae0';
+  
+  console.log('Test case validation:', {
+    testVin,
+    calculatedChecksum: testChecksum,
+    expectedChecksum: expectedTestChecksum,
+    matches: testChecksum === expectedTestChecksum
+  });
+
+  if (testChecksum !== expectedTestChecksum) {
+    console.error('Test case validation failed - checksum calculation might be incorrect');
+  }
+
+  return checksum;
+}
+
+async function fetchVehicleDetails(checksum: string, vin: string) {
+  const url = `${API_BASE_URL}/getVinDetails/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}`;
+  console.log('Fetching vehicle details from:', url);
   
   try {
-    const response = await fetch(detailsUrl, {
+    const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'AutoStra-API-Client/1.0'
@@ -22,7 +58,7 @@ async function fetchVehicleDetails(apiId: string, checksum: string, vin: string)
         status: response.status,
         statusText: response.statusText,
         errorText,
-        url: detailsUrl
+        url
       });
       throw new Error(`Vehicle details API error: ${response.status} - ${errorText}`);
     }
@@ -36,12 +72,12 @@ async function fetchVehicleDetails(apiId: string, checksum: string, vin: string)
   }
 }
 
-async function fetchValuation(apiId: string, checksum: string, vin: string, mileage: number, gearbox: string) {
-  const valuationUrl = `${API_BASE_URL}/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox}/currency:PLN`;
-  console.log('Fetching valuation from:', valuationUrl);
+async function fetchValuation(checksum: string, vin: string, mileage: number, gearbox: string) {
+  const url = `${API_BASE_URL}/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox}/currency:PLN`;
+  console.log('Fetching valuation from:', url);
   
   try {
-    const response = await fetch(valuationUrl, {
+    const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'AutoStra-API-Client/1.0'
@@ -54,7 +90,7 @@ async function fetchValuation(apiId: string, checksum: string, vin: string, mile
         status: response.status,
         statusText: response.statusText,
         errorText,
-        url: valuationUrl
+        url
       });
       throw new Error(`Valuation API error: ${response.status} - ${errorText}`);
     }
@@ -71,9 +107,6 @@ async function fetchValuation(apiId: string, checksum: string, vin: string, mile
 export async function getVehicleValuation(data: ValuationRequest): Promise<ValuationResponse> {
   console.log('Processing valuation request:', data);
 
-  const apiId = 'AUTOSTRA';
-  const apiSecret = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
-  
   if (!data.vin || typeof data.vin !== 'string' || data.vin.length < 11) {
     console.error('Invalid VIN format:', data.vin);
     throw new Error('Invalid VIN format');
@@ -85,12 +118,12 @@ export async function getVehicleValuation(data: ValuationRequest): Promise<Valua
   }
 
   try {
-    const checksum = await calculateChecksum(apiId, apiSecret, data.vin);
+    const checksum = await calculateChecksum(data.vin);
     console.log('Calculated checksum:', checksum);
 
     const [detailsData, valuationData] = await Promise.all([
-      fetchVehicleDetails(apiId, checksum, data.vin),
-      fetchValuation(apiId, checksum, data.vin, data.mileage, data.gearbox || 'manual')
+      fetchVehicleDetails(checksum, data.vin),
+      fetchValuation(checksum, data.vin, data.mileage, data.gearbox || 'manual')
     ]);
 
     console.log('API Responses:', {
