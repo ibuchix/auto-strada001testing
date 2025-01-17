@@ -8,8 +8,8 @@ export async function calculateChecksum(apiId: string, apiSecret: string, vin: s
   const encoder = new TextEncoder();
   const data = encoder.encode(input);
   
-  // Calculate MD5 hash asynchronously
-  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  // Calculate SHA-256 hash asynchronously
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   
   // Convert to hex string
   const hashArray = Array.from(new Uint8Array(hashBuffer));
