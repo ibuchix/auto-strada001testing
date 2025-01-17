@@ -21,7 +21,8 @@ async function fetchVehicleDetails(apiId: string, checksum: string, vin: string)
       console.error('Vehicle details API error:', {
         status: response.status,
         statusText: response.statusText,
-        errorText
+        errorText,
+        url: detailsUrl
       });
       throw new Error(`Vehicle details API error: ${response.status} - ${errorText}`);
     }
@@ -52,7 +53,8 @@ async function fetchValuation(apiId: string, checksum: string, vin: string, mile
       console.error('Valuation API error:', {
         status: response.status,
         statusText: response.statusText,
-        errorText
+        errorText,
+        url: valuationUrl
       });
       throw new Error(`Valuation API error: ${response.status} - ${errorText}`);
     }
