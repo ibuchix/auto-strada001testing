@@ -8,20 +8,19 @@ interface ValuationRequest {
   gearbox: 'manual' | 'automatic';
 }
 
-interface ValuationResponse {
-  make: string;
-  model: string;
-  year: number | null;
-  vin: string;
-  transmission: string;
-  fuelType: string;
-  valuation: number;
-}
-
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
-  const input = `${apiId}${apiSecret}${vin}`;
-  console.log('Input string for checksum:', input);
-  console.log('API Secret length:', apiSecret.length);
+  // Trim all input values to remove any whitespace
+  const cleanApiId = apiId.trim();
+  const cleanApiSecret = apiSecret.trim();
+  const cleanVin = vin.trim();
+  
+  const input = `${cleanApiId}${cleanApiSecret}${cleanVin}`;
+  console.log('Input string components:', {
+    apiId: cleanApiId,
+    apiSecretLength: cleanApiSecret.length,
+    vin: cleanVin
+  });
+  console.log('Final input string length:', input.length);
   
   try {
     const checksum = md5(input);
@@ -88,7 +87,7 @@ serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
-    const valuationResult: ValuationResponse = {
+    const valuationResult = {
       make: responseData.functionResponse?.userParams?.make || 'Not available',
       model: responseData.functionResponse?.userParams?.model || 'Not available',
       year: responseData.functionResponse?.userParams?.year || null,
