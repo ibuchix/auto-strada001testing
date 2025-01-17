@@ -35,7 +35,16 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
   
   try {
     const checksum = md5(input);
-    console.log('Generated checksum:', checksum);
+    console.log('Generated checksum for request:', {
+      vin: cleanVin,
+      checksum: checksum,
+      inputLength: input.length,
+      inputComponents: {
+        apiIdLength: cleanApiId.length,
+        apiSecretLength: cleanApiSecret.length,
+        vinLength: cleanVin.length
+      }
+    });
     return checksum;
   } catch (error) {
     console.error('Error generating checksum:', error);
