@@ -22,6 +22,17 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
   });
   console.log('Final input string length:', input.length);
   
+  // Validate against test case
+  const testVin = 'WAUZZZ8K79A090954';
+  const testInput = `${cleanApiId}${cleanApiSecret}${testVin}`;
+  const testChecksum = md5(testInput);
+  console.log('Test case validation:', {
+    testVin: testVin,
+    expectedChecksum: '6c6f042d5c5c4ce3c3b3a7e752547ae0',
+    calculatedChecksum: testChecksum,
+    matches: testChecksum === '6c6f042d5c5c4ce3c3b3a7e752547ae0'
+  });
+  
   try {
     const checksum = md5(input);
     console.log('Generated checksum:', checksum);
