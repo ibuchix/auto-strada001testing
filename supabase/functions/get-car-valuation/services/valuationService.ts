@@ -1,4 +1,4 @@
-import md5 from 'js-md5';
+import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
 import { ValuationRequest, ValuationResponse, ApiResponse } from '../types.ts';
 import { validateRequest } from '../utils/validation.ts';
 
@@ -18,12 +18,13 @@ async function calculateChecksum(vin: string): Promise<string> {
   const input = `${API_ID}${apiSecret}${vin}`;
   console.log('Input string prepared, length:', input.length);
 
-  const checksum = md5(input);
+  // Use Deno's built-in crypto functionality
+  const checksum = createHash("md5").update(input).toString();
   console.log('Calculated checksum:', checksum);
 
   // Validate with test case
   const testInput = `${API_ID}${apiSecret}${TEST_VIN}`;
-  const testChecksum = md5(testInput);
+  const testChecksum = createHash("md5").update(testInput).toString();
   
   console.log('Test case validation:', {
     testVin: TEST_VIN,
