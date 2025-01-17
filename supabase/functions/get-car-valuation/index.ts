@@ -1,10 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const API_BASE_URL = 'https://bp.autoiso.pl/api/v3';
+const API_ID = 'AUTOSTRA';
 
 interface ValuationRequest {
   vin: string;
@@ -13,17 +11,18 @@ interface ValuationRequest {
 }
 
 serve(async (req) => {
+  console.log('Valuation request received:', req.url);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get request data
     const { vin, mileage, gearbox = 'manual' } = await req.json() as ValuationRequest;
-    console.log('Received request:', { vin, mileage, gearbox });
+    console.log('Request data:', { vin, mileage, gearbox });
 
-    // Validate input
+    // Input validation
     if (!vin || !/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
       throw new Error('Invalid VIN format');
     }
@@ -31,35 +30,43 @@ serve(async (req) => {
       throw new Error('Invalid mileage');
     }
 
-    // Calculate checksum
-    const apiId = 'AUTOSTRA';
+    // Get API secret from environment
     const apiSecret = Deno.env.get('CAR_API_SECRET');
     if (!apiSecret) {
       throw new Error('API secret not configured');
     }
 
-    const input = `${apiId}${apiSecret}${vin}`;
+    // Calculate checksum
+    const input = `${API_ID}${apiSecret}${vin}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(input);
     const hashBuffer = await crypto.subtle.digest('MD5', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    console.log('Calculated checksum:', checksum);
+    console.log('Checksum calculated:', checksum);
 
     // Fetch vehicle details and valuation in parallel
-    const baseUrl = 'https://bp.autoiso.pl/api/v3';
-    const headers = {
-      'Accept': 'application/json',
-      'User-Agent': 'AutoStra-API-Client/1.0'
-    };
-
     const [detailsResponse, valuationResponse] = await Promise.all([
-      fetch(`${baseUrl}/getVinDetails/apiuid:${apiId}/checksum:${checksum}/vin:${vin}`, { headers }),
-      fetch(`${baseUrl}/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox}/currency:PLN`, { headers })
+      fetch(`${API_BASE_URL}/getVinDetails/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}`, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'AutoStra-API-Client/1.0'
+        }
+      }),
+      fetch(`${API_BASE_URL}/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox}/currency:PLN`, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'AutoStra-API-Client/1.0'
+        }
+      })
     ]);
 
     if (!detailsResponse.ok || !valuationResponse.ok) {
+      console.error('API Error:', {
+        details: detailsResponse.status,
+        valuation: valuationResponse.status
+      });
       throw new Error('Failed to fetch vehicle data');
     }
 
