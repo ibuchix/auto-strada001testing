@@ -1,103 +1,110 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-import { getVehicleValuation } from "./services/valuationService.ts";
-import { ValuationRequest, ErrorResponse } from "./types.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface ValuationRequest {
+  vin: string;
+  mileage: number;
+  gearbox?: 'manual' | 'automatic';
+}
 
 serve(async (req) => {
-  console.log('Valuation request received:', new Date().toISOString());
-  
-  // Handle CORS preflight
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const requestBody = await req.text();
-    console.log('Raw request body:', requestBody);
+    // Get request data
+    const { vin, mileage, gearbox = 'manual' } = await req.json() as ValuationRequest;
+    console.log('Received request:', { vin, mileage, gearbox });
 
-    let parsedBody: ValuationRequest;
-    try {
-      parsedBody = JSON.parse(requestBody);
-      console.log('Parsed request body:', parsedBody);
-    } catch (parseError) {
-      console.error('Failed to parse request body:', parseError);
-      throw new Error('Invalid JSON in request body');
+    // Validate input
+    if (!vin || !/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+      throw new Error('Invalid VIN format');
+    }
+    if (!mileage || mileage < 0 || mileage > 1000000) {
+      throw new Error('Invalid mileage');
     }
 
-    let lastError: Error | null = null;
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        console.log(`Attempt ${attempt} of ${MAX_RETRIES}`);
-        const valuationResult = await getVehicleValuation(parsedBody);
-        console.log('Valuation completed successfully:', valuationResult);
-
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: 'Valuation completed successfully',
-            data: valuationResult
-          }),
-          { 
-            headers: {
-              ...corsHeaders,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-      } catch (error) {
-        console.error(`Attempt ${attempt} failed:`, error);
-        lastError = error;
-        
-        if (attempt < MAX_RETRIES) {
-          console.log(`Waiting ${RETRY_DELAY}ms before retry...`);
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-        }
-      }
+    // Calculate checksum
+    const apiId = 'AUTOSTRA';
+    const apiSecret = Deno.env.get('CAR_API_SECRET');
+    if (!apiSecret) {
+      throw new Error('API secret not configured');
     }
 
-    // If we get here, all retries failed
-    const errorResponse: ErrorResponse = {
-      success: false,
-      message: lastError?.message || 'Failed to get valuation after multiple attempts',
-      error: lastError,
-      timestamp: new Date().toISOString()
+    const input = `${apiId}${apiSecret}${vin}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    const hashBuffer = await crypto.subtle.digest('MD5', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    console.log('Calculated checksum:', checksum);
+
+    // Fetch vehicle details and valuation in parallel
+    const baseUrl = 'https://bp.autoiso.pl/api/v3';
+    const headers = {
+      'Accept': 'application/json',
+      'User-Agent': 'AutoStra-API-Client/1.0'
     };
 
-    console.error('All retry attempts failed:', errorResponse);
+    const [detailsResponse, valuationResponse] = await Promise.all([
+      fetch(`${baseUrl}/getVinDetails/apiuid:${apiId}/checksum:${checksum}/vin:${vin}`, { headers }),
+      fetch(`${baseUrl}/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/transmission:${gearbox}/currency:PLN`, { headers })
+    ]);
+
+    if (!detailsResponse.ok || !valuationResponse.ok) {
+      throw new Error('Failed to fetch vehicle data');
+    }
+
+    const details = await detailsResponse.json();
+    const valuation = await valuationResponse.json();
+
+    console.log('API Responses:', {
+      details: details,
+      valuation: valuation
+    });
+
+    // Process and combine the responses
+    const response = {
+      success: true,
+      data: {
+        make: details.make || 'Unknown',
+        model: details.model || 'Unknown',
+        year: parseInt(details.year) || new Date().getFullYear(),
+        vin: vin,
+        transmission: gearbox,
+        mileage: mileage,
+        valuation: valuation.price || valuation.valuation || null,
+        averagePrice: valuation.averagePrice || null,
+        rawDetails: details,
+        rawValuation: valuation
+      }
+    };
 
     return new Response(
-      JSON.stringify(errorResponse),
-      { 
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 400
-      }
+      JSON.stringify(response),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Unhandled error in valuation request:', error);
+    console.error('Error:', error);
     
-    const errorResponse: ErrorResponse = {
-      success: false,
-      message: error.message || 'An unexpected error occurred',
-      error: error,
-      timestamp: new Date().toISOString()
-    };
-
     return new Response(
-      JSON.stringify(errorResponse),
+      JSON.stringify({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unexpected error occurred',
+        timestamp: new Date().toISOString()
+      }),
       { 
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        },
-        status: 500
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
