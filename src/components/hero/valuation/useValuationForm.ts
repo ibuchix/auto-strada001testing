@@ -114,7 +114,6 @@ export const useValuationForm = () => {
 
     setters.setIsLoading(true);
     try {
-      // Always get a fresh valuation from the API
       const valuationData = await getValuation(
         formState.vin, 
         mileageNum, 
