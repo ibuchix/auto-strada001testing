@@ -1,11 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+import { createHash } from "https://deno.land/std/hash/mod.ts";
 import { encode } from "https://deno.land/std@0.168.0/encoding/hex.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 interface ValuationRequest {
   vin: string;
@@ -29,12 +25,7 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
   console.log('API Secret length:', apiSecret.length);
   
   try {
-    const hash = new Uint8Array(
-      crypto.subtle.digestSync(
-        "MD5",
-        new TextEncoder().encode(input)
-      )
-    );
+    const hash = createHash('md5').update(input).digest();
     const checksum = encode(hash);
     console.log('Generated checksum:', checksum);
     return checksum;
@@ -44,42 +35,7 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
   }
 };
 
-const validateApiSecret = (apiSecret: string | undefined): string => {
-  if (!apiSecret) {
-    console.error('CAR_API_SECRET is not set in environment variables');
-    throw new Error('API secret is missing from environment configuration');
-  }
-  
-  if (apiSecret.length !== 32) {
-    console.error(`Invalid API secret length: ${apiSecret.length}, expected 32 characters`);
-    throw new Error('Invalid API secret format');
-  }
-  
-  return apiSecret;
-};
-
-const constructApiUrl = (params: {
-  apiId: string;
-  checksum: string;
-  vin: string;
-  mileage: number;
-}): string => {
-  const baseUrl = 'https://bp.autoiso.pl/api/v3/getVinValuation';
-  const url = `${baseUrl}/apiuid:${params.apiId}/checksum:${params.checksum}/vin:${params.vin}/odometer:${params.mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
-  
-  console.log('Constructed API URL components:', {
-    baseUrl,
-    apiId: params.apiId,
-    checksum: params.checksum,
-    vin: params.vin,
-    mileage: params.mileage
-  });
-  
-  return url;
-};
-
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -93,10 +49,20 @@ serve(async (req) => {
     }
 
     const apiId = 'AUTOSTRA';
-    const apiSecret = validateApiSecret(Deno.env.get('CAR_API_SECRET'));
-    const checksum = calculateChecksum(apiId, apiSecret, vin);
-    const apiUrl = constructApiUrl({ apiId, checksum, vin, mileage });
+    const apiSecret = Deno.env.get('CAR_API_SECRET');
+    if (!apiSecret) {
+      console.error('CAR_API_SECRET is not set in environment variables');
+      throw new Error('API secret is missing from environment configuration');
+    }
+    
+    if (apiSecret.length !== 32) {
+      console.error(`Invalid API secret length: ${apiSecret.length}, expected 32 characters`);
+      throw new Error('Invalid API secret format');
+    }
 
+    const checksum = calculateChecksum(apiId, apiSecret, vin);
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
+    
     console.log('Making request to external API...');
     const response = await fetch(apiUrl, {
       method: 'GET',
