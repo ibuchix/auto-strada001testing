@@ -12,7 +12,7 @@ export const getValuation = async (
 ): Promise<ValuationResult> => {
   console.log('Getting valuation for:', { vin, mileage, gearbox });
   
-  const { data, error } = await supabase.functions.invoke('get-car-valuation', {
+  const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
     body: { 
       vin: vin.trim(),
       mileage: mileage,

@@ -26,10 +26,11 @@ const Sellers = () => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('get-car-valuation', {
+      const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
         body: {
           vin: vin,
           mileage: parseInt(mileage),
+          gearbox: gearbox
         }
       });
 
