@@ -1,23 +1,47 @@
-import { corsHeaders } from '../_shared/cors.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 import { encodeHex } from "https://deno.land/std@0.168.0/encoding/hex.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface ValuationRequest {
+  vin: string;
+  mileage: number;
+  gearbox: 'manual' | 'automatic';
+}
+
+interface ValuationResponse {
+  make: string;
+  model: string;
+  year: number | null;
+  vin: string;
+  transmission: string;
+  fuelType: string;
+  valuation: number;
+}
 
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
   const input = `${apiId}${apiSecret}${vin}`;
   console.log('Input string for checksum (length):', input.length);
   console.log('API Secret length:', apiSecret.length);
   
-  // Generate MD5 checksum using crypto API
-  const hash = new Uint8Array(
-    crypto.subtle.digestSync(
-      "MD5",
-      new TextEncoder().encode(input)
-    )
-  );
-  const checksum = encodeHex(hash);
-
-  console.log('Generated checksum:', checksum);
-  return checksum;
+  try {
+    const hash = new Uint8Array(
+      crypto.subtle.digestSync(
+        "MD5",
+        new TextEncoder().encode(input)
+      )
+    );
+    const checksum = encodeHex(hash);
+    console.log('Generated checksum:', checksum);
+    return checksum;
+  } catch (error) {
+    console.error('Error generating checksum:', error);
+    throw new Error('Failed to generate checksum');
+  }
 };
 
 const validateApiSecret = (apiSecret: string | undefined): string => {
@@ -54,13 +78,14 @@ const constructApiUrl = (params: {
   return url;
 };
 
-Deno.serve(async (req) => {
+serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { vin, mileage = 50000, gearbox = 'manual' } = await req.json();
+    const { vin, mileage = 50000, gearbox = 'manual' } = await req.json() as ValuationRequest;
     console.log('Received request with VIN:', vin, 'Mileage:', mileage, 'Gearbox:', gearbox);
 
     if (!vin) {
@@ -99,7 +124,7 @@ Deno.serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
-    const valuationResult = {
+    const valuationResult: ValuationResponse = {
       make: responseData.functionResponse?.userParams?.make || 'Not available',
       model: responseData.functionResponse?.userParams?.model || 'Not available',
       year: responseData.functionResponse?.userParams?.year || null,
