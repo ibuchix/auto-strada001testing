@@ -39,6 +39,8 @@ export const getValuation = async (
                         data.data.functionResponse?.valuation?.calcValuation?.price || 
                         0;
 
+    console.log('Extracted average price:', averagePrice);
+
     // Ensure all required fields are present
     const valuationResult: ValuationResult = {
       make: data.data.make || data.data.functionResponse?.userParams?.make || 'Not available',

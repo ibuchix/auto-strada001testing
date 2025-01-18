@@ -36,8 +36,14 @@ export const ValuationResult = ({
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = !!valuationResult.error;
   const hasValuation = !hasError && (valuationResult.averagePrice || valuationResult.valuation);
-  // Prioritize average price, fall back to valuation if not available
-  const displayPrice = valuationResult.averagePrice || valuationResult.valuation || 0;
+  
+  // Get the average price from the raw response or fall back to the processed average price
+  const averagePrice = valuationResult.rawResponse?.functionResponse?.valuation?.calcValuation?.price_avr || 
+                      valuationResult.averagePrice || 
+                      valuationResult.valuation || 
+                      0;
+
+  console.log('Display price:', averagePrice);
 
   if (hasError) {
     return (
@@ -131,14 +137,9 @@ export const ValuationResult = ({
 
         {hasValuation && (
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
-            <p className="text-sm text-subtitle mb-2">
-              {valuationResult.isExisting 
-                ? "Average Market Value" 
-                : "Average Market Value"
-              }
-            </p>
+            <p className="text-sm text-subtitle mb-2">Average Market Value</p>
             <p className="text-4xl font-bold text-primary">
-              PLN {displayPrice.toLocaleString()}
+              PLN {averagePrice.toLocaleString()}
             </p>
           </div>
         )}
