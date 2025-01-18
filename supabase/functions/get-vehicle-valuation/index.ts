@@ -55,17 +55,6 @@ serve(async (req) => {
     const checksum = calculateMD5(input);
     console.log('Calculated checksum:', checksum);
 
-    // Validate with test case
-    const testVin = 'WAUZZZ8K79A090954';
-    const testInput = `${apiId}${apiSecret}${testVin}`;
-    const testChecksum = calculateMD5(testInput);
-    console.log('Test case validation:', {
-      testVin,
-      expectedChecksum: '6c6f042d5c5c4ce3c3b3a7e752547ae0',
-      calculatedChecksum: testChecksum,
-      matches: testChecksum === '6c6f042d5c5c4ce3c3b3a7e752547ae0'
-    });
-
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${cleanVin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
     
     console.log('Making request to external API:', apiUrl);
@@ -95,6 +84,13 @@ serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
+    // Extract the average price from the calcValuation object
+    const averagePrice = responseData.functionResponse?.valuation?.calcValuation?.price_avr || 
+                        responseData.functionResponse?.valuation?.calcValuation?.price || 
+                        0;
+
+    console.log('Extracted average price:', averagePrice);
+
     const valuationResult = {
       make: responseData.functionResponse?.userParams?.make || 'Not available',
       model: responseData.functionResponse?.userParams?.model || 'Not available',
@@ -102,15 +98,8 @@ serve(async (req) => {
       vin: cleanVin,
       transmission: gearbox,
       fuelType: responseData.functionResponse?.userParams?.fuel || 'Not available',
-      valuation: responseData.functionResponse?.valuation?.calcValuation?.price ||
-                responseData.functionResponse?.valuation?.price ||
-                responseData.functionResponse?.price ||
-                responseData.functionResponse?.market_value ||
-                0,
-      averagePrice: responseData.functionResponse?.valuation?.average_price ||
-                   responseData.functionResponse?.average_price ||
-                   responseData.functionResponse?.market_value ||
-                   0,
+      valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
+      averagePrice: averagePrice,
       rawResponse: responseData
     };
 
