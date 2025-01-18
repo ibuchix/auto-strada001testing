@@ -35,8 +35,7 @@ export const getValuation = async (
     }
 
     // Extract the average price from the nested calcValuation object
-    const averagePrice = data.data.functionResponse?.valuation?.calcValuation?.price_avr || 0;
-
+    const averagePrice = data.data.functionResponse?.valuation?.calcValuation?.price_avr;
     console.log('Extracted average price:', averagePrice);
 
     // Ensure all required fields are present
@@ -47,7 +46,7 @@ export const getValuation = async (
       vin: data.data.vin,
       transmission: data.data.transmission || gearbox,
       valuation: data.data.functionResponse?.valuation?.calcValuation?.price || 0,
-      averagePrice: averagePrice,
+      averagePrice: averagePrice || 0,
       rawResponse: data.data
     };
 

@@ -40,10 +40,8 @@ export const ValuationResult = ({
   const hasError = !!valuationResult.error;
   const hasValuation = !hasError && (valuationResult.averagePrice || valuationResult.valuation);
   
-  const averagePrice = valuationResult.rawResponse?.functionResponse?.valuation?.calcValuation?.price_avr || 
-                      valuationResult.averagePrice || 
-                      0;
-
+  // Get the average price directly from the valuation result
+  const averagePrice = valuationResult.averagePrice || 0;
   console.log('Display price:', averagePrice);
 
   if (hasError) {
