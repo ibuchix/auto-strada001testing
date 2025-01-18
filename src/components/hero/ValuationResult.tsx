@@ -18,6 +18,7 @@ interface ValuationResultProps {
     averagePrice?: number;
     isExisting?: boolean;
     error?: string;
+    rawResponse?: any;
   };
   onContinue: () => void;
   onClose: () => void;

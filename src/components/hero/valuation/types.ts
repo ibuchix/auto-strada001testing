@@ -23,6 +23,7 @@ export interface ValuationResult {
   averagePrice?: number;
   isExisting?: boolean;
   error?: string;
+  rawResponse?: any;
 }
 
 export interface ValuationState {
