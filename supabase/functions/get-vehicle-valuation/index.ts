@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+import { Md5 } from "https://deno.land/std@0.168.0/hash/md5.ts";
 
 interface ValuationRequest {
   vin: string;
@@ -11,12 +13,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function calculateHash(input: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+function calculateMD5(input: string): string {
+  const md5 = new Md5();
+  md5.update(input);
+  return md5.toString();
 }
 
 serve(async (req) => {
@@ -44,11 +44,19 @@ serve(async (req) => {
     const input = `${apiId}${apiSecret}${cleanVin}`;
     console.log('Input string length:', input.length);
 
-    const checksum = await calculateHash(input);
+    const checksum = calculateMD5(input);
     console.log('Calculated checksum:', checksum);
 
-    // Note: We're not validating against the test case anymore since we're using SHA-256
-    // The API expects an MD5 hash, but we're using SHA-256 for better security
+    // Validate with test case
+    const testVin = 'WAUZZZ8K79A090954';
+    const testInput = `${apiId}${apiSecret}${testVin}`;
+    const testChecksum = calculateMD5(testInput);
+    console.log('Test case validation:', {
+      testVin,
+      expectedChecksum: '6c6f042d5c5c4ce3c3b3a7e752547ae0',
+      calculatedChecksum: testChecksum,
+      matches: testChecksum === '6c6f042d5c5c4ce3c3b3a7e752547ae0'
+    });
 
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${cleanVin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
     
