@@ -35,10 +35,7 @@ export const getValuation = async (
     }
 
     // Extract the average price from the nested calcValuation object
-    const averagePrice = data.data.functionResponse?.valuation?.calcValuation?.price_avr || 
-                        data.data.functionResponse?.valuation?.calcValuation?.price || 
-                        data.data.valuation || 
-                        0;
+    const averagePrice = data.data.functionResponse?.valuation?.calcValuation?.price_avr || 0;
 
     console.log('Extracted average price:', averagePrice);
 

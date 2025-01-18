@@ -42,7 +42,6 @@ export const ValuationResult = ({
   
   const averagePrice = valuationResult.rawResponse?.functionResponse?.valuation?.calcValuation?.price_avr || 
                       valuationResult.averagePrice || 
-                      valuationResult.valuation || 
                       0;
 
   console.log('Display price:', averagePrice);
