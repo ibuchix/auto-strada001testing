@@ -41,7 +41,10 @@ export const ValuationResult = ({
   const hasValuation = !hasError && (valuationResult.averagePrice || valuationResult.valuation);
   
   // Get the average price directly from the valuation result
-  const averagePrice = valuationResult.averagePrice || 0;
+  const averagePrice = typeof valuationResult.averagePrice === 'number' 
+    ? valuationResult.averagePrice 
+    : 0;
+    
   console.log('Display price:', averagePrice);
 
   if (hasError) {
