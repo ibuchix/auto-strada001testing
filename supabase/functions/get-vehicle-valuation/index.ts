@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import md5 from "https://deno.land/x/md5@v1.0.2/mod.ts";
+import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 interface ValuationRequest {
@@ -25,7 +25,10 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
   // Validate against test case
   const testVin = 'WAUZZZ8K79A090954';
   const testInput = `${cleanApiId}${cleanApiSecret}${testVin}`;
-  const testChecksum = md5(testInput);
+  const testHash = createHash('md5');
+  testHash.update(testInput);
+  const testChecksum = testHash.toString('hex');
+  
   console.log('Test case validation:', {
     testVin: testVin,
     expectedChecksum: '6c6f042d5c5c4ce3c3b3a7e752547ae0',
@@ -34,7 +37,9 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
   });
   
   try {
-    const checksum = md5(input);
+    const hash = createHash('md5');
+    hash.update(input);
+    const checksum = hash.toString('hex');
     console.log('Generated checksum for request:', {
       vin: cleanVin,
       checksum: checksum,
