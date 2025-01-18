@@ -5,7 +5,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, AlertTriangle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import { ErrorDialog } from "./valuation/components/ErrorDialog";
+import { VehicleDetails } from "./valuation/components/VehicleDetails";
+import { ValuationDisplay } from "./valuation/components/ValuationDisplay";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -37,7 +40,6 @@ export const ValuationResult = ({
   const hasError = !!valuationResult.error;
   const hasValuation = !hasError && (valuationResult.averagePrice || valuationResult.valuation);
   
-  // Get the average price from the raw response or fall back to the processed average price
   const averagePrice = valuationResult.rawResponse?.functionResponse?.valuation?.calcValuation?.price_avr || 
                       valuationResult.averagePrice || 
                       valuationResult.valuation || 
@@ -47,41 +49,11 @@ export const ValuationResult = ({
 
   if (hasError) {
     return (
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center mb-6 flex items-center justify-center gap-2">
-            <AlertTriangle className="h-6 w-6 text-primary" />
-            Valuation Error
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <p className="text-center text-subtitle">
-            {valuationResult.error || "We couldn't get a valuation for your vehicle at this time."}
-          </p>
-          <p className="text-sm text-center text-subtitle">
-            Please try again or enter your details manually.
-          </p>
-        </div>
-
-        <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
-          <Button 
-            variant="outline"
-            onClick={onClose}
-            className="w-full sm:w-auto"
-          >
-            Close
-          </Button>
-          {onRetry && (
-            <Button 
-              onClick={onRetry}
-              className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
-            >
-              Try Again
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
+      <ErrorDialog 
+        error={valuationResult.error}
+        onClose={onClose}
+        onRetry={onRetry}
+      />
     );
   }
 
@@ -108,40 +80,17 @@ export const ValuationResult = ({
       )}
 
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-accent/50 p-4 rounded-lg">
-            <p className="text-sm text-subtitle mb-1">Manufacturer</p>
-            <p className="font-medium text-dark">{valuationResult.make || 'N/A'}</p>
-          </div>
-          <div className="bg-accent/50 p-4 rounded-lg">
-            <p className="text-sm text-subtitle mb-1">Model</p>
-            <p className="font-medium text-dark">{valuationResult.model || 'N/A'}</p>
-          </div>
-          <div className="bg-accent/50 p-4 rounded-lg">
-            <p className="text-sm text-subtitle mb-1">Year</p>
-            <p className="font-medium text-dark">{valuationResult.year || 'N/A'}</p>
-          </div>
-          <div className="bg-accent/50 p-4 rounded-lg">
-            <p className="text-sm text-subtitle mb-1">VIN</p>
-            <p className="font-medium text-dark">{valuationResult.vin}</p>
-          </div>
-          <div className="bg-accent/50 p-4 rounded-lg">
-            <p className="text-sm text-subtitle mb-1">Transmission</p>
-            <p className="font-medium text-dark capitalize">{valuationResult.transmission || 'N/A'}</p>
-          </div>
-          <div className="bg-accent/50 p-4 rounded-lg">
-            <p className="text-sm text-subtitle mb-1">Mileage</p>
-            <p className="font-medium text-dark">{mileage.toLocaleString()} km</p>
-          </div>
-        </div>
+        <VehicleDetails 
+          make={valuationResult.make}
+          model={valuationResult.model}
+          year={valuationResult.year}
+          vin={valuationResult.vin}
+          transmission={valuationResult.transmission}
+          mileage={mileage}
+        />
 
         {hasValuation && (
-          <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
-            <p className="text-sm text-subtitle mb-2">Average Market Value</p>
-            <p className="text-4xl font-bold text-primary">
-              PLN {averagePrice.toLocaleString()}
-            </p>
-          </div>
+          <ValuationDisplay averagePrice={averagePrice} />
         )}
       </div>
 
