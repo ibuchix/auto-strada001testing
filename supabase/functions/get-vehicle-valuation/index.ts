@@ -1,11 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createHash } from "https://deno.land/std@0.208.0/hash/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 
 interface ValuationRequest {
   vin: string;
   mileage: number;
-  gearbox: 'manual' | 'automatic';
+  gearbox?: 'manual' | 'automatic';
 }
 
 const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
@@ -21,13 +20,23 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
     vin: cleanVin
   });
   console.log('Final input string length:', input.length);
+
+  // Use TextEncoder to convert the string to bytes
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  
+  // Create MD5 hash using crypto
+  const hashBuffer = crypto.subtle.digestSync("MD5", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
   // Validate against test case
   const testVin = 'WAUZZZ8K79A090954';
   const testInput = `${cleanApiId}${cleanApiSecret}${testVin}`;
-  const testHash = createHash('md5');
-  testHash.update(testInput);
-  const testChecksum = testHash.toString('hex');
+  const testData = encoder.encode(testInput);
+  const testHashBuffer = crypto.subtle.digestSync("MD5", testData);
+  const testHashArray = Array.from(new Uint8Array(testHashBuffer));
+  const testChecksum = testHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
   console.log('Test case validation:', {
     testVin: testVin,
@@ -36,25 +45,7 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
     matches: testChecksum === '6c6f042d5c5c4ce3c3b3a7e752547ae0'
   });
   
-  try {
-    const hash = createHash('md5');
-    hash.update(input);
-    const checksum = hash.toString('hex');
-    console.log('Generated checksum for request:', {
-      vin: cleanVin,
-      checksum: checksum,
-      inputLength: input.length,
-      inputComponents: {
-        apiIdLength: cleanApiId.length,
-        apiSecretLength: cleanApiSecret.length,
-        vinLength: cleanVin.length
-      }
-    });
-    return checksum;
-  } catch (error) {
-    console.error('Error generating checksum:', error);
-    throw new Error('Failed to generate checksum');
-  }
+  return checksum;
 };
 
 serve(async (req) => {
