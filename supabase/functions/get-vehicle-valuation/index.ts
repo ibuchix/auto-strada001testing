@@ -6,7 +6,12 @@ interface ValuationRequest {
   gearbox?: 'manual' | 'automatic';
 }
 
-const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const calculateChecksum = async (apiId: string, apiSecret: string, vin: string): Promise<string> => {
   // Trim all input values to remove any whitespace
   const cleanApiId = apiId.trim();
   const cleanApiSecret = apiSecret.trim();
@@ -25,7 +30,7 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
   const data = encoder.encode(input);
   
   // Create MD5 hash using crypto
-  const hashBuffer = crypto.subtle.digestSync("MD5", data);
+  const hashBuffer = await crypto.subtle.digest("MD5", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
@@ -33,7 +38,7 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
   const testVin = 'WAUZZZ8K79A090954';
   const testInput = `${cleanApiId}${cleanApiSecret}${testVin}`;
   const testData = encoder.encode(testInput);
-  const testHashBuffer = crypto.subtle.digestSync("MD5", testData);
+  const testHashBuffer = await crypto.subtle.digest("MD5", testData);
   const testHashArray = Array.from(new Uint8Array(testHashBuffer));
   const testChecksum = testHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   
@@ -45,11 +50,6 @@ const calculateChecksum = (apiId: string, apiSecret: string, vin: string): strin
   });
   
   return checksum;
-};
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
@@ -77,7 +77,7 @@ serve(async (req) => {
       throw new Error('Invalid API secret format');
     }
 
-    const checksum = calculateChecksum(apiId, apiSecret, vin);
+    const checksum = await calculateChecksum(apiId, apiSecret, vin);
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
     
     console.log('Making request to external API...');
