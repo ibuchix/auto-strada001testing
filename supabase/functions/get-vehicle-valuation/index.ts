@@ -20,27 +20,33 @@ function calculateMD5(input: string): string {
 }
 
 serve(async (req) => {
+  // Log incoming request
+  console.log('Valuation request received:', new Date().toISOString());
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { vin, mileage = 50000, gearbox = 'manual' } = await req.json() as ValuationRequest;
-    console.log('Received request with VIN:', vin, 'Mileage:', mileage, 'Gearbox:', gearbox);
+    console.log('Request parameters:', { vin, mileage, gearbox });
 
     if (!vin) {
+      console.error('Validation error: Missing VIN');
       throw new Error('VIN number is required');
     }
 
     const apiId = 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET');
     if (!apiSecret) {
-      console.error('CAR_API_SECRET is not set in environment variables');
+      console.error('Configuration error: Missing API secret');
       throw new Error('API secret is missing from environment configuration');
     }
 
     // Clean and prepare input string
     const cleanVin = vin.trim().toUpperCase();
+    console.log('Cleaned VIN:', cleanVin);
+
     const input = `${apiId}${apiSecret}${cleanVin}`;
     console.log('Input string length:', input.length);
 
@@ -60,7 +66,7 @@ serve(async (req) => {
 
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${cleanVin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
     
-    console.log('Making request to external API...');
+    console.log('Making request to external API:', apiUrl);
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
