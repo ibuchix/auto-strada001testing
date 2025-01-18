@@ -7,8 +7,11 @@ export const extractPrice = (responseData: any): number | null => {
     responseData?.valuation?.price,
     responseData?.functionResponse?.price,
     responseData?.functionResponse?.valuation?.price,
+    responseData?.functionResponse?.valuation?.calcValuation?.price,
     responseData?.estimated_value,
-    responseData?.value
+    responseData?.market_value,
+    responseData?.value,
+    responseData?.suggested_price
   ].filter(price => typeof price === 'number' && price > 0);
 
   if (directPrices.length > 0) {
@@ -22,7 +25,13 @@ export const extractPrice = (responseData: any): number | null => {
     
     for (const [key, value] of Object.entries(obj)) {
       // Check if the current value is a valid price
-      if (key.toLowerCase().includes('price') && typeof value === 'number' && value > 0) {
+      if (
+        (key.toLowerCase().includes('price') || 
+         key.toLowerCase().includes('value') ||
+         key.toLowerCase().includes('amount')) && 
+        typeof value === 'number' && 
+        value > 0
+      ) {
         console.log(`Found nested price in field "${key}":`, value);
         return value;
       }

@@ -107,6 +107,7 @@ serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
+    // Extract all possible price fields
     const valuationResult = {
       make: responseData.functionResponse?.userParams?.make || 'Not available',
       model: responseData.functionResponse?.userParams?.model || 'Not available',
@@ -114,7 +115,16 @@ serve(async (req) => {
       vin: vin,
       transmission: gearbox,
       fuelType: responseData.functionResponse?.userParams?.fuel || 'Not available',
-      valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
+      valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 
+                responseData.functionResponse?.valuation?.price ||
+                responseData.functionResponse?.price ||
+                responseData.functionResponse?.market_value ||
+                0,
+      averagePrice: responseData.functionResponse?.valuation?.average_price ||
+                   responseData.functionResponse?.average_price ||
+                   responseData.functionResponse?.market_value ||
+                   0,
+      rawResponse: responseData // Include raw response for debugging
     };
 
     console.log('Transformed valuation result:', valuationResult);
