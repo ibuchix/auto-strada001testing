@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
 
 interface ValuationRequest {
   vin: string;
@@ -11,39 +12,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const calculateChecksum = async (apiId: string, apiSecret: string, vin: string): Promise<string> => {
-  // Trim all input values to remove any whitespace
+const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
+  // Clean and concatenate inputs
   const cleanApiId = apiId.trim();
   const cleanApiSecret = apiSecret.trim();
-  const cleanVin = vin.trim();
+  const cleanVin = vin.trim().toUpperCase();
   
+  // Create input string
   const input = `${cleanApiId}${cleanApiSecret}${cleanVin}`;
-  console.log('Input string components:', {
-    apiId: cleanApiId,
-    apiSecretLength: cleanApiSecret.length,
-    vin: cleanVin
-  });
-  console.log('Final input string length:', input.length);
-
-  // Use TextEncoder to convert the string to bytes
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
+  console.log('Input string length:', input.length);
   
-  // Create MD5 hash using crypto
-  const hashBuffer = await crypto.subtle.digest("MD5", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  // Create MD5 hash using Deno's createHash
+  const hash = createHash('md5');
+  hash.update(input);
+  const checksum = hash.toString('hex');
   
   // Validate against test case
   const testVin = 'WAUZZZ8K79A090954';
   const testInput = `${cleanApiId}${cleanApiSecret}${testVin}`;
-  const testData = encoder.encode(testInput);
-  const testHashBuffer = await crypto.subtle.digest("MD5", testData);
-  const testHashArray = Array.from(new Uint8Array(testHashBuffer));
-  const testChecksum = testHashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const testHash = createHash('md5');
+  testHash.update(testInput);
+  const testChecksum = testHash.toString('hex');
   
   console.log('Test case validation:', {
-    testVin: testVin,
+    testVin,
     expectedChecksum: '6c6f042d5c5c4ce3c3b3a7e752547ae0',
     calculatedChecksum: testChecksum,
     matches: testChecksum === '6c6f042d5c5c4ce3c3b3a7e752547ae0'
@@ -71,13 +63,10 @@ serve(async (req) => {
       console.error('CAR_API_SECRET is not set in environment variables');
       throw new Error('API secret is missing from environment configuration');
     }
-    
-    if (apiSecret.length !== 32) {
-      console.error(`Invalid API secret length: ${apiSecret.length}, expected 32 characters`);
-      throw new Error('Invalid API secret format');
-    }
 
-    const checksum = await calculateChecksum(apiId, apiSecret, vin);
+    const checksum = calculateChecksum(apiId, apiSecret, vin);
+    console.log('Calculated checksum:', checksum);
+
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
     
     console.log('Making request to external API...');
@@ -107,7 +96,6 @@ serve(async (req) => {
       throw new Error(responseData.message || 'API returned an error');
     }
 
-    // Extract all possible price fields
     const valuationResult = {
       make: responseData.functionResponse?.userParams?.make || 'Not available',
       model: responseData.functionResponse?.userParams?.model || 'Not available',
@@ -124,7 +112,7 @@ serve(async (req) => {
                    responseData.functionResponse?.average_price ||
                    responseData.functionResponse?.market_value ||
                    0,
-      rawResponse: responseData // Include raw response for debugging
+      rawResponse: responseData
     };
 
     console.log('Transformed valuation result:', valuationResult);
