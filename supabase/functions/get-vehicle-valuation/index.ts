@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
-import { Md5 } from "https://deno.land/std@0.168.0/hash/md5.ts";
 
 interface ValuationRequest {
   vin: string;
@@ -14,9 +13,12 @@ const corsHeaders = {
 };
 
 function calculateMD5(input: string): string {
-  const md5 = new Md5();
-  md5.update(input);
-  return md5.toString();
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hash = crypto.subtle.digestSync("MD5", data);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 serve(async (req) => {
