@@ -34,22 +34,22 @@ export const getValuation = async (
       throw new Error('No valuation data received from the API');
     }
 
-    // Extract and validate the average price
-    const calcValuation = data.data.functionResponse?.valuation?.calcValuation;
+    // Extract the price directly from the nested structure
+    const calcValuation = data.data.rawResponse?.functionResponse?.valuation?.calcValuation;
     const averagePrice = calcValuation?.price_avr;
-    console.log('Raw calcValuation:', calcValuation);
+    
+    console.log('Extracted calcValuation:', calcValuation);
     console.log('Extracted average price:', averagePrice);
 
-    // Ensure all required fields are present
     const valuationResult: ValuationResult = {
-      make: data.data.make || data.data.functionResponse?.userParams?.make || 'Not available',
-      model: data.data.model || data.data.functionResponse?.userParams?.model || 'Not available',
-      year: data.data.year || data.data.functionResponse?.userParams?.year || new Date().getFullYear(),
+      make: data.data.make || 'Not available',
+      model: data.data.model || 'Not available',
+      year: data.data.year || new Date().getFullYear(),
       vin: data.data.vin,
       transmission: data.data.transmission || gearbox,
       valuation: calcValuation?.price || 0,
-      averagePrice: typeof averagePrice === 'number' ? averagePrice : 0,
-      rawResponse: data.data
+      averagePrice: averagePrice || 0,
+      rawResponse: data.data.rawResponse
     };
 
     console.log('Processed valuation result:', valuationResult);
