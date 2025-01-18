@@ -34,15 +34,21 @@ export const getValuation = async (
       throw new Error('No valuation data received from the API');
     }
 
+    // Extract the average price from the API response
+    const averagePrice = data.data.functionResponse?.valuation?.calcValuation?.price_avr || 
+                        data.data.functionResponse?.valuation?.calcValuation?.price || 
+                        0;
+
     // Ensure all required fields are present
     const valuationResult: ValuationResult = {
-      make: data.data.make || 'Not available',
-      model: data.data.model || 'Not available',
-      year: data.data.year || new Date().getFullYear(),
+      make: data.data.make || data.data.functionResponse?.userParams?.make || 'Not available',
+      model: data.data.model || data.data.functionResponse?.userParams?.model || 'Not available',
+      year: data.data.year || data.data.functionResponse?.userParams?.year || new Date().getFullYear(),
       vin: data.data.vin,
       transmission: data.data.transmission || gearbox,
-      valuation: data.data.valuation || 0,
-      averagePrice: data.data.averagePrice || data.data.valuation || 0,
+      valuation: data.data.functionResponse?.valuation?.calcValuation?.price || 0,
+      averagePrice: averagePrice,
+      rawResponse: data.data
     };
 
     console.log('Processed valuation result:', valuationResult);

@@ -35,8 +35,9 @@ export const ValuationResult = ({
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = !!valuationResult.error;
-  const hasValuation = !hasError && (valuationResult.valuation || valuationResult.averagePrice);
-  const displayPrice = valuationResult.valuation || valuationResult.averagePrice || 0;
+  const hasValuation = !hasError && (valuationResult.averagePrice || valuationResult.valuation);
+  // Prioritize average price, fall back to valuation if not available
+  const displayPrice = valuationResult.averagePrice || valuationResult.valuation || 0;
 
   if (hasError) {
     return (
@@ -132,8 +133,8 @@ export const ValuationResult = ({
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
             <p className="text-sm text-subtitle mb-2">
               {valuationResult.isExisting 
-                ? "Estimated Value (Based on Similar Vehicle)" 
-                : "Estimated Market Value"
+                ? "Average Market Value" 
+                : "Average Market Value"
               }
             </p>
             <p className="text-4xl font-bold text-primary">
