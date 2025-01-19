@@ -59,9 +59,10 @@ serve(async (req) => {
       throw new Error('API credentials not configured')
     }
 
-    // Calculate checksum
+    // Calculate checksum using make+model+year as a pseudo VIN
     const pseudoVin = `${normalizedData.make}${normalizedData.model}${normalizedData.year}`
     const checksum = calculateChecksum(apiId, apiSecret, pseudoVin)
+    console.log('Using pseudo VIN for checksum:', pseudoVin)
     console.log('Calculated checksum:', checksum)
     
     // Build API URL with properly encoded parameters
@@ -99,6 +100,8 @@ serve(async (req) => {
       clearTimeout(timeout)
 
       if (!apiResponse.ok) {
+        const errorText = await apiResponse.text()
+        console.error('API Error Response:', errorText)
         throw new Error(`API responded with status: ${apiResponse.status}`)
       }
 
