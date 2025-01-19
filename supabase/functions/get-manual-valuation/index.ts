@@ -81,14 +81,12 @@ serve(async (req) => {
 
     console.log('Processed valuation data:', JSON.stringify(valuationData, null, 2))
 
-    const response = {
-      success: true,
-      message: "Valuation completed successfully",
-      data: valuationData
-    }
-
     return new Response(
-      JSON.stringify(response),
+      JSON.stringify({
+        success: true,
+        message: "Valuation completed successfully",
+        data: valuationData
+      }),
       { 
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }

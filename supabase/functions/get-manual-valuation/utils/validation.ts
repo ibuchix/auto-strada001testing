@@ -18,8 +18,8 @@ export function normalizeData(data: any): Partial<ManualValuationRequest> {
     year: Number(data.year),
     mileage: Number(data.mileage),
     transmission: normalizeString(String(data.transmission || '')),
-    fuel: normalizeString(String(data.fuel || 'petrol')), // Default to petrol if not provided
-    country: String(data.country || 'PL').toUpperCase().trim(), // Default to PL if not provided
+    fuel: normalizeString(String(data.fuel || 'petrol')),
+    country: String(data.country || 'PL').toUpperCase().trim(),
   };
   
   console.log('Normalized data:', JSON.stringify(normalized, null, 2));
@@ -53,18 +53,19 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
   }
 
   // Mileage validation with detailed logging
-  if (!data.mileage || isNaN(data.mileage) || data.mileage < 0) {
+  if (!data.mileage || isNaN(data.mileage) || data.mileage < 0 || data.mileage > 999999) {
     console.log('Mileage validation failed:', {
       value: data.mileage,
       isNumber: !isNaN(data.mileage),
-      isPositive: data.mileage >= 0
+      isPositive: data.mileage >= 0,
+      withinRange: data.mileage <= 999999
     });
-    errors.push('Mileage must be a positive number');
+    errors.push('Mileage must be between 0 and 999,999 km');
   }
 
   // Transmission validation with case-insensitive comparison
   const normalizedTransmission = normalizeString(String(data.transmission));
-  if (!data.transmission || !VALID_TRANSMISSION_TYPES.includes(normalizedTransmission as TransmissionType)) {
+  if (!VALID_TRANSMISSION_TYPES.includes(normalizedTransmission as TransmissionType)) {
     console.log('Transmission validation failed:', {
       value: data.transmission,
       normalized: normalizedTransmission,
