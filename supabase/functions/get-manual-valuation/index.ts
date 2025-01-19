@@ -55,10 +55,10 @@ serve(async (req) => {
       throw new Error('API credentials not configured')
     }
 
-    // Generate pseudo VIN from make+model+year for checksum
-    const pseudoVin = `${normalizedData.make}${normalizedData.model}${normalizedData.year}`
-    const checksum = calculateChecksum(apiId, apiSecret, pseudoVin)
-    console.log('Using pseudo VIN for checksum:', pseudoVin)
+    // Generate checksum using concatenated string of required fields
+    const checksumInput = `${normalizedData.make}${normalizedData.model}${normalizedData.year}`
+    const checksum = calculateChecksum(apiId, apiSecret, checksumInput)
+    console.log('Using checksum input:', checksumInput)
     console.log('Calculated checksum:', checksum)
 
     // Build API URL with properly encoded parameters
