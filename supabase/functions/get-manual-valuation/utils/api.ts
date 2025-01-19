@@ -1,8 +1,6 @@
-import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
-import { encode } from "https://deno.land/std@0.177.0/encoding/hex.ts";
+import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
 
-export function calculateChecksum(apiId: string, apiSecret: string, input: string): string {
-  const data = `${apiId}${apiSecret}${input}`;
-  const hash = crypto.subtle.digestSync("MD5", new TextEncoder().encode(data));
-  return encode(new Uint8Array(hash));
-}
+export const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
+  const input = `${apiId}${apiSecret}${vin}`;
+  return createHash("md5").update(input).toString();
+};

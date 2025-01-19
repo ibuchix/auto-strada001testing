@@ -6,7 +6,6 @@ import { calculateChecksum } from "./utils/api.ts"
 console.log("Manual valuation function started")
 
 const API_BASE_URL = "https://bp.autoiso.pl/api/v3/getManualValuation"
-const REQUIRED_PARAMS = ['make', 'model', 'year', 'mileage', 'transmission']
 
 serve(async (req) => {
   // Handle CORS
@@ -26,12 +25,6 @@ serve(async (req) => {
     // Parse and log request data
     const requestData = await req.json()
     console.log('Received request data:', JSON.stringify(requestData, null, 2))
-
-    // Validate required fields
-    const missingParams = REQUIRED_PARAMS.filter(param => !requestData[param])
-    if (missingParams.length > 0) {
-      throw new Error(`Missing required parameters: ${missingParams.join(', ')}`)
-    }
 
     // Normalize and validate data
     const normalizedData = normalizeData(requestData)
@@ -62,12 +55,12 @@ serve(async (req) => {
       throw new Error('API credentials not configured')
     }
 
-    // Calculate checksum using make+model+year as a pseudo VIN
+    // Generate pseudo VIN from make+model+year for checksum
     const pseudoVin = `${normalizedData.make}${normalizedData.model}${normalizedData.year}`
     const checksum = calculateChecksum(apiId, apiSecret, pseudoVin)
     console.log('Using pseudo VIN for checksum:', pseudoVin)
     console.log('Calculated checksum:', checksum)
-    
+
     // Build API URL with properly encoded parameters
     const params = new URLSearchParams({
       'apiuid': apiId,
