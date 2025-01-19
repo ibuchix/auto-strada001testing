@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 import { normalizeData, validateRequest } from "./utils/validation.ts"
+import { calculateChecksum } from "./utils/api.ts"
 
 console.log("Manual valuation function started")
 
@@ -37,36 +38,54 @@ serve(async (req) => {
       )
     }
 
-    // Mock valuation calculation with price ranges
-    const baseValue = Math.floor(Math.random() * (50000 - 20000) + 20000)
-    const priceRanges = {
-      minimumPrice: Math.floor(baseValue * 0.8),
-      maximumPrice: Math.floor(baseValue * 1.2),
-      averagePrice: baseValue
+    // Get API credentials from environment
+    const apiId = Deno.env.get('CAR_API_ID')
+    const apiSecret = Deno.env.get('CAR_API_SECRET')
+
+    if (!apiId || !apiSecret) {
+      throw new Error('API credentials not configured')
     }
 
-    console.log('Calculated price ranges:', {
-      ...priceRanges,
-      currency: normalizedData.country === 'PL' ? 'PLN' : 'EUR'
-    })
+    // Calculate checksum for the request
+    const checksum = calculateChecksum(apiId, apiSecret, `${normalizedData.make}${normalizedData.model}`)
+    
+    // Construct API URL with all parameters
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/checksum:${checksum}/make:${encodeURIComponent(normalizedData.make)}/model:${encodeURIComponent(normalizedData.model)}/year:${normalizedData.year}/odometer:${normalizedData.mileage}/transmission:${normalizedData.transmission}/currency:PLN/country:${normalizedData.country}/fuel:${normalizedData.fuel}`
+
+    console.log('Calling external API:', apiUrl)
+
+    const apiResponse = await fetch(apiUrl)
+    const apiData = await apiResponse.json()
+
+    console.log('API Response:', JSON.stringify(apiData, null, 2))
+
+    if (!apiResponse.ok) {
+      throw new Error(`API error: ${apiData.message || 'Unknown error'}`)
+    }
+
+    // Extract valuation data from API response
+    const valuationData = {
+      make: normalizedData.make,
+      model: normalizedData.model,
+      year: normalizedData.year,
+      mileage: normalizedData.mileage,
+      transmission: normalizedData.transmission,
+      fuel: normalizedData.fuel,
+      country: normalizedData.country,
+      averagePrice: apiData?.functionResponse?.valuation?.calcValuation?.price_avr || 0,
+      minimumPrice: apiData?.functionResponse?.valuation?.calcValuation?.price_min || 0,
+      maximumPrice: apiData?.functionResponse?.valuation?.calcValuation?.price_max || 0,
+      currency: 'PLN',
+      rawResponse: apiData
+    }
+
+    console.log('Processed valuation data:', JSON.stringify(valuationData, null, 2))
 
     const response = {
       success: true,
       message: "Valuation completed successfully",
-      data: {
-        make: normalizedData.make,
-        model: normalizedData.model,
-        year: normalizedData.year,
-        mileage: normalizedData.mileage,
-        transmission: normalizedData.transmission,
-        fuel: normalizedData.fuel,
-        country: normalizedData.country,
-        ...priceRanges,
-        currency: normalizedData.country === 'PL' ? 'PLN' : 'EUR'
-      }
+      data: valuationData
     }
-
-    console.log('Final response:', JSON.stringify(response, null, 2))
 
     return new Response(
       JSON.stringify(response),
