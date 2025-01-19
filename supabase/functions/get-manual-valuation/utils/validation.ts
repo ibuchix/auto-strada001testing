@@ -30,69 +30,44 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
   console.log('Starting validation for:', JSON.stringify(data, null, 2));
   const errors: string[] = [];
 
-  // Required field checks with detailed logging
+  // Required field checks with detailed validation
   if (!data.make?.trim()) {
-    console.log('Make validation failed: empty or missing');
     errors.push('Make is required');
+  } else if (data.make.length < 2 || data.make.length > 50) {
+    errors.push('Make must be between 2 and 50 characters');
   }
   
   if (!data.model?.trim()) {
-    console.log('Model validation failed: empty or missing');
     errors.push('Model is required');
+  } else if (data.model.length < 1 || data.model.length > 50) {
+    errors.push('Model must be between 1 and 50 characters');
   }
   
-  // Year validation with detailed logging
   const currentYear = new Date().getFullYear();
-  if (!data.year || isNaN(data.year) || data.year < 1900 || data.year > currentYear + 1) {
-    console.log('Year validation failed:', {
-      value: data.year,
-      isNumber: !isNaN(data.year),
-      withinRange: data.year >= 1900 && data.year <= currentYear + 1
-    });
+  if (!data.year) {
+    errors.push('Year is required');
+  } else if (isNaN(data.year) || data.year < 1900 || data.year > currentYear + 1) {
     errors.push(`Year must be between 1900 and ${currentYear + 1}`);
   }
 
-  // Mileage validation with detailed logging
-  if (!data.mileage || isNaN(data.mileage) || data.mileage < 0 || data.mileage > 999999) {
-    console.log('Mileage validation failed:', {
-      value: data.mileage,
-      isNumber: !isNaN(data.mileage),
-      isPositive: data.mileage >= 0,
-      withinRange: data.mileage <= 999999
-    });
+  if (!data.mileage && data.mileage !== 0) {
+    errors.push('Mileage is required');
+  } else if (isNaN(data.mileage) || data.mileage < 0 || data.mileage > 999999) {
     errors.push('Mileage must be between 0 and 999,999 km');
   }
 
-  // Transmission validation with case-insensitive comparison
   const normalizedTransmission = normalizeString(String(data.transmission));
   if (!VALID_TRANSMISSION_TYPES.includes(normalizedTransmission as TransmissionType)) {
-    console.log('Transmission validation failed:', {
-      value: data.transmission,
-      normalized: normalizedTransmission,
-      validOptions: VALID_TRANSMISSION_TYPES
-    });
     errors.push(`Invalid transmission type. Must be one of: ${VALID_TRANSMISSION_TYPES.join(', ')}`);
   }
 
-  // Fuel type validation with case-insensitive comparison
   const normalizedFuel = normalizeString(String(data.fuel));
   if (!VALID_FUEL_TYPES.includes(normalizedFuel as FuelType)) {
-    console.log('Fuel type validation failed:', {
-      value: data.fuel,
-      normalized: normalizedFuel,
-      validOptions: VALID_FUEL_TYPES
-    });
     errors.push(`Invalid fuel type. Must be one of: ${VALID_FUEL_TYPES.join(', ')}`);
   }
 
-  // Country code validation with case-insensitive comparison
   const normalizedCountry = String(data.country).toUpperCase().trim();
   if (!VALID_COUNTRY_CODES.includes(normalizedCountry as CountryCode)) {
-    console.log('Country code validation failed:', {
-      value: data.country,
-      normalized: normalizedCountry,
-      validOptions: VALID_COUNTRY_CODES
-    });
     errors.push(`Invalid country code. Must be one of: ${VALID_COUNTRY_CODES.join(', ')}`);
   }
 

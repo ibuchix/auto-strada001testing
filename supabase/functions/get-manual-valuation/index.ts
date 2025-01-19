@@ -46,24 +46,27 @@ serve(async (req) => {
       throw new Error('API credentials not configured')
     }
 
-    // For manual valuation, we'll use a combination of make+model+year as a pseudo-VIN
+    // Create a pseudo-VIN for checksum calculation
     const pseudoVin = `${normalizedData.make}${normalizedData.model}${normalizedData.year}`
     const checksum = calculateChecksum(apiId, apiSecret, pseudoVin)
     
-    // Construct API URL with all required parameters
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation` + 
-      `/apiuid:${apiId}` +
-      `/checksum:${checksum}` +
-      `/make:${encodeURIComponent(normalizedData.make)}` +
-      `/model:${encodeURIComponent(normalizedData.model)}` +
-      `/year:${normalizedData.year}` +
-      `/odometer:${normalizedData.mileage}` +
-      `/transmission:${normalizedData.transmission}` +
-      `/fuel:${normalizedData.fuel}` +
-      `/country:${normalizedData.country}` +
-      `/currency:PLN` +
-      `/version:3.0` +
-      `/format:json`
+    // Build API URL with all required parameters properly encoded
+    const params = new URLSearchParams({
+      'apiuid': apiId,
+      'checksum': checksum,
+      'make': encodeURIComponent(normalizedData.make),
+      'model': encodeURIComponent(normalizedData.model),
+      'year': normalizedData.year.toString(),
+      'odometer': normalizedData.mileage.toString(),
+      'transmission': normalizedData.transmission,
+      'fuel': normalizedData.fuel,
+      'country': normalizedData.country,
+      'currency': 'PLN',
+      'version': '3.0',
+      'format': 'json'
+    })
+
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation?${params.toString()}`
 
     console.log('Calling external API:', apiUrl)
 
@@ -73,10 +76,12 @@ serve(async (req) => {
     console.log('API Response:', JSON.stringify(apiData, null, 2))
 
     if (!apiResponse.ok || apiData.apiStatus === "ER") {
-      throw new Error(`API error: ${apiData.message || 'Unknown error'}`)
+      const errorMessage = apiData.message || 'Unknown API error'
+      console.error('API Error:', errorMessage)
+      throw new Error(`API error: ${errorMessage}`)
     }
 
-    // Extract valuation data from API response with proper path
+    // Extract valuation data from API response with proper path and validation
     const valuationData = {
       make: normalizedData.make,
       model: normalizedData.model,
