@@ -61,12 +61,12 @@ export function validateRequest(data: Partial<ManualValuationRequest>): Validati
     errors.push(`Invalid transmission type. Must be one of: ${VALID_TRANSMISSION_TYPES.join(', ')}`);
   }
 
-  const normalizedFuel = normalizeString(String(data.fuel));
+  const normalizedFuel = normalizeString(String(data.fuel || 'petrol'));
   if (!VALID_FUEL_TYPES.includes(normalizedFuel as FuelType)) {
     errors.push(`Invalid fuel type. Must be one of: ${VALID_FUEL_TYPES.join(', ')}`);
   }
 
-  const normalizedCountry = String(data.country).toUpperCase().trim();
+  const normalizedCountry = String(data.country || 'PL').toUpperCase().trim();
   if (!VALID_COUNTRY_CODES.includes(normalizedCountry as CountryCode)) {
     errors.push(`Invalid country code. Must be one of: ${VALID_COUNTRY_CODES.join(', ')}`);
   }
