@@ -11,7 +11,10 @@ const REQUIRED_PARAMS = ['make', 'model', 'year', 'mileage', 'transmission']
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { 
+      status: 204, 
+      headers: corsHeaders 
+    })
   }
 
   try {
