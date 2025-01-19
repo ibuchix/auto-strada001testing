@@ -46,11 +46,24 @@ serve(async (req) => {
       throw new Error('API credentials not configured')
     }
 
-    // Calculate checksum for the request
-    const checksum = calculateChecksum(apiId, apiSecret, `${normalizedData.make}${normalizedData.model}`)
+    // Calculate checksum for the request including all parameters
+    const checksumInput = `${normalizedData.make}${normalizedData.model}${normalizedData.year}${normalizedData.mileage}${normalizedData.transmission}${normalizedData.fuel}`
+    const checksum = calculateChecksum(apiId, apiSecret, checksumInput)
     
-    // Construct API URL with all parameters
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation/apiuid:${apiId}/checksum:${checksum}/make:${encodeURIComponent(normalizedData.make)}/model:${encodeURIComponent(normalizedData.model)}/year:${normalizedData.year}/odometer:${normalizedData.mileage}/transmission:${normalizedData.transmission}/currency:PLN/country:${normalizedData.country}/fuel:${normalizedData.fuel}`
+    // Construct API URL with all required parameters
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation` + 
+      `/apiuid:${apiId}` +
+      `/checksum:${checksum}` +
+      `/make:${encodeURIComponent(normalizedData.make)}` +
+      `/model:${encodeURIComponent(normalizedData.model)}` +
+      `/year:${normalizedData.year}` +
+      `/odometer:${normalizedData.mileage}` +
+      `/transmission:${normalizedData.transmission}` +
+      `/fuel:${normalizedData.fuel}` +
+      `/country:${normalizedData.country}` +
+      `/currency:PLN` +
+      `/version:3.0` +
+      `/format:json`
 
     console.log('Calling external API:', apiUrl)
 
@@ -59,11 +72,11 @@ serve(async (req) => {
 
     console.log('API Response:', JSON.stringify(apiData, null, 2))
 
-    if (!apiResponse.ok) {
+    if (!apiResponse.ok || apiData.apiStatus === "ER") {
       throw new Error(`API error: ${apiData.message || 'Unknown error'}`)
     }
 
-    // Extract valuation data from API response
+    // Extract valuation data from API response with proper path
     const valuationData = {
       make: normalizedData.make,
       model: normalizedData.model,
