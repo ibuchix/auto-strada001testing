@@ -46,9 +46,9 @@ serve(async (req) => {
       throw new Error('API credentials not configured')
     }
 
-    // Calculate checksum for the request including all parameters
-    const checksumInput = `${normalizedData.make}${normalizedData.model}${normalizedData.year}${normalizedData.mileage}${normalizedData.transmission}${normalizedData.fuel}`
-    const checksum = calculateChecksum(apiId, apiSecret, checksumInput)
+    // For manual valuation, we'll use a combination of make+model+year as a pseudo-VIN
+    const pseudoVin = `${normalizedData.make}${normalizedData.model}${normalizedData.year}`
+    const checksum = calculateChecksum(apiId, apiSecret, pseudoVin)
     
     // Construct API URL with all required parameters
     const apiUrl = `https://bp.autoiso.pl/api/v3/getManualValuation` + 
