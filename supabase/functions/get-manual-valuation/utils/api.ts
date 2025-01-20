@@ -1,5 +1,5 @@
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
-import { encodeHex } from "https://deno.land/std@0.168.0/encoding/hex.ts";
+import { encode } from "https://deno.land/std@0.168.0/encoding/hex.ts";
 
 export function calculateChecksum(apiId: string, apiSecret: string, value: string): string {
   const input = apiId + apiSecret + value;
@@ -7,5 +7,5 @@ export function calculateChecksum(apiId: string, apiSecret: string, value: strin
     "MD5",
     new TextEncoder().encode(input)
   );
-  return encodeHex(hash);
+  return encode(hash);
 }
