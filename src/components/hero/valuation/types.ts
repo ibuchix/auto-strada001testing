@@ -9,6 +9,7 @@ export interface ValuationData {
   make?: string;
   model?: string;
   year?: number;
+  capacity?: number;
   error?: string;
   [key: string]: any;
 }
@@ -19,6 +20,7 @@ export interface ValuationResult {
   year: number;
   vin: string;
   transmission: TransmissionType;
+  capacity?: number;
   valuation?: number;
   averagePrice?: number;
   isExisting?: boolean;
