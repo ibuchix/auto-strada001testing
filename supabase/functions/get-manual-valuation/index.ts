@@ -58,16 +58,16 @@ serve(async (req) => {
     const baseUrl = "https://bp.autoiso.pl/api/v3/getManualValuation"
     const queryParams = new URLSearchParams()
     
-    // Required parameters
+    // Required parameters exactly as expected by the API
     queryParams.set('apiuid', apiId)
     queryParams.set('checksum', checksum)
-    queryParams.set('make', normalizedData.make.trim())
-    queryParams.set('model', normalizedData.model.trim())
+    queryParams.set('make', normalizedData.make.trim().toUpperCase())
+    queryParams.set('model', normalizedData.model.trim().toUpperCase())
     queryParams.set('year', String(normalizedData.year))
-    queryParams.set('odometer', String(normalizedData.mileage))
+    queryParams.set('mileage', String(normalizedData.mileage))
     queryParams.set('transmission', normalizedData.transmission.toLowerCase())
     queryParams.set('fuel', (normalizedData.fuel || 'petrol').toLowerCase())
-    queryParams.set('country', normalizedData.country || 'PL')
+    queryParams.set('country', (normalizedData.country || 'PL').toUpperCase())
     queryParams.set('currency', 'PLN')
     queryParams.set('version', '3.0')
     queryParams.set('format', 'json')
