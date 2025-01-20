@@ -93,6 +93,26 @@ export const FormFields = ({ formData, errors, onInputChange }: FormFieldsProps)
       </div>
 
       <div>
+        <Label htmlFor="capacity">Engine Capacity (cc)</Label>
+        <Input
+          id="capacity"
+          type="number"
+          min="0"
+          max="10000"
+          value={formData.capacity}
+          onChange={(e) => onInputChange('capacity', e.target.value)}
+          placeholder="e.g., 2000"
+          className={errors.capacity ? 'border-primary' : ''}
+        />
+        {errors.capacity && (
+          <div className="flex items-center gap-2 text-primary text-sm mt-1">
+            <AlertCircle className="h-4 w-4" />
+            <span>{errors.capacity}</span>
+          </div>
+        )}
+      </div>
+
+      <div>
         <Label htmlFor="mileage">Mileage (KM)</Label>
         <Input
           id="mileage"

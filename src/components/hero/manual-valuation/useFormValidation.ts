@@ -38,6 +38,14 @@ export const useFormValidation = () => {
       }
     }
 
+    // Validate capacity
+    if (data.capacity) {
+      const capacityNum = parseInt(data.capacity);
+      if (isNaN(capacityNum) || capacityNum < 0 || capacityNum > 10000) {
+        newErrors.capacity = 'Capacity must be between 0 and 10,000 cc';
+      }
+    }
+
     // Validate mileage
     if (!data.mileage) {
       newErrors.mileage = 'Mileage is required';

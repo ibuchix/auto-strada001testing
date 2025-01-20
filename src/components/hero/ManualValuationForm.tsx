@@ -17,6 +17,7 @@ export interface ManualValuationData {
   transmission: TransmissionType;
   fuel: FuelType;
   country: CountryCode;
+  capacity?: string;
 }
 
 interface ManualValuationFormProps {
@@ -41,7 +42,8 @@ export const ManualValuationForm = ({
     mileage: mileage,
     transmission: transmission,
     fuel: 'petrol' as FuelType,
-    country: 'PL' as CountryCode
+    country: 'PL' as CountryCode,
+    capacity: ''
   });
 
   const { errors, validateForm, setErrors } = useFormValidation();

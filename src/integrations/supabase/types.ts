@@ -170,6 +170,7 @@ export type Database = {
         Row: {
           additional_photos: string[] | null
           address: string | null
+          capacity: number | null
           created_at: string | null
           description: string | null
           features: Json | null
@@ -215,6 +216,7 @@ export type Database = {
         Insert: {
           additional_photos?: string[] | null
           address?: string | null
+          capacity?: number | null
           created_at?: string | null
           description?: string | null
           features?: Json | null
@@ -260,6 +262,7 @@ export type Database = {
         Update: {
           additional_photos?: string[] | null
           address?: string | null
+          capacity?: number | null
           created_at?: string | null
           description?: string | null
           features?: Json | null
