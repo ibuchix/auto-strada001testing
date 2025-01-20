@@ -6,7 +6,9 @@ export function validateManualValuationInput(input: any): {
 } {
   const errors: string[] = []
 
-  // Required fields
+  // Required fields validation with detailed logging
+  console.log('Validating input:', input)
+  
   if (!input.make) errors.push('Make is required')
   if (!input.model) errors.push('Model is required')
   if (!input.year) errors.push('Year is required')
@@ -43,6 +45,8 @@ export function validateManualValuationInput(input: any): {
   if (input.country && !validCountries.includes(input.country)) {
     errors.push('Invalid country code')
   }
+
+  console.log('Validation result:', { success: errors.length === 0, errors })
 
   return {
     success: errors.length === 0,

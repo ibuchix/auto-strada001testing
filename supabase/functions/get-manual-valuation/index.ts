@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { calculateChecksum } from './utils/api.ts'
 import { validateManualValuationInput } from './utils/validation.ts'
@@ -48,10 +47,11 @@ serve(async (req) => {
     } = input
 
     // Calculate checksum
-    const checksum = calculateChecksum(API_ID, API_SECRET, make + model + year)
-    console.log('Calculated checksum:', checksum)
+    const checksumValue = make + model + year.toString()
+    const checksum = calculateChecksum(API_ID, API_SECRET, checksumValue)
+    console.log('Calculated checksum:', checksum, 'from value:', checksumValue)
 
-    // Construct API URL
+    // Construct API URL with all required parameters
     const baseUrl = 'https://bp.autoiso.pl/api/v3/getManualValuation'
     const queryParams = new URLSearchParams({
       apiuid: API_ID,
@@ -66,10 +66,7 @@ serve(async (req) => {
       ...(capacity && { capacity: capacity.toString() })
     })
 
-    const apiUrl = `${baseUrl}/${Array.from(queryParams.entries())
-      .map(([key, value]) => `${key}:${value}`)
-      .join('/')}`
-
+    const apiUrl = `${baseUrl}?${queryParams.toString()}`
     console.log('Calling API URL:', apiUrl)
 
     // Make API request
