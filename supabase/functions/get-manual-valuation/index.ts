@@ -66,8 +66,8 @@ serve(async (req) => {
     queryParams.set('year', String(normalizedData.year))
     queryParams.set('mileage', String(normalizedData.mileage))
     queryParams.set('transmission', normalizedData.transmission.toLowerCase())
-    queryParams.set('fuel', (normalizedData.fuel || 'petrol').toLowerCase())
-    queryParams.set('country', (normalizedData.country || 'PL').toUpperCase())
+    queryParams.set('fuel', normalizedData.fuel.toLowerCase())
+    queryParams.set('country', normalizedData.country.toUpperCase())
     queryParams.set('currency', 'PLN')
     queryParams.set('version', '3.0')
     queryParams.set('format', 'json')
@@ -117,9 +117,10 @@ serve(async (req) => {
         year: normalizedData.year,
         mileage: normalizedData.mileage,
         transmission: normalizedData.transmission,
-        fuel: normalizedData.fuel || 'petrol',
-        country: normalizedData.country || 'PL',
+        fuel: normalizedData.fuel,
+        country: normalizedData.country,
         capacity: normalizedData.capacity || null,
+        valuation: apiData?.functionResponse?.valuation?.calcValuation?.price || 0,
         averagePrice: apiData?.functionResponse?.valuation?.calcValuation?.price_avr || 0,
         minimumPrice: apiData?.functionResponse?.valuation?.calcValuation?.price_min || 0,
         maximumPrice: apiData?.functionResponse?.valuation?.calcValuation?.price_max || 0,

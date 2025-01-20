@@ -24,6 +24,8 @@ export const validateRequest = (data: ManualValuationRequest) => {
   }
   if (!data.mileage || data.mileage < 0) errors.push('Valid mileage is required');
   if (!data.transmission) errors.push('Transmission is required');
+  if (!data.fuel) errors.push('Fuel type is required');
+  if (!data.country) errors.push('Country is required');
   if (data.capacity !== undefined && (data.capacity < 0 || data.capacity > 10000)) {
     errors.push('Capacity must be between 0 and 10,000 cc');
   }
