@@ -13,8 +13,8 @@ export function normalizeData(data: any): Partial<ManualValuationRequest> {
   console.log('Starting data normalization for:', JSON.stringify(data, null, 2));
   
   const normalized = {
-    make: String(data.make || '').trim(),
-    model: String(data.model || '').trim(),
+    make: String(data.make || '').toUpperCase().trim(),
+    model: String(data.model || '').toUpperCase().trim(),
     year: Number(data.year),
     mileage: Number(data.mileage),
     transmission: normalizeString(String(data.transmission || '')),

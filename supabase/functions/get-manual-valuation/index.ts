@@ -57,20 +57,19 @@ serve(async (req) => {
     console.log('Calculated checksum:', checksum)
 
     // Build API URL with properly encoded parameters
-    const params = new URLSearchParams({
-      'apiuid': apiId,
-      'checksum': checksum,
-      'make': encodeURIComponent(normalizedData.make),
-      'model': encodeURIComponent(normalizedData.model),
-      'year': normalizedData.year.toString(),
-      'odometer': normalizedData.mileage.toString(),
-      'transmission': normalizedData.transmission,
-      'fuel': normalizedData.fuel || 'petrol',
-      'country': normalizedData.country || 'PL',
-      'currency': 'PLN',
-      'version': '3.0',
-      'format': 'json'
-    })
+    const params = new URLSearchParams()
+    params.append('apiuid', apiId)
+    params.append('checksum', checksum)
+    params.append('make', encodeURIComponent(normalizedData.make))
+    params.append('model', encodeURIComponent(normalizedData.model))
+    params.append('year', normalizedData.year.toString())
+    params.append('odometer', normalizedData.mileage.toString())
+    params.append('transmission', normalizedData.transmission)
+    params.append('fuel', normalizedData.fuel || 'petrol')
+    params.append('country', normalizedData.country || 'PL')
+    params.append('currency', 'PLN')
+    params.append('version', '3.0')
+    params.append('format', 'json')
 
     const apiUrl = `${API_BASE_URL}?${params.toString()}`
     console.log('Calling external API:', apiUrl)
