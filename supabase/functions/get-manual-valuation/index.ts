@@ -17,11 +17,6 @@ serve(async (req) => {
   }
 
   try {
-    // Validate request method
-    if (req.method !== 'POST') {
-      throw new Error('Method not allowed')
-    }
-
     // Parse and log request data
     const requestData = await req.json()
     console.log('Received request data:', JSON.stringify(requestData, null, 2))
