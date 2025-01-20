@@ -9,8 +9,8 @@ export function validateManualValuationInput(input: any): {
   // Required fields validation with detailed logging
   console.log('Validating input:', input)
   
-  if (!input.make) errors.push('Make is required')
-  if (!input.model) errors.push('Model is required')
+  if (!input.make?.trim()) errors.push('Make is required')
+  if (!input.model?.trim()) errors.push('Model is required')
   if (!input.year) errors.push('Year is required')
   if (!input.mileage) errors.push('Mileage is required')
   if (!input.transmission) errors.push('Transmission is required')
@@ -30,19 +30,19 @@ export function validateManualValuationInput(input: any): {
     errors.push('Invalid capacity')
   }
 
-  // Enum validations
+  // Format validations
   const validTransmissions = ['manual', 'automatic']
-  if (input.transmission && !validTransmissions.includes(input.transmission)) {
+  if (input.transmission && !validTransmissions.includes(input.transmission.toLowerCase())) {
     errors.push('Invalid transmission type')
   }
 
   const validFuelTypes = ['petrol', 'diesel', 'electric', 'hybrid']
-  if (input.fuel && !validFuelTypes.includes(input.fuel)) {
+  if (input.fuel && !validFuelTypes.includes(input.fuel.toLowerCase())) {
     errors.push('Invalid fuel type')
   }
 
   const validCountries = ['PL', 'DE', 'UK']
-  if (input.country && !validCountries.includes(input.country)) {
+  if (input.country && !validCountries.includes(input.country.toUpperCase())) {
     errors.push('Invalid country code')
   }
 

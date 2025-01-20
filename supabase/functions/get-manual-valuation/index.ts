@@ -56,15 +56,19 @@ serve(async (req) => {
     const queryParams = new URLSearchParams({
       apiuid: API_ID,
       checksum: checksum,
-      make: make,
-      model: model,
+      make: make.toUpperCase(),
+      model: model.toUpperCase(),
       year: year.toString(),
       mileage: mileage.toString(),
-      transmission: transmission,
-      fuel: fuel,
-      country: country,
-      ...(capacity && { capacity: capacity.toString() })
+      transmission: transmission.toLowerCase(),
+      fuel: fuel.toLowerCase(),
+      country: country.toUpperCase(),
+      currency: 'PLN'
     })
+
+    if (capacity) {
+      queryParams.append('capacity', capacity.toString())
+    }
 
     const apiUrl = `${baseUrl}?${queryParams.toString()}`
     console.log('Calling API URL:', apiUrl)
@@ -75,8 +79,8 @@ serve(async (req) => {
 
     console.log('API Response:', data)
 
-    if (!response.ok) {
-      throw new Error(`API error: ${data.message || 'Unknown error'}`)
+    if (data.apiStatus === 'ER') {
+      throw new Error(`API error: ${data.message}`)
     }
 
     return new Response(
