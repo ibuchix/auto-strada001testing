@@ -14,14 +14,22 @@ export const useValuationForm = () => {
     setters.setIsLoading(true);
 
     try {
+      // Ensure all required fields are included
+      const requestData = {
+        make: data.make,
+        model: data.model,
+        year: parseInt(data.year),
+        mileage: parseInt(data.mileage),
+        transmission: data.transmission,
+        fuel: data.fuel || 'petrol',  // Ensure default value
+        country: data.country || 'PL', // Ensure default value
+        capacity: data.capacity ? parseInt(data.capacity) : undefined
+      };
+
+      console.log('Sending request with data:', requestData);
+
       const { data: response, error } = await supabase.functions.invoke('get-manual-valuation', {
-        body: {
-          make: data.make,
-          model: data.model,
-          year: parseInt(data.year),
-          mileage: parseInt(data.mileage),
-          transmission: data.transmission,
-        }
+        body: requestData
       });
 
       if (error) {
