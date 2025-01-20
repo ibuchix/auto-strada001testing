@@ -41,8 +41,8 @@ export const ManualValuationForm = ({
     year: '',
     mileage: mileage,
     transmission: transmission,
-    fuel: 'petrol',  // Set default value
-    country: 'PL',   // Set default value
+    fuel: 'petrol' as FuelType,
+    country: 'PL' as CountryCode,
     capacity: ''
   });
 
