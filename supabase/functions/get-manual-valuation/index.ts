@@ -5,8 +5,6 @@ import { calculateChecksum } from "./utils/api.ts"
 
 console.log("Manual valuation function started")
 
-const API_BASE_URL = "https://bp.autoiso.pl/api/v3/getManualValuation"
-
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -51,27 +49,30 @@ serve(async (req) => {
     }
 
     // Generate checksum using concatenated string of required fields
-    const checksumInput = `${normalizedData.make}${normalizedData.model}${normalizedData.year}`
+    const checksumInput = `${normalizedData.make}${normalizedData.model}${normalizedData.year}${normalizedData.mileage}`
     const checksum = calculateChecksum(apiId, apiSecret, checksumInput)
     console.log('Using checksum input:', checksumInput)
     console.log('Calculated checksum:', checksum)
 
     // Build API URL with properly encoded parameters
-    const params = new URLSearchParams()
-    params.append('apiuid', apiId)
-    params.append('checksum', checksum)
-    params.append('make', encodeURIComponent(normalizedData.make))
-    params.append('model', encodeURIComponent(normalizedData.model))
-    params.append('year', normalizedData.year.toString())
-    params.append('odometer', normalizedData.mileage.toString())
-    params.append('transmission', normalizedData.transmission)
-    params.append('fuel', normalizedData.fuel || 'petrol')
-    params.append('country', normalizedData.country || 'PL')
-    params.append('currency', 'PLN')
-    params.append('version', '3.0')
-    params.append('format', 'json')
+    const baseUrl = "https://bp.autoiso.pl/api/v3/getManualValuation"
+    const queryParams = new URLSearchParams()
+    
+    // Required parameters
+    queryParams.set('apiuid', apiId)
+    queryParams.set('checksum', checksum)
+    queryParams.set('make', normalizedData.make)
+    queryParams.set('model', normalizedData.model)
+    queryParams.set('year', normalizedData.year.toString())
+    queryParams.set('odometer', normalizedData.mileage.toString())
+    queryParams.set('transmission', normalizedData.transmission)
+    queryParams.set('fuel', normalizedData.fuel || 'petrol')
+    queryParams.set('country', normalizedData.country || 'PL')
+    queryParams.set('currency', 'PLN')
+    queryParams.set('version', '3.0')
+    queryParams.set('format', 'json')
 
-    const apiUrl = `${API_BASE_URL}?${params.toString()}`
+    const apiUrl = `${baseUrl}?${queryParams.toString()}`
     console.log('Calling external API:', apiUrl)
 
     // Make API request with timeout
