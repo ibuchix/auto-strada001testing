@@ -71,6 +71,11 @@ serve(async (req) => {
     queryParams.set('currency', 'PLN')
     queryParams.set('version', '3.0')
     queryParams.set('format', 'json')
+    
+    // Add capacity if provided
+    if (normalizedData.capacity) {
+      queryParams.set('capacity', String(normalizedData.capacity))
+    }
 
     const apiUrl = `${baseUrl}?${queryParams.toString()}`
     console.log('Calling external API:', apiUrl)
@@ -114,6 +119,7 @@ serve(async (req) => {
         transmission: normalizedData.transmission,
         fuel: normalizedData.fuel || 'petrol',
         country: normalizedData.country || 'PL',
+        capacity: normalizedData.capacity || null,
         averagePrice: apiData?.functionResponse?.valuation?.calcValuation?.price_avr || 0,
         minimumPrice: apiData?.functionResponse?.valuation?.calcValuation?.price_min || 0,
         maximumPrice: apiData?.functionResponse?.valuation?.calcValuation?.price_max || 0,
