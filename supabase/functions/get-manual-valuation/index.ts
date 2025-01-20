@@ -48,8 +48,8 @@ serve(async (req) => {
       throw new Error('API credentials not configured')
     }
 
-    // Generate checksum using concatenated string of required fields
-    const checksumInput = `${normalizedData.make}${normalizedData.model}${normalizedData.year}${normalizedData.mileage}`
+    // Generate checksum using concatenated string of all required fields
+    const checksumInput = `${normalizedData.make}${normalizedData.model}${normalizedData.year}${normalizedData.mileage}${normalizedData.transmission}${normalizedData.fuel}${normalizedData.country}`
     const checksum = calculateChecksum(apiId, apiSecret, checksumInput)
     console.log('Using checksum input:', checksumInput)
     console.log('Calculated checksum:', checksum)
