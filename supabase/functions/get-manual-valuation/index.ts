@@ -15,18 +15,20 @@ serve(async (req) => {
   }
 
   try {
-    // Parse and log request data
-    const requestData = await req.json()
-    console.log('Received request data:', JSON.stringify(requestData, null, 2))
+    // Parse and log raw request data
+    const rawData = await req.json()
+    console.log('Raw request data received:', JSON.stringify(rawData, null, 2))
 
-    // Normalize and validate data
-    const normalizedData = normalizeData(requestData)
+    // Normalize data and log the result
+    const normalizedData = normalizeData(rawData)
     console.log('Normalized data:', JSON.stringify(normalizedData, null, 2))
 
+    // Validate request data before proceeding
     const validationResult = validateRequest(normalizedData)
     console.log('Validation result:', JSON.stringify(validationResult, null, 2))
 
     if (!validationResult.isValid) {
+      console.error('Validation failed:', validationResult.errors)
       return new Response(
         JSON.stringify({
           success: false,
@@ -45,6 +47,7 @@ serve(async (req) => {
     const apiSecret = Deno.env.get('CAR_API_SECRET')
 
     if (!apiId || !apiSecret) {
+      console.error('API credentials not configured')
       throw new Error('API credentials not configured')
     }
 

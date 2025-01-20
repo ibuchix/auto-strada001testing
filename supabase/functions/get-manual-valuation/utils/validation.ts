@@ -1,19 +1,23 @@
 import { ManualValuationRequest } from "../types/validation.ts";
 
 export const normalizeData = (data: any): ManualValuationRequest => {
-  return {
-    make: String(data.make || ''),
-    model: String(data.model || ''),
+  console.log('Normalizing data:', data);
+  const normalized = {
+    make: String(data.make || '').trim(),
+    model: String(data.model || '').trim(),
     year: parseInt(data.year) || 0,
     mileage: parseInt(data.mileage) || 0,
-    transmission: String(data.transmission || ''),
-    fuel: String(data.fuel || ''),
-    country: String(data.country || ''),
+    transmission: String(data.transmission || '').toLowerCase(),
+    fuel: String(data.fuel || '').toLowerCase(),
+    country: String(data.country || '').toUpperCase(),
     capacity: data.capacity ? parseInt(data.capacity) : undefined
   };
+  console.log('Normalized data:', normalized);
+  return normalized;
 };
 
 export const validateRequest = (data: ManualValuationRequest) => {
+  console.log('Validating request data:', data);
   const errors: string[] = [];
   const currentYear = new Date().getFullYear();
 
@@ -30,8 +34,10 @@ export const validateRequest = (data: ManualValuationRequest) => {
     errors.push('Capacity must be between 0 and 10,000 cc');
   }
 
-  return {
+  const result = {
     isValid: errors.length === 0,
     errors
   };
+  console.log('Validation result:', result);
+  return result;
 };
