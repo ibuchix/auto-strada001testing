@@ -1,16 +1,16 @@
-export interface ManualValuationRequest {
+export interface ManualValuationInput {
   make: string;
   model: string;
   year: number;
   mileage: number;
-  transmission: string;
+  transmission: 'manual' | 'automatic';
+  fuel: 'petrol' | 'diesel' | 'electric' | 'hybrid';
+  country: 'PL' | 'DE' | 'UK';
+  capacity?: number;
 }
 
-export interface ValuationResponse {
-  make: string;
-  model: string;
-  year: number;
-  transmission: string;
-  valuation: number;
-  mileage: number;
+export interface ManualValuationResponse {
+  success: boolean;
+  message: string;
+  data: any;
 }

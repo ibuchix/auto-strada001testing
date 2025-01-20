@@ -1,43 +1,51 @@
-import { ManualValuationRequest } from "../types/validation.ts";
+import { ManualValuationInput } from '../types.ts'
 
-export const normalizeData = (data: any): ManualValuationRequest => {
-  console.log('Normalizing data:', data);
-  const normalized = {
-    make: String(data.make || '').trim(),
-    model: String(data.model || '').trim(),
-    year: parseInt(data.year) || 0,
-    mileage: parseInt(data.mileage) || 0,
-    transmission: String(data.transmission || '').toLowerCase(),
-    fuel: String(data.fuel || '').toLowerCase(),
-    country: String(data.country || '').toUpperCase(),
-    capacity: data.capacity ? parseInt(data.capacity) : undefined
-  };
-  console.log('Normalized data:', normalized);
-  return normalized;
-};
+export function validateManualValuationInput(input: any): { 
+  success: boolean;
+  errors: string[];
+} {
+  const errors: string[] = []
 
-export const validateRequest = (data: ManualValuationRequest) => {
-  console.log('Validating request data:', data);
-  const errors: string[] = [];
-  const currentYear = new Date().getFullYear();
+  // Required fields
+  if (!input.make) errors.push('Make is required')
+  if (!input.model) errors.push('Model is required')
+  if (!input.year) errors.push('Year is required')
+  if (!input.mileage) errors.push('Mileage is required')
+  if (!input.transmission) errors.push('Transmission is required')
+  if (!input.fuel) errors.push('Fuel type is required')
+  if (!input.country) errors.push('Country is required')
 
-  if (!data.make) errors.push('Make is required');
-  if (!data.model) errors.push('Model is required');
-  if (!data.year || data.year < 1900 || data.year > currentYear + 1) {
-    errors.push(`Year must be between 1900 and ${currentYear + 1}`);
-  }
-  if (!data.mileage || data.mileage < 0) errors.push('Valid mileage is required');
-  if (!data.transmission) errors.push('Transmission is required');
-  if (!data.fuel) errors.push('Fuel type is required');
-  if (!data.country) errors.push('Country is required');
-  if (data.capacity !== undefined && (data.capacity < 0 || data.capacity > 10000)) {
-    errors.push('Capacity must be between 0 and 10,000 cc');
+  // Type validations
+  if (input.year && (isNaN(input.year) || input.year < 1900 || input.year > new Date().getFullYear() + 1)) {
+    errors.push('Invalid year')
   }
 
-  const result = {
-    isValid: errors.length === 0,
+  if (input.mileage && (isNaN(input.mileage) || input.mileage < 0)) {
+    errors.push('Invalid mileage')
+  }
+
+  if (input.capacity && (isNaN(input.capacity) || input.capacity < 0)) {
+    errors.push('Invalid capacity')
+  }
+
+  // Enum validations
+  const validTransmissions = ['manual', 'automatic']
+  if (input.transmission && !validTransmissions.includes(input.transmission)) {
+    errors.push('Invalid transmission type')
+  }
+
+  const validFuelTypes = ['petrol', 'diesel', 'electric', 'hybrid']
+  if (input.fuel && !validFuelTypes.includes(input.fuel)) {
+    errors.push('Invalid fuel type')
+  }
+
+  const validCountries = ['PL', 'DE', 'UK']
+  if (input.country && !validCountries.includes(input.country)) {
+    errors.push('Invalid country code')
+  }
+
+  return {
+    success: errors.length === 0,
     errors
-  };
-  console.log('Validation result:', result);
-  return result;
-};
+  }
+}
