@@ -1,7 +1,6 @@
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./ValuationResult";
 import { Dialog } from "@/components/ui/dialog";
-import { ManualValuationForm } from "./ManualValuationForm";
 import { useValuationForm } from "./valuation/useValuationForm";
 
 export const ValuationForm = () => {
@@ -15,12 +14,9 @@ export const ValuationForm = () => {
     isLoading,
     valuationResult,
     dialogOpen,
-    showManualForm,
-    handleManualSubmit,
     handleVinSubmit,
     handleContinue,
     setDialogOpen,
-    setShowManualForm
   } = useValuationForm();
 
   return (
@@ -34,7 +30,6 @@ export const ValuationForm = () => {
         onMileageChange={setMileage}
         onGearboxChange={setGearbox}
         onSubmit={handleVinSubmit}
-        onManualEntry={() => setShowManualForm(true)}
       />
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         {valuationResult && (
@@ -45,13 +40,6 @@ export const ValuationForm = () => {
           />
         )}
       </Dialog>
-      <ManualValuationForm 
-        isOpen={showManualForm}
-        onClose={() => setShowManualForm(false)}
-        onSubmit={handleManualSubmit}
-        mileage={mileage}
-        transmission={gearbox}
-      />
     </div>
   );
 };

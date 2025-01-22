@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Edit2, AlertCircle } from "lucide-react";
+import { ChevronRight, AlertCircle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
@@ -13,11 +13,9 @@ interface ValuationInputProps {
   onMileageChange: (value: string) => void;
   onGearboxChange: (value: 'manual' | 'automatic') => void;
   onSubmit: (e: React.FormEvent) => void;
-  onManualEntry: () => void;
 }
 
 const isValidVin = (vin: string) => {
-  // Basic VIN validation: 17 alphanumeric characters
   return /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
 };
 
@@ -35,7 +33,6 @@ export const ValuationInput = ({
   onMileageChange,
   onGearboxChange,
   onSubmit,
-  onManualEntry
 }: ValuationInputProps) => {
   const vinError = vin && !isValidVin(vin) ? "Please enter a valid 17-character VIN" : "";
   const mileageError = mileage && !isValidMileage(mileage) ? "Please enter a valid mileage between 0 and 1,000,000 km" : "";
@@ -109,27 +106,14 @@ export const ValuationInput = ({
         </div>
       </div>
 
-      <div className="space-y-3">
-        <Button 
-          type="submit" 
-          className="w-full h-12 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-md flex items-center justify-center gap-2"
-          disabled={isLoading || !!vinError || !!mileageError}
-        >
-          {isLoading ? "GETTING VALUATION..." : "VALUE YOUR CAR"}
-          <ChevronRight className="w-5 h-5" />
-        </Button>
-        
-        <Button 
-          type="button"
-          variant="outline"
-          onClick={onManualEntry}
-          className="w-full h-12 text-lg border-2 border-secondary/20 rounded-md"
-          disabled={isLoading}
-        >
-          <Edit2 className="mr-2 h-5 w-5" />
-          Enter Details Manually
-        </Button>
-      </div>
+      <Button 
+        type="submit" 
+        className="w-full h-12 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-md flex items-center justify-center gap-2"
+        disabled={isLoading || !!vinError || !!mileageError}
+      >
+        {isLoading ? "GETTING VALUATION..." : "VALUE YOUR CAR"}
+        <ChevronRight className="w-5 h-5" />
+      </Button>
     </form>
   );
 };
