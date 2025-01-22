@@ -14,6 +14,7 @@ import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
+import ManualValuation from "@/pages/ManualValuation";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/AuthProvider";
 
@@ -37,6 +38,7 @@ function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/manual-valuation" element={<ManualValuation />} />
         </Routes>
         <Toaster />
       </AuthProvider>
