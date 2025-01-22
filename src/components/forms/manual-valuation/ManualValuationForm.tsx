@@ -25,7 +25,7 @@ interface ManualValuationFormData {
   accidentHistory?: boolean;
   serviceHistoryStatus?: string;
   previousOwners?: number;
-  lastServiceDate?: Date;
+  lastServiceDate?: string; // Changed from Date to string
   features?: Record<string, boolean>;
   interiorMaterial?: string;
   modifications?: string;
@@ -72,7 +72,7 @@ export const ManualValuationForm = () => {
         accident_history: data.accidentHistory,
         service_history_status: data.serviceHistoryStatus,
         previous_owners: data.previousOwners,
-        last_service_date: data.lastServiceDate,
+        last_service_date: data.lastServiceDate, // Now passing string directly
         features: data.features,
         interior_material: data.interiorMaterial,
         modifications: data.modifications,
