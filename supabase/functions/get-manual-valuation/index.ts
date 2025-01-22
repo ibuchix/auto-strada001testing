@@ -63,7 +63,9 @@ serve(async (req) => {
       transmission: transmission.toLowerCase(),
       fuel: fuel.toLowerCase(),
       country: country.toUpperCase(),
-      currency: 'PLN'
+      currency: 'PLN',
+      odometer: mileage.toString(), // Adding odometer as it might be required
+      lang: 'en' // Adding language parameter
     })
 
     if (capacity) {
