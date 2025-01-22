@@ -368,6 +368,96 @@ export type Database = {
           },
         ]
       }
+      manual_valuations: {
+        Row: {
+          accident_history: boolean | null
+          color: string | null
+          condition_rating: number
+          contact_email: string
+          contact_phone: string | null
+          created_at: string | null
+          engine_capacity: number | null
+          features: Json | null
+          fuel_type: string | null
+          id: string
+          interior_material: string | null
+          last_service_date: string | null
+          make: string
+          mileage: number
+          model: string
+          modifications: string | null
+          notes: string | null
+          photos: Json | null
+          previous_owners: number | null
+          registration_number: string | null
+          service_history_status: string | null
+          status: Database["public"]["Enums"]["manual_valuation_status"] | null
+          transmission: string
+          updated_at: string | null
+          user_id: string | null
+          vin: string
+          year: number
+        }
+        Insert: {
+          accident_history?: boolean | null
+          color?: string | null
+          condition_rating: number
+          contact_email: string
+          contact_phone?: string | null
+          created_at?: string | null
+          engine_capacity?: number | null
+          features?: Json | null
+          fuel_type?: string | null
+          id?: string
+          interior_material?: string | null
+          last_service_date?: string | null
+          make: string
+          mileage: number
+          model: string
+          modifications?: string | null
+          notes?: string | null
+          photos?: Json | null
+          previous_owners?: number | null
+          registration_number?: string | null
+          service_history_status?: string | null
+          status?: Database["public"]["Enums"]["manual_valuation_status"] | null
+          transmission: string
+          updated_at?: string | null
+          user_id?: string | null
+          vin: string
+          year: number
+        }
+        Update: {
+          accident_history?: boolean | null
+          color?: string | null
+          condition_rating?: number
+          contact_email?: string
+          contact_phone?: string | null
+          created_at?: string | null
+          engine_capacity?: number | null
+          features?: Json | null
+          fuel_type?: string | null
+          id?: string
+          interior_material?: string | null
+          last_service_date?: string | null
+          make?: string
+          mileage?: number
+          model?: string
+          modifications?: string | null
+          notes?: string | null
+          photos?: Json | null
+          previous_owners?: number | null
+          registration_number?: string | null
+          service_history_status?: string | null
+          status?: Database["public"]["Enums"]["manual_valuation_status"] | null
+          transmission?: string
+          updated_at?: string | null
+          user_id?: string | null
+          vin?: string
+          year?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -490,6 +580,7 @@ export type Database = {
       car_country_code: "PL" | "DE" | "UK"
       car_fuel_type: "petrol" | "diesel" | "electric" | "hybrid"
       car_transmission_type: "manual" | "automatic"
+      manual_valuation_status: "pending" | "processed" | "rejected"
       service_history_type: "full" | "partial" | "none" | "not_due"
     }
     CompositeTypes: {
