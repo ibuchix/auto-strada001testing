@@ -16,7 +16,10 @@ export const CarListingForm = () => {
   const { session } = useAuth();
   const draftId = location.state?.draftId;
   
-  const { form, carId, lastSaved } = useCarListingForm(session?.user.id, draftId);
+  const { form, carId, lastSaved } = useCarListingForm(
+    session?.user.id, 
+    draftId || undefined // Ensure undefined is passed if draftId is null/empty
+  );
   const [uploadProgress, setUploadProgress] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -31,7 +34,12 @@ export const CarListingForm = () => {
     setSubmitting(true);
     try {
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
-      const result = await handleFormSubmission(data, session.user.id, valuationData, carId);
+      const result = await handleFormSubmission(
+        data, 
+        session.user.id, 
+        valuationData, 
+        carId || undefined // Ensure undefined is passed if carId is null/empty
+      );
 
       if (result.success) {
         toast.success("Your listing has been submitted successfully!");

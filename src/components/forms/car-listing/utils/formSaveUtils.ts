@@ -13,10 +13,13 @@ export const saveFormData = async (
 ): Promise<void> => {
   try {
     const carData = prepareCarData(formData, valuationData, userId);
+    
+    // Only include carId in the upsert if it's defined
+    const dataToUpsert = carId ? { ...carData, id: carId } : carData;
 
     const savePromise = supabase
       .from('cars')
-      .upsert({ ...carData, id: carId })
+      .upsert(dataToUpsert)
       .select();
 
     const timeoutPromise = new Promise<{ error: PostgrestError }>((_, reject) => {
