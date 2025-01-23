@@ -5,6 +5,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
 import { VehicleDetailsSection } from "./VehicleDetailsSection";
 import { ConditionSection } from "./ConditionSection";
 import { PhotoUploadSection } from "./PhotoUploadSection";
