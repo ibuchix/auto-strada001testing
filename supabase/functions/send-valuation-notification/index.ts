@@ -35,9 +35,9 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Autostra <valuation@autostra.com>",
+        from: "Auto-Strada <admin@auto-strada.pl>",
         to: [userEmail],
-        subject: "Your Vehicle Valuation Request - Autostra",
+        subject: "Your Vehicle Valuation Request - Auto-Strada",
         html: `
           <h1>Thank You for Your Valuation Request</h1>
           <p>We've received your request for a valuation of your ${vehicleDetails.year} ${vehicleDetails.make} ${vehicleDetails.model}.</p>
@@ -50,7 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
             <li>VIN: ${vehicleDetails.vin}</li>
           </ul>
           <p>If you have any questions in the meantime, please don't hesitate to contact our support team.</p>
-          <p>Best regards,<br>The Autostra Team</p>
+          <p>Best regards,<br>The Auto-Strada Team</p>
         `,
       }),
     });
@@ -63,8 +63,8 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Autostra System <notifications@autostra.com>",
-        to: ["valuations@autostra.com"], // Replace with your team's email
+        from: "Auto-Strada System <admin@auto-strada.pl>",
+        to: ["valuations@auto-strada.pl"], // Replace with your team's email
         subject: "New Manual Valuation Request",
         html: `
           <h1>New Manual Valuation Request Received</h1>
