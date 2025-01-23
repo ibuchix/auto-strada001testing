@@ -17,6 +17,8 @@ import { AdditionalInfoSection } from "../car-listing/AdditionalInfoSection";
 import { SellerNotesSection } from "../car-listing/SellerNotesSection";
 import { VehicleStatusSection } from "../car-listing/VehicleStatusSection";
 import { CarListingFormData } from "@/types/forms";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
 
 export const ManualValuationForm = () => {
   const { session } = useAuth();
@@ -69,7 +71,6 @@ export const ManualValuationForm = () => {
         registration_number: data.registrationNumber,
         condition_rating: data.conditionRating,
         accident_history: data.accidentHistory,
-        service_history_status: data.serviceHistoryStatus,
         previous_owners: data.previousOwners,
         last_service_date: data.lastServiceDate,
         features: data.features,
@@ -111,34 +112,45 @@ export const ManualValuationForm = () => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <VehicleDetailsSection form={form} />
-        <VehicleStatusSection form={form} />
-        <ConditionSection form={form} />
-        <FeaturesSection form={form} />
-        <ServiceHistorySection form={form} />
-        <AdditionalInfoSection form={form} />
-        <PhotoUploadSection 
-          form={form} 
-          onProgressUpdate={setUploadProgress}
-        />
-        <SellerNotesSection form={form} />
-        <ContactSection form={form} />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-3xl mx-auto">
+        <div className="bg-white rounded-lg shadow-sm p-6 space-y-8">
+          <Alert className="mb-8 border-[#DC143C]/20 bg-[#DC143C]/5">
+            <InfoIcon className="h-4 w-4 text-[#DC143C]" />
+            <AlertDescription className="text-dark ml-2">
+              Please provide detailed information about your vehicle for an accurate valuation.
+            </AlertDescription>
+          </Alert>
 
-        <Button
-          type="submit"
-          className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Submitting...</span>
-            </div>
-          ) : (
-            "Submit Valuation Request"
-          )}
-        </Button>
+          <div className="space-y-8">
+            <VehicleDetailsSection form={form} />
+            <VehicleStatusSection form={form} />
+            <ConditionSection form={form} />
+            <FeaturesSection form={form} />
+            <ServiceHistorySection form={form} />
+            <AdditionalInfoSection form={form} />
+            <PhotoUploadSection 
+              form={form} 
+              onProgressUpdate={setUploadProgress}
+            />
+            <SellerNotesSection form={form} />
+            <ContactSection form={form} />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Submitting...</span>
+              </div>
+            ) : (
+              "Submit Valuation Request"
+            )}
+          </Button>
+        </div>
       </form>
     </Form>
   );

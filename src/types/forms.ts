@@ -1,5 +1,4 @@
 export interface CarFeatures {
-  [key: string]: boolean;
   satNav: boolean;
   panoramicRoof: boolean;
   reverseCamera: boolean;
@@ -11,21 +10,21 @@ export interface CarListingFormData {
   name: string;
   address: string;
   mobileNumber: string;
+  features: CarFeatures;
   isDamaged: boolean;
   isRegisteredInPoland: boolean;
-  features: CarFeatures;
-  seatMaterial: "cloth" | "leather" | "half leather" | "suede";
-  numberOfKeys: "1" | "2";
   hasToolPack: boolean;
   hasDocumentation: boolean;
   isSellingOnBehalf: boolean;
   hasPrivatePlate: boolean;
   financeAmount: string;
   financeDocument: File | null;
-  serviceHistoryType: "full" | "partial" | "none" | "not_due";
+  serviceHistoryType: string;
   sellerNotes?: string;
   uploadedPhotos: string[];
   transmission?: string | null;
+  seatMaterial: string;
+  numberOfKeys: string;
   // Additional fields for manual valuation
   vin?: string;
   make?: string;
@@ -36,7 +35,6 @@ export interface CarListingFormData {
   registrationNumber?: string;
   conditionRating?: number;
   accidentHistory?: boolean;
-  serviceHistoryStatus?: string;
   previousOwners?: number;
   lastServiceDate?: string;
   interiorMaterial?: string;
