@@ -27,3 +27,7 @@ verify_jwt = true
 [[edge_functions]]
 name = "get-vehicle-valuation"
 verify_jwt = true
+
+[[edge_functions]]
+name = "send-valuation-notification"
+verify_jwt = true
