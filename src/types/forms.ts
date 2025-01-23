@@ -26,4 +26,24 @@ export interface CarListingFormData {
   sellerNotes?: string;
   uploadedPhotos: string[];
   transmission?: string | null;
+  // Additional fields for manual valuation
+  vin?: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  engineCapacity?: number;
+  mileage?: number;
+  registrationNumber?: string;
+  conditionRating?: number;
+  accidentHistory?: boolean;
+  serviceHistoryStatus?: string;
+  previousOwners?: number;
+  lastServiceDate?: string;
+  interiorMaterial?: string;
+  modifications?: string;
+  fuelType?: string;
+  color?: string;
+  contactEmail?: string;
+  notes?: string;
+  serviceHistoryFiles?: string[];
 }
