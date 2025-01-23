@@ -1,4 +1,5 @@
 export interface CarFeatures {
+  [key: string]: boolean;
   satNav: boolean;
   panoramicRoof: boolean;
   reverseCamera: boolean;
@@ -19,7 +20,7 @@ export interface CarListingFormData {
   hasPrivatePlate: boolean;
   financeAmount: string;
   financeDocument: File | null;
-  serviceHistoryType: string;
+  serviceHistoryType: "full" | "partial" | "none" | "not_due";
   sellerNotes?: string;
   uploadedPhotos: string[];
   transmission?: string | null;

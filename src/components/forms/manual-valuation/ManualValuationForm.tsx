@@ -73,7 +73,7 @@ export const ManualValuationForm = () => {
         accident_history: data.accidentHistory,
         previous_owners: data.previousOwners,
         last_service_date: data.lastServiceDate,
-        features: data.features,
+        features: data.features as unknown as Database['public']['Tables']['manual_valuations']['Insert']['features'],
         interior_material: data.interiorMaterial,
         modifications: data.modifications,
         fuel_type: data.fuelType,
