@@ -15,12 +15,12 @@ export const ContactSection = ({ form }: ContactSectionProps) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           control={form.control}
-          name="contactEmail"
+          name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email Address</FormLabel>
+              <FormLabel>Full Name</FormLabel>
               <FormControl>
-                <Input type="email" {...field} required />
+                <Input {...field} required />
               </FormControl>
             </FormItem>
           )}
@@ -28,12 +28,38 @@ export const ContactSection = ({ form }: ContactSectionProps) => {
 
         <FormField
           control={form.control}
-          name="contactPhone"
+          name="address"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone Number (optional)</FormLabel>
+              <FormLabel>Address</FormLabel>
               <FormControl>
-                <Input type="tel" {...field} />
+                <Input {...field} required />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="mobileNumber"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Mobile Number</FormLabel>
+              <FormControl>
+                <Input type="tel" {...field} required />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="contactEmail"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email Address</FormLabel>
+              <FormControl>
+                <Input type="email" {...field} required />
               </FormControl>
             </FormItem>
           )}

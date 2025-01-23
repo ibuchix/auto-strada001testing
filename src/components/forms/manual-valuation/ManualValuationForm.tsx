@@ -11,30 +11,11 @@ import { PhotoUploadSection } from "./PhotoUploadSection";
 import { ContactSection } from "./ContactSection";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-
-interface ManualValuationFormData {
-  vin: string;
-  make: string;
-  model: string;
-  year: number;
-  transmission: string;
-  engineCapacity?: number;
-  mileage: number;
-  registrationNumber?: string;
-  conditionRating: number;
-  accidentHistory?: boolean;
-  serviceHistoryStatus?: string;
-  previousOwners?: number;
-  lastServiceDate?: string; // Changed from Date to string
-  features?: Record<string, boolean>;
-  interiorMaterial?: string;
-  modifications?: string;
-  fuelType?: string;
-  color?: string;
-  contactEmail: string;
-  contactPhone?: string;
-  notes?: string;
-}
+import { FeaturesSection } from "../car-listing/FeaturesSection";
+import { ServiceHistorySection } from "../car-listing/ServiceHistorySection";
+import { AdditionalInfoSection } from "../car-listing/AdditionalInfoSection";
+import { SellerNotesSection } from "../car-listing/SellerNotesSection";
+import { VehicleStatusSection } from "../car-listing/VehicleStatusSection";
 
 export const ManualValuationForm = () => {
   const { session } = useAuth();
@@ -42,24 +23,32 @@ export const ManualValuationForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const form = useForm<ManualValuationFormData>({
+  const form = useForm({
     defaultValues: {
       conditionRating: 3,
-      features: {},
+      features: {
+        satNav: false,
+        panoramicRoof: false,
+        reverseCamera: false,
+        heatedSeats: false,
+        upgradedSound: false
+      },
+      isDamaged: false,
+      isRegisteredInPoland: false,
+      hasToolPack: false,
+      hasDocumentation: false,
+      isSellingOnBehalf: false,
+      hasPrivatePlate: false,
+      seatMaterial: "cloth",
+      numberOfKeys: "1",
     },
   });
 
-  const onSubmit = async (data: ManualValuationFormData) => {
-    if (!session?.user.id) {
-      toast.error("Please sign in to submit a valuation request");
-      navigate("/auth");
-      return;
-    }
-
+  const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
       const { error } = await supabase.from("manual_valuations").insert({
-        user_id: session.user.id,
+        user_id: session?.user.id,
         vin: data.vin,
         make: data.make,
         model: data.model,
@@ -72,7 +61,7 @@ export const ManualValuationForm = () => {
         accident_history: data.accidentHistory,
         service_history_status: data.serviceHistoryStatus,
         previous_owners: data.previousOwners,
-        last_service_date: data.lastServiceDate, // Now passing string directly
+        last_service_date: data.lastServiceDate,
         features: data.features,
         interior_material: data.interiorMaterial,
         modifications: data.modifications,
@@ -81,6 +70,21 @@ export const ManualValuationForm = () => {
         contact_email: data.contactEmail,
         contact_phone: data.contactPhone,
         notes: data.notes,
+        is_damaged: data.isDamaged,
+        is_registered_in_poland: data.isRegisteredInPoland,
+        seat_material: data.seatMaterial,
+        number_of_keys: parseInt(data.numberOfKeys),
+        has_tool_pack: data.hasToolPack,
+        has_documentation: data.hasDocumentation,
+        is_selling_on_behalf: data.isSellingOnBehalf,
+        has_private_plate: data.hasPrivatePlate,
+        finance_amount: data.financeAmount,
+        service_history_type: data.serviceHistoryType,
+        service_history_files: data.serviceHistoryFiles,
+        seller_notes: data.sellerNotes,
+        name: data.name,
+        address: data.address,
+        mobile_number: data.mobileNumber,
       });
 
       if (error) throw error;
@@ -99,11 +103,16 @@ export const ManualValuationForm = () => {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <VehicleDetailsSection form={form} />
+        <VehicleStatusSection form={form} />
         <ConditionSection form={form} />
+        <FeaturesSection form={form} />
+        <ServiceHistorySection form={form} />
+        <AdditionalInfoSection form={form} />
         <PhotoUploadSection 
           form={form} 
           onProgressUpdate={setUploadProgress}
         />
+        <SellerNotesSection form={form} />
         <ContactSection form={form} />
 
         <Button
