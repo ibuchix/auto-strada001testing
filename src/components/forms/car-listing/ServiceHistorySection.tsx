@@ -1,123 +1,99 @@
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 
 interface ServiceHistorySectionProps {
   form: UseFormReturn<CarListingFormData>;
-  carId?: string;
 }
 
-export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProps) => {
-  const handleFileUpload = async (files: FileList) => {
-    if (!carId) {
-      toast.error("Car ID is required for file upload");
-      return;
-    }
-
-    try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        const fileExt = file.name.split('.').pop();
-        const filePath = `${carId}/service_history_${Date.now()}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('car-files')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        // Log the upload
-        await supabase
-          .from('car_file_uploads')
-          .insert({
-            car_id: carId,
-            file_path: filePath,
-            file_type: 'service_history',
-            upload_status: 'completed'
-          });
-
-        return filePath;
-      });
-
-      const uploadedPaths = await Promise.all(uploadPromises);
-
-      // Get current service history files
-      const { data: carData, error: fetchError } = await supabase
-        .from('cars')
-        .select('service_history_files')
-        .eq('id', carId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Update the car's service history files
-      const { error: updateError } = await supabase
-        .from('cars')
-        .update({
-          service_history_files: [...(carData.service_history_files || []), ...uploadedPaths]
-        })
-        .eq('id', carId);
-
-      if (updateError) throw updateError;
-
-      toast.success('Service history documents uploaded successfully');
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to upload service history documents');
-    }
-  };
-
+export const ServiceHistorySection = ({ form }: ServiceHistorySectionProps) => {
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium mb-4">Service History</h3>
+      <h2 className="text-2xl font-bold text-dark">Service History</h2>
+      
+      <div className="space-y-6 p-6 bg-accent/30 rounded-lg">
         <FormField
           control={form.control}
           name="serviceHistoryType"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Service History Type</FormLabel>
+            <FormItem className="space-y-4">
+              <FormLabel className="text-base font-semibold">Service History Type</FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}
                   defaultValue={field.value}
-                  className="grid grid-cols-2 gap-4"
+                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
                 >
-                  {[
-                    { value: 'full', label: 'Full Service History' },
-                    { value: 'partial', label: 'Partial Service History' },
-                    { value: 'none', label: 'No Service History' },
-                    { value: 'not_due', label: 'First Service Not Due Yet' },
-                  ].map(({ value, label }) => (
-                    <div key={value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={value} id={value} />
-                      <Label htmlFor={value}>{label}</Label>
-                    </div>
-                  ))}
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem 
+                        value="full"
+                        className="border-2 border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal">Full Service History</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem 
+                        value="partial"
+                        className="border-2 border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal">Partial Service History</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem 
+                        value="none"
+                        className="border-2 border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal">No Service History</FormLabel>
+                  </FormItem>
+                  <FormItem className="flex items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <RadioGroupItem 
+                        value="not_due"
+                        className="border-2 border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                    </FormControl>
+                    <FormLabel className="font-normal">First Service Not Due Yet</FormLabel>
+                  </FormItem>
                 </RadioGroup>
               </FormControl>
             </FormItem>
           )}
         />
-      </div>
 
-      <div>
-        <h3 className="text-lg font-medium mb-4">Service History Documents</h3>
-        <Input
-          type="file"
-          accept=".pdf,.jpg,.jpeg,.png"
-          multiple
-          onChange={(e) => {
-            if (e.target.files) handleFileUpload(e.target.files);
-          }}
-        />
-        <p className="text-sm text-gray-600 mt-2">
-          Upload service history documents (PDF, images)
-        </p>
+        <div className="space-y-4">
+          <FormLabel className="text-base font-semibold">Service History Documents</FormLabel>
+          <FormField
+            control={form.control}
+            name="serviceHistoryFiles"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      field.onChange(files);
+                    }}
+                    className="bg-white cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  />
+                </FormControl>
+                <p className="text-sm text-subtitle mt-2">
+                  Upload service history documents (PDF images)
+                </p>
+              </FormItem>
+            )}
+          />
+        </div>
       </div>
     </div>
   );
