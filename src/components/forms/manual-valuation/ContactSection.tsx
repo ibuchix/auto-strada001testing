@@ -1,6 +1,5 @@
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { UseFormReturn } from "react-hook-form";
 
 interface ContactSectionProps {
@@ -65,23 +64,6 @@ export const ContactSection = ({ form }: ContactSectionProps) => {
           )}
         />
       </div>
-
-      <FormField
-        control={form.control}
-        name="notes"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Additional Notes</FormLabel>
-            <FormControl>
-              <Textarea
-                {...field}
-                placeholder="Any additional information about your vehicle..."
-                className="h-32"
-              />
-            </FormControl>
-          </FormItem>
-        )}
-      />
     </div>
   );
 };
