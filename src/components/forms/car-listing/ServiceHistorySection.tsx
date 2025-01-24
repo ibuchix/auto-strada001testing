@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 
 interface ServiceHistorySectionProps {
   form: UseFormReturn<CarListingFormData>;
+  carId?: string;  // Added carId prop as optional
 }
 
-export const ServiceHistorySection = ({ form }: ServiceHistorySectionProps) => {
+export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProps) => {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-dark">Service History</h2>
