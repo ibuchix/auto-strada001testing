@@ -170,6 +170,9 @@ export type Database = {
         Row: {
           additional_photos: string[] | null
           address: string | null
+          auction_end_time: string | null
+          auction_start_time: string | null
+          auction_status: string | null
           capacity: number | null
           created_at: string | null
           description: string | null
@@ -181,6 +184,7 @@ export type Database = {
           has_tool_pack: boolean | null
           id: string
           images: string[] | null
+          is_auction: boolean | null
           is_damaged: boolean | null
           is_draft: boolean | null
           is_registered_in_poland: boolean | null
@@ -188,6 +192,7 @@ export type Database = {
           last_saved: string | null
           make: string | null
           mileage: number
+          minimum_bid_increment: number | null
           mobile_number: string | null
           model: string | null
           name: string | null
@@ -195,6 +200,7 @@ export type Database = {
           price: number
           registration_number: string | null
           required_photos: Json | null
+          reserve_price: number | null
           seat_material: string | null
           seller_id: string
           seller_notes: string | null
@@ -216,6 +222,9 @@ export type Database = {
         Insert: {
           additional_photos?: string[] | null
           address?: string | null
+          auction_end_time?: string | null
+          auction_start_time?: string | null
+          auction_status?: string | null
           capacity?: number | null
           created_at?: string | null
           description?: string | null
@@ -227,6 +236,7 @@ export type Database = {
           has_tool_pack?: boolean | null
           id?: string
           images?: string[] | null
+          is_auction?: boolean | null
           is_damaged?: boolean | null
           is_draft?: boolean | null
           is_registered_in_poland?: boolean | null
@@ -234,6 +244,7 @@ export type Database = {
           last_saved?: string | null
           make?: string | null
           mileage: number
+          minimum_bid_increment?: number | null
           mobile_number?: string | null
           model?: string | null
           name?: string | null
@@ -241,6 +252,7 @@ export type Database = {
           price: number
           registration_number?: string | null
           required_photos?: Json | null
+          reserve_price?: number | null
           seat_material?: string | null
           seller_id: string
           seller_notes?: string | null
@@ -262,6 +274,9 @@ export type Database = {
         Update: {
           additional_photos?: string[] | null
           address?: string | null
+          auction_end_time?: string | null
+          auction_start_time?: string | null
+          auction_status?: string | null
           capacity?: number | null
           created_at?: string | null
           description?: string | null
@@ -273,6 +288,7 @@ export type Database = {
           has_tool_pack?: boolean | null
           id?: string
           images?: string[] | null
+          is_auction?: boolean | null
           is_damaged?: boolean | null
           is_draft?: boolean | null
           is_registered_in_poland?: boolean | null
@@ -280,6 +296,7 @@ export type Database = {
           last_saved?: string | null
           make?: string | null
           mileage?: number
+          minimum_bid_increment?: number | null
           mobile_number?: string | null
           model?: string | null
           name?: string | null
@@ -287,6 +304,7 @@ export type Database = {
           price?: number
           registration_number?: string | null
           required_photos?: Json | null
+          reserve_price?: number | null
           seat_material?: string | null
           seller_id?: string
           seller_notes?: string | null
@@ -536,6 +554,48 @@ export type Database = {
         }
         Relationships: []
       }
+      proxy_bids: {
+        Row: {
+          car_id: string | null
+          created_at: string | null
+          dealer_id: string | null
+          id: string
+          max_bid_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          car_id?: string | null
+          created_at?: string | null
+          dealer_id?: string | null
+          id?: string
+          max_bid_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          car_id?: string | null
+          created_at?: string | null
+          dealer_id?: string | null
+          id?: string
+          max_bid_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proxy_bids_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_bids_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vin_search_results: {
         Row: {
           created_at: string | null
@@ -619,6 +679,10 @@ export type Database = {
           search_result: Json
           searcher_id?: string
         }
+        Returns: undefined
+      }
+      update_auction_status: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       update_required_photos: {
