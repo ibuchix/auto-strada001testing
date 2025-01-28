@@ -6,14 +6,12 @@ import { Testimonials } from "@/components/Testimonials";
 import { BottomCTA } from "@/components/BottomCTA";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
-import { AuctionStats } from "@/components/AuctionStats";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
       <Hero />
-      <AuctionStats carId="your-car-id-here" /> {/* Replace with actual car ID when available */}
       <HowItWorks />
       <Benefits />
       <VerifiedDealers />
