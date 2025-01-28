@@ -9,6 +9,227 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      alert_history: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          id: string
+          message: string
+          metric_name: string
+          metric_value: number
+          severity: string
+          threshold_value: number
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string | null
+          id?: string
+          message: string
+          metric_name: string
+          metric_value: number
+          severity: string
+          threshold_value: number
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          id?: string
+          message?: string
+          metric_name?: string
+          metric_value?: number
+          severity?: string
+          threshold_value?: number
+        }
+        Relationships: []
+      }
+      alert_thresholds: {
+        Row: {
+          comparison_operator: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          metric_name: string
+          threshold_value: number
+          time_window: number
+          updated_at: string | null
+        }
+        Insert: {
+          comparison_operator: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          metric_name: string
+          threshold_value: number
+          time_window: number
+          updated_at?: string | null
+        }
+        Update: {
+          comparison_operator?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          metric_name?: string
+          threshold_value?: number
+          time_window?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      auction_metrics: {
+        Row: {
+          auction_id: string | null
+          created_at: string | null
+          duration_minutes: number | null
+          end_time: string | null
+          final_price: number | null
+          id: string
+          reserve_price: number | null
+          start_time: string | null
+          status: string | null
+          total_bids: number | null
+          unique_bidders: number | null
+        }
+        Insert: {
+          auction_id?: string | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          final_price?: number | null
+          id?: string
+          reserve_price?: number | null
+          start_time?: string | null
+          status?: string | null
+          total_bids?: number | null
+          unique_bidders?: number | null
+        }
+        Update: {
+          auction_id?: string | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          end_time?: string | null
+          final_price?: number | null
+          id?: string
+          reserve_price?: number | null
+          start_time?: string | null
+          status?: string | null
+          total_bids?: number | null
+          unique_bidders?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_metrics_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auction_results: {
+        Row: {
+          auction_id: string
+          bidding_activity_timeline: Json | null
+          created_at: string | null
+          duration_minutes: number | null
+          final_price: number | null
+          highest_bid_dealer_id: string | null
+          id: string
+          reserve_price: number | null
+          start_price: number | null
+          total_bids: number | null
+          unique_bidders: number | null
+        }
+        Insert: {
+          auction_id: string
+          bidding_activity_timeline?: Json | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          final_price?: number | null
+          highest_bid_dealer_id?: string | null
+          id?: string
+          reserve_price?: number | null
+          start_price?: number | null
+          total_bids?: number | null
+          unique_bidders?: number | null
+        }
+        Update: {
+          auction_id?: string
+          bidding_activity_timeline?: Json | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          final_price?: number | null
+          highest_bid_dealer_id?: string | null
+          id?: string
+          reserve_price?: number | null
+          start_price?: number | null
+          total_bids?: number | null
+          unique_bidders?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_results_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auction_results_highest_bid_dealer_id_fkey"
+            columns: ["highest_bid_dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_auction"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bid_metrics: {
+        Row: {
+          bid_id: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          processing_time_ms: number | null
+          proxy_processing_time_ms: number | null
+          success: boolean | null
+          validation_time_ms: number | null
+        }
+        Insert: {
+          bid_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          processing_time_ms?: number | null
+          proxy_processing_time_ms?: number | null
+          success?: boolean | null
+          validation_time_ms?: number | null
+        }
+        Update: {
+          bid_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          processing_time_ms?: number | null
+          proxy_processing_time_ms?: number | null
+          success?: boolean | null
+          validation_time_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_metrics_bid_id_fkey"
+            columns: ["bid_id"]
+            isOneToOne: false
+            referencedRelation: "bids"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bids: {
         Row: {
           amount: number
@@ -17,6 +238,8 @@ export type Database = {
           dealer_id: string
           id: string
           status: string | null
+          withdrawal_reason: string | null
+          withdrawn_at: string | null
         }
         Insert: {
           amount: number
@@ -25,6 +248,8 @@ export type Database = {
           dealer_id: string
           id?: string
           status?: string | null
+          withdrawal_reason?: string | null
+          withdrawn_at?: string | null
         }
         Update: {
           amount?: number
@@ -33,6 +258,8 @@ export type Database = {
           dealer_id?: string
           id?: string
           status?: string | null
+          withdrawal_reason?: string | null
+          withdrawn_at?: string | null
         }
         Relationships: [
           {
@@ -86,6 +313,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cache_metrics: {
+        Row: {
+          cache_key: string
+          created_at: string | null
+          hit_count: number | null
+          id: string
+          last_accessed: string | null
+          miss_count: number | null
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string | null
+          hit_count?: number | null
+          id?: string
+          last_accessed?: string | null
+          miss_count?: number | null
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string | null
+          hit_count?: number | null
+          id?: string
+          last_accessed?: string | null
+          miss_count?: number | null
+        }
+        Relationships: []
       }
       car_file_uploads: {
         Row: {
@@ -171,11 +425,15 @@ export type Database = {
           additional_photos: string[] | null
           address: string | null
           auction_end_time: string | null
+          auction_format: string | null
           auction_start_time: string | null
           auction_status: string | null
           capacity: number | null
           created_at: string | null
           description: string | null
+          extension_duration_minutes: number | null
+          extension_trigger_minutes: number | null
+          extensions_used: number | null
           features: Json | null
           finance_amount: number | null
           finance_document_url: string | null
@@ -191,6 +449,7 @@ export type Database = {
           is_selling_on_behalf: boolean | null
           last_saved: string | null
           make: string | null
+          max_extensions_allowed: number | null
           mileage: number
           minimum_bid_increment: number | null
           mobile_number: string | null
@@ -223,11 +482,15 @@ export type Database = {
           additional_photos?: string[] | null
           address?: string | null
           auction_end_time?: string | null
+          auction_format?: string | null
           auction_start_time?: string | null
           auction_status?: string | null
           capacity?: number | null
           created_at?: string | null
           description?: string | null
+          extension_duration_minutes?: number | null
+          extension_trigger_minutes?: number | null
+          extensions_used?: number | null
           features?: Json | null
           finance_amount?: number | null
           finance_document_url?: string | null
@@ -243,6 +506,7 @@ export type Database = {
           is_selling_on_behalf?: boolean | null
           last_saved?: string | null
           make?: string | null
+          max_extensions_allowed?: number | null
           mileage: number
           minimum_bid_increment?: number | null
           mobile_number?: string | null
@@ -275,11 +539,15 @@ export type Database = {
           additional_photos?: string[] | null
           address?: string | null
           auction_end_time?: string | null
+          auction_format?: string | null
           auction_start_time?: string | null
           auction_status?: string | null
           capacity?: number | null
           created_at?: string | null
           description?: string | null
+          extension_duration_minutes?: number | null
+          extension_trigger_minutes?: number | null
+          extensions_used?: number | null
           features?: Json | null
           finance_amount?: number | null
           finance_document_url?: string | null
@@ -295,6 +563,7 @@ export type Database = {
           is_selling_on_behalf?: boolean | null
           last_saved?: string | null
           make?: string | null
+          max_extensions_allowed?: number | null
           mileage?: number
           minimum_bid_increment?: number | null
           mobile_number?: string | null
@@ -554,6 +823,114 @@ export type Database = {
         }
         Relationships: []
       }
+      proxy_bid_audit_logs: {
+        Row: {
+          action_timestamp: string | null
+          action_type: string
+          car_id: string | null
+          created_at: string | null
+          dealer_id: string | null
+          id: string
+          metadata: Json | null
+          new_value: Json | null
+          old_value: Json | null
+          proxy_bid_id: string | null
+        }
+        Insert: {
+          action_timestamp?: string | null
+          action_type: string
+          car_id?: string | null
+          created_at?: string | null
+          dealer_id?: string | null
+          id?: string
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+          proxy_bid_id?: string | null
+        }
+        Update: {
+          action_timestamp?: string | null
+          action_type?: string
+          car_id?: string | null
+          created_at?: string | null
+          dealer_id?: string | null
+          id?: string
+          metadata?: Json | null
+          new_value?: Json | null
+          old_value?: Json | null
+          proxy_bid_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proxy_bid_audit_logs_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_bid_audit_logs_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proxy_bid_audit_logs_proxy_bid_id_fkey"
+            columns: ["proxy_bid_id"]
+            isOneToOne: false
+            referencedRelation: "proxy_bids"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proxy_bid_errors: {
+        Row: {
+          created_at: string | null
+          error_message: string
+          error_type: string
+          id: string
+          metadata: Json | null
+          proxy_bid_id: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          retry_count: number | null
+          stack_trace: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message: string
+          error_type: string
+          id?: string
+          metadata?: Json | null
+          proxy_bid_id?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          retry_count?: number | null
+          stack_trace?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string
+          error_type?: string
+          id?: string
+          metadata?: Json | null
+          proxy_bid_id?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          retry_count?: number | null
+          stack_trace?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proxy_bid_errors_proxy_bid_id_fkey"
+            columns: ["proxy_bid_id"]
+            isOneToOne: false
+            referencedRelation: "proxy_bids"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proxy_bids: {
         Row: {
           car_id: string | null
@@ -595,6 +972,93 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      query_metrics: {
+        Row: {
+          execution_time: unknown | null
+          id: string
+          query_hash: string
+          query_text: string
+          rows_affected: number | null
+          timestamp: string | null
+        }
+        Insert: {
+          execution_time?: unknown | null
+          id?: string
+          query_hash: string
+          query_text: string
+          rows_affected?: number | null
+          timestamp?: string | null
+        }
+        Update: {
+          execution_time?: unknown | null
+          id?: string
+          query_hash?: string
+          query_text?: string
+          rows_affected?: number | null
+          timestamp?: string | null
+        }
+        Relationships: []
+      }
+      rate_limits: {
+        Row: {
+          created_at: string | null
+          endpoint_name: string
+          id: string
+          requests_limit: number
+          time_window: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          endpoint_name: string
+          id?: string
+          requests_limit: number
+          time_window: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          endpoint_name?: string
+          id?: string
+          requests_limit?: number
+          time_window?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      system_metrics: {
+        Row: {
+          active_connections: number | null
+          avg_query_time_ms: number | null
+          cache_hit_ratio: number | null
+          cpu_usage: number | null
+          id: string
+          memory_usage: number | null
+          timestamp: string | null
+          total_queries: number | null
+        }
+        Insert: {
+          active_connections?: number | null
+          avg_query_time_ms?: number | null
+          cache_hit_ratio?: number | null
+          cpu_usage?: number | null
+          id?: string
+          memory_usage?: number | null
+          timestamp?: string | null
+          total_queries?: number | null
+        }
+        Update: {
+          active_connections?: number | null
+          avg_query_time_ms?: number | null
+          cache_hit_ratio?: number | null
+          cpu_usage?: number | null
+          id?: string
+          memory_usage?: number | null
+          timestamp?: string | null
+          total_queries?: number | null
+        }
+        Relationships: []
       }
       vin_search_results: {
         Row: {
@@ -647,6 +1111,20 @@ export type Database = {
         }
         Returns: string
       }
+      check_bid_rate_limit: {
+        Args: {
+          dealer_id: string
+        }
+        Returns: boolean
+      }
+      check_bid_volume_alert: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      check_cache_performance_alert: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       check_dealer_email_exists: {
         Args: {
           email_to_check: string
@@ -658,6 +1136,22 @@ export type Database = {
           email_to_check: string
         }
         Returns: boolean
+      }
+      check_error_rate_alert: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      check_suspicious_bidding: {
+        Args: {
+          bid_car_id: string
+          bid_dealer_id: string
+          bid_amount: number
+        }
+        Returns: boolean
+      }
+      check_system_performance_alert: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       cleanup_failed_dealer_registration: {
         Args: {
@@ -673,12 +1167,24 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_resolved_proxy_bid_errors: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      close_ended_auctions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       log_vin_search: {
         Args: {
           search_vin: string
           search_result: Json
           searcher_id?: string
         }
+        Returns: undefined
+      }
+      process_pending_proxy_bids: {
+        Args: Record<PropertyKey, never>
         Returns: undefined
       }
       update_auction_status: {
