@@ -109,11 +109,13 @@ const SellerDashboard = () => {
 
         <DashboardStats activeListings={activeListings} />
 
-        {listings.map((listing) => 
-          listing.is_auction && (
-            <AuctionStats key={listing.id} carId={listing.id} />
-          )
-        )}
+        <div className="space-y-6 mt-8">
+          {listings
+            .filter(listing => listing.is_auction)
+            .map((listing) => (
+              <AuctionStats key={listing.id} carId={listing.id} />
+            ))}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
           <Card className="lg:col-span-2 bg-white shadow-md animate-fade-in [animation-delay:800ms]">
