@@ -5,11 +5,9 @@ import { Navigation } from "@/components/Navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeBids } from "@/hooks/useRealtimeBids";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Car, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
-import { ListingCard } from "@/components/dashboard/ListingCard";
+import { ListingsSection } from "@/components/dashboard/ListingsSection";
+import { ActivitySection } from "@/components/dashboard/ActivitySection";
 import { AuctionStats } from "@/components/AuctionStats";
 
 interface CarListing {
@@ -118,57 +116,8 @@ const SellerDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-          <Card className="lg:col-span-2 bg-white shadow-md animate-fade-in [animation-delay:800ms]">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-dark">Your Listings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {listings.length > 0 ? (
-                <div className="space-y-4">
-                  {listings.map((listing) => (
-                    <ListingCard
-                      key={listing.id}
-                      id={listing.id}
-                      title={`${listing.year} ${listing.make} ${listing.model}`}
-                      price={listing.price}
-                      status={listing.status}
-                      isDraft={listing.is_draft}
-                      onStatusChange={fetchListings}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Car className="h-16 w-16 text-gray-300 mb-4" />
-                  <h3 className="text-xl font-semibold text-dark mb-2">No listings yet</h3>
-                  <p className="text-subtitle max-w-sm mb-4">
-                    Start listing your vehicles to receive bids from potential buyers.
-                  </p>
-                  <Button 
-                    onClick={() => navigate('/sell-my-car')}
-                    className="bg-primary hover:bg-primary/90 text-white"
-                  >
-                    Create New Listing
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-md animate-fade-in [animation-delay:1000ms]">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-dark">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Clock className="h-16 w-16 text-gray-300 mb-4" />
-                <h3 className="text-xl font-semibold text-dark mb-2">No recent activity</h3>
-                <p className="text-subtitle">
-                  Your recent listing and bid activity will appear here.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <ListingsSection listings={listings} onStatusChange={fetchListings} />
+          <ActivitySection />
         </div>
       </div>
     </div>
