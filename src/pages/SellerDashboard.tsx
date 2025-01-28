@@ -30,6 +30,7 @@ const SellerDashboard = () => {
   const { toast } = useToast();
   const [listings, setListings] = useState<CarListing[]>([]);
   const [activeListings, setActiveListings] = useState<number>(0);
+  const [auctionListings, setAuctionListings] = useState<CarListing[]>([]);
   
   useRealtimeBids();
 
@@ -87,12 +88,15 @@ const SellerDashboard = () => {
     }
 
     setListings(data || []);
+    // Filter auction listings
+    const auctions = data?.filter(car => car.is_auction && !car.is_draft) || [];
+    setAuctionListings(auctions);
     setActiveListings(data?.filter(car => !car.is_draft).length || 0);
   };
 
   useEffect(() => {
     fetchListings();
-  }, [session?.user.id, toast]);
+  }, [session?.user.id]);
 
   if (!session) return null;
 
@@ -107,13 +111,22 @@ const SellerDashboard = () => {
 
         <DashboardStats activeListings={activeListings} />
 
-        <div className="space-y-6 mt-8">
-          {listings
-            .filter(listing => listing.is_auction)
-            .map((listing) => (
-              <AuctionStats key={listing.id} carId={listing.id} />
-            ))}
-        </div>
+        {/* Auction Stats Section */}
+        {auctionListings.length > 0 && (
+          <div className="mt-8 mb-6">
+            <h2 className="text-2xl font-bold text-dark mb-4">Auction Statistics</h2>
+            <div className="space-y-6">
+              {auctionListings.map((listing) => (
+                <div key={listing.id} className="bg-white rounded-lg shadow-sm p-4">
+                  <h3 className="text-lg font-semibold text-dark mb-3">
+                    {listing.year} {listing.make} {listing.model}
+                  </h3>
+                  <AuctionStats carId={listing.id} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
           <ListingsSection listings={listings} onStatusChange={fetchListings} />
