@@ -10,6 +10,7 @@ import { Car, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { ListingCard } from "@/components/dashboard/ListingCard";
+import { AuctionStats } from "@/components/AuctionStats";
 
 interface CarListing {
   id: string;
@@ -22,6 +23,7 @@ interface CarListing {
   model: string;
   year: number;
   is_draft: boolean;
+  is_auction: boolean;
 }
 
 const SellerDashboard = () => {
@@ -106,6 +108,12 @@ const SellerDashboard = () => {
         </div>
 
         <DashboardStats activeListings={activeListings} />
+
+        {listings.map((listing) => 
+          listing.is_auction && (
+            <AuctionStats key={listing.id} carId={listing.id} />
+          )
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
           <Card className="lg:col-span-2 bg-white shadow-md animate-fade-in [animation-delay:800ms]">
