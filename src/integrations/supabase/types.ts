@@ -75,6 +75,66 @@ export type Database = {
         }
         Relationships: []
       }
+      auction_activity_stats: {
+        Row: {
+          auction_end_time: string | null
+          auction_start_time: string | null
+          auction_status: string | null
+          car_id: string | null
+          highest_bid: number | null
+          id: string
+          last_updated: string | null
+          lowest_bid: number | null
+          seller_id: string | null
+          title: string | null
+          total_bids: number | null
+          unique_bidders: number | null
+        }
+        Insert: {
+          auction_end_time?: string | null
+          auction_start_time?: string | null
+          auction_status?: string | null
+          car_id?: string | null
+          highest_bid?: number | null
+          id?: string
+          last_updated?: string | null
+          lowest_bid?: number | null
+          seller_id?: string | null
+          title?: string | null
+          total_bids?: number | null
+          unique_bidders?: number | null
+        }
+        Update: {
+          auction_end_time?: string | null
+          auction_start_time?: string | null
+          auction_status?: string | null
+          car_id?: string | null
+          highest_bid?: number | null
+          id?: string
+          last_updated?: string | null
+          lowest_bid?: number | null
+          seller_id?: string | null
+          title?: string | null
+          total_bids?: number | null
+          unique_bidders?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_activity_stats_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auction_activity_stats_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       auction_metrics: {
         Row: {
           auction_id: string | null
