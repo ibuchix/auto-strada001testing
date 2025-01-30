@@ -6,6 +6,28 @@ export const getValuation = async (
   gearbox: string
 ) => {
   try {
+    // First check if VIN already exists
+    const { data: exists, error: checkError } = await supabase.rpc('check_vin_exists', {
+      check_vin: vin
+    });
+
+    if (checkError) {
+      console.error('Error checking VIN:', checkError);
+      throw new Error("Failed to check VIN status");
+    }
+
+    if (exists) {
+      return {
+        make: '',
+        model: '',
+        year: new Date().getFullYear(),
+        vin,
+        transmission: gearbox,
+        isExisting: true,
+        error: "This vehicle has already been listed"
+      };
+    }
+
     const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
       body: { vin, mileage, gearbox }
     });

@@ -1396,6 +1396,12 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      check_vin_exists: {
+        Args: {
+          check_vin: string
+        }
+        Returns: boolean
+      }
       cleanup_failed_dealer_registration: {
         Args: {
           user_id_param: string
