@@ -16,6 +16,23 @@ export const handleFormSubmission = async (
       throw new Error("Please complete the vehicle valuation first");
     }
 
+    // Check if VIN already exists (for non-draft listings)
+    const { data: existingCar, error: checkError } = await supabase
+      .from('cars')
+      .select('id, title')
+      .eq('vin', valuationData.vin)
+      .eq('is_draft', false)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+
+    if (existingCar) {
+      return { 
+        success: false, 
+        error: "This vehicle has already been listed. Each vehicle can only be listed once." 
+      };
+    }
+
     const transformedData = prepareCarData(data, valuationData, userId);
 
     if (carId) {
@@ -32,7 +49,15 @@ export const handleFormSubmission = async (
         .insert({ ...transformedData, is_draft: false })
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') { // Unique violation error code
+          return { 
+            success: false, 
+            error: "This vehicle has already been listed. Each vehicle can only be listed once." 
+          };
+        }
+        throw error;
+      }
     }
 
     return { success: true };

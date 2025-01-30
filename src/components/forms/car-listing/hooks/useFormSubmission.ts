@@ -36,7 +36,14 @@ export const useFormSubmission = (userId?: string) => {
       if (result.success) {
         setShowSuccessDialog(true);
       } else {
-        toast.error(result.error || "Failed to submit listing");
+        if (result.error?.includes("already been listed")) {
+          toast.error(result.error, {
+            description: "Please check the VIN number or contact support if you believe this is an error.",
+            duration: 5000,
+          });
+        } else {
+          toast.error(result.error || "Failed to submit listing");
+        }
       }
     } catch (error: any) {
       console.error('Form submission error:', error);
