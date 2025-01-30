@@ -41,7 +41,7 @@ serve(async (req) => {
     
     if (!apiSecret) {
       console.error('Configuration error: Missing API secret');
-      throw new Error('API configuration error');
+      throw new Error('CAR_API_SECRET environment variable is not set');
     }
 
     console.log('API Configuration:', { apiId, hasSecret: !!apiSecret });
@@ -59,7 +59,7 @@ serve(async (req) => {
 
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${cleanVin}/odometer:${mileage}/currency:PLN/lang:pl/country:PL/condition:good/equipment_level:standard`;
     
-    console.log('Making request to:', apiUrl);
+    console.log('Making request to API:', apiUrl);
 
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -76,7 +76,7 @@ serve(async (req) => {
         statusText: response.statusText,
         body: errorText
       });
-      throw new Error(`API request failed: ${response.status} ${response.statusText}. Details: ${errorText}`);
+      throw new Error(`External API request failed: ${response.status} ${response.statusText}`);
     }
 
     const responseData = await response.json();
@@ -84,7 +84,7 @@ serve(async (req) => {
 
     if (responseData.apiStatus !== 'OK') {
       console.error('API returned error status:', responseData);
-      throw new Error(responseData.message || 'API returned an error');
+      throw new Error(responseData.message || 'External API returned an error');
     }
 
     // Extract the average price from the calcValuation object
@@ -128,6 +128,7 @@ serve(async (req) => {
       JSON.stringify({
         success: false,
         message: error.message || 'An unexpected error occurred',
+        details: error instanceof Error ? error.stack : undefined
       }),
       { 
         headers: { 
