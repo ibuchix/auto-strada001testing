@@ -43,8 +43,9 @@ export const CarListingForm = () => {
         carId || undefined
       );
 
+      // Increased timeout to 2 minutes for larger submissions
       const timeoutPromise = new Promise<FormSubmissionResult>((_, reject) => {
-        setTimeout(() => reject(new Error('Submission timed out')), 30000);
+        setTimeout(() => reject(new Error('The submission is taking longer than expected. Please try again.')), 120000);
       });
 
       const result = await Promise.race([submissionPromise, timeoutPromise]);
@@ -56,8 +57,8 @@ export const CarListingForm = () => {
       }
     } catch (error: any) {
       console.error('Form submission error:', error);
-      if (error.message === 'Submission timed out') {
-        toast.error("The submission is taking longer than expected. Please try again.");
+      if (error.message === 'The submission is taking longer than expected. Please try again.') {
+        toast.error("The submission is taking longer than expected. Please try again with smaller image files.");
       } else if (error.message === 'Please complete the vehicle valuation first') {
         toast.error("Please complete the vehicle valuation before submitting");
         navigate('/sellers');
