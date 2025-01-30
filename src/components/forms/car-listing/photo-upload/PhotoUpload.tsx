@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ImagePreview } from "./ImagePreview";
@@ -26,6 +25,36 @@ export const PhotoUpload = ({ id, label, isUploading, onFileSelect }: PhotoUploa
           toast.error(`Image resolution too low. Minimum ${photoQualityGuidelines.minWidth}x${photoQualityGuidelines.minHeight} required.`);
           resolve(false);
         }
+
+        // Check image brightness and contrast
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          
+          let brightness = 0;
+          let pixelCount = data.length / 4;
+          
+          for (let i = 0; i < data.length; i += 4) {
+            brightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+          }
+          
+          const averageBrightness = brightness / pixelCount;
+          
+          if (averageBrightness < 40) {
+            toast.error("Image appears too dark. Please retake in better lighting.");
+            resolve(false);
+          }
+          if (averageBrightness > 215) {
+            toast.error("Image appears overexposed. Please retake with less light.");
+            resolve(false);
+          }
+        }
+        
         resolve(true);
       };
       

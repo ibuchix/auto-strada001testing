@@ -8,6 +8,11 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface RequiredPhotosProps {
   isUploading: boolean;
@@ -22,7 +27,7 @@ export const RequiredPhotos = ({ isUploading, onFileSelect, progress }: Required
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-2xl font-semibold mb-2">Required Photos</h3>
+        <h3 className="text-2xl font-semibold mb-2">Required Photos ({totalPhotos})</h3>
         <Alert className="mb-4 border-secondary/20 bg-secondary/5">
           <Camera className="h-4 w-4 text-secondary" />
           <AlertDescription className="ml-2">
@@ -42,7 +47,7 @@ export const RequiredPhotos = ({ isUploading, onFileSelect, progress }: Required
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {requiredPhotos.map(({ id, label, guideline }) => (
+        {requiredPhotos.map(({ id, label, guideline, example }) => (
           <div key={id} className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="font-medium">{label}</span>
@@ -51,7 +56,19 @@ export const RequiredPhotos = ({ isUploading, onFileSelect, progress }: Required
                   <Info className="h-4 w-4 text-subtitle cursor-help" />
                 </HoverCardTrigger>
                 <HoverCardContent className="w-80">
-                  <p className="text-sm">{guideline}</p>
+                  <p className="text-sm mb-2">{guideline}</p>
+                  <Dialog>
+                    <DialogTrigger className="text-sm text-primary hover:underline">
+                      View example photo
+                    </DialogTrigger>
+                    <DialogContent className="max-w-3xl">
+                      <img
+                        src={example}
+                        alt={`Example of ${label}`}
+                        className="w-full h-auto"
+                      />
+                    </DialogContent>
+                  </Dialog>
                 </HoverCardContent>
               </HoverCard>
             </div>
