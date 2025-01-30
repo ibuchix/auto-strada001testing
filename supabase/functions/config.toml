@@ -9,7 +9,7 @@ name = "process-image"
 verify_jwt = true
 
 [[edge_functions]]
-name = "handle-car-listing"
+name = "create-car-listing"
 verify_jwt = true
 
 [[edge_functions]]

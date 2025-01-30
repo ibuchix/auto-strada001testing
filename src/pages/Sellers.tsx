@@ -5,12 +5,14 @@ import { toast } from "sonner";
 import { HeroSection } from "@/components/sellers/HeroSection";
 import { BenefitsSection } from "@/components/sellers/BenefitsSection";
 import { getValuation } from "@/components/hero/valuation/services/valuationService";
+import { useAuth } from "@/components/AuthProvider";
 
 const Sellers = () => {
   const [vin, setVin] = useState("");
   const [mileage, setMileage] = useState("");
   const [gearbox, setGearbox] = useState("manual");
   const navigate = useNavigate();
+  const { session } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
