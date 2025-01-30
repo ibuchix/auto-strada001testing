@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { AlertCircle } from "lucide-react";
 
 const Sellers = () => {
   const [vin, setVin] = useState("");
@@ -23,6 +24,7 @@ const Sellers = () => {
   const [gearbox, setGearbox] = useState("manual");
   const [isLoading, setIsLoading] = useState(false);
   const [showManualDialog, setShowManualDialog] = useState(false);
+  const [showExistingVehicleDialog, setShowExistingVehicleDialog] = useState(false);
   const navigate = useNavigate();
   const { session } = useAuth();
 
@@ -50,18 +52,17 @@ const Sellers = () => {
 
       console.log('Valuation response:', valuationData);
 
-      // Store the valuation data and form inputs
-      if (valuationData && valuationData.make && valuationData.model) {
+      if (valuationData.isExisting) {
+        setShowExistingVehicleDialog(true);
+      } else if (valuationData && valuationData.make && valuationData.model) {
         localStorage.setItem('valuationData', JSON.stringify(valuationData));
         localStorage.setItem('tempVIN', vin);
         localStorage.setItem('tempMileage', mileage);
         localStorage.setItem('tempGearbox', gearbox);
         
-        // Navigate to the listing form
         navigate('/sell-my-car');
         toast.success("Vehicle information found! Please complete your listing.");
       } else {
-        // Show manual entry dialog if we don't have complete vehicle data
         setShowManualDialog(true);
       }
     } catch (error: any) {
@@ -109,6 +110,44 @@ const Sellers = () => {
               className="bg-primary text-white hover:bg-primary/90"
             >
               Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showExistingVehicleDialog} onOpenChange={setShowExistingVehicleDialog}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-bold text-center mb-4 flex items-center justify-center gap-2">
+              <AlertCircle className="h-6 w-6 text-[#DC143C]" />
+              Vehicle Already Listed
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="space-y-4 text-center">
+            <p className="text-subtitle">
+              This vehicle has already been listed in our system. Each vehicle can only be listed once.
+            </p>
+            <div className="bg-accent/50 p-4 rounded-lg">
+              <p className="text-sm text-subtitle">
+                If you believe this is an error or need assistance, please contact our support team.
+              </p>
+            </div>
+          </div>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
+            <AlertDialogCancel 
+              className="w-full sm:w-auto bg-accent text-dark"
+            >
+              Close
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                setShowExistingVehicleDialog(false);
+                setVin("");
+                setMileage("");
+              }}
+              className="w-full sm:w-auto bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
+            >
+              Try Different VIN
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
