@@ -82,9 +82,9 @@ export const HeroSection = ({
 
             <div className="space-y-2">
               <Input
-                type="text" // Changed from number to text for better control
-                inputMode="numeric" // Shows numeric keyboard on mobile
-                pattern="\d*" // Only allows digits
+                type="text"
+                inputMode="numeric"
+                pattern="\d*"
                 placeholder="Enter mileage (KM)"
                 value={mileage}
                 onChange={handleMileageChange}

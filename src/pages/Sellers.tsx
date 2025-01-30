@@ -60,7 +60,9 @@ const Sellers = () => {
         return;
       }
       
-      navigate('/sell-my-car');
+      // If we have valid data, navigate to the listing form
+      navigate('/sell-my-car', { state: { fromValuation: true } });
+      toast.success("Vehicle information found! Please complete your listing.");
     } catch (error: any) {
       console.error('Error:', error);
       

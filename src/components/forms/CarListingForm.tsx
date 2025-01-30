@@ -71,6 +71,13 @@ export const CarListingForm = () => {
     }
   };
 
+  // Check if we came from the valuation page and show a welcome message
+  useEffect(() => {
+    if (location.state?.fromValuation) {
+      toast.success("Vehicle information has been pre-filled. Please complete the remaining details.");
+    }
+  }, [location.state]);
+
   return (
     <>
       <Form {...form}>
