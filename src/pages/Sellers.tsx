@@ -48,29 +48,25 @@ const Sellers = () => {
         gearbox
       );
 
+      console.log('Valuation response:', valuationData);
+
       // Store the valuation data and form inputs
-      localStorage.setItem('valuationData', JSON.stringify(valuationData));
-      localStorage.setItem('tempVIN', vin);
-      localStorage.setItem('tempMileage', mileage);
-      localStorage.setItem('tempGearbox', gearbox);
-      
-      // Check if the valuation data is incomplete
-      if (!valuationData || (!valuationData.make && !valuationData.model)) {
+      if (valuationData && valuationData.make && valuationData.model) {
+        localStorage.setItem('valuationData', JSON.stringify(valuationData));
+        localStorage.setItem('tempVIN', vin);
+        localStorage.setItem('tempMileage', mileage);
+        localStorage.setItem('tempGearbox', gearbox);
+        
+        // Navigate to the listing form
+        navigate('/sell-my-car');
+        toast.success("Vehicle information found! Please complete your listing.");
+      } else {
+        // Show manual entry dialog if we don't have complete vehicle data
         setShowManualDialog(true);
-        return;
       }
-      
-      // If we have valid data, navigate to the listing form
-      navigate('/sell-my-car', { state: { fromValuation: true } });
-      toast.success("Vehicle information found! Please complete your listing.");
     } catch (error: any) {
       console.error('Error:', error);
-      
-      if (error.message?.includes('no data found') || error.message?.includes('not found')) {
-        setShowManualDialog(true);
-      } else {
-        toast.error(error.message || "Failed to get vehicle valuation. Please try again.");
-      }
+      setShowManualDialog(true);
     } finally {
       setIsLoading(false);
     }
