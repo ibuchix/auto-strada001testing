@@ -1,7 +1,7 @@
 import { Form } from "@/components/ui/form";
 import { useAuth } from "@/components/AuthProvider";
 import { useCarListingForm } from "./car-listing/hooks/useCarListingForm";
-import { useState, useEffect } from "react"; // Added useEffect import
+import { useState, useEffect } from "react";
 import { FormSubmitButton } from "./car-listing/FormSubmitButton";
 import { SuccessDialog } from "./car-listing/SuccessDialog";
 import { LastSaved } from "./car-listing/LastSaved";
@@ -36,7 +36,6 @@ export const CarListingForm = () => {
     try {
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
       
-      // Add timeout handling
       const submissionPromise = handleFormSubmission(
         data, 
         session.user.id, 
@@ -45,13 +44,12 @@ export const CarListingForm = () => {
       );
 
       const timeoutPromise = new Promise<FormSubmissionResult>((_, reject) => {
-        setTimeout(() => reject(new Error('Submission timed out')), 30000); // 30 second timeout
+        setTimeout(() => reject(new Error('Submission timed out')), 30000);
       });
 
       const result = await Promise.race([submissionPromise, timeoutPromise]);
 
       if (result.success) {
-        toast.success("Your listing has been submitted successfully!");
         setShowSuccessDialog(true);
       } else {
         toast.error(result.error || "Failed to submit listing");
@@ -71,7 +69,6 @@ export const CarListingForm = () => {
     }
   };
 
-  // Check if we came from the valuation page and show a welcome message
   useEffect(() => {
     if (location.state?.fromValuation) {
       toast.success("Vehicle information has been pre-filled. Please complete the remaining details.");
