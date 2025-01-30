@@ -14,7 +14,7 @@ export const FormSubmitButton = ({ isSubmitting }: FormSubmitButtonProps) => {
         disabled={isSubmitting}
       >
         {isSubmitting ? (
-          <div className="flex items-center justify-center space-x-2">
+          <div className="flex items-center justify-center gap-2">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span>Submitting...</span>
           </div>
