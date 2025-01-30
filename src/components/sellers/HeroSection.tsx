@@ -20,16 +20,35 @@ export const HeroSection = ({
     return /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
   };
 
-  // Mileage validation
+  // Enhanced mileage validation
   const isValidMileage = (mileage: string) => {
     const mileageNum = Number(mileage);
-    return !isNaN(mileageNum) && mileageNum > 0 && mileageNum < 1000000;
+    // Check if it's a valid number and within reasonable range
+    // Also ensure it's a whole number
+    return (
+      !isNaN(mileageNum) && 
+      mileageNum > 0 && 
+      mileageNum < 1000000 && 
+      Number.isInteger(mileageNum) &&
+      /^\d+$/.test(mileage) // Ensures only digits are entered
+    );
   };
 
   const vinError = vin && !isValidVin(vin) ? "Please enter a valid 17-character VIN" : "";
-  const mileageError = mileage && !isValidMileage(mileage) ? "Please enter a valid mileage between 0 and 1,000,000 km" : "";
+  const mileageError = mileage && !isValidMileage(mileage) 
+    ? "Please enter a valid mileage between 0 and 1,000,000 km (whole numbers only)" 
+    : "";
 
   const isFormValid = isValidVin(vin) && isValidMileage(mileage);
+
+  // Handle mileage input to prevent invalid characters
+  const handleMileageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow digits
+    if (value === '' || /^\d+$/.test(value)) {
+      onMileageChange(e);
+    }
+  };
 
   return (
     <section className="pt-32 pb-16 relative overflow-hidden">
@@ -63,13 +82,13 @@ export const HeroSection = ({
 
             <div className="space-y-2">
               <Input
-                type="number"
+                type="text" // Changed from number to text for better control
+                inputMode="numeric" // Shows numeric keyboard on mobile
+                pattern="\d*" // Only allows digits
                 placeholder="Enter mileage (KM)"
                 value={mileage}
-                onChange={(e) => onMileageChange(e)}
+                onChange={handleMileageChange}
                 className={`h-12 text-center text-lg ${mileageError ? 'border-primary' : 'border-secondary/20'}`}
-                min="0"
-                max="1000000"
                 disabled={isLoading}
               />
               {mileageError && (
