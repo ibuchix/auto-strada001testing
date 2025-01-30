@@ -6,10 +6,9 @@ import { FormSubmitButton } from "./car-listing/FormSubmitButton";
 import { SuccessDialog } from "./car-listing/SuccessDialog";
 import { LastSaved } from "./car-listing/LastSaved";
 import { FormSections } from "./car-listing/FormSections";
-import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
-import { handleFormSubmission } from "./car-listing/utils/submission";
-import { FormSubmissionResult } from "./car-listing/types/submission";
+import { toast } from "sonner";
+import { useFormSubmission } from "./car-listing/hooks/useFormSubmission";
 
 export const CarListingForm = () => {
   const navigate = useNavigate();
@@ -22,53 +21,10 @@ export const CarListingForm = () => {
     draftId || undefined
   );
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const { submitting, showSuccessDialog, setShowSuccessDialog, handleSubmit } = useFormSubmission(session?.user.id);
 
   const onSubmit = async (data: any) => {
-    if (!session?.user.id) {
-      toast.error("Please sign in to submit a listing");
-      navigate("/auth");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
-      
-      // Set a shorter timeout for the initial response
-      const submissionPromise = handleFormSubmission(
-        data, 
-        session.user.id, 
-        valuationData, 
-        carId || undefined
-      );
-
-      // Reduced timeout to 30 seconds for better user experience
-      const timeoutPromise = new Promise<FormSubmissionResult>((_, reject) => {
-        setTimeout(() => reject(new Error('The submission is taking longer than expected. Please try again.')), 30000);
-      });
-
-      const result = await Promise.race([submissionPromise, timeoutPromise]);
-
-      if (result.success) {
-        setShowSuccessDialog(true);
-      } else {
-        toast.error(result.error || "Failed to submit listing");
-      }
-    } catch (error: any) {
-      console.error('Form submission error:', error);
-      if (error.message === 'The submission is taking longer than expected. Please try again.') {
-        toast.error("The submission timed out. Please try again with smaller image files or check your connection.");
-      } else if (error.message === 'Please complete the vehicle valuation first') {
-        toast.error("Please complete the vehicle valuation before submitting");
-        navigate('/sellers');
-      } else {
-        toast.error(error.message || "Failed to submit listing");
-      }
-    } finally {
-      setSubmitting(false);
-    }
+    await handleSubmit(data, carId);
   };
 
   useEffect(() => {
