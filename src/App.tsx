@@ -5,7 +5,6 @@ import Sellers from "@/pages/Sellers";
 import Dealers from "@/pages/Dealers";
 import SellerDashboard from "@/pages/SellerDashboard";
 import DealerDashboard from "@/pages/DealerDashboard";
-import BuyerDashboard from "@/pages/BuyerDashboard";
 import HowItWorks from "@/pages/HowItWorks";
 import SellMyCar from "@/pages/SellMyCar";
 import FAQ from "@/pages/FAQ";
@@ -29,7 +28,6 @@ function App() {
           <Route path="/dealers" element={<Dealers />} />
           <Route path="/dashboard/seller" element={<SellerDashboard />} />
           <Route path="/dashboard/dealer" element={<DealerDashboard />} />
-          <Route path="/dashboard/buyer" element={<BuyerDashboard />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/sell-my-car" element={<SellMyCar />} />
           <Route path="/faq" element={<FAQ />} />
