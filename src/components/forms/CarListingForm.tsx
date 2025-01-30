@@ -1,7 +1,7 @@
 import { Form } from "@/components/ui/form";
 import { useAuth } from "@/components/AuthProvider";
 import { useCarListingForm } from "./car-listing/hooks/useCarListingForm";
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Added useEffect import
 import { FormSubmitButton } from "./car-listing/FormSubmitButton";
 import { SuccessDialog } from "./car-listing/SuccessDialog";
 import { LastSaved } from "./car-listing/LastSaved";
