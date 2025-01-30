@@ -11,6 +11,7 @@ const Sellers = () => {
   const [vin, setVin] = useState("");
   const [mileage, setMileage] = useState("");
   const [gearbox, setGearbox] = useState("manual");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { session } = useAuth();
 
@@ -26,6 +27,8 @@ const Sellers = () => {
       toast.error("Please enter your vehicle's mileage");
       return;
     }
+
+    setIsLoading(true);
 
     try {
       const valuationData = await getValuation(
@@ -72,6 +75,8 @@ const Sellers = () => {
       } else {
         toast.error(error.message || "Failed to get vehicle valuation. Please try again.");
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -83,6 +88,7 @@ const Sellers = () => {
         vin={vin}
         mileage={mileage}
         gearbox={gearbox}
+        isLoading={isLoading}
         onVinChange={(e) => setVin(e.target.value)}
         onMileageChange={(e) => setMileage(e.target.value)}
         onGearboxChange={setGearbox}

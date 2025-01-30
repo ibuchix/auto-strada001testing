@@ -2,13 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { SellerFormProps } from "./types";
 
 export const HeroSection = ({ 
   vin, 
   mileage, 
-  gearbox, 
+  gearbox,
+  isLoading,
   onVinChange, 
   onMileageChange, 
   onGearboxChange, 
@@ -32,6 +33,7 @@ export const HeroSection = ({
               value={vin}
               onChange={onVinChange}
               className="h-12 text-center text-lg"
+              disabled={isLoading}
             />
             <Input
               type="number"
@@ -40,12 +42,14 @@ export const HeroSection = ({
               onChange={onMileageChange}
               className="h-12 text-center text-lg"
               min="0"
+              disabled={isLoading}
             />
             <div className="bg-white border-2 border-secondary/20 rounded-md p-4">
               <RadioGroup
                 value={gearbox}
                 onValueChange={onGearboxChange}
                 className="flex gap-6 justify-center"
+                disabled={isLoading}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="manual" id="manual" />
@@ -60,9 +64,19 @@ export const HeroSection = ({
             <Button 
               type="submit"
               className="w-full h-14 bg-secondary hover:bg-secondary/90 text-white text-lg"
+              disabled={isLoading}
             >
-              Start Selling
-              <ArrowRight className="ml-2 h-5 w-5" />
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  Start Selling
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </>
+              )}
             </Button>
           </form>
         </div>
