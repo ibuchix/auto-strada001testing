@@ -19,9 +19,10 @@ export const useFormSubmission = (userId?: string) => {
 
     setSubmitting(true);
     try {
+      console.log('Starting submission process...');
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
       
-      // Set a longer timeout of 60 seconds for the submission
+      // Set a longer timeout of 120 seconds for the submission
       const submissionPromise = handleFormSubmission(
         data, 
         userId, 
@@ -30,13 +31,20 @@ export const useFormSubmission = (userId?: string) => {
       );
 
       const timeoutPromise = new Promise<FormSubmissionResult>((_, reject) => {
-        setTimeout(() => reject(new Error('The submission is taking longer than expected. Please try again.')), 60000);
+        setTimeout(() => reject(new Error('The submission is taking longer than expected. Please try again.')), 120000);
       });
 
+      console.log('Awaiting submission result...');
       const result = await Promise.race([submissionPromise, timeoutPromise]);
 
       if (result.success) {
+        console.log('Submission successful');
         setShowSuccessDialog(true);
+        // Clear valuation data after successful submission
+        localStorage.removeItem('valuationData');
+        localStorage.removeItem('tempMileage');
+        localStorage.removeItem('tempVIN');
+        localStorage.removeItem('tempGearbox');
       } else {
         if (result.error?.includes("already been listed")) {
           toast.error(result.error, {
@@ -50,7 +58,6 @@ export const useFormSubmission = (userId?: string) => {
     } catch (error: any) {
       console.error('Form submission error:', error);
       
-      // More specific error messages for different scenarios
       if (error.message === 'The submission is taking longer than expected. Please try again.') {
         toast.error("The submission timed out. Please try again with smaller image files or check your connection.", {
           duration: 6000

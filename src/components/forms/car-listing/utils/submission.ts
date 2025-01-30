@@ -10,6 +10,8 @@ export const handleFormSubmission = async (
   carId?: string
 ): Promise<FormSubmissionResult> => {
   try {
+    console.log('Starting form submission process...');
+    
     // Validate valuation data first
     if (!valuationData || !valuationData.make || !valuationData.model || !valuationData.vin || 
         !valuationData.mileage || !valuationData.valuation || !valuationData.year) {
@@ -17,6 +19,7 @@ export const handleFormSubmission = async (
     }
 
     // Check if VIN already exists (for non-draft listings)
+    console.log('Checking for existing VIN...');
     const { data: existingCar, error: checkError } = await supabase
       .from('cars')
       .select('id, title')
@@ -24,7 +27,10 @@ export const handleFormSubmission = async (
       .eq('is_draft', false)
       .maybeSingle();
 
-    if (checkError) throw checkError;
+    if (checkError) {
+      console.error('Error checking VIN:', checkError);
+      throw checkError;
+    }
 
     if (existingCar) {
       return { 
@@ -33,8 +39,10 @@ export const handleFormSubmission = async (
       };
     }
 
+    console.log('Transforming car data...');
     const transformedData = prepareCarData(data, valuationData, userId);
 
+    console.log('Submitting to database...');
     if (carId) {
       const { error } = await supabase
         .from('cars')
@@ -42,7 +50,10 @@ export const handleFormSubmission = async (
         .eq('id', carId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating car:', error);
+        throw error;
+      }
     } else {
       const { error } = await supabase
         .from('cars')
@@ -50,6 +61,7 @@ export const handleFormSubmission = async (
         .single();
 
       if (error) {
+        console.error('Error inserting car:', error);
         if (error.code === '23505') { // Unique violation error code
           return { 
             success: false, 
@@ -60,11 +72,11 @@ export const handleFormSubmission = async (
       }
     }
 
+    console.log('Form submission completed successfully');
     return { success: true };
   } catch (error: any) {
     console.error('Submission error:', error);
     
-    // Check for timeout-specific errors
     if (error.message?.includes('timeout') || error.code === 'TIMEOUT_ERROR') {
       throw new Error('The request timed out. Please check your connection and try again.');
     }
