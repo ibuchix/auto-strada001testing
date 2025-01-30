@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { HeroSection } from "@/components/sellers/HeroSection";
 import { BenefitsSection } from "@/components/sellers/BenefitsSection";
-import { supabase } from "@/integrations/supabase/client";
+import { getValuation } from "@/components/hero/valuation/services/valuationService";
 
 const Sellers = () => {
   const [vin, setVin] = useState("");
@@ -26,35 +26,22 @@ const Sellers = () => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
-        body: {
-          vin: vin,
-          mileage: parseInt(mileage),
-          gearbox: gearbox
-        }
-      });
-
-      if (error) {
-        console.error('Valuation error:', error);
-        toast.error("Failed to get vehicle valuation. Please try again.");
-        return;
-      }
-
-      if (!data?.success) {
-        toast.error(data?.message || "Failed to get vehicle valuation. Please try again.");
-        return;
-      }
+      const valuationData = await getValuation(
+        vin,
+        parseInt(mileage),
+        gearbox
+      );
 
       // Store the valuation data and form inputs
-      localStorage.setItem('valuationData', JSON.stringify(data.data));
+      localStorage.setItem('valuationData', JSON.stringify(valuationData));
       localStorage.setItem('tempVIN', vin);
       localStorage.setItem('tempMileage', mileage);
       localStorage.setItem('tempGearbox', gearbox);
       
       navigate('/sell-my-car');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
-      toast.error("Failed to get vehicle valuation. Please try again.");
+      toast.error(error.message || "Failed to get vehicle valuation. Please try again.");
     }
   };
 
