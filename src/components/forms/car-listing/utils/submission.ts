@@ -63,6 +63,12 @@ export const handleFormSubmission = async (
     return { success: true };
   } catch (error: any) {
     console.error('Submission error:', error);
+    
+    // Check for timeout-specific errors
+    if (error.message?.includes('timeout') || error.code === 'TIMEOUT_ERROR') {
+      throw new Error('The request timed out. Please check your connection and try again.');
+    }
+    
     return { 
       success: false, 
       error: error.message || "Failed to submit listing" 

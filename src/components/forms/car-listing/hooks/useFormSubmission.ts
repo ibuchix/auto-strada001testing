@@ -20,6 +20,8 @@ export const useFormSubmission = (userId?: string) => {
     setSubmitting(true);
     try {
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
+      
+      // Set a longer timeout of 60 seconds for the submission
       const submissionPromise = handleFormSubmission(
         data, 
         userId, 
@@ -28,7 +30,7 @@ export const useFormSubmission = (userId?: string) => {
       );
 
       const timeoutPromise = new Promise<FormSubmissionResult>((_, reject) => {
-        setTimeout(() => reject(new Error('The submission is taking longer than expected. Please try again.')), 30000);
+        setTimeout(() => reject(new Error('The submission is taking longer than expected. Please try again.')), 60000);
       });
 
       const result = await Promise.race([submissionPromise, timeoutPromise]);
@@ -47,13 +49,21 @@ export const useFormSubmission = (userId?: string) => {
       }
     } catch (error: any) {
       console.error('Form submission error:', error);
+      
+      // More specific error messages for different scenarios
       if (error.message === 'The submission is taking longer than expected. Please try again.') {
-        toast.error("The submission timed out. Please try again with smaller image files or check your connection.");
+        toast.error("The submission timed out. Please try again with smaller image files or check your connection.", {
+          duration: 6000
+        });
       } else if (error.message === 'Please complete the vehicle valuation first') {
         toast.error("Please complete the vehicle valuation before submitting");
         navigate('/sellers');
+      } else if (error.code === 'TIMEOUT_ERROR') {
+        toast.error("The request timed out. Please check your connection and try again.", {
+          duration: 6000
+        });
       } else {
-        toast.error(error.message || "Failed to submit listing");
+        toast.error(error.message || "Failed to submit listing. Please try again.");
       }
     } finally {
       setSubmitting(false);
