@@ -18,7 +18,7 @@ export const CarListingForm = () => {
   
   const { form, carId, lastSaved } = useCarListingForm(
     session?.user.id, 
-    draftId || undefined // Ensure undefined is passed if draftId is null/empty
+    draftId || undefined
   );
   const [uploadProgress, setUploadProgress] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -34,12 +34,20 @@ export const CarListingForm = () => {
     setSubmitting(true);
     try {
       const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
-      const result = await handleFormSubmission(
+      
+      // Add timeout handling
+      const submissionPromise = handleFormSubmission(
         data, 
         session.user.id, 
         valuationData, 
-        carId || undefined // Ensure undefined is passed if carId is null/empty
+        carId || undefined
       );
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Submission timed out')), 30000); // 30 second timeout
+      });
+
+      const result = await Promise.race([submissionPromise, timeoutPromise]);
 
       if (result.success) {
         toast.success("Your listing has been submitted successfully!");
@@ -49,7 +57,14 @@ export const CarListingForm = () => {
       }
     } catch (error: any) {
       console.error('Form submission error:', error);
-      toast.error(error.message || "Failed to submit listing");
+      if (error.message === 'Submission timed out') {
+        toast.error("The submission is taking longer than expected. Please try again.");
+      } else if (error.message === 'Please complete the vehicle valuation first') {
+        toast.error("Please complete the vehicle valuation before submitting");
+        navigate('/sellers');
+      } else {
+        toast.error(error.message || "Failed to submit listing");
+      }
     } finally {
       setSubmitting(false);
     }

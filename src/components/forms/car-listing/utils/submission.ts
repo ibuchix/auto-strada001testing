@@ -10,19 +10,27 @@ export const handleFormSubmission = async (
   carId?: string
 ): Promise<FormSubmissionResult> => {
   try {
+    // Validate valuation data first
+    if (!valuationData || !valuationData.make || !valuationData.model || !valuationData.vin || 
+        !valuationData.mileage || !valuationData.valuation || !valuationData.year) {
+      throw new Error("Please complete the vehicle valuation first");
+    }
+
     const transformedData = prepareCarData(data, valuationData, userId);
 
     if (carId) {
       const { error } = await supabase
         .from('cars')
         .update({ ...transformedData, is_draft: false })
-        .eq('id', carId);
+        .eq('id', carId)
+        .single();
 
       if (error) throw error;
     } else {
       const { error } = await supabase
         .from('cars')
-        .insert({ ...transformedData, is_draft: false });
+        .insert({ ...transformedData, is_draft: false })
+        .single();
 
       if (error) throw error;
     }
