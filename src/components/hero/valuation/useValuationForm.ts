@@ -20,7 +20,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
     try {
       const result = await getValuation(vin, Number(mileage), gearbox, context);
       
-      if (result.isExisting) {
+      if (result.isExisting && context === 'seller') {
         toast.error("This vehicle has already been listed");
         return;
       }
@@ -30,6 +30,9 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
       
       // Store valuation data in localStorage
       localStorage.setItem('valuationData', JSON.stringify(result));
+      localStorage.setItem('tempVIN', vin);
+      localStorage.setItem('tempMileage', mileage);
+      localStorage.setItem('tempGearbox', gearbox);
     } catch (error: any) {
       console.error('Valuation error:', error);
       toast.error(error.message || "Failed to get vehicle valuation");
