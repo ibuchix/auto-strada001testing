@@ -6,12 +6,23 @@ import { HeroSection } from "@/components/sellers/HeroSection";
 import { BenefitsSection } from "@/components/sellers/BenefitsSection";
 import { getValuation } from "@/components/hero/valuation/services/valuationService";
 import { useAuth } from "@/components/AuthProvider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Sellers = () => {
   const [vin, setVin] = useState("");
   const [mileage, setMileage] = useState("");
   const [gearbox, setGearbox] = useState("manual");
   const [isLoading, setIsLoading] = useState(false);
+  const [showManualDialog, setShowManualDialog] = useState(false);
   const navigate = useNavigate();
   const { session } = useAuth();
 
@@ -43,17 +54,9 @@ const Sellers = () => {
       localStorage.setItem('tempMileage', mileage);
       localStorage.setItem('tempGearbox', gearbox);
       
-      // Check if the valuation data is incomplete or not found
+      // Check if the valuation data is incomplete
       if (!valuationData || (!valuationData.make && !valuationData.model)) {
-        const proceed = window.confirm(
-          "We couldn't find detailed information for this VIN number in our database. " +
-          "You can still proceed with listing your car, but you'll need to enter the vehicle details manually. " +
-          "Would you like to continue?"
-        );
-        
-        if (proceed) {
-          navigate('/manual-valuation');
-        }
+        setShowManualDialog(true);
         return;
       }
       
@@ -61,23 +64,19 @@ const Sellers = () => {
     } catch (error: any) {
       console.error('Error:', error);
       
-      // If the API returns a specific "no data" error
       if (error.message?.includes('no data found') || error.message?.includes('not found')) {
-        const proceed = window.confirm(
-          "We couldn't find this VIN number in our database. " +
-          "You can still proceed with listing your car, but you'll need to enter the vehicle details manually. " +
-          "Would you like to continue?"
-        );
-        
-        if (proceed) {
-          navigate('/manual-valuation');
-        }
+        setShowManualDialog(true);
       } else {
         toast.error(error.message || "Failed to get vehicle valuation. Please try again.");
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleManualEntry = () => {
+    setShowManualDialog(false);
+    navigate('/manual-valuation');
   };
 
   return (
@@ -96,6 +95,26 @@ const Sellers = () => {
       />
       
       <BenefitsSection />
+
+      <AlertDialog open={showManualDialog} onOpenChange={setShowManualDialog}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-dark font-kanit">Vehicle Information Required</AlertDialogTitle>
+            <AlertDialogDescription className="text-subtitle">
+              We need additional details about your vehicle. Would you like to enter them manually?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-accent text-dark">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleManualEntry}
+              className="bg-primary text-white hover:bg-primary/90"
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
