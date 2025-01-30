@@ -40,10 +40,38 @@ const Sellers = () => {
       localStorage.setItem('tempMileage', mileage);
       localStorage.setItem('tempGearbox', gearbox);
       
+      // Check if the valuation data is incomplete or not found
+      if (!valuationData || (!valuationData.make && !valuationData.model)) {
+        const proceed = window.confirm(
+          "We couldn't find detailed information for this VIN number in our database. " +
+          "You can still proceed with listing your car, but you'll need to enter the vehicle details manually. " +
+          "Would you like to continue?"
+        );
+        
+        if (proceed) {
+          navigate('/manual-valuation');
+        }
+        return;
+      }
+      
       navigate('/sell-my-car');
     } catch (error: any) {
       console.error('Error:', error);
-      toast.error(error.message || "Failed to get vehicle valuation. Please try again.");
+      
+      // If the API returns a specific "no data" error
+      if (error.message?.includes('no data found') || error.message?.includes('not found')) {
+        const proceed = window.confirm(
+          "We couldn't find this VIN number in our database. " +
+          "You can still proceed with listing your car, but you'll need to enter the vehicle details manually. " +
+          "Would you like to continue?"
+        );
+        
+        if (proceed) {
+          navigate('/manual-valuation');
+        }
+      } else {
+        toast.error(error.message || "Failed to get vehicle valuation. Please try again.");
+      }
     }
   };
 
