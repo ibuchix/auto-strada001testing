@@ -43,33 +43,26 @@ export const handleFormSubmission = async (
     const transformedData = prepareCarData(data, valuationData, userId);
 
     console.log('Submitting to database...');
-    if (carId) {
-      const { error } = await supabase
-        .from('cars')
-        .update({ ...transformedData, is_draft: false })
-        .eq('id', carId)
-        .single();
+    const { error } = carId 
+      ? await supabase
+          .from('cars')
+          .update({ ...transformedData, is_draft: false })
+          .eq('id', carId)
+          .single()
+      : await supabase
+          .from('cars')
+          .insert({ ...transformedData, is_draft: false })
+          .single();
 
-      if (error) {
-        console.error('Error updating car:', error);
-        throw error;
+    if (error) {
+      console.error('Database error:', error);
+      if (error.code === '23505') { // Unique violation error code
+        return { 
+          success: false, 
+          error: "This vehicle has already been listed. Each vehicle can only be listed once." 
+        };
       }
-    } else {
-      const { error } = await supabase
-        .from('cars')
-        .insert({ ...transformedData, is_draft: false })
-        .single();
-
-      if (error) {
-        console.error('Error inserting car:', error);
-        if (error.code === '23505') { // Unique violation error code
-          return { 
-            success: false, 
-            error: "This vehicle has already been listed. Each vehicle can only be listed once." 
-          };
-        }
-        throw error;
-      }
+      throw error;
     }
 
     console.log('Form submission completed successfully');
