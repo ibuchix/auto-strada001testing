@@ -34,7 +34,7 @@ const BuyerDashboard = () => {
         return;
       }
 
-      if (profile.role !== 'buyer') {
+      if (profile.role !== 'seller') {
         navigate('/');
         toast({
           title: "Access Denied",

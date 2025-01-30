@@ -9,6 +9,7 @@ import { FormSections } from "./car-listing/FormSections";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { handleFormSubmission } from "./car-listing/utils/submission";
+import { FormSubmissionResult } from "./car-listing/types/submission";
 
 export const CarListingForm = () => {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ export const CarListingForm = () => {
         carId || undefined
       );
 
-      const timeoutPromise = new Promise((_, reject) => {
+      const timeoutPromise = new Promise<FormSubmissionResult>((_, reject) => {
         setTimeout(() => reject(new Error('Submission timed out')), 30000); // 30 second timeout
       });
 
