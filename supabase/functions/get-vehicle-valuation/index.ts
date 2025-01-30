@@ -76,15 +76,46 @@ serve(async (req) => {
         statusText: response.statusText,
         body: errorText
       });
+      
+      // Return a 200 status with noData flag if the API returns a 404
+      if (response.status === 404) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            noData: true,
+            message: 'No data found for this VIN'
+          }),
+          { 
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json' 
+            },
+            status: 200
+          }
+        );
+      }
+      
       throw new Error(`External API request failed: ${response.status} ${response.statusText}`);
     }
 
     const responseData = await response.json();
     console.log('API Response:', JSON.stringify(responseData, null, 2));
 
-    if (responseData.apiStatus !== 'OK') {
-      console.error('API returned error status:', responseData);
-      throw new Error(responseData.message || 'External API returned an error');
+    if (responseData.apiStatus !== 'OK' || !responseData.functionResponse) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          noData: true,
+          message: 'No data found for this VIN'
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          },
+          status: 200
+        }
+      );
     }
 
     // Extract the average price from the calcValuation object
@@ -127,6 +158,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
+        noData: true,
         message: error.message || 'An unexpected error occurred',
         details: error instanceof Error ? error.stack : undefined
       }),
@@ -135,7 +167,7 @@ serve(async (req) => {
           ...corsHeaders, 
           'Content-Type': 'application/json' 
         },
-        status: 500 
+        status: 200  // Always return 200 to handle in the frontend
       }
     );
   }

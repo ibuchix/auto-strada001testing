@@ -11,8 +11,13 @@ export const getValuation = async (vin: string, mileage: number, gearbox: string
       throw new Error(error.message || 'Failed to get valuation');
     }
 
-    if (!data || (!data.make && !data.model)) {
+    if (data.noData) {
       console.log('No valuation data found for VIN:', vin);
+      return null;
+    }
+
+    if (!data || (!data.make && !data.model)) {
+      console.log('Invalid valuation data for VIN:', vin);
       return null;
     }
 
