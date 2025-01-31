@@ -9,6 +9,7 @@ import { AlertCircle } from "lucide-react";
 import { ErrorDialog } from "./valuation/components/ErrorDialog";
 import { VehicleDetails } from "./valuation/components/VehicleDetails";
 import { ValuationDisplay } from "./valuation/components/ValuationDisplay";
+import { useAuth } from "@/components/AuthProvider";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -34,15 +35,25 @@ export const ValuationResult = ({
   onClose,
   onRetry 
 }: ValuationResultProps) => {
+  const { session } = useAuth();
+  
   if (!valuationResult) return null;
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = !!valuationResult.error;
   const hasValuation = !hasError && (valuationResult.averagePrice || valuationResult.valuation);
   
-  // Get the average price directly from the valuation result
   const averagePrice = valuationResult.averagePrice || 0;
   console.log('ValuationResult - Display price:', averagePrice);
+
+  const handleContinue = () => {
+    if (!session) {
+      // If user is not authenticated, redirect to auth page
+      window.location.href = '/auth';
+      return;
+    }
+    onContinue();
+  };
 
   if (hasError && valuationResult.isExisting) {
     return (
@@ -142,12 +153,14 @@ export const ValuationResult = ({
           Close
         </Button>
         <Button 
-          onClick={onContinue}
+          onClick={handleContinue}
           className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
         >
-          {valuationResult.isExisting 
-            ? "List My Car" 
-            : "List This Car"
+          {!session 
+            ? "Sign Up to List Your Car" 
+            : valuationResult.isExisting 
+              ? "List My Car" 
+              : "List This Car"
           }
         </Button>
       </DialogFooter>
