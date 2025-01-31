@@ -10,6 +10,8 @@ import { ErrorDialog } from "./valuation/components/ErrorDialog";
 import { VehicleDetails } from "./valuation/components/VehicleDetails";
 import { ValuationDisplay } from "./valuation/components/ValuationDisplay";
 import { useAuth } from "@/components/AuthProvider";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -36,6 +38,7 @@ export const ValuationResult = ({
   onRetry 
 }: ValuationResultProps) => {
   const { session } = useAuth();
+  const navigate = useNavigate();
   
   if (!valuationResult) return null;
 
@@ -46,13 +49,41 @@ export const ValuationResult = ({
   const averagePrice = valuationResult.averagePrice || 0;
   console.log('ValuationResult - Display price:', averagePrice);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!session) {
-      // If user is not authenticated, redirect to auth page
-      window.location.href = '/auth';
+      navigate('/auth');
       return;
     }
-    onContinue();
+
+    // Check user's role from the profiles table
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (error) {
+      toast.error("Failed to verify user role");
+      return;
+    }
+
+    if (profile.role !== 'seller') {
+      navigate('/auth');
+      toast.info("Please sign up as a seller to list your car");
+      return;
+    }
+
+    // If they are a seller, handle the navigation based on VIN check result
+    if (valuationResult.isExisting) {
+      toast.error("This vehicle has already been listed");
+      onClose();
+    } else {
+      navigate('/sell-my-car');
+      localStorage.setItem('valuationData', JSON.stringify(valuationResult));
+      localStorage.setItem('tempVIN', valuationResult.vin);
+      localStorage.setItem('tempMileage', mileage.toString());
+      localStorage.setItem('tempGearbox', valuationResult.transmission);
+    }
   };
 
   if (hasError && valuationResult.isExisting) {
