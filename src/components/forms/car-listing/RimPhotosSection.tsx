@@ -39,7 +39,13 @@ export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
 
       const { filePath } = await response.json();
       
-      const currentRimPhotos = form.getValues('rimPhotos') || {};
+      const currentRimPhotos = form.getValues('rimPhotos') || {
+        front_left: null,
+        front_right: null,
+        rear_left: null,
+        rear_right: null
+      };
+
       form.setValue('rimPhotos', {
         ...currentRimPhotos,
         [position]: filePath
