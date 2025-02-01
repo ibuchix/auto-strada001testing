@@ -3,7 +3,6 @@ import { CarListingFormData } from "@/types/forms";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { DamageType } from "./types/damages";
@@ -16,12 +15,17 @@ interface DamageSectionProps {
 }
 
 export const DamageSection = ({ form, carId }: DamageSectionProps) => {
-  const [selectedDamageType, setSelectedDamageType] = useState<DamageType | ''>('');
+  const [selectedDamageType, setSelectedDamageType] = useState<DamageType | null>(null);
   const [description, setDescription] = useState('');
 
   const handleDamagePhotoUpload = async (file: File) => {
     if (!carId) {
       toast.error("Please save the form first before uploading damage photos");
+      return;
+    }
+
+    if (!selectedDamageType) {
+      toast.error("Please select a damage type first");
       return;
     }
 
@@ -47,7 +51,7 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
         photoPath: filePath
       }]);
 
-      setSelectedDamageType('');
+      setSelectedDamageType(null);
       setDescription('');
       
       toast.success('Damage report added successfully');
@@ -66,7 +70,7 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
           <div>
             <Label>Damage Type</Label>
             <Select 
-              value={selectedDamageType} 
+              value={selectedDamageType || undefined} 
               onValueChange={(value) => setSelectedDamageType(value as DamageType)}
             >
               <SelectTrigger>

@@ -18,7 +18,7 @@ export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
     rear_right: false
   });
 
-  const handleRimPhotoUpload = async (file: File, position: string) => {
+  const handleRimPhotoUpload = async (file: File, position: keyof typeof uploadedRims) => {
     if (!carId) {
       toast.error("Please save the form first before uploading rim photos");
       return;
@@ -39,7 +39,12 @@ export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
 
       const { filePath } = await response.json();
       
-      form.setValue(`rimPhotos.${position}`, filePath);
+      const currentRimPhotos = form.getValues('rimPhotos') || {};
+      form.setValue('rimPhotos', {
+        ...currentRimPhotos,
+        [position]: filePath
+      });
+      
       setUploadedRims(prev => ({ ...prev, [position]: true }));
       
       toast.success(`${position.replace('_', ' ')} rim photo uploaded successfully`);
