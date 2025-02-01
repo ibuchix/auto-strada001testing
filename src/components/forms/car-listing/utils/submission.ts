@@ -48,7 +48,7 @@ export const handleFormSubmission = async (
       throw checkError;
     }
 
-    if (existingCar) {
+    if (existingCar && (!carId || existingCar.id !== carId)) {
       return { 
         success: false, 
         error: "This vehicle has already been listed. Each vehicle can only be listed once." 
@@ -93,7 +93,7 @@ export const handleFormSubmission = async (
       price: valuationData.valuation || valuationData.averagePrice,
       transmission: valuationData.transmission,
       valuation_data: valuationData,
-      is_draft: false,
+      is_draft: true,
       finance_document_url: financeDocumentUrl,
       name: submissionData.name,
       address: submissionData.address,

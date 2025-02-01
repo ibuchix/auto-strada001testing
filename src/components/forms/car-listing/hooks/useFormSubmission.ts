@@ -51,6 +51,19 @@ export const useFormSubmission = (userId?: string) => {
 
       if (result.success) {
         console.log('Submission successful');
+        // Set is_draft to false in the submission data
+        const { data: updateResult, error: updateError } = await supabase
+          .from('cars')
+          .update({ is_draft: false })
+          .eq('id', carId)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Error updating draft status:', updateError);
+          throw updateError;
+        }
+
         setShowSuccessDialog(true);
         // Clear valuation data after successful submission
         localStorage.removeItem('valuationData');
