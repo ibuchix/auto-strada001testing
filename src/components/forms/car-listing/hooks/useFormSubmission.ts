@@ -4,6 +4,7 @@ import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { handleFormSubmission } from "../utils/submission";
 import { FormSubmissionResult } from "../types/submission";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useFormSubmission = (userId?: string) => {
   const [submitting, setSubmitting] = useState(false);
