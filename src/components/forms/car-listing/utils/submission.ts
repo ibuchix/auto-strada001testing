@@ -55,6 +55,9 @@ export const handleFormSubmission = async (
       };
     }
 
+    // Remove financeDocument from data before submission
+    const { financeDocument, ...submissionData } = data;
+
     const transformedData = {
       seller_id: userId,
       title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
@@ -67,7 +70,7 @@ export const handleFormSubmission = async (
       transmission: valuationData.transmission,
       valuation_data: valuationData,
       is_draft: false,
-      ...data
+      ...submissionData
     };
 
     console.log('Submitting to database...');
