@@ -24,6 +24,12 @@ export const CarListingForm = () => {
   const { submitting, showSuccessDialog, setShowSuccessDialog, handleSubmit } = useFormSubmission(session?.user.id);
 
   const onSubmit = async (data: any) => {
+    const storedMileage = localStorage.getItem('tempMileage');
+    if (!storedMileage) {
+      toast.error("Please complete the vehicle valuation first");
+      navigate('/sellers');
+      return;
+    }
     await handleSubmit(data, carId);
   };
 

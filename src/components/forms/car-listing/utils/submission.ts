@@ -1,6 +1,5 @@
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
-import { prepareCarData } from "./carDataTransformer";
 import { FormSubmissionResult } from "../types/submission";
 import { toast } from "sonner";
 
@@ -19,6 +18,12 @@ export const handleFormSubmission = async (
       console.error('No valuation data found');
       throw new Error("Please complete the vehicle valuation first. Return to the seller's page to start the process.");
     }
+
+    const mileage = localStorage.getItem('tempMileage');
+    if (!mileage) {
+      throw new Error("Please complete the vehicle valuation first");
+    }
+    valuationData.mileage = parseInt(mileage);
 
     // Detailed validation of required valuation fields
     const requiredFields = ['make', 'model', 'vin', 'mileage', 'valuation', 'year'];
@@ -50,20 +55,31 @@ export const handleFormSubmission = async (
       };
     }
 
-    console.log('Transforming car data...');
-    const transformedData = prepareCarData(data, valuationData, userId);
-    console.log('Transformed data:', transformedData);
+    const transformedData = {
+      seller_id: userId,
+      title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
+      make: valuationData.make,
+      model: valuationData.model,
+      year: valuationData.year,
+      vin: valuationData.vin,
+      mileage: valuationData.mileage,
+      price: valuationData.valuation || valuationData.averagePrice,
+      transmission: valuationData.transmission,
+      valuation_data: valuationData,
+      is_draft: false,
+      ...data
+    };
 
     console.log('Submitting to database...');
     const { error } = carId 
       ? await supabase
           .from('cars')
-          .update({ ...transformedData, is_draft: false })
+          .update(transformedData)
           .eq('id', carId)
           .single()
       : await supabase
           .from('cars')
-          .insert({ ...transformedData, is_draft: false })
+          .insert(transformedData)
           .single();
 
     if (error) {
