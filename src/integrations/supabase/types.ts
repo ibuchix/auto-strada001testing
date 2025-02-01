@@ -435,6 +435,55 @@ export type Database = {
         }
         Relationships: []
       }
+      car_damages: {
+        Row: {
+          car_id: string | null
+          created_at: string | null
+          damage_type: Database["public"]["Enums"]["damage_type"]
+          description: string | null
+          id: string
+          photo_path: string | null
+        }
+        Insert: {
+          car_id?: string | null
+          created_at?: string | null
+          damage_type: Database["public"]["Enums"]["damage_type"]
+          description?: string | null
+          id?: string
+          photo_path?: string | null
+        }
+        Update: {
+          car_id?: string | null
+          created_at?: string | null
+          damage_type?: Database["public"]["Enums"]["damage_type"]
+          description?: string | null
+          id?: string
+          photo_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "car_damages_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "admin_vehicle_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "car_damages_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "auction_performance_summary"
+            referencedColumns: ["auction_id"]
+          },
+          {
+            foreignKeyName: "car_damages_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       car_file_uploads: {
         Row: {
           car_id: string | null
@@ -552,6 +601,8 @@ export type Database = {
           auction_status: string | null
           capacity: number | null
           created_at: string | null
+          damage_photos: Json | null
+          damage_types: Json | null
           description: string | null
           extension_duration_minutes: number | null
           extension_trigger_minutes: number | null
@@ -582,6 +633,7 @@ export type Database = {
           registration_number: string | null
           required_photos: Json | null
           reserve_price: number | null
+          rim_photos: Json | null
           seat_material: string | null
           seller_id: string
           seller_notes: string | null
@@ -598,6 +650,7 @@ export type Database = {
           updated_at: string | null
           valuation_data: Json | null
           vin: string
+          warning_light_photos: string[] | null
           year: number | null
         }
         Insert: {
@@ -609,6 +662,8 @@ export type Database = {
           auction_status?: string | null
           capacity?: number | null
           created_at?: string | null
+          damage_photos?: Json | null
+          damage_types?: Json | null
           description?: string | null
           extension_duration_minutes?: number | null
           extension_trigger_minutes?: number | null
@@ -639,6 +694,7 @@ export type Database = {
           registration_number?: string | null
           required_photos?: Json | null
           reserve_price?: number | null
+          rim_photos?: Json | null
           seat_material?: string | null
           seller_id: string
           seller_notes?: string | null
@@ -655,6 +711,7 @@ export type Database = {
           updated_at?: string | null
           valuation_data?: Json | null
           vin: string
+          warning_light_photos?: string[] | null
           year?: number | null
         }
         Update: {
@@ -666,6 +723,8 @@ export type Database = {
           auction_status?: string | null
           capacity?: number | null
           created_at?: string | null
+          damage_photos?: Json | null
+          damage_types?: Json | null
           description?: string | null
           extension_duration_minutes?: number | null
           extension_trigger_minutes?: number | null
@@ -696,6 +755,7 @@ export type Database = {
           registration_number?: string | null
           required_photos?: Json | null
           reserve_price?: number | null
+          rim_photos?: Json | null
           seat_material?: string | null
           seller_id?: string
           seller_notes?: string | null
@@ -712,6 +772,7 @@ export type Database = {
           updated_at?: string | null
           valuation_data?: Json | null
           vin?: string
+          warning_light_photos?: string[] | null
           year?: number | null
         }
         Relationships: [
@@ -1457,6 +1518,7 @@ export type Database = {
       car_country_code: "PL" | "DE" | "UK"
       car_fuel_type: "petrol" | "diesel" | "electric" | "hybrid"
       car_transmission_type: "manual" | "automatic"
+      damage_type: "scratches" | "dents" | "paintwork" | "windscreen"
       manual_valuation_status: "pending" | "processed" | "rejected"
       service_history_type: "full" | "partial" | "none" | "not_due"
       user_role: "seller" | "dealer" | "admin"

@@ -1,3 +1,5 @@
+import { DamageReport, RimPhotos } from "@/components/forms/car-listing/types/damages";
+
 export interface CarFeatures {
   [key: string]: boolean;
   satNav: boolean;
@@ -26,6 +28,10 @@ export interface CarListingFormData {
   transmission?: string | null;
   seatMaterial: string;
   numberOfKeys: string;
+  damageReports: DamageReport[];
+  rimPhotos: RimPhotos;
+  rimPhotosComplete: boolean;
+  warningLightPhotos: string[];
   // Additional fields for manual valuation
   vin?: string;
   make?: string;

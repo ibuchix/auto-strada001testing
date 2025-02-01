@@ -8,6 +8,9 @@ import { PhotoUploadSection } from "./PhotoUploadSection";
 import { ServiceHistorySection } from "./ServiceHistorySection";
 import { AdditionalInfoSection } from "./AdditionalInfoSection";
 import { SellerNotesSection } from "./SellerNotesSection";
+import { DamageSection } from "./DamageSection";
+import { RimPhotosSection } from "./RimPhotosSection";
+import { WarningLightsSection } from "./WarningLightsSection";
 import { UploadProgress } from "./UploadProgress";
 
 interface FormSectionsProps {
@@ -29,6 +32,12 @@ export const FormSections = ({ form, carId, uploadProgress, onProgressUpdate }: 
         <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Vehicle Status</h2>
         <VehicleStatusSection form={form} />
       </Card>
+
+      <DamageSection form={form} carId={carId} />
+      
+      <RimPhotosSection form={form} carId={carId} />
+      
+      <WarningLightsSection form={form} carId={carId} />
 
       <Card className="p-4 md:p-6">
         <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Features</h2>
