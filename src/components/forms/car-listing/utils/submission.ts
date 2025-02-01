@@ -55,7 +55,30 @@ export const handleFormSubmission = async (
       };
     }
 
-    // Remove financeDocument from data before submission
+    // Handle finance document upload if it exists
+    let financeDocumentUrl = null;
+    if (data.financeDocument) {
+      const fileExt = data.financeDocument.name.split('.').pop();
+      const fileName = `${userId}/${Date.now()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('car-files')
+        .upload(fileName, data.financeDocument);
+
+      if (uploadError) {
+        console.error('Finance document upload error:', uploadError);
+        throw new Error('Failed to upload finance document');
+      }
+
+      if (uploadData) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('car-files')
+          .getPublicUrl(fileName);
+        financeDocumentUrl = publicUrl;
+      }
+    }
+
+    // Remove financeDocument from data and prepare submission data
     const { financeDocument, ...submissionData } = data;
 
     const transformedData = {
@@ -70,6 +93,7 @@ export const handleFormSubmission = async (
       transmission: valuationData.transmission,
       valuation_data: valuationData,
       is_draft: false,
+      finance_document_url: financeDocumentUrl,
       ...submissionData
     };
 
