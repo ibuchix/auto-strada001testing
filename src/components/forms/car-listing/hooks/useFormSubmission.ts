@@ -20,13 +20,25 @@ export const useFormSubmission = (userId?: string) => {
     setSubmitting(true);
     try {
       console.log('Starting submission process...');
-      const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
+      const valuationData = localStorage.getItem('valuationData');
+      
+      if (!valuationData) {
+        toast.error("Please complete the vehicle valuation first", {
+          description: "Return to the seller's page to start the valuation process.",
+          duration: 5000
+        });
+        navigate('/sellers');
+        return;
+      }
+
+      const parsedValuationData = JSON.parse(valuationData);
+      console.log('Parsed valuation data:', parsedValuationData);
       
       // Set a longer timeout of 180 seconds for the submission
       const submissionPromise = handleFormSubmission(
         data, 
         userId, 
-        valuationData, 
+        parsedValuationData, 
         carId
       );
 
@@ -52,7 +64,10 @@ export const useFormSubmission = (userId?: string) => {
             duration: 5000,
           });
         } else {
-          toast.error(result.error || "Failed to submit listing");
+          toast.error(result.error || "Failed to submit listing", {
+            description: "Please ensure all required information is complete.",
+            duration: 5000
+          });
         }
       }
     } catch (error: any) {
@@ -62,15 +77,21 @@ export const useFormSubmission = (userId?: string) => {
         toast.error("The submission is taking longer than expected. Try reducing the size of your images or check your connection.", {
           duration: 8000
         });
-      } else if (error.message === 'Please complete the vehicle valuation first') {
-        toast.error("Please complete the vehicle valuation before submitting");
+      } else if (error.message?.includes('vehicle valuation')) {
+        toast.error("Please complete the vehicle valuation first", {
+          description: "Return to the seller's page to start the valuation process.",
+          duration: 5000
+        });
         navigate('/sellers');
       } else if (error.code === 'TIMEOUT_ERROR') {
         toast.error("The request timed out. Please check your connection and try again.", {
           duration: 8000
         });
       } else {
-        toast.error(error.message || "Failed to submit listing. Please try again.");
+        toast.error(error.message || "Failed to submit listing. Please try again.", {
+          description: "If the problem persists, please contact support.",
+          duration: 5000
+        });
       }
     } finally {
       setSubmitting(false);

@@ -31,13 +31,14 @@ export const SuccessDialog = ({ open, onOpenChange, onClose }: SuccessDialogProp
           </DialogTitle>
           <DialogDescription className="text-center pt-4">
             <div className="space-y-4">
-              <p className="text-base">
+              <p className="text-base text-subtitle">
                 Your car listing has been submitted and is currently under review by our team.
               </p>
               <div className="bg-[#EFEFFD] p-4 rounded-lg">
                 <p className="text-sm text-subtitle">
-                  We will carefully review your listing details and contact you if any changes are needed. 
-                  You will receive a notification once your listing is approved and live on our platform.
+                  We will carefully review your listing details to ensure everything meets our quality standards. 
+                  You will receive a notification once your listing is approved and live on our platform. 
+                  If any changes are needed, we'll contact you directly.
                 </p>
               </div>
               <Button 

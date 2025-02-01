@@ -2,6 +2,7 @@ import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { prepareCarData } from "./carDataTransformer";
 import { FormSubmissionResult } from "../types/submission";
+import { toast } from "sonner";
 
 export const handleFormSubmission = async (
   data: CarListingFormData,
@@ -11,11 +12,21 @@ export const handleFormSubmission = async (
 ): Promise<FormSubmissionResult> => {
   try {
     console.log('Starting form submission process...');
+    console.log('Valuation data:', valuationData);
     
-    // Validate valuation data first
-    if (!valuationData || !valuationData.make || !valuationData.model || !valuationData.vin || 
-        !valuationData.mileage || !valuationData.valuation || !valuationData.year) {
-      throw new Error("Please complete the vehicle valuation first");
+    // Enhanced validation for valuation data
+    if (!valuationData) {
+      console.error('No valuation data found');
+      throw new Error("Please complete the vehicle valuation first. Return to the seller's page to start the process.");
+    }
+
+    // Detailed validation of required valuation fields
+    const requiredFields = ['make', 'model', 'vin', 'mileage', 'valuation', 'year'];
+    const missingFields = requiredFields.filter(field => !valuationData[field]);
+    
+    if (missingFields.length > 0) {
+      console.error('Missing required valuation fields:', missingFields);
+      throw new Error(`Incomplete vehicle information. Missing: ${missingFields.join(', ')}. Please complete the valuation process.`);
     }
 
     // Check if VIN already exists (for non-draft listings)
@@ -41,6 +52,7 @@ export const handleFormSubmission = async (
 
     console.log('Transforming car data...');
     const transformedData = prepareCarData(data, valuationData, userId);
+    console.log('Transformed data:', transformedData);
 
     console.log('Submitting to database...');
     const { error } = carId 
@@ -56,7 +68,7 @@ export const handleFormSubmission = async (
 
     if (error) {
       console.error('Database error:', error);
-      if (error.code === '23505') { // Unique violation error code
+      if (error.code === '23505') {
         return { 
           success: false, 
           error: "This vehicle has already been listed. Each vehicle can only be listed once." 
