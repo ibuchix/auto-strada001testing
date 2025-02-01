@@ -30,18 +30,23 @@ export const SuccessDialog = ({ open, onOpenChange, onClose }: SuccessDialogProp
             Listing Submitted Successfully
           </DialogTitle>
           <DialogDescription className="text-center pt-4">
-            <p className="mb-4 text-base">
-              Your car listing has been submitted and is pending review. Our team will review your listing within 24 hours.
-            </p>
-            <p className="text-sm text-subtitle">
-              You will receive a notification once your listing is live.
-            </p>
-            <Button 
-              className="mt-6 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-full sm:w-auto"
-              onClick={handleClose}
-            >
-              Go to Dashboard
-            </Button>
+            <div className="space-y-4">
+              <p className="text-base">
+                Your car listing has been submitted and is currently under review by our team.
+              </p>
+              <div className="bg-[#EFEFFD] p-4 rounded-lg">
+                <p className="text-sm text-subtitle">
+                  We will carefully review your listing details and contact you if any changes are needed. 
+                  You will receive a notification once your listing is approved and live on our platform.
+                </p>
+              </div>
+              <Button 
+                className="mt-6 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-full sm:w-auto"
+                onClick={handleClose}
+              >
+                Go to Dashboard
+              </Button>
+            </div>
           </DialogDescription>
         </DialogHeader>
       </DialogContent>
