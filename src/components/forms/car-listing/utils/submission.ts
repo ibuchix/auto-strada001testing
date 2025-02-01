@@ -81,6 +81,7 @@ export const handleFormSubmission = async (
     // Remove financeDocument from data and prepare submission data
     const { financeDocument, ...submissionData } = data;
 
+    // Transform camelCase to snake_case for database fields
     const transformedData = {
       seller_id: userId,
       title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
@@ -94,7 +95,21 @@ export const handleFormSubmission = async (
       valuation_data: valuationData,
       is_draft: false,
       finance_document_url: financeDocumentUrl,
-      ...submissionData
+      name: submissionData.name,
+      address: submissionData.address,
+      mobile_number: submissionData.mobileNumber,
+      features: submissionData.features,
+      is_damaged: submissionData.isDamaged,
+      is_registered_in_poland: submissionData.isRegisteredInPoland,
+      has_tool_pack: submissionData.hasToolPack,
+      has_documentation: submissionData.hasDocumentation,
+      is_selling_on_behalf: submissionData.isSellingOnBehalf,
+      has_private_plate: submissionData.hasPrivatePlate,
+      finance_amount: submissionData.financeAmount ? parseFloat(submissionData.financeAmount) : null,
+      service_history_type: submissionData.serviceHistoryType,
+      seller_notes: submissionData.sellerNotes,
+      seat_material: submissionData.seatMaterial,
+      number_of_keys: parseInt(submissionData.numberOfKeys)
     };
 
     console.log('Submitting to database...');
