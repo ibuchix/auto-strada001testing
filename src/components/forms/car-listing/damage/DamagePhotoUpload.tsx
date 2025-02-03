@@ -1,7 +1,6 @@
-import { Label } from "@/components/ui/label";
-import { PhotoUpload } from "../photo-upload/PhotoUpload";
+import { Input } from "@/components/ui/input";
+import { FormLabel } from "@/components/ui/form";
 import { DamageType } from "../types/damages";
-import { toast } from "sonner";
 
 interface DamagePhotoUploadProps {
   damageType: DamageType;
@@ -10,42 +9,36 @@ interface DamagePhotoUploadProps {
 }
 
 export const DamagePhotoUpload = ({ damageType, carId, onPhotoUploaded }: DamagePhotoUploadProps) => {
-  const handleDamagePhotoUpload = async (file: File) => {
-    if (!carId) {
-      toast.error("Please save the form first before uploading damage photos");
-      return;
-    }
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !carId) return;
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('type', `damage_${damageType}`);
-    formData.append('carId', carId);
 
     try {
-      const response = await fetch('/api/upload-photo', {
+      const response = await fetch(`/api/upload-damage-photo?carId=${carId}&damageType=${damageType}`, {
         method: 'POST',
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Failed to upload photo');
+      if (!response.ok) throw new Error('Upload failed');
 
       const { filePath } = await response.json();
       onPhotoUploaded(filePath);
-      
-      toast.success('Damage photo uploaded successfully');
     } catch (error) {
-      toast.error('Failed to upload damage photo');
+      console.error('Error uploading damage photo:', error);
     }
   };
 
   return (
-    <div>
-      <Label>Upload Photo</Label>
-      <PhotoUpload
-        id={`damage_${damageType}`}
-        label="Upload damage photo"
-        isUploading={false}
-        onFileSelect={handleDamagePhotoUpload}
+    <div className="space-y-2">
+      <FormLabel>Photo</FormLabel>
+      <Input
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="bg-white cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
       />
     </div>
   );

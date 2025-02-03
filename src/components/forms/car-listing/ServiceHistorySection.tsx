@@ -6,14 +6,12 @@ import { Input } from "@/components/ui/input";
 
 interface ServiceHistorySectionProps {
   form: UseFormReturn<CarListingFormData>;
-  carId?: string;  // Added carId prop as optional
+  carId?: string;
 }
 
 export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProps) => {
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-dark">Service History</h2>
-      
       <div className="space-y-6 p-6 bg-accent/30 rounded-lg">
         <FormField
           control={form.control}
@@ -89,7 +87,7 @@ export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProp
                   />
                 </FormControl>
                 <p className="text-sm text-subtitle mt-2">
-                  Upload service history documents (PDF images)
+                  Upload service history documents (PDF or images)
                 </p>
               </FormItem>
             )}
