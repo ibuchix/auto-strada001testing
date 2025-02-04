@@ -18,9 +18,18 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
     vin: localStorage.getItem('tempVIN') || ''
   };
 
+  const defaultFeatures = {
+    satNav: false,
+    panoramicRoof: false,
+    reverseCamera: false,
+    heatedSeats: false,
+    upgradedSound: false
+  };
+
   const form = useForm<CarListingFormData>({
     defaultValues: {
       ...getFormDefaults(),
+      features: defaultFeatures,
       numberOfKeys: "1",
       seatMaterial: "cloth",
       transmission: valuationData.transmission || null,

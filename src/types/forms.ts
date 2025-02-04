@@ -7,7 +7,7 @@ export interface CarFeatures {
   reverseCamera: boolean;
   heatedSeats: boolean;
   upgradedSound: boolean;
-  [key: string]: boolean; // Add index signature for Json compatibility
+  [key: string]: boolean;
 }
 
 export interface CarListingFormData {
