@@ -64,7 +64,7 @@ export const transformFeaturesForDb = (features: CarFeatures): Json => {
   return features as unknown as Json;
 };
 
-export const transformFeaturesFromDb = (features: Json): CarFeatures => {
+export const transformFeaturesFromDb = (features: Json | null): CarFeatures => {
   const defaultFeatures = { ...defaultCarFeatures };
   if (typeof features === 'object' && features !== null) {
     return { ...defaultFeatures, ...features as Record<string, boolean> };

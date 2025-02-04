@@ -1,7 +1,7 @@
 import { CarListingFormData } from "@/types/forms";
 import { Database } from "@/integrations/supabase/types";
 import { Json } from "@/integrations/supabase/types";
-import { transformFeaturesForDb, transformFeaturesFromDb, defaultCarFeatures } from "@/types/forms";
+import { transformFeaturesForDb, transformFeaturesFromDb } from "@/types/forms";
 
 type CarInsert = Database['public']['Tables']['cars']['Insert'];
 
