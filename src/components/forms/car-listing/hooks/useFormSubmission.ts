@@ -52,17 +52,19 @@ export const useFormSubmission = (userId?: string) => {
 
       if (result.success) {
         console.log('Submission successful');
-        // Set is_draft to false in the submission data
-        const { data: updateResult, error: updateError } = await supabase
-          .from('cars')
-          .update({ is_draft: false })
-          .eq('id', carId)
-          .select()
-          .single();
+        
+        // Only update draft status if we have a valid carId
+        if (carId) {
+          const { error: updateError } = await supabase
+            .from('cars')
+            .update({ is_draft: false })
+            .eq('id', carId)
+            .single();
 
-        if (updateError) {
-          console.error('Error updating draft status:', updateError);
-          throw updateError;
+          if (updateError) {
+            console.error('Error updating draft status:', updateError);
+            throw updateError;
+          }
         }
 
         setShowSuccessDialog(true);

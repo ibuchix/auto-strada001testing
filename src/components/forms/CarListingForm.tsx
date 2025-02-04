@@ -30,6 +30,8 @@ export const CarListingForm = () => {
       navigate('/sellers');
       return;
     }
+
+    // Only proceed with submission if we have a carId or it's a new submission
     await handleSubmit(data, carId);
   };
 
