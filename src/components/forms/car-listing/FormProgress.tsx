@@ -14,7 +14,6 @@ export const FormProgress = ({ progress }: FormProgressProps) => {
       <Progress 
         value={progress} 
         className="h-2 bg-accent"
-        indicatorClassName="bg-primary"
       />
     </div>
   );

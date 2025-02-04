@@ -5,22 +5,22 @@ export type ValidationError = {
   message: string;
 };
 
-export const validateFormData = (data: CarListingFormData): ValidationError[] => {
+export const validateFormData = (data: Partial<CarListingFormData>): ValidationError[] => {
   const errors: ValidationError[] = [];
 
   // Personal Details
-  if (!data.name) {
+  if (!data.name?.trim()) {
     errors.push({ field: 'name', message: 'Name is required' });
   }
-  if (!data.address) {
+  if (!data.address?.trim()) {
     errors.push({ field: 'address', message: 'Address is required' });
   }
-  if (!data.mobileNumber) {
+  if (!data.mobileNumber?.trim()) {
     errors.push({ field: 'mobileNumber', message: 'Mobile number is required' });
   }
 
   // Vehicle Status
-  if (data.isDamaged && !data.damageReports?.length) {
+  if (data.isDamaged && (!data.damageReports || data.damageReports.length === 0)) {
     errors.push({ field: 'damageReports', message: 'Please document any damage' });
   }
 
@@ -50,7 +50,7 @@ export const validateFormData = (data: CarListingFormData): ValidationError[] =>
   return errors;
 };
 
-export const getFormProgress = (data: CarListingFormData): number => {
+export const getFormProgress = (data: Partial<CarListingFormData>): number => {
   const totalSteps = 8; // Total number of major sections
   let completedSteps = 0;
 

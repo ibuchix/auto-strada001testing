@@ -1,6 +1,9 @@
 import { CarListingFormData } from "@/types/forms";
 
 export const getFormDefaults = (): Partial<CarListingFormData> => ({
+  name: "",
+  address: "",
+  mobileNumber: "",
   features: {
     satNav: false,
     panoramicRoof: false,
@@ -16,4 +19,11 @@ export const getFormDefaults = (): Partial<CarListingFormData> => ({
   hasPrivatePlate: false,
   financeDocument: null,
   uploadedPhotos: [],
+  seatMaterial: "",
+  numberOfKeys: "1",
+  serviceHistoryType: "none",
+  sellerNotes: "",
+  damageReports: [],
+  rimPhotosComplete: false,
+  warningLightPhotos: [],
 });
