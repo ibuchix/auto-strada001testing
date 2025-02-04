@@ -19,14 +19,36 @@ export const ProgressPreservation = () => {
       // Save to backend if user is authenticated
       if (session?.user.id) {
         try {
+          // Map form data to database schema
+          const dbData = {
+            seller_id: session.user.id,
+            name: formData.name,
+            address: formData.address,
+            mobile_number: formData.mobileNumber,
+            features: formData.features,
+            is_damaged: formData.isDamaged,
+            is_registered_in_poland: formData.isRegisteredInPoland,
+            has_tool_pack: formData.hasToolPack,
+            has_documentation: formData.hasDocumentation,
+            is_selling_on_behalf: formData.isSellingOnBehalf,
+            has_private_plate: formData.hasPrivatePlate,
+            finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
+            service_history_type: formData.serviceHistoryType,
+            seller_notes: formData.sellerNotes,
+            seat_material: formData.seatMaterial,
+            number_of_keys: parseInt(formData.numberOfKeys),
+            is_draft: true,
+            last_saved: new Date().toISOString(),
+            // Required fields from database schema
+            price: 0, // Temporary value, will be updated with actual valuation
+            title: "Draft Listing", // Temporary value, will be updated with actual car details
+            vin: formData.vin || '', // Required field
+            mileage: formData.mileage || 0 // Required field
+          };
+
           const { error } = await supabase
             .from('cars')
-            .upsert({
-              seller_id: session.user.id,
-              ...formData,
-              is_draft: true,
-              last_saved: new Date().toISOString()
-            });
+            .upsert(dbData);
 
           if (error) {
             console.error('Error saving draft:', error);
@@ -65,7 +87,28 @@ export const ProgressPreservation = () => {
             .maybeSingle();
 
           if (!error && draftData) {
-            Object.entries(draftData).forEach(([key, value]) => {
+            // Map database fields back to form fields
+            const formValues = {
+              name: draftData.name,
+              address: draftData.address,
+              mobileNumber: draftData.mobile_number,
+              features: draftData.features,
+              isDamaged: draftData.is_damaged,
+              isRegisteredInPoland: draftData.is_registered_in_poland,
+              hasToolPack: draftData.has_tool_pack,
+              hasDocumentation: draftData.has_documentation,
+              isSellingOnBehalf: draftData.is_selling_on_behalf,
+              hasPrivatePlate: draftData.has_private_plate,
+              financeAmount: draftData.finance_amount?.toString(),
+              serviceHistoryType: draftData.service_history_type,
+              sellerNotes: draftData.seller_notes,
+              seatMaterial: draftData.seat_material,
+              numberOfKeys: draftData.number_of_keys?.toString(),
+              vin: draftData.vin,
+              mileage: draftData.mileage
+            };
+
+            Object.entries(formValues).forEach(([key, value]) => {
               if (value !== undefined && value !== null) {
                 setValue(key as keyof CarListingFormData, value as any, {
                   shouldValidate: false,
@@ -73,7 +116,7 @@ export const ProgressPreservation = () => {
                 });
               }
             });
-            return; // If we restored from backend, don't restore from localStorage
+            return;
           }
         } catch (error) {
           console.error('Error restoring draft:', error);
