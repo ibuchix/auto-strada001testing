@@ -1,7 +1,7 @@
 import { CarListingFormData } from "@/types/forms";
 import { Database } from "@/integrations/supabase/types";
 import { Json } from "@/integrations/supabase/types";
-import { transformFeaturesForDb } from "@/types/forms";
+import { transformFeaturesForDb, transformFeaturesFromDb } from "@/types/forms";
 
 type CarInsert = Database['public']['Tables']['cars']['Insert'];
 
@@ -37,6 +37,29 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     price: valuationData.valuation || valuationData.averagePrice || 0,
     title: `${valuationData.make || ''} ${valuationData.model || ''} ${valuationData.year || ''}`.trim() || 'Draft Listing',
     vin: vin,
-    transmission: formData.transmission || null
+    transmission: formData.transmission as "manual" | "automatic" | null
+  };
+};
+
+export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> => {
+  return {
+    name: dbData.name || "",
+    address: dbData.address || "",
+    mobileNumber: dbData.mobile_number || "",
+    features: transformFeaturesFromDb(dbData.features),
+    isDamaged: dbData.is_damaged || false,
+    isRegisteredInPoland: dbData.is_registered_in_poland || false,
+    hasToolPack: dbData.has_tool_pack || false,
+    hasDocumentation: dbData.has_documentation || false,
+    isSellingOnBehalf: dbData.is_selling_on_behalf || false,
+    hasPrivatePlate: dbData.has_private_plate || false,
+    financeAmount: dbData.finance_amount?.toString() || "",
+    serviceHistoryType: dbData.service_history_type || "none",
+    sellerNotes: dbData.seller_notes || "",
+    seatMaterial: dbData.seat_material || "",
+    numberOfKeys: dbData.number_of_keys?.toString() || "1",
+    vin: dbData.vin || "",
+    mileage: dbData.mileage || 0,
+    transmission: dbData.transmission as "manual" | "automatic" | null
   };
 };

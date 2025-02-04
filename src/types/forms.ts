@@ -1,12 +1,12 @@
 import { Json } from "@/integrations/supabase/types";
 
 export interface CarFeatures {
-  [key: string]: boolean;
   satNav: boolean;
   panoramicRoof: boolean;
   reverseCamera: boolean;
   heatedSeats: boolean;
   upgradedSound: boolean;
+  [key: string]: boolean;
 }
 
 export type PartialCarFeatures = Partial<CarFeatures>;
@@ -27,7 +27,7 @@ export interface CarListingFormData {
   serviceHistoryType: "full" | "partial" | "none" | "not_due";
   sellerNotes?: string;
   uploadedPhotos: string[];
-  transmission?: string | null;
+  transmission?: "manual" | "automatic" | null;
   seatMaterial: string;
   numberOfKeys: string;
   damageReports: any[];
