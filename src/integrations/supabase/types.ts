@@ -1429,6 +1429,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      check_car_ownership: {
+        Args: {
+          car_id: string
+          user_id: string
+        }
+        Returns: boolean
+      }
       check_dealer_email_exists: {
         Args: {
           email_to_check: string
