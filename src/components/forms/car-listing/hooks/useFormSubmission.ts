@@ -33,7 +33,7 @@ export const useFormSubmission = (userId?: string) => {
       const parsedValuationData = JSON.parse(valuationData);
       console.log('Parsed valuation data:', parsedValuationData);
 
-      // Split the submission into smaller chunks
+      // First operation: Save basic data
       const basicData = {
         seller_id: userId,
         title: `${parsedValuationData.make} ${parsedValuationData.model} ${parsedValuationData.year}`,
@@ -48,16 +48,17 @@ export const useFormSubmission = (userId?: string) => {
         is_draft: false
       };
 
-      // First, save basic data
-      const { error: basicError } = carId 
+      const { data: savedBasicData, error: basicError } = carId 
         ? await supabase
             .from('cars')
             .update(basicData)
             .eq('id', carId)
+            .select()
             .single()
         : await supabase
             .from('cars')
             .insert(basicData)
+            .select()
             .single();
 
       if (basicError) {
@@ -65,7 +66,9 @@ export const useFormSubmission = (userId?: string) => {
         throw basicError;
       }
 
-      // Then, save additional details in a separate operation
+      const updatedCarId = carId || savedBasicData.id;
+
+      // Second operation: Save additional details
       const additionalData = {
         name: data.name,
         address: data.address,
@@ -87,7 +90,7 @@ export const useFormSubmission = (userId?: string) => {
       const { error: additionalError } = await supabase
         .from('cars')
         .update(additionalData)
-        .eq('id', carId)
+        .eq('id', updatedCarId)
         .single();
 
       if (additionalError) {
@@ -107,13 +110,9 @@ export const useFormSubmission = (userId?: string) => {
     } catch (error: any) {
       console.error('Submission error:', error);
       
-      if (error.message?.includes('timeout')) {
-        toast.error('The request is taking longer than expected. Please try again.');
-      } else if (error.message?.includes('vehicle valuation')) {
+      if (error.message?.includes('vehicle valuation')) {
         toast.error("Please complete the vehicle valuation first");
         navigate('/sellers');
-      } else if (error.code === 'TIMEOUT_ERROR') {
-        toast.error("The request timed out. Please check your connection and try again.");
       } else {
         toast.error(error.message || "Failed to submit listing. Please try again.", {
           description: "If the problem persists, please contact support.",
