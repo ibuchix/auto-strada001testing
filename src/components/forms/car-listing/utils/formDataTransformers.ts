@@ -6,6 +6,10 @@ import { transformFeaturesForDb, transformFeaturesFromDb } from "@/types/forms";
 type CarInsert = Database['public']['Tables']['cars']['Insert'];
 
 export const transformFormToDbData = (formData: CarListingFormData, userId: string): CarInsert => {
+  if (!formData.features) {
+    throw new Error("Features are required");
+  }
+
   return {
     seller_id: userId,
     name: formData.name,
@@ -24,11 +28,7 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     seat_material: formData.seatMaterial,
     number_of_keys: parseInt(formData.numberOfKeys),
     is_draft: true,
-    last_saved: new Date().toISOString(),
-    price: 0,
-    title: "Draft Listing",
-    vin: formData.vin || '',
-    mileage: formData.mileage || 0
+    last_saved: new Date().toISOString()
   };
 };
 

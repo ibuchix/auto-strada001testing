@@ -4,7 +4,7 @@ export const getFormDefaults = (): Partial<CarListingFormData> => ({
   name: "",
   address: "",
   mobileNumber: "",
-  features: { ...defaultCarFeatures },
+  features: defaultCarFeatures,
   isDamaged: false,
   isRegisteredInPoland: false,
   hasToolPack: false,

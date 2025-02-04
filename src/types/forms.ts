@@ -1,13 +1,15 @@
 import { Json } from "@/integrations/supabase/types";
 
 export interface CarFeatures {
+  [key: string]: boolean;
   satNav: boolean;
   panoramicRoof: boolean;
   reverseCamera: boolean;
   heatedSeats: boolean;
   upgradedSound: boolean;
-  [key: string]: boolean;
 }
+
+export type PartialCarFeatures = Partial<CarFeatures>;
 
 export interface CarListingFormData {
   name: string;
@@ -60,8 +62,12 @@ export const defaultCarFeatures: CarFeatures = {
   upgradedSound: false
 };
 
-export const transformFeaturesForDb = (features: CarFeatures): Json => {
-  return features as unknown as Json;
+export const transformFeaturesForDb = (features: CarFeatures | PartialCarFeatures): Json => {
+  const completeFeatures = {
+    ...defaultCarFeatures,
+    ...features
+  };
+  return completeFeatures as unknown as Json;
 };
 
 export const transformFeaturesFromDb = (features: Json | null): CarFeatures => {
