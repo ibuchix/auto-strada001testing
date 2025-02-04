@@ -1,15 +1,44 @@
 import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/AuthProvider";
+import { toast } from "sonner";
 
 export const ProgressPreservation = () => {
   const { watch, setValue } = useFormContext<CarListingFormData>();
   const formData = watch();
+  const { session } = useAuth();
 
+  // Save progress to both localStorage and backend
   useEffect(() => {
-    // Save form progress to localStorage
-    const saveProgress = () => {
+    const saveProgress = async () => {
+      // Save to localStorage
       localStorage.setItem('formProgress', JSON.stringify(formData));
+
+      // Save to backend if user is authenticated
+      if (session?.user.id) {
+        try {
+          const { error } = await supabase
+            .from('cars')
+            .upsert({
+              seller_id: session.user.id,
+              ...formData,
+              is_draft: true,
+              last_saved: new Date().toISOString()
+            });
+
+          if (error) {
+            console.error('Error saving draft:', error);
+            toast.error("Failed to save draft", {
+              description: "Your progress is saved locally but not synced to the cloud.",
+              duration: 3000
+            });
+          }
+        } catch (error) {
+          console.error('Error saving draft:', error);
+        }
+      }
     };
 
     // Save progress every 30 seconds
@@ -20,28 +49,62 @@ export const ProgressPreservation = () => {
       clearInterval(intervalId);
       saveProgress();
     };
-  }, [formData]);
+  }, [formData, session?.user.id]);
 
+  // Restore progress on mount
   useEffect(() => {
-    // Restore progress on mount
-    const savedProgress = localStorage.getItem('formProgress');
-    if (savedProgress) {
-      try {
-        const parsed = JSON.parse(savedProgress);
-        Object.entries(parsed).forEach(([key, value]) => {
-          // Type check before setting value
-          if (value !== undefined && value !== null) {
-            setValue(key as keyof CarListingFormData, value as any, {
-              shouldValidate: false,
-              shouldDirty: false
+    const restoreProgress = async () => {
+      // First try to restore from backend if user is authenticated
+      if (session?.user.id) {
+        try {
+          const { data: draftData, error } = await supabase
+            .from('cars')
+            .select('*')
+            .eq('seller_id', session.user.id)
+            .eq('is_draft', true)
+            .maybeSingle();
+
+          if (!error && draftData) {
+            Object.entries(draftData).forEach(([key, value]) => {
+              if (value !== undefined && value !== null) {
+                setValue(key as keyof CarListingFormData, value as any, {
+                  shouldValidate: false,
+                  shouldDirty: false
+                });
+              }
             });
+            return; // If we restored from backend, don't restore from localStorage
           }
-        });
-      } catch (error) {
-        console.error('Error restoring form progress:', error);
+        } catch (error) {
+          console.error('Error restoring draft:', error);
+        }
       }
-    }
-  }, [setValue]);
+
+      // Fallback to localStorage if no backend data or not authenticated
+      const savedProgress = localStorage.getItem('formProgress');
+      if (savedProgress) {
+        try {
+          const parsed = JSON.parse(savedProgress);
+          Object.entries(parsed).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+              setValue(key as keyof CarListingFormData, value as any, {
+                shouldValidate: false,
+                shouldDirty: false
+              });
+            }
+          });
+        } catch (error) {
+          console.error('Error restoring form progress:', error);
+          toast.error("Failed to restore saved progress", {
+            description: "Please check if all fields are filled correctly.",
+            duration: 5000
+          });
+        }
+      }
+    };
+
+    restoreProgress();
+  }, [setValue, session?.user.id]);
 
   return null;
 };
