@@ -1,5 +1,4 @@
 import { Json } from "@/integrations/supabase/types";
-import { DamageReport, RimPhotos } from "@/components/forms/car-listing/types/damages";
 
 export interface CarFeatures {
   satNav: boolean;
@@ -29,8 +28,8 @@ export interface CarListingFormData {
   transmission?: string | null;
   seatMaterial: string;
   numberOfKeys: string;
-  damageReports: DamageReport[];
-  rimPhotos?: RimPhotos;
+  damageReports: any[];
+  rimPhotos?: any;
   rimPhotosComplete: boolean;
   warningLightPhotos: string[];
   // Additional fields for manual valuation
