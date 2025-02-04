@@ -26,7 +26,7 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
           
           // Invalidate relevant queries based on the change
           queryClient.invalidateQueries({ queryKey: ['cars'] });
-          if (payload.new?.id) {
+          if (payload.new && 'id' in payload.new) {
             queryClient.invalidateQueries({ queryKey: ['car', payload.new.id] });
           }
         }
