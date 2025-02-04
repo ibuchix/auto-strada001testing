@@ -48,6 +48,7 @@ export const useFormSubmission = (userId?: string) => {
         is_draft: false
       };
 
+      console.log('Saving basic data...');
       const { data: savedBasicData, error: basicError } = carId 
         ? await supabase
             .from('cars')
@@ -67,6 +68,7 @@ export const useFormSubmission = (userId?: string) => {
       }
 
       const updatedCarId = carId || savedBasicData.id;
+      console.log('Basic data saved successfully. Car ID:', updatedCarId);
 
       // Second operation: Save additional details
       const additionalData = {
@@ -87,6 +89,7 @@ export const useFormSubmission = (userId?: string) => {
         number_of_keys: parseInt(data.numberOfKeys)
       };
 
+      console.log('Saving additional data...');
       const { error: additionalError } = await supabase
         .from('cars')
         .update(additionalData)
