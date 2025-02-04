@@ -1,11 +1,8 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
-import { handleFormSubmission } from "../utils/submission";
-import { FormSubmissionResult } from "../types/submission";
 import { supabase } from "@/integrations/supabase/client";
+import { CarListingFormData } from "@/types/forms";
 
 export const useFormSubmission = (userId?: string) => {
   const [submitting, setSubmitting] = useState(false);
@@ -35,75 +32,88 @@ export const useFormSubmission = (userId?: string) => {
 
       const parsedValuationData = JSON.parse(valuationData);
       console.log('Parsed valuation data:', parsedValuationData);
-      
-      // Set a longer timeout of 180 seconds for the submission
-      const submissionPromise = handleFormSubmission(
-        data, 
-        userId, 
-        parsedValuationData, 
-        carId
-      );
 
-      const timeoutPromise = new Promise<FormSubmissionResult>((_, reject) => {
-        setTimeout(() => reject(new Error('The submission is taking longer than expected. Please try again.')), 180000);
-      });
+      // Split the submission into smaller chunks
+      const basicData = {
+        seller_id: userId,
+        title: `${parsedValuationData.make} ${parsedValuationData.model} ${parsedValuationData.year}`,
+        make: parsedValuationData.make,
+        model: parsedValuationData.model,
+        year: parsedValuationData.year,
+        vin: parsedValuationData.vin,
+        mileage: parseInt(localStorage.getItem('tempMileage') || '0'),
+        price: parsedValuationData.valuation || parsedValuationData.averagePrice,
+        transmission: parsedValuationData.transmission,
+        valuation_data: parsedValuationData,
+        is_draft: false
+      };
 
-      console.log('Awaiting submission result...');
-      const result = await Promise.race([submissionPromise, timeoutPromise]);
-
-      if (result.success) {
-        console.log('Submission successful');
-        
-        // Only update draft status if we have a valid carId
-        if (carId) {
-          const { error: updateError } = await supabase
+      // First, save basic data
+      const { error: basicError } = carId 
+        ? await supabase
             .from('cars')
-            .update({ is_draft: false })
+            .update(basicData)
             .eq('id', carId)
+            .single()
+        : await supabase
+            .from('cars')
+            .insert(basicData)
             .single();
 
-          if (updateError) {
-            console.error('Error updating draft status:', updateError);
-            throw updateError;
-          }
-        }
-
-        setShowSuccessDialog(true);
-        // Clear valuation data after successful submission
-        localStorage.removeItem('valuationData');
-        localStorage.removeItem('tempMileage');
-        localStorage.removeItem('tempVIN');
-        localStorage.removeItem('tempGearbox');
-      } else {
-        if (result.error?.includes("already been listed")) {
-          toast.error(result.error, {
-            description: "Please check the VIN number or contact support if you believe this is an error.",
-            duration: 5000,
-          });
-        } else {
-          toast.error(result.error || "Failed to submit listing", {
-            description: "Please ensure all required information is complete.",
-            duration: 5000
-          });
-        }
+      if (basicError) {
+        console.error('Basic data error:', basicError);
+        throw basicError;
       }
-    } catch (error: any) {
-      console.error('Form submission error:', error);
+
+      // Then, save additional details in a separate operation
+      const additionalData = {
+        name: data.name,
+        address: data.address,
+        mobile_number: data.mobileNumber,
+        features: data.features,
+        is_damaged: data.isDamaged,
+        is_registered_in_poland: data.isRegisteredInPoland,
+        has_tool_pack: data.hasToolPack,
+        has_documentation: data.hasDocumentation,
+        is_selling_on_behalf: data.isSellingOnBehalf,
+        has_private_plate: data.hasPrivatePlate,
+        finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
+        service_history_type: data.serviceHistoryType,
+        seller_notes: data.sellerNotes,
+        seat_material: data.seatMaterial,
+        number_of_keys: parseInt(data.numberOfKeys)
+      };
+
+      const { error: additionalError } = await supabase
+        .from('cars')
+        .update(additionalData)
+        .eq('id', carId)
+        .single();
+
+      if (additionalError) {
+        console.error('Additional data error:', additionalError);
+        throw additionalError;
+      }
+
+      console.log('Form submission completed successfully');
+      setShowSuccessDialog(true);
       
-      if (error.message === 'The submission is taking longer than expected. Please try again.') {
-        toast.error("The submission is taking longer than expected. Try reducing the size of your images or check your connection.", {
-          duration: 8000
-        });
+      // Clear valuation data after successful submission
+      localStorage.removeItem('valuationData');
+      localStorage.removeItem('tempMileage');
+      localStorage.removeItem('tempVIN');
+      localStorage.removeItem('tempGearbox');
+      
+    } catch (error: any) {
+      console.error('Submission error:', error);
+      
+      if (error.message?.includes('timeout')) {
+        toast.error('The request is taking longer than expected. Please try again.');
       } else if (error.message?.includes('vehicle valuation')) {
-        toast.error("Please complete the vehicle valuation first", {
-          description: "Return to the seller's page to start the valuation process.",
-          duration: 5000
-        });
+        toast.error("Please complete the vehicle valuation first");
         navigate('/sellers');
       } else if (error.code === 'TIMEOUT_ERROR') {
-        toast.error("The request timed out. Please check your connection and try again.", {
-          duration: 8000
-        });
+        toast.error("The request timed out. Please check your connection and try again.");
       } else {
         toast.error(error.message || "Failed to submit listing. Please try again.", {
           description: "If the problem persists, please contact support.",
