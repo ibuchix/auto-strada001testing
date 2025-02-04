@@ -1,18 +1,14 @@
-
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./ValuationResult";
 import { Dialog } from "@/components/ui/dialog";
 import { useValuationForm } from "./valuation/useValuationForm";
 import { ValuationData } from "./valuation/types";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ValuationFormData, valuationFormSchema } from "@/types/validation";
 
 export const ValuationForm = () => {
   const {
-    vin,
-    setVin,
-    mileage,
-    setMileage,
-    gearbox,
-    setGearbox,
     isLoading,
     valuationResult,
     dialogOpen,
@@ -21,17 +17,30 @@ export const ValuationForm = () => {
     setDialogOpen,
   } = useValuationForm();
 
+  const form = useForm<ValuationFormData>({
+    resolver: zodResolver(valuationFormSchema),
+    defaultValues: {
+      vin: "",
+      mileage: "",
+      gearbox: "manual",
+    },
+  });
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const isValid = await form.trigger();
+    if (!isValid) return;
+    
+    const formData = form.getValues();
+    await handleVinSubmit(e, formData);
+  };
+
   return (
     <div className="w-full max-w-md mx-auto">
       <ValuationInput 
-        vin={vin}
-        mileage={mileage}
-        gearbox={gearbox}
+        form={form}
         isLoading={isLoading}
-        onVinChange={setVin}
-        onMileageChange={setMileage}
-        onGearboxChange={setGearbox}
-        onSubmit={handleVinSubmit}
+        onSubmit={onSubmit}
       />
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         {valuationResult && (
