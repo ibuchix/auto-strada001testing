@@ -1,16 +1,10 @@
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 
 export const getFormDefaults = (): Partial<CarListingFormData> => ({
   name: "",
   address: "",
   mobileNumber: "",
-  features: {
-    satNav: false,
-    panoramicRoof: false,
-    reverseCamera: false,
-    heatedSeats: false,
-    upgradedSound: false
-  },
+  features: { ...defaultCarFeatures },
   isDamaged: false,
   isRegisteredInPoland: false,
   hasToolPack: false,

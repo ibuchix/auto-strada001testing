@@ -6,6 +6,7 @@ export interface CarFeatures {
   reverseCamera: boolean;
   heatedSeats: boolean;
   upgradedSound: boolean;
+  [key: string]: boolean;
 }
 
 export interface CarListingFormData {
@@ -31,7 +32,6 @@ export interface CarListingFormData {
   rimPhotos?: any;
   rimPhotosComplete: boolean;
   warningLightPhotos: string[];
-  // Additional fields for manual valuation
   vin?: string;
   make?: string;
   model?: string;
@@ -51,3 +51,23 @@ export interface CarListingFormData {
   notes?: string;
   serviceHistoryFiles?: string[];
 }
+
+export const defaultCarFeatures: CarFeatures = {
+  satNav: false,
+  panoramicRoof: false,
+  reverseCamera: false,
+  heatedSeats: false,
+  upgradedSound: false
+};
+
+export const transformFeaturesForDb = (features: CarFeatures): Json => {
+  return features as unknown as Json;
+};
+
+export const transformFeaturesFromDb = (features: Json): CarFeatures => {
+  const defaultFeatures = { ...defaultCarFeatures };
+  if (typeof features === 'object' && features !== null) {
+    return { ...defaultFeatures, ...features as Record<string, boolean> };
+  }
+  return defaultFeatures;
+};
