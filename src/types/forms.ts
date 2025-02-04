@@ -1,7 +1,4 @@
-import { DamageReport, RimPhotos } from "@/components/forms/car-listing/types/damages";
-
 export interface CarFeatures {
-  [key: string]: boolean;
   satNav: boolean;
   panoramicRoof: boolean;
   reverseCamera: boolean;
@@ -20,7 +17,7 @@ export interface CarListingFormData {
   hasDocumentation: boolean;
   isSellingOnBehalf: boolean;
   hasPrivatePlate: boolean;
-  financeAmount: string;
+  financeAmount?: string;
   financeDocument: File | null;
   serviceHistoryType: "full" | "partial" | "none" | "not_due";
   sellerNotes?: string;
@@ -29,7 +26,7 @@ export interface CarListingFormData {
   seatMaterial: string;
   numberOfKeys: string;
   damageReports: DamageReport[];
-  rimPhotos: RimPhotos;
+  rimPhotos?: RimPhotos;
   rimPhotosComplete: boolean;
   warningLightPhotos: string[];
   // Additional fields for manual valuation
