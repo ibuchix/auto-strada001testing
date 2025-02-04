@@ -1,15 +1,10 @@
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 import { Database } from "@/integrations/supabase/types";
 import { Json } from "@/integrations/supabase/types";
-import { transformFeaturesForDb, transformFeaturesFromDb } from "@/types/forms";
 
 type CarInsert = Database['public']['Tables']['cars']['Insert'];
 
 export const transformFormToDbData = (formData: CarListingFormData, userId: string): CarInsert => {
-  if (!formData.features) {
-    throw new Error("Features are required");
-  }
-
   const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const vin = localStorage.getItem('tempVIN') || '';
@@ -19,7 +14,7 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     name: formData.name,
     address: formData.address,
     mobile_number: formData.mobileNumber,
-    features: transformFeaturesForDb(formData.features || defaultCarFeatures),
+    features: formData.features as unknown as Json,
     is_damaged: formData.isDamaged,
     is_registered_in_poland: formData.isRegisteredInPoland,
     has_tool_pack: formData.hasToolPack,
@@ -46,7 +41,7 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
     name: dbData.name || "",
     address: dbData.address || "",
     mobileNumber: dbData.mobile_number || "",
-    features: transformFeaturesFromDb(dbData.features),
+    features: dbData.features ? { ...defaultCarFeatures, ...dbData.features as Record<string, boolean> } : defaultCarFeatures,
     isDamaged: dbData.is_damaged || false,
     isRegisteredInPoland: dbData.is_registered_in_poland || false,
     hasToolPack: dbData.has_tool_pack || false,
@@ -58,8 +53,6 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
     sellerNotes: dbData.seller_notes || "",
     seatMaterial: dbData.seat_material || "",
     numberOfKeys: dbData.number_of_keys?.toString() || "1",
-    vin: dbData.vin || "",
-    mileage: dbData.mileage || 0,
     transmission: dbData.transmission as "manual" | "automatic" | null
   };
 };
