@@ -1,15 +1,19 @@
 import { CarListingFormData } from "@/types/forms";
 import { Database } from "@/integrations/supabase/types";
+import { Json } from "@/integrations/supabase/types";
 
 type CarInsert = Database['public']['Tables']['cars']['Insert'];
 
 export const transformFormToDbData = (formData: CarListingFormData, userId: string): CarInsert => {
+  // Convert CarFeatures to Json type
+  const features = formData.features as unknown as Json;
+
   return {
     seller_id: userId,
     name: formData.name,
     address: formData.address,
     mobile_number: formData.mobileNumber,
-    features: formData.features,
+    features,
     is_damaged: formData.isDamaged,
     is_registered_in_poland: formData.isRegisteredInPoland,
     has_tool_pack: formData.hasToolPack,
@@ -35,7 +39,7 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
     name: dbData.name,
     address: dbData.address,
     mobileNumber: dbData.mobile_number,
-    features: dbData.features,
+    features: dbData.features as CarListingFormData['features'],
     isDamaged: dbData.is_damaged,
     isRegisteredInPoland: dbData.is_registered_in_poland,
     hasToolPack: dbData.has_tool_pack,

@@ -1,9 +1,13 @@
+import { Json } from "@/integrations/supabase/types";
+import { DamageReport, RimPhotos } from "@/components/forms/car-listing/types/damages";
+
 export interface CarFeatures {
   satNav: boolean;
   panoramicRoof: boolean;
   reverseCamera: boolean;
   heatedSeats: boolean;
   upgradedSound: boolean;
+  [key: string]: boolean; // Add index signature for Json compatibility
 }
 
 export interface CarListingFormData {
