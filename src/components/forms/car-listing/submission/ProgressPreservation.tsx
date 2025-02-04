@@ -26,10 +26,20 @@ export const ProgressPreservation = () => {
     // Restore progress on mount
     const savedProgress = localStorage.getItem('formProgress');
     if (savedProgress) {
-      const parsed = JSON.parse(savedProgress);
-      Object.entries(parsed).forEach(([key, value]) => {
-        setValue(key as keyof CarListingFormData, value);
-      });
+      try {
+        const parsed = JSON.parse(savedProgress);
+        Object.entries(parsed).forEach(([key, value]) => {
+          // Type check before setting value
+          if (value !== undefined && value !== null) {
+            setValue(key as keyof CarListingFormData, value as any, {
+              shouldValidate: false,
+              shouldDirty: false
+            });
+          }
+        });
+      } catch (error) {
+        console.error('Error restoring form progress:', error);
+      }
     }
   }, [setValue]);
 

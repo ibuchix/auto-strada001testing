@@ -11,16 +11,16 @@ import { FormSubmissionProvider } from "./car-listing/submission/FormSubmissionP
 import { ErrorHandler } from "./car-listing/submission/ErrorHandler";
 import { ProgressPreservation } from "./car-listing/submission/ProgressPreservation";
 import { useFormSubmissionContext } from "./car-listing/submission/FormSubmissionProvider";
+import { toast } from "sonner";
 
-const FormContent = () => {
+const FormContent = ({ session, draftId }: { session: any; draftId?: string }) => {
   const { form, carId, lastSaved } = useCarListingForm(
     session?.user.id, 
-    draftId || undefined
+    draftId
   );
   const [uploadProgress, setUploadProgress] = useState(0);
   const { submitting, showSuccessDialog, setShowSuccessDialog, handleSubmit } = useFormSubmissionContext();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const onSubmit = async (data: any) => {
     const storedMileage = localStorage.getItem('tempMileage');
@@ -79,7 +79,7 @@ export const CarListingForm = () => {
 
   return (
     <FormSubmissionProvider userId={session.user.id}>
-      <FormContent />
+      <FormContent session={session} draftId={draftId} />
     </FormSubmissionProvider>
   );
 };
