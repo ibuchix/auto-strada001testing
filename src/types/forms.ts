@@ -1,6 +1,6 @@
 import { Json } from "@/integrations/supabase/types";
 
-export interface CarFeatures extends Record<string, boolean> {
+export interface CarFeatures {
   satNav: boolean;
   panoramicRoof: boolean;
   reverseCamera: boolean;
