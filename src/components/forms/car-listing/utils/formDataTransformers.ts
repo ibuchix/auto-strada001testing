@@ -1,7 +1,7 @@
 import { CarListingFormData } from "@/types/forms";
 import { Database } from "@/integrations/supabase/types";
 import { Json } from "@/integrations/supabase/types";
-import { transformFeaturesForDb, transformFeaturesFromDb } from "@/types/forms";
+import { transformFeaturesForDb } from "@/types/forms";
 
 type CarInsert = Database['public']['Tables']['cars']['Insert'];
 
@@ -9,6 +9,10 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
   if (!formData.features) {
     throw new Error("Features are required");
   }
+
+  const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
+  const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
+  const vin = localStorage.getItem('tempVIN') || '';
 
   return {
     seller_id: userId,
@@ -28,28 +32,11 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     seat_material: formData.seatMaterial,
     number_of_keys: parseInt(formData.numberOfKeys),
     is_draft: true,
-    last_saved: new Date().toISOString()
-  };
-};
-
-export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> => {
-  return {
-    name: dbData.name,
-    address: dbData.address,
-    mobileNumber: dbData.mobile_number,
-    features: transformFeaturesFromDb(dbData.features),
-    isDamaged: dbData.is_damaged,
-    isRegisteredInPoland: dbData.is_registered_in_poland,
-    hasToolPack: dbData.has_tool_pack,
-    hasDocumentation: dbData.has_documentation,
-    isSellingOnBehalf: dbData.is_selling_on_behalf,
-    hasPrivatePlate: dbData.has_private_plate,
-    financeAmount: dbData.finance_amount?.toString(),
-    serviceHistoryType: dbData.service_history_type,
-    sellerNotes: dbData.seller_notes,
-    seatMaterial: dbData.seat_material,
-    numberOfKeys: dbData.number_of_keys?.toString(),
-    vin: dbData.vin,
-    mileage: dbData.mileage
+    last_saved: new Date().toISOString(),
+    mileage: mileage,
+    price: valuationData.valuation || valuationData.averagePrice || 0,
+    title: `${valuationData.make || ''} ${valuationData.model || ''} ${valuationData.year || ''}`.trim() || 'Draft Listing',
+    vin: vin,
+    transmission: formData.transmission || null
   };
 };
