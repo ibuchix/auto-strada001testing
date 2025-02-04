@@ -1,3 +1,4 @@
+
 import { Database } from "@/integrations/supabase/types";
 
 type TransmissionType = Database['public']['Enums']['car_transmission_type'];
@@ -11,21 +12,13 @@ export interface ValuationData {
   year?: number;
   capacity?: number;
   error?: string;
+  isExisting?: boolean;
   [key: string]: any;
 }
 
 export interface ValuationResult {
-  make: string;
-  model: string;
-  year: number;
-  vin: string;
-  transmission: TransmissionType;
-  capacity?: number;
-  valuation?: number;
-  averagePrice?: number;
-  isExisting?: boolean;
-  error?: string;
-  rawResponse?: any;
+  success: boolean;
+  data: ValuationData;
 }
 
 export interface ValuationState {

@@ -1,16 +1,20 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getValuation } from './services/valuationService';
 import { toast } from 'sonner';
-import { ValuationResult } from './types';
+import { ValuationResult, ValuationData } from './types';
+import { Database } from '@/integrations/supabase/types';
+
+type TransmissionType = Database['public']['Enums']['car_transmission_type'];
 
 export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
   const navigate = useNavigate();
   const [vin, setVin] = useState('');
   const [mileage, setMileage] = useState('');
-  const [gearbox, setGearbox] = useState<'manual' | 'automatic'>('manual');
+  const [gearbox, setGearbox] = useState<TransmissionType>('manual');
   const [isLoading, setIsLoading] = useState(false);
-  const [valuationResult, setValuationResult] = useState<ValuationResult | null>(null);
+  const [valuationResult, setValuationResult] = useState<ValuationData | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleVinSubmit = async (e: React.FormEvent) => {
@@ -20,16 +24,16 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
     try {
       const result = await getValuation(vin, Number(mileage), gearbox, context);
       
-      if (result.isExisting && context === 'seller') {
+      if (result.data.isExisting && context === 'seller') {
         toast.error("This vehicle has already been listed");
         return;
       }
 
-      setValuationResult(result);
+      setValuationResult(result.data);
       setDialogOpen(true);
       
       // Store valuation data in localStorage
-      localStorage.setItem('valuationData', JSON.stringify(result));
+      localStorage.setItem('valuationData', JSON.stringify(result.data));
       localStorage.setItem('tempVIN', vin);
       localStorage.setItem('tempMileage', mileage);
       localStorage.setItem('tempGearbox', gearbox);

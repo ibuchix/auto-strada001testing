@@ -1,15 +1,16 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { ValuationResult } from "../types";
 
 export const getValuation = async (
   vin: string,
   mileage: number,
   gearbox: string,
   context: 'home' | 'seller' = 'home'
-) => {
+): Promise<ValuationResult> => {
   try {
     // Set a timeout of 30 seconds for the entire operation
-    const timeoutPromise = new Promise((_, reject) => {
+    const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => reject(new Error('Request timed out. Please try again.')), 30000);
     });
 
@@ -22,7 +23,7 @@ export const getValuation = async (
           check_vin: vin
         });
         
-        const vinCheckTimeout = new Promise((_, reject) => {
+        const vinCheckTimeout = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error('VIN check timed out')), 5000);
         });
 
