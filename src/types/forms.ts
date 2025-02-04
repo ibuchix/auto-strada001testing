@@ -6,10 +6,15 @@ export interface CarFeatures {
   reverseCamera: boolean;
   heatedSeats: boolean;
   upgradedSound: boolean;
-  [key: string]: boolean;
 }
 
-export type PartialCarFeatures = Partial<CarFeatures>;
+export const defaultCarFeatures: CarFeatures = {
+  satNav: false,
+  panoramicRoof: false,
+  reverseCamera: false,
+  heatedSeats: false,
+  upgradedSound: false
+};
 
 export interface CarListingFormData {
   name: string;
@@ -27,7 +32,7 @@ export interface CarListingFormData {
   serviceHistoryType: "full" | "partial" | "none" | "not_due";
   sellerNotes?: string;
   uploadedPhotos: string[];
-  transmission?: "manual" | "automatic" | null;
+  transmission: "manual" | "automatic" | null;
   seatMaterial: string;
   numberOfKeys: string;
   damageReports: any[];
@@ -54,26 +59,16 @@ export interface CarListingFormData {
   serviceHistoryFiles?: string[];
 }
 
-export const defaultCarFeatures: CarFeatures = {
-  satNav: false,
-  panoramicRoof: false,
-  reverseCamera: false,
-  heatedSeats: false,
-  upgradedSound: false
-};
-
-export const transformFeaturesForDb = (features: CarFeatures | PartialCarFeatures): Json => {
-  const completeFeatures = {
-    ...defaultCarFeatures,
-    ...features
-  };
-  return completeFeatures as unknown as Json;
+export const transformFeaturesForDb = (features: CarFeatures): Json => {
+  return features as unknown as Json;
 };
 
 export const transformFeaturesFromDb = (features: Json | null): CarFeatures => {
-  const defaultFeatures = { ...defaultCarFeatures };
-  if (typeof features === 'object' && features !== null) {
-    return { ...defaultFeatures, ...features as Record<string, boolean> };
+  if (!features) {
+    return defaultCarFeatures;
   }
-  return defaultFeatures;
+  return {
+    ...defaultCarFeatures,
+    ...(features as Record<string, boolean>)
+  };
 };

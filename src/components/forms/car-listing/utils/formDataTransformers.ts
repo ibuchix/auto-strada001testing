@@ -1,4 +1,4 @@
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 import { Database } from "@/integrations/supabase/types";
 import { Json } from "@/integrations/supabase/types";
 import { transformFeaturesForDb, transformFeaturesFromDb } from "@/types/forms";
@@ -19,7 +19,7 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     name: formData.name,
     address: formData.address,
     mobile_number: formData.mobileNumber,
-    features: transformFeaturesForDb(formData.features),
+    features: transformFeaturesForDb(formData.features || defaultCarFeatures),
     is_damaged: formData.isDamaged,
     is_registered_in_poland: formData.isRegisteredInPoland,
     has_tool_pack: formData.hasToolPack,
@@ -37,7 +37,7 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     price: valuationData.valuation || valuationData.averagePrice || 0,
     title: `${valuationData.make || ''} ${valuationData.model || ''} ${valuationData.year || ''}`.trim() || 'Draft Listing',
     vin: vin,
-    transmission: formData.transmission as "manual" | "automatic" | null
+    transmission: formData.transmission
   };
 };
 
