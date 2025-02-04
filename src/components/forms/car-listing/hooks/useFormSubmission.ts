@@ -49,18 +49,14 @@ export const useFormSubmission = (userId?: string) => {
       };
 
       console.log('Saving basic data...');
-      const { data: savedBasicData, error: basicError } = carId 
-        ? await supabase
-            .from('cars')
-            .update(basicData)
-            .eq('id', carId)
-            .select()
-            .single()
-        : await supabase
-            .from('cars')
-            .insert(basicData)
-            .select()
-            .single();
+      const { data: savedBasicData, error: basicError } = await supabase
+        .from('cars')
+        .upsert({
+          ...basicData,
+          ...(carId && { id: carId })
+        })
+        .select()
+        .single();
 
       if (basicError) {
         console.error('Basic data error:', basicError);
