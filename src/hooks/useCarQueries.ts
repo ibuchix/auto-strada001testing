@@ -25,7 +25,7 @@ export const useCarQueries = () => {
         return data;
       },
       staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
-      cacheTime: 1000 * 60 * 30, // Keep unused data in cache for 30 minutes
+      gcTime: 1000 * 60 * 30, // Keep unused data in cache for 30 minutes
       retry: 2,
       onError: (error: any) => {
         toast.error('Failed to fetch cars', {
@@ -58,7 +58,7 @@ export const useCarQueries = () => {
       },
       enabled: !!carId,
       staleTime: 1000 * 60 * 5,
-      cacheTime: 1000 * 60 * 30,
+      gcTime: 1000 * 60 * 30,
       onError: (error: any) => {
         toast.error('Failed to fetch car details', {
           description: error.message
