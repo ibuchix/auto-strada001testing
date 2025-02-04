@@ -10,14 +10,13 @@ export const useCarQueries = () => {
     return useQuery({
       queryKey: ['cars'],
       queryFn: async () => {
-        console.log('Fetching cars from database...');
+        console.log('Fetching cars from materialized view...');
         const session = await supabase.auth.getSession();
         console.log('Current Session:', session);
 
         const { data, error } = await supabase
-          .from('cars')
+          .from('car_listings')
           .select('*')
-          .eq('is_draft', false)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -32,7 +31,7 @@ export const useCarQueries = () => {
       gcTime: 1000 * 60 * 30, // Keep unused data in cache for 30 minutes
       retry: 2,
       meta: {
-        errorMessage: 'Failed to fetch cars'
+        errorMessage: 'Failed to fetch car listings'
       }
     });
   };
@@ -44,15 +43,15 @@ export const useCarQueries = () => {
       queryFn: async () => {
         if (!carId) return null;
         
-        console.log('Fetching car details from database...');
+        console.log('Fetching car details from materialized view...');
         const session = await supabase.auth.getSession();
         console.log('Current Session:', session);
 
         const { data, error } = await supabase
-          .from('cars')
+          .from('car_listings')
           .select('*')
           .eq('id', carId)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Supabase Error:', error);
@@ -80,7 +79,7 @@ export const useCarQueries = () => {
         console.log('Current Session:', session);
 
         const { data: updatedCar, error } = await supabase
-          .from('cars')
+          .from('car_listings')
           .update(data)
           .eq('id', carId)
           .select()
@@ -117,7 +116,7 @@ export const useCarQueries = () => {
         queryKey: ['car', carId],
         queryFn: async () => {
           const { data, error } = await supabase
-            .from('cars')
+            .from('car_listings')
             .select('*')
             .eq('id', carId)
             .single();
