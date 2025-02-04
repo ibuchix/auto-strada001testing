@@ -37,6 +37,12 @@ export interface CarListingFormData {
   seatMaterial?: string;
   numberOfKeys?: string;
   damageReports?: any[];
+  rimPhotos?: {
+    front_left?: string | null;
+    front_right?: string | null;
+    rear_left?: string | null;
+    rear_right?: string | null;
+  };
   rimPhotosComplete?: boolean;
   warningLightPhotos?: string[];
   vin?: string;
