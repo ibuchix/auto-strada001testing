@@ -5,12 +5,15 @@ import { toast } from 'sonner';
 export const useCarQueries = () => {
   const queryClient = useQueryClient();
 
-  // Query for fetching cars with caching
+  // Query for fetching cars with caching and error logging
   const useCarsList = () => {
     return useQuery({
       queryKey: ['cars'],
       queryFn: async () => {
         console.log('Fetching cars from database...');
+        const session = await supabase.auth.getSession();
+        console.log('Current Session:', session);
+
         const { data, error } = await supabase
           .from('cars')
           .select('*')
@@ -18,7 +21,8 @@ export const useCarQueries = () => {
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Error fetching cars:', error);
+          console.error('Supabase Error:', error);
+          console.log('Auth Status:', await supabase.auth.getUser());
           throw error;
         }
 
@@ -33,7 +37,7 @@ export const useCarQueries = () => {
     });
   };
 
-  // Query for fetching a single car with caching
+  // Query for fetching a single car with caching and error logging
   const useCarDetails = (carId: string | undefined) => {
     return useQuery({
       queryKey: ['car', carId],
@@ -41,6 +45,9 @@ export const useCarQueries = () => {
         if (!carId) return null;
         
         console.log('Fetching car details from database...');
+        const session = await supabase.auth.getSession();
+        console.log('Current Session:', session);
+
         const { data, error } = await supabase
           .from('cars')
           .select('*')
@@ -48,7 +55,8 @@ export const useCarQueries = () => {
           .single();
 
         if (error) {
-          console.error('Error fetching car details:', error);
+          console.error('Supabase Error:', error);
+          console.log('Auth Status:', await supabase.auth.getUser());
           throw error;
         }
 
@@ -63,11 +71,14 @@ export const useCarQueries = () => {
     });
   };
 
-  // Mutation for updating car data with cache invalidation
+  // Mutation for updating car data with error logging
   const useUpdateCar = () => {
     return useMutation({
       mutationFn: async ({ carId, data }: { carId: string; data: any }) => {
         console.log('Updating car in database...');
+        const session = await supabase.auth.getSession();
+        console.log('Current Session:', session);
+
         const { data: updatedCar, error } = await supabase
           .from('cars')
           .update(data)
@@ -76,14 +87,14 @@ export const useCarQueries = () => {
           .single();
 
         if (error) {
-          console.error('Error updating car:', error);
+          console.error('Supabase Error:', error);
+          console.log('Auth Status:', await supabase.auth.getUser());
           throw error;
         }
 
         return updatedCar;
       },
       onSuccess: (_, variables) => {
-        // Invalidate relevant queries
         queryClient.invalidateQueries({ queryKey: ['cars'] });
         queryClient.invalidateQueries({ queryKey: ['car', variables.carId] });
         toast.success('Car updated successfully');
@@ -96,22 +107,34 @@ export const useCarQueries = () => {
     });
   };
 
-  // Prefetch car details
+  // Prefetch car details with error logging
   const prefetchCarDetails = async (carId: string) => {
-    await queryClient.prefetchQuery({
-      queryKey: ['car', carId],
-      queryFn: async () => {
-        const { data, error } = await supabase
-          .from('cars')
-          .select('*')
-          .eq('id', carId)
-          .single();
+    try {
+      const session = await supabase.auth.getSession();
+      console.log('Current Session for prefetch:', session);
 
-        if (error) throw error;
-        return data;
-      },
-      staleTime: 1000 * 60 * 5
-    });
+      await queryClient.prefetchQuery({
+        queryKey: ['car', carId],
+        queryFn: async () => {
+          const { data, error } = await supabase
+            .from('cars')
+            .select('*')
+            .eq('id', carId)
+            .single();
+
+          if (error) {
+            console.error('Supabase Prefetch Error:', error);
+            console.log('Auth Status:', await supabase.auth.getUser());
+            throw error;
+          }
+
+          return data;
+        },
+        staleTime: 1000 * 60 * 5
+      });
+    } catch (error) {
+      console.error('Prefetch Error:', error);
+    }
   };
 
   return {
