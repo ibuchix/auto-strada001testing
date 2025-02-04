@@ -1498,6 +1498,7 @@ export type Database = {
           model: string | null
           name: string | null
           number_of_keys: number | null
+          owner_id: string | null
           price: number | null
           registration_number: string | null
           required_photos: Json | null
@@ -1559,6 +1560,7 @@ export type Database = {
           model?: string | null
           name?: string | null
           number_of_keys?: number | null
+          owner_id?: never
           price?: number | null
           registration_number?: string | null
           required_photos?: Json | null
@@ -1620,6 +1622,7 @@ export type Database = {
           model?: string | null
           name?: string | null
           number_of_keys?: number | null
+          owner_id?: never
           price?: number | null
           registration_number?: string | null
           required_photos?: Json | null

@@ -50,7 +50,7 @@ export const useFormSubmission = (userId?: string) => {
 
       console.log('Saving basic data...');
       const { data: savedBasicData, error: basicError } = await supabase
-        .from('cars')
+        .from('cars')  // Changed from car_listings to cars
         .upsert({
           ...basicData,
           ...(carId && { id: carId })
@@ -87,7 +87,7 @@ export const useFormSubmission = (userId?: string) => {
 
       console.log('Saving additional data...');
       const { error: additionalError } = await supabase
-        .from('cars')
+        .from('cars')  // Changed from car_listings to cars
         .update(additionalData)
         .eq('id', updatedCarId)
         .single();
