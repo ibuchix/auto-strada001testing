@@ -1,3 +1,4 @@
+
 import { Navigation } from "@/components/Navigation";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -44,18 +45,19 @@ const Sellers = () => {
     setIsLoading(true);
 
     try {
-      const valuationData = await getValuation(
+      const result = await getValuation(
         vin,
         parseInt(mileage),
-        gearbox
+        gearbox,
+        'seller'
       );
 
-      console.log('Valuation response:', valuationData);
+      console.log('Valuation response:', result);
 
-      if (valuationData.isExisting) {
+      if (result.data.isExisting) {
         setShowExistingVehicleDialog(true);
-      } else if (valuationData && valuationData.make && valuationData.model) {
-        localStorage.setItem('valuationData', JSON.stringify(valuationData));
+      } else if (result.data.make && result.data.model) {
+        localStorage.setItem('valuationData', JSON.stringify(result.data));
         localStorage.setItem('tempVIN', vin);
         localStorage.setItem('tempMileage', mileage);
         localStorage.setItem('tempGearbox', gearbox);

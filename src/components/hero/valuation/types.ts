@@ -13,6 +13,8 @@ export interface ValuationData {
   capacity?: number;
   error?: string;
   isExisting?: boolean;
+  vin: string;
+  transmission: string;
   [key: string]: any;
 }
 

@@ -1,7 +1,9 @@
+
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./ValuationResult";
 import { Dialog } from "@/components/ui/dialog";
 import { useValuationForm } from "./valuation/useValuationForm";
+import { ValuationData } from "./valuation/types";
 
 export const ValuationForm = () => {
   const {
@@ -34,7 +36,7 @@ export const ValuationForm = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         {valuationResult && (
           <ValuationResult 
-            valuationResult={valuationResult}
+            valuationResult={valuationResult as Required<ValuationData>}
             onContinue={handleContinue}
             onClose={() => setDialogOpen(false)}
           />
