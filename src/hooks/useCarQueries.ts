@@ -78,8 +78,9 @@ export const useCarQueries = () => {
         const session = await supabase.auth.getSession();
         console.log('Current Session:', session);
 
+        // Use the original cars table for updates, not the materialized view
         const { data: updatedCar, error } = await supabase
-          .from('car_listings')
+          .from('cars')
           .update(data)
           .eq('id', carId)
           .select()
