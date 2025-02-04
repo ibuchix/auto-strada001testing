@@ -13,7 +13,6 @@ export const handleFormSubmission = async (
     console.log('Starting form submission process...');
     console.log('Valuation data:', valuationData);
     
-    // Enhanced validation for valuation data
     if (!valuationData) {
       console.error('No valuation data found');
       throw new Error("Please complete the vehicle valuation first. Return to the seller's page to start the process.");
@@ -25,7 +24,6 @@ export const handleFormSubmission = async (
     }
     valuationData.mileage = parseInt(mileage);
 
-    // Detailed validation of required valuation fields
     const requiredFields = ['make', 'model', 'vin', 'mileage', 'valuation', 'year'];
     const missingFields = requiredFields.filter(field => !valuationData[field]);
     
@@ -34,7 +32,6 @@ export const handleFormSubmission = async (
       throw new Error(`Incomplete vehicle information. Missing: ${missingFields.join(', ')}. Please complete the valuation process.`);
     }
 
-    // Check if VIN already exists (for non-draft listings)
     console.log('Checking for existing VIN...');
     const { data: existingCar, error: checkError } = await supabase
       .from('cars')
@@ -55,7 +52,6 @@ export const handleFormSubmission = async (
       };
     }
 
-    // Handle finance document upload if it exists
     let financeDocumentUrl = null;
     if (data.financeDocument) {
       const fileExt = data.financeDocument.name.split('.').pop();
@@ -78,10 +74,8 @@ export const handleFormSubmission = async (
       }
     }
 
-    // Remove financeDocument from data and prepare submission data
     const { financeDocument, ...submissionData } = data;
 
-    // Transform camelCase to snake_case for database fields
     const transformedData = {
       seller_id: userId,
       title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
@@ -98,7 +92,7 @@ export const handleFormSubmission = async (
       name: submissionData.name,
       address: submissionData.address,
       mobile_number: submissionData.mobileNumber,
-      features: submissionData.features,
+      features: JSON.stringify(submissionData.features),
       is_damaged: submissionData.isDamaged,
       is_registered_in_poland: submissionData.isRegisteredInPoland,
       has_tool_pack: submissionData.hasToolPack,
