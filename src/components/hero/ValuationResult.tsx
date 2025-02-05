@@ -14,8 +14,8 @@ interface ValuationResultProps {
     year: number;
     vin: string;
     transmission: string;
-    valuation?: number;
-    averagePrice?: number;
+    valuation?: number | null;
+    averagePrice?: number | null;
     isExisting?: boolean;
     error?: string;
     rawResponse?: any;
@@ -37,8 +37,8 @@ export const ValuationResult = ({
   if (!valuationResult) return null;
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-  const hasError = !!valuationResult.error;
-  const hasValuation = !hasError && !!(valuationResult.averagePrice || valuationResult.valuation);
+  const hasError = Boolean(valuationResult.error);
+  const hasValuation = !hasError && Boolean(valuationResult.averagePrice || valuationResult.valuation);
   
   const averagePrice = valuationResult.averagePrice || 0;
   console.log('ValuationResult - Display price:', averagePrice);
