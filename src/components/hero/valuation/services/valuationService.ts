@@ -1,5 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { ValuationResult } from "../types";
 
 export const getValuation = async (
@@ -7,92 +7,102 @@ export const getValuation = async (
   mileage: number,
   gearbox: string,
   context: 'home' | 'seller' = 'home'
-): Promise<ValuationResult> => {
+): Promise<{ data: ValuationResult }> => {
   try {
-    // Set a timeout of 4 minutes (240 seconds) for the entire operation
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Request timed out. Please try again.')), 240000);
-    });
+    // First check if VIN already exists
+    const { data: existingCar } = await supabase
+      .from('cars')
+      .select('id, title')
+      .eq('vin', vin)
+      .eq('is_draft', false)
+      .maybeSingle();
 
-    // Main valuation logic wrapped in a promise
-    const valuationPromise = async () => {
-      // Check if VIN exists only for seller context
-      if (context === 'seller') {
-        // Set a longer timeout for VIN check (30 seconds)
-        const vinCheckPromise = supabase.rpc('check_vin_exists', {
-          check_vin: vin
-        });
-        
-        const vinCheckTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('VIN check timed out')), 30000);
-        });
-
-        const { data: exists, error: checkError } = await Promise.race([
-          vinCheckPromise,
-          vinCheckTimeout
-        ]);
-
-        if (checkError) {
-          console.error('Error checking VIN:', checkError);
-          throw new Error("Failed to check VIN status");
+    if (existingCar) {
+      console.log('Found existing car:', existingCar);
+      return {
+        data: {
+          make: '',
+          model: '',
+          year: 0,
+          vin,
+          transmission: gearbox,
+          isExisting: true,
+          error: 'This vehicle has already been listed'
         }
-
-        if (exists) {
-          return {
-            success: true,
-            data: {
-              isExisting: true,
-              error: "This vehicle has already been listed"
-            }
-          };
-        }
-      }
-
-      // API call for valuation
-      const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
-        body: { vin, mileage, gearbox, context }
-      });
-
-      if (error) {
-        console.error('Valuation error:', error);
-        throw new Error(error.message || "Failed to get vehicle valuation");
-      }
-
-      // Check if we have valid data
-      if (data && data.success && data.data) {
-        return {
-          success: true,
-          data: data.data
-        };
-      }
-
-      // If we don't have valid data, throw an error
-      throw new Error(data?.message || "Could not retrieve complete vehicle information");
-    };
-
-    // Race between the timeout and the actual operation
-    const result = await Promise.race([valuationPromise(), timeoutPromise]);
-    return result;
-
-  } catch (error: any) {
-    console.error('Valuation error:', error);
-    
-    // Provide more specific error messages based on the error type
-    if (error.message.includes('timed out')) {
-      throw new Error(
-        "The request is taking longer than expected. Please check your connection and try again."
-      );
-    } else if (error.message.includes('VIN check')) {
-      throw new Error(
-        "Unable to verify VIN availability. Please try again in a few moments."
-      );
-    } else if (error.message.includes('vehicle valuation')) {
-      throw new Error(
-        "Unable to get vehicle valuation at the moment. Please try again later."
-      );
+      };
     }
 
-    throw new Error(error.message || "Failed to get vehicle valuation");
+    // Check VIN search history
+    const { data: searchHistory } = await supabase
+      .from('vin_search_results')
+      .select('search_data')
+      .eq('vin', vin)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (searchHistory?.search_data) {
+      console.log('Found cached valuation:', searchHistory.search_data);
+      return {
+        data: {
+          ...searchHistory.search_data,
+          transmission: gearbox,
+          isExisting: false
+        }
+      };
+    }
+
+    // API call for valuation with timeout handling
+    const timeoutDuration = 240000; // 4 minutes
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Request timed out'));
+      }, timeoutDuration);
+    });
+
+    const valuationPromise = supabase.functions.invoke('get-vehicle-valuation', {
+      body: { vin, mileage, gearbox, context }
+    });
+
+    const result = await Promise.race([valuationPromise, timeoutPromise]);
+    const { data, error } = result as any;
+
+    if (error) {
+      console.error('Valuation error:', error);
+      throw error;
+    }
+
+    return { data };
+  } catch (error: any) {
+    console.error('Error in getValuation:', error);
+    
+    // Handle timeout specifically
+    if (error.message === 'Request timed out') {
+      toast.error("Request timed out", {
+        description: "The valuation process took too long. Please try again.",
+        action: {
+          label: "Try Again",
+          onClick: () => {
+            // Clear any stored data
+            localStorage.removeItem('valuationData');
+            localStorage.removeItem('tempMileage');
+            localStorage.removeItem('tempVIN');
+            localStorage.removeItem('tempGearbox');
+            window.location.reload();
+          }
+        }
+      });
+    }
+
+    return {
+      data: {
+        make: '',
+        model: '',
+        year: 0,
+        vin,
+        transmission: gearbox,
+        error: error.message || 'Failed to get vehicle valuation'
+      }
+    };
   }
 };
-
