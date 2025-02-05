@@ -9,9 +9,11 @@ export const getValuation = async (
   gearbox: string,
   context: 'home' | 'seller' = 'home'
 ): Promise<ValuationResult> => {
+  console.log(`Starting valuation for VIN: ${vin} in ${context} context`);
+  
   try {
     if (context === 'seller') {
-      // Get current user's ID
+      console.log('Processing seller context validation...');
       const { data: { user } } = await supabase.auth.getUser();
       
       const { data, error } = await supabase.functions.invoke('handle-seller-operations', {
@@ -29,11 +31,12 @@ export const getValuation = async (
         throw error;
       }
 
+      console.log('Seller validation raw response:', data);
+
       if (!data.success) {
+        console.error('Validation failed:', data.data?.error);
         throw new Error(data.data?.error || 'Failed to validate VIN');
       }
-
-      console.log('Seller validation response:', data);
 
       // Store reservation ID in localStorage if present
       if (data.data?.reservationId) {
@@ -42,6 +45,7 @@ export const getValuation = async (
 
       // Check for existing vehicle
       if (data.data?.isExisting) {
+        console.log('Vehicle already exists in database');
         return {
           success: true,
           data: {
@@ -53,27 +57,46 @@ export const getValuation = async (
         };
       }
 
-      // Return the data if it's valid
-      if (data.data?.make && data.data?.model && data.data?.year) {
+      // Validate essential data
+      const hasEssentialData = data.data?.make && data.data?.model && data.data?.year;
+      console.log('Has essential data:', hasEssentialData, 'Data:', {
+        make: data.data?.make,
+        model: data.data?.model,
+        year: data.data?.year
+      });
+
+      if (hasEssentialData) {
+        console.log('Returning complete vehicle data');
         return {
           success: true,
-          data: data.data
+          data: {
+            make: data.data.make,
+            model: data.data.model,
+            year: data.data.year,
+            vin,
+            transmission: gearbox,
+            valuation: data.data.valuation,
+            averagePrice: data.data.averagePrice,
+            isExisting: false
+          }
         };
       }
 
-      // If we have some data but it's incomplete, still return it
+      // Handle partial data case
       if (data.data && Object.keys(data.data).length > 0) {
+        console.log('Returning partial data:', data.data);
         return {
           success: true,
           data: {
             ...data.data,
             vin,
-            transmission: gearbox
+            transmission: gearbox,
+            noData: !hasEssentialData
           }
         };
       }
 
-      // Only set noData if we truly have no usable data
+      console.log('No usable data found for VIN');
       return {
         success: true,
         data: {
@@ -85,7 +108,8 @@ export const getValuation = async (
       };
     }
 
-    // For non-seller context (home page)
+    // Home page context
+    console.log('Processing home page valuation...');
     const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
       body: { vin, mileage, gearbox, context }
     });
@@ -95,11 +119,18 @@ export const getValuation = async (
       throw error;
     }
 
-    console.log('Raw API Response:', data);
+    console.log('Home page valuation raw response:', data);
 
-    // Only mark as noData if we truly have no usable information
-    if (!data?.data?.make && !data?.data?.model && !data?.data?.year) {
-      console.log('No usable data found for VIN');
+    // Check for essential data
+    const hasEssentialData = data?.data?.make && data?.data?.model && data?.data?.year;
+    console.log('Has essential data:', hasEssentialData, 'Data:', {
+      make: data?.data?.make,
+      model: data?.data?.model,
+      year: data?.data?.year
+    });
+
+    if (!hasEssentialData) {
+      console.log('No essential data found for VIN in home context');
       return {
         success: true,
         data: {
@@ -111,7 +142,7 @@ export const getValuation = async (
       };
     }
 
-    // If we have the essential data, return it
+    console.log('Returning complete valuation data for home context');
     return {
       success: true,
       data: {
@@ -135,7 +166,6 @@ export const getValuation = async (
         action: {
           label: "Try Again",
           onClick: () => {
-            // Clear any stored data
             localStorage.removeItem('valuationData');
             localStorage.removeItem('tempMileage');
             localStorage.removeItem('tempVIN');

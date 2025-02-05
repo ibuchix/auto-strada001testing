@@ -1,10 +1,10 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ValuationFormData, valuationFormSchema } from "@/types/validation";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { calculateChecksum } from "@/utils/validation";
+import { getValuation } from "@/components/hero/valuation/services/valuationService";
 
 export const useValuationForm = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -21,30 +21,30 @@ export const useValuationForm = () => {
   });
 
   const onSubmit = async (data: ValuationFormData) => {
+    console.log('Starting valuation form submission:', data);
     setIsLoading(true);
+    
     try {
-      const apiId = "AUTOSTRA";
-      const apiSecret = "A4FTFH54C3E37P2D34A16A7A4V41XKBF";
-      const checksum = calculateChecksum(apiId, apiSecret, data.vin);
-
-      const response = await fetch(
-        `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${data.vin}/odometer:${data.mileage}/currency:PLN`
+      const result = await getValuation(
+        data.vin,
+        parseInt(data.mileage),
+        data.gearbox
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to get valuation");
+      console.log('Valuation result:', result);
+
+      if (result.success) {
+        localStorage.setItem("valuationData", JSON.stringify(result.data));
+        localStorage.setItem("tempMileage", data.mileage);
+        localStorage.setItem("tempVIN", data.vin);
+        localStorage.setItem("tempGearbox", data.gearbox);
+
+        setValuationResult(result.data);
+        setShowDialog(true);
+      } else {
+        console.error('Valuation failed:', result.data.error);
+        toast.error(result.data.error || "Failed to get vehicle valuation");
       }
-
-      const result = await response.json();
-
-      // Store valuation data
-      localStorage.setItem("valuationData", JSON.stringify(result));
-      localStorage.setItem("tempMileage", data.mileage);
-      localStorage.setItem("tempVIN", data.vin);
-      localStorage.setItem("tempGearbox", data.gearbox);
-
-      setValuationResult(result);
-      setShowDialog(true);
     } catch (error: any) {
       console.error("Valuation error:", error);
       toast.error(error.message || "Failed to get vehicle valuation");
