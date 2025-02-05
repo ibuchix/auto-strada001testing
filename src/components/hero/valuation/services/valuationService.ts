@@ -11,12 +11,16 @@ export const getValuation = async (
 ): Promise<ValuationResult> => {
   try {
     if (context === 'seller') {
+      // Get current user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { data, error } = await supabase.functions.invoke('handle-seller-operations', {
         body: {
           operation: 'validate_vin',
           vin,
           mileage,
-          gearbox
+          gearbox,
+          userId: user?.id
         }
       });
 

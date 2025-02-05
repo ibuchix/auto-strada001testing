@@ -13,6 +13,7 @@ interface ValuationRequest {
   vin: string;
   mileage: number;
   gearbox: string;
+  userId?: string;
 }
 
 interface ValidationResponse {
@@ -46,8 +47,8 @@ serve(async (req) => {
   }
 
   try {
-    const { operation, vin, mileage, gearbox } = await req.json() as ValuationRequest;
-    console.log('Processing seller operation:', { operation, vin, mileage, gearbox });
+    const { operation, vin, mileage, gearbox, userId } = await req.json() as ValuationRequest;
+    console.log('Processing seller operation:', { operation, vin, mileage, gearbox, userId });
 
     // Initialize Supabase client
     const supabase = createClient(
@@ -63,6 +64,22 @@ serve(async (req) => {
       case 'validate_vin': {
         console.log('Starting VIN validation for:', vin);
 
+        // Log the operation start
+        const { data: operationLog, error: logError } = await supabase
+          .from('seller_operations')
+          .insert({
+            seller_id: userId,
+            operation_type: 'validate_vin',
+            input_data: { vin, mileage, gearbox },
+            success: false
+          })
+          .select()
+          .single();
+
+        if (logError) {
+          console.error('Failed to log operation:', logError);
+        }
+
         // Check if VIN exists in cars table
         const { data: existingCar } = await supabase
           .from('cars')
@@ -72,17 +89,30 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existingCar) {
-          console.log('Found existing car:', existingCar);
+          const response = {
+            success: true,
+            data: {
+              vin,
+              transmission: gearbox,
+              isExisting: true,
+              error: 'This vehicle has already been listed'
+            }
+          };
+
+          // Update operation log
+          if (operationLog) {
+            await supabase
+              .from('seller_operations')
+              .update({
+                success: true,
+                output_data: response,
+                error_message: 'Vehicle already listed'
+              })
+              .eq('id', operationLog.id);
+          }
+
           return new Response(
-            JSON.stringify({
-              success: true,
-              data: {
-                vin,
-                transmission: gearbox,
-                isExisting: true,
-                error: 'This vehicle has already been listed'
-              }
-            }),
+            JSON.stringify(response),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -97,17 +127,30 @@ serve(async (req) => {
           .maybeSingle();
 
         if (searchHistory?.search_data) {
-          console.log('Found cached valuation:', searchHistory.search_data);
+          const response = {
+            success: true,
+            data: {
+              ...searchHistory.search_data,
+              transmission: gearbox,
+              isExisting: false,
+              vin
+            }
+          };
+
+          // Update operation log with cached result
+          if (operationLog) {
+            await supabase
+              .from('seller_operations')
+              .update({
+                success: true,
+                output_data: response,
+                error_message: 'Used cached VIN data'
+              })
+              .eq('id', operationLog.id);
+          }
+
           return new Response(
-            JSON.stringify({
-              success: true,
-              data: {
-                ...searchHistory.search_data,
-                transmission: gearbox,
-                isExisting: false,
-                vin
-              }
-            }),
+            JSON.stringify(response),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -133,7 +176,21 @@ serve(async (req) => {
         });
 
         if (!response.ok) {
-          throw new Error(`API request failed with status: ${response.status}`);
+          const errorMessage = `API request failed with status: ${response.status}`;
+          
+          // Update operation log with error
+          if (operationLog) {
+            await supabase
+              .from('seller_operations')
+              .update({
+                success: false,
+                error_message: errorMessage,
+                output_data: { status: response.status }
+              })
+              .eq('id', operationLog.id);
+          }
+
+          throw new Error(errorMessage);
         }
 
         const responseData = await response.json();
@@ -147,6 +204,16 @@ serve(async (req) => {
         if (!make || !model || !year || (!valuation && !averagePrice)) {
           console.log('Missing required data in API response');
           
+          const noDataResponse = {
+            success: true,
+            data: {
+              vin,
+              transmission: gearbox,
+              noData: true,
+              error: 'Could not retrieve complete vehicle information'
+            }
+          };
+
           // Store the no-data result
           await supabase
             .from('vin_search_results')
@@ -156,16 +223,20 @@ serve(async (req) => {
               success: false
             });
 
+          // Update operation log with no data result
+          if (operationLog) {
+            await supabase
+              .from('seller_operations')
+              .update({
+                success: true,
+                output_data: noDataResponse,
+                error_message: 'No data available for VIN'
+              })
+              .eq('id', operationLog.id);
+          }
+
           return new Response(
-            JSON.stringify({
-              success: true,
-              data: {
-                vin,
-                transmission: gearbox,
-                noData: true,
-                error: 'Could not retrieve complete vehicle information'
-              }
-            }),
+            JSON.stringify(noDataResponse),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -187,15 +258,29 @@ serve(async (req) => {
           .insert({
             vin,
             search_data: validationData,
-            success: true
+            success: true,
+            user_id: userId
           });
+
+        const successResponse = {
+          success: true,
+          data: validationData
+        };
+
+        // Update operation log with success
+        if (operationLog) {
+          await supabase
+            .from('seller_operations')
+            .update({
+              success: true,
+              output_data: successResponse
+            })
+            .eq('id', operationLog.id);
+        }
 
         console.log('Returning validation data:', validationData);
         return new Response(
-          JSON.stringify({
-            success: true,
-            data: validationData
-          }),
+          JSON.stringify(successResponse),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
