@@ -33,18 +33,16 @@ export const getValuation = async (
 
       console.log('Seller validation raw response:', data);
 
-      if (!data.success) {
-        console.error('Validation failed:', data.data?.error);
-        throw new Error(data.data?.error || 'Failed to validate VIN');
-      }
+      // If we get a success response but no essential data, treat as noData case
+      const hasEssentialData = data?.data?.make && data?.data?.model && data?.data?.year;
+      console.log('Has essential data:', hasEssentialData, 'Data:', {
+        make: data?.data?.make,
+        model: data?.data?.model,
+        year: data?.data?.year
+      });
 
-      // Store reservation ID in localStorage if present
-      if (data.data?.reservationId) {
-        localStorage.setItem('vinReservationId', data.data.reservationId);
-      }
-
-      // Check for existing vehicle
-      if (data.data?.isExisting) {
+      // Check for existing vehicle first
+      if (data?.data?.isExisting) {
         console.log('Vehicle already exists in database');
         return {
           success: true,
@@ -57,53 +55,35 @@ export const getValuation = async (
         };
       }
 
-      // Validate essential data
-      const hasEssentialData = data.data?.make && data.data?.model && data.data?.year;
-      console.log('Has essential data:', hasEssentialData, 'Data:', {
-        make: data.data?.make,
-        model: data.data?.model,
-        year: data.data?.year
-      });
-
-      if (hasEssentialData) {
-        console.log('Returning complete vehicle data');
+      // If we don't have essential data, mark as noData case
+      if (!hasEssentialData) {
+        console.log('Missing essential vehicle data, marking as noData case');
         return {
           success: true,
           data: {
-            make: data.data.make,
-            model: data.data.model,
-            year: data.data.year,
             vin,
             transmission: gearbox,
-            valuation: data.data.valuation,
-            averagePrice: data.data.averagePrice,
-            isExisting: false
+            noData: true,
+            error: 'Could not retrieve complete vehicle information',
+            reservationId: data?.data?.reservationId
           }
         };
       }
 
-      // Handle partial data case
-      if (data.data && Object.keys(data.data).length > 0) {
-        console.log('Returning partial data:', data.data);
-        return {
-          success: true,
-          data: {
-            ...data.data,
-            vin,
-            transmission: gearbox,
-            noData: !hasEssentialData
-          }
-        };
-      }
-
-      console.log('No usable data found for VIN');
+      // If we have all essential data, return complete response
+      console.log('Returning complete vehicle data');
       return {
         success: true,
         data: {
+          make: data.data.make,
+          model: data.data.model,
+          year: data.data.year,
           vin,
           transmission: gearbox,
-          noData: true,
-          error: 'Could not retrieve vehicle information'
+          valuation: data.data.valuation,
+          averagePrice: data.data.averagePrice,
+          isExisting: false,
+          reservationId: data.data.reservationId
         }
       };
     }
