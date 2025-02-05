@@ -25,7 +25,10 @@ export const getValuation = async (
           vin,
           transmission: gearbox,
           isExisting: true,
-          error: 'This vehicle has
+          error: 'This vehicle has already been listed'
+        }
+      };
+    }
 
     // Check VIN search history
     const { data: searchHistory } = await supabase
