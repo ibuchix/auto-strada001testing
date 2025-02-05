@@ -8,9 +8,9 @@ import { BottomCTA } from "@/components/BottomCTA";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 
-const Index = () => {
+export default function Index() {
   return (
-    <div className="min-h-screen bg-background">
+    <main className="min-h-screen bg-[#FFFFFF]">
       <Navigation />
       <Hero />
       <HowItWorks />
@@ -19,8 +19,6 @@ const Index = () => {
       <Testimonials />
       <BottomCTA />
       <Footer />
-    </div>
+    </main>
   );
-};
-
-export default Index;
+}
