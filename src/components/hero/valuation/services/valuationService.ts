@@ -40,20 +40,6 @@ export const getValuation = async (
         localStorage.setItem('vinReservationId', data.data.reservationId);
       }
 
-      // Check for noData scenario
-      if (data.data?.noData) {
-        return {
-          success: true,
-          data: {
-            vin,
-            transmission: gearbox,
-            noData: true,
-            error: data.data.error || 'Could not retrieve vehicle information',
-            reservationId: data.data.reservationId
-          }
-        };
-      }
-
       // Check for existing vehicle
       if (data.data?.isExisting) {
         return {
@@ -67,39 +53,27 @@ export const getValuation = async (
         };
       }
 
-      return {
-        success: true,
-        data: data.data
-      };
-    }
+      // Return the data if it's valid
+      if (data.data?.make && data.data?.model && data.data?.year) {
+        return {
+          success: true,
+          data: data.data
+        };
+      }
 
-    // For non-seller context, use the existing vehicle valuation function
-    const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
-      body: { vin, mileage, gearbox, context }
-    });
+      // If we have some data but it's incomplete, still return it
+      if (data.data && Object.keys(data.data).length > 0) {
+        return {
+          success: true,
+          data: {
+            ...data.data,
+            vin,
+            transmission: gearbox
+          }
+        };
+      }
 
-    if (error) {
-      console.error('Valuation error:', error);
-      throw error;
-    }
-
-    console.log('Raw API Response:', data);
-
-    if (data?.data?.noData) {
-      console.log('No data found for VIN');
-      return {
-        success: true,
-        data: {
-          vin,
-          transmission: gearbox,
-          noData: true,
-          error: 'No data found for this VIN'
-        }
-      };
-    }
-
-    if (!data?.data?.make || !data?.data?.model || !data?.data?.year) {
-      console.log('Invalid or missing data in response');
+      // Only set noData if we truly have no usable data
       return {
         success: true,
         data: {
@@ -111,6 +85,33 @@ export const getValuation = async (
       };
     }
 
+    // For non-seller context (home page)
+    const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
+      body: { vin, mileage, gearbox, context }
+    });
+
+    if (error) {
+      console.error('Valuation error:', error);
+      throw error;
+    }
+
+    console.log('Raw API Response:', data);
+
+    // Only mark as noData if we truly have no usable information
+    if (!data?.data?.make && !data?.data?.model && !data?.data?.year) {
+      console.log('No usable data found for VIN');
+      return {
+        success: true,
+        data: {
+          vin,
+          transmission: gearbox,
+          noData: true,
+          error: 'No data found for this VIN'
+        }
+      };
+    }
+
+    // If we have the essential data, return it
     return {
       success: true,
       data: {
