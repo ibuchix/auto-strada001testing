@@ -39,7 +39,7 @@ serve(async (req) => {
       throw new Error('VIN number is required');
     }
 
-    // Initialize Supabase client with environment variables and increased timeout
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -96,9 +96,8 @@ serve(async (req) => {
     
     console.log('Making request to API:', apiUrl);
 
-    // Use AbortController to implement timeout for fetch
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 180000); // 3 minutes timeout for external API
+    const timeout = setTimeout(() => controller.abort(), 180000);
 
     try {
       const response = await fetch(apiUrl, {
@@ -124,8 +123,12 @@ serve(async (req) => {
           return new Response(
             JSON.stringify({
               success: true,
-              noData: true,
-              message: 'No data found for this VIN'
+              data: {
+                vin: cleanVin,
+                transmission: gearbox,
+                noData: true,
+                error: 'No data found for this VIN'
+              }
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
@@ -137,37 +140,49 @@ serve(async (req) => {
       const responseData = await response.json();
       console.log('API Response:', JSON.stringify(responseData, null, 2));
 
-      if (responseData.apiStatus !== 'OK' || !responseData.functionResponse) {
+      // Check if we have valid data and proper structure
+      if (responseData.apiStatus !== 'OK' || 
+          !responseData.functionResponse?.userParams?.make || 
+          !responseData.functionResponse?.userParams?.model || 
+          !responseData.functionResponse?.valuation?.calcValuation?.price) {
+        console.log('Invalid or incomplete data in response');
         return new Response(
           JSON.stringify({
             success: true,
-            noData: true,
-            message: 'No data found for this VIN'
+            data: {
+              vin: cleanVin,
+              transmission: gearbox,
+              noData: true,
+              error: 'No data found for this VIN'
+            }
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const averagePrice = responseData.functionResponse?.valuation?.calcValuation?.price_avr || 
-                          responseData.functionResponse?.valuation?.calcValuation?.price || 
-                          0;
-
+      // Extract the required data directly
       const valuationResult = {
-        make: responseData.functionResponse?.userParams?.make || 'Not available',
-        model: responseData.functionResponse?.userParams?.model || 'Not available',
-        year: responseData.functionResponse?.userParams?.year || null,
+        make: responseData.functionResponse.userParams.make,
+        model: responseData.functionResponse.userParams.model,
+        year: responseData.functionResponse.userParams.year,
         vin: cleanVin,
         transmission: gearbox,
-        fuelType: responseData.functionResponse?.userParams?.fuel || 'Not available',
-        valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
-        averagePrice: averagePrice,
-        rawResponse: responseData
+        fuelType: responseData.functionResponse.userParams.fuel,
+        valuation: responseData.functionResponse.valuation.calcValuation.price,
+        averagePrice: responseData.functionResponse.valuation.calcValuation.price_avr || 
+                     responseData.functionResponse.valuation.calcValuation.price,
+        capacity: parseFloat(responseData.functionResponse.userParams.capacity),
+        isExisting: false
       };
 
+      console.log('Constructed valuation result:', valuationResult);
+
+      // Return the structured response
       return new Response(
         JSON.stringify({
           success: true,
           data: valuationResult,
+          functionResponse: responseData.functionResponse
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -186,8 +201,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        noData: true,
-        message: error.message || 'An unexpected error occurred',
+        error: error.message || 'An unexpected error occurred',
         details: error instanceof Error ? error.stack : undefined
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
