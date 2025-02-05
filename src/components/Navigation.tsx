@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +41,7 @@ export const Navigation = () => {
   };
 
   return (
-    <nav className="fixed top-0 w-full bg-white shadow-sm z-50">
+    <nav className="sticky top-0 w-full bg-white shadow-sm z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
