@@ -35,6 +35,11 @@ export const getValuation = async (
 
       console.log('Seller validation response:', data);
 
+      // Store reservation ID in localStorage if present
+      if (data.data?.reservationId) {
+        localStorage.setItem('vinReservationId', data.data.reservationId);
+      }
+
       // Check for noData scenario
       if (data.data?.noData) {
         return {
@@ -43,7 +48,8 @@ export const getValuation = async (
             vin,
             transmission: gearbox,
             noData: true,
-            error: data.data.error || 'Could not retrieve vehicle information'
+            error: data.data.error || 'Could not retrieve vehicle information',
+            reservationId: data.data.reservationId
           }
         };
       }
@@ -122,7 +128,6 @@ export const getValuation = async (
   } catch (error: any) {
     console.error('Error in getValuation:', error);
     
-    // Handle timeout specifically
     if (error.message === 'Request timed out') {
       toast.error("Request timed out", {
         description: "The valuation process took too long. Please try again.",
@@ -134,10 +139,13 @@ export const getValuation = async (
             localStorage.removeItem('tempMileage');
             localStorage.removeItem('tempVIN');
             localStorage.removeItem('tempGearbox');
+            localStorage.removeItem('vinReservationId');
             window.location.reload();
           }
         }
       });
+    } else {
+      toast.error(error.message || "Failed to get vehicle valuation");
     }
 
     return {

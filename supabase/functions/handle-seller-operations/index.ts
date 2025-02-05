@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
@@ -29,6 +28,7 @@ interface ValidationResponse {
     isExisting?: boolean;
     noData?: boolean;
     error?: string;
+    reservationId?: string;
   };
 }
 
@@ -41,6 +41,39 @@ function calculateMD5(input: string): string {
     .join('');
 }
 
+async function createVinReservation(supabase: any, vin: string, userId: string) {
+  const expirationTime = new Date();
+  expirationTime.setMinutes(expirationTime.getMinutes() + 30); // 30 minute reservation
+
+  const { data: reservation, error: reservationError } = await supabase
+    .from('vin_reservations')
+    .insert({
+      vin,
+      seller_id: userId,
+      expires_at: expirationTime.toISOString(),
+    })
+    .select()
+    .single();
+
+  if (reservationError) {
+    console.error('Failed to create VIN reservation:', reservationError);
+    throw new Error('Failed to reserve VIN');
+  }
+
+  return reservation;
+}
+
+async function checkExistingReservation(supabase: any, vin: string) {
+  const { data: existingReservation } = await supabase
+    .from('vin_reservations')
+    .select('*')
+    .eq('vin', vin)
+    .eq('status', 'active')
+    .single();
+
+  return existingReservation;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -50,7 +83,6 @@ serve(async (req) => {
     const { operation, vin, mileage, gearbox, userId } = await req.json() as ValuationRequest;
     console.log('Processing seller operation:', { operation, vin, mileage, gearbox, userId });
 
-    // Initialize Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -64,7 +96,7 @@ serve(async (req) => {
       case 'validate_vin': {
         console.log('Starting VIN validation for:', vin);
 
-        // Log the operation start
+        // Log operation start
         const { data: operationLog, error: logError } = await supabase
           .from('seller_operations')
           .insert({
@@ -78,6 +110,38 @@ serve(async (req) => {
 
         if (logError) {
           console.error('Failed to log operation:', logError);
+        }
+
+        // Check for existing active reservation
+        const existingReservation = await checkExistingReservation(supabase, vin);
+        if (existingReservation) {
+          if (existingReservation.seller_id === userId) {
+            console.log('User already has an active reservation for this VIN');
+            return new Response(
+              JSON.stringify({
+                success: true,
+                data: {
+                  vin,
+                  transmission: gearbox,
+                  reservationId: existingReservation.id
+                }
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          } else {
+            console.log('VIN is currently reserved by another user');
+            return new Response(
+              JSON.stringify({
+                success: false,
+                data: {
+                  vin,
+                  transmission: gearbox,
+                  error: 'This VIN is currently reserved by another user. Please try again later.'
+                }
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
 
         // Check if VIN exists in cars table
@@ -99,7 +163,6 @@ serve(async (req) => {
             }
           };
 
-          // Update operation log
           if (operationLog) {
             await supabase
               .from('seller_operations')
@@ -117,6 +180,9 @@ serve(async (req) => {
           );
         }
 
+        // Create VIN reservation
+        const reservation = await createVinReservation(supabase, vin, userId);
+
         // Check VIN search history
         const { data: searchHistory } = await supabase
           .from('vin_search_results')
@@ -133,11 +199,11 @@ serve(async (req) => {
               ...searchHistory.search_data,
               transmission: gearbox,
               isExisting: false,
-              vin
+              vin,
+              reservationId: reservation.id
             }
           };
 
-          // Update operation log with cached result
           if (operationLog) {
             await supabase
               .from('seller_operations')
@@ -204,13 +270,25 @@ serve(async (req) => {
         if (!make || !model || !year || (!valuation && !averagePrice)) {
           console.log('Missing required data in API response');
           
+          const validationData = {
+            make,
+            model,
+            year: parseInt(String(year)),
+            vin,
+            transmission: gearbox,
+            valuation,
+            averagePrice,
+            isExisting: false
+          };
+
           const noDataResponse = {
             success: true,
             data: {
               vin,
               transmission: gearbox,
               noData: true,
-              error: 'Could not retrieve complete vehicle information'
+              error: 'Could not retrieve complete vehicle information',
+              reservationId: reservation.id
             }
           };
 
@@ -264,7 +342,10 @@ serve(async (req) => {
 
         const successResponse = {
           success: true,
-          data: validationData
+          data: {
+            ...validationData,
+            reservationId: reservation.id
+          }
         };
 
         // Update operation log with success

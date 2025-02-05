@@ -1439,6 +1439,44 @@ export type Database = {
         }
         Relationships: []
       }
+      vin_reservations: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          reserved_at: string | null
+          seller_id: string
+          status: string
+          vin: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          reserved_at?: string | null
+          seller_id: string
+          status?: string
+          vin: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          reserved_at?: string | null
+          seller_id?: string
+          status?: string
+          vin?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vin_reservations_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vin_search_results: {
         Row: {
           created_at: string | null
@@ -1613,6 +1651,10 @@ export type Database = {
           check_vin: string
         }
         Returns: boolean
+      }
+      cleanup_expired_vin_reservations: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       cleanup_failed_dealer_registration: {
         Args: {
