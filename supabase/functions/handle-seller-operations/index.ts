@@ -351,12 +351,12 @@ serve(async (req) => {
         // Update operation log with success
         if (operationLog) {
           await supabase
-            .from('seller_operations')
-            .update({
-              success: true,
-              output_data: successResponse
-            })
-            .eq('id', operationLog.id);
+              .from('seller_operations')
+              .update({
+                success: true,
+                output_data: successResponse
+              })
+              .eq('id', operationLog.id);
         }
 
         console.log('Returning validation data:', validationData);
