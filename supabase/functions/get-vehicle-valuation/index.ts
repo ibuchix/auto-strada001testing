@@ -43,14 +43,20 @@ function calculateMD5(input: string): string {
 function validateApiResponse(responseData: any): boolean {
   console.log('Validating API response:', responseData);
   
-  // Check if we have basic required fields
+  // Validate basic structure
+  if (!responseData || typeof responseData !== 'object') {
+    console.log('Invalid response structure');
+    return false;
+  }
+
+  // Check if we have all required fields
   const hasBasicFields = !!(
-    responseData &&
-    typeof responseData === 'object' &&
     responseData.make &&
     responseData.model &&
     responseData.year
   );
+
+  console.log('Has basic fields:', hasBasicFields);
 
   // Check if we have either direct price or nested price
   const hasPrice = !!(
@@ -60,8 +66,14 @@ function validateApiResponse(responseData: any): boolean {
     (responseData.functionResponse?.price)
   );
 
-  console.log('Validation result - Basic fields:', hasBasicFields, 'Price:', hasPrice);
-  return hasBasicFields && hasPrice;
+  console.log('Has price:', hasPrice);
+
+  if (!hasBasicFields || !hasPrice) {
+    console.log('Missing required fields in API response');
+    return false;
+  }
+
+  return true;
 }
 
 function extractPrice(responseData: any): number | undefined {
@@ -72,7 +84,13 @@ function extractPrice(responseData: any): number | undefined {
     responseData.functionResponse?.valuation?.calcValuation?.price ||
     responseData.functionResponse?.price;
 
-  return typeof price === 'number' ? price : undefined;
+  if (typeof price === 'number') {
+    console.log('Extracted price:', price);
+    return price;
+  }
+
+  console.log('No valid price found');
+  return undefined;
 }
 
 function extractAveragePrice(responseData: any): number | undefined {
@@ -82,7 +100,13 @@ function extractAveragePrice(responseData: any): number | undefined {
     responseData.price_avr ||
     responseData.functionResponse?.valuation?.calcValuation?.price_avr;
 
-  return typeof avgPrice === 'number' ? avgPrice : undefined;
+  if (typeof avgPrice === 'number') {
+    console.log('Extracted average price:', avgPrice);
+    return avgPrice;
+  }
+
+  console.log('No valid average price found');
+  return undefined;
 }
 
 serve(async (req) => {
@@ -92,6 +116,7 @@ serve(async (req) => {
 
   try {
     const { vin, mileage = 50000, gearbox = 'manual', context = 'home' } = await req.json() as ValuationRequest;
+    console.log('Processing request:', { vin, mileage, gearbox, context });
 
     if (!vin) {
       throw new Error('VIN number is required');
@@ -109,9 +134,11 @@ serve(async (req) => {
 
     // Check if VIN exists (only for seller context)
     if (context === 'seller') {
+      console.log('Checking VIN existence for seller context');
       const { data: exists } = await supabase.rpc('check_vin_exists', { check_vin: vin });
       
       if (exists) {
+        console.log('VIN already exists in database');
         return new Response(
           JSON.stringify({
             success: true,
@@ -138,9 +165,14 @@ serve(async (req) => {
     const checksum = calculateMD5(`${apiId}${apiSecret}${cleanVin}`);
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${cleanVin}/odometer:${mileage}/currency:PLN`;
 
-    // Make API request with timeout
+    console.log('Making API request to:', apiUrl);
+
+    // Make API request with increased timeout (4 minutes)
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 180000);
+    const timeout = setTimeout(() => {
+      console.log('Request timed out after 4 minutes');
+      controller.abort();
+    }, 240000);
 
     try {
       const response = await fetch(apiUrl, {
@@ -156,17 +188,7 @@ serve(async (req) => {
 
       if (!response.ok) {
         console.error('API response not OK:', response.status, response.statusText);
-        return new Response(
-          JSON.stringify({
-            success: true,
-            data: {
-              vin: cleanVin,
-              transmission: gearbox,
-              noData: true
-            }
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        throw new Error(`API request failed with status: ${response.status}`);
       }
 
       const responseData = await response.json();
@@ -231,7 +253,8 @@ serve(async (req) => {
     } catch (fetchError) {
       clearTimeout(timeout);
       if (fetchError.name === 'AbortError') {
-        throw new Error('Request timed out');
+        console.error('Request timed out');
+        throw new Error('Request timed out after 4 minutes');
       }
       throw fetchError;
     }
