@@ -63,7 +63,7 @@ serve(async (req) => {
       case 'validate_vin': {
         console.log('Starting VIN validation for:', vin);
 
-        // Check if VIN exists
+        // Check if VIN exists in cars table
         const { data: existingCar } = await supabase
           .from('cars')
           .select('id, title')
@@ -146,6 +146,16 @@ serve(async (req) => {
 
         if (!make || !model || !year || (!valuation && !averagePrice)) {
           console.log('Missing required data in API response');
+          
+          // Store the no-data result
+          await supabase
+            .from('vin_search_results')
+            .insert({
+              vin,
+              search_data: { noData: true, error: 'Could not retrieve complete vehicle information' },
+              success: false
+            });
+
           return new Response(
             JSON.stringify({
               success: true,
@@ -176,7 +186,8 @@ serve(async (req) => {
           .from('vin_search_results')
           .insert({
             vin,
-            search_data: validationData
+            search_data: validationData,
+            success: true
           });
 
         console.log('Returning validation data:', validationData);

@@ -30,6 +30,33 @@ export const getValuation = async (
       }
 
       console.log('Seller validation response:', data);
+
+      // Check for noData scenario
+      if (data.data?.noData) {
+        return {
+          success: true,
+          data: {
+            vin,
+            transmission: gearbox,
+            noData: true,
+            error: data.data.error || 'Could not retrieve vehicle information'
+          }
+        };
+      }
+
+      // Check for existing vehicle
+      if (data.data?.isExisting) {
+        return {
+          success: true,
+          data: {
+            vin,
+            transmission: gearbox,
+            isExisting: true,
+            error: 'This vehicle has already been listed'
+          }
+        };
+      }
+
       return {
         success: true,
         data: data.data
