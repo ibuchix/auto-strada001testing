@@ -73,46 +73,48 @@ export const getValuation = async (
       throw error;
     }
 
-    console.log('API Response:', data);
+    console.log('Raw API Response:', data);
 
-    // Check if we have valid data in the response
-    const functionResponse = data?.functionResponse;
-    
-    // Properly validate the response structure
-    if (functionResponse?.apiStatus === 'OK' && 
-        functionResponse?.userParams?.make && 
-        functionResponse?.userParams?.model &&
-        functionResponse?.valuation?.calcValuation?.price) {
-
-      const valuationData: ValuationData = {
-        make: functionResponse.userParams.make,
-        model: functionResponse.userParams.model,
-        year: functionResponse.userParams.year,
-        capacity: parseFloat(functionResponse.userParams.capacity),
-        valuation: functionResponse.valuation.calcValuation.price,
-        averagePrice: functionResponse.valuation.calcValuation.price_avr,
-        vin,
-        transmission: gearbox,
-        isExisting: false
-      };
-
-      console.log('Constructed valuation data:', valuationData);
-
+    // Handle no data response
+    if (data?.data?.noData) {
+      console.log('No data found for VIN');
       return {
         success: true,
-        data: valuationData
+        data: {
+          vin,
+          transmission: gearbox,
+          noData: true,
+          error: 'No data found for this VIN'
+        }
       };
     }
 
-    // If we don't have valid data or API status is not OK
-    console.log('No valid data found in response');
+    // Validate the response data
+    if (!data?.data?.make || !data?.data?.model || !data?.data?.year) {
+      console.log('Invalid or missing data in response');
+      return {
+        success: true,
+        data: {
+          vin,
+          transmission: gearbox,
+          noData: true,
+          error: 'Could not retrieve vehicle information'
+        }
+      };
+    }
+
+    // Return valid data
     return {
       success: true,
       data: {
+        make: data.data.make,
+        model: data.data.model,
+        year: data.data.year,
         vin,
         transmission: gearbox,
-        noData: true,
-        error: 'No data found for this VIN'
+        valuation: data.data.valuation,
+        averagePrice: data.data.averagePrice,
+        isExisting: false
       }
     };
 
