@@ -9,22 +9,22 @@ export const getValuation = async (
   context: 'home' | 'seller' = 'home'
 ): Promise<ValuationResult> => {
   try {
-    // Set a timeout of 30 seconds for the entire operation
+    // Set a timeout of 4 minutes (240 seconds) for the entire operation
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Request timed out. Please try again.')), 30000);
+      setTimeout(() => reject(new Error('Request timed out. Please try again.')), 240000);
     });
 
     // Main valuation logic wrapped in a promise
     const valuationPromise = async () => {
       // Check if VIN exists only for seller context
       if (context === 'seller') {
-        // Set a shorter timeout for VIN check (5 seconds)
+        // Set a longer timeout for VIN check (30 seconds)
         const vinCheckPromise = supabase.rpc('check_vin_exists', {
           check_vin: vin
         });
         
         const vinCheckTimeout = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('VIN check timed out')), 5000);
+          setTimeout(() => reject(new Error('VIN check timed out')), 30000);
         });
 
         const { data: exists, error: checkError } = await Promise.race([
@@ -48,9 +48,12 @@ export const getValuation = async (
         }
       }
 
-      // API call for valuation
+      // API call for valuation with increased timeout
       const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
-        body: { vin, mileage, gearbox, context }
+        body: { vin, mileage, gearbox, context },
+        options: {
+          timeout: 240000 // 4 minutes timeout
+        }
       });
 
       if (error) {

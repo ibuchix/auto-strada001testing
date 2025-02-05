@@ -39,10 +39,20 @@ serve(async (req) => {
       throw new Error('VIN number is required');
     }
 
-    // Initialize Supabase client with environment variables
+    // Initialize Supabase client with environment variables and increased timeout
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false
+      },
+      db: {
+        schema: 'public'
+      },
+      global: {
+        headers: { 'x-request-timeout': '240000' }
+      }
+    });
 
     // Check if VIN exists only for seller context
     if (context === 'seller') {
@@ -86,23 +96,48 @@ serve(async (req) => {
     
     console.log('Making request to API:', apiUrl);
 
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
+    // Use AbortController to implement timeout for fetch
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 180000); // 3 minutes timeout for external API
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal
       });
-      
-      if (response.status === 404) {
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        
+        if (response.status === 404) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              noData: true,
+              message: 'No data found for this VIN'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        throw new Error(`External API request failed: ${response.status} ${response.statusText}`);
+      }
+
+      const responseData = await response.json();
+      console.log('API Response:', JSON.stringify(responseData, null, 2));
+
+      if (responseData.apiStatus !== 'OK' || !responseData.functionResponse) {
         return new Response(
           JSON.stringify({
             success: true,
@@ -112,47 +147,38 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
-      throw new Error(`External API request failed: ${response.status} ${response.statusText}`);
-    }
 
-    const responseData = await response.json();
-    console.log('API Response:', JSON.stringify(responseData, null, 2));
+      const averagePrice = responseData.functionResponse?.valuation?.calcValuation?.price_avr || 
+                          responseData.functionResponse?.valuation?.calcValuation?.price || 
+                          0;
 
-    if (responseData.apiStatus !== 'OK' || !responseData.functionResponse) {
+      const valuationResult = {
+        make: responseData.functionResponse?.userParams?.make || 'Not available',
+        model: responseData.functionResponse?.userParams?.model || 'Not available',
+        year: responseData.functionResponse?.userParams?.year || null,
+        vin: cleanVin,
+        transmission: gearbox,
+        fuelType: responseData.functionResponse?.userParams?.fuel || 'Not available',
+        valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
+        averagePrice: averagePrice,
+        rawResponse: responseData
+      };
+
       return new Response(
         JSON.stringify({
           success: true,
-          noData: true,
-          message: 'No data found for this VIN'
+          data: valuationResult,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('External API request timed out');
+      }
+      throw fetchError;
     }
-
-    const averagePrice = responseData.functionResponse?.valuation?.calcValuation?.price_avr || 
-                        responseData.functionResponse?.valuation?.calcValuation?.price || 
-                        0;
-
-    const valuationResult = {
-      make: responseData.functionResponse?.userParams?.make || 'Not available',
-      model: responseData.functionResponse?.userParams?.model || 'Not available',
-      year: responseData.functionResponse?.userParams?.year || null,
-      vin: cleanVin,
-      transmission: gearbox,
-      fuelType: responseData.functionResponse?.userParams?.fuel || 'Not available',
-      valuation: responseData.functionResponse?.valuation?.calcValuation?.price || 0,
-      averagePrice: averagePrice,
-      rawResponse: responseData
-    };
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: valuationResult,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
 
   } catch (error) {
     console.error('Error in Edge Function:', error);
