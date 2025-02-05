@@ -1,3 +1,4 @@
+
 import { createContext, useContext, ReactNode, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -47,15 +48,6 @@ export const FormSubmissionProvider = ({
     }
 
     setSubmitting(true);
-    
-    // Configure client with increased timeout
-    const supabaseClient = supabase.client({
-      options: {
-        global: {
-          headers: { 'x-request-timeout': '240000' } // 4 minutes timeout
-        }
-      }
-    });
 
     try {
       const valuationData = localStorage.getItem('valuationData');
@@ -80,7 +72,7 @@ export const FormSubmissionProvider = ({
         duration: Infinity, // Keep showing until we complete or error
       });
 
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('cars')
         .upsert({
           id: carId,
@@ -111,6 +103,8 @@ export const FormSubmissionProvider = ({
           seat_material: data.seatMaterial,
           number_of_keys: parseInt(data.numberOfKeys),
           required_photos: data.uploadedPhotos
+        }, {
+          onConflict: 'id'
         });
 
       // Dismiss the uploading toast
