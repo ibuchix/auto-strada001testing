@@ -73,20 +73,18 @@ export const getValuation = async (
       throw error;
     }
 
+    console.log('API Response:', data);
+
     // Check if we have valid data in the response
     const functionResponse = data?.functionResponse;
-    if (
-      functionResponse?.userParams?.make &&
-      functionResponse?.userParams?.model &&
-      functionResponse?.valuation?.calcValuation?.price
-    ) {
+    if (functionResponse?.apiStatus === 'OK' && functionResponse?.userParams) {
       const valuationData: ValuationData = {
         make: functionResponse.userParams.make,
         model: functionResponse.userParams.model,
         year: functionResponse.userParams.year,
         capacity: parseFloat(functionResponse.userParams.capacity),
-        valuation: functionResponse.valuation.calcValuation.price,
-        averagePrice: functionResponse.valuation.calcValuation.price_avr,
+        valuation: functionResponse.valuation?.calcValuation?.price,
+        averagePrice: functionResponse.valuation?.calcValuation?.price_avr,
         vin,
         transmission: gearbox,
         isExisting: false
@@ -98,8 +96,7 @@ export const getValuation = async (
       };
     }
 
-    // If we don't have valid data, but the API call was successful
-    // This indicates we need manual entry
+    // If API status is not OK or we don't have valid data
     return {
       success: true,
       data: {
