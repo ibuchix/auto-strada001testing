@@ -51,9 +51,7 @@ export const getValuation = async (
       // API call for valuation with increased timeout
       const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
         body: { vin, mileage, gearbox, context },
-        options: {
-          timeout: 240000 // 4 minutes timeout
-        }
+        abortSignal: AbortSignal.timeout(240000) // 4 minutes timeout
       });
 
       if (error) {
