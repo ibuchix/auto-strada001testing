@@ -1365,6 +1365,47 @@ export type Database = {
         }
         Relationships: []
       }
+      seller_operations: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          input_data: Json | null
+          operation_type: string
+          output_data: Json | null
+          seller_id: string
+          success: boolean
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          input_data?: Json | null
+          operation_type: string
+          output_data?: Json | null
+          seller_id: string
+          success?: boolean
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          input_data?: Json | null
+          operation_type?: string
+          output_data?: Json | null
+          seller_id?: string
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_operations_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_metrics: {
         Row: {
           active_connections: number | null
