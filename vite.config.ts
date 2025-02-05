@@ -24,16 +24,9 @@ export default defineConfig(({ mode }) => ({
         target: "http://localhost:8080",
         changeOrigin: true,
         secure: false,
-      },
-      "/*": {
-        target: "http://localhost:8080",
-        bypass: (req) => {
-          if (req?.url && !req.url.includes(".")) {
-            return "/index.html";
-          }
-        },
-      },
+      }
     },
+    middlewareMode: "html"
   },
   preview: {
     port: 8080,
@@ -48,22 +41,7 @@ export default defineConfig(({ mode }) => ({
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Origin, Content-Type, Accept, Authorization",
       "Access-Control-Allow-Credentials": "true"
-    },
-    proxy: {
-      "/api": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-        secure: false,
-      },
-      "/*": {
-        target: "http://localhost:8080",
-        bypass: (req) => {
-          if (req?.url && !req.url.includes(".")) {
-            return "/index.html";
-          }
-        },
-      },
-    },
+    }
   },
   plugins: [
     react(),
