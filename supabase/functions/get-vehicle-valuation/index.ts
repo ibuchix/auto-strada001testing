@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
@@ -37,6 +38,51 @@ function calculateMD5(input: string): string {
   return Array.from(new Uint8Array(hash))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+function validateApiResponse(responseData: any): boolean {
+  console.log('Validating API response:', responseData);
+  
+  // Check if we have basic required fields
+  const hasBasicFields = !!(
+    responseData &&
+    typeof responseData === 'object' &&
+    responseData.make &&
+    responseData.model &&
+    responseData.year
+  );
+
+  // Check if we have either direct price or nested price
+  const hasPrice = !!(
+    responseData.price ||
+    responseData.valuation ||
+    (responseData.functionResponse?.valuation?.calcValuation?.price) ||
+    (responseData.functionResponse?.price)
+  );
+
+  console.log('Validation result - Basic fields:', hasBasicFields, 'Price:', hasPrice);
+  return hasBasicFields && hasPrice;
+}
+
+function extractPrice(responseData: any): number | undefined {
+  // Try different possible price paths
+  const price = 
+    responseData.price ||
+    responseData.valuation ||
+    responseData.functionResponse?.valuation?.calcValuation?.price ||
+    responseData.functionResponse?.price;
+
+  return typeof price === 'number' ? price : undefined;
+}
+
+function extractAveragePrice(responseData: any): number | undefined {
+  // Try different possible average price paths
+  const avgPrice = 
+    responseData.averagePrice ||
+    responseData.price_avr ||
+    responseData.functionResponse?.valuation?.calcValuation?.price_avr;
+
+  return typeof avgPrice === 'number' ? avgPrice : undefined;
 }
 
 serve(async (req) => {
@@ -109,6 +155,7 @@ serve(async (req) => {
       clearTimeout(timeout);
 
       if (!response.ok) {
+        console.error('API response not OK:', response.status, response.statusText);
         return new Response(
           JSON.stringify({
             success: true,
@@ -123,11 +170,30 @@ serve(async (req) => {
       }
 
       const responseData = await response.json();
-      
+      console.log('Raw API response:', JSON.stringify(responseData, null, 2));
+
       // Validate response data
-      if (!responseData.functionResponse?.userParams?.make || 
-          !responseData.functionResponse?.userParams?.model ||
-          !responseData.functionResponse?.valuation?.calcValuation?.price) {
+      if (!validateApiResponse(responseData)) {
+        console.log('Response validation failed');
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              vin: cleanVin,
+              transmission: gearbox,
+              noData: true
+            }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Extract and validate price
+      const price = extractPrice(responseData);
+      const averagePrice = extractAveragePrice(responseData) || price;
+
+      if (!price && !averagePrice) {
+        console.log('No valid price found in response');
         return new Response(
           JSON.stringify({
             success: true,
@@ -145,16 +211,17 @@ serve(async (req) => {
       const result: ValuationResponse = {
         success: true,
         data: {
-          make: String(responseData.functionResponse.userParams.make),
-          model: String(responseData.functionResponse.userParams.model),
-          year: parseInt(responseData.functionResponse.userParams.year),
+          make: String(responseData.make),
+          model: String(responseData.model),
+          year: parseInt(String(responseData.year)),
           vin: cleanVin,
           transmission: gearbox,
-          valuation: parseInt(responseData.functionResponse.valuation.calcValuation.price),
-          averagePrice: parseInt(responseData.functionResponse.valuation.calcValuation.price_avr || 
-                       responseData.functionResponse.valuation.calcValuation.price)
+          valuation: price,
+          averagePrice: averagePrice
         }
       };
+
+      console.log('Processed response:', JSON.stringify(result, null, 2));
 
       return new Response(
         JSON.stringify(result),
