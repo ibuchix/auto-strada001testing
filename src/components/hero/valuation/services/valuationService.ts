@@ -1,13 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ValuationResult } from "../types";
+import { ValuationResult, ValuationData } from "../types";
 
 export const getValuation = async (
   vin: string,
   mileage: number,
   gearbox: string,
   context: 'home' | 'seller' = 'home'
-): Promise<{ data: ValuationResult }> => {
+): Promise<ValuationResult> => {
   try {
     // First check if VIN already exists
     const { data: existingCar } = await supabase
@@ -20,17 +20,12 @@ export const getValuation = async (
     if (existingCar) {
       console.log('Found existing car:', existingCar);
       return {
+        success: true,
         data: {
-          make: '',
-          model: '',
-          year: 0,
           vin,
           transmission: gearbox,
           isExisting: true,
-          error: 'This vehicle has already been listed'
-        }
-      };
-    }
+          error: 'This vehicle has
 
     // Check VIN search history
     const { data: searchHistory } = await supabase
@@ -44,10 +39,12 @@ export const getValuation = async (
     if (searchHistory?.search_data) {
       console.log('Found cached valuation:', searchHistory.search_data);
       return {
+        success: true,
         data: {
-          ...searchHistory.search_data,
+          ...searchHistory.search_data as ValuationData,
           transmission: gearbox,
-          isExisting: false
+          isExisting: false,
+          vin
         }
       };
     }
@@ -72,7 +69,7 @@ export const getValuation = async (
       throw error;
     }
 
-    return { data };
+    return { success: true, data };
   } catch (error: any) {
     console.error('Error in getValuation:', error);
     
@@ -95,10 +92,8 @@ export const getValuation = async (
     }
 
     return {
+      success: false,
       data: {
-        make: '',
-        model: '',
-        year: 0,
         vin,
         transmission: gearbox,
         error: error.message || 'Failed to get vehicle valuation'

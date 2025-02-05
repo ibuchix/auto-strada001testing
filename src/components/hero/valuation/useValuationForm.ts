@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getValuation } from './services/valuationService';
 import { toast } from 'sonner';
-import { ValuationResult, ValuationData } from './types';
+import { ValuationData } from './types';
 import { ValuationFormData } from '@/types/validation';
 
 export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
