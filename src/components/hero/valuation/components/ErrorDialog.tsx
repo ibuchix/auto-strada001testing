@@ -5,71 +5,67 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 
 interface ErrorDialogProps {
-  error?: string;
+  error: string;
   onClose: () => void;
   onRetry?: () => void;
+  showManualOption?: boolean;
+  onManualValuation?: () => void;
 }
 
-export const ErrorDialog = ({ error, onClose, onRetry }: ErrorDialogProps) => {
-  const navigate = useNavigate();
-
-  const handleManualValuation = () => {
-    onClose();
-    navigate('/manual-valuation');
-  };
-
+export const ErrorDialog = ({ 
+  error, 
+  onClose, 
+  onRetry,
+  showManualOption,
+  onManualValuation 
+}: ErrorDialogProps) => {
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle className="text-2xl font-bold text-center mb-4 flex items-center justify-center gap-2">
-          <AlertTriangle className="h-6 w-6 text-[#DC143C]" />
-          We couldn't find your vehicle
+          <AlertCircle className="h-6 w-6 text-[#DC143C]" />
+          Vehicle Information Required
         </DialogTitle>
       </DialogHeader>
 
       <div className="space-y-4 text-center">
-        <p className="text-subtitle">
-          Don't worry! We can still help you get an accurate valuation for your vehicle.
-        </p>
-        <div className="bg-accent/50 p-4 rounded-lg">
-          <p className="text-sm text-subtitle">
-            Our manual valuation service provides:
-          </p>
-          <ul className="text-sm text-subtitle mt-2 space-y-1">
-            <li>• Detailed assessment by our experts</li>
-            <li>• Response within 24-48 hours</li>
-            <li>• Personalized valuation report</li>
-          </ul>
-        </div>
+        <p className="text-subtitle">{error}</p>
+        {showManualOption && (
+          <div className="bg-accent/50 p-4 rounded-lg">
+            <p className="text-sm text-subtitle">
+              Don't worry! You can still list your car by providing the details manually.
+            </p>
+          </div>
+        )}
       </div>
 
       <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
-        {onRetry && (
-          <Button 
-            variant="outline"
-            onClick={onRetry}
-            className="w-full sm:w-auto"
-          >
-            Try Again
-          </Button>
-        )}
         <Button 
-          onClick={handleManualValuation}
-          className="w-full sm:w-auto bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
-        >
-          Get Manual Valuation
-        </Button>
-        <Button 
-          variant="ghost"
+          variant="outline"
           onClick={onClose}
           className="w-full sm:w-auto"
         >
           Close
         </Button>
+        {onRetry && (
+          <Button 
+            onClick={onRetry}
+            className="w-full sm:w-auto bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
+          >
+            Try Different VIN
+          </Button>
+        )}
+        {showManualOption && onManualValuation && (
+          <Button 
+            onClick={onManualValuation}
+            className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
+          >
+            Continue Manually
+          </Button>
+        )}
       </DialogFooter>
     </DialogContent>
   );
