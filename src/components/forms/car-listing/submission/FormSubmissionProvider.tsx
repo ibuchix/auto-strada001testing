@@ -47,6 +47,16 @@ export const FormSubmissionProvider = ({
     }
 
     setSubmitting(true);
+    
+    // Configure client with increased timeout
+    const supabaseClient = supabase.client({
+      options: {
+        global: {
+          headers: { 'x-request-timeout': '240000' } // 4 minutes timeout
+        }
+      }
+    });
+
     try {
       const valuationData = localStorage.getItem('valuationData');
       
@@ -65,16 +75,12 @@ export const FormSubmissionProvider = ({
 
       const parsedValuationData = JSON.parse(valuationData);
 
-      // Validate required photos
-      if (!data.uploadedPhotos || data.uploadedPhotos.length === 0) {
-        toast.error("Missing required photos", {
-          description: "Please upload at least one photo of your vehicle",
-          duration: 5000
-        });
-        return;
-      }
+      // Show a persistent toast during the upload
+      const uploadingToast = toast.loading("Uploading your listing...", {
+        duration: Infinity, // Keep showing until we complete or error
+      });
 
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('cars')
         .upsert({
           id: carId,
@@ -106,6 +112,9 @@ export const FormSubmissionProvider = ({
           number_of_keys: parseInt(data.numberOfKeys),
           required_photos: data.uploadedPhotos
         });
+
+      // Dismiss the uploading toast
+      toast.dismiss(uploadingToast);
 
       if (error) {
         console.error('Submission error:', error);

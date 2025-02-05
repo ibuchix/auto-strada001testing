@@ -15,8 +15,7 @@ interface ListingRequest {
 }
 
 serve(async (req) => {
-  console.log('Create listing request received:', new Date().toISOString());
-
+  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -29,44 +28,77 @@ serve(async (req) => {
       throw new Error('Missing required fields');
     }
 
-    // Initialize Supabase client
+    // Initialize Supabase client with increased timeout
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          persistSession: false
+        },
+        db: {
+          schema: 'public'
+        },
+        global: {
+          // Set timeout to 4 minutes (240000ms)
+          headers: { 'x-request-timeout': '240000' }
+        }
+      }
     );
 
-    // Create the car listing
-    const { data: listing, error: listingError } = await supabase
-      .from('cars')
-      .insert({
-        seller_id: userId,
-        title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
-        vin: vin,
-        mileage: mileage,
-        transmission: transmission,
-        make: valuationData.make,
-        model: valuationData.model,
-        year: valuationData.year,
-        price: valuationData.valuation || valuationData.averagePrice,
-        valuation_data: valuationData,
-        is_draft: true
-      })
-      .select()
-      .single();
+    // Use background processing for the listing creation
+    const processListing = async () => {
+      try {
+        const { data: listing, error: listingError } = await supabase
+          .from('cars')
+          .insert({
+            seller_id: userId,
+            title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
+            vin: vin,
+            mileage: mileage,
+            transmission: transmission,
+            make: valuationData.make,
+            model: valuationData.model,
+            year: valuationData.year,
+            price: valuationData.valuation || valuationData.averagePrice,
+            valuation_data: valuationData,
+            is_draft: true
+          })
+          .select()
+          .single();
 
-    if (listingError) {
-      console.error('Error creating listing:', listingError);
-      throw listingError;
-    }
+        if (listingError) {
+          console.error('Error creating listing:', listingError);
+          throw listingError;
+        }
 
-    console.log('Listing created successfully:', listing);
+        console.log('Listing created successfully:', listing);
+        return listing;
+      } catch (error) {
+        console.error('Background processing error:', error);
+        throw error;
+      }
+    };
 
+    // Start the background processing
+    const backgroundProcess = processListing();
+    
+    // Use EdgeRuntime.waitUntil to handle the background task
+    EdgeRuntime.waitUntil(backgroundProcess);
+
+    // Return an immediate response while processing continues in background
     return new Response(
       JSON.stringify({
         success: true,
-        data: listing,
+        message: 'Listing creation started',
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        },
+        status: 202 // Accepted
+      }
     );
 
   } catch (error) {
