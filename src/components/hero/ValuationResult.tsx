@@ -38,7 +38,7 @@ export const ValuationResult = ({
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = !!valuationResult.error;
-  const hasValuation = !hasError && (valuationResult.averagePrice || valuationResult.valuation);
+  const hasValuation = !hasError && !!(valuationResult.averagePrice || valuationResult.valuation);
   
   const averagePrice = valuationResult.averagePrice || 0;
   console.log('ValuationResult - Display price:', averagePrice);
