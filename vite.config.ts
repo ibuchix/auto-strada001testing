@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -8,7 +9,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     cors: {
-      origin: "*",
+      origin: ["https://lovable.dev", "https://auth.gptengineer.app"],
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: ["Origin", "Content-Type", "Accept", "Authorization"],
       credentials: true
@@ -31,7 +32,7 @@ export default defineConfig(({ mode }) => ({
   preview: {
     port: 8080,
     cors: {
-      origin: "*",
+      origin: ["https://lovable.dev", "https://auth.gptengineer.app"],
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: ["Origin", "Content-Type", "Accept", "Authorization"],
       credentials: true
