@@ -1,4 +1,3 @@
-
 import { Navigation } from "@/components/Navigation";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -56,6 +55,8 @@ const Sellers = () => {
 
       if (result.data.isExisting) {
         setShowExistingVehicleDialog(true);
+      } else if (result.data.noData) {
+        setShowManualDialog(true);
       } else if (result.data.make && result.data.model) {
         localStorage.setItem('valuationData', JSON.stringify(result.data));
         localStorage.setItem('tempVIN', vin);

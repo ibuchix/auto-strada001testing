@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ValuationResult, ValuationData } from "../types";
@@ -37,7 +38,7 @@ export const getValuation = async (
       .eq('vin', vin)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (searchHistory?.search_data) {
       console.log('Found cached valuation:', searchHistory.search_data);
@@ -72,7 +73,43 @@ export const getValuation = async (
       throw error;
     }
 
-    return { success: true, data };
+    // Check if we have valid data in the response
+    const functionResponse = data?.functionResponse;
+    if (
+      functionResponse?.userParams?.make &&
+      functionResponse?.userParams?.model &&
+      functionResponse?.valuation?.calcValuation?.price
+    ) {
+      const valuationData: ValuationData = {
+        make: functionResponse.userParams.make,
+        model: functionResponse.userParams.model,
+        year: functionResponse.userParams.year,
+        capacity: parseFloat(functionResponse.userParams.capacity),
+        valuation: functionResponse.valuation.calcValuation.price,
+        averagePrice: functionResponse.valuation.calcValuation.price_avr,
+        vin,
+        transmission: gearbox,
+        isExisting: false
+      };
+
+      return {
+        success: true,
+        data: valuationData
+      };
+    }
+
+    // If we don't have valid data, but the API call was successful
+    // This indicates we need manual entry
+    return {
+      success: true,
+      data: {
+        vin,
+        transmission: gearbox,
+        noData: true,
+        error: 'No data found for this VIN'
+      }
+    };
+
   } catch (error: any) {
     console.error('Error in getValuation:', error);
     
