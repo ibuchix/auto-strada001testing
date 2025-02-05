@@ -160,29 +160,28 @@ serve(async (req) => {
         );
       }
 
-      // Extract the required data directly
+      // Extract only the required data, avoiding nested structures
       const valuationResult = {
-        make: responseData.functionResponse.userParams.make,
-        model: responseData.functionResponse.userParams.model,
-        year: responseData.functionResponse.userParams.year,
+        make: String(responseData.functionResponse.userParams.make),
+        model: String(responseData.functionResponse.userParams.model),
+        year: parseInt(responseData.functionResponse.userParams.year),
         vin: cleanVin,
         transmission: gearbox,
-        fuelType: responseData.functionResponse.userParams.fuel,
-        valuation: responseData.functionResponse.valuation.calcValuation.price,
-        averagePrice: responseData.functionResponse.valuation.calcValuation.price_avr || 
-                     responseData.functionResponse.valuation.calcValuation.price,
+        fuelType: String(responseData.functionResponse.userParams.fuel),
+        valuation: parseInt(responseData.functionResponse.valuation.calcValuation.price),
+        averagePrice: parseInt(responseData.functionResponse.valuation.calcValuation.price_avr || 
+                     responseData.functionResponse.valuation.calcValuation.price),
         capacity: parseFloat(responseData.functionResponse.userParams.capacity),
         isExisting: false
       };
 
       console.log('Constructed valuation result:', valuationResult);
 
-      // Return the structured response
+      // Return only the processed data
       return new Response(
         JSON.stringify({
           success: true,
-          data: valuationResult,
-          functionResponse: responseData.functionResponse
+          data: valuationResult
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
