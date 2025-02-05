@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
         secure: false,
       }
     },
-    middlewareMode: "html"
+    middlewareMode: true
   },
   preview: {
     port: 8080,
