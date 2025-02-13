@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
@@ -55,36 +54,24 @@ function validateApiResponse(responseData: any): boolean {
     return false;
   }
 
-  // Check if the response has data in either the root or functionResponse
-  const hasRootData = responseData.make && responseData.model && responseData.year;
-  const hasFunctionData = responseData.functionResponse?.make && 
-                         responseData.functionResponse?.model && 
-                         responseData.functionResponse?.year;
+  // Check if we have valid vehicle data
+  const hasUserParams = responseData.userParams && 
+                       responseData.userParams.make && 
+                       responseData.userParams.model && 
+                       responseData.userParams.year;
 
-  console.log('Has root data:', hasRootData);
-  console.log('Has function data:', hasFunctionData);
+  // Check if we have valid price information
+  const hasValuation = responseData.valuation?.calcValuation?.price;
 
-  // Check if we have price information in any of the possible locations
-  const hasPrice = !!(
-    responseData.price ||
-    responseData.valuation ||
-    responseData.functionResponse?.price ||
-    responseData.functionResponse?.valuation?.calcValuation?.price
-  );
+  console.log('Has user params:', hasUserParams);
+  console.log('Has valuation:', hasValuation);
 
-  console.log('Has price:', hasPrice);
-
-  return (hasRootData || hasFunctionData) && hasPrice;
+  return hasUserParams && hasValuation;
 }
 
 function extractPrice(responseData: any): number | undefined {
-  // Try different possible price paths
-  const price = 
-    responseData.price ||
-    responseData.valuation ||
-    responseData.functionResponse?.price ||
-    responseData.functionResponse?.valuation?.calcValuation?.price;
-
+  const price = responseData.valuation?.calcValuation?.price;
+  
   if (typeof price === 'number') {
     console.log('Extracted price:', price);
     return price;
@@ -95,12 +82,8 @@ function extractPrice(responseData: any): number | undefined {
 }
 
 function extractAveragePrice(responseData: any): number | undefined {
-  // Try different possible average price paths
-  const avgPrice = 
-    responseData.averagePrice ||
-    responseData.price_avr ||
-    responseData.functionResponse?.valuation?.calcValuation?.price_avr;
-
+  const avgPrice = responseData.valuation?.calcValuation?.price_avr;
+  
   if (typeof avgPrice === 'number') {
     console.log('Extracted average price:', avgPrice);
     return avgPrice;
@@ -174,7 +157,7 @@ serve(async (req) => {
       console.log('Raw API response:', JSON.stringify(responseData, null, 2));
 
       // Check for "No Data" status
-      if (responseData.apiStatus === 'ND' || !responseData.functionResponse || responseData.functionResponse.length === 0) {
+      if (responseData.apiStatus === 'ND' || !responseData.functionResponse) {
         console.log('API returned No Data status or empty response');
         return new Response(
           JSON.stringify({
@@ -190,14 +173,15 @@ serve(async (req) => {
         );
       }
 
-      // Get data from either root or functionResponse
-      const data = responseData.functionResponse || responseData;
-      console.log('Processed data:', data);
+      // Get data from functionResponse
+      const data = responseData.functionResponse?.userParams || {};
+      const valuationData = responseData.functionResponse?.valuation || {};
+      console.log('Processed data:', responseData.functionResponse);
 
       // Check if we have valid vehicle data
-      const make = data.make || data.vehicle?.make;
-      const model = data.model || data.vehicle?.model;
-      const year = data.year || data.vehicle?.year;
+      const make = data.make;
+      const model = data.model;
+      const year = data.year;
 
       if (!make || !model || !year) {
         console.log('No valid vehicle data found');
@@ -216,8 +200,8 @@ serve(async (req) => {
       }
 
       // Extract price information
-      const price = extractPrice(data);
-      const averagePrice = extractAveragePrice(data) || price;
+      const price = valuationData.calcValuation?.price;
+      const averagePrice = valuationData.calcValuation?.price_avr || price;
 
       if (!price && !averagePrice) {
         console.log('No valid price found in response');
@@ -279,4 +263,3 @@ serve(async (req) => {
     );
   }
 });
-
