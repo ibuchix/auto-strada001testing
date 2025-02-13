@@ -1,140 +1,68 @@
+
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
-import { SellerFormProps } from "./types";
+import { useNavigate } from "react-router-dom";
 
-export const HeroSection = ({ 
-  vin, 
-  mileage, 
-  gearbox,
-  isLoading,
-  onVinChange, 
-  onMileageChange, 
-  onGearboxChange, 
-  onSubmit 
-}: SellerFormProps) => {
-  // VIN validation
-  const isValidVin = (vin: string) => {
-    return /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
-  };
-
-  // Enhanced mileage validation
-  const isValidMileage = (mileage: string) => {
-    const mileageNum = Number(mileage);
-    // Check if it's a valid number and within reasonable range
-    // Also ensure it's a whole number
-    return (
-      !isNaN(mileageNum) && 
-      mileageNum > 0 && 
-      mileageNum < 1000000 && 
-      Number.isInteger(mileageNum) &&
-      /^\d+$/.test(mileage) // Ensures only digits are entered
-    );
-  };
-
-  const vinError = vin && !isValidVin(vin) ? "Please enter a valid 17-character VIN" : "";
-  const mileageError = mileage && !isValidMileage(mileage) 
-    ? "Please enter a valid mileage between 0 and 1,000,000 km (whole numbers only)" 
-    : "";
-
-  const isFormValid = isValidVin(vin) && isValidMileage(mileage);
-
-  // Handle mileage input to prevent invalid characters
-  const handleMileageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Only allow digits
-    if (value === '' || /^\d+$/.test(value)) {
-      onMileageChange(e);
-    }
-  };
+export const HeroSection = () => {
+  const navigate = useNavigate();
 
   return (
     <section className="pt-32 pb-16 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-accent to-transparent -skew-y-6 transform origin-top-left" />
       <div className="container mx-auto px-4 relative">
         <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Sell your car in <span className="text-primary">3 simple steps</span>
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 font-kanit">
+            Sell your car in <span className="text-[#DC143C]">3 simple steps</span>
           </h1>
-          <p className="text-xl text-subtitle mb-8">
+          <p className="text-xl text-[#6A6A77] mb-12">
             Get the best price for your car without the hassle of private buyers or low-ball offers
           </p>
-          <form onSubmit={onSubmit} className="max-w-md mx-auto space-y-4">
-            <div className="space-y-2">
-              <Input
-                type="text"
-                placeholder="Enter your VIN number"
-                value={vin}
-                onChange={(e) => onVinChange(e)}
-                className={`h-12 text-center text-lg ${vinError ? 'border-primary' : 'border-secondary/20'}`}
-                disabled={isLoading}
-                maxLength={17}
-              />
-              {vinError && (
-                <div className="flex items-center gap-2 text-primary text-sm">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{vinError}</span>
-                </div>
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <Input
-                type="text"
-                inputMode="numeric"
-                pattern="\d*"
-                placeholder="Enter mileage (KM)"
-                value={mileage}
-                onChange={handleMileageChange}
-                className={`h-12 text-center text-lg ${mileageError ? 'border-primary' : 'border-secondary/20'}`}
-                disabled={isLoading}
-              />
-              {mileageError && (
-                <div className="flex items-center gap-2 text-primary text-sm">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{mileageError}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white border-2 border-secondary/20 rounded-md p-4">
-              <RadioGroup
-                value={gearbox}
-                onValueChange={onGearboxChange}
-                className="flex gap-6 justify-center"
-                disabled={isLoading}
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            {[
+              {
+                number: "01",
+                title: "Create Your Listing",
+                description: "Fill in your car's details and upload photos"
+              },
+              {
+                number: "02",
+                title: "Get Verified",
+                description: "We verify your listing to ensure quality"
+              },
+              {
+                number: "03",
+                title: "Receive Offers",
+                description: "Get competitive offers from verified dealers"
+              }
+            ].map((step, index) => (
+              <div 
+                key={index} 
+                className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow relative overflow-hidden group"
               >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="manual" id="manual" />
-                  <Label htmlFor="manual" className="font-medium cursor-pointer">Manual</Label>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#DC143C]/5 rounded-bl-full -mr-16 -mt-16 transition-all group-hover:scale-110" />
+                <div className="relative">
+                  <span className="text-4xl font-bold text-[#DC143C] font-oswald">
+                    {step.number}
+                  </span>
+                  <h3 className="text-xl font-bold text-[#0E0E2C] mt-4 mb-2">
+                    {step.title}
+                  </h3>
+                  <p className="text-[#6A6A77]">
+                    {step.description}
+                  </p>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="automatic" id="automatic" />
-                  <Label htmlFor="automatic" className="font-medium cursor-pointer">Automatic</Label>
-                </div>
-              </RadioGroup>
-            </div>
+              </div>
+            ))}
+          </div>
 
-            <Button 
-              type="submit"
-              className="w-full h-14 bg-secondary hover:bg-secondary/90 text-white text-lg"
-              disabled={isLoading || !isFormValid}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  Start Selling
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </>
-              )}
-            </Button>
-          </form>
+          <Button 
+            onClick={() => navigate('/manual-valuation')}
+            className="h-14 px-8 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white text-lg"
+          >
+            Start Selling
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
         </div>
       </div>
     </section>
