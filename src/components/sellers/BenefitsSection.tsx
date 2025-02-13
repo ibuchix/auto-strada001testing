@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
@@ -6,7 +7,8 @@ export const BenefitsSection = () => {
   const navigate = useNavigate();
 
   const handleStartSelling = () => {
-    navigate('/sell-my-car');
+    // Redirect to home page with a query parameter to focus the VIN input
+    navigate('/?focus=vin');
   };
 
   return (
