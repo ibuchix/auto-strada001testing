@@ -43,37 +43,32 @@ function calculateMD5(input: string): string {
 function validateApiResponse(responseData: any): boolean {
   console.log('Validating API response:', responseData);
   
-  // Validate basic structure
+  // Check if we have basic data in the response
   if (!responseData || typeof responseData !== 'object') {
     console.log('Invalid response structure');
     return false;
   }
 
-  // Check if we have all required fields
-  const hasBasicFields = !!(
-    responseData.make &&
-    responseData.model &&
-    responseData.year
-  );
+  // Check if the response has data in either the root or functionResponse
+  const hasRootData = responseData.make && responseData.model && responseData.year;
+  const hasFunctionData = responseData.functionResponse?.make && 
+                         responseData.functionResponse?.model && 
+                         responseData.functionResponse?.year;
 
-  console.log('Has basic fields:', hasBasicFields);
+  console.log('Has root data:', hasRootData);
+  console.log('Has function data:', hasFunctionData);
 
-  // Check if we have either direct price or nested price
+  // Check if we have price information in any of the possible locations
   const hasPrice = !!(
     responseData.price ||
     responseData.valuation ||
-    (responseData.functionResponse?.valuation?.calcValuation?.price) ||
-    (responseData.functionResponse?.price)
+    responseData.functionResponse?.price ||
+    responseData.functionResponse?.valuation?.calcValuation?.price
   );
 
   console.log('Has price:', hasPrice);
 
-  if (!hasBasicFields || !hasPrice) {
-    console.log('Missing required fields in API response');
-    return false;
-  }
-
-  return true;
+  return (hasRootData || hasFunctionData) && hasPrice;
 }
 
 function extractPrice(responseData: any): number | undefined {
@@ -81,8 +76,8 @@ function extractPrice(responseData: any): number | undefined {
   const price = 
     responseData.price ||
     responseData.valuation ||
-    responseData.functionResponse?.valuation?.calcValuation?.price ||
-    responseData.functionResponse?.price;
+    responseData.functionResponse?.price ||
+    responseData.functionResponse?.valuation?.calcValuation?.price;
 
   if (typeof price === 'number') {
     console.log('Extracted price:', price);
@@ -132,28 +127,6 @@ serve(async (req) => {
       }
     );
 
-    // Check if VIN exists (only for seller context)
-    if (context === 'seller') {
-      console.log('Checking VIN existence for seller context');
-      const { data: exists } = await supabase.rpc('check_vin_exists', { check_vin: vin });
-      
-      if (exists) {
-        console.log('VIN already exists in database');
-        return new Response(
-          JSON.stringify({
-            success: true,
-            data: {
-              vin,
-              transmission: gearbox,
-              isExisting: true,
-              error: "This vehicle has already been listed"
-            }
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
     // Prepare API request
     const apiId = 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET');
@@ -194,25 +167,34 @@ serve(async (req) => {
       const responseData = await response.json();
       console.log('Raw API response:', JSON.stringify(responseData, null, 2));
 
-      // Validate response data
-      if (!validateApiResponse(responseData)) {
-        console.log('Response validation failed');
+      // Get data from either root or functionResponse
+      const data = responseData.functionResponse || responseData;
+      console.log('Processed data:', data);
+
+      // Check if we have valid vehicle data
+      const make = data.make || data.vehicle?.make;
+      const model = data.model || data.vehicle?.model;
+      const year = data.year || data.vehicle?.year;
+
+      if (!make || !model || !year) {
+        console.log('No valid vehicle data found');
         return new Response(
           JSON.stringify({
             success: true,
             data: {
               vin: cleanVin,
               transmission: gearbox,
-              noData: true
+              noData: true,
+              error: 'No data found for this VIN'
             }
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Extract and validate price
-      const price = extractPrice(responseData);
-      const averagePrice = extractAveragePrice(responseData) || price;
+      // Extract price information
+      const price = extractPrice(data);
+      const averagePrice = extractAveragePrice(data) || price;
 
       if (!price && !averagePrice) {
         console.log('No valid price found in response');
@@ -222,7 +204,8 @@ serve(async (req) => {
             data: {
               vin: cleanVin,
               transmission: gearbox,
-              noData: true
+              noData: true,
+              error: 'Could not determine vehicle value'
             }
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -233,9 +216,9 @@ serve(async (req) => {
       const result: ValuationResponse = {
         success: true,
         data: {
-          make: String(responseData.make),
-          model: String(responseData.model),
-          year: parseInt(String(responseData.year)),
+          make: String(make),
+          model: String(model),
+          year: parseInt(String(year)),
           vin: cleanVin,
           transmission: gearbox,
           valuation: price,
