@@ -43,9 +43,15 @@ function calculateMD5(input: string): string {
 function validateApiResponse(responseData: any): boolean {
   console.log('Validating API response:', responseData);
   
-  // Check if we have basic data in the response
+  // Check if we have a valid response
   if (!responseData || typeof responseData !== 'object') {
     console.log('Invalid response structure');
+    return false;
+  }
+
+  // Check API status
+  if (responseData.apiStatus === 'ND') {
+    console.log('API returned No Data status');
     return false;
   }
 
@@ -167,6 +173,23 @@ serve(async (req) => {
       const responseData = await response.json();
       console.log('Raw API response:', JSON.stringify(responseData, null, 2));
 
+      // Check for "No Data" status
+      if (responseData.apiStatus === 'ND' || !responseData.functionResponse || responseData.functionResponse.length === 0) {
+        console.log('API returned No Data status or empty response');
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              vin: cleanVin,
+              transmission: gearbox,
+              noData: true,
+              error: 'No data available for this VIN number. Please check if the VIN is correct or try a different one.'
+            }
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Get data from either root or functionResponse
       const data = responseData.functionResponse || responseData;
       console.log('Processed data:', data);
@@ -185,7 +208,7 @@ serve(async (req) => {
               vin: cleanVin,
               transmission: gearbox,
               noData: true,
-              error: 'No data found for this VIN'
+              error: 'Could not retrieve vehicle information. Please verify the VIN number.'
             }
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -205,7 +228,7 @@ serve(async (req) => {
               vin: cleanVin,
               transmission: gearbox,
               noData: true,
-              error: 'Could not determine vehicle value'
+              error: 'Could not determine vehicle value. Please try again or contact support.'
             }
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -256,3 +279,4 @@ serve(async (req) => {
     );
   }
 });
+
