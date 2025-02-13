@@ -1,112 +1,111 @@
 
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { UseFormReturn } from "react-hook-form";
-import { ValuationFormData } from "@/types/validation";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { ChevronRight, Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import { ValuationFormData } from "@/types/validation";
+import { UseFormReturn } from "react-hook-form";
 
 interface ValuationInputProps {
   form: UseFormReturn<ValuationFormData>;
   isLoading: boolean;
   onSubmit: (e: React.FormEvent) => void;
-  vinInputRef?: React.RefObject<HTMLInputElement>;
 }
 
-export const ValuationInput = ({ form, isLoading, onSubmit, vinInputRef }: ValuationInputProps) => {
+export const ValuationInput = ({ form, isLoading, onSubmit }: ValuationInputProps) => {
   return (
     <Form {...form}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit(e);
-        }}
-        className="space-y-6"
-      >
-        <FormField
-          control={form.control}
-          name="vin"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>VIN Number</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Enter your VIN number"
-                  {...field}
-                  ref={vinInputRef}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      <form onSubmit={onSubmit} className="space-y-6 max-w-sm mx-auto">
+        <div className="space-y-4">
+          <FormField
+            control={form.control}
+            name="vin"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="ENTER VIN"
+                    className="h-12 text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md"
+                    disabled={isLoading}
+                    maxLength={17}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="mileage"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Current Mileage</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  placeholder="Enter current mileage"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="mileage"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d*"
+                    placeholder="ENTER MILEAGE (KM)"
+                    className="h-12 text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md"
+                    disabled={isLoading}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="gearbox"
-          render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel>Transmission</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  className="flex flex-col space-y-1"
-                >
-                  <div className="flex items-center space-x-3 space-y-0">
-                    <RadioGroupItem value="manual" id="manual" />
-                    <Label htmlFor="manual">Manual</Label>
-                  </div>
-                  <div className="flex items-center space-x-3 space-y-0">
-                    <RadioGroupItem value="automatic" id="automatic" />
-                    <Label htmlFor="automatic">Automatic</Label>
-                  </div>
-                </RadioGroup>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="gearbox"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <RadioGroup
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    className="flex gap-6 justify-center bg-white border-2 border-secondary/20 rounded-md p-4"
+                    disabled={isLoading}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="manual" id="manual" />
+                      <Label htmlFor="manual" className="font-medium cursor-pointer">
+                        Manual
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="automatic" id="automatic" />
+                      <Label htmlFor="automatic" className="font-medium cursor-pointer">
+                        Automatic
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <Button
           type="submit"
-          className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
+          className="w-full h-12 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-md flex items-center justify-center gap-2"
           disabled={isLoading}
         >
           {isLoading ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Getting Valuation...
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              GETTING VALUATION...
             </>
           ) : (
-            "Get Valuation"
+            <>
+              VALUE YOUR CAR
+              <ChevronRight className="w-5 h-5" />
+            </>
           )}
         </Button>
       </form>
