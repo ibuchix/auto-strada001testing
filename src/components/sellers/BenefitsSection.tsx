@@ -8,7 +8,7 @@ export const BenefitsSection = () => {
 
   const handleStartSelling = () => {
     // Redirect to home page with a query parameter to focus the VIN input
-    navigate('/?focus=vin');
+    navigate('/');
   };
 
   return (
