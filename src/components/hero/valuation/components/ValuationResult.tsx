@@ -1,3 +1,4 @@
+
 import {
   DialogContent,
   DialogHeader,
@@ -29,6 +30,7 @@ interface ValuationResultProps {
   };
   onContinue: () => void;
   onClose: () => void;
+  onManualValuation: () => void;
   onRetry?: () => void;
 }
 
@@ -36,6 +38,7 @@ export const ValuationResult = ({
   valuationResult, 
   onContinue, 
   onClose,
+  onManualValuation,
   onRetry 
 }: ValuationResultProps) => {
   const { session } = useAuth();
@@ -140,16 +143,7 @@ export const ValuationResult = ({
         onClose={onClose}
         onRetry={onRetry}
         showManualOption={true}
-        onManualValuation={() => {
-          if (!session) {
-            navigate('/auth');
-            toast.info("Please sign in first", {
-              description: "Create an account or sign in to continue with manual valuation.",
-            });
-          } else {
-            navigate('/manual-valuation');
-          }
-        }}
+        onManualValuation={onManualValuation}
       />
     );
   }
