@@ -57,7 +57,7 @@ export const HeroSection = () => {
           </div>
 
           <Button 
-            onClick={() => navigate('/manual-valuation')}
+            onClick={() => navigate('/')}
             className="h-14 px-8 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white text-lg"
           >
             Start Selling
