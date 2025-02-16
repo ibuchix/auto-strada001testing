@@ -48,7 +48,7 @@ export const Navigation = () => {
             <img 
               src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" 
               alt="Auto-Strada Logo" 
-              className="h-12" 
+              className="h-8" 
             />
           </Link>
           
