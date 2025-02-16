@@ -409,6 +409,76 @@ export type Database = {
           },
         ]
       }
+      bid_history: {
+        Row: {
+          bid_amount: number
+          bid_type: string | null
+          car_id: string | null
+          created_at: string | null
+          dealer_id: string | null
+          id: string
+        }
+        Insert: {
+          bid_amount: number
+          bid_type?: string | null
+          car_id?: string | null
+          created_at?: string | null
+          dealer_id?: string | null
+          id?: string
+        }
+        Update: {
+          bid_amount?: number
+          bid_type?: string | null
+          car_id?: string | null
+          created_at?: string | null
+          dealer_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_history_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "admin_vehicle_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bid_history_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "auction_closure_details"
+            referencedColumns: ["car_id"]
+          },
+          {
+            foreignKeyName: "bid_history_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "auction_performance_summary"
+            referencedColumns: ["auction_id"]
+          },
+          {
+            foreignKeyName: "bid_history_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "car_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bid_history_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bid_history_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bid_metrics: {
         Row: {
           bid_id: string | null
@@ -761,6 +831,7 @@ export type Database = {
           auction_status: string | null
           capacity: number | null
           created_at: string | null
+          current_bid: number | null
           damage_photos: Json | null
           damage_types: Json | null
           dealer_location: unknown | null
@@ -785,9 +856,11 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           make: string | null
+          max_extensions: number | null
           max_extensions_allowed: number | null
           mileage: number
           minimum_bid_increment: number | null
+          minimum_increment: number | null
           mobile_number: string | null
           model: string | null
           name: string | null
@@ -815,6 +888,7 @@ export type Database = {
           valuation_data: Json | null
           vin: string
           warning_light_photos: string[] | null
+          winning_dealer_id: string | null
           year: number | null
         }
         Insert: {
@@ -826,6 +900,7 @@ export type Database = {
           auction_status?: string | null
           capacity?: number | null
           created_at?: string | null
+          current_bid?: number | null
           damage_photos?: Json | null
           damage_types?: Json | null
           dealer_location?: unknown | null
@@ -850,9 +925,11 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           make?: string | null
+          max_extensions?: number | null
           max_extensions_allowed?: number | null
           mileage: number
           minimum_bid_increment?: number | null
+          minimum_increment?: number | null
           mobile_number?: string | null
           model?: string | null
           name?: string | null
@@ -880,6 +957,7 @@ export type Database = {
           valuation_data?: Json | null
           vin: string
           warning_light_photos?: string[] | null
+          winning_dealer_id?: string | null
           year?: number | null
         }
         Update: {
@@ -891,6 +969,7 @@ export type Database = {
           auction_status?: string | null
           capacity?: number | null
           created_at?: string | null
+          current_bid?: number | null
           damage_photos?: Json | null
           damage_types?: Json | null
           dealer_location?: unknown | null
@@ -915,9 +994,11 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           make?: string | null
+          max_extensions?: number | null
           max_extensions_allowed?: number | null
           mileage?: number
           minimum_bid_increment?: number | null
+          minimum_increment?: number | null
           mobile_number?: string | null
           model?: string | null
           name?: string | null
@@ -945,6 +1026,7 @@ export type Database = {
           valuation_data?: Json | null
           vin?: string
           warning_light_photos?: string[] | null
+          winning_dealer_id?: string | null
           year?: number | null
         }
         Relationships: [
@@ -953,6 +1035,13 @@ export type Database = {
             columns: ["seller_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cars_winning_dealer_id_fkey"
+            columns: ["winning_dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
             referencedColumns: ["id"]
           },
         ]
@@ -3211,6 +3300,14 @@ export type Database = {
       process_pending_proxy_bids: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      process_proxy_bid: {
+        Args: {
+          p_car_id: string
+          p_dealer_id: string
+          p_maximum_bid: number
+        }
+        Returns: string
       }
       refresh_auction_performance: {
         Args: Record<PropertyKey, never>
