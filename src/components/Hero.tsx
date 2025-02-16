@@ -23,7 +23,7 @@ export const Hero = () => {
   const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState<{[key: string]: string}>({});
   
-  const { data: activeAuctions, isLoading } = useQuery({
+  const { data: activeAuctions, isLoading, refetch } = useQuery({
     queryKey: ['activeAuctions'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -55,9 +55,9 @@ export const Hero = () => {
           table: 'cars',
           filter: 'auction_status=eq.active'
         },
-        (payload) => {
+        () => {
           // Refetch auctions when changes occur
-          void activeAuctions?.refetch();
+          void refetch();
         }
       )
       .subscribe();
@@ -65,7 +65,7 @@ export const Hero = () => {
     return () => {
       void subscription.unsubscribe();
     };
-  }, []);
+  }, [refetch]);
 
   // Update countdown timer
   useEffect(() => {
