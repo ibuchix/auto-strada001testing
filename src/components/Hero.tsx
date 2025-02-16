@@ -1,8 +1,98 @@
 
 import { ValuationForm } from "@/components/hero/ValuationForm";
 import { BackgroundPattern } from "@/components/hero/BackgroundPattern";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Loader2, Timer } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+
+interface AuctionCar {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  current_bid: number;
+  auction_end_time: string;
+  auction_status: 'pending' | 'active' | 'completed' | 'cancelled' | 'ended_no_winner';
+}
 
 export const Hero = () => {
+  const navigate = useNavigate();
+  const [timeLeft, setTimeLeft] = useState<{[key: string]: string}>({});
+  
+  const { data: activeAuctions, isLoading } = useQuery({
+    queryKey: ['activeAuctions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cars')
+        .select('id, make, model, year, current_bid, auction_end_time, auction_status')
+        .eq('auction_status', 'active')
+        .order('auction_end_time', { ascending: true })
+        .limit(3);
+
+      if (error) {
+        toast.error("Failed to load auctions");
+        throw error;
+      }
+
+      return data as AuctionCar[];
+    },
+    refetchInterval: 30000 // Refetch every 30 seconds
+  });
+
+  // Subscribe to real-time updates
+  useEffect(() => {
+    const subscription = supabase
+      .channel('auction-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'cars',
+          filter: 'auction_status=eq.active'
+        },
+        (payload) => {
+          // Refetch auctions when changes occur
+          void activeAuctions?.refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void subscription.unsubscribe();
+    };
+  }, []);
+
+  // Update countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const newTimeLeft: {[key: string]: string} = {};
+      
+      activeAuctions?.forEach(auction => {
+        const end = new Date(auction.auction_end_time).getTime();
+        const now = new Date().getTime();
+        const distance = end - now;
+        
+        if (distance < 0) {
+          newTimeLeft[auction.id] = 'Ended';
+        } else {
+          const hours = Math.floor(distance / (1000 * 60 * 60));
+          const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+          newTimeLeft[auction.id] = `${hours}h ${minutes}m ${seconds}s`;
+        }
+      });
+      
+      setTimeLeft(newTimeLeft);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeAuctions]);
+
   const brands = [
     { 
       name: "Porsche", 
@@ -63,6 +153,48 @@ export const Hero = () => {
           </p>
           
           <ValuationForm />
+
+          {/* Active Auctions Section */}
+          {activeAuctions && activeAuctions.length > 0 && (
+            <div className="mt-16">
+              <h2 className="text-2xl font-bold text-dark mb-6">Live Auctions</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {activeAuctions.map((auction) => (
+                  <div 
+                    key={auction.id}
+                    className="bg-white rounded-lg shadow-md p-6 transition-all duration-300 hover:shadow-lg"
+                  >
+                    <h3 className="text-lg font-semibold text-dark">
+                      {auction.year} {auction.make} {auction.model}
+                    </h3>
+                    <div className="mt-4 flex justify-between items-center">
+                      <div className="flex items-center text-primary font-semibold">
+                        <span>Current Bid:</span>
+                        <span className="ml-2">PLN {auction.current_bid?.toLocaleString() || '0'}</span>
+                      </div>
+                      <div className="flex items-center text-subtitle">
+                        <Timer className="w-4 h-4 mr-2" />
+                        <span>{timeLeft[auction.id] || 'Loading...'}</span>
+                      </div>
+                    </div>
+                    <Button 
+                      className="w-full mt-4 bg-secondary hover:bg-secondary/90"
+                      onClick={() => navigate(`/auctions/${auction.id}`)}
+                    >
+                      View Auction
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                className="mt-6"
+                onClick={() => navigate('/auctions')}
+              >
+                View All Auctions
+              </Button>
+            </div>
+          )}
 
           <div className="mt-20">
             <p className="text-sm font-medium text-secondary mb-8">TRUSTED BY LEADING BRANDS</p>
