@@ -523,30 +523,42 @@ export type Database = {
       bids: {
         Row: {
           amount: number
+          bid_status: string | null
           car_id: string
           created_at: string | null
           dealer_id: string
           id: string
+          increment_strategy: Json | null
+          is_proxy_bid: boolean | null
+          max_bid: number | null
           status: string | null
           withdrawal_reason: string | null
           withdrawn_at: string | null
         }
         Insert: {
           amount: number
+          bid_status?: string | null
           car_id: string
           created_at?: string | null
           dealer_id: string
           id?: string
+          increment_strategy?: Json | null
+          is_proxy_bid?: boolean | null
+          max_bid?: number | null
           status?: string | null
           withdrawal_reason?: string | null
           withdrawn_at?: string | null
         }
         Update: {
           amount?: number
+          bid_status?: string | null
           car_id?: string
           created_at?: string | null
           dealer_id?: string
           id?: string
+          increment_strategy?: Json | null
+          is_proxy_bid?: boolean | null
+          max_bid?: number | null
           status?: string | null
           withdrawal_reason?: string | null
           withdrawn_at?: string | null
@@ -836,6 +848,7 @@ export type Database = {
           damage_types: Json | null
           dealer_location: unknown | null
           description: string | null
+          end_time_extension_count: number | null
           extension_duration_minutes: number | null
           extension_trigger_minutes: number | null
           extensions_used: number | null
@@ -852,6 +865,7 @@ export type Database = {
           is_draft: boolean | null
           is_registered_in_poland: boolean | null
           is_selling_on_behalf: boolean | null
+          last_bid_time: string | null
           last_saved: string | null
           latitude: number | null
           longitude: number | null
@@ -865,6 +879,7 @@ export type Database = {
           model: string | null
           name: string | null
           number_of_keys: number | null
+          payment_status: string | null
           price: number
           registration_number: string | null
           required_photos: Json | null
@@ -888,6 +903,7 @@ export type Database = {
           valuation_data: Json | null
           vin: string
           warning_light_photos: string[] | null
+          winning_bid_id: string | null
           winning_dealer_id: string | null
           year: number | null
         }
@@ -905,6 +921,7 @@ export type Database = {
           damage_types?: Json | null
           dealer_location?: unknown | null
           description?: string | null
+          end_time_extension_count?: number | null
           extension_duration_minutes?: number | null
           extension_trigger_minutes?: number | null
           extensions_used?: number | null
@@ -921,6 +938,7 @@ export type Database = {
           is_draft?: boolean | null
           is_registered_in_poland?: boolean | null
           is_selling_on_behalf?: boolean | null
+          last_bid_time?: string | null
           last_saved?: string | null
           latitude?: number | null
           longitude?: number | null
@@ -934,6 +952,7 @@ export type Database = {
           model?: string | null
           name?: string | null
           number_of_keys?: number | null
+          payment_status?: string | null
           price: number
           registration_number?: string | null
           required_photos?: Json | null
@@ -957,6 +976,7 @@ export type Database = {
           valuation_data?: Json | null
           vin: string
           warning_light_photos?: string[] | null
+          winning_bid_id?: string | null
           winning_dealer_id?: string | null
           year?: number | null
         }
@@ -974,6 +994,7 @@ export type Database = {
           damage_types?: Json | null
           dealer_location?: unknown | null
           description?: string | null
+          end_time_extension_count?: number | null
           extension_duration_minutes?: number | null
           extension_trigger_minutes?: number | null
           extensions_used?: number | null
@@ -990,6 +1011,7 @@ export type Database = {
           is_draft?: boolean | null
           is_registered_in_poland?: boolean | null
           is_selling_on_behalf?: boolean | null
+          last_bid_time?: string | null
           last_saved?: string | null
           latitude?: number | null
           longitude?: number | null
@@ -1003,6 +1025,7 @@ export type Database = {
           model?: string | null
           name?: string | null
           number_of_keys?: number | null
+          payment_status?: string | null
           price?: number
           registration_number?: string | null
           required_photos?: Json | null
@@ -1026,6 +1049,7 @@ export type Database = {
           valuation_data?: Json | null
           vin?: string
           warning_light_photos?: string[] | null
+          winning_bid_id?: string | null
           winning_dealer_id?: string | null
           year?: number | null
         }
@@ -1035,6 +1059,13 @@ export type Database = {
             columns: ["seller_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cars_winning_bid_id_fkey"
+            columns: ["winning_bid_id"]
+            isOneToOne: false
+            referencedRelation: "bids"
             referencedColumns: ["id"]
           },
           {
