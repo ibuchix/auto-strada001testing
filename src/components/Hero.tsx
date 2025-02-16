@@ -47,7 +47,7 @@ export const Hero = () => {
   ];
 
   return (
-    <div className="relative min-h-[700px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-gray-50 mt-8">
+    <div className="relative min-h-[700px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-gray-50 mt-4">
       <BackgroundPattern />
 
       {/* Content */}
