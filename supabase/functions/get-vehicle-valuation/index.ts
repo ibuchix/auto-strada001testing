@@ -5,9 +5,10 @@ import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
   'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Credentials': 'true'
 };
 
 serve(async (req) => {
@@ -15,7 +16,11 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
-      headers: corsHeaders
+      headers: {
+        ...corsHeaders,
+        'Content-Length': '0',
+        'Content-Type': 'text/plain'
+      }
     });
   }
 
@@ -58,6 +63,7 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
+      console.error('API response not OK:', response.status, response.statusText);
       throw new Error(`API request failed with status: ${response.status}`);
     }
 
@@ -79,8 +85,11 @@ serve(async (req) => {
     };
 
     return new Response(JSON.stringify(processedData), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
     });
 
   } catch (error) {
@@ -91,8 +100,11 @@ serve(async (req) => {
         error: error.message || 'Failed to get vehicle valuation'
       }
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: error.message === 'Method not allowed' ? 405 : 500,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
     });
   }
 });
