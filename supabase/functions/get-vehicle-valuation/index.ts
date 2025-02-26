@@ -2,7 +2,7 @@
 // @ts-ignore 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { createHash } from "https://deno.land/std@0.168.0/hash/mod.ts";
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,10 +28,12 @@ serve(async (req) => {
     const API_ID = 'AUTOSTRA';
     const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
     
-    // Calculate checksum
-    const checksum = createHash("md5")
-      .update(API_ID + API_SECRET + vin)
-      .toString();
+    // Calculate checksum using MD5
+    const encoder = new TextEncoder();
+    const data = encoder.encode(API_ID + API_SECRET + vin);
+    const hashBuffer = await crypto.subtle.digest('MD5', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     
     console.log('Calculated checksum:', checksum);
     
