@@ -1,7 +1,7 @@
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createHash } from 'https://deno.land/std@0.202.0/hash/mod.ts';
 import { ValidationResponse } from './types.ts';
-import { calculateMD5 } from './utils.ts';
 import { corsHeaders } from './utils.ts';
 
 export async function validateVehicleHistory(supabase: SupabaseClient, vin: string) {
@@ -28,30 +28,42 @@ export async function checkVinSearchHistory(supabase: SupabaseClient, vin: strin
 }
 
 export async function fetchVehicleData(vin: string, mileage: number) {
-  const apiId = 'AUTOSTRA';
-  const apiSecret = Deno.env.get('CAR_API_SECRET');
-  if (!apiSecret) {
-    throw new Error('API secret not configured');
-  }
+  const API_ID = 'AUTOSTRA';
+  const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
+  
+  // Calculate checksum using md5
+  const checksum = createHash('md5')
+    .update(API_ID + API_SECRET + vin)
+    .toString();
+  
+  console.log('Calculated checksum:', checksum);
+  console.log('Making API request for VIN:', vin, 'with mileage:', mileage);
+  
+  const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+  
+  console.log('Requesting from URL:', apiUrl);
 
-  const checksum = calculateMD5(`${apiId}${apiSecret}${vin}`);
-  const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      }
+    });
 
-  console.log('Making API request to:', apiUrl);
-
-  const response = await fetch(apiUrl, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
+    if (!response.ok) {
+      console.error('API request failed:', response.status, response.statusText);
+      throw new Error(`API request failed with status: ${response.status}`);
     }
-  });
 
-  if (!response.ok) {
-    throw new Error(`API request failed with status: ${response.status}`);
+    const data = await response.json();
+    console.log('API Response:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching vehicle data:', error);
+    throw error;
   }
-
-  return await response.json();
 }
 
 export function createErrorResponse(vin: string, gearbox: string, error: string): ValidationResponse {
