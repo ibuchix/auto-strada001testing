@@ -177,6 +177,16 @@ serve(async (req) => {
       throw new Error('Invalid mileage value');
     }
 
+    // Initialize Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      {
+        auth: { persistSession: false },
+        db: { schema: 'public' }
+      }
+    );
+
     // Prepare API request
     const apiId = 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET');
