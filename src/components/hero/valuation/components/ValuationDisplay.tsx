@@ -1,3 +1,9 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of valuation display component
+ * - 2024-03-19: Added price formatting
+ */
+
 interface ValuationDisplayProps {
   averagePrice: number;
 }

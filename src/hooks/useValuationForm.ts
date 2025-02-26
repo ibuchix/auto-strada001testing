@@ -1,4 +1,11 @@
 
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of form handling for vehicle valuation
+ * - 2024-03-19: Added error handling and success dialog management
+ * - 2024-03-19: Integrated with valuation service
+ */
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

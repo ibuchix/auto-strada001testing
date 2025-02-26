@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of valuation result display
+ * - 2024-03-19: Added user authentication checks
+ * - 2024-03-19: Implemented seller role validation
+ */
+
 import {
   DialogContent,
   DialogHeader,

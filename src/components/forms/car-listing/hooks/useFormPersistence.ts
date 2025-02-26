@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of form persistence logic
+ * - 2024-03-19: Added support for both local storage and backend persistence
+ * - 2024-03-19: Implemented auto-save functionality
+ */
+
 import { useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";

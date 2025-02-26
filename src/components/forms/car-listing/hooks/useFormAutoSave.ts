@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of auto-save functionality
+ * - 2024-03-19: Added debounce mechanism
+ * - 2024-03-19: Implemented data persistence with Supabase
+ */
+
 import { useEffect, useRef, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";

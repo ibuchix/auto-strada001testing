@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of form submission logic
+ * - 2024-03-19: Added validation and error handling
+ * - 2024-03-19: Integrated with Supabase for data persistence
+ */
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";

@@ -1,4 +1,10 @@
 
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of valuation types
+ * - 2024-03-19: Added support for transmission types from database
+ */
+
 import { Database } from "@/integrations/supabase/types";
 
 type TransmissionType = Database['public']['Enums']['car_transmission_type'];

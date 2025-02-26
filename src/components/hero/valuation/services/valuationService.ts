@@ -1,4 +1,11 @@
 
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of valuation service
+ * - 2024-03-19: Added support for different contexts (home/seller)
+ * - 2024-03-19: Enhanced error handling and response processing
+ */
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ValuationResult, ValuationData } from "../types";
