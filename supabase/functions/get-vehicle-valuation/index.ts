@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { createHash } from "https://deno.land/std@0.168.0/hash/mod.ts";
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 interface ValuationData {
   make?: string;
@@ -36,6 +36,14 @@ function calculateReservePrice(priceX: number): number {
   return Math.round(priceX - (priceX * percentageY));
 }
 
+async function generateMd5(message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -50,7 +58,7 @@ serve(async (req) => {
     const API_ID = 'AUTOSTRA';
     const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
     const input = `${API_ID}${API_SECRET}${vin}`;
-    const checksum = createHash('md5').update(input).toString();
+    const checksum = await generateMd5(input);
     
     console.log('Generated checksum:', checksum);
 
