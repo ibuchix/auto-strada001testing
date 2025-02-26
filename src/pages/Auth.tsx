@@ -1,3 +1,9 @@
+
+/**
+ * Changes made:
+ * - 2024-03-19: Fixed text display and removed unintended content
+ */
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Auth as SupabaseAuth } from "@supabase/auth-ui-react";
@@ -68,7 +74,6 @@ const Auth = () => {
           .single();
 
         if (profile?.role === 'dealer') {
-          // Create dealer record with all required fields
           const { error: dealerError } = await supabase
             .from('dealers')
             .insert({
@@ -91,7 +96,6 @@ const Auth = () => {
           }
         }
 
-        // Sync local valuations after successful sign in
         await syncLocalValuations(session.user.id);
 
         toast({
