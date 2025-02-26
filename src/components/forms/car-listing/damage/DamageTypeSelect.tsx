@@ -1,3 +1,9 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of damage type selection
+ * - 2024-03-19: Added dropdown options for damage types
+ */
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { DamageType } from "../types/damages";

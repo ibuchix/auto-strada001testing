@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of form saving utilities
+ * - 2024-03-19: Added data transformation and validation
+ * - 2024-03-19: Implemented error handling for save operations
+ */
+
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";

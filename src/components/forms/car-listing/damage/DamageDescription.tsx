@@ -1,3 +1,9 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of damage description component
+ * - 2024-03-19: Added input validation and error handling
+ */
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 

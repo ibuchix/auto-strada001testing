@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of sell my car page
+ * - 2024-03-19: Added authentication check
+ * - 2024-03-19: Implemented form integration
+ */
+
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { CarListingForm } from "@/components/forms/CarListingForm";

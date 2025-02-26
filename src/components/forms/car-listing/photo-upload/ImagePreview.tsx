@@ -1,3 +1,9 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of image preview component
+ * - 2024-03-19: Added remove functionality and hover effects
+ */
+
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 

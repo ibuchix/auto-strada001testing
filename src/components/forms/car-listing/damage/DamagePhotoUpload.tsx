@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of damage photo upload
+ * - 2024-03-19: Added file type validation and upload handling
+ * - 2024-03-19: Implemented error notifications
+ */
+
 import { Input } from "@/components/ui/input";
 import { FormLabel } from "@/components/ui/form";
 import { DamageType } from "../types/damages";

@@ -1,4 +1,11 @@
 
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of valuation form
+ * - 2024-03-19: Added result dialog integration
+ * - 2024-03-19: Implemented form validation
+ */
+
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./valuation/components/ValuationResult";
 import { Dialog } from "@/components/ui/dialog";

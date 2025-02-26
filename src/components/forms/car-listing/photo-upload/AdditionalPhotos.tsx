@@ -1,3 +1,9 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of additional photos component
+ * - 2024-03-19: Added file type validation and limits
+ */
+
 import { Input } from "@/components/ui/input";
 
 interface AdditionalPhotosProps {

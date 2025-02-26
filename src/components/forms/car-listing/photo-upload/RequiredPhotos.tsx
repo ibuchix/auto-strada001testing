@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of required photos component
+ * - 2024-03-19: Added upload progress tracking
+ * - 2024-03-19: Implemented grid layout for photo uploads
+ */
+
 import { PhotoUpload } from "./PhotoUpload";
 import { requiredPhotos } from "./types";
 import { Progress } from "@/components/ui/progress";
