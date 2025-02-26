@@ -1,6 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+import { Md5 } from "https://deno.land/std@0.168.0/hash/md5.ts";
 
 interface ValuationData {
   make?: string;
@@ -46,17 +48,19 @@ serve(async (req) => {
     const { vin, mileage, gearbox } = await req.json();
     console.log('Processing valuation request for VIN:', vin, 'Mileage:', mileage);
 
-    // Calculate checksum for API request
-    const encoder = new TextEncoder();
+    // Calculate checksum for API request using Deno's Md5 implementation
     const API_ID = 'AUTOSTRA';
     const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
-    const data = encoder.encode(API_ID + API_SECRET + vin);
-    const hashBuffer = await crypto.subtle.digest('MD5', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const input = `${API_ID}${API_SECRET}${vin}`;
+    const md5 = new Md5();
+    md5.update(input);
+    const checksum = md5.toString();
+    
+    console.log('Generated checksum:', checksum);
 
     // Make request to external valuation API
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    console.log('Requesting valuation from:', apiUrl);
     
     const response = await fetch(apiUrl);
     const apiData: ValuationData = await response.json();
