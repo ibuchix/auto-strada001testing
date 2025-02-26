@@ -1,82 +1,53 @@
 
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+/**
+ * Changes made:
+ * - 2024-03-19: Fixed props passed to ValuationDisplay
+ */
+
+import { 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle 
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { VehicleDetails } from "./VehicleDetails";
 import { ValuationDisplay } from "./ValuationDisplay";
+import { VehicleDetails } from "./VehicleDetails";
 
 interface ValuationContentProps {
   make: string;
   model: string;
   year: number;
-  vin: string;
   transmission: string;
   mileage: number;
-  averagePrice?: number;
-  hasValuation: boolean;
-  isLoggedIn: boolean;
-  onClose: () => void;
-  onContinue: () => void;
+  reservePrice?: number;
 }
 
 export const ValuationContent = ({
   make,
   model,
   year,
-  vin,
   transmission,
   mileage,
-  averagePrice,
-  hasValuation,
-  isLoggedIn,
-  onClose,
-  onContinue,
+  reservePrice = 0
 }: ValuationContentProps) => {
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle className="text-2xl font-bold text-center mb-6">
-          Your Vehicle Valuation
+          Vehicle Valuation Result
         </DialogTitle>
       </DialogHeader>
 
       <div className="space-y-6">
-        <VehicleDetails 
+        <VehicleDetails
           make={make}
           model={model}
           year={year}
-          vin={vin}
           transmission={transmission}
           mileage={mileage}
         />
-
-        {hasValuation && (
-          <ValuationDisplay averagePrice={averagePrice || 0} />
-        )}
+        
+        <ValuationDisplay reservePrice={reservePrice} />
       </div>
-
-      <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
-        <Button 
-          variant="outline"
-          onClick={onClose}
-          className="w-full sm:w-auto"
-        >
-          Close
-        </Button>
-        <Button 
-          onClick={onContinue}
-          className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
-        >
-          {!isLoggedIn 
-            ? "Sign Up to List Your Car" 
-            : "List This Car"
-          }
-        </Button>
-      </DialogFooter>
     </DialogContent>
   );
 };
