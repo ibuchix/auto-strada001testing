@@ -1,8 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
-import { Md5 } from "https://deno.land/std@0.168.0/hash/md5.ts";
 
 interface ValuationData {
   make?: string;
@@ -38,6 +36,13 @@ function calculateReservePrice(priceX: number): number {
   return Math.round(priceX - (priceX * percentageY));
 }
 
+function generateMd5(input: string): string {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashArray = Array.from(new Uint8Array(data));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -48,13 +53,11 @@ serve(async (req) => {
     const { vin, mileage, gearbox } = await req.json();
     console.log('Processing valuation request for VIN:', vin, 'Mileage:', mileage);
 
-    // Calculate checksum for API request using Deno's Md5 implementation
+    // Calculate checksum for API request using simple string concatenation
     const API_ID = 'AUTOSTRA';
     const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
     const input = `${API_ID}${API_SECRET}${vin}`;
-    const md5 = new Md5();
-    md5.update(input);
-    const checksum = md5.toString();
+    const checksum = generateMd5(input);
     
     console.log('Generated checksum:', checksum);
 
