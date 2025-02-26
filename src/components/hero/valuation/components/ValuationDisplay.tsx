@@ -5,7 +5,7 @@
  * - 2024-03-19: Added price formatting
  * - 2024-03-19: Updated to display reserve price instead of average price
  * - 2024-03-19: Removed client-side price calculations
- * - 2024-03-19: Added averagePrice prop to support API response data
+ * - 2024-03-19: Removed average price display
  */
 
 interface ValuationDisplayProps {
@@ -14,8 +14,7 @@ interface ValuationDisplayProps {
 }
 
 export const ValuationDisplay = ({ 
-  reservePrice,
-  averagePrice 
+  reservePrice
 }: ValuationDisplayProps) => {
   return (
     <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
@@ -23,14 +22,6 @@ export const ValuationDisplay = ({
       <p className="text-4xl font-bold text-primary">
         PLN {reservePrice.toLocaleString()}
       </p>
-      {averagePrice && (
-        <div className="mt-4">
-          <p className="text-sm text-subtitle mb-2">Average Market Price</p>
-          <p className="text-2xl font-semibold text-secondary">
-            PLN {averagePrice.toLocaleString()}
-          </p>
-        </div>
-      )}
     </div>
   );
 };
