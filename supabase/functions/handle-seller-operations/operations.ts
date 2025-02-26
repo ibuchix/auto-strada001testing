@@ -1,195 +1,135 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Added reserve price calculation logic
+ */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { ValuationRequest, ValidationResponse } from './types.ts';
-import { validateVehicleHistory, checkVinSearchHistory, fetchVehicleData, createErrorResponse, createSuccessResponse } from './validation.ts';
-import { createVinReservation, checkExistingReservation } from './reservations.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { Database } from '../_shared/database.types.ts';
 
-export async function handleVinValidation(
-  supabase: SupabaseClient,
-  request: ValuationRequest
-): Promise<ValidationResponse> {
-  const { vin, mileage, gearbox, userId } = request;
-  console.log('Starting VIN validation for:', vin);
+const calculateReservePrice = (averagePrice: number): number => {
+  // Start with 85% of the average price as the reserve
+  const reservePercentage = 0.85;
+  const baseReserve = averagePrice * reservePercentage;
+  
+  // Round to nearest 100
+  return Math.round(baseReserve / 100) * 100;
+};
 
-  // Log operation start
-  const { data: operationLog, error: logError } = await supabase
-    .from('seller_operations')
-    .insert({
-      seller_id: userId,
-      operation_type: 'validate_vin',
-      input_data: { vin, mileage, gearbox },
-      success: false
-    })
-    .select()
-    .single();
-
-  if (logError) {
-    console.error('Failed to log operation:', logError);
-  }
+export const validateVin = async (
+  supabase: ReturnType<typeof createClient<Database>>,
+  vin: string,
+  mileage: number,
+  gearbox: string,
+  userId: string
+) => {
+  console.log(`Validating VIN: ${vin} for user: ${userId}`);
 
   try {
-    // Check for existing active reservation
-    const existingReservation = await checkExistingReservation(supabase, vin);
-    if (existingReservation) {
-      if (existingReservation.seller_id === userId) {
-        console.log('User already has an active reservation for this VIN');
-        return createSuccessResponse({
+    // Check if vehicle already exists
+    const { data: existingVehicle } = await supabase
+      .from('cars')
+      .select('id')
+      .eq('vin', vin)
+      .single();
+
+    if (existingVehicle) {
+      console.log('Vehicle already exists in database');
+      return {
+        success: true,
+        data: {
+          isExisting: true,
+          error: 'This vehicle has already been listed'
+        }
+      };
+    }
+
+    // Get valuation from external API
+    const checksum = await calculateChecksum(vin);
+    const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:AUTOSTRA/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    
+    console.log('Fetching valuation data from:', valuationUrl);
+    
+    const response = await fetch(valuationUrl);
+    const data = await response.json();
+
+    if (!data.success) {
+      console.error('Valuation API error:', data);
+      throw new Error(data.message || 'Failed to get valuation');
+    }
+
+    // Calculate reserve price from the average price
+    const averagePrice = data.price || data.averagePrice;
+    const reservePrice = calculateReservePrice(averagePrice);
+
+    console.log('Calculated reserve price:', reservePrice);
+
+    // Create a reservation for this VIN
+    const { data: reservation, error: reservationError } = await supabase
+      .from('vin_reservations')
+      .insert([
+        {
           vin,
-          transmission: gearbox,
-          reservationId: existingReservation.id
-        });
-      } else {
-        console.log('VIN is currently reserved by another user');
-        return createErrorResponse(vin, gearbox, 'This VIN is currently reserved by another user. Please try again later.');
-      }
+          user_id: userId,
+          status: 'pending',
+          valuation_data: {
+            ...data,
+            reservePrice
+          }
+        }
+      ])
+      .select()
+      .single();
+
+    if (reservationError) {
+      console.error('Reservation error:', reservationError);
+      throw reservationError;
     }
 
-    // Check if VIN exists in cars table
-    const existingCar = await validateVehicleHistory(supabase, vin);
-    if (existingCar) {
-      const response = createSuccessResponse({
-        vin,
-        transmission: gearbox,
-        isExisting: true,
-        error: 'This vehicle has already been listed'
-      });
-
-      if (operationLog) {
-        await supabase
-          .from('seller_operations')
-          .update({
-            success: true,
-            output_data: response,
-            error_message: 'Vehicle already listed'
-          })
-          .eq('id', operationLog.id);
-      }
-
-      return response;
-    }
-
-    // Create VIN reservation
-    const reservation = await createVinReservation(supabase, vin, userId!);
-
-    // Check VIN search history
-    const searchHistory = await checkVinSearchHistory(supabase, vin);
-    if (searchHistory?.search_data) {
-      const response = createSuccessResponse({
-        ...searchHistory.search_data,
-        transmission: gearbox,
-        isExisting: false,
-        vin,
+    return {
+      success: true,
+      data: {
+        make: data.make,
+        model: data.model,
+        year: data.year,
+        valuation: data.price,
+        averagePrice: data.averagePrice,
+        reservePrice,
         reservationId: reservation.id
-      });
-
-      if (operationLog) {
-        await supabase
-          .from('seller_operations')
-          .update({
-            success: true,
-            output_data: response,
-            error_message: 'Used cached VIN data'
-          })
-          .eq('id', operationLog.id);
       }
-
-      return response;
-    }
-
-    // Fetch new vehicle data
-    const responseData = await fetchVehicleData(vin, mileage);
-    console.log('Raw API response:', responseData);
-
-    // Extract required data
-    const { make, model, year } = responseData;
-    const valuation = responseData.valuation?.calcValuation?.price;
-    const averagePrice = responseData.valuation?.calcValuation?.price_avr || valuation;
-
-    if (!make || !model || !year || (!valuation && !averagePrice)) {
-      console.log('Missing required data in API response');
-      
-      const noDataResponse = createSuccessResponse({
-        vin,
-        transmission: gearbox,
-        noData: true,
-        error: 'Could not retrieve complete vehicle information',
-        reservationId: reservation.id
-      });
-
-      // Store the no-data result
-      await supabase
-        .from('vin_search_results')
-        .insert({
-          vin,
-          search_data: { noData: true, error: 'Could not retrieve complete vehicle information' },
-          success: false
-        });
-
-      if (operationLog) {
-        await supabase
-          .from('seller_operations')
-          .update({
-            success: true,
-            output_data: noDataResponse,
-            error_message: 'No data available for VIN'
-          })
-          .eq('id', operationLog.id);
-      }
-
-      return noDataResponse;
-    }
-
-    const validationData = {
-      make,
-      model,
-      year: parseInt(String(year)),
-      vin,
-      transmission: gearbox,
-      valuation,
-      averagePrice,
-      isExisting: false
     };
 
-    // Cache the validation result
-    await supabase
-      .from('vin_search_results')
-      .insert({
-        vin,
-        search_data: validationData,
-        success: true,
-        user_id: userId
-      });
-
-    const successResponse = createSuccessResponse({
-      ...validationData,
-      reservationId: reservation.id
-    });
-
-    // Update operation log with success
-    if (operationLog) {
-      await supabase
-        .from('seller_operations')
-        .update({
-          success: true,
-          output_data: successResponse
-        })
-        .eq('id', operationLog.id);
-    }
-
-    console.log('Returning validation data:', validationData);
-    return successResponse;
-
   } catch (error) {
-    console.error('Error in VIN validation:', error);
-    if (operationLog) {
-      await supabase
-        .from('seller_operations')
-        .update({
-          success: false,
-          error_message: error.message
-        })
-        .eq('id', operationLog.id);
-    }
-    throw error;
+    console.error('VIN validation error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to validate VIN'
+    };
   }
-}
+};
+
+const calculateChecksum = async (vin: string): Promise<string> => {
+  const secretKey = 'RUhBVklOR1JPT1RTRU5TT1JFUw==';
+
+  const encoder = new TextEncoder();
+  const key = encoder.encode(secretKey);
+  const data = encoder.encode(vin);
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    key,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign', 'verify']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    cryptoKey,
+    data
+  );
+
+  const hashArray = Array.from(new Uint8Array(signature));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return hashHex;
+};
