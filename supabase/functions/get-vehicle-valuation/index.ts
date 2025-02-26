@@ -1,3 +1,11 @@
+
+/**
+ * Changes made:
+ * - 2024-03-19: Modified to only show calculated price in frontend response
+ * - 2024-03-19: Added comprehensive pricing details logging to valuation_logs table
+ * - 2024-03-19: Enhanced error handling and validation
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
