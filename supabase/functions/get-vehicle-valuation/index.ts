@@ -11,6 +11,63 @@ const corsHeaders = {
   'Access-Control-Allow-Credentials': 'true'
 };
 
+// VIN validation helper
+function isValidVIN(vin: string): boolean {
+  return /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
+}
+
+// Process API response data
+function processVehicleData(responseData: any, vin: string, gearbox: string) {
+  console.log('Processing vehicle data:', responseData);
+
+  // Check for essential data presence
+  const make = String(responseData.make || responseData.brand || '').trim();
+  const model = String(responseData.model || '').trim();
+  const year = responseData.year || responseData.productionYear || '';
+  const price = responseData.price || responseData.value || 0;
+  const marketPrice = responseData.averageMarketPrice || responseData.marketValue || 0;
+
+  // Calculate valuation - if we have a market price, use that as a base
+  const basePrice = marketPrice > 0 ? marketPrice : price;
+  const valuation = Math.max(basePrice, 0); // Ensure non-negative value
+
+  // Log processed data for debugging
+  console.log('Processed vehicle data:', {
+    make,
+    model,
+    year,
+    valuation,
+    marketPrice: basePrice
+  });
+
+  // Verify we have essential data
+  if (!make || !model || !year) {
+    console.log('Missing essential vehicle data');
+    return {
+      success: true,
+      data: {
+        vin,
+        transmission: gearbox,
+        noData: true,
+        error: 'Incomplete vehicle information received'
+      }
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      make,
+      model,
+      year,
+      vin,
+      transmission: gearbox,
+      valuation,
+      averagePrice: basePrice,
+    }
+  };
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -31,11 +88,20 @@ serve(async (req) => {
 
     const { vin, mileage, gearbox } = await req.json();
     
+    // Enhanced input validation
     if (!vin || !mileage || !gearbox) {
-      throw new Error('Missing required parameters');
+      throw new Error('Missing required parameters: VIN, mileage, and gearbox are required');
     }
 
-    console.log('Received request for VIN:', vin, 'with mileage:', mileage);
+    if (!isValidVIN(vin)) {
+      throw new Error('Invalid VIN format');
+    }
+
+    if (mileage < 0 || mileage > 1000000) {
+      throw new Error('Invalid mileage value');
+    }
+
+    console.log('Processing request for VIN:', vin, 'with mileage:', mileage);
 
     // API configuration
     const API_ID = 'AUTOSTRA';
@@ -64,27 +130,16 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error('API response not OK:', response.status, response.statusText);
-      throw new Error(`API request failed with status: ${response.status}`);
+      throw new Error(`Vehicle data service error: ${response.status}`);
     }
 
     const responseData = await response.json();
-    console.log('API Response:', responseData);
+    console.log('Raw API Response:', responseData);
 
-    // Process the API response and format it according to your needs
-    const processedData = {
-      success: true,
-      data: {
-        make: responseData.make || '',
-        model: responseData.model || '',
-        year: responseData.year || '',
-        vin,
-        transmission: gearbox,
-        valuation: responseData.valuation || responseData.price || 0,
-        averagePrice: responseData.averageMarketPrice || responseData.valuation || 0,
-      }
-    };
+    // Process the response data
+    const result = processVehicleData(responseData, vin, gearbox);
 
-    return new Response(JSON.stringify(processedData), {
+    return new Response(JSON.stringify(result), {
       status: 200,
       headers: {
         ...corsHeaders,
@@ -94,12 +149,19 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({
+    
+    // More specific error handling
+    const errorMessage = error.message || 'Failed to get vehicle valuation';
+    const errorResponse = {
       success: false,
       data: {
-        error: error.message || 'Failed to get vehicle valuation'
+        error: errorMessage,
+        vin: null,
+        transmission: null
       }
-    }), {
+    };
+
+    return new Response(JSON.stringify(errorResponse), {
       status: error.message === 'Method not allowed' ? 405 : 500,
       headers: {
         ...corsHeaders,
