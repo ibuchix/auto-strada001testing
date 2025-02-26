@@ -19,21 +19,13 @@ export default defineConfig(({ mode }) => ({
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Origin, Content-Type, Accept, Authorization",
       "Access-Control-Allow-Credentials": "true"
-    },
-    proxy: {
-      "/api": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-        secure: false,
-      }
-    },
-    middlewareMode: true
+    }
   },
   preview: {
     port: 8080,
     cors: {
       origin: ["https://lovable.dev", "https://auth.gptengineer.app"],
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      methods: ["GET", "POST", PUT, "DELETE", "OPTIONS"],
       allowedHeaders: ["Origin", "Content-Type", "Accept", "Authorization"],
       credentials: true
     },
@@ -46,8 +38,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' &&
-    componentTagger(),
+    mode === 'development' && componentTagger()
   ].filter(Boolean),
   resolve: {
     alias: {
