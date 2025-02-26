@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     cors: {
       origin: ["https://lovable.dev", "https://auth.gptengineer.app"],
-      methods: ["GET", "POST", PUT, "DELETE", "OPTIONS"],
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: ["Origin", "Content-Type", "Accept", "Authorization"],
       credentials: true
     },
