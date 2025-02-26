@@ -25,6 +25,7 @@ interface ValuationResponse {
     transmission: string;
     valuation?: number;
     averagePrice?: number;
+    reservePrice?: number;
     isExisting?: boolean;
     noData?: boolean;
     error?: string;
@@ -38,6 +39,44 @@ function calculateMD5(input: string): string {
   return Array.from(new Uint8Array(hash))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+function calculatePrices(minValue: number, maxValue: number): { basePrice: number; reservePrice: number } {
+  console.log(`Calculating prices for min: ${minValue}, max: ${maxValue}`);
+
+  // Calculate base price (PriceX) as average of min and max
+  const basePrice = (minValue + maxValue) / 2;
+  console.log(`Base price (PriceX): ${basePrice}`);
+
+  // Determine percentage based on price range
+  let discountPercentage = 0;
+  if (basePrice <= 15000) discountPercentage = 0.65;
+  else if (basePrice <= 20000) discountPercentage = 0.46;
+  else if (basePrice <= 30000) discountPercentage = 0.37;
+  else if (basePrice <= 50000) discountPercentage = 0.27;
+  else if (basePrice <= 60000) discountPercentage = 0.27;
+  else if (basePrice <= 70000) discountPercentage = 0.22;
+  else if (basePrice <= 80000) discountPercentage = 0.23;
+  else if (basePrice <= 100000) discountPercentage = 0.24;
+  else if (basePrice <= 130000) discountPercentage = 0.20;
+  else if (basePrice <= 160000) discountPercentage = 0.185;
+  else if (basePrice <= 200000) discountPercentage = 0.22;
+  else if (basePrice <= 250000) discountPercentage = 0.17;
+  else if (basePrice <= 300000) discountPercentage = 0.18;
+  else if (basePrice <= 400000) discountPercentage = 0.18;
+  else if (basePrice <= 500000) discountPercentage = 0.16;
+  else discountPercentage = 0.145;
+
+  console.log(`Applied discount percentage: ${discountPercentage * 100}%`);
+
+  // Calculate reserve price
+  const reservePrice = basePrice - (basePrice * discountPercentage);
+  console.log(`Calculated reserve price: ${reservePrice}`);
+
+  return {
+    basePrice: Math.round(basePrice),
+    reservePrice: Math.round(reservePrice)
+  };
 }
 
 function validateApiResponse(responseData: any): boolean {
@@ -138,16 +177,6 @@ serve(async (req) => {
       throw new Error('Invalid mileage value');
     }
 
-    // Initialize Supabase client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      {
-        auth: { persistSession: false },
-        db: { schema: 'public' }
-      }
-    );
-
     // Prepare API request
     const apiId = 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET');
@@ -185,6 +214,12 @@ serve(async (req) => {
       const data = responseData.functionResponse.userParams;
       const valuationData = responseData.functionResponse.valuation;
 
+      // Calculate prices using our formula
+      const { basePrice, reservePrice } = calculatePrices(
+        valuationData.calcValuation.price_min || valuationData.calcValuation.price,
+        valuationData.calcValuation.price_max || valuationData.calcValuation.price
+      );
+
       // Return processed data
       const result: ValuationResponse = {
         success: true,
@@ -194,8 +229,9 @@ serve(async (req) => {
           year: parseInt(String(data.year)),
           vin: cleanVin,
           transmission: gearbox,
-          valuation: valuationData.calcValuation.price,
-          averagePrice: valuationData.calcValuation.price_avr
+          valuation: basePrice,
+          averagePrice: valuationData.calcValuation.price_avr,
+          reservePrice: reservePrice
         }
       };
 
