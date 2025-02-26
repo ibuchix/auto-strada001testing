@@ -7,7 +7,7 @@
  * - 2024-03-19: Updated to pass reserve price to ValuationDisplay
  * - 2024-03-19: Refactored into smaller components
  * - 2024-03-19: Fixed type error in props passed to ValuationContent
- * - 2024-03-19: Removed averagePrice from props passed to ValuationContent
+ * - 2024-03-19: Added averagePrice to ValuationContent props
  */
 
 import { useNavigate } from "react-router-dom";
@@ -85,6 +85,7 @@ export const ValuationResult = ({
       transmission={valuationResult.transmission}
       mileage={mileage}
       reservePrice={valuationResult.reservePrice}
+      averagePrice={valuationResult.averagePrice}
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
       onClose={onClose}

@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-03-19: Fixed props passed to ValuationDisplay
  * - 2024-03-19: Added vin prop and passed it to VehicleDetails
+ * - 2024-03-19: Added averagePrice prop to handle API response data
  */
 
 import { 
@@ -23,6 +24,7 @@ interface ValuationContentProps {
   transmission: string;
   mileage: number;
   reservePrice?: number;
+  averagePrice?: number;
   hasValuation: boolean;
   isLoggedIn: boolean;
   onClose: () => void;
@@ -37,6 +39,7 @@ export const ValuationContent = ({
   transmission,
   mileage,
   reservePrice = 0,
+  averagePrice,
   hasValuation,
   isLoggedIn,
   onClose,
@@ -61,7 +64,10 @@ export const ValuationContent = ({
         />
         
         {hasValuation && (
-          <ValuationDisplay reservePrice={reservePrice} />
+          <ValuationDisplay 
+            reservePrice={reservePrice}
+            averagePrice={averagePrice}
+          />
         )}
       </div>
 
