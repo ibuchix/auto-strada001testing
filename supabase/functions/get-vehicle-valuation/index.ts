@@ -2,7 +2,7 @@
 // @ts-ignore 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { createHash } from 'https://deno.land/std@0.202.0/hash/mod.ts';
+import { createHash } from "https://deno.land/std@0.168.0/hash/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,7 +29,7 @@ serve(async (req) => {
     const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
     
     // Calculate checksum
-    const checksum = createHash('md5')
+    const checksum = createHash("md5")
       .update(API_ID + API_SECRET + vin)
       .toString();
     
