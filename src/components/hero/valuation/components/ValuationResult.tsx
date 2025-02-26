@@ -1,8 +1,10 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of valuation result display
  * - 2024-03-19: Added user authentication checks
  * - 2024-03-19: Implemented seller role validation
+ * - 2024-03-19: Updated to pass reserve price to ValuationDisplay
  */
 
 import {
@@ -30,6 +32,7 @@ interface ValuationResultProps {
     transmission: string;
     valuation?: number;
     averagePrice?: number;
+    reservePrice?: number;
     isExisting?: boolean;
     error?: string;
     noData?: boolean;
@@ -180,7 +183,10 @@ export const ValuationResult = ({
         />
 
         {hasValuation && (
-          <ValuationDisplay averagePrice={valuationResult.averagePrice || valuationResult.valuation || 0} />
+          <ValuationDisplay 
+            averagePrice={valuationResult.averagePrice || valuationResult.valuation || 0} 
+            reservePrice={valuationResult.reservePrice}
+          />
         )}
       </div>
 
