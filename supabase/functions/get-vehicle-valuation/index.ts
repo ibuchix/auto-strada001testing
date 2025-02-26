@@ -1,14 +1,30 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
-interface ValuationData {
-  make?: string;
-  model?: string;
-  year?: number;
-  price_min?: number;
-  price_med?: number;
-  valuation?: number;
+interface ValuationResponse {
+  version: string;
+  vin: string;
+  apiStatus: string;
+  functionResponse: {
+    userParams: {
+      make: string;
+      model: string;
+      year: number;
+      capacity: string;
+      fuel: string;
+    };
+    valuation: {
+      calcValuation: {
+        price: number;
+        price_min: number;
+        price_max: number;
+        price_avr: number;
+        price_med: number;
+      };
+    };
+  };
 }
 
 function calculateReservePrice(priceX: number): number {
@@ -67,11 +83,13 @@ serve(async (req) => {
     console.log('Requesting valuation from:', apiUrl);
     
     const response = await fetch(apiUrl);
-    const apiData: ValuationData = await response.json();
+    const apiData: ValuationResponse = await response.json();
     
     console.log('API Response:', apiData);
 
-    if (!apiData.price_min || !apiData.price_med) {
+    // Check if we have valid valuation data
+    if (!apiData.functionResponse?.valuation?.calcValuation?.price_min || 
+        !apiData.functionResponse?.valuation?.calcValuation?.price_med) {
       console.log('No price data available for VIN:', vin);
       return new Response(
         JSON.stringify({
@@ -88,7 +106,10 @@ serve(async (req) => {
     }
 
     // Calculate base price (PriceX): (price_min + price_med) / 2
-    const priceX = Math.round((apiData.price_min + apiData.price_med) / 2);
+    const priceX = Math.round(
+      (apiData.functionResponse.valuation.calcValuation.price_min + 
+       apiData.functionResponse.valuation.calcValuation.price_med) / 2
+    );
     console.log('Calculated base price (PriceX):', priceX);
 
     // Calculate reserve price
@@ -99,9 +120,9 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         data: {
-          make: apiData.make,
-          model: apiData.model,
-          year: apiData.year,
+          make: apiData.functionResponse.userParams.make,
+          model: apiData.functionResponse.userParams.model,
+          year: apiData.functionResponse.userParams.year,
           vin,
           transmission: gearbox,
           valuation: reservePrice,
