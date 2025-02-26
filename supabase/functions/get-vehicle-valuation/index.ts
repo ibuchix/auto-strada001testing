@@ -32,9 +32,9 @@ function getPercentageDiscount(price: number): number {
 }
 
 // Calculate final price and reserve price
-function calculatePrices(minValue: number, maxValue: number) {
-  // Calculate base price (Price X) as average of min and max values
-  const basePrice = (minValue + maxValue) / 2;
+function calculatePrices(minValue: number, medValue: number) {
+  // Calculate base price (Price X) as average of min and median values
+  const basePrice = (minValue + medValue) / 2;
   
   // Get the appropriate percentage discount
   const percentageDiscount = getPercentageDiscount(basePrice);
@@ -44,7 +44,7 @@ function calculatePrices(minValue: number, maxValue: number) {
 
   console.log('Price calculations:', {
     minValue,
-    maxValue,
+    medValue,
     basePrice,
     percentageDiscount,
     reservePrice
@@ -65,17 +65,34 @@ function isValidVIN(vin: string): boolean {
 function processVehicleData(responseData: any, vin: string, gearbox: string) {
   console.log('Processing vehicle data:', responseData);
 
+  // Extract data from the nested structure
+  const userParams = responseData?.functionResponse?.userParams;
+  const valuation = responseData?.functionResponse?.valuation?.calcValuation;
+
+  if (!userParams || !valuation) {
+    console.log('Missing required response structure');
+    return {
+      success: true,
+      data: {
+        vin,
+        transmission: gearbox,
+        noData: true,
+        error: 'Invalid response structure from vehicle service'
+      }
+    };
+  }
+
   // Check for essential data presence
-  const make = String(responseData.make || responseData.brand || '').trim();
-  const model = String(responseData.model || '').trim();
-  const year = responseData.year || responseData.productionYear || '';
+  const make = String(userParams.make || '').trim();
+  const model = String(userParams.model || '').trim();
+  const year = userParams.year || '';
   
-  // Get price values from various possible response formats
-  const minPrice = responseData.minValue || responseData.minimumPrice || responseData.price || 0;
-  const maxPrice = responseData.maxValue || responseData.maximumPrice || responseData.averageMarketPrice || minPrice;
+  // Get price values from the valuation
+  const minPrice = valuation.price_min || 0;
+  const medPrice = valuation.price_med || 0;
 
   // Calculate prices using our formula
-  const { basePrice, reservePrice } = calculatePrices(minPrice, maxPrice);
+  const { basePrice, reservePrice } = calculatePrices(minPrice, medPrice);
 
   // Log processed data for debugging
   console.log('Processed vehicle data:', {
@@ -83,7 +100,7 @@ function processVehicleData(responseData: any, vin: string, gearbox: string) {
     model,
     year,
     minPrice,
-    maxPrice,
+    medPrice,
     basePrice,
     reservePrice
   });
@@ -111,10 +128,10 @@ function processVehicleData(responseData: any, vin: string, gearbox: string) {
       vin,
       transmission: gearbox,
       valuation: basePrice,
-      averagePrice: basePrice,
+      averagePrice: valuation.price_avr || basePrice,
       reservePrice: reservePrice,
       originalMinPrice: minPrice,
-      originalMaxPrice: maxPrice
+      originalMaxPrice: valuation.price_max || 0
     }
   };
 }
