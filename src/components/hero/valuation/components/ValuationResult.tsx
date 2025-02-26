@@ -6,14 +6,14 @@
  * - 2024-03-19: Implemented seller role validation
  * - 2024-03-19: Updated to pass reserve price to ValuationDisplay
  * - 2024-03-19: Refactored into smaller components
- * - 2024-03-19: Fixed type error in hasValuation check
+ * - 2024-03-19: Fixed type error in props passed to ValuationContent
  */
 
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ErrorDialog } from "./ErrorDialog";
 import { ExistingVehicleDialog } from "./dialogs/ExistingVehicleDialog";
-import { ValuationMainContent } from "./ValuationMainContent";
+import { ValuationContent } from "./ValuationContent";
 import { useValuationContinue } from "../hooks/useValuationContinue";
 
 interface ValuationResultProps {
@@ -48,7 +48,6 @@ export const ValuationResult = ({
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = !!valuationResult.error;
-  // Fix: Ensure hasValuation is a boolean by using !! to convert numbers to boolean
   const hasValuation = !hasError && !!(valuationResult.averagePrice || valuationResult.valuation);
 
   if (hasError && valuationResult.isExisting) {
@@ -77,15 +76,13 @@ export const ValuationResult = ({
   }
 
   return (
-    <ValuationMainContent
+    <ValuationContent
       make={valuationResult.make}
       model={valuationResult.model}
       year={valuationResult.year}
       vin={valuationResult.vin}
       transmission={valuationResult.transmission}
       mileage={mileage}
-      averagePrice={valuationResult.averagePrice}
-      valuation={valuationResult.valuation}
       reservePrice={valuationResult.reservePrice}
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
