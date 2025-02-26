@@ -1,18 +1,44 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Added reserve price calculation logic
+ * - 2024-03-19: Updated reserve price calculation to use correct formula and percentage tiers
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { Database } from '../_shared/database.types.ts';
 
-const calculateReservePrice = (averagePrice: number): number => {
-  // Start with 85% of the average price as the reserve
-  const reservePercentage = 0.85;
-  const baseReserve = averagePrice * reservePercentage;
+const getReservePercentage = (basePrice: number): number => {
+  if (basePrice <= 15000) return 0.65;
+  if (basePrice <= 20000) return 0.46;
+  if (basePrice <= 30000) return 0.37;
+  if (basePrice <= 50000) return 0.27;
+  if (basePrice <= 60000) return 0.27;
+  if (basePrice <= 70000) return 0.22;
+  if (basePrice <= 80000) return 0.23;
+  if (basePrice <= 100000) return 0.24;
+  if (basePrice <= 130000) return 0.20;
+  if (basePrice <= 160000) return 0.185;
+  if (basePrice <= 200000) return 0.22;
+  if (basePrice <= 250000) return 0.17;
+  if (basePrice <= 300000) return 0.18;
+  if (basePrice <= 400000) return 0.18;
+  if (basePrice <= 500000) return 0.16;
+  return 0.145; // 500,001+
+};
+
+const calculateReservePrice = (priceMin: number, priceMed: number): number => {
+  // Calculate base price (Price X) as average of min and median prices
+  const priceX = (priceMin + priceMed) / 2;
   
-  // Round to nearest 100
-  return Math.round(baseReserve / 100) * 100;
+  // Get the appropriate percentage based on the price range
+  const percentageY = getReservePercentage(priceX);
+  
+  // Calculate reserve price using the formula: PriceX - (PriceX × PercentageY)
+  const reservePrice = priceX - (priceX * percentageY);
+  
+  // Round to nearest whole number since we're dealing with PLN
+  return Math.round(reservePrice);
 };
 
 export const validateVin = async (
@@ -57,9 +83,11 @@ export const validateVin = async (
       throw new Error(data.message || 'Failed to get valuation');
     }
 
-    // Calculate reserve price from the average price
-    const averagePrice = data.price || data.averagePrice;
-    const reservePrice = calculateReservePrice(averagePrice);
+    // Calculate reserve price using the min and median prices from the API response
+    const reservePrice = calculateReservePrice(
+      data.price_min || data.price,  // Use price_min if available, fallback to price
+      data.price_med || data.price   // Use price_med if available, fallback to price
+    );
 
     console.log('Calculated reserve price:', reservePrice);
 
@@ -73,7 +101,8 @@ export const validateVin = async (
           status: 'pending',
           valuation_data: {
             ...data,
-            reservePrice
+            reservePrice,
+            basePrice: (data.price_min + data.price_med) / 2
           }
         }
       ])

@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-03-19: Created ValuationMainContent component extracted from ValuationResult
+ * - 2024-03-19: Updated props to only pass reservePrice to ValuationDisplay
  */
 
 import {
@@ -37,9 +38,7 @@ export const ValuationMainContent = ({
   vin,
   transmission,
   mileage,
-  averagePrice,
-  valuation,
-  reservePrice,
+  reservePrice = 0,
   hasValuation,
   isLoggedIn,
   onClose,
@@ -64,10 +63,7 @@ export const ValuationMainContent = ({
         />
 
         {hasValuation && (
-          <ValuationDisplay 
-            averagePrice={averagePrice || valuation || 0} 
-            reservePrice={reservePrice}
-          />
+          <ValuationDisplay reservePrice={reservePrice} />
         )}
       </div>
 
