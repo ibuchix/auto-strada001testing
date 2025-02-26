@@ -1,5 +1,4 @@
 
-[global]
 project_id = "sdvakfhmoaoucmhbhwvy"
 name = "get-vehicle-valuation"
-
+verify_jwt = false

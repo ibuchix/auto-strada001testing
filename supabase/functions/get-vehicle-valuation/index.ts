@@ -1,21 +1,29 @@
 
 // @ts-ignore 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
 
   try {
+    if (req.method !== 'POST') {
+      throw new Error('Method not allowed');
+    }
+
     const { vin, mileage, gearbox } = await req.json();
     
     if (!vin || !mileage || !gearbox) {
@@ -53,25 +61,26 @@ serve(async (req) => {
       throw new Error(`API request failed with status: ${response.status}`);
     }
 
-    const data = await response.json();
-    console.log('API Response:', data);
+    const responseData = await response.json();
+    console.log('API Response:', responseData);
 
     // Process the API response and format it according to your needs
     const processedData = {
       success: true,
       data: {
-        make: data.make || '',
-        model: data.model || '',
-        year: data.year || '',
+        make: responseData.make || '',
+        model: responseData.model || '',
+        year: responseData.year || '',
         vin,
         transmission: gearbox,
-        valuation: data.valuation || data.price || 0,
-        averagePrice: data.averageMarketPrice || data.valuation || 0,
+        valuation: responseData.valuation || responseData.price || 0,
+        averagePrice: responseData.averageMarketPrice || responseData.valuation || 0,
       }
     };
 
     return new Response(JSON.stringify(processedData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
     });
 
   } catch (error) {
@@ -83,7 +92,7 @@ serve(async (req) => {
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: error.message === 'Method not allowed' ? 405 : 500,
     });
   }
 });
