@@ -6,6 +6,7 @@
  * - 2024-03-19: Implemented seller role validation
  * - 2024-03-19: Updated to pass reserve price to ValuationDisplay
  * - 2024-03-19: Refactored into smaller components
+ * - 2024-03-19: Fixed type error in hasValuation check
  */
 
 import { useNavigate } from "react-router-dom";
@@ -47,7 +48,8 @@ export const ValuationResult = ({
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = !!valuationResult.error;
-  const hasValuation = !hasError && (valuationResult.averagePrice || valuationResult.valuation);
+  // Fix: Ensure hasValuation is a boolean by using !! to convert numbers to boolean
+  const hasValuation = !hasError && !!(valuationResult.averagePrice || valuationResult.valuation);
 
   if (hasError && valuationResult.isExisting) {
     return <ExistingVehicleDialog onClose={onClose} onRetry={onRetry} />;
