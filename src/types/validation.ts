@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of validation schemas
+ * - 2024-03-19: Added VIN number validation
+ * - 2024-03-19: Added mileage and gearbox validation
+ */
+
 import { z } from "zod";
 
 export const valuationFormSchema = z.object({

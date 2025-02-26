@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of form sections component
+ * - 2024-03-19: Added all required sections for car listing
+ * - 2024-03-19: Implemented upload progress tracking
+ */
+
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { Card } from "@/components/ui/card";

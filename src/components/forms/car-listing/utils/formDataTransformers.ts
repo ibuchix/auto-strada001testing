@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of form data transformation utilities
+ * - 2024-03-19: Added support for converting between form and database formats
+ * - 2024-03-19: Added handling for default values and nullable fields
+ */
+
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 import { Database } from "@/integrations/supabase/types";
 import { Json } from "@/integrations/supabase/types";

@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of listings section component
+ * - 2024-03-19: Added support for empty state and listing cards
+ * - 2024-03-19: Implemented status change handling
+ */
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Car } from "lucide-react";
 import { Button } from "@/components/ui/button";

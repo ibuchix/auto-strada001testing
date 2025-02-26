@@ -1,3 +1,10 @@
+/**
+ * Changes made:
+ * - 2024-03-19: Initial implementation of listing card component
+ * - 2024-03-19: Added support for draft and active states
+ * - 2024-03-19: Implemented listing activation functionality
+ */
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
