@@ -1708,6 +1708,30 @@ export type Database = {
         }
         Relationships: []
       }
+      valuation_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          pricing_details: Json
+          raw_api_response: Json
+          vin: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          pricing_details: Json
+          raw_api_response: Json
+          vin: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          pricing_details?: Json
+          raw_api_response?: Json
+          vin?: string
+        }
+        Relationships: []
+      }
       vin_reservations: {
         Row: {
           created_at: string | null
