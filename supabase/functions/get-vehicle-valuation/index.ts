@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
@@ -24,12 +23,21 @@ interface ValuationResponse {
     vin: string;
     transmission: string;
     valuation?: number;
-    averagePrice?: number;
-    reservePrice?: number;
     isExisting?: boolean;
     noData?: boolean;
     error?: string;
   };
+}
+
+interface PricingDetails {
+  originalMinPrice: number;
+  originalMaxPrice: number;
+  originalAveragePrice: number;
+  calculatedBasePrice: number;
+  calculatedReservePrice: number;
+  discountPercentage: number;
+  mileage: number;
+  timestamp: string;
 }
 
 function calculateMD5(input: string): string {
@@ -41,7 +49,7 @@ function calculateMD5(input: string): string {
     .join('');
 }
 
-function calculatePrices(minValue: number, maxValue: number): { basePrice: number; reservePrice: number } {
+function calculatePrices(minValue: number, maxValue: number): { basePrice: number; reservePrice: number; discountPercentage: number } {
   console.log(`Calculating prices for min: ${minValue}, max: ${maxValue}`);
 
   // Calculate base price (PriceX) as average of min and max
@@ -75,7 +83,8 @@ function calculatePrices(minValue: number, maxValue: number): { basePrice: numbe
 
   return {
     basePrice: Math.round(basePrice),
-    reservePrice: Math.round(reservePrice)
+    reservePrice: Math.round(reservePrice),
+    discountPercentage
   };
 }
 
@@ -225,12 +234,37 @@ serve(async (req) => {
       const valuationData = responseData.functionResponse.valuation;
 
       // Calculate prices using our formula
-      const { basePrice, reservePrice } = calculatePrices(
+      const { basePrice, reservePrice, discountPercentage } = calculatePrices(
         valuationData.calcValuation.price_min || valuationData.calcValuation.price,
         valuationData.calcValuation.price_max || valuationData.calcValuation.price
       );
 
-      // Return processed data
+      // Log pricing details to database
+      const pricingDetails: PricingDetails = {
+        originalMinPrice: valuationData.calcValuation.price_min || valuationData.calcValuation.price,
+        originalMaxPrice: valuationData.calcValuation.price_max || valuationData.calcValuation.price,
+        originalAveragePrice: valuationData.calcValuation.price_avr,
+        calculatedBasePrice: basePrice,
+        calculatedReservePrice: reservePrice,
+        discountPercentage,
+        mileage,
+        timestamp: new Date().toISOString()
+      };
+
+      // Store pricing details in database
+      const { error: logError } = await supabase
+        .from('valuation_logs')
+        .insert({
+          vin: cleanVin,
+          pricing_details: pricingDetails,
+          raw_api_response: responseData
+        });
+
+      if (logError) {
+        console.error('Failed to log pricing details:', logError);
+      }
+
+      // Return only our calculated price to frontend
       const result: ValuationResponse = {
         success: true,
         data: {
@@ -240,8 +274,6 @@ serve(async (req) => {
           vin: cleanVin,
           transmission: gearbox,
           valuation: basePrice,
-          averagePrice: valuationData.calcValuation.price_avr,
-          reservePrice: reservePrice
         }
       };
 
