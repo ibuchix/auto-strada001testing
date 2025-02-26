@@ -11,6 +11,51 @@ const corsHeaders = {
   'Access-Control-Allow-Credentials': 'true'
 };
 
+// Get percentage discount based on price range
+function getPercentageDiscount(price: number): number {
+  if (price <= 15000) return 0.65;
+  if (price <= 20000) return 0.46;
+  if (price <= 30000) return 0.37;
+  if (price <= 50000) return 0.27;
+  if (price <= 60000) return 0.27;
+  if (price <= 70000) return 0.22;
+  if (price <= 80000) return 0.23;
+  if (price <= 100000) return 0.24;
+  if (price <= 130000) return 0.20;
+  if (price <= 160000) return 0.185;
+  if (price <= 200000) return 0.22;
+  if (price <= 250000) return 0.17;
+  if (price <= 300000) return 0.18;
+  if (price <= 400000) return 0.18;
+  if (price <= 500000) return 0.16;
+  return 0.145; // 500,001+
+}
+
+// Calculate final price and reserve price
+function calculatePrices(minValue: number, maxValue: number) {
+  // Calculate base price (Price X) as average of min and max values
+  const basePrice = (minValue + maxValue) / 2;
+  
+  // Get the appropriate percentage discount
+  const percentageDiscount = getPercentageDiscount(basePrice);
+  
+  // Calculate reserve price using the formula: PriceX - (PriceX * PercentageY)
+  const reservePrice = basePrice - (basePrice * percentageDiscount);
+
+  console.log('Price calculations:', {
+    minValue,
+    maxValue,
+    basePrice,
+    percentageDiscount,
+    reservePrice
+  });
+
+  return {
+    basePrice: Math.round(basePrice),
+    reservePrice: Math.round(reservePrice)
+  };
+}
+
 // VIN validation helper
 function isValidVIN(vin: string): boolean {
   return /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
@@ -24,20 +69,23 @@ function processVehicleData(responseData: any, vin: string, gearbox: string) {
   const make = String(responseData.make || responseData.brand || '').trim();
   const model = String(responseData.model || '').trim();
   const year = responseData.year || responseData.productionYear || '';
-  const price = responseData.price || responseData.value || 0;
-  const marketPrice = responseData.averageMarketPrice || responseData.marketValue || 0;
+  
+  // Get price values from various possible response formats
+  const minPrice = responseData.minValue || responseData.minimumPrice || responseData.price || 0;
+  const maxPrice = responseData.maxValue || responseData.maximumPrice || responseData.averageMarketPrice || minPrice;
 
-  // Calculate valuation - if we have a market price, use that as a base
-  const basePrice = marketPrice > 0 ? marketPrice : price;
-  const valuation = Math.max(basePrice, 0); // Ensure non-negative value
+  // Calculate prices using our formula
+  const { basePrice, reservePrice } = calculatePrices(minPrice, maxPrice);
 
   // Log processed data for debugging
   console.log('Processed vehicle data:', {
     make,
     model,
     year,
-    valuation,
-    marketPrice: basePrice
+    minPrice,
+    maxPrice,
+    basePrice,
+    reservePrice
   });
 
   // Verify we have essential data
@@ -62,8 +110,11 @@ function processVehicleData(responseData: any, vin: string, gearbox: string) {
       year,
       vin,
       transmission: gearbox,
-      valuation,
+      valuation: basePrice,
       averagePrice: basePrice,
+      reservePrice: reservePrice,
+      originalMinPrice: minPrice,
+      originalMaxPrice: maxPrice
     }
   };
 }
