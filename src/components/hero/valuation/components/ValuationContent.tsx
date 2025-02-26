@@ -2,13 +2,16 @@
 /**
  * Changes made:
  * - 2024-03-19: Fixed props passed to ValuationDisplay
+ * - 2024-03-19: Added vin prop and passed it to VehicleDetails
  */
 
 import { 
   DialogContent, 
   DialogHeader, 
-  DialogTitle 
+  DialogTitle,
+  DialogFooter
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { ValuationDisplay } from "./ValuationDisplay";
 import { VehicleDetails } from "./VehicleDetails";
 
@@ -16,18 +19,28 @@ interface ValuationContentProps {
   make: string;
   model: string;
   year: number;
+  vin: string;
   transmission: string;
   mileage: number;
   reservePrice?: number;
+  hasValuation: boolean;
+  isLoggedIn: boolean;
+  onClose: () => void;
+  onContinue: () => void;
 }
 
 export const ValuationContent = ({
   make,
   model,
   year,
+  vin,
   transmission,
   mileage,
-  reservePrice = 0
+  reservePrice = 0,
+  hasValuation,
+  isLoggedIn,
+  onClose,
+  onContinue
 }: ValuationContentProps) => {
   return (
     <DialogContent className="sm:max-w-md">
@@ -42,12 +55,34 @@ export const ValuationContent = ({
           make={make}
           model={model}
           year={year}
+          vin={vin}
           transmission={transmission}
           mileage={mileage}
         />
         
-        <ValuationDisplay reservePrice={reservePrice} />
+        {hasValuation && (
+          <ValuationDisplay reservePrice={reservePrice} />
+        )}
       </div>
+
+      <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
+        <Button 
+          variant="outline"
+          onClick={onClose}
+          className="w-full sm:w-auto"
+        >
+          Close
+        </Button>
+        <Button 
+          onClick={onContinue}
+          className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
+        >
+          {!isLoggedIn 
+            ? "Sign Up to List Your Car" 
+            : "List This Car"
+          }
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 };
