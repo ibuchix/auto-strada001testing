@@ -8,6 +8,7 @@
  * - 2024-03-19: Refactored into smaller components
  * - 2024-03-19: Fixed type error in props passed to ValuationContent
  * - 2024-03-19: Added averagePrice to ValuationContent props
+ * - 2024-03-19: Fixed valuation data being passed incorrectly
  */
 
 import { useNavigate } from "react-router-dom";
@@ -49,7 +50,7 @@ export const ValuationResult = ({
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = !!valuationResult.error;
-  const hasValuation = !hasError && !!(valuationResult.averagePrice || valuationResult.valuation);
+  const hasValuation = !hasError && !!(valuationResult.valuation || valuationResult.averagePrice);
 
   if (hasError && valuationResult.isExisting) {
     return <ExistingVehicleDialog onClose={onClose} onRetry={onRetry} />;
@@ -84,7 +85,7 @@ export const ValuationResult = ({
       vin={valuationResult.vin}
       transmission={valuationResult.transmission}
       mileage={mileage}
-      reservePrice={valuationResult.reservePrice}
+      reservePrice={valuationResult.valuation}
       averagePrice={valuationResult.averagePrice}
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
