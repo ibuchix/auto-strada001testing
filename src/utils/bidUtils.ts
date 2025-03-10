@@ -1,15 +1,13 @@
 
 /**
  * Changes made:
- * - 2024-06-13: Created bidUtils to handle atomic bid operations
- * - 2024-06-13: Implemented placeBid function using the SQL function
- * - 2024-06-14: Fixed TypeScript errors with proper type assertions and error handling
+ * - 2024-06-14: Updated to use the secure place_bid SQL function
+ * - 2024-06-14: Added type assertions for proper TypeScript compatibility
+ * - 2024-06-14: Improved error handling for bid operations
  */
 
-import { supabase } from '@/integrations/supabase/client';
-import { Json } from '@/integrations/supabase/types';
+import { supabase } from "@/integrations/supabase/client";
 
-// Interface for bid data
 export interface BidData {
   carId: string;
   dealerId: string;
@@ -18,94 +16,122 @@ export interface BidData {
   maxProxyAmount?: number;
 }
 
-// Response interface for bid placement
 export interface BidResponse {
   success: boolean;
-  bidId?: string;
+  bid_id?: string;
   amount?: number;
   error?: string;
   minimumBid?: number;
 }
 
 /**
- * Place a bid on a car using the atomic database function
- * @param bidData The bid data
- * @returns Promise resolving to bid response
+ * Calculates the minimum acceptable bid amount based on the current bid and increment
  */
-export const placeBid = async (bidData: BidData): Promise<BidResponse> => {
+export const calculateMinimumBid = (
+  currentBid: number,
+  minIncrement: number = 100,
+  basePrice: number = 0
+): number => {
+  if (currentBid === 0) {
+    return basePrice; // Initial bid must be at least the starting price
+  }
+  return currentBid + minIncrement;
+};
+
+/**
+ * Places a bid using the secure place_bid function
+ * This ensures all bid validation and conflict resolution happens atomically
+ */
+export const placeBid = async (data: BidData): Promise<BidResponse> => {
   try {
-    const { carId, dealerId, amount, isProxy = false, maxProxyAmount } = bidData;
-    
-    // Call the stored procedure via direct database query
-    // since the function isn't in the TypeScript types yet
-    const { data, error } = await supabase.rpc(
+    // Call the place_bid function with proper parameters
+    const { data: result, error } = await supabase.rpc(
       'place_bid' as any, 
       {
-        p_car_id: carId,
-        p_dealer_id: dealerId,
-        p_amount: amount,
-        p_is_proxy: isProxy,
-        p_max_proxy_amount: maxProxyAmount
+        p_car_id: data.carId,
+        p_dealer_id: data.dealerId,
+        p_amount: data.amount,
+        p_is_proxy: data.isProxy || false,
+        p_max_proxy_amount: data.maxProxyAmount || null
       }
     );
-    
+
     if (error) {
-      console.error('Error placing bid:', error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to place bid' 
+      console.error('Bid placement error:', error);
+      return {
+        success: false,
+        error: error.message
       };
     }
-    
-    // Type assertion for the returned data
-    const result = data as unknown as {
+
+    // The function returns a JSON object with fields we need to extract
+    const typedResult = result as unknown as {
       success: boolean;
       bid_id?: string;
       amount?: number;
       error?: string;
       minimum_bid?: number;
     };
-    
+
     return {
-      success: result.success,
-      bidId: result.bid_id,
-      amount: result.amount,
-      error: result.error,
-      minimumBid: result.minimum_bid
+      success: typedResult.success,
+      bid_id: typedResult.bid_id,
+      amount: typedResult.amount,
+      error: typedResult.error,
+      minimumBid: typedResult.minimum_bid
     };
   } catch (error: any) {
-    console.error('Exception placing bid:', error);
-    return { 
-      success: false, 
-      error: error.message 
+    console.error('Unexpected bid error:', error);
+    return {
+      success: false,
+      error: error.message || 'An unexpected error occurred'
     };
   }
 };
 
 /**
- * Calculate the minimum bid amount for a car
- * @param currentBid Current highest bid
- * @param startingPrice Starting price if no bids
- * @param increment Minimum bid increment (defaults to 100)
- * @returns The minimum bid amount
+ * Function for admins to end an auction
  */
-export const calculateMinimumBid = (
-  currentBid: number | null, 
-  startingPrice: number,
-  increment: number = 100
-): number => {
-  if (!currentBid || currentBid === 0) {
-    return startingPrice;
-  }
-  return currentBid + increment;
-};
+export const adminEndAuction = async (
+  carId: string, 
+  adminId: string, 
+  markAsSold: boolean = true
+): Promise<{success: boolean; error?: string; auction_status?: string}> => {
+  try {
+    const { data: result, error } = await supabase.rpc(
+      'admin_end_auction' as any,
+      {
+        p_car_id: carId,
+        p_admin_id: adminId,
+        p_sold: markAsSold
+      }
+    );
 
-/**
- * Format currency (PLN)
- * @param amount Amount to format
- * @returns Formatted currency string
- */
-export const formatCurrency = (amount: number | null | undefined): string => {
-  if (amount === null || amount === undefined) return '0 PLN';
-  return `${amount.toLocaleString()} PLN`;
+    if (error) {
+      console.error('End auction error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+
+    // Type the result properly
+    const typedResult = result as unknown as {
+      success: boolean;
+      auction_status?: string;
+      error?: string;
+    };
+
+    return {
+      success: typedResult.success,
+      auction_status: typedResult.auction_status,
+      error: typedResult.error
+    };
+  } catch (error: any) {
+    console.error('Unexpected end auction error:', error);
+    return {
+      success: false,
+      error: error.message || 'An unexpected error occurred'
+    };
+  }
 };

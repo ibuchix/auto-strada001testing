@@ -8,6 +8,7 @@
  * - 2024-03-31: Fixed missing useToast import
  * - 2024-04-01: Fixed import to use correct useToast hook
  * - 2024-04-02: Refactored into smaller files for better maintainability
+ * - 2024-06-15: Enhanced with additional event handlers for conflict resolution
  */
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -22,7 +23,9 @@ import {
   handleNewBid, 
   handleBidStatusUpdate, 
   handleSellerBidUpdate, 
-  handleCarStatusUpdate 
+  handleCarStatusUpdate,
+  handleProxyBidUpdate,
+  handleAuctionExtension
 } from './realtime/eventHandlers';
 import { handleReconnect } from './realtime/reconnectionHandler';
 
@@ -47,6 +50,8 @@ export const useRealtimeBids = () => {
         onBidStatusUpdate: (payload) => handleBidStatusUpdate(payload, toast),
         onSellerBidUpdate: (payload) => handleSellerBidUpdate(payload, toast),
         onCarStatusUpdate: (payload) => handleCarStatusUpdate(payload, toast),
+        onProxyBidUpdate: (payload) => handleProxyBidUpdate(payload, toast),
+        onAuctionExtension: (payload) => handleAuctionExtension(payload, toast),
         toast
       });
       
@@ -105,6 +110,9 @@ export const useRealtimeBids = () => {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
+      
+      // Clear userId from localStorage on unmount
+      localStorage.removeItem('userId');
     };
   }, [session?.user, isConnected, isReconnecting, setupChannel]);
 

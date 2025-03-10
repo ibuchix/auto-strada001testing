@@ -3,10 +3,12 @@
  * Changes made:
  * - 2024-03-19: Added reserve price calculation logic
  * - 2024-03-19: Updated reserve price calculation to use correct formula and percentage tiers
+ * - 2024-06-15: Updated API credentials and checksum calculation
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { Database } from '../_shared/database.types.ts';
+import { createHash } from 'https://deno.land/std@0.177.0/hash/mod.ts';
 
 const getReservePercentage = (basePrice: number): number => {
   if (basePrice <= 15000) return 0.65;
@@ -137,28 +139,12 @@ export const validateVin = async (
 };
 
 const calculateChecksum = async (vin: string): Promise<string> => {
-  const secretKey = 'RUhBVklOR1JPT1RTRU5TT1JFUw==';
-
-  const encoder = new TextEncoder();
-  const key = encoder.encode(secretKey);
-  const data = encoder.encode(vin);
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    key,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify']
-  );
-
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    cryptoKey,
-    data
-  );
-
-  const hashArray = Array.from(new Uint8Array(signature));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-  return hashHex;
+  // Use the API credentials from the instructions
+  const apiId = "AUTOSTRA";
+  const apiSecret = "A4FTFH54C3E37P2D34A16A7A4V41XKBF";
+  
+  // Calculate the checksum as md5(api id + api secret key + vin)
+  const md5Hash = createHash("md5");
+  md5Hash.update(apiId + apiSecret + vin);
+  return md5Hash.toString();
 };

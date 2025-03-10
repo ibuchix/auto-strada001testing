@@ -476,6 +476,14 @@ export type Database = {
       }
     }
     Functions: {
+      admin_end_auction: {
+        Args: {
+          p_car_id: string
+          p_admin_id: string
+          p_sold?: boolean
+        }
+        Returns: Json
+      }
       authenticate_dealer: {
         Args: {
           p_email: string
@@ -525,6 +533,16 @@ export type Database = {
       get_user_id_by_email: {
         Args: {
           p_email: string
+        }
+        Returns: Json
+      }
+      place_bid: {
+        Args: {
+          p_car_id: string
+          p_dealer_id: string
+          p_amount: number
+          p_is_proxy?: boolean
+          p_max_proxy_amount?: number
         }
         Returns: Json
       }
