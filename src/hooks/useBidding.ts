@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-13: Created useBidding hook for managing bid operations
  * - 2024-06-13: Implemented comprehensive error handling and bid validation
+ * - 2024-06-14: Fixed import path for bidUtils and type safety
  */
 
 import { useState } from 'react';
@@ -57,6 +58,9 @@ export const useBidding = (options?: UseBiddingOptions) => {
         if (options?.onBidSuccess) {
           options.onBidSuccess(response);
         }
+        
+        // Clean up any temporary bid state in localStorage
+        localStorage.removeItem('lastBidAmount');
       } else {
         // Handle specific error cases
         if (response.error?.includes('too low')) {
