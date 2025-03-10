@@ -1,3 +1,11 @@
+
+/**
+ * Changes made:
+ * - 2024-03-26: Fixed TypeScript errors
+ * - 2024-03-26: Updated to use session.user instead of user property
+ * - 2024-03-26: Added proper handling for seller_notes field
+ */
+
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,12 +28,11 @@ interface CarListing {
   year: number;
   is_draft: boolean;
   is_auction: boolean;
-  // Add description with a default value to avoid TypeScript errors
-  description?: string;
+  description?: string; // Make description optional to match database schema
 }
 
 const SellerDashboard = () => {
-  const { user } = useAuth();
+  const { session } = useAuth();
   const [activeListings, setActiveListings] = useState<CarListing[]>([]);
   const [draftListings, setDraftListings] = useState<CarListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +43,7 @@ const SellerDashboard = () => {
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!session?.user) return;
 
     const fetchListings = async () => {
       setIsLoading(true);
@@ -44,15 +51,15 @@ const SellerDashboard = () => {
         const { data, error } = await supabase
           .from('cars')
           .select('*')
-          .eq('seller_id', user.id)
+          .eq('seller_id', session.user.id)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        // Transform data to match CarListing interface
-        const transformedData = data.map(car => ({
+        // Transform data to match CarListing interface with optional description
+        const transformedData = (data || []).map(car => ({
           ...car,
-          description: car.seller_notes || '' // Use seller_notes as description
+          description: car.seller_notes || '' // Use seller_notes as description if available
         })) as CarListing[];
 
         // Filter active and draft listings
@@ -70,7 +77,7 @@ const SellerDashboard = () => {
     };
 
     fetchListings();
-  }, [user, refreshTrigger]);
+  }, [session, refreshTrigger]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -91,8 +98,14 @@ const SellerDashboard = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <ListingsSection listings={draftListings} onStatusChange={forceRefresh} />
-            <ListingsSection listings={activeListings} onStatusChange={forceRefresh} />
+            <ListingsSection 
+              listings={draftListings}
+              onStatusChange={forceRefresh} 
+            />
+            <ListingsSection 
+              listings={activeListings} 
+              onStatusChange={forceRefresh}
+            />
           </div>
         )}
       </div>

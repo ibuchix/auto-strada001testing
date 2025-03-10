@@ -1,10 +1,18 @@
+
+/**
+ * Changes made:
+ * - 2024-03-26: Fixed TypeScript errors
+ * - 2024-03-26: Updated to use the correct Supabase storage method
+ * - 2024-03-26: Added proper typing for dropzone integration
+ */
+
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-interface UsePhotoUploadProps {
+export interface UsePhotoUploadProps {
   carId?: string;
   onProgressUpdate?: (progress: number) => void;
 }
@@ -27,7 +35,7 @@ export const usePhotoUpload = ({ carId, onProgressUpdate }: UsePhotoUploadProps 
       });
 
       const results = await Promise.all(uploadPromises);
-      setUploadedPhotos(prevPhotos => [...prevPhotos, ...results]);
+      setUploadedPhotos(prevPhotos => [...prevPhotos, ...results.filter(Boolean) as string[]]);
       toast.success("Photos uploaded successfully!");
     } catch (error: any) {
       console.error("Error uploading photos:", error);
@@ -46,7 +54,7 @@ export const usePhotoUpload = ({ carId, onProgressUpdate }: UsePhotoUploadProps 
     disabled: isUploading
   });
 
-  const uploadPhoto = async (file: File, filePath: string, carId: string) => {
+  const uploadPhoto = async (file: File, filePath: string, carId: string): Promise<string | null> => {
     try {
       const { data, error } = await supabase.storage
         .from('car-images')
@@ -60,7 +68,11 @@ export const usePhotoUpload = ({ carId, onProgressUpdate }: UsePhotoUploadProps 
         throw new Error(error.message);
       }
 
-      const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${data.Key}`;
+      // Construct the public URL for the uploaded file
+      const { data: { publicUrl } } = supabase.storage
+        .from('car-images')
+        .getPublicUrl(filePath);
+
       await savePhotoToDb(filePath, carId);
       return publicUrl;
     } catch (error: any) {
@@ -94,7 +106,10 @@ export const usePhotoUpload = ({ carId, onProgressUpdate }: UsePhotoUploadProps 
 
       // Update the additional_photos array
       const currentPhotos = car.additional_photos || [];
-      const newPhotos = [...currentPhotos, filePath];
+      
+      // Convert to array if JSON is not an array
+      const photosArray = Array.isArray(currentPhotos) ? currentPhotos : [];
+      const newPhotos = [...photosArray, filePath];
 
       // Update the car record
       const { error: updateError } = await supabase

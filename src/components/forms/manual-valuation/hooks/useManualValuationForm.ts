@@ -4,6 +4,7 @@
  * - 2024-03-20: Modified to use cars table instead of non-existent manual_valuations
  * - 2024-03-20: Updated field mappings to match database schema
  * - 2024-03-25: Fixed table references and field names
+ * - 2024-03-26: Fixed TypeScript errors by using proper table references
  */
 
 import { useForm } from "react-hook-form";

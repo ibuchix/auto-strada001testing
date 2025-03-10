@@ -4,8 +4,10 @@
  * - 2024-03-20: Fixed transmission type reference
  * - 2024-03-20: Added more complete type definitions
  * - 2024-03-25: Updated TransmissionType to use the database enum
+ * - 2024-03-26: Fixed TransmissionType to match PostgreSQL enum values
  */
 
+// Match the PostgreSQL enum 'car_transmission_type'
 export type TransmissionType = 'manual' | 'automatic';
 
 export interface ValuationData {

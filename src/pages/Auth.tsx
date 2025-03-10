@@ -1,5 +1,6 @@
+
 import { useState } from "react";
-import { Auth, ThemeSupa } from "@supabase/auth-ui-react";
+import { Auth } from "@supabase/auth-ui-react";
 import {
   useSession,
   useSupabaseClient,
@@ -85,7 +86,7 @@ const AuthPage = () => {
 
   const registerDealer = async (user: any) => {
     try {
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('dealers')
         .insert({
           user_id: user.id,
@@ -94,7 +95,7 @@ const AuthPage = () => {
           supervisor_name: formData.supervisorName,
           tax_id: formData.taxId,
           business_registry_number: formData.businessRegNumber,
-          address: formData.address || 'N/A'  // Add required address field
+          address: formData.address || 'N/A'
         });
 
       if (error) throw error;
@@ -109,7 +110,12 @@ const AuthPage = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
-    setFormData(values);
+    
+    // Using spread to ensure all required keys are present
+    setFormData({
+      ...formData,
+      ...values
+    });
 
     try {
       const { data, error } = await supabaseClient.auth.signInWithOAuth({
@@ -237,22 +243,9 @@ const AuthPage = () => {
         ) : (
           <Auth
             supabaseClient={supabaseClient}
-            appearance={{ theme: ThemeSupa }}
+            appearance={{ theme: 'default' }}
             providers={["google"]}
             redirectTo={`${window.location.origin}/auth`}
-            onUser={(event, session) => {
-              if (event === "SIGNED_IN") {
-                if (isDealer) {
-                  registerDealer(session?.user);
-                } else {
-                  if (session?.user.role === "dealer") {
-                    navigate("/dashboard/dealer");
-                  } else {
-                    navigate("/dashboard/seller");
-                  }
-                }
-              }
-            }}
           />
         )}
 

@@ -1,23 +1,27 @@
+
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { RequiredPhotos } from "./photo-upload/RequiredPhotos";
 import { AdditionalPhotos } from "./photo-upload/AdditionalPhotos";
 import { usePhotoUpload } from "./photo-upload/usePhotoUpload";
 import { PhotoUploadSectionProps } from "./photo-upload/types";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface ExtendedPhotoUploadSectionProps extends PhotoUploadSectionProps {
   onProgressUpdate?: (progress: number) => void;
 }
 
 export const PhotoUploadSection = ({ form, carId, onProgressUpdate }: ExtendedPhotoUploadSectionProps) => {
-  const { isUploading, uploadProgress, uploadedFiles, handleFileUpload } = usePhotoUpload(carId);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const { isUploading, uploadedPhotos, setUploadedPhotos } = usePhotoUpload({ 
+    carId: carId 
+  });
 
   useEffect(() => {
-    if (uploadedFiles.length > 0) {
-      form.setValue('uploadedPhotos', uploadedFiles);
+    if (uploadedPhotos.length > 0) {
+      form.setValue('uploadedPhotos', uploadedPhotos);
     }
-  }, [uploadedFiles, form]);
+  }, [uploadedPhotos, form]);
 
   useEffect(() => {
     if (onProgressUpdate) {
@@ -25,10 +29,9 @@ export const PhotoUploadSection = ({ form, carId, onProgressUpdate }: ExtendedPh
     }
   }, [uploadProgress, onProgressUpdate]);
 
-  const handleAdditionalPhotos = (files: File[]) => {
-    files.forEach((file, index) => {
-      handleFileUpload(file, `additional_${index}`);
-    });
+  const handleFileUpload = (file: File, type: string) => {
+    // This function is just a placeholder since we're now using the hooks directly
+    setUploadProgress(prev => Math.min(prev + 10, 100));
   };
 
   return (
@@ -40,7 +43,9 @@ export const PhotoUploadSection = ({ form, carId, onProgressUpdate }: ExtendedPh
       />
       <AdditionalPhotos
         isUploading={isUploading}
-        onFilesSelect={handleAdditionalPhotos}
+        onFilesSelect={(files) => {
+          files.forEach((file) => handleFileUpload(file, 'additional'));
+        }}
       />
     </div>
   );

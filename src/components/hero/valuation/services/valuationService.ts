@@ -4,11 +4,12 @@
  * - 2024-03-19: Initial implementation of valuation service
  * - 2024-03-19: Added support for different contexts (home/seller)
  * - 2024-03-19: Enhanced error handling and response processing
+ * - 2024-03-26: Fixed TypeScript errors related to TransmissionType
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ValuationResult, ValuationData } from "../types";
+import { ValuationResult, ValuationData, TransmissionType } from "../types";
 
 export const getValuation = async (
   vin: string,
@@ -55,7 +56,7 @@ export const getValuation = async (
           success: true,
           data: {
             vin,
-            transmission: gearbox,
+            transmission: gearbox as TransmissionType,
             isExisting: true,
             error: 'This vehicle has already been listed'
           }
@@ -69,7 +70,7 @@ export const getValuation = async (
           success: true,
           data: {
             vin,
-            transmission: gearbox,
+            transmission: gearbox as TransmissionType,
             noData: true,
             error: 'Could not retrieve complete vehicle information',
             reservationId: data?.data?.reservationId
@@ -86,7 +87,7 @@ export const getValuation = async (
           model: data.data.model,
           year: data.data.year,
           vin,
-          transmission: gearbox,
+          transmission: gearbox as TransmissionType,
           valuation: data.data.valuation,
           averagePrice: data.data.averagePrice,
           isExisting: false,
@@ -122,7 +123,7 @@ export const getValuation = async (
         success: true,
         data: {
           vin,
-          transmission: gearbox,
+          transmission: gearbox as TransmissionType,
           noData: true,
           error: 'No data found for this VIN'
         }
@@ -137,7 +138,7 @@ export const getValuation = async (
         model: data.data.model,
         year: data.data.year,
         vin,
-        transmission: gearbox,
+        transmission: gearbox as TransmissionType,
         valuation: data.data.valuation,
         averagePrice: data.data.averagePrice,
         isExisting: false
@@ -170,7 +171,7 @@ export const getValuation = async (
       success: false,
       data: {
         vin,
-        transmission: gearbox,
+        transmission: gearbox as TransmissionType,
         error: error.message || 'Failed to get vehicle valuation'
       }
     };
