@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2024-06-12: Fixed import error by removing unused imports
+ */
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
