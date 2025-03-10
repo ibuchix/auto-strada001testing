@@ -1,160 +1,83 @@
 
 /**
  * Changes made:
- * - 2024-03-30: Created bid utilities for handling bid placement and conflict resolution
+ * - 2024-03-31: Created bidUtils file to handle bid operations
+ * - 2024-03-31: Added placeBid function using RPC
  */
 
-import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-type PlaceBidParams = {
+// Interface for bid data
+export interface BidData {
   carId: string;
   dealerId: string;
   amount: number;
   isProxy?: boolean;
   maxProxyAmount?: number;
-};
+}
 
-export const placeBid = async ({
-  carId,
-  dealerId,
-  amount,
-  isProxy = false,
-  maxProxyAmount,
-}: PlaceBidParams) => {
+// Response interface for bid placement
+export interface BidResponse {
+  success: boolean;
+  bidId?: string;
+  amount?: number;
+  error?: string;
+  minimumBid?: number;
+}
+
+/**
+ * Place a bid on a car
+ * @param bidData The bid data
+ * @returns Promise resolving to bid response
+ */
+export const placeBid = async (bidData: BidData): Promise<BidResponse> => {
   try {
-    // First check if the car is still available for bidding
-    const { data: car, error: carError } = await supabase
-      .from('cars')
-      .select('id, price, current_bid, auction_status, minimum_bid_increment')
-      .eq('id', carId)
-      .single();
+    const { carId, dealerId, amount, isProxy = false, maxProxyAmount } = bidData;
     
-    if (carError) {
-      console.error('Error fetching car details:', carError);
-      toast({
-        title: 'Error',
-        description: 'Could not retrieve car details',
-        variant: 'destructive',
-      });
-      return { success: false, error: carError };
-    }
-    
-    // Validate auction is active
-    if (car.auction_status !== 'active') {
-      toast({
-        title: 'Bidding Closed',
-        description: 'This auction is not currently active',
-        variant: 'destructive',
-      });
-      return { success: false, error: 'Auction not active' };
-    }
-    
-    // Validate bid is high enough
-    const minBid = car.current_bid 
-      ? car.current_bid + (car.minimum_bid_increment || 100)
-      : car.price;
-      
-    if (amount < minBid) {
-      toast({
-        title: 'Bid Too Low',
-        description: `Minimum bid required is ${minBid.toLocaleString()} PLN`,
-        variant: 'destructive',
-      });
-      return { success: false, error: 'Bid too low' };
-    }
-
-    // Start a transaction to handle bid placement
+    // For RPC calls, we need to use the correct function name without quotes
     const { data, error } = await supabase.rpc('place_bid', {
       p_car_id: carId,
       p_dealer_id: dealerId,
       p_amount: amount,
       p_is_proxy: isProxy,
-      p_max_proxy_amount: maxProxyAmount || amount
+      p_max_proxy_amount: maxProxyAmount
     });
     
     if (error) {
       console.error('Error placing bid:', error);
-      
-      // Handle specific error cases
-      if (error.message.includes('outbid')) {
-        toast({
-          title: 'Outbid',
-          description: 'Someone else placed a higher bid just now. Please try again.',
-          variant: 'destructive',
-        });
-      } else if (error.message.includes('auction ended')) {
-        toast({
-          title: 'Auction Ended',
-          description: 'This auction has already ended',
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: 'Error',
-          description: 'Failed to place bid. Please try again.',
-          variant: 'destructive',
-        });
-      }
-      
-      return { success: false, error };
+      toast.error(`Bid failed: ${error.message}`);
+      return { 
+        success: false, 
+        error: error.message 
+      };
     }
     
-    // Handle successful bid
-    toast({
-      title: 'Bid Placed',
-      description: `Your bid of ${amount.toLocaleString()} PLN has been placed successfully`,
-    });
-    
-    return { success: true, data };
-  } catch (error) {
-    console.error('Unexpected error placing bid:', error);
-    toast({
-      title: 'Error',
-      description: 'An unexpected error occurred. Please try again.',
-      variant: 'destructive',
-    });
-    return { success: false, error };
+    // Function returns JSON with success, bid_id and amount
+    return {
+      success: data.success,
+      bidId: data.bid_id,
+      amount: data.amount,
+      error: data.error,
+      minimumBid: data.minimum_bid
+    };
+  } catch (error: any) {
+    console.error('Exception placing bid:', error);
+    toast.error(`Bid failed: ${error.message}`);
+    return { 
+      success: false, 
+      error: error.message 
+    };
   }
 };
 
-export const cancelBid = async (bidId: string, dealerId: string) => {
+/**
+ * Cancel a bid
+ * @param bidId The bid ID to cancel
+ * @returns Promise resolving to success status
+ */
+export const cancelBid = async (bidId: string): Promise<boolean> => {
   try {
-    // Validate dealer owns this bid
-    const { data: bid, error: bidError } = await supabase
-      .from('bids')
-      .select('id, dealer_id, status')
-      .eq('id', bidId)
-      .single();
-      
-    if (bidError) {
-      toast({
-        title: 'Error',
-        description: 'Could not retrieve bid details',
-        variant: 'destructive',
-      });
-      return { success: false, error: bidError };
-    }
-    
-    if (bid.dealer_id !== dealerId) {
-      toast({
-        title: 'Unauthorized',
-        description: 'You are not authorized to cancel this bid',
-        variant: 'destructive',
-      });
-      return { success: false, error: 'Unauthorized' };
-    }
-    
-    if (bid.status === 'accepted') {
-      toast({
-        title: 'Cannot Cancel',
-        description: 'Cannot cancel an accepted bid',
-        variant: 'destructive',
-      });
-      return { success: false, error: 'Cannot cancel accepted bid' };
-    }
-    
-    // Cancel the bid
     const { error } = await supabase
       .from('bids')
       .update({ status: 'cancelled' })
@@ -162,27 +85,15 @@ export const cancelBid = async (bidId: string, dealerId: string) => {
       
     if (error) {
       console.error('Error cancelling bid:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to cancel bid',
-        variant: 'destructive',
-      });
-      return { success: false, error };
+      toast.error(`Failed to cancel bid: ${error.message}`);
+      return false;
     }
     
-    toast({
-      title: 'Bid Cancelled',
-      description: 'Your bid has been cancelled successfully',
-    });
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Unexpected error cancelling bid:', error);
-    toast({
-      title: 'Error',
-      description: 'An unexpected error occurred',
-      variant: 'destructive',
-    });
-    return { success: false, error };
+    toast.success('Bid cancelled successfully');
+    return true;
+  } catch (error: any) {
+    console.error('Exception cancelling bid:', error);
+    toast.error(`Failed to cancel bid: ${error.message}`);
+    return false;
   }
 };
