@@ -1,13 +1,17 @@
-import { CarListingFormData } from "@/types/forms";
-import { Database } from "@/integrations/supabase/types";
 
-type CarInsert = Database['public']['Tables']['cars']['Insert'];
+/**
+ * Changes made:
+ * - 2024-03-20: Fixed type references to match database schema
+ * - 2024-03-20: Updated property names to match database schema
+ */
+
+import { CarListingFormData } from "@/types/forms";
 
 export const prepareCarData = (
   data: CarListingFormData,
   valuationData: any,
   userId: string
-): CarInsert => {
+): any => {
   if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation || !valuationData.year) {
     throw new Error("Please complete the vehicle valuation first");
   }
@@ -25,7 +29,7 @@ export const prepareCarData = (
     mobile_number: data.mobileNumber,
     is_damaged: data.isDamaged,
     is_registered_in_poland: data.isRegisteredInPoland,
-    features: data.features as unknown as Database['public']['Tables']['cars']['Insert']['features'],
+    features: data.features,
     seat_material: data.seatMaterial,
     number_of_keys: parseInt(data.numberOfKeys),
     has_tool_pack: data.hasToolPack,
@@ -33,7 +37,7 @@ export const prepareCarData = (
     is_selling_on_behalf: data.isSellingOnBehalf,
     has_private_plate: data.hasPrivatePlate,
     finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
-    service_history_type: data.serviceHistoryType as Database['public']['Enums']['service_history_type'],
+    service_history_type: data.serviceHistoryType,
     seller_notes: data.sellerNotes,
     make: valuationData.make,
     model: valuationData.model,

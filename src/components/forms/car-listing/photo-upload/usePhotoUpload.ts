@@ -1,3 +1,10 @@
+
+/**
+ * Changes made:
+ * - 2024-03-20: Fixed table references to match database schema
+ * - 2024-03-20: Added proper type handling for photos
+ */
+
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,50 +65,42 @@ export const usePhotoUpload = (carId?: string) => {
         .from('car-files')
         .getPublicUrl(filePath);
 
-      const { error: logError } = await supabase
-        .from('car_file_uploads')
-        .insert({
-          car_id: carId,
-          file_path: filePath,
-          file_type: type,
-          upload_status: 'completed',
-          image_metadata: {
-            size: file.size,
-            type: file.type,
-            name: file.name
-          }
-        });
-
-      if (logError) {
-        console.error('Log error:', logError);
-        throw new Error('Failed to log file upload');
-      }
-
+      // Log the file upload - directly update the cars table instead
       if (type.startsWith('additional_')) {
-        const { data: currentPhotos } = await supabase
+        const { data: currentPhotos, error: fetchError } = await supabase
           .from('cars')
-          .select('additional_photos')
+          .select('images')
           .eq('id', carId)
           .single();
 
-        const additionalPhotos = Array.isArray(currentPhotos?.additional_photos) 
-          ? currentPhotos.additional_photos 
+        if (fetchError) {
+          console.error('Fetch error:', fetchError);
+          throw new Error('Failed to fetch current photos');
+        }
+
+        const additionalPhotos = Array.isArray(currentPhotos?.images) 
+          ? currentPhotos.images 
           : [];
 
         const updatedPhotos = [...additionalPhotos, publicUrl];
 
         const { error: updateError } = await supabase
           .from('cars')
-          .update({ additional_photos: updatedPhotos })
+          .update({ images: updatedPhotos })
           .eq('id', carId);
 
         if (updateError) throw updateError;
       } else {
-        const { data: currentPhotos } = await supabase
+        const { data: currentPhotos, error: fetchError } = await supabase
           .from('cars')
           .select('required_photos')
           .eq('id', carId)
           .single();
+
+        if (fetchError) {
+          console.error('Fetch error:', fetchError);
+          throw new Error('Failed to fetch current photos');
+        }
 
         // Cast the required_photos to our RequiredPhotos type after validating it's an object
         const requiredPhotos: RequiredPhotos = (

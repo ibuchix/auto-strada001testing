@@ -1,9 +1,15 @@
+
+/**
+ * Changes made:
+ * - 2024-03-20: Modified to use cars table instead of non-existent manual_valuations
+ * - 2024-03-20: Updated field mappings to match database schema
+ */
+
 import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Database } from "@/integrations/supabase/types";
 import { CarListingFormData } from "@/types/forms";
 
 export const useManualValuationForm = () => {
@@ -44,25 +50,25 @@ export const useManualValuationForm = () => {
   const onSubmit = async (data: CarListingFormData) => {
     setIsSubmitting(true);
     try {
+      const user = (await supabase.auth.getUser()).data.user;
+      
+      if (!user) {
+        throw new Error("You must be logged in to submit a valuation request");
+      }
+      
       const { error } = await supabase
-        .from("manual_valuations")
+        .from("cars")
         .insert({
-          user_id: (await supabase.auth.getUser()).data.user?.id,
-          vin: data.vin,
+          seller_id: user.id,
+          is_draft: true,
+          title: `${data.make} ${data.model} ${data.year}`,
           make: data.make,
           model: data.model,
-          year: data.year,
+          year: parseInt(String(data.year), 10),
           transmission: data.transmission,
-          engine_capacity: data.engineCapacity,
-          mileage: data.mileage,
-          registration_number: data.registrationNumber,
-          condition_rating: data.conditionRating,
-          accident_history: data.accidentHistory,
-          previous_owners: data.previousOwners,
-          features: data.features as Database['public']['Tables']['manual_valuations']['Insert']['features'],
-          contact_email: data.contactEmail,
-          contact_phone: data.mobileNumber,
-          notes: data.notes,
+          price: 0, // Will be updated after valuation
+          mileage: parseInt(String(data.mileage), 10),
+          features: data.features,
           is_damaged: data.isDamaged,
           is_registered_in_poland: data.isRegisteredInPoland,
           seat_material: data.seatMaterial,
@@ -73,11 +79,20 @@ export const useManualValuationForm = () => {
           has_private_plate: data.hasPrivatePlate,
           finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
           service_history_type: data.serviceHistoryType,
-          service_history_files: data.serviceHistoryFiles,
           seller_notes: data.sellerNotes,
           name: data.name,
           address: data.address,
           mobile_number: data.mobileNumber,
+          valuation_data: {
+            vin: data.vin,
+            condition_rating: data.conditionRating,
+            notes: data.notes,
+            registrationNumber: data.registrationNumber,
+            contactEmail: data.contactEmail,
+            previousOwners: data.previousOwners,
+            accidentHistory: data.accidentHistory,
+            engineCapacity: data.engineCapacity
+          }
         });
 
       if (error) throw error;

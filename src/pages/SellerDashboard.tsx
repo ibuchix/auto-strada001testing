@@ -1,3 +1,10 @@
+
+/**
+ * Changes made:
+ * - 2024-03-20: Fixed CarListing interface to match database schema
+ * - 2024-03-20: Added proper error handling for type mismatches
+ */
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
@@ -13,7 +20,7 @@ import { AuctionStats } from "@/components/AuctionStats";
 interface CarListing {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   price: number;
   status: string;
   created_at: string;
@@ -87,11 +94,27 @@ const SellerDashboard = () => {
       return;
     }
 
-    setListings(data || []);
+    // Transform the data to match the CarListing interface
+    const formattedListings: CarListing[] = data?.map(car => ({
+      id: car.id,
+      title: car.title || `${car.year} ${car.make} ${car.model}`,
+      description: "",  // Providing default value for required field
+      price: car.price || 0,
+      status: car.status || 'available',
+      created_at: car.created_at,
+      make: car.make || 'Unknown',
+      model: car.model || 'Model',
+      year: car.year || new Date().getFullYear(),
+      is_draft: car.is_draft,
+      is_auction: car.is_auction || false
+    })) || [];
+
+    setListings(formattedListings);
+    
     // Filter auction listings
-    const auctions = data?.filter(car => car.is_auction && !car.is_draft) || [];
+    const auctions = formattedListings.filter(car => car.is_auction && !car.is_draft) || [];
     setAuctionListings(auctions);
-    setActiveListings(data?.filter(car => !car.is_draft).length || 0);
+    setActiveListings(formattedListings.filter(car => !car.is_draft).length || 0);
   };
 
   useEffect(() => {

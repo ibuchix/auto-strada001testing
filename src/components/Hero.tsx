@@ -1,4 +1,10 @@
 
+/**
+ * Changes made:
+ * - 2024-03-20: Fixed type errors with Supabase query for current_bid
+ * - 2024-03-20: Added proper error handling for missing fields
+ */
+
 import { ValuationForm } from "@/components/hero/ValuationForm";
 import { BackgroundPattern } from "@/components/hero/BackgroundPattern";
 import { useQuery } from "@tanstack/react-query";
@@ -26,19 +32,39 @@ export const Hero = () => {
   const { data: activeAuctions, isLoading, refetch } = useQuery({
     queryKey: ['activeAuctions'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cars')
-        .select('id, make, model, year, current_bid, auction_end_time, auction_status')
-        .eq('auction_status', 'active')
-        .order('auction_end_time', { ascending: true })
-        .limit(3);
+      try {
+        // Query cars with active auctions and their latest bid
+        const { data, error } = await supabase
+          .from('cars')
+          .select(`
+            id, make, model, year, auction_end_time, auction_status,
+            current_bid
+          `)
+          .eq('auction_status', 'active')
+          .order('auction_end_time', { ascending: true })
+          .limit(3);
 
-      if (error) {
-        toast.error("Failed to load auctions");
-        throw error;
+        if (error) {
+          toast.error("Failed to load auctions");
+          throw error;
+        }
+
+        if (!data) return [];
+
+        // Transform to expected format with fallbacks for missing fields
+        return data.map(car => ({
+          id: car.id,
+          make: car.make || 'Unknown',
+          model: car.model || 'Model',
+          year: car.year || new Date().getFullYear(),
+          current_bid: car.current_bid || 0,
+          auction_end_time: car.auction_end_time || new Date(Date.now() + 24*60*60*1000).toISOString(),
+          auction_status: car.auction_status as AuctionCar['auction_status'] || 'active'
+        }));
+      } catch (error) {
+        console.error('Error fetching active auctions:', error);
+        return [];
       }
-
-      return data as AuctionCar[];
     },
     refetchInterval: 30000 // Refetch every 30 seconds
   });

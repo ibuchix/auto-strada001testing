@@ -1,6 +1,7 @@
 
 /**
  * Changes made:
+ * - 2024-03-20: Fixed dealer creation to include required address field
  * - 2024-03-19: Fixed text display and removed unintended content
  */
 
@@ -82,7 +83,8 @@ const Auth = () => {
               license_number: 'PENDING',
               supervisor_name: 'Pending Update',
               tax_id: 'PENDING',
-              business_registry_number: 'PENDING'
+              business_registry_number: 'PENDING',
+              address: 'Pending Update' // Added required field
             });
 
           if (dealerError) {

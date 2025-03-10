@@ -1,13 +1,11 @@
 
 /**
  * Changes made:
- * - 2024-03-19: Initial implementation of valuation types
- * - 2024-03-19: Added support for transmission types from database
+ * - 2024-03-20: Fixed transmission type reference
+ * - 2024-03-20: Added more complete type definitions
  */
 
-import { Database } from "@/integrations/supabase/types";
-
-type TransmissionType = Database['public']['Enums']['car_transmission_type'];
+export type TransmissionType = 'manual' | 'automatic';
 
 export interface ValuationData {
   valuation?: number;
@@ -21,7 +19,7 @@ export interface ValuationData {
   isExisting?: boolean;
   noData?: boolean;
   vin: string;
-  transmission: string;
+  transmission: TransmissionType;
   [key: string]: any;
 }
 

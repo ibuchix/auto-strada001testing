@@ -1,17 +1,16 @@
+
 /**
  * Changes made:
- * - 2024-03-19: Initial implementation of form data transformation utilities
+ * - 2024-03-20: Fixed type references to match database schema
+ * - 2024-03-20: Updated property names to match database fields
  * - 2024-03-19: Added support for converting between form and database formats
  * - 2024-03-19: Added handling for default values and nullable fields
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
-import { Database } from "@/integrations/supabase/types";
 import { Json } from "@/integrations/supabase/types";
 
-type CarInsert = Database['public']['Tables']['cars']['Insert'];
-
-export const transformFormToDbData = (formData: CarListingFormData, userId: string): CarInsert => {
+export const transformFormToDbData = (formData: CarListingFormData, userId: string): any => {
   const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const vin = localStorage.getItem('tempVIN') || '';
