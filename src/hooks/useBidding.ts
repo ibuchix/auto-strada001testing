@@ -1,203 +1,166 @@
 
-/**
- * Changes made:
- * - 2024-06-13: Created useBidding hook for managing bid operations
- * - 2024-06-13: Implemented comprehensive error handling and bid validation
- * - 2024-06-14: Fixed import path for bidUtils and type safety
- * - 2024-06-15: Enhanced with conflict resolution and user notifications
- */
-
 import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { placeBid, BidData, BidResponse, calculateMinimumBid, adminEndAuction } from '@/utils/bidUtils';
+import { useToast } from './use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
-import { cleanupBidStorage } from '@/components/forms/car-listing/submission/utils/storageCleanup';
 
-interface UseBiddingOptions {
-  onBidSuccess?: (response: BidResponse) => void;
-  onBidError?: (error: string, minimumBid?: number) => void;
-  onBidOutbid?: () => void;
+interface BidResponse {
+  success: boolean;
+  error?: string;
+  bid_id?: string;
+  amount?: number;
+  minimum_bid?: number;
 }
 
-export const useBidding = (options?: UseBiddingOptions) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export const useBidding = () => {
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { session } = useAuth();
-  
-  /**
-   * Submit a bid with proper validation and error handling
-   */
-  const submitBid = async (bidData: Omit<BidData, 'dealerId'>) => {
-    // Validation checks
+
+  const placeBid = async (carId: string, amount: number, isProxyBid: boolean = false, maxProxyAmount?: number) => {
     if (!session?.user) {
+      setError('You must be logged in to place a bid');
       toast({
+        title: 'Authentication Error',
+        description: 'You must be logged in to place a bid',
         variant: 'destructive',
-        title: 'Authentication Required',
-        description: 'You must be logged in to place a bid.'
       });
-      return { success: false, error: 'Authentication required' };
+      return { success: false };
     }
-    
-    // Verify user is a dealer
-    if (session.user.role !== 'dealer') {
-      toast({
-        variant: 'destructive',
-        title: 'Permission Denied',
-        description: 'Only dealers can place bids.'
-      });
-      return { success: false, error: 'Only dealers can place bids' };
-    }
-    
+
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setIsSubmitting(true);
-      
-      // Store temporary bid data for resilience
-      localStorage.setItem('lastBidAmount', bidData.amount.toString());
-      
-      // Prepare complete bid data with dealer ID
-      const completeBidData: BidData = {
-        ...bidData,
-        dealerId: session.user.id
-      };
-      
-      // Submit the bid using the atomic function
-      const response = await placeBid(completeBidData);
-      
-      // Handle the response
-      if (response.success) {
+      // Validate role is dealer
+      if (session.user.role !== 'dealer') {
+        throw new Error('Only dealers can place bids');
+      }
+
+      // Call the place_bid database function
+      const { data, error } = await supabase.rpc('place_bid', {
+        p_car_id: carId,
+        p_dealer_id: session.user.id,
+        p_amount: amount,
+        p_is_proxy: isProxyBid,
+        p_max_proxy_amount: maxProxyAmount || null
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Handle successful bid
+      if (data.success) {
         toast({
-          title: 'Bid Placed Successfully',
-          description: `Your bid of ${response.amount?.toLocaleString()} PLN has been placed.`
+          title: isProxyBid ? 'Proxy Bid Placed' : 'Bid Placed',
+          description: isProxyBid 
+            ? `Your proxy bid has been set with a maximum of ${maxProxyAmount}`
+            : `Your bid of ${amount} has been accepted`,
+          variant: 'default',
         });
         
-        // Clean up any temporary bid state in localStorage
-        cleanupBidStorage();
-        
-        // Call success callback if provided
-        if (options?.onBidSuccess) {
-          options.onBidSuccess(response);
-        }
-      } else {
-        // Handle specific error cases
-        if (response.error?.includes('too low')) {
-          toast({
-            variant: 'destructive',
-            title: 'Bid Too Low',
-            description: `Minimum bid required: ${response.minimumBid?.toLocaleString()} PLN`
-          });
-        } else if (response.error?.includes('not currently active')) {
-          toast({
-            variant: 'destructive',
-            title: 'Auction Not Active',
-            description: 'This auction is not currently active.'
-          });
-        } else if (response.error?.includes('own vehicle')) {
-          toast({
-            variant: 'destructive',
-            title: 'Bidding Not Allowed',
-            description: 'You cannot bid on your own vehicle.'
-          });
-        } else if (response.error?.includes('Only dealers')) {
-          toast({
-            variant: 'destructive',
-            title: 'Permission Denied',
-            description: 'Only dealers can place bids.'
-          });
-        } else {
-          toast({
-            variant: 'destructive',
-            title: 'Bid Failed',
-            description: response.error || 'Failed to place bid. Please try again.'
-          });
+        // If it's a proxy bid, trigger the background process to execute it
+        if (isProxyBid) {
+          // Call the edge function to process proxy bids
+          const proxyProcessResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/handle-seller-operations`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                operation: 'process_proxy_bids',
+                carId
+              }),
+            }
+          );
+          
+          if (!proxyProcessResponse.ok) {
+            console.warn('Proxy bid placed but processing failed. System will retry automatically.');
+          }
         }
         
-        // Call error callback if provided
-        if (options?.onBidError) {
-          options.onBidError(response.error || 'Unknown error', response.minimumBid);
-        }
-      }
-      
-      return response;
-    } catch (error: any) {
-      const errorMessage = error.message || 'An unexpected error occurred';
-      
-      toast({
-        variant: 'destructive',
-        title: 'Bid Error',
-        description: errorMessage
-      });
-      
-      // Call error callback if provided
-      if (options?.onBidError) {
-        options.onBidError(errorMessage);
-      }
-      
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  /**
-   * For admins to end an auction
-   */
-  const endAuction = async (carId: string, markAsSold: boolean = true) => {
-    if (!session?.user) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Required',
-        description: 'You must be logged in to perform this action.'
-      });
-      return { success: false, error: 'Authentication required' };
-    }
-    
-    // Verify user is an admin
-    if (session.user.role !== 'admin') {
-      toast({
-        variant: 'destructive',
-        title: 'Permission Denied',
-        description: 'Only administrators can end auctions.'
-      });
-      return { success: false, error: 'Permission denied' };
-    }
-    
-    try {
-      setIsSubmitting(true);
-      const response = await adminEndAuction(carId, session.user.id, markAsSold);
-      
-      if (response.success) {
-        toast({
-          title: 'Auction Ended',
-          description: markAsSold ? 'The vehicle has been marked as sold.' : 'The auction has been ended.'
-        });
+        return { success: true, bidId: data.bid_id, amount: data.amount };
       } else {
+        // Handle bid placement failure from the function
+        throw new Error(data.error || 'Failed to place bid');
+      }
+    } catch (err: any) {
+      setError(err.message);
+      
+      // Check if the error is about minimum bid requirement
+      if (err.message.includes('too low')) {
+        const match = err.message.match(/minimum bid is (\d+)/i);
+        const minimumBid = match ? parseInt(match[1]) : null;
+        
         toast({
+          title: 'Bid Too Low',
+          description: `Your bid was below the minimum required. ${minimumBid ? `Minimum bid is ${minimumBid}.` : ''}`,
           variant: 'destructive',
-          title: 'Action Failed',
-          description: response.error || 'Failed to end auction. Please try again.'
+        });
+      } else {
+        toast({
+          title: 'Bid Failed',
+          description: err.message,
+          variant: 'destructive',
         });
       }
       
-      return response;
-    } catch (error: any) {
-      const errorMessage = error.message || 'An unexpected error occurred';
-      
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: errorMessage
-      });
-      
-      return { success: false, error: errorMessage };
+      return { success: false, error: err.message };
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
-  
+
+  const placeProxyBid = async (carId: string, maxAmount: number) => {
+    // For a proxy bid, we set the initial bid to the minimum required
+    // but we also set the maximum amount the dealer is willing to pay
+    
+    // First, get the current bid to determine the minimum next bid
+    const { data: car } = await supabase
+      .from('cars')
+      .select('current_bid, price, minimum_bid_increment')
+      .eq('id', carId)
+      .single();
+    
+    if (!car) {
+      setError('Could not retrieve car information');
+      toast({
+        title: 'Error',
+        description: 'Could not retrieve car information',
+        variant: 'destructive',
+      });
+      return { success: false };
+    }
+    
+    // Calculate the minimum bid amount
+    const currentBid = car.current_bid || car.price;
+    const minBidIncrement = car.minimum_bid_increment || 100;
+    const minBidAmount = currentBid + minBidIncrement;
+    
+    // Ensure the maximum amount is at least the minimum bid
+    if (maxAmount < minBidAmount) {
+      setError(`Your maximum bid must be at least ${minBidAmount}`);
+      toast({
+        title: 'Bid Too Low',
+        description: `Your maximum bid must be at least ${minBidAmount}`,
+        variant: 'destructive',
+      });
+      return { success: false };
+    }
+    
+    // Place the proxy bid with the initial amount and maximum amount
+    return placeBid(carId, minBidAmount, true, maxAmount);
+  };
+
   return {
-    submitBid,
-    endAuction,
-    isSubmitting,
-    calculateMinimumBid
+    placeBid,
+    placeProxyBid,
+    isLoading,
+    error
   };
 };

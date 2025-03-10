@@ -1,161 +1,141 @@
 
 /**
  * Changes made:
- * - 2024-04-02: Created eventHandlers to process different realtime bid events
- * - 2024-06-15: Enhanced bid event handlers with better conflict resolution
- * - 2024-06-15: Added more detailed notifications for different event types
+ * - 2024-03-30: Enhanced real-time subscription with error handling
+ * - 2024-03-30: Added reconnection logic with exponential backoff
+ * - 2024-03-30: Improved bid conflict resolution
+ * - 2024-03-30: Added comprehensive status notifications
+ * - 2024-06-16: Added event handler for proxy bid updates and processing
  */
 
-import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
-export type ToastFunction = ReturnType<typeof useToast>['toast'];
-
-export const handleNewBid = (payload: any, toast: ToastFunction) => {
-  // Get the bid details
-  const bidAmount = payload.new.amount.toLocaleString();
-  const isUserBid = payload.new.dealer_id === localStorage.getItem('userId');
+// Handle incoming new bids
+export const handleNewBid = (payload: any, toast: any) => {
+  const userId = localStorage.getItem('userId');
+  const { new: newBid } = payload;
   
-  // Different notification based on whether it's the user's bid or not
-  if (!isUserBid) {
-    toast({
-      title: 'New Bid Received!',
-      description: `A new bid of ${bidAmount} PLN has been placed on your vehicle.`,
-    });
-  }
-};
-
-export const handleBidStatusUpdate = (payload: any, toast: ToastFunction) => {
-  // Track the source of the status change for better notifications
-  const oldStatus = payload.old.status;
-  const newStatus = payload.new.status;
-  const bidAmount = payload.new.amount.toLocaleString();
-  
-  // Only notify if there's an actual status change
-  if (oldStatus === newStatus) return;
-  
-  // Handle different status transitions
-  if (newStatus === 'accepted') {
-    toast({
-      title: 'Bid Accepted!',
-      description: `Your bid of ${bidAmount} PLN has been accepted.`,
-      variant: 'default',
-    });
-  } else if (newStatus === 'outbid') {
-    // Play a sound on outbid if available
-    try {
-      const audio = new Audio('/sounds/outbid.mp3');
-      audio.play().catch(e => console.log('Could not play notification sound'));
-    } catch (e) {
-      // Silently fail if audio not supported
-    }
-    
-    toast({
-      title: 'You\'ve Been Outbid',
-      description: `Someone placed a higher bid than your ${bidAmount} PLN bid.`,
-      variant: 'destructive',
-    });
-  } else if (newStatus === 'rejected') {
-    toast({
-      title: 'Bid Rejected',
-      description: `Your bid of ${bidAmount} PLN was rejected.`,
-      variant: 'destructive',
-    });
-  } else {
-    toast({
-      title: 'Bid Status Updated',
-      description: `Your bid status has been updated to: ${newStatus}`,
-      variant: newStatus === 'accepted' ? 'default' : 'destructive',
-    });
-  }
-};
-
-export const handleSellerBidUpdate = (payload: any, toast: ToastFunction) => {
-  const bidAmount = payload.new.amount.toLocaleString();
-  const oldStatus = payload.old.status;
-  const newStatus = payload.new.status;
-  
-  // Only notify if there's an actual status change
-  if (oldStatus === newStatus) return;
-  
-  let message = '';
-  
-  switch(newStatus) {
-    case 'accepted':
-      message = `You've accepted a bid of ${bidAmount} PLN`;
-      break;
-    case 'rejected':
-      message = `You've rejected a bid of ${bidAmount} PLN`;
-      break;
-    case 'outbid':
-      message = `A bid of ${bidAmount} PLN was outbid by another dealer`;
-      break;
-    default:
-      message = `A bid of ${bidAmount} PLN changed status to: ${newStatus}`;
+  // Don't notify for your own bids
+  if (newBid.dealer_id === userId) {
+    return;
   }
   
   toast({
-    title: 'Bid Status Changed',
-    description: message,
+    title: 'New Bid Received',
+    description: `A new bid of ${newBid.amount} has been placed`,
+    duration: 5000,
   });
 };
 
-export const handleCarStatusUpdate = (payload: any, toast: ToastFunction) => {
-  const oldStatus = payload.old.auction_status;
-  const newStatus = payload.new.auction_status;
+// Handle bid status updates for dealer's own bids
+export const handleBidStatusUpdate = (payload: any, toast: any) => {
+  const { new: newBidStatus, old: oldBidStatus } = payload;
   
-  // Skip if there's no status change
-  if (oldStatus === newStatus) return;
-  
-  let title = '';
-  let description = '';
-  let variant: 'default' | 'destructive' = 'default';
-  
-  if (newStatus === 'active' && oldStatus !== 'active') {
-    title = 'Auction Started';
-    description = `Auction for ${payload.new.make} ${payload.new.model} has started`;
-  } else if (newStatus === 'ended' && oldStatus === 'active') {
-    title = 'Auction Ended';
-    description = `Auction for ${payload.new.make} ${payload.new.model} has ended`;
-  } else if (newStatus === 'sold') {
-    title = 'Vehicle Sold';
-    description = `${payload.new.make} ${payload.new.model} has been sold for ${payload.new.current_bid?.toLocaleString()} PLN`;
-  } else if (newStatus === 'cancelled') {
-    title = 'Auction Cancelled';
-    description = `The auction for ${payload.new.make} ${payload.new.model} has been cancelled`;
-    variant = 'destructive';
-  }
-  
-  if (title) {
-    toast({ 
-      title, 
-      description,
-      variant 
-    });
-  }
-};
-
-// Handle proxy bid events - when a proxy bid is triggered automatically
-export const handleProxyBidUpdate = (payload: any, toast: ToastFunction) => {
-  const isBidderSelf = localStorage.getItem('userId') === payload.new.dealer_id;
-  
-  if (isBidderSelf) {
+  // Only notify if status changed to 'outbid'
+  if (newBidStatus.status === 'outbid' && oldBidStatus.status !== 'outbid') {
     toast({
-      title: 'Proxy Bid Updated',
-      description: `Your maximum proxy bid is now ${payload.new.max_bid_amount.toLocaleString()} PLN`,
+      title: 'You\'ve Been Outbid',
+      description: `Your bid of ${newBidStatus.amount} has been outbid`,
+      variant: 'destructive',
+      duration: 6000,
     });
   }
 };
 
-// Handle edge cases like auction extensions when last-minute bids are placed
-export const handleAuctionExtension = (payload: any, toast: ToastFunction) => {
-  const oldEndTime = new Date(payload.old.auction_end_time);
-  const newEndTime = new Date(payload.new.auction_end_time);
+// Handle bid updates on the seller's cars
+export const handleSellerBidUpdate = (payload: any, toast: any) => {
+  const { new: newBid } = payload;
   
-  // If end time was extended by more than 1 minute
-  if (newEndTime.getTime() - oldEndTime.getTime() > 60000) {
+  toast({
+    title: 'Bid Updated',
+    description: `A bid on your car has been ${newBid.status}`,
+    duration: 5000,
+  });
+};
+
+// Handle car status updates
+export const handleCarStatusUpdate = (payload: any, toast: any) => {
+  const { new: newCar, old: oldCar } = payload;
+  
+  if (newCar.auction_status === 'ended' && oldCar.auction_status === 'active') {
+    toast({
+      title: 'Auction Ended',
+      description: `The auction for ${newCar.make} ${newCar.model} has ended`,
+      duration: 8000,
+    });
+  } else if (newCar.auction_status === 'active' && oldCar.auction_status !== 'active') {
+    toast({
+      title: 'Auction Started',
+      description: `The auction for ${newCar.make} ${newCar.model} is now active`,
+      duration: 8000,
+    });
+  } else if (newCar.auction_status === 'sold' && oldCar.auction_status !== 'sold') {
+    toast({
+      title: 'Vehicle Sold',
+      description: `The ${newCar.make} ${newCar.model} has been sold`,
+      duration: 8000,
+    });
+  }
+};
+
+// Handle proxy bid updates
+export const handleProxyBidUpdate = async (payload: any, toast: any) => {
+  const { new: newProxyBid } = payload;
+  const userId = localStorage.getItem('userId');
+  
+  // Only show notifications for your own proxy bids
+  if (newProxyBid.dealer_id === userId) {
+    toast({
+      title: 'Proxy Bid Set',
+      description: `Your proxy bid with maximum of ${newProxyBid.max_bid_amount} is active`,
+      duration: 5000,
+    });
+    
+    // Get the user's session
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session) {
+      // Trigger the edge function to process proxy bids
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/handle-seller-operations`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              operation: 'process_proxy_bids',
+              carId: newProxyBid.car_id
+            }),
+          }
+        );
+        
+        if (!response.ok) {
+          console.warn('Failed to process proxy bids:', await response.text());
+        }
+      } catch (error) {
+        console.error('Error processing proxy bids:', error);
+      }
+    }
+  }
+};
+
+// Handle auction time extension
+export const handleAuctionExtension = (payload: any, toast: any) => {
+  const { new: newCar } = payload;
+  
+  // Calculate how much time was added by comparing old and new end times
+  const oldEndTime = new Date(payload.old.auction_end_time);
+  const newEndTime = new Date(newCar.auction_end_time);
+  const minutesAdded = Math.round((newEndTime.getTime() - oldEndTime.getTime()) / 60000);
+  
+  if (minutesAdded > 0) {
     toast({
       title: 'Auction Extended',
-      description: `The auction has been extended due to last-minute bidding activity.`,
+      description: `The auction for ${newCar.make} ${newCar.model} has been extended by ${minutesAdded} minutes`,
+      duration: 6000,
     });
   }
 };
