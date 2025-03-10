@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-30: Enhanced real-time subscription with error handling
@@ -5,10 +6,11 @@
  * - 2024-03-30: Improved bid conflict resolution
  * - 2024-03-30: Added comprehensive status notifications
  * - 2024-03-31: Fixed missing useToast import
+ * - 2024-04-01: Fixed import to use correct useToast hook
  */
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { RealtimeChannel } from '@supabase/supabase-js';

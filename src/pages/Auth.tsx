@@ -8,6 +8,7 @@
  * - 2024-03-28: Fixed Theme type error by using an object with 'default' key
  * - 2024-03-28: Refactored into smaller components
  * - 2024-03-29: Fixed type mismatch between formData and registerDealer parameters
+ * - 2024-04-01: Fixed DealerFormData to match DealerData type requirements
  */
 
 import { useState } from "react";
@@ -22,12 +23,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DealerRegistrationForm, DealerFormData } from "@/components/auth/DealerRegistrationForm";
 import { StandardAuth } from "@/components/auth/StandardAuth";
-import { useAuthActions } from "@/hooks/useAuth";
+import { useAuthActions, DealerData } from "@/hooks/useAuth";
 
 const AuthPage = () => {
   const [isDealer, setIsDealer] = useState(false);
   // Initialize formData with required properties to match DealerFormData type
-  const [formData, setFormData] = useState<DealerFormData>({
+  const [formData, setFormData] = useState<DealerData>({
     dealershipName: "",
     licenseNumber: "",
     supervisorName: "",
@@ -55,15 +56,25 @@ const AuthPage = () => {
   }, [session, navigate, user?.role]);
 
   const handleDealerSubmit = async (values: DealerFormData) => {
-    // Update form data state - all properties are guaranteed to exist now
-    setFormData(values);
+    // Convert DealerFormData to DealerData ensuring all required fields are present
+    const dealerData: DealerData = {
+      dealershipName: values.dealershipName,
+      licenseNumber: values.licenseNumber,
+      supervisorName: values.supervisorName,
+      taxId: values.taxId,
+      businessRegNumber: values.businessRegNumber,
+      address: values.address
+    };
+    
+    // Update form data state with complete dealer data
+    setFormData(dealerData);
 
     // Sign in with Google
     const success = await signInWithGoogle(`${window.location.origin}/auth`);
     
     // If sign-in is successful and we have a user, register them as a dealer
     if (success && user) {
-      await registerDealer(user.id, values);
+      await registerDealer(user.id, dealerData);
       navigate("/dashboard/dealer");
     }
   };

@@ -4,6 +4,7 @@
  * - 2024-03-28: Created useAuth hook to handle authentication logic
  * - 2024-03-29: Updated type definitions to ensure consistency with form data
  * - 2024-03-31: Fixed DealerData type to make all fields required
+ * - 2024-04-01: Fixed type mismatch between DealerData and form submission
  */
 
 import { useState } from "react";
