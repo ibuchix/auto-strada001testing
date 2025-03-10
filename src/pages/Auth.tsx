@@ -1,182 +1,273 @@
-
-/**
- * Changes made:
- * - 2024-03-20: Fixed dealer creation to include required address field
- * - 2024-03-19: Fixed text display and removed unintended content
- */
-
-import { useEffect } from "react";
+import { useState } from "react";
+import { Auth, ThemeSupa } from "@supabase/auth-ui-react";
+import {
+  useSession,
+  useSupabaseClient,
+  useUser,
+} from "@supabase/auth-helpers-react";
 import { useNavigate } from "react-router-dom";
-import { Auth as SupabaseAuth } from "@supabase/auth-ui-react";
-import { ThemeSupa } from "@supabase/auth-ui-shared";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { Navigation } from "@/components/Navigation";
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-const Auth = () => {
+const formSchema = z.object({
+  dealershipName: z.string().min(2, {
+    message: "Dealership name must be at least 2 characters.",
+  }),
+  licenseNumber: z.string().min(5, {
+    message: "License number must be at least 5 characters.",
+  }),
+  supervisorName: z.string().min(2, {
+    message: "Supervisor name must be at least 2 characters.",
+  }),
+  taxId: z.string().min(5, {
+    message: "Tax ID must be at least 5 characters.",
+  }),
+  businessRegNumber: z.string().min(5, {
+    message: "Business registration number must be at least 5 characters.",
+  }),
+  address: z.string().optional(),
+});
+
+const AuthPage = () => {
+  const [isDealer, setIsDealer] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const supabaseClient = useSupabaseClient();
+  const session = useSession();
+  const user = useUser();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
-  const syncLocalValuations = async (userId: string) => {
-    const localValuations = JSON.parse(localStorage.getItem('carValuations') || '[]');
-    
-    if (localValuations.length > 0) {
-      for (const valuation of localValuations) {
-        const { error: insertError } = await supabase
-          .from('cars')
-          .insert({
-            seller_id: userId,
-            title: `${valuation.make} ${valuation.model} ${valuation.year}`,
-            registration_number: valuation.registration,
-            make: valuation.make,
-            model: valuation.model,
-            year: valuation.year,
-            valuation_data: valuation,
-            vin: 'PENDING',
-            mileage: 0,
-            price: valuation.valuation
-          });
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      dealershipName: "",
+      licenseNumber: "",
+      supervisorName: "",
+      taxId: "",
+      businessRegNumber: "",
+      address: "",
+    },
+  });
 
-        if (insertError) {
-          console.error('Error syncing valuation:', insertError);
-          toast({
-            title: "Sync Error",
-            description: "Failed to sync some valuations. Please try again later.",
-            variant: "destructive",
-          });
-          return;
-        }
+  const [formData, setFormData] = useState({
+    dealershipName: "",
+    licenseNumber: "",
+    supervisorName: "",
+    taxId: "",
+    businessRegNumber: "",
+    address: "",
+  });
+
+  useEffect(() => {
+    if (session) {
+      if (user?.role === "dealer") {
+        navigate("/dashboard/dealer");
+      } else if (user?.role === "seller") {
+        navigate("/dashboard/seller");
+      } else {
+        navigate("/");
       }
+    }
+  }, [session, navigate, user?.role]);
 
-      localStorage.removeItem('carValuations');
-      toast({
-        title: "Valuations Synced",
-        description: "Your previous car valuations have been synced to your account.",
-      });
+  const registerDealer = async (user: any) => {
+    try {
+      const { error } = await supabaseClient
+        .from('dealers')
+        .insert({
+          user_id: user.id,
+          dealership_name: formData.dealershipName,
+          license_number: formData.licenseNumber,
+          supervisor_name: formData.supervisorName,
+          tax_id: formData.taxId,
+          business_registry_number: formData.businessRegNumber,
+          address: formData.address || 'N/A'  // Add required address field
+        });
+
+      if (error) throw error;
+
+      toast.success("Dealer registration successful!");
+      navigate("/dashboard/dealer");
+    } catch (error: any) {
+      console.error("Error registering dealer:", error);
+      toast.error(error.message || "Failed to register dealer");
     }
   };
 
-  useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate('/');
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsLoading(true);
+    setFormData(values);
+
+    try {
+      const { data, error } = await supabaseClient.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
       }
-    });
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        // If the user is a dealer, create their dealer record
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profile?.role === 'dealer') {
-          const { error: dealerError } = await supabase
-            .from('dealers')
-            .insert({
-              user_id: session.user.id,
-              dealership_name: session.user.email?.split('@')[0] || 'New Dealership',
-              license_number: 'PENDING',
-              supervisor_name: 'Pending Update',
-              tax_id: 'PENDING',
-              business_registry_number: 'PENDING',
-              address: 'Pending Update' // Added required field
-            });
-
-          if (dealerError) {
-            console.error('Error creating dealer record:', dealerError);
-            toast({
-              title: "Error",
-              description: "Failed to create dealer profile. Please contact support.",
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-
-        await syncLocalValuations(session.user.id);
-
-        toast({
-          title: "Welcome!",
-          description: "You have successfully signed in.",
-        });
-        navigate("/");
-      } else if (event === "SIGNED_OUT") {
-        toast({
-          title: "Signed out",
-          description: "You have been successfully signed out.",
-        });
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate, toast]);
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
-      <div className="container mx-auto px-4 pt-24">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-8">
-            <h2 className="text-3xl font-bold text-primary mb-6 text-center font-kanit">
-              Welcome to Auto-Strada
-            </h2>
-            <p className="text-secondary mb-8 text-center">
-              Sign in to your account or create a new one
-            </p>
-            <SupabaseAuth 
-              supabaseClient={supabase} 
-              appearance={{ 
-                theme: ThemeSupa,
-                variables: {
-                  default: {
-                    colors: {
-                      brand: '#DC143C',
-                      brandAccent: '#383B39',
-                      brandButtonText: 'white',
-                    },
-                    borderWidths: {
-                      inputBorderWidth: '1px',
-                      buttonBorderWidth: '2px',
-                    },
-                    radii: {
-                      buttonBorderRadius: '0.5rem',
-                      inputBorderRadius: '0.5rem',
-                    },
-                    fonts: {
-                      bodyFontFamily: 'Kanit, sans-serif',
-                      buttonFontFamily: 'Kanit, sans-serif',
-                      inputFontFamily: 'Kanit, sans-serif',
-                      labelFontFamily: 'Kanit, sans-serif',
-                    },
-                  },
-                },
-                className: {
-                  button: 'bg-primary hover:bg-secondary transition-colors duration-200',
-                  input: 'border-gray-300 focus:border-primary',
-                  label: 'text-secondary font-medium',
-                },
-              }}
-              providers={[]}
-              redirectTo={window.location.origin}
-              localization={{
-                variables: {
-                  sign_in: {
-                    email_label: 'Email',
-                    password_label: 'Password',
-                  },
-                },
-              }}
-            />
-          </div>
-        </div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+      <div className="w-full max-w-md p-4 space-y-4">
+        <h1 className="text-3xl font-bold text-center">
+          {isDealer ? "Register as Dealer" : "Sign In / Sign Up"}
+        </h1>
+
+        {isDealer ? (
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-4"
+            >
+              <FormField
+                control={form.control}
+                name="dealershipName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Dealership Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter dealership name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="licenseNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>License Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter license number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="supervisorName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Supervisor Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter supervisor name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="taxId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tax ID</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter tax ID" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="businessRegNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Business Reg. Number</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter business registration number"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter address" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Registering..." : "Register"}
+              </Button>
+            </form>
+          </Form>
+        ) : (
+          <Auth
+            supabaseClient={supabaseClient}
+            appearance={{ theme: ThemeSupa }}
+            providers={["google"]}
+            redirectTo={`${window.location.origin}/auth`}
+            onUser={(event, session) => {
+              if (event === "SIGNED_IN") {
+                if (isDealer) {
+                  registerDealer(session?.user);
+                } else {
+                  if (session?.user.role === "dealer") {
+                    navigate("/dashboard/dealer");
+                  } else {
+                    navigate("/dashboard/seller");
+                  }
+                }
+              }
+            }}
+          />
+        )}
+
+        <Button
+          variant="link"
+          onClick={() => setIsDealer(!isDealer)}
+          className="w-full"
+        >
+          {isDealer
+            ? "Back to Sign In / Sign Up"
+            : "Register as a Dealer instead"}
+        </Button>
       </div>
     </div>
   );
 };
 
-export default Auth;
+export default AuthPage;

@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-03-20: Fixed type references to match database schema
  * - 2024-03-20: Updated property names to match database schema
+ * - 2024-03-25: Updated car preparation to include seller_id field
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -47,6 +48,7 @@ export const prepareCarData = (
     price: valuationData.valuation,
     transmission: valuationData.transmission || null,
     valuation_data: valuationData,
-    is_draft: true
+    is_draft: true,
+    additional_photos: data.uploadedPhotos || []
   };
 };

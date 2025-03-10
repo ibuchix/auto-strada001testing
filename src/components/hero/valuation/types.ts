@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-03-20: Fixed transmission type reference
  * - 2024-03-20: Added more complete type definitions
+ * - 2024-03-25: Updated TransmissionType to use the database enum
  */
 
 export type TransmissionType = 'manual' | 'automatic';

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -61,7 +60,7 @@ export const useFormSubmission = (userId?: string) => {
         seller_notes: data.sellerNotes,
         seat_material: data.seatMaterial,
         number_of_keys: parseInt(data.numberOfKeys),
-        required_photos: data.uploadedPhotos
+        additional_photos: data.uploadedPhotos
       }, {
         onConflict: 'id'
       });

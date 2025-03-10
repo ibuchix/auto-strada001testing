@@ -1,26 +1,17 @@
-
-/**
- * Changes made:
- * - 2024-03-20: Fixed CarListing interface to match database schema
- * - 2024-03-20: Added proper error handling for type mismatches
- */
-
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
-import { Navigation } from "@/components/Navigation";
-import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useRealtimeBids } from "@/hooks/useRealtimeBids";
-import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { toast } from "sonner";
 import { ListingsSection } from "@/components/dashboard/ListingsSection";
-import { ActivitySection } from "@/components/dashboard/ActivitySection";
-import { AuctionStats } from "@/components/AuctionStats";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
+import { Navigation } from "@/components/Navigation";
+import { Footer } from "@/components/Footer";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CarListing {
   id: string;
   title: string;
-  description?: string;
   price: number;
   status: string;
   created_at: string;
@@ -29,133 +20,83 @@ interface CarListing {
   year: number;
   is_draft: boolean;
   is_auction: boolean;
+  // Add description with a default value to avoid TypeScript errors
+  description?: string;
 }
 
 const SellerDashboard = () => {
-  const { session } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [listings, setListings] = useState<CarListing[]>([]);
-  const [activeListings, setActiveListings] = useState<number>(0);
-  const [auctionListings, setAuctionListings] = useState<CarListing[]>([]);
-  
-  useRealtimeBids();
+  const { user } = useAuth();
+  const [activeListings, setActiveListings] = useState<CarListing[]>([]);
+  const [draftListings, setDraftListings] = useState<CarListing[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  useEffect(() => {
-    if (!session) {
-      navigate('/auth');
-      return;
-    }
-
-    const checkRole = async () => {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
-        .single();
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to verify user role",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (profile.role !== 'seller') {
-        navigate('/');
-        toast({
-          title: "Access Denied",
-          description: "This page is only accessible to sellers",
-          variant: "destructive",
-        });
-      }
-    };
-
-    checkRole();
-  }, [session, navigate, toast]);
-
-  const fetchListings = async () => {
-    if (!session?.user.id) return;
-
-    const { data, error } = await supabase
-      .from('cars')
-      .select('*')
-      .eq('seller_id', session.user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch your listings",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Transform the data to match the CarListing interface
-    const formattedListings: CarListing[] = data?.map(car => ({
-      id: car.id,
-      title: car.title || `${car.year} ${car.make} ${car.model}`,
-      description: "",  // Providing default value for required field
-      price: car.price || 0,
-      status: car.status || 'available',
-      created_at: car.created_at,
-      make: car.make || 'Unknown',
-      model: car.model || 'Model',
-      year: car.year || new Date().getFullYear(),
-      is_draft: car.is_draft,
-      is_auction: car.is_auction || false
-    })) || [];
-
-    setListings(formattedListings);
-    
-    // Filter auction listings
-    const auctions = formattedListings.filter(car => car.is_auction && !car.is_draft) || [];
-    setAuctionListings(auctions);
-    setActiveListings(formattedListings.filter(car => !car.is_draft).length || 0);
+  const forceRefresh = () => {
+    setRefreshTrigger(prev => prev + 1);
   };
 
   useEffect(() => {
-    fetchListings();
-  }, [session?.user.id]);
+    if (!user) return;
 
-  if (!session) return null;
+    const fetchListings = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('cars')
+          .select('*')
+          .eq('seller_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Transform data to match CarListing interface
+        const transformedData = data.map(car => ({
+          ...car,
+          description: car.seller_notes || '' // Use seller_notes as description
+        })) as CarListing[];
+
+        // Filter active and draft listings
+        const activeCars = transformedData.filter(car => !car.is_draft);
+        const draftCars = transformedData.filter(car => car.is_draft);
+
+        setActiveListings(activeCars);
+        setDraftListings(draftCars);
+      } catch (error) {
+        console.error('Error fetching listings:', error);
+        toast.error('Failed to load your listings');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchListings();
+  }, [user, refreshTrigger]);
 
   return (
-    <div className="min-h-screen bg-accent">
+    <div className="min-h-screen bg-white">
       <Navigation />
-      <div className="container mx-auto px-4 pt-24 pb-12">
-        <div className="mb-8 animate-fade-in">
-          <h1 className="text-4xl font-bold text-primary mb-2">Seller Dashboard</h1>
-          <p className="text-subtitle">Manage your vehicle listings and track bids.</p>
+      <div className="container mx-auto px-4 py-20 mt-20">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-dark">Seller Dashboard</h1>
+          <Button onClick={() => window.location.href = '/sell-my-car'} className="bg-primary hover:bg-primary/90 text-white">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Create New Listing
+          </Button>
         </div>
 
-        <DashboardStats activeListings={activeListings} />
-
-        {/* Auction Stats Section */}
-        {auctionListings.length > 0 && (
-          <div className="mt-8 mb-6">
-            <h2 className="text-2xl font-bold text-dark mb-4">Auction Statistics</h2>
-            <div className="space-y-6">
-              {auctionListings.map((listing) => (
-                <div key={listing.id} className="bg-white rounded-lg shadow-sm p-4">
-                  <h3 className="text-lg font-semibold text-dark mb-3">
-                    {listing.year} {listing.make} {listing.model}
-                  </h3>
-                  <AuctionStats carId={listing.id} />
-                </div>
-              ))}
-            </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Skeleton className="h-40 lg:col-span-2 animate-pulse" />
+            <Skeleton className="h-40 animate-pulse" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <ListingsSection listings={draftListings} onStatusChange={forceRefresh} />
+            <ListingsSection listings={activeListings} onStatusChange={forceRefresh} />
           </div>
         )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-          <ListingsSection listings={listings} onStatusChange={fetchListings} />
-          <ActivitySection />
-        </div>
       </div>
+      <Footer />
     </div>
   );
 };

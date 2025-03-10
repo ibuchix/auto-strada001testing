@@ -5,6 +5,7 @@
  * - 2024-03-20: Updated property names to match database fields
  * - 2024-03-19: Added support for converting between form and database formats
  * - 2024-03-19: Added handling for default values and nullable fields
+ * - 2024-03-25: Updated to include additional_photos field
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
@@ -38,7 +39,8 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     price: valuationData.valuation || valuationData.averagePrice || 0,
     title: `${valuationData.make || ''} ${valuationData.model || ''} ${valuationData.year || ''}`.trim() || 'Draft Listing',
     vin: vin,
-    transmission: formData.transmission
+    transmission: formData.transmission,
+    additional_photos: formData.uploadedPhotos || []
   };
 };
 
@@ -59,6 +61,7 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
     sellerNotes: dbData.seller_notes || "",
     seatMaterial: dbData.seat_material || "",
     numberOfKeys: dbData.number_of_keys?.toString() || "1",
-    transmission: dbData.transmission as "manual" | "automatic" | null
+    transmission: dbData.transmission as "manual" | "automatic" | null,
+    uploadedPhotos: dbData.additional_photos || []
   };
 };
