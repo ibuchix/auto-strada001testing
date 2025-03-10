@@ -5,6 +5,8 @@
  * - 2024-03-26: Updated to use session.user instead of user property
  * - 2024-03-26: Added proper handling for seller_notes field and optional fields
  * - 2024-03-26: Fixed type conflicts with CarListing interface
+ * - 2024-03-28: Unified CarListing interface to avoid type conflicts
+ * - 2024-03-28: Added explicit typing for data transformations
  */
 
 import { useEffect, useState } from "react";
@@ -17,9 +19,10 @@ import { PlusCircle } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Json } from "@/integrations/supabase/types";
 
 // Define the interface clearly to avoid conflicts
-interface CarListing {
+export interface CarListing {
   id: string;
   title: string;
   price: number;
@@ -30,7 +33,7 @@ interface CarListing {
   year: number;
   is_draft: boolean;
   is_auction: boolean;
-  description?: string; // Make description optional
+  description: string; // Make this required to match the ListingsSection component
 }
 
 const SellerDashboard = () => {
@@ -59,9 +62,12 @@ const SellerDashboard = () => {
         if (error) throw error;
 
         // Transform data to match CarListing interface with description field
-        const transformedData = (data || []).map(car => {
-          // Handle seller_notes field which might not exist
-          const description = car.seller_notes || '';
+        const transformedData: CarListing[] = (data || []).map(car => {
+          // Use features.seller_notes for description if available, otherwise use empty string
+          const features = car.features as Json || {};
+          const sellerNotes = typeof features === 'object' && features !== null 
+            ? ((features as Record<string, any>).seller_notes as string) || '' 
+            : '';
           
           return {
             id: car.id,
@@ -74,8 +80,8 @@ const SellerDashboard = () => {
             year: car.year || new Date().getFullYear(),
             is_draft: car.is_draft,
             is_auction: car.is_auction || false,
-            description: description
-          } as CarListing;
+            description: sellerNotes
+          };
         });
 
         // Filter active and draft listings

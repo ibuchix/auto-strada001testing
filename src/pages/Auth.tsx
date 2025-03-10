@@ -5,6 +5,7 @@
  * - 2024-03-26: Fixed theme type issue using appearance.theme
  * - 2024-03-26: Fixed useState type issue with proper initialization
  * - 2024-03-26: Updated formData setter to ensure required properties
+ * - 2024-03-28: Fixed Theme type error by using an object with 'default' key
  */
 
 import { useState } from "react";
@@ -256,7 +257,7 @@ const AuthPage = () => {
         ) : (
           <Auth
             supabaseClient={supabaseClient}
-            appearance={{ theme: 'default' }}
+            appearance={{ theme: { default: {} } }}
             providers={["google"]}
             redirectTo={`${window.location.origin}/auth`}
           />
