@@ -1,8 +1,10 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of app routing
  * - 2024-03-19: Added authentication provider
  * - 2024-03-19: Implemented toast notifications
+ * - 2024-03-19: Removed Partners route
  */
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";

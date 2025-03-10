@@ -1,3 +1,9 @@
+
+/**
+ * Changes made:
+ * - 2024-03-19: Removed Partners link from navigation
+ */
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -18,9 +24,6 @@ export const NavLinks = ({ userRole, onSignOut, session }: NavLinksProps) => {
       </Link>
       <Link to="/faq" className="text-secondary hover:text-primary transition-colors">
         FAQ
-      </Link>
-      <Link to="/partners" className="text-secondary hover:text-primary transition-colors">
-        Partners
       </Link>
       {session ? (
         <>
