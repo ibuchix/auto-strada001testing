@@ -3,12 +3,17 @@
  * Changes made:
  * - 2024-03-31: Created bidUtils file to handle bid operations
  * - 2024-03-31: Added placeBid function using RPC
- * - 2024-04-01: Fixed RPC function call and type safety issues
+ * - 2024-04-01: Fixed RPC function call to use fetch with proper URL
+ * - 2024-04-02: Fixed access to protected Supabase client properties
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Json } from '@/integrations/supabase/types';
+
+// Supabase URL and key constants
+const SUPABASE_URL = "https://sdvakfhmoaoucmhbhwvy.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkdmFrZmhtb2FvdWNtaGJod3Z5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ3OTI1OTEsImV4cCI6MjA1MDM2ODU5MX0.wvvxbqF3Hg_fmQ_4aJCqISQvcFXhm-2BngjvO6EHL0M";
 
 // Interface for bid data
 export interface BidData {
@@ -37,15 +42,15 @@ export const placeBid = async (bidData: BidData): Promise<BidResponse> => {
   try {
     const { carId, dealerId, amount, isProxy = false, maxProxyAmount } = bidData;
     
-    // Call the stored procedure via fetch to the Supabase REST API since RPC doesn't support the function
+    // Call the stored procedure via fetch to the Supabase REST API
     const response = await fetch(
-      `${supabase.supabaseUrl}/rest/v1/rpc/place_bid`,
+      `${SUPABASE_URL}/rest/v1/rpc/place_bid`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': supabase.supabaseKey,
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           p_car_id: carId,
