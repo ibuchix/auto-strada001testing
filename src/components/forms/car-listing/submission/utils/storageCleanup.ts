@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-06-12: Created dedicated utility for cleaning up localStorage
+ * - 2024-06-13: Added bid-related cleanup
  */
 
 /**
@@ -13,4 +14,14 @@ export const cleanupFormStorage = () => {
   localStorage.removeItem('tempVIN');
   localStorage.removeItem('tempGearbox');
   localStorage.removeItem('formProgress');
+  localStorage.removeItem('lastBidAmount');
+  localStorage.removeItem('bidHistory');
+};
+
+/**
+ * Cleans up only bid-related data from localStorage
+ */
+export const cleanupBidStorage = () => {
+  localStorage.removeItem('lastBidAmount');
+  localStorage.removeItem('bidHistory');
 };
