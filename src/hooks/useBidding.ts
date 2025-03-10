@@ -1,9 +1,16 @@
 
+/**
+ * Changes made:
+ * - 2024-06-17: Fixed TypeScript type errors for Supabase RPC response data
+ * - 2024-06-17: Added proper type assertions and interfaces for bid responses
+ */
+
 import { useState } from 'react';
 import { useToast } from './use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 
+// Define proper interfaces for RPC responses
 interface BidResponse {
   success: boolean;
   error?: string;
@@ -51,8 +58,11 @@ export const useBidding = () => {
         throw new Error(error.message);
       }
 
+      // Type assertion to ensure TypeScript recognizes the structure
+      const bidResponse = data as BidResponse;
+
       // Handle successful bid
-      if (data.success) {
+      if (bidResponse.success) {
         toast({
           title: isProxyBid ? 'Proxy Bid Placed' : 'Bid Placed',
           description: isProxyBid 
@@ -84,10 +94,10 @@ export const useBidding = () => {
           }
         }
         
-        return { success: true, bidId: data.bid_id, amount: data.amount };
+        return { success: true, bidId: bidResponse.bid_id, amount: bidResponse.amount };
       } else {
         // Handle bid placement failure from the function
-        throw new Error(data.error || 'Failed to place bid');
+        throw new Error(bidResponse.error || 'Failed to place bid');
       }
     } catch (err: any) {
       setError(err.message);
