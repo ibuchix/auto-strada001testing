@@ -1,3 +1,4 @@
+
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
@@ -13,9 +14,14 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function ({ id, title, description, action, variant, ...props }) {
+        // Apply custom styling based on variant
+        const toastClass = variant === 'destructive' 
+          ? 'border-[#DC143C]/20 bg-[#DC143C]/10 text-[#DC143C]' 
+          : 'border-[#4B4DED]/20 bg-[#4B4DED]/10 text-[#222020]';
+          
         return (
-          <Toast key={id} {...props}>
+          <Toast key={id} className={toastClass} {...props}>
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (
@@ -23,7 +29,7 @@ export function Toaster() {
               )}
             </div>
             {action}
-            <ToastClose />
+            <ToastClose className={variant === 'destructive' ? 'text-[#DC143C]' : 'text-[#222020]'} />
           </Toast>
         )
       })}

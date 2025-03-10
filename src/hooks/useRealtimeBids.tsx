@@ -1,124 +1,149 @@
 
 /**
  * Changes made:
- * - 2024-03-30: Enhanced real-time subscription with error handling
- * - 2024-03-30: Added reconnection logic with exponential backoff
- * - 2024-03-30: Improved bid conflict resolution
- * - 2024-03-30: Added comprehensive status notifications
- * - 2024-03-31: Fixed missing useToast import
- * - 2024-04-01: Fixed import to use correct useToast hook
- * - 2024-04-02: Refactored into smaller files for better maintainability
- * - 2024-06-15: Enhanced with additional event handlers for conflict resolution
+ * - 2024-06-18: Enhanced with visual feedback using custom components
+ * - 2024-06-18: Improved toast notifications with BidNotification component
  */
 
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/AuthProvider';
-import { RealtimeChannel } from '@supabase/supabase-js';
-
-// Import refactored utilities
-import { setupBidsChannel } from './realtime/channelSetup';
+import { useToast } from '@/components/ui/use-toast';
 import { 
   handleNewBid, 
   handleBidStatusUpdate, 
-  handleSellerBidUpdate, 
+  handleSellerBidUpdate,
   handleCarStatusUpdate,
   handleProxyBidUpdate,
   handleAuctionExtension
 } from './realtime/eventHandlers';
-import { handleReconnect } from './realtime/reconnectionHandler';
+import { BidNotification } from '@/components/auction/BidNotification';
 
 export const useRealtimeBids = () => {
-  const { session } = useAuth();
   const { toast } = useToast();
-  const [isConnected, setIsConnected] = useState(false);
-  const [isReconnecting, setIsReconnecting] = useState(false);
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 5;
   
-  // Create a memoized function to setup the channel
-  const setupChannel = useCallback(() => {
-    if (!session?.user) return null;
-    
-    try {
-      const channel = setupBidsChannel({
-        userId: session.user.id,
-        userRole: session.user.role,
-        onNewBid: (payload) => handleNewBid(payload, toast),
-        onBidStatusUpdate: (payload) => handleBidStatusUpdate(payload, toast),
-        onSellerBidUpdate: (payload) => handleSellerBidUpdate(payload, toast),
-        onCarStatusUpdate: (payload) => handleCarStatusUpdate(payload, toast),
-        onProxyBidUpdate: (payload) => handleProxyBidUpdate(payload, toast),
-        onAuctionExtension: (payload) => handleAuctionExtension(payload, toast),
-        toast
-      });
-      
-      channel.subscribe((status) => {
-        console.log('Subscription status:', status);
-        
-        if (status === 'SUBSCRIBED') {
-          setIsConnected(true);
-          setIsReconnecting(false);
-          reconnectAttemptsRef.current = 0;
-          console.log('Successfully subscribed to real-time bid updates');
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('Channel error, will attempt to reconnect');
-          setIsConnected(false);
-          initiateReconnect();
-        } else if (status === 'TIMED_OUT') {
-          console.error('Channel timed out, will attempt to reconnect');
-          setIsConnected(false);
-          initiateReconnect();
-        }
-      });
-        
-      return channel;
-    } catch (error) {
-      console.error('Error setting up realtime channel:', error);
-      return null;
-    }
-  }, [session?.user?.id, session?.user?.role, toast]);
-  
-  // Function to handle reconnection with exponential backoff
-  const initiateReconnect = useCallback(() => {
-    handleReconnect({
-      channelRef,
-      reconnectAttemptsRef,
-      isReconnecting,
-      setIsReconnecting,
-      setupChannel,
-      maxReconnectAttempts,
-      toast
-    });
-  }, [isReconnecting, setupChannel, toast, maxReconnectAttempts]);
-  
-  // Set up real-time subscription
   useEffect(() => {
-    if (!session?.user) return;
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
     
-    // Only set up channel if not already connected
-    if (!isConnected && !isReconnecting && !channelRef.current) {
-      channelRef.current = setupChannel();
-    }
-    
-    // Cleanup subscription on unmount
-    return () => {
-      console.log('Cleaning up real-time subscription');
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-      
-      // Clear userId from localStorage on unmount
-      localStorage.removeItem('userId');
+    // Enhanced toast wrapper that uses our custom BidNotification component
+    const enhancedToast = (
+      type: 'success' | 'error' | 'info' | 'warning',
+      title: string, 
+      description?: string,
+      duration = 5000
+    ) => {
+      toast({
+        title: '', // Empty as we're using custom component
+        description: (
+          <BidNotification 
+            type={type} 
+            title={title} 
+            description={description} 
+          />
+        ),
+        duration,
+        variant: type === 'error' ? 'destructive' : 'default',
+      });
     };
-  }, [session?.user, isConnected, isReconnecting, setupChannel]);
+    
+    // Set up subscription for new bids
+    const newBidsChannel = supabase
+      .channel('new-bids')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'bids',
+        },
+        (payload) => handleNewBid(payload, enhancedToast)
+      )
+      .subscribe();
 
-  return {
-    isConnected,
-    isReconnecting,
-    reconnect: initiateReconnect
-  };
+    // Set up subscription for bid status changes
+    const bidStatusChannel = supabase
+      .channel('bid-status-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bids',
+          filter: `dealer_id=eq.${userId}`,
+        },
+        (payload) => handleBidStatusUpdate(payload, enhancedToast)
+      )
+      .subscribe();
+
+    // Set up subscription for bid updates on seller's cars
+    const sellerBidsChannel = supabase
+      .channel('seller-bid-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bids',
+          filter: `car.seller_id=eq.${userId}`,
+        },
+        (payload) => handleSellerBidUpdate(payload, enhancedToast)
+      )
+      .subscribe();
+
+    // Set up subscription for car status updates
+    const carStatusChannel = supabase
+      .channel('car-status-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'cars',
+          filter: `auction_status=neq.pending`,
+        },
+        (payload) => handleCarStatusUpdate(payload, enhancedToast)
+      )
+      .subscribe();
+
+    // Set up subscription for proxy bid updates
+    const proxyBidChannel = supabase
+      .channel('proxy-bid-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'proxy_bids',
+        },
+        (payload) => handleProxyBidUpdate(payload, enhancedToast)
+      )
+      .subscribe();
+
+    // Set up subscription for auction extensions
+    const auctionExtensionChannel = supabase
+      .channel('auction-extension-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'cars',
+          filter: `auction_status=eq.active`,
+        },
+        (payload) => handleAuctionExtension(payload, enhancedToast)
+      )
+      .subscribe();
+
+    // Cleanup on unmount
+    return () => {
+      supabase.removeChannel(newBidsChannel);
+      supabase.removeChannel(bidStatusChannel);
+      supabase.removeChannel(sellerBidsChannel);
+      supabase.removeChannel(carStatusChannel);
+      supabase.removeChannel(proxyBidChannel);
+      supabase.removeChannel(auctionExtensionChannel);
+    };
+  }, [toast]);
+  
+  return null;
 };

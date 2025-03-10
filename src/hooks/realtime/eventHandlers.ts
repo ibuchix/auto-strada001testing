@@ -6,12 +6,20 @@
  * - 2024-03-30: Improved bid conflict resolution
  * - 2024-03-30: Added comprehensive status notifications
  * - 2024-06-16: Added event handler for proxy bid updates and processing
+ * - 2024-06-18: Enhanced toast notifications with custom types and styled messages
  */
 
 import { supabase } from '@/integrations/supabase/client';
 
+type EnhancedToast = (
+  type: 'success' | 'error' | 'info' | 'warning',
+  title: string,
+  description?: string,
+  duration?: number
+) => void;
+
 // Handle incoming new bids
-export const handleNewBid = (payload: any, toast: any) => {
+export const handleNewBid = (payload: any, toast: EnhancedToast) => {
   const userId = localStorage.getItem('userId');
   const { new: newBid } = payload;
   
@@ -20,76 +28,83 @@ export const handleNewBid = (payload: any, toast: any) => {
     return;
   }
   
-  toast({
-    title: 'New Bid Received',
-    description: `A new bid of ${newBid.amount} has been placed`,
-    duration: 5000,
-  });
+  toast(
+    'info',
+    'New Bid Received',
+    `A new bid of ${newBid.amount} has been placed`
+  );
 };
 
 // Handle bid status updates for dealer's own bids
-export const handleBidStatusUpdate = (payload: any, toast: any) => {
+export const handleBidStatusUpdate = (payload: any, toast: EnhancedToast) => {
   const { new: newBidStatus, old: oldBidStatus } = payload;
   
   // Only notify if status changed to 'outbid'
   if (newBidStatus.status === 'outbid' && oldBidStatus.status !== 'outbid') {
-    toast({
-      title: 'You\'ve Been Outbid',
-      description: `Your bid of ${newBidStatus.amount} has been outbid`,
-      variant: 'destructive',
-      duration: 6000,
-    });
+    toast(
+      'warning',
+      'You\'ve Been Outbid',
+      `Your bid of ${newBidStatus.amount} has been outbid`,
+      6000
+    );
   }
 };
 
 // Handle bid updates on the seller's cars
-export const handleSellerBidUpdate = (payload: any, toast: any) => {
+export const handleSellerBidUpdate = (payload: any, toast: EnhancedToast) => {
   const { new: newBid } = payload;
   
-  toast({
-    title: 'Bid Updated',
-    description: `A bid on your car has been ${newBid.status}`,
-    duration: 5000,
-  });
+  const bidStatus = newBid.status === 'active' ? 'success' : 'info';
+  const statusText = newBid.status === 'active' ? 'accepted' : newBid.status;
+  
+  toast(
+    bidStatus,
+    'Bid Updated',
+    `A bid on your car has been ${statusText}`
+  );
 };
 
 // Handle car status updates
-export const handleCarStatusUpdate = (payload: any, toast: any) => {
+export const handleCarStatusUpdate = (payload: any, toast: EnhancedToast) => {
   const { new: newCar, old: oldCar } = payload;
   
   if (newCar.auction_status === 'ended' && oldCar.auction_status === 'active') {
-    toast({
-      title: 'Auction Ended',
-      description: `The auction for ${newCar.make} ${newCar.model} has ended`,
-      duration: 8000,
-    });
+    toast(
+      'info',
+      'Auction Ended',
+      `The auction for ${newCar.make} ${newCar.model} has ended`,
+      8000
+    );
   } else if (newCar.auction_status === 'active' && oldCar.auction_status !== 'active') {
-    toast({
-      title: 'Auction Started',
-      description: `The auction for ${newCar.make} ${newCar.model} is now active`,
-      duration: 8000,
-    });
+    toast(
+      'success',
+      'Auction Started',
+      `The auction for ${newCar.make} ${newCar.model} is now active`,
+      8000
+    );
   } else if (newCar.auction_status === 'sold' && oldCar.auction_status !== 'sold') {
-    toast({
-      title: 'Vehicle Sold',
-      description: `The ${newCar.make} ${newCar.model} has been sold`,
-      duration: 8000,
-    });
+    toast(
+      'success',
+      'Vehicle Sold',
+      `The ${newCar.make} ${newCar.model} has been sold`,
+      8000
+    );
   }
 };
 
 // Handle proxy bid updates
-export const handleProxyBidUpdate = async (payload: any, toast: any) => {
+export const handleProxyBidUpdate = async (payload: any, toast: EnhancedToast) => {
   const { new: newProxyBid } = payload;
   const userId = localStorage.getItem('userId');
   
   // Only show notifications for your own proxy bids
   if (newProxyBid.dealer_id === userId) {
-    toast({
-      title: 'Proxy Bid Set',
-      description: `Your proxy bid with maximum of ${newProxyBid.max_bid_amount} is active`,
-      duration: 5000,
-    });
+    toast(
+      'success',
+      'Proxy Bid Set',
+      `Your proxy bid with maximum of ${newProxyBid.max_bid_amount} is active`,
+      5000
+    );
     
     // Get the user's session
     const { data: { session } } = await supabase.auth.getSession();
@@ -123,7 +138,7 @@ export const handleProxyBidUpdate = async (payload: any, toast: any) => {
 };
 
 // Handle auction time extension
-export const handleAuctionExtension = (payload: any, toast: any) => {
+export const handleAuctionExtension = (payload: any, toast: EnhancedToast) => {
   const { new: newCar } = payload;
   
   // Calculate how much time was added by comparing old and new end times
@@ -132,10 +147,11 @@ export const handleAuctionExtension = (payload: any, toast: any) => {
   const minutesAdded = Math.round((newEndTime.getTime() - oldEndTime.getTime()) / 60000);
   
   if (minutesAdded > 0) {
-    toast({
-      title: 'Auction Extended',
-      description: `The auction for ${newCar.make} ${newCar.model} has been extended by ${minutesAdded} minutes`,
-      duration: 6000,
-    });
+    toast(
+      'info',
+      'Auction Extended',
+      `The auction for ${newCar.make} ${newCar.model} has been extended by ${minutesAdded} minutes`,
+      6000
+    );
   }
 };
