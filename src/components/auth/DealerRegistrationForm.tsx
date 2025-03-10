@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-03-28: Created DealerRegistrationForm component
+ * - 2024-03-29: Ensured all required form fields are properly typed
  */
 
 import { useForm } from "react-hook-form";
@@ -34,7 +35,9 @@ const formSchema = z.object({
   businessRegNumber: z.string().min(5, {
     message: "Business registration number must be at least 5 characters.",
   }),
-  address: z.string().optional(),
+  address: z.string().min(1, {
+    message: "Address is required",
+  }),
 });
 
 export type DealerFormData = z.infer<typeof formSchema>;

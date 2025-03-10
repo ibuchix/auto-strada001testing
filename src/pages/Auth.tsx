@@ -7,6 +7,7 @@
  * - 2024-03-26: Updated formData setter to ensure required properties
  * - 2024-03-28: Fixed Theme type error by using an object with 'default' key
  * - 2024-03-28: Refactored into smaller components
+ * - 2024-03-29: Fixed type mismatch between formData and registerDealer parameters
  */
 
 import { useState } from "react";
@@ -25,7 +26,8 @@ import { useAuthActions } from "@/hooks/useAuth";
 
 const AuthPage = () => {
   const [isDealer, setIsDealer] = useState(false);
-  const [formData, setFormData] = useState({
+  // Initialize formData with required properties to match DealerFormData type
+  const [formData, setFormData] = useState<DealerFormData>({
     dealershipName: "",
     licenseNumber: "",
     supervisorName: "",
@@ -53,16 +55,8 @@ const AuthPage = () => {
   }, [session, navigate, user?.role]);
 
   const handleDealerSubmit = async (values: DealerFormData) => {
-    // Update form data state
-    setFormData({
-      ...formData,
-      dealershipName: values.dealershipName,
-      licenseNumber: values.licenseNumber,
-      supervisorName: values.supervisorName,
-      taxId: values.taxId,
-      businessRegNumber: values.businessRegNumber,
-      address: values.address || "",
-    });
+    // Update form data state - all properties are guaranteed to exist now
+    setFormData(values);
 
     // Sign in with Google
     const success = await signInWithGoogle(`${window.location.origin}/auth`);

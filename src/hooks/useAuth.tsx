@@ -2,24 +2,27 @@
 /**
  * Changes made:
  * - 2024-03-28: Created useAuth hook to handle authentication logic
+ * - 2024-03-29: Updated type definitions to ensure consistency with form data
  */
 
 import { useState } from "react";
 import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import { toast } from "sonner";
 
+export type DealerData = {
+  dealershipName: string;
+  licenseNumber: string;
+  supervisorName: string;
+  taxId: string;
+  businessRegNumber: string;
+  address: string;
+};
+
 export const useAuthActions = () => {
   const [isLoading, setIsLoading] = useState(false);
   const supabaseClient = useSupabaseClient();
 
-  const registerDealer = async (userId: string, dealerData: {
-    dealershipName: string;
-    licenseNumber: string;
-    supervisorName: string;
-    taxId: string;
-    businessRegNumber: string;
-    address: string;
-  }) => {
+  const registerDealer = async (userId: string, dealerData: DealerData) => {
     try {
       const { error } = await supabaseClient
         .from('dealers')
@@ -30,7 +33,7 @@ export const useAuthActions = () => {
           supervisor_name: dealerData.supervisorName,
           tax_id: dealerData.taxId,
           business_registry_number: dealerData.businessRegNumber,
-          address: dealerData.address || 'N/A'
+          address: dealerData.address
         });
 
       if (error) throw error;
