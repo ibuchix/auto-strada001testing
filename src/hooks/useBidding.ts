@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-17: Fixed TypeScript type errors for Supabase RPC response data
  * - 2024-06-17: Added proper type assertions and interfaces for bid responses
+ * - 2024-06-18: Fixed type conversion error with safer type assertion
  */
 
 import { useState } from 'react';
@@ -58,8 +59,14 @@ export const useBidding = () => {
         throw new Error(error.message);
       }
 
-      // Type assertion to ensure TypeScript recognizes the structure
-      const bidResponse = data as BidResponse;
+      // Safely convert the data to BidResponse with proper type checking
+      // First convert to unknown, then to BidResponse
+      const bidResponse = data as unknown as BidResponse;
+      
+      // Validate that we have a proper response object
+      if (typeof bidResponse !== 'object' || bidResponse === null) {
+        throw new Error('Invalid response format from server');
+      }
 
       // Handle successful bid
       if (bidResponse.success) {
