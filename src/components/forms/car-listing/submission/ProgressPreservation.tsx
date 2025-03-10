@@ -1,3 +1,9 @@
+
+/**
+ * Changes made:
+ * - 2024-06-07: Created ProgressPreservation component to handle form persistence
+ */
+
 import { useFormContext } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { useAuth } from "@/components/AuthProvider";

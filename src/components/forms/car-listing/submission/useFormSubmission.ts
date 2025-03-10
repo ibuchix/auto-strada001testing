@@ -1,3 +1,10 @@
+
+/**
+ * Changes made:
+ * - 2024-06-07: Refactored from hooks/useFormSubmission.ts
+ * - 2024-06-07: Simplified and focused on submission logic only
+ */
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";

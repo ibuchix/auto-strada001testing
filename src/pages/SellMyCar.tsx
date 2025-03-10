@@ -1,8 +1,10 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of sell my car page
  * - 2024-03-19: Added authentication check
  * - 2024-03-19: Implemented form integration
+ * - 2024-06-07: Updated to use refactored form components
  */
 
 import { Navigation } from "@/components/Navigation";

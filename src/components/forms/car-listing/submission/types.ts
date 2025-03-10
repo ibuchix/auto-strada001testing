@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2024-06-07: Created types file for form submission functionality
+ */
+
 import { CarListingFormData } from "@/types/forms";
 
 export type FormSubmissionContextType = {

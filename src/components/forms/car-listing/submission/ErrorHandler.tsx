@@ -1,3 +1,9 @@
+
+/**
+ * Changes made:
+ * - 2024-06-07: Created ErrorHandler component to display form submission errors
+ */
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
