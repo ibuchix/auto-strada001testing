@@ -1,14 +1,14 @@
-
 /**
  * Changes made:
  * - 2024-03-19: Added reserve price calculation logic
  * - 2024-03-19: Updated reserve price calculation to use correct formula and percentage tiers
  * - 2024-06-15: Updated API credentials and checksum calculation
+ * - 2024-06-15: Fixed hash import to use crypto module instead of deprecated hash module
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { Database } from '../_shared/database.types.ts';
-import { createHash } from 'https://deno.land/std@0.177.0/hash/mod.ts';
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 const getReservePercentage = (basePrice: number): number => {
   if (basePrice <= 15000) return 0.65;
@@ -144,7 +144,11 @@ const calculateChecksum = async (vin: string): Promise<string> => {
   const apiSecret = "A4FTFH54C3E37P2D34A16A7A4V41XKBF";
   
   // Calculate the checksum as md5(api id + api secret key + vin)
-  const md5Hash = createHash("md5");
-  md5Hash.update(apiId + apiSecret + vin);
-  return md5Hash.toString();
+  const encoder = new TextEncoder();
+  const data = encoder.encode(apiId + apiSecret + vin);
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  return hashHex;
 };
