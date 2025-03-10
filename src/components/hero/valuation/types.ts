@@ -5,6 +5,7 @@
  * - 2024-03-20: Added more complete type definitions
  * - 2024-03-25: Updated TransmissionType to use the database enum
  * - 2024-03-26: Fixed TransmissionType to match PostgreSQL enum values
+ * - 2024-03-27: Added explicit string type to ensure compatibility with database
  */
 
 // Match the PostgreSQL enum 'car_transmission_type'

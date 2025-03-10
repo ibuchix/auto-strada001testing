@@ -3,7 +3,8 @@
  * Changes made:
  * - 2024-03-26: Fixed TypeScript errors
  * - 2024-03-26: Updated to use session.user instead of user property
- * - 2024-03-26: Added proper handling for seller_notes field
+ * - 2024-03-26: Added proper handling for seller_notes field and optional fields
+ * - 2024-03-26: Fixed type conflicts with CarListing interface
  */
 
 import { useEffect, useState } from "react";
@@ -17,6 +18,7 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Define the interface clearly to avoid conflicts
 interface CarListing {
   id: string;
   title: string;
@@ -28,7 +30,7 @@ interface CarListing {
   year: number;
   is_draft: boolean;
   is_auction: boolean;
-  description?: string; // Make description optional to match database schema
+  description?: string; // Make description optional
 }
 
 const SellerDashboard = () => {
@@ -56,11 +58,25 @@ const SellerDashboard = () => {
 
         if (error) throw error;
 
-        // Transform data to match CarListing interface with optional description
-        const transformedData = (data || []).map(car => ({
-          ...car,
-          description: car.seller_notes || '' // Use seller_notes as description if available
-        })) as CarListing[];
+        // Transform data to match CarListing interface with description field
+        const transformedData = (data || []).map(car => {
+          // Handle seller_notes field which might not exist
+          const description = car.seller_notes || '';
+          
+          return {
+            id: car.id,
+            title: car.title || `${car.make || 'Unknown'} ${car.model || ''} ${car.year || ''}`.trim(),
+            price: car.price || 0,
+            status: car.status || 'available',
+            created_at: car.created_at,
+            make: car.make || 'Unknown',
+            model: car.model || '',
+            year: car.year || new Date().getFullYear(),
+            is_draft: car.is_draft,
+            is_auction: car.is_auction || false,
+            description: description
+          } as CarListing;
+        });
 
         // Filter active and draft listings
         const activeCars = transformedData.filter(car => !car.is_draft);

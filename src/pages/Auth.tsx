@@ -1,4 +1,12 @@
 
+/**
+ * Changes made:
+ * - 2024-03-26: Fixed supabase reference using supabaseClient from props
+ * - 2024-03-26: Fixed theme type issue using appearance.theme
+ * - 2024-03-26: Fixed useState type issue with proper initialization
+ * - 2024-03-26: Updated formData setter to ensure required properties
+ */
+
 import { useState } from "react";
 import { Auth } from "@supabase/auth-ui-react";
 import {
@@ -86,7 +94,7 @@ const AuthPage = () => {
 
   const registerDealer = async (user: any) => {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('dealers')
         .insert({
           user_id: user.id,
@@ -111,10 +119,15 @@ const AuthPage = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     
-    // Using spread to ensure all required keys are present
+    // Using spread operator to ensure all required properties are present
     setFormData({
       ...formData,
-      ...values
+      dealershipName: values.dealershipName,
+      licenseNumber: values.licenseNumber,
+      supervisorName: values.supervisorName,
+      taxId: values.taxId,
+      businessRegNumber: values.businessRegNumber,
+      address: values.address || "",
     });
 
     try {

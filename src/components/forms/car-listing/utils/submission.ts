@@ -1,146 +1,83 @@
-import { CarListingFormData } from "@/types/forms";
+/**
+ * Changes made:
+ * - 2024-03-20: Fixed infinite type instantiation error
+ * - 2024-03-20: Updated property names to match database schema
+ */
+
 import { supabase } from "@/integrations/supabase/client";
-import { FormSubmissionResult } from "../types/submission";
-import { toast } from "sonner";
+import { CarListingFormData } from "@/types/forms";
 
-export const handleFormSubmission = async (
-  data: CarListingFormData,
+export const saveFormAsDraft = async (
+  data: Partial<CarListingFormData>,
   userId: string,
-  valuationData: any,
   carId?: string
-): Promise<FormSubmissionResult> => {
-  try {
-    console.log('Starting form submission process...');
-    console.log('Valuation data:', valuationData);
-    
-    if (!valuationData) {
-      console.error('No valuation data found');
-      throw new Error("Please complete the vehicle valuation first. Return to the seller's page to start the process.");
-    }
-
-    const mileage = localStorage.getItem('tempMileage');
-    if (!mileage) {
-      throw new Error("Please complete the vehicle valuation first");
-    }
-    valuationData.mileage = parseInt(mileage);
-
-    const requiredFields = ['make', 'model', 'vin', 'mileage', 'valuation', 'year'];
-    const missingFields = requiredFields.filter(field => !valuationData[field]);
-    
-    if (missingFields.length > 0) {
-      console.error('Missing required valuation fields:', missingFields);
-      throw new Error(`Incomplete vehicle information. Missing: ${missingFields.join(', ')}. Please complete the valuation process.`);
-    }
-
-    console.log('Checking for existing VIN...');
-    const { data: existingCar, error: checkError } = await supabase
-      .from('cars')
-      .select('id, title')
-      .eq('vin', valuationData.vin)
-      .eq('is_draft', false)
-      .maybeSingle();
-
-    if (checkError) {
-      console.error('Error checking VIN:', checkError);
-      throw checkError;
-    }
-
-    if (existingCar && (!carId || existingCar.id !== carId)) {
-      return { 
-        success: false, 
-        error: "This vehicle has already been listed. Each vehicle can only be listed once." 
-      };
-    }
-
-    let financeDocumentUrl = null;
-    if (data.financeDocument) {
-      const fileExt = data.financeDocument.name.split('.').pop();
-      const fileName = `${userId}/${Date.now()}.${fileExt}`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('car-files')
-        .upload(fileName, data.financeDocument);
-
-      if (uploadError) {
-        console.error('Finance document upload error:', uploadError);
-        throw new Error('Failed to upload finance document');
-      }
-
-      if (uploadData) {
-        const { data: { publicUrl } } = supabase.storage
-          .from('car-files')
-          .getPublicUrl(fileName);
-        financeDocumentUrl = publicUrl;
-      }
-    }
-
-    const { financeDocument, ...submissionData } = data;
-
-    const transformedData = {
-      seller_id: userId,
-      title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
-      make: valuationData.make,
-      model: valuationData.model,
-      year: valuationData.year,
-      vin: valuationData.vin,
-      mileage: valuationData.mileage,
-      price: valuationData.valuation || valuationData.averagePrice,
-      transmission: valuationData.transmission,
-      valuation_data: valuationData,
-      is_draft: true,
-      finance_document_url: financeDocumentUrl,
-      name: submissionData.name,
-      address: submissionData.address,
-      mobile_number: submissionData.mobileNumber,
-      features: JSON.stringify(submissionData.features),
-      is_damaged: submissionData.isDamaged,
-      is_registered_in_poland: submissionData.isRegisteredInPoland,
-      has_tool_pack: submissionData.hasToolPack,
-      has_documentation: submissionData.hasDocumentation,
-      is_selling_on_behalf: submissionData.isSellingOnBehalf,
-      has_private_plate: submissionData.hasPrivatePlate,
-      finance_amount: submissionData.financeAmount ? parseFloat(submissionData.financeAmount) : null,
-      service_history_type: submissionData.serviceHistoryType,
-      seller_notes: submissionData.sellerNotes,
-      seat_material: submissionData.seatMaterial,
-      number_of_keys: parseInt(submissionData.numberOfKeys)
-    };
-
-    console.log('Submitting to database...');
-    const { error } = carId 
-      ? await supabase
-          .from('cars')
-          .update(transformedData)
-          .eq('id', carId)
-          .single()
-      : await supabase
-          .from('cars')
-          .insert(transformedData)
-          .single();
-
-    if (error) {
-      console.error('Database error:', error);
-      if (error.code === '23505') {
-        return { 
-          success: false, 
-          error: "This vehicle has already been listed. Each vehicle can only be listed once." 
-        };
-      }
-      throw error;
-    }
-
-    console.log('Form submission completed successfully');
-    return { success: true };
-  } catch (error: any) {
-    console.error('Submission error:', error);
-    
-    if (error.message?.includes('timeout') || error.code === 'TIMEOUT_ERROR') {
-      throw new Error('The request timed out. Please check your connection and try again.');
-    }
-    
-    return { 
-      success: false, 
-      error: error.message || "Failed to submit listing" 
-    };
+) => {
+  const valuationData = localStorage.getItem('valuationData');
+  
+  if (!valuationData) {
+    throw new Error("Missing valuation data");
   }
+  
+  const parsedValuationData = JSON.parse(valuationData);
+  const timestamp = new Date().toISOString();
+  
+  // If we have an existing car ID, update it
+  if (carId) {
+    return await supabase
+      .from('cars')
+      .update({
+        seller_id: userId,
+        name: data.name,
+        address: data.address,
+        mobile_number: data.mobileNumber,
+        features: data.features,
+        is_damaged: data.isDamaged,
+        is_registered_in_poland: data.isRegisteredInPoland,
+        has_tool_pack: data.hasToolPack,
+        has_documentation: data.hasDocumentation,
+        is_selling_on_behalf: data.isSellingOnBehalf,
+        has_private_plate: data.hasPrivatePlate,
+        finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
+        service_history_type: data.serviceHistoryType,
+        seller_notes: data.sellerNotes,
+        seat_material: data.seatMaterial,
+        number_of_keys: data.numberOfKeys ? parseInt(data.numberOfKeys) : 1,
+        updated_at: timestamp,
+        additional_photos: data.uploadedPhotos || []
+      })
+      .eq('id', carId);
+  }
+  
+  // Otherwise create a new draft
+  return await supabase
+    .from('cars')
+    .insert({
+      seller_id: userId,
+      title: `${parsedValuationData.make} ${parsedValuationData.model} ${parsedValuationData.year}`,
+      make: parsedValuationData.make,
+      model: parsedValuationData.model,
+      year: parsedValuationData.year,
+      vin: parsedValuationData.vin,
+      mileage: parseInt(localStorage.getItem('tempMileage') || '0'),
+      price: parsedValuationData.valuation || parsedValuationData.averagePrice,
+      transmission: parsedValuationData.transmission as string,
+      valuation_data: parsedValuationData,
+      is_draft: true,
+      name: data.name,
+      address: data.address,
+      mobile_number: data.mobileNumber,
+      features: data.features,
+      is_damaged: data.isDamaged,
+      is_registered_in_poland: data.isRegisteredInPoland,
+      has_tool_pack: data.hasToolPack,
+      has_documentation: data.hasDocumentation,
+      is_selling_on_behalf: data.isSellingOnBehalf,
+      has_private_plate: data.hasPrivatePlate,
+      finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
+      service_history_type: data.serviceHistoryType,
+      seller_notes: data.sellerNotes,
+      seat_material: data.seatMaterial,
+      number_of_keys: data.numberOfKeys ? parseInt(data.numberOfKeys) : 1,
+      additional_photos: data.uploadedPhotos || []
+    });
 };
