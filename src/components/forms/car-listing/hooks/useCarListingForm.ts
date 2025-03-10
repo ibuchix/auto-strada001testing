@@ -1,10 +1,10 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 import { getFormDefaults } from "./useFormDefaults";
 import { useLoadDraft } from "./useLoadDraft";
 import { useFormAutoSave } from "./useFormAutoSave";
-import { useFormSubmission } from "./useFormSubmission";
 
 export const useCarListingForm = (userId?: string, draftId?: string) => {
   const [carId, setCarId] = useState<string>("");
@@ -29,12 +29,10 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
 
   useLoadDraft(form, setCarId, setLastSaved, userId, draftId);
   useFormAutoSave(form, setLastSaved, valuationData, userId, carId);
-  const formSubmission = useFormSubmission(userId);
 
   return {
     form,
     carId,
-    lastSaved,
-    ...formSubmission
+    lastSaved
   };
 };
