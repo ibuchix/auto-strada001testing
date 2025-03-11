@@ -491,6 +491,19 @@ export type Database = {
         }
         Returns: Json
       }
+      calculate_reserve_price: {
+        Args: {
+          p_base_price: number
+        }
+        Returns: number
+      }
+      calculate_reserve_price_from_min_med: {
+        Args: {
+          p_price_min: number
+          p_price_med: number
+        }
+        Returns: number
+      }
       check_email_exists: {
         Args: {
           email_to_check: string

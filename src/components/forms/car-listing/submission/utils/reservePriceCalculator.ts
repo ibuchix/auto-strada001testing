@@ -2,14 +2,48 @@
 /**
  * Changes made:
  * - 2024-06-12: Created dedicated utility for reserve price calculations
+ * - 2024-06-19: Updated to use Supabase RPC function if available, with local fallback
  */
+
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Calculates reserve price based on the base price and percentage tier
  * @param priceX The base vehicle price
  * @returns The calculated reserve price
  */
-export const calculateReservePrice = (priceX: number): number => {
+export const calculateReservePrice = async (priceX: number): Promise<number> => {
+  try {
+    // Try to use the database function first
+    const { data, error } = await supabase.rpc('calculate_reserve_price', {
+      p_base_price: priceX
+    });
+
+    if (error) {
+      console.error('Error using database function for reserve price:', error);
+      // Fall back to local calculation
+      return calculateReservePriceLocal(priceX);
+    }
+
+    if (data === null) {
+      console.warn('Database function returned null for reserve price calculation');
+      // Fall back to local calculation
+      return calculateReservePriceLocal(priceX);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Exception in reserve price calculation:', error);
+    // Fall back to local calculation
+    return calculateReservePriceLocal(priceX);
+  }
+};
+
+/**
+ * Local fallback implementation for reserve price calculation
+ * This should match the logic in the database function
+ */
+const calculateReservePriceLocal = (priceX: number): number => {
   let percentageY: number;
 
   // Determine appropriate percentage based on price tier
@@ -48,5 +82,5 @@ export const calculateReservePrice = (priceX: number): number => {
   }
 
   // Calculate reserve price: PriceX - (PriceX * PercentageY)
-  return priceX - (priceX * percentageY);
+  return Math.round(priceX - (priceX * percentageY));
 };

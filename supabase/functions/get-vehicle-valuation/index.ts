@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 interface ValuationResponse {
   version: string;
@@ -27,31 +28,6 @@ interface ValuationResponse {
   };
 }
 
-function calculateReservePrice(priceX: number): number {
-  // Determine the percentage based on price range
-  let percentageY: number;
-  
-  if (priceX <= 15000) percentageY = 0.65;
-  else if (priceX <= 20000) percentageY = 0.46;
-  else if (priceX <= 30000) percentageY = 0.37;
-  else if (priceX <= 50000) percentageY = 0.27;
-  else if (priceX <= 60000) percentageY = 0.27;
-  else if (priceX <= 70000) percentageY = 0.22;
-  else if (priceX <= 80000) percentageY = 0.23;
-  else if (priceX <= 100000) percentageY = 0.24;
-  else if (priceX <= 130000) percentageY = 0.20;
-  else if (priceX <= 160000) percentageY = 0.185;
-  else if (priceX <= 200000) percentageY = 0.22;
-  else if (priceX <= 250000) percentageY = 0.17;
-  else if (priceX <= 300000) percentageY = 0.18;
-  else if (priceX <= 400000) percentageY = 0.18;
-  else if (priceX <= 500000) percentageY = 0.16;
-  else percentageY = 0.145;
-
-  // Calculate reserve price: PriceX - (PriceX * PercentageY)
-  return Math.round(priceX - (priceX * percentageY));
-}
-
 async function generateMd5(message: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(message);
@@ -69,6 +45,16 @@ serve(async (req) => {
   try {
     const { vin, mileage, gearbox } = await req.json();
     console.log('Processing valuation request for VIN:', vin, 'Mileage:', mileage);
+
+    // Initialize Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      {
+        auth: { persistSession: false },
+        db: { schema: 'public' }
+      }
+    );
 
     // Calculate checksum for API request using proper MD5 hashing
     const API_ID = 'AUTOSTRA';
@@ -105,16 +91,24 @@ serve(async (req) => {
       );
     }
 
-    // Calculate base price (PriceX): (price_min + price_med) / 2
-    const priceX = Math.round(
-      (apiData.functionResponse.valuation.calcValuation.price_min + 
-       apiData.functionResponse.valuation.calcValuation.price_med) / 2
-    );
-    console.log('Calculated base price (PriceX):', priceX);
+    // Extract price data
+    const priceMin = apiData.functionResponse.valuation.calcValuation.price_min;
+    const priceMed = apiData.functionResponse.valuation.calcValuation.price_med;
+    
+    // Calculate base price (average of min and median)
+    const basePrice = (priceMin + priceMed) / 2;
+    console.log('Base price (PriceX):', basePrice);
 
-    // Calculate reserve price
-    const reservePrice = calculateReservePrice(priceX);
-    console.log('Calculated reserve price:', reservePrice);
+    // Use the database function to calculate reserve price
+    const { data: reservePrice, error: reservePriceError } = await supabase
+      .rpc('calculate_reserve_price', { p_base_price: basePrice });
+      
+    if (reservePriceError) {
+      console.error('Error calculating reserve price:', reservePriceError);
+      throw new Error('Failed to calculate reserve price');
+    }
+    
+    console.log('Calculated reserve price from DB function:', reservePrice);
 
     return new Response(
       JSON.stringify({
@@ -126,7 +120,7 @@ serve(async (req) => {
           vin,
           transmission: gearbox,
           valuation: reservePrice,
-          averagePrice: priceX
+          averagePrice: basePrice
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

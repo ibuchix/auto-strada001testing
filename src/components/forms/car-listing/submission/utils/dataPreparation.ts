@@ -2,10 +2,12 @@
 /**
  * Changes made:
  * - 2024-06-12: Created dedicated utility for preparing submission data
+ * - 2024-06-19: Updated to handle async reserve price calculation
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { calculateReservePrice } from "./reservePriceCalculator";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Prepares car data for submission to Supabase
@@ -15,7 +17,7 @@ import { calculateReservePrice } from "./reservePriceCalculator";
  * @param valuationData Valuation data
  * @returns Prepared data object for Supabase insertion
  */
-export const prepareCarDataForSubmission = (
+export const prepareCarDataForSubmission = async (
   data: CarListingFormData, 
   carId: string | undefined, 
   userId: string | undefined,
@@ -28,8 +30,24 @@ export const prepareCarDataForSubmission = (
   const priceMed = valuationData.priceRanges?.medPrice || valuationData.valuation || 0;
   const priceX = (priceMin + priceMed) / 2;
   
-  // Calculate reserve price
-  const reservePrice = calculateReservePrice(priceX);
+  // Try to use the database function for reserve price calculation (using the helper function)
+  let reservePrice;
+  try {
+    const { data: dbReservePrice, error } = await supabase.rpc('calculate_reserve_price_from_min_med', {
+      p_price_min: priceMin,
+      p_price_med: priceMed
+    });
+    
+    if (error || dbReservePrice === null) {
+      // Fall back to client-side calculation
+      reservePrice = await calculateReservePrice(priceX);
+    } else {
+      reservePrice = dbReservePrice;
+    }
+  } catch (error) {
+    // Fall back to client-side calculation
+    reservePrice = await calculateReservePrice(priceX);
+  }
 
   return {
     id: carId,
