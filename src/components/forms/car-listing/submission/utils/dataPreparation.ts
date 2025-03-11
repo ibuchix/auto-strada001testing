@@ -1,9 +1,9 @@
-
 /**
  * Changes made:
  * - 2024-06-12: Created dedicated utility for preparing submission data
  * - 2024-06-19: Updated to handle async reserve price calculation
  * - 2024-06-20: Fixed function declaration to properly mark as async
+ * - 2024-06-21: Added proper error handling for reserve price calculation
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -12,11 +12,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Prepares car data for submission to Supabase
- * @param data Form data
- * @param carId Optional existing car ID
- * @param userId User ID
- * @param valuationData Valuation data
- * @returns Prepared data object for Supabase insertion
  */
 export const prepareCarDataForSubmission = async (
   data: CarListingFormData, 
@@ -24,30 +19,22 @@ export const prepareCarDataForSubmission = async (
   userId: string | undefined,
   valuationData: any
 ) => {
-  const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-  
+  if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation || !valuationData.year) {
+    throw new Error("Please complete the vehicle valuation first");
+  }
+
   // Calculate base price (average of min and med prices)
   const priceMin = valuationData.priceRanges?.minPrice || valuationData.valuation || 0;
   const priceMed = valuationData.priceRanges?.medPrice || valuationData.valuation || 0;
   const priceX = (priceMin + priceMed) / 2;
   
-  // Try to use the database function for reserve price calculation (using the helper function)
+  // Calculate reserve price using the server function with client fallback
   let reservePrice;
   try {
-    const { data: dbReservePrice, error } = await supabase.rpc('calculate_reserve_price_from_min_med', {
-      p_price_min: priceMin,
-      p_price_med: priceMed
-    });
-    
-    if (error || dbReservePrice === null) {
-      // Fall back to client-side calculation
-      reservePrice = await calculateReservePrice(priceX);
-    } else {
-      reservePrice = dbReservePrice;
-    }
-  } catch (error) {
-    // Fall back to client-side calculation
     reservePrice = await calculateReservePrice(priceX);
+  } catch (error) {
+    console.error('Failed to calculate reserve price:', error);
+    throw new Error('Failed to calculate reserve price. Please try again.');
   }
 
   return {
@@ -58,8 +45,8 @@ export const prepareCarDataForSubmission = async (
     model: valuationData.model,
     year: valuationData.year,
     vin: valuationData.vin,
-    mileage: mileage,
-    price: valuationData.valuation || valuationData.averagePrice,
+    mileage: valuationData.mileage,
+    price: valuationData.valuation,
     reserve_price: reservePrice,
     transmission: valuationData.transmission,
     valuation_data: valuationData,

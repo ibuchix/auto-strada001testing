@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-12: Created dedicated utility for reserve price calculations
  * - 2024-06-19: Updated to use Supabase RPC function if available, with local fallback
+ * - 2024-06-20: Added better error handling and logging
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const calculateReservePrice = async (priceX: number): Promise<number> => {
   try {
+    console.log('Calculating reserve price for:', priceX);
+    
     // Try to use the database function first
     const { data, error } = await supabase.rpc('calculate_reserve_price', {
       p_base_price: priceX
@@ -31,6 +34,7 @@ export const calculateReservePrice = async (priceX: number): Promise<number> => 
       return calculateReservePriceLocal(priceX);
     }
 
+    console.log('Successfully calculated reserve price:', data);
     return data;
   } catch (error) {
     console.error('Exception in reserve price calculation:', error);
