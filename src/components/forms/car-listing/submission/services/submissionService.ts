@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-06-12: Created dedicated service for handling form submissions
+ * - 2024-06-20: Fixed async/await issue with prepareCarDataForSubmission
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +36,9 @@ export const submitCarListing = async (
   }
 
   const valuationData = validateValuationData();
-  const preparedData = prepareCarDataForSubmission(data, carId, userId, valuationData);
+  
+  // Await the prepared data before passing it to upsert
+  const preparedData = await prepareCarDataForSubmission(data, carId, userId, valuationData);
 
   const { error } = await supabase
     .from('cars')

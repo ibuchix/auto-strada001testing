@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-12: Created dedicated utility for preparing submission data
  * - 2024-06-19: Updated to handle async reserve price calculation
+ * - 2024-06-20: Fixed function declaration to properly mark as async
  */
 
 import { CarListingFormData } from "@/types/forms";
