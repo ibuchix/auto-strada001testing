@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-26: Fixed supabase reference using supabaseClient from props
@@ -12,12 +11,12 @@
  * - 2024-06-24: Fixed authentication flow to properly display sign-up options
  * - 2024-06-24: Added specific seller registration support
  * - 2024-06-25: Fixed authentication page rendering issue and improved user experience
+ * - 2024-06-26: Updated to use StandardAuth without directly passing supabaseClient
  */
 
 import { useState, useEffect } from "react";
 import {
   useSession,
-  useSupabaseClient,
   useUser,
 } from "@supabase/auth-helpers-react";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +27,7 @@ import { DealerRegistrationForm, DealerFormData } from "@/components/auth/Dealer
 import { SellerRegistrationForm } from "@/components/auth/SellerRegistrationForm";
 import { StandardAuth } from "@/components/auth/StandardAuth";
 import { useAuthActions, DealerData } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const AuthPage = () => {
   const [isDealer, setIsDealer] = useState(false);
@@ -41,7 +41,6 @@ const AuthPage = () => {
     address: "",
   });
   
-  const supabaseClient = useSupabaseClient();
   const session = useSession();
   const user = useUser();
   const navigate = useNavigate();
@@ -79,7 +78,7 @@ const AuthPage = () => {
 
   const handleSellerSubmit = async (email: string, password: string) => {
     try {
-      const { error } = await supabaseClient.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -97,7 +96,7 @@ const AuthPage = () => {
       toast.success("Registration successful! You can now sign in.");
       
       // Auto sign in after registration
-      const { error: signInError, data } = await supabaseClient.auth.signInWithPassword({
+      const { error: signInError, data } = await supabase.auth.signInWithPassword({
         email,
         password
       });
@@ -178,7 +177,6 @@ const AuthPage = () => {
           
           <TabsContent value="auth" className="mt-4">
             <StandardAuth
-              supabaseClient={supabaseClient}
               redirectTo={`${window.location.origin}/auth`}
             />
           </TabsContent>

@@ -5,20 +5,21 @@
  * - 2024-06-25: Fixed styling and appearance to match project style guide
  * - 2024-06-25: Fixed type error by using correct theme property names
  * - 2024-06-25: Fixed buttonText to defaultButtonText to match Supabase theme type
+ * - 2024-06-26: Updated to use useSupabaseClient hook instead of requiring client as prop
  */
 
 import { Auth } from "@supabase/auth-ui-react";
-import { SupabaseClient } from "@supabase/supabase-js";
+import { useSupabaseClient } from "@supabase/auth-helpers-react";
 
 interface StandardAuthProps {
-  supabaseClient: SupabaseClient;
   redirectTo: string;
 }
 
 export const StandardAuth = ({ 
-  supabaseClient, 
   redirectTo 
 }: StandardAuthProps) => {
+  const supabaseClient = useSupabaseClient();
+  
   return (
     <Auth
       supabaseClient={supabaseClient}
@@ -32,7 +33,7 @@ export const StandardAuth = ({
               inputLabelText: '#6A6A77',
               inputBorder: '#ECF1F4',
               inputBackground: '#FFFFFF',
-              defaultButtonText: '#FFFFFF', // Changed from buttonText to defaultButtonText
+              defaultButtonText: '#FFFFFF',
               anchorTextColor: '#4B4DED',
               dividerBackground: '#ECF1F4',
             },
@@ -50,4 +51,3 @@ export const StandardAuth = ({
     />
   );
 };
-
