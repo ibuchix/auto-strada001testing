@@ -9,6 +9,317 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          published_at: string | null
+          target: Database["public"]["Enums"]["announcement_target"]
+          title: string
+          type: Database["public"]["Enums"]["announcement_type"]
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          published_at?: string | null
+          target?: Database["public"]["Enums"]["announcement_target"]
+          title: string
+          type?: Database["public"]["Enums"]["announcement_type"]
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          published_at?: string | null
+          target?: Database["public"]["Enums"]["announcement_target"]
+          title?: string
+          type?: Database["public"]["Enums"]["announcement_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auction_closure_details: {
+        Row: {
+          auction_end_time: string | null
+          car_id: string | null
+          created_at: string | null
+          final_price: number | null
+          id: string
+          make: string | null
+          model: string | null
+          sale_status: string | null
+          title: string | null
+          total_bids: number | null
+          unique_bidders: number | null
+          year: number | null
+        }
+        Insert: {
+          auction_end_time?: string | null
+          car_id?: string | null
+          created_at?: string | null
+          final_price?: number | null
+          id?: string
+          make?: string | null
+          model?: string | null
+          sale_status?: string | null
+          title?: string | null
+          total_bids?: number | null
+          unique_bidders?: number | null
+          year?: number | null
+        }
+        Update: {
+          auction_end_time?: string | null
+          car_id?: string | null
+          created_at?: string | null
+          final_price?: number | null
+          id?: string
+          make?: string | null
+          model?: string | null
+          sale_status?: string | null
+          title?: string | null
+          total_bids?: number | null
+          unique_bidders?: number | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_closure_details_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auction_daily_summaries: {
+        Row: {
+          average_sale_price: number | null
+          created_at: string | null
+          date: string
+          id: string
+          sold_vehicles: number | null
+          total_auctions_closed: number | null
+          total_value: number | null
+          unsold_vehicles: number | null
+        }
+        Insert: {
+          average_sale_price?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          sold_vehicles?: number | null
+          total_auctions_closed?: number | null
+          total_value?: number | null
+          unsold_vehicles?: number | null
+        }
+        Update: {
+          average_sale_price?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          sold_vehicles?: number | null
+          total_auctions_closed?: number | null
+          total_value?: number | null
+          unsold_vehicles?: number | null
+        }
+        Relationships: []
+      }
+      auction_metrics: {
+        Row: {
+          car_id: string | null
+          created_at: string | null
+          final_price: number | null
+          id: string
+          total_bids: number | null
+          unique_bidders: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          car_id?: string | null
+          created_at?: string | null
+          final_price?: number | null
+          id?: string
+          total_bids?: number | null
+          unique_bidders?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          car_id?: string | null
+          created_at?: string | null
+          final_price?: number | null
+          id?: string
+          total_bids?: number | null
+          unique_bidders?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_metrics_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auction_results: {
+        Row: {
+          auction_id: string | null
+          bid_count: number | null
+          bidding_activity_timeline: Json | null
+          car_id: string | null
+          created_at: string | null
+          final_price: number | null
+          highest_bid_dealer_id: string | null
+          id: string
+          sale_status: string | null
+          total_bids: number | null
+          unique_bidders: number | null
+        }
+        Insert: {
+          auction_id?: string | null
+          bid_count?: number | null
+          bidding_activity_timeline?: Json | null
+          car_id?: string | null
+          created_at?: string | null
+          final_price?: number | null
+          highest_bid_dealer_id?: string | null
+          id?: string
+          sale_status?: string | null
+          total_bids?: number | null
+          unique_bidders?: number | null
+        }
+        Update: {
+          auction_id?: string | null
+          bid_count?: number | null
+          bidding_activity_timeline?: Json | null
+          car_id?: string | null
+          created_at?: string | null
+          final_price?: number | null
+          highest_bid_dealer_id?: string | null
+          id?: string
+          sale_status?: string | null
+          total_bids?: number | null
+          unique_bidders?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_results_auction_id_fkey"
+            columns: ["auction_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auction_results_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auction_results_highest_bid_dealer_id_fkey"
+            columns: ["highest_bid_dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_log_type"]
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_log_type"]
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_log_type"]
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bid_metrics: {
+        Row: {
+          bid_id: string | null
+          created_at: string | null
+          id: string
+          success: boolean | null
+        }
+        Insert: {
+          bid_id?: string | null
+          created_at?: string | null
+          id?: string
+          success?: boolean | null
+        }
+        Update: {
+          bid_id?: string | null
+          created_at?: string | null
+          id?: string
+          success?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bid_metrics_bid_id_fkey"
+            columns: ["bid_id"]
+            isOneToOne: false
+            referencedRelation: "bids"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bids: {
         Row: {
           amount: number
@@ -106,19 +417,25 @@ export type Database = {
           id: string
           images: string[] | null
           is_auction: boolean | null
+          is_damaged: boolean | null
           is_draft: boolean
+          is_manually_controlled: boolean | null
           make: string | null
           mileage: number | null
           minimum_bid_increment: number | null
+          mobile_number: string | null
           model: string | null
           price: number
+          registration_number: string | null
           required_photos: Json | null
           reserve_price: number | null
           seller_id: string | null
+          seller_notes: string | null
           status: string | null
           title: string | null
           transmission: string | null
           updated_at: string
+          vin: string | null
           year: number | null
         }
         Insert: {
@@ -131,19 +448,25 @@ export type Database = {
           id?: string
           images?: string[] | null
           is_auction?: boolean | null
+          is_damaged?: boolean | null
           is_draft?: boolean
+          is_manually_controlled?: boolean | null
           make?: string | null
           mileage?: number | null
           minimum_bid_increment?: number | null
+          mobile_number?: string | null
           model?: string | null
           price?: number
+          registration_number?: string | null
           required_photos?: Json | null
           reserve_price?: number | null
           seller_id?: string | null
+          seller_notes?: string | null
           status?: string | null
           title?: string | null
           transmission?: string | null
           updated_at?: string
+          vin?: string | null
           year?: number | null
         }
         Update: {
@@ -156,22 +479,150 @@ export type Database = {
           id?: string
           images?: string[] | null
           is_auction?: boolean | null
+          is_damaged?: boolean | null
           is_draft?: boolean
+          is_manually_controlled?: boolean | null
           make?: string | null
           mileage?: number | null
           minimum_bid_increment?: number | null
+          mobile_number?: string | null
           model?: string | null
           price?: number
+          registration_number?: string | null
           required_photos?: Json | null
           reserve_price?: number | null
           seller_id?: string | null
+          seller_notes?: string | null
           status?: string | null
           title?: string | null
           transmission?: string | null
           updated_at?: string
+          vin?: string | null
           year?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_cars_seller"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dealer_purchases: {
+        Row: {
+          amount: number
+          car_id: string | null
+          created_at: string | null
+          dealer_id: string | null
+          id: string
+          notes: string | null
+          purchase_date: string | null
+          refund_date: string | null
+          refund_reason: string | null
+          refunded_by: string | null
+          status: string | null
+          transaction_reference: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          car_id?: string | null
+          created_at?: string | null
+          dealer_id?: string | null
+          id?: string
+          notes?: string | null
+          purchase_date?: string | null
+          refund_date?: string | null
+          refund_reason?: string | null
+          refunded_by?: string | null
+          status?: string | null
+          transaction_reference?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          car_id?: string | null
+          created_at?: string | null
+          dealer_id?: string | null
+          id?: string
+          notes?: string | null
+          purchase_date?: string | null
+          refund_date?: string | null
+          refund_reason?: string | null
+          refunded_by?: string | null
+          status?: string | null
+          transaction_reference?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealer_purchases_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealer_purchases_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dealer_verifications: {
+        Row: {
+          admin_id: string | null
+          dealer_id: string
+          documents: Json | null
+          id: string
+          notes: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          submitted_at: string
+          verification_status: Database["public"]["Enums"]["verification_status"]
+        }
+        Insert: {
+          admin_id?: string | null
+          dealer_id: string
+          documents?: Json | null
+          id?: string
+          notes?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          submitted_at?: string
+          verification_status?: Database["public"]["Enums"]["verification_status"]
+        }
+        Update: {
+          admin_id?: string | null
+          dealer_id?: string
+          documents?: Json | null
+          id?: string
+          notes?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          submitted_at?: string
+          verification_status?: Database["public"]["Enums"]["verification_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealer_verifications_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealer_verifications_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dealer_watchlist: {
         Row: {
@@ -246,6 +697,202 @@ export type Database = {
           verification_status?: string
         }
         Relationships: []
+      }
+      dispute_comments: {
+        Row: {
+          attachments: Json | null
+          author_id: string
+          content: string
+          created_at: string
+          dispute_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json | null
+          author_id: string
+          content: string
+          created_at?: string
+          dispute_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json | null
+          author_id?: string
+          content?: string
+          created_at?: string
+          dispute_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispute_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispute_comments_dispute_id_fkey"
+            columns: ["dispute_id"]
+            isOneToOne: false
+            referencedRelation: "disputes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      disputes: {
+        Row: {
+          assigned_to: string | null
+          attachments: Json | null
+          car_id: string | null
+          created_at: string
+          description: string
+          id: string
+          resolution: string | null
+          resolved_at: string | null
+          status: Database["public"]["Enums"]["dispute_status"]
+          submitted_by: string
+          title: string
+          type: Database["public"]["Enums"]["dispute_type"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          attachments?: Json | null
+          car_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["dispute_status"]
+          submitted_by: string
+          title: string
+          type?: Database["public"]["Enums"]["dispute_type"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          attachments?: Json | null
+          car_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["dispute_status"]
+          submitted_by?: string
+          title?: string
+          type?: Database["public"]["Enums"]["dispute_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disputes_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      export_history: {
+        Row: {
+          created_at: string | null
+          date_range_end: string | null
+          date_range_start: string | null
+          export_type: string
+          exported_by: string | null
+          filters: Json | null
+          id: string
+          record_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          date_range_end?: string | null
+          date_range_start?: string | null
+          export_type: string
+          exported_by?: string | null
+          filters?: Json | null
+          id?: string
+          record_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          date_range_end?: string | null
+          date_range_start?: string | null
+          export_type?: string
+          exported_by?: string | null
+          filters?: Json | null
+          id?: string
+          record_count?: number | null
+        }
+        Relationships: []
+      }
+      listing_verifications: {
+        Row: {
+          admin_id: string | null
+          car_id: string
+          id: string
+          notes: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          submitted_at: string
+          verification_status: Database["public"]["Enums"]["verification_status"]
+        }
+        Insert: {
+          admin_id?: string | null
+          car_id: string
+          id?: string
+          notes?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          submitted_at?: string
+          verification_status?: Database["public"]["Enums"]["verification_status"]
+        }
+        Update: {
+          admin_id?: string | null
+          car_id?: string
+          id?: string
+          notes?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          submitted_at?: string
+          verification_status?: Database["public"]["Enums"]["verification_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_verifications_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_verifications_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       manual_valuations: {
         Row: {
@@ -363,21 +1010,27 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           full_name: string | null
           id: string
           role: Database["public"]["Enums"]["user_role"]
+          suspended: boolean
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           full_name?: string | null
           id: string
           role?: Database["public"]["Enums"]["user_role"]
+          suspended?: boolean
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           full_name?: string | null
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
+          suspended?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -484,6 +1137,14 @@ export type Database = {
         }
         Returns: Json
       }
+      approve_listing: {
+        Args: {
+          p_listing_id: string
+          p_admin_id: string
+          p_notes?: string
+        }
+        Returns: Json
+      }
       authenticate_dealer: {
         Args: {
           p_email: string
@@ -508,6 +1169,10 @@ export type Database = {
         Args: {
           email_to_check: string
         }
+        Returns: Json
+      }
+      close_ended_auctions: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       create_dealer_with_profile: {
@@ -549,6 +1214,22 @@ export type Database = {
         }
         Returns: Json
       }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      log_admin_action: {
+        Args: {
+          p_admin_id: string
+          p_action: Database["public"]["Enums"]["audit_log_type"]
+          p_entity_type: string
+          p_entity_id: string
+          p_details?: Json
+          p_ip_address?: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       place_bid: {
         Args: {
           p_car_id: string
@@ -556,6 +1237,32 @@ export type Database = {
           p_amount: number
           p_is_proxy?: boolean
           p_max_proxy_amount?: number
+        }
+        Returns: Json
+      }
+      reject_dealer: {
+        Args: {
+          p_dealer_id: string
+          p_admin_id: string
+          p_rejection_reason: string
+          p_notes?: string
+        }
+        Returns: Json
+      }
+      reject_listing: {
+        Args: {
+          p_listing_id: string
+          p_admin_id: string
+          p_rejection_reason: string
+          p_notes?: string
+        }
+        Returns: Json
+      }
+      verify_dealer: {
+        Args: {
+          p_dealer_id: string
+          p_admin_id: string
+          p_notes?: string
         }
         Returns: Json
       }
@@ -568,8 +1275,34 @@ export type Database = {
       }
     }
     Enums: {
+      announcement_target: "all" | "dealers" | "sellers" | "admins"
+      announcement_type:
+        | "system"
+        | "maintenance"
+        | "feature"
+        | "promotion"
+        | "policy"
+      audit_log_type:
+        | "login"
+        | "logout"
+        | "create"
+        | "update"
+        | "delete"
+        | "suspend"
+        | "reinstate"
+        | "verify"
+        | "reject"
+        | "approve"
       car_transmission_type: "automatic" | "manual"
+      dispute_status: "open" | "investigating" | "resolved" | "closed"
+      dispute_type:
+        | "payment"
+        | "vehicle_condition"
+        | "listing_accuracy"
+        | "auction_process"
+        | "other"
       user_role: "dealer" | "seller" | "admin"
+      verification_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never

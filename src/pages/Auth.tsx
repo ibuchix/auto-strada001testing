@@ -9,25 +9,28 @@
  * - 2024-03-28: Refactored into smaller components
  * - 2024-03-29: Fixed type mismatch between formData and registerDealer parameters
  * - 2024-04-01: Fixed DealerFormData to match DealerData type requirements
+ * - 2024-06-24: Fixed authentication flow to properly display sign-up options
+ * - 2024-06-24: Added specific seller registration support
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useSession,
   useSupabaseClient,
   useUser,
 } from "@supabase/auth-helpers-react";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DealerRegistrationForm, DealerFormData } from "@/components/auth/DealerRegistrationForm";
+import { SellerRegistrationForm } from "@/components/auth/SellerRegistrationForm";
 import { StandardAuth } from "@/components/auth/StandardAuth";
 import { useAuthActions, DealerData } from "@/hooks/useAuth";
 
 const AuthPage = () => {
   const [isDealer, setIsDealer] = useState(false);
-  // Initialize formData with required properties to match DealerFormData type
+  const [isSeller, setIsSeller] = useState(false);
   const [formData, setFormData] = useState<DealerData>({
     dealershipName: "",
     licenseNumber: "",
@@ -41,7 +44,7 @@ const AuthPage = () => {
   const session = useSession();
   const user = useUser();
   const navigate = useNavigate();
-  const { isLoading, registerDealer, signInWithGoogle } = useAuthActions();
+  const { isLoading, registerDealer, registerSeller, signInWithGoogle } = useAuthActions();
 
   useEffect(() => {
     if (session) {
@@ -56,7 +59,6 @@ const AuthPage = () => {
   }, [session, navigate, user?.role]);
 
   const handleDealerSubmit = async (values: DealerFormData) => {
-    // Convert DealerFormData to DealerData ensuring all required fields are present
     const dealerData: DealerData = {
       dealershipName: values.dealershipName,
       licenseNumber: values.licenseNumber,
@@ -66,47 +68,136 @@ const AuthPage = () => {
       address: values.address
     };
     
-    // Update form data state with complete dealer data
     setFormData(dealerData);
-
-    // Sign in with Google
+    
     const success = await signInWithGoogle(`${window.location.origin}/auth`);
     
-    // If sign-in is successful and we have a user, register them as a dealer
     if (success && user) {
       await registerDealer(user.id, dealerData);
       navigate("/dashboard/dealer");
     }
   };
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-      <div className="w-full max-w-md p-4 space-y-4">
-        <h1 className="text-3xl font-bold text-center">
-          {isDealer ? "Register as Dealer" : "Sign In / Sign Up"}
-        </h1>
+  const handleSellerSubmit = async (email: string, password: string) => {
+    try {
+      const { error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            role: 'seller'
+          }
+        }
+      });
 
-        {isDealer ? (
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      toast.success("Registration successful! You can now sign in.");
+      
+      // Auto sign in after registration
+      const { error: signInError } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (signInError) {
+        toast.error("Registration successful but couldn't sign in automatically. Please sign in manually.");
+        return;
+      }
+      
+      navigate("/dashboard/seller");
+    } catch (error: any) {
+      toast.error(error.message || "Registration failed");
+    }
+  };
+
+  if (isSeller) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <div className="w-full max-w-md p-4 space-y-4">
+          <h1 className="text-3xl font-bold text-center">Register as Seller</h1>
+          
+          <SellerRegistrationForm onSubmit={handleSellerSubmit} isLoading={isLoading} />
+          
+          <Button
+            variant="link"
+            onClick={() => {
+              setIsSeller(false);
+              setIsDealer(false);
+            }}
+            className="w-full"
+          >
+            Back to Sign In / Sign Up
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isDealer) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <div className="w-full max-w-md p-4 space-y-4">
+          <h1 className="text-3xl font-bold text-center">Register as Dealer</h1>
+          
           <DealerRegistrationForm 
             onSubmit={handleDealerSubmit} 
             isLoading={isLoading} 
           />
-        ) : (
-          <StandardAuth
-            supabaseClient={supabaseClient}
-            redirectTo={`${window.location.origin}/auth`}
-          />
-        )}
+          
+          <Button
+            variant="link"
+            onClick={() => {
+              setIsDealer(false);
+              setIsSeller(false);
+            }}
+            className="w-full"
+          >
+            Back to Sign In / Sign Up
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
-        <Button
-          variant="link"
-          onClick={() => setIsDealer(!isDealer)}
-          className="w-full"
-        >
-          {isDealer
-            ? "Back to Sign In / Sign Up"
-            : "Register as a Dealer instead"}
-        </Button>
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+      <div className="w-full max-w-md p-4 space-y-4">
+        <h1 className="text-3xl font-bold text-center">Sign In / Sign Up</h1>
+        
+        <Tabs defaultValue="auth" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="auth">Sign In / Sign Up</TabsTrigger>
+            <TabsTrigger value="register">Register As</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="auth" className="mt-4">
+            <StandardAuth
+              supabaseClient={supabaseClient}
+              redirectTo={`${window.location.origin}/auth`}
+            />
+          </TabsContent>
+          
+          <TabsContent value="register" className="mt-4 space-y-4">
+            <Button 
+              onClick={() => setIsSeller(true)} 
+              className="w-full bg-primary hover:bg-primary/90 text-white"
+            >
+              Register as a Seller
+            </Button>
+            
+            <Button 
+              onClick={() => setIsDealer(true)} 
+              variant="outline" 
+              className="w-full border-2 border-primary text-primary hover:bg-primary hover:text-white"
+            >
+              Register as a Dealer
+            </Button>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

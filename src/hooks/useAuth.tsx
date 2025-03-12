@@ -5,6 +5,7 @@
  * - 2024-03-29: Updated type definitions to ensure consistency with form data
  * - 2024-03-31: Fixed DealerData type to make all fields required
  * - 2024-04-01: Fixed type mismatch between DealerData and form submission
+ * - 2024-06-24: Added registerSeller function for seller registration
  */
 
 import { useState } from "react";
@@ -40,11 +41,38 @@ export const useAuthActions = () => {
 
       if (error) throw error;
 
+      // Update user role to dealer
+      const { error: updateError } = await supabaseClient
+        .from('profiles')
+        .update({ role: 'dealer' })
+        .eq('id', userId);
+
+      if (updateError) throw updateError;
+
       toast.success("Dealer registration successful!");
       return true;
     } catch (error: any) {
       console.error("Error registering dealer:", error);
       toast.error(error.message || "Failed to register dealer");
+      return false;
+    }
+  };
+  
+  const registerSeller = async (userId: string) => {
+    try {
+      // Update user role to seller
+      const { error } = await supabaseClient
+        .from('profiles')
+        .update({ role: 'seller' })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast.success("Seller registration successful!");
+      return true;
+    } catch (error: any) {
+      console.error("Error registering seller:", error);
+      toast.error(error.message || "Failed to register seller");
       return false;
     }
   };
@@ -75,6 +103,7 @@ export const useAuthActions = () => {
   return {
     isLoading,
     registerDealer,
+    registerSeller,
     signInWithGoogle
   };
 };
