@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-03-28: Created StandardAuth component
  * - 2024-06-25: Fixed styling and appearance to match project style guide
+ * - 2024-06-25: Fixed type error by using correct theme property names
  */
 
 import { Auth } from "@supabase/auth-ui-react";
@@ -27,11 +28,11 @@ export const StandardAuth = ({
               brand: '#DC143C',
               brandAccent: '#383B39',
               inputText: '#222020',
-              inputLabel: '#6A6A77',
+              inputLabelText: '#6A6A77', // Changed from inputLabel to inputLabelText
               inputBorder: '#ECF1F4',
               inputBackground: '#FFFFFF',
               buttonText: '#FFFFFF',
-              linkText: '#4B4DED',
+              anchorTextColor: '#4B4DED', // Changed from linkText to anchorTextColor
               dividerBackground: '#ECF1F4',
             },
             fonts: {
