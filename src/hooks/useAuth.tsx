@@ -6,6 +6,7 @@
  * - 2024-03-31: Fixed DealerData type to make all fields required
  * - 2024-04-01: Fixed type mismatch between DealerData and form submission
  * - 2024-06-24: Added registerSeller function for seller registration
+ * - 2024-06-25: Fixed registerSeller implementation to properly update user role
  */
 
 import { useState } from "react";
@@ -27,6 +28,7 @@ export const useAuthActions = () => {
 
   const registerDealer = async (userId: string, dealerData: DealerData) => {
     try {
+      setIsLoading(true);
       const { error } = await supabaseClient
         .from('dealers')
         .insert({
@@ -41,11 +43,10 @@ export const useAuthActions = () => {
 
       if (error) throw error;
 
-      // Update user role to dealer
-      const { error: updateError } = await supabaseClient
-        .from('profiles')
-        .update({ role: 'dealer' })
-        .eq('id', userId);
+      // Update user metadata to include role
+      const { error: updateError } = await supabaseClient.auth.updateUser({
+        data: { role: 'dealer' }
+      });
 
       if (updateError) throw updateError;
 
@@ -55,18 +56,31 @@ export const useAuthActions = () => {
       console.error("Error registering dealer:", error);
       toast.error(error.message || "Failed to register dealer");
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
   
   const registerSeller = async (userId: string) => {
     try {
-      // Update user role to seller
-      const { error } = await supabaseClient
-        .from('profiles')
-        .update({ role: 'seller' })
-        .eq('id', userId);
+      setIsLoading(true);
+      
+      // Update user metadata to include role
+      const { error } = await supabaseClient.auth.updateUser({
+        data: { role: 'seller' }
+      });
 
       if (error) throw error;
+
+      // Create seller profile record if needed
+      const { error: profileError } = await supabaseClient
+        .from('profiles')
+        .upsert({ 
+          id: userId,
+          role: 'seller' 
+        });
+
+      if (profileError) throw profileError;
 
       toast.success("Seller registration successful!");
       return true;
@@ -74,6 +88,8 @@ export const useAuthActions = () => {
       console.error("Error registering seller:", error);
       toast.error(error.message || "Failed to register seller");
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 

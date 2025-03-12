@@ -11,6 +11,7 @@
  * - 2024-04-01: Fixed DealerFormData to match DealerData type requirements
  * - 2024-06-24: Fixed authentication flow to properly display sign-up options
  * - 2024-06-24: Added specific seller registration support
+ * - 2024-06-25: Fixed authentication page rendering issue and improved user experience
  */
 
 import { useState, useEffect } from "react";
@@ -48,15 +49,13 @@ const AuthPage = () => {
 
   useEffect(() => {
     if (session) {
-      if (user?.role === "dealer") {
+      if (user?.user_metadata?.role === "dealer") {
         navigate("/dashboard/dealer");
-      } else if (user?.role === "seller") {
+      } else if (user?.user_metadata?.role === "seller") {
         navigate("/dashboard/seller");
-      } else {
-        navigate("/");
       }
     }
-  }, [session, navigate, user?.role]);
+  }, [session, navigate, user]);
 
   const handleDealerSubmit = async (values: DealerFormData) => {
     const dealerData: DealerData = {
@@ -98,7 +97,7 @@ const AuthPage = () => {
       toast.success("Registration successful! You can now sign in.");
       
       // Auto sign in after registration
-      const { error: signInError } = await supabaseClient.auth.signInWithPassword({
+      const { error: signInError, data } = await supabaseClient.auth.signInWithPassword({
         email,
         password
       });
@@ -108,7 +107,10 @@ const AuthPage = () => {
         return;
       }
       
-      navigate("/dashboard/seller");
+      if (data?.user) {
+        await registerSeller(data.user.id);
+        navigate("/dashboard/seller");
+      }
     } catch (error: any) {
       toast.error(error.message || "Registration failed");
     }
@@ -118,7 +120,7 @@ const AuthPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="w-full max-w-md p-4 space-y-4">
-          <h1 className="text-3xl font-bold text-center">Register as Seller</h1>
+          <h1 className="text-3xl font-bold text-center font-kanit text-[#222020]">Register as Seller</h1>
           
           <SellerRegistrationForm onSubmit={handleSellerSubmit} isLoading={isLoading} />
           
@@ -128,7 +130,7 @@ const AuthPage = () => {
               setIsSeller(false);
               setIsDealer(false);
             }}
-            className="w-full"
+            className="w-full text-[#4B4DED]"
           >
             Back to Sign In / Sign Up
           </Button>
@@ -141,7 +143,7 @@ const AuthPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <div className="w-full max-w-md p-4 space-y-4">
-          <h1 className="text-3xl font-bold text-center">Register as Dealer</h1>
+          <h1 className="text-3xl font-bold text-center font-kanit text-[#222020]">Register as Dealer</h1>
           
           <DealerRegistrationForm 
             onSubmit={handleDealerSubmit} 
@@ -154,7 +156,7 @@ const AuthPage = () => {
               setIsDealer(false);
               setIsSeller(false);
             }}
-            className="w-full"
+            className="w-full text-[#4B4DED]"
           >
             Back to Sign In / Sign Up
           </Button>
@@ -166,7 +168,7 @@ const AuthPage = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background">
       <div className="w-full max-w-md p-4 space-y-4">
-        <h1 className="text-3xl font-bold text-center">Sign In / Sign Up</h1>
+        <h1 className="text-3xl font-bold text-center font-kanit text-[#222020]">Sign In / Sign Up</h1>
         
         <Tabs defaultValue="auth" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
@@ -184,7 +186,7 @@ const AuthPage = () => {
           <TabsContent value="register" className="mt-4 space-y-4">
             <Button 
               onClick={() => setIsSeller(true)} 
-              className="w-full bg-primary hover:bg-primary/90 text-white"
+              className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-oswald"
             >
               Register as a Seller
             </Button>
@@ -192,7 +194,7 @@ const AuthPage = () => {
             <Button 
               onClick={() => setIsDealer(true)} 
               variant="outline" 
-              className="w-full border-2 border-primary text-primary hover:bg-primary hover:text-white"
+              className="w-full border-2 border-[#DC143C] text-[#DC143C] hover:bg-[#DC143C] hover:text-white font-oswald"
             >
               Register as a Dealer
             </Button>
