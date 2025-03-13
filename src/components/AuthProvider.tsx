@@ -1,7 +1,10 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { Session } from "@supabase/supabase-js";
+import { createContext, useContext, useState } from "react";
+import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
+import { SessionContextProvider } from "@supabase/auth-helpers-react";
 
+// Keep our existing auth context for components that directly use it
 const AuthContext = createContext<{
   session: Session | null;
   isLoading: boolean;
@@ -28,10 +31,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Wrap everything with the SessionContextProvider from @supabase/auth-helpers-react
+  // This makes the supabase client available via useSupabaseClient() hook
   return (
-    <AuthContext.Provider value={{ session, isLoading }}>
-      {children}
-    </AuthContext.Provider>
+    <SessionContextProvider supabaseClient={supabase}>
+      <AuthContext.Provider value={{ session, isLoading }}>
+        {children}
+      </AuthContext.Provider>
+    </SessionContextProvider>
   );
 };
 
