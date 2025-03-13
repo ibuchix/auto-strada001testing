@@ -7,6 +7,8 @@
  * - 2024-03-26: Fixed type conflicts with CarListing interface
  * - 2024-03-28: Unified CarListing interface to avoid type conflicts
  * - 2024-03-28: Added explicit typing for data transformations
+ * - 2024-07-03: Reorganized dashboard layout with distinct sections for active and draft listings
+ * - 2024-07-03: Added DashboardStats and ActivitySection components
  */
 
 import { useEffect, useState } from "react";
@@ -20,6 +22,8 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Json } from "@/integrations/supabase/types";
+import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { ActivitySection } from "@/components/dashboard/ActivitySection";
 
 // Define the interface clearly to avoid conflicts
 export interface CarListing {
@@ -114,20 +118,40 @@ const SellerDashboard = () => {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Skeleton className="h-40 lg:col-span-2 animate-pulse" />
+          <div className="grid grid-cols-1 gap-6">
             <Skeleton className="h-40 animate-pulse" />
+            <Skeleton className="h-[400px] animate-pulse" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <ListingsSection 
-              listings={draftListings}
-              onStatusChange={forceRefresh} 
-            />
-            <ListingsSection 
-              listings={activeListings} 
-              onStatusChange={forceRefresh}
-            />
+          <div className="space-y-8">
+            {/* Dashboard Stats Section */}
+            <DashboardStats activeListings={activeListings.length} />
+
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Draft Listings Section */}
+              {draftListings.length > 0 && (
+                <div className="lg:col-span-2">
+                  <ListingsSection 
+                    listings={draftListings}
+                    onStatusChange={forceRefresh} 
+                  />
+                </div>
+              )}
+              
+              {/* Active Listings Section */}
+              <div className={draftListings.length > 0 ? "lg:col-span-1" : "lg:col-span-2"}>
+                <ListingsSection 
+                  listings={activeListings} 
+                  onStatusChange={forceRefresh}
+                />
+              </div>
+              
+              {/* Activity Section */}
+              <div className="lg:col-span-1">
+                <ActivitySection />
+              </div>
+            </div>
           </div>
         )}
       </div>
