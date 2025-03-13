@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-06-24: Created SellerRegistrationForm component for seller registration
+ * - 2024-06-27: Enhanced form with better styling and visual feedback
  */
 
 import { useForm } from "react-hook-form";
@@ -17,6 +18,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { useState } from "react";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -42,6 +45,9 @@ export const SellerRegistrationForm = ({
   onSubmit,
   isLoading
 }: SellerRegistrationFormProps) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const form = useForm<SellerFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -59,22 +65,23 @@ export const SellerRegistrationForm = ({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(handleSubmit)}
-        className="space-y-4"
+        className="space-y-5"
       >
         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel className="text-body font-medium">Email</FormLabel>
               <FormControl>
                 <Input 
                   placeholder="Enter your email" 
                   type="email" 
+                  className="h-12 focus-visible:ring-primary/30"
                   {...field} 
                 />
               </FormControl>
-              <FormMessage />
+              <FormMessage className="text-[#DC143C]" />
             </FormItem>
           )}
         />
@@ -84,15 +91,27 @@ export const SellerRegistrationForm = ({
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel className="text-body font-medium">Password</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="Enter password" 
-                  type="password" 
-                  {...field} 
-                />
+                <div className="relative">
+                  <Input 
+                    placeholder="Enter password" 
+                    type={showPassword ? "text" : "password"} 
+                    className="h-12 pr-10 focus-visible:ring-primary/30"
+                    {...field} 
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </Button>
+                </div>
               </FormControl>
-              <FormMessage />
+              <FormMessage className="text-[#DC143C]" />
             </FormItem>
           )}
         />
@@ -102,21 +121,42 @@ export const SellerRegistrationForm = ({
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirm Password</FormLabel>
+              <FormLabel className="text-body font-medium">Confirm Password</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="Confirm password" 
-                  type="password" 
-                  {...field} 
-                />
+                <div className="relative">
+                  <Input 
+                    placeholder="Confirm password" 
+                    type={showConfirmPassword ? "text" : "password"} 
+                    className="h-12 pr-10 focus-visible:ring-primary/30"
+                    {...field} 
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </Button>
+                </div>
               </FormControl>
-              <FormMessage />
+              <FormMessage className="text-[#DC143C]" />
             </FormItem>
           )}
         />
 
-        <Button type="submit" className="w-full bg-primary text-white" disabled={isLoading}>
-          {isLoading ? "Creating Account..." : "Create Seller Account"}
+        <Button 
+          type="submit" 
+          className="w-full h-12 mt-2 bg-primary text-white font-oswald text-base shadow-sm hover:shadow-md transition-all duration-300" 
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <span className="flex items-center gap-2">
+              <Loader2 size={18} className="animate-spin" />
+              Creating Account...
+            </span>
+          ) : "Create Seller Account"}
         </Button>
       </form>
     </Form>

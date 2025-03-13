@@ -14,6 +14,7 @@
  * - 2024-06-25: Fixed authentication page rendering issue and improved user experience
  * - 2024-06-26: Updated to use StandardAuth without directly passing supabaseClient
  * - 2024-06-26: Refactored into smaller components
+ * - 2024-06-27: Redesigned auth page with improved layout and visuals
  */
 
 import { AccountOptions } from "@/components/auth/AccountOptions";
@@ -33,36 +34,41 @@ const AuthPage = () => {
     resetRegistrationState
   } = useAuthPage();
 
-  if (isSeller) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-        <SellerRegistrationView
-          onSubmit={handleSellerSubmit}
-          onBack={resetRegistrationState}
-          isLoading={isLoading}
-        />
-      </div>
-    );
-  }
-
-  if (isDealer) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-        <DealerRegistrationView
-          onSubmit={handleDealerSubmit}
-          onBack={resetRegistrationState}
-          isLoading={isLoading}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-      <AccountOptions
-        onSellerRegister={() => setIsSeller(true)}
-        onDealerRegister={() => setIsDealer(true)}
-      />
+      <div className="w-full max-w-5xl px-4 py-10">
+        <div className="flex flex-col items-center">
+          <div className="mb-6">
+            <h1 className="text-4xl font-bold text-center font-kanit text-[#222020] mb-2">
+              Welcome to Our Platform
+            </h1>
+            <p className="text-subtitle text-center max-w-md mx-auto">
+              Join our community of sellers and dealers to participate in vehicle auctions
+            </p>
+          </div>
+          
+          <div className="w-full flex justify-center">
+            {isSeller ? (
+              <SellerRegistrationView
+                onSubmit={handleSellerSubmit}
+                onBack={resetRegistrationState}
+                isLoading={isLoading}
+              />
+            ) : isDealer ? (
+              <DealerRegistrationView
+                onSubmit={handleDealerSubmit}
+                onBack={resetRegistrationState}
+                isLoading={isLoading}
+              />
+            ) : (
+              <AccountOptions
+                onSellerRegister={() => setIsSeller(true)}
+                onDealerRegister={() => setIsDealer(true)}
+              />
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
