@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-03-19: Removed Partners link from navigation
  * - 2024-06-30: Added specific link for seller dashboard when logged in as a seller
+ * - 2024-07-01: Removed Dealers link and reorganized navigation items per new requirements
  */
 
 import { Link } from "react-router-dom";
@@ -17,41 +18,28 @@ interface NavLinksProps {
 export const NavLinks = ({ userRole, onSignOut, session }: NavLinksProps) => {
   return (
     <>
+      {session && userRole && (
+        <Link 
+          to={`/dashboard/${userRole}`} 
+          className="text-secondary hover:text-primary transition-colors"
+        >
+          Dashboard
+        </Link>
+      )}
       <Link to="/sellers" className="text-secondary hover:text-primary transition-colors">
         Sellers
-      </Link>
-      <Link to="/dealers" className="text-secondary hover:text-primary transition-colors">
-        Dealers
       </Link>
       <Link to="/faq" className="text-secondary hover:text-primary transition-colors">
         FAQ
       </Link>
       {session ? (
-        <>
-          {userRole === 'seller' && (
-            <Link 
-              to="/dashboard/seller" 
-              className="text-primary hover:text-primary/80 transition-colors font-semibold"
-            >
-              Seller Dashboard
-            </Link>
-          )}
-          {userRole && userRole !== 'seller' && (
-            <Link 
-              to={`/dashboard/${userRole}`} 
-              className="text-primary hover:text-primary/80 transition-colors font-semibold"
-            >
-              Dashboard
-            </Link>
-          )}
-          <Button 
-            variant="outline" 
-            className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
-            onClick={onSignOut}
-          >
-            Sign Out
-          </Button>
-        </>
+        <Button 
+          variant="outline" 
+          className="border-2 border-primary text-primary hover:bg-primary hover:text-white transition-colors"
+          onClick={onSignOut}
+        >
+          Sign Out
+        </Button>
       ) : (
         <Link to="/auth">
           <Button 
