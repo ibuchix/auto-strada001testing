@@ -75,7 +75,20 @@ export const StandardAuth = ({ redirectTo }: StandardAuthProps) => {
           },
           container: {
             width: '100%'
-          }
+          },
+          // Hide the sign up text/link
+          ...(showLinks && {
+            // Target the container that has the sign-up text
+            divider: {
+              display: 'none'  // Hide the divider
+            },
+            // Hide the sign-up text that follows the divider
+            label: {
+              '&:last-of-type': {
+                display: 'none'
+              }
+            }
+          })
         },
       }}
       magicLink={false}
