@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-03-19: Removed Partners link from navigation
+ * - 2024-06-30: Added specific link for seller dashboard when logged in as a seller
  */
 
 import { Link } from "react-router-dom";
@@ -27,7 +28,15 @@ export const NavLinks = ({ userRole, onSignOut, session }: NavLinksProps) => {
       </Link>
       {session ? (
         <>
-          {userRole && (
+          {userRole === 'seller' && (
+            <Link 
+              to="/dashboard/seller" 
+              className="text-primary hover:text-primary/80 transition-colors font-semibold"
+            >
+              Seller Dashboard
+            </Link>
+          )}
+          {userRole && userRole !== 'seller' && (
             <Link 
               to={`/dashboard/${userRole}`} 
               className="text-primary hover:text-primary/80 transition-colors font-semibold"

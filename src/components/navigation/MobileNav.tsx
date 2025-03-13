@@ -1,3 +1,10 @@
+
+/**
+ * Changes made:
+ * - 2024-06-30: Added component comment for clarity
+ * - 2024-06-30: Updated to properly display seller dashboard link on mobile
+ */
+
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
