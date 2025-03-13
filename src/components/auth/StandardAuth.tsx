@@ -4,6 +4,7 @@
  * - 2024-06-26: Created component for basic email/password authentication
  * - 2024-06-27: Updated styles to match application theme
  * - 2024-06-29: Removed redundant sign-up text/link since we have register tab at the top
+ * - 2024-06-29: Added forgot password option under sign in button
  */
 
 import { Auth } from '@supabase/auth-ui-react';
@@ -81,7 +82,7 @@ export const StandardAuth = ({ redirectTo }: StandardAuthProps) => {
       providers={[]}
       redirectTo={redirectTo}
       view="sign_in"
-      showLinks={false}
+      showLinks={true}
     />
   );
 };
