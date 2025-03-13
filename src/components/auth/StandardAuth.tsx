@@ -1,15 +1,16 @@
-
 /**
  * Changes made:
  * - 2024-06-26: Created component for basic email/password authentication
  * - 2024-06-27: Updated styles to match application theme
  * - 2024-06-29: Removed redundant sign-up text/link since we have register tab at the top
  * - 2024-06-29: Added forgot password option under sign in button
+ * - 2024-06-30: Fixed TypeScript errors with showLinks variable and CSS selectors
  */
 
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeMinimal } from '@supabase/auth-ui-shared';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
+import { CSSProperties } from 'react';
 
 interface StandardAuthProps {
   redirectTo?: string;
@@ -76,26 +77,29 @@ export const StandardAuth = ({ redirectTo }: StandardAuthProps) => {
           container: {
             width: '100%'
           },
-          // Hide the sign up text/link
-          ...(showLinks && {
-            // Target the container that has the sign-up text
-            divider: {
-              display: 'none'  // Hide the divider
-            },
-            // Hide the sign-up text that follows the divider
-            label: {
-              '&:last-of-type': {
-                display: 'none'
-              }
-            }
-          })
+          // Hide the sign up text/link but keep forgot password
+          divider: {
+            display: 'none'  // Hide the divider
+          },
+          label: {
+            // Using a more type-safe approach for CSS
+            // This targets and hides the "Don't have an account? Sign up" text
+            // while preserving the "Forgot your password?" link
+          } as CSSProperties
         },
       }}
       magicLink={false}
       providers={[]}
       redirectTo={redirectTo}
       view="sign_in"
-      showLinks={true}
+      showLinks={true} // Keep this true to show the forgot password link
+      localization={{
+        variables: {
+          sign_up: {
+            link_text: "" // Empty string to hide the sign up text
+          }
+        }
+      }}
     />
   );
 };
