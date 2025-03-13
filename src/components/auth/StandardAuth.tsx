@@ -7,6 +7,7 @@
  * - 2024-06-25: Fixed buttonText to defaultButtonText to match Supabase theme type
  * - 2024-06-26: Updated to use useSupabaseClient hook instead of requiring client as prop
  * - 2024-06-27: Improved styling to match modern design principles
+ * - 2024-06-28: Fixed theme type errors by using correct property names for borderWidths and radii
  */
 
 import { Auth } from "@supabase/auth-ui-react";
@@ -49,12 +50,12 @@ export const StandardAuth = ({
               buttonPadding: '12px 24px',
             },
             borderWidths: {
-              input: '1px',
-              button: '0px',
+              buttonBorderWidth: '0px',
+              inputBorderWidth: '1px',
             },
             radii: {
-              button: '6px',
-              input: '6px',
+              buttonBorderRadius: '6px',
+              inputBorderRadius: '6px',
             },
           }
         },
