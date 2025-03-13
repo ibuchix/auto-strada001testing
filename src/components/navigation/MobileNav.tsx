@@ -4,6 +4,7 @@
  * - 2024-06-30: Added component comment for clarity
  * - 2024-06-30: Updated to properly display seller dashboard link on mobile
  * - 2024-07-01: Removed Dealers link and simplified mobile navigation per new requirements
+ * - 2024-07-02: Fixed Dashboard link appearance in mobile navigation
  */
 
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";

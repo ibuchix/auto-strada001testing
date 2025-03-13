@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2024-07-02: Fixed the userRole state to properly detect and pass user role to NavLinks
+ */
+
 import { Link } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +22,13 @@ export const Navigation = () => {
   useEffect(() => {
     if (session) {
       const fetchUserRole = async () => {
+        // First check user metadata
+        if (session.user.user_metadata?.role) {
+          setUserRole(session.user.user_metadata.role);
+          return;
+        }
+
+        // If not in metadata, check profiles table
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('role')
@@ -25,10 +37,15 @@ export const Navigation = () => {
 
         if (!error && profile) {
           setUserRole(profile.role);
+        } else {
+          console.error('Error fetching user role:', error);
         }
       };
 
       fetchUserRole();
+    } else {
+      // Reset role when logged out
+      setUserRole(null);
     }
   }, [session]);
 

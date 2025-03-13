@@ -4,10 +4,12 @@
  * - 2024-03-19: Removed Partners link from navigation
  * - 2024-06-30: Added specific link for seller dashboard when logged in as a seller
  * - 2024-07-01: Removed Dealers link and reorganized navigation items per new requirements
+ * - 2024-07-02: Fixed Dashboard link appearance in navigation
  */
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { LayoutDashboard } from "lucide-react";
 
 interface NavLinksProps {
   userRole: string | null;
@@ -21,8 +23,9 @@ export const NavLinks = ({ userRole, onSignOut, session }: NavLinksProps) => {
       {session && userRole && (
         <Link 
           to={`/dashboard/${userRole}`} 
-          className="text-secondary hover:text-primary transition-colors"
+          className="text-secondary hover:text-primary transition-colors flex items-center gap-1"
         >
+          <LayoutDashboard className="w-4 h-4" />
           Dashboard
         </Link>
       )}
