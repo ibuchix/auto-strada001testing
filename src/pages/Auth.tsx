@@ -15,21 +15,18 @@
  * - 2024-06-26: Updated to use StandardAuth without directly passing supabaseClient
  * - 2024-06-26: Refactored into smaller components
  * - 2024-06-27: Redesigned auth page with improved layout and visuals
+ * - 2024-06-28: Removed dealer registration functionality to make app seller-specific
  */
 
 import { AccountOptions } from "@/components/auth/AccountOptions";
-import { DealerRegistrationView } from "@/components/auth/DealerRegistrationView";
 import { SellerRegistrationView } from "@/components/auth/SellerRegistrationView";
 import { useAuthPage } from "@/hooks/useAuthPage";
 
 const AuthPage = () => {
   const {
-    isDealer,
     isSeller,
     isLoading,
-    setIsDealer,
     setIsSeller,
-    handleDealerSubmit,
     handleSellerSubmit,
     resetRegistrationState
   } = useAuthPage();
@@ -40,10 +37,10 @@ const AuthPage = () => {
         <div className="flex flex-col items-center">
           <div className="mb-6">
             <h1 className="text-4xl font-bold text-center font-kanit text-[#222020] mb-2">
-              Welcome to Our Platform
+              Welcome to Our Seller Platform
             </h1>
             <p className="text-subtitle text-center max-w-md mx-auto">
-              Join our community of sellers and dealers to participate in vehicle auctions
+              Join our community of sellers to list your vehicles for auction
             </p>
           </div>
           
@@ -54,16 +51,9 @@ const AuthPage = () => {
                 onBack={resetRegistrationState}
                 isLoading={isLoading}
               />
-            ) : isDealer ? (
-              <DealerRegistrationView
-                onSubmit={handleDealerSubmit}
-                onBack={resetRegistrationState}
-                isLoading={isLoading}
-              />
             ) : (
               <AccountOptions
                 onSellerRegister={() => setIsSeller(true)}
-                onDealerRegister={() => setIsDealer(true)}
               />
             )}
           </div>

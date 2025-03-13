@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-24: Created SellerRegistrationForm component for seller registration
  * - 2024-06-27: Enhanced form with better styling and visual feedback
+ * - 2024-06-28: Added email confirmation field for better validation
  */
 
 import { useForm } from "react-hook-form";
@@ -25,10 +26,16 @@ const formSchema = z.object({
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
+  confirmEmail: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
   password: z.string().min(6, {
     message: "Password must be at least 6 characters.",
   }),
   confirmPassword: z.string(),
+}).refine((data) => data.email === data.confirmEmail, {
+  message: "Email addresses do not match",
+  path: ["confirmEmail"],
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -52,6 +59,7 @@ export const SellerRegistrationForm = ({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
+      confirmEmail: "",
       password: "",
       confirmPassword: "",
     },
@@ -76,6 +84,25 @@ export const SellerRegistrationForm = ({
               <FormControl>
                 <Input 
                   placeholder="Enter your email" 
+                  type="email" 
+                  className="h-12 focus-visible:ring-primary/30"
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage className="text-[#DC143C]" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="confirmEmail"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-body font-medium">Confirm Email</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="Confirm your email" 
                   type="email" 
                   className="h-12 focus-visible:ring-primary/30"
                   {...field} 

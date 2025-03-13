@@ -2,62 +2,31 @@
 /**
  * Changes made:
  * - 2024-06-26: Created hook to handle auth page logic
+ * - 2024-06-28: Removed dealer-specific logic to make app seller-specific
  */
 
 import { useState, useEffect } from "react";
 import { useSession, useUser } from "@supabase/auth-helpers-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { DealerFormData } from "@/components/auth/DealerRegistrationForm";
-import { useAuthActions, DealerData } from "@/hooks/useAuth";
+import { useAuthActions } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useAuthPage = () => {
-  const [isDealer, setIsDealer] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
-  const [formData, setFormData] = useState<DealerData>({
-    dealershipName: "",
-    licenseNumber: "",
-    supervisorName: "",
-    taxId: "",
-    businessRegNumber: "",
-    address: "",
-  });
   
   const session = useSession();
   const user = useUser();
   const navigate = useNavigate();
-  const { isLoading, registerDealer, registerSeller, signInWithGoogle } = useAuthActions();
+  const { isLoading, registerSeller } = useAuthActions();
 
   useEffect(() => {
     if (session) {
-      if (user?.user_metadata?.role === "dealer") {
-        navigate("/dashboard/dealer");
-      } else if (user?.user_metadata?.role === "seller") {
+      if (user?.user_metadata?.role === "seller") {
         navigate("/dashboard/seller");
       }
     }
   }, [session, navigate, user]);
-
-  const handleDealerSubmit = async (values: DealerFormData) => {
-    const dealerData: DealerData = {
-      dealershipName: values.dealershipName,
-      licenseNumber: values.licenseNumber,
-      supervisorName: values.supervisorName,
-      taxId: values.taxId,
-      businessRegNumber: values.businessRegNumber,
-      address: values.address
-    };
-    
-    setFormData(dealerData);
-    
-    const success = await signInWithGoogle(`${window.location.origin}/auth`);
-    
-    if (success && user) {
-      await registerDealer(user.id, dealerData);
-      navigate("/dashboard/dealer");
-    }
-  };
 
   const handleSellerSubmit = async (email: string, password: string) => {
     try {
@@ -99,17 +68,13 @@ export const useAuthPage = () => {
   };
 
   const resetRegistrationState = () => {
-    setIsDealer(false);
     setIsSeller(false);
   };
 
   return {
-    isDealer,
     isSeller,
     isLoading,
-    setIsDealer,
     setIsSeller,
-    handleDealerSubmit,
     handleSellerSubmit,
     resetRegistrationState
   };
