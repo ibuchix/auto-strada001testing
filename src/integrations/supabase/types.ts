@@ -1077,6 +1077,45 @@ export type Database = {
           },
         ]
       }
+      sellers: {
+        Row: {
+          address: string | null
+          company_name: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          is_verified: boolean
+          tax_id: string | null
+          updated_at: string
+          user_id: string
+          verification_status: string
+        }
+        Insert: {
+          address?: string | null
+          company_name?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          is_verified?: boolean
+          tax_id?: string | null
+          updated_at?: string
+          user_id: string
+          verification_status?: string
+        }
+        Update: {
+          address?: string | null
+          company_name?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          is_verified?: boolean
+          tax_id?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_status?: string
+        }
+        Relationships: []
+      }
       vin_reservations: {
         Row: {
           created_at: string | null
@@ -1239,6 +1278,12 @@ export type Database = {
           p_max_proxy_amount?: number
         }
         Returns: Json
+      }
+      register_seller: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: boolean
       }
       reject_dealer: {
         Args: {

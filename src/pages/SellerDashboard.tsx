@@ -9,6 +9,7 @@
  * - 2024-03-28: Added explicit typing for data transformations
  * - 2024-07-03: Reorganized dashboard layout with distinct sections for active and draft listings
  * - 2024-07-03: Added DashboardStats and ActivitySection components
+ * - 2024-07-05: Updated to handle seller profiles from the new sellers table
  */
 
 import { useEffect, useState } from "react";
@@ -46,10 +47,55 @@ const SellerDashboard = () => {
   const [draftListings, setDraftListings] = useState<CarListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [sellerProfile, setSellerProfile] = useState<any>(null);
 
   const forceRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
   };
+
+  // Fetch seller profile
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const fetchSellerProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('sellers')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching seller profile:', error);
+          // If no seller profile exists, try to create one using the register_seller function
+          const { data: registerResult, error: registerError } = await supabase.rpc('register_seller', {
+            p_user_id: session.user.id
+          });
+          
+          if (registerError) {
+            console.error('Error registering seller:', registerError);
+          } else {
+            // Refetch the profile after registration
+            const { data: newProfile, error: refetchError } = await supabase
+              .from('sellers')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .single();
+              
+            if (!refetchError && newProfile) {
+              setSellerProfile(newProfile);
+            }
+          }
+        } else {
+          setSellerProfile(data);
+        }
+      } catch (e) {
+        console.error('Error fetching seller profile:', e);
+      }
+    };
+
+    fetchSellerProfile();
+  }, [session]);
 
   useEffect(() => {
     if (!session?.user) return;

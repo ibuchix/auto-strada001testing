@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-26: Created hook to handle auth page logic
  * - 2024-06-28: Removed dealer-specific logic to make app seller-specific
+ * - 2024-07-05: Updated to use proper seller registration with profiles table
  */
 
 import { useState, useEffect } from "react";
@@ -22,9 +23,26 @@ export const useAuthPage = () => {
 
   useEffect(() => {
     if (session) {
-      if (user?.user_metadata?.role === "seller") {
-        navigate("/dashboard/seller");
-      }
+      const checkUserRole = async () => {
+        // Check if user has a role in metadata
+        if (user?.user_metadata?.role === "seller") {
+          navigate("/dashboard/seller");
+          return;
+        }
+
+        // If not in metadata, check profiles table
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user?.id)
+          .single();
+
+        if (!error && profile && profile.role === 'seller') {
+          navigate("/dashboard/seller");
+        }
+      };
+
+      checkUserRole();
     }
   }, [session, navigate, user]);
 

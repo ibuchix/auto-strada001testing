@@ -8,6 +8,7 @@
  * - 2024-06-24: Added registerSeller function for seller registration
  * - 2024-06-25: Fixed registerSeller implementation to properly update user role
  * - 2024-06-28: Removed dealer-specific functionality to make app seller-specific
+ * - 2024-07-05: Updated registerSeller to use the database function for more reliable registration
  */
 
 import { useState } from "react";
@@ -23,21 +24,22 @@ export const useAuthActions = () => {
       setIsLoading(true);
       
       // Update user metadata to include role
-      const { error } = await supabaseClient.auth.updateUser({
+      const { error: metadataError } = await supabaseClient.auth.updateUser({
         data: { role: 'seller' }
       });
 
+      if (metadataError) throw metadataError;
+
+      // Use the register_seller database function to ensure both profile and seller entries are created
+      const { data, error } = await supabaseClient.rpc('register_seller', {
+        p_user_id: userId
+      });
+      
       if (error) throw error;
 
-      // Create seller profile record if needed
-      const { error: profileError } = await supabaseClient
-        .from('profiles')
-        .upsert({ 
-          id: userId,
-          role: 'seller' 
-        });
-
-      if (profileError) throw profileError;
+      if (!data) {
+        throw new Error("Failed to register seller profile");
+      }
 
       toast.success("Seller registration successful!");
       return true;

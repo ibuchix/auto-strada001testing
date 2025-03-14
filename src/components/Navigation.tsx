@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-07-02: Fixed the userRole state to properly detect and pass user role to NavLinks
+ * - 2024-07-05: Updated to use both profile and user metadata for role detection
  */
 
 import { Link } from "react-router-dom";
@@ -37,8 +38,31 @@ export const Navigation = () => {
 
         if (!error && profile) {
           setUserRole(profile.role);
+          
+          // Update user metadata to match profile role for future reference
+          if (profile.role && !session.user.user_metadata?.role) {
+            await supabase.auth.updateUser({
+              data: { role: profile.role }
+            });
+          }
         } else {
           console.error('Error fetching user role:', error);
+          
+          // Check if user is a seller by checking the sellers table
+          const { data: seller, error: sellerError } = await supabase
+            .from('sellers')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+            
+          if (!sellerError && seller) {
+            setUserRole('seller');
+            
+            // Create profile and update metadata
+            await supabase.rpc('register_seller', {
+              p_user_id: session.user.id
+            });
+          }
         }
       };
 
