@@ -8,12 +8,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    cors: {
-      origin: ["https://lovable.dev", "https://auth.gptengineer.app"],
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Origin", "Content-Type", "Accept", "Authorization"],
-      credentials: true
-    },
+    cors: true, // Simplified CORS config to allow all origins
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -23,12 +18,7 @@ export default defineConfig(({ mode }) => ({
   },
   preview: {
     port: 8080,
-    cors: {
-      origin: ["https://lovable.dev", "https://auth.gptengineer.app"],
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Origin", "Content-Type", "Accept", "Authorization"],
-      credentials: true
-    },
+    cors: true, // Simplified CORS config to allow all origins
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
