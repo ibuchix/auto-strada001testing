@@ -2,11 +2,12 @@
 /**
  * Changes made:
  * - 2024-09-10: Created hook for fetching seller performance metrics data for the seller dashboard
+ * - 2024-09-11: Updated to use the new service layer for Supabase interactions
  */
 
-import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
+import { sellerService } from "@/services/supabase/sellerService";
 
 export interface SellerPerformanceMetrics {
   id: string;
@@ -28,33 +29,8 @@ export const useSellerPerformance = (session: Session | null) => {
   // Function to fetch seller performance metrics
   const fetchPerformanceMetrics = async () => {
     if (!session?.user) throw new Error("No authenticated user");
-
-    const { data, error } = await supabase
-      .from('seller_performance_metrics')
-      .select('*')
-      .eq('seller_id', session.user.id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      // PGRST116 is the error code for "Results contain 0 rows" - not an error for us
-      throw error;
-    }
-
-    return data as SellerPerformanceMetrics || {
-      id: '',
-      seller_id: session.user.id,
-      total_listings: 0,
-      sold_listings: 0,
-      active_listings: 0,
-      cancelled_listings: 0,
-      total_earnings: 0,
-      average_price: null,
-      highest_price_sold: null,
-      reserve_price_met_rate: null,
-      listing_approval_rate: null,
-      last_listing_date: null,
-      last_sale_date: null
-    };
+    
+    return await sellerService.getSellerPerformanceMetrics(session.user.id);
   };
 
   // Use React Query to fetch and cache the metrics
