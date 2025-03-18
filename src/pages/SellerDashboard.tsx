@@ -14,6 +14,7 @@
  * - 2024-09-05: Further refactored to use new component structure and hooks
  * - 2024-09-07: Added real-time listing status updates
  * - 2024-09-08: Added auction results section to display completed auctions
+ * - 2024-09-10: Added seller performance metrics section
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -25,6 +26,7 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { useSellerListings } from "@/hooks/useSellerListings";
 import { useRealtimeListings } from "@/hooks/useRealtimeListings";
 import { useAuctionResults } from "@/hooks/useAuctionResults";
+import { useSellerPerformance } from "@/hooks/useSellerPerformance";
 import { useCallback } from "react";
 
 const SellerDashboard = () => {
@@ -41,6 +43,12 @@ const SellerDashboard = () => {
     auctionResults,
     isLoading: isResultsLoading
   } = useAuctionResults(session);
+
+  // Fetch seller performance metrics
+  const {
+    performanceMetrics,
+    isLoading: isMetricsLoading
+  } = useSellerPerformance(session);
 
   // Memoize the refresh callback to prevent unnecessary hook recreations
   const handleListingUpdate = useCallback(() => {
@@ -64,6 +72,8 @@ const SellerDashboard = () => {
             draftListings={draftListings}
             auctionResults={auctionResults}
             isResultsLoading={isResultsLoading}
+            performanceMetrics={performanceMetrics}
+            isMetricsLoading={isMetricsLoading}
             onRefresh={forceRefresh}
           />
         )}

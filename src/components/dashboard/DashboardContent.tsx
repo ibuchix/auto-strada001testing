@@ -3,20 +3,25 @@
  * Changes made:
  * - 2024-09-05: Created DashboardContent component from SellerDashboard refactoring
  * - 2024-09-08: Added AuctionResultsSection to display auction results
+ * - 2024-09-10: Added PerformanceMetricsSection to display seller performance metrics
  */
 
 import { ListingsSection } from "./ListingsSection";
 import { DashboardStats } from "./DashboardStats";
 import { ActivitySection } from "./ActivitySection";
 import { AuctionResultsSection } from "./AuctionResultsSection";
+import { PerformanceMetricsSection } from "./PerformanceMetricsSection";
 import { CarListing } from "@/types/dashboard";
 import { AuctionResult } from "@/hooks/useAuctionResults";
+import { SellerPerformanceMetrics } from "@/hooks/useSellerPerformance";
 
 interface DashboardContentProps {
   activeListings: CarListing[];
   draftListings: CarListing[];
   auctionResults: AuctionResult[];
   isResultsLoading: boolean;
+  performanceMetrics: SellerPerformanceMetrics | null;
+  isMetricsLoading: boolean;
   onRefresh: () => void;
 }
 
@@ -25,12 +30,20 @@ export const DashboardContent = ({
   draftListings,
   auctionResults,
   isResultsLoading,
+  performanceMetrics,
+  isMetricsLoading,
   onRefresh
 }: DashboardContentProps) => {
   return (
     <div className="space-y-8">
       {/* Dashboard Stats Section */}
       <DashboardStats activeListings={activeListings.length} />
+
+      {/* Performance Metrics Section */}
+      <PerformanceMetricsSection 
+        metrics={performanceMetrics} 
+        isLoading={isMetricsLoading} 
+      />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
