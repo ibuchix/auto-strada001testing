@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-11: Created valuation service for all valuation-related operations
  * - 2024-09-19: Optimized queries and improved caching for better performance
+ * - 2024-09-20: Fixed issue with function invoke options
  */
 
 import { BaseService } from "./baseService";
@@ -35,8 +36,8 @@ export class ValuationService extends BaseService {
       
       const { data, error } = await this.supabase.functions.invoke('get-vehicle-valuation', {
         body: { vin, mileage, gearbox, context: 'home' },
-        // Add function timeout for better performance
-        options: { timeout: 15000 }
+        // Add request timeout without using 'options'
+        headers: { 'X-Request-Timeout': '15000' }
       });
       
       if (error) throw error;
@@ -49,6 +50,7 @@ export class ValuationService extends BaseService {
       return data;
     } catch (error: any) {
       this.handleError(error, "Failed to get valuation");
+      return null;
     }
   }
   

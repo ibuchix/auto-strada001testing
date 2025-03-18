@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-19: Created optimized query hook for better React Query performance
+ * - 2024-09-20: Fixed type error with onError meta property
  */
 
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
@@ -34,7 +35,7 @@ export function useOptimizedQuery<TData, TError = Error>(
     retry: 2, // Retry failed requests twice
     ...queryOptions,
     meta: {
-      ...queryOptions?.meta,
+      ...(queryOptions?.meta || {}),
       onError: (error: any) => {
         console.error(`Query error for ${JSON.stringify(queryKey)}:`, error);
         
@@ -44,8 +45,8 @@ export function useOptimizedQuery<TData, TError = Error>(
           });
         }
         
-        // Forward to any user-provided onError
-        if (queryOptions?.meta?.onError) {
+        // Forward to any user-provided onError if it exists
+        if (queryOptions?.meta?.onError && typeof queryOptions.meta.onError === 'function') {
           queryOptions.meta.onError(error);
         }
       }

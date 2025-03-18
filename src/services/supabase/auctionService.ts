@@ -1,7 +1,9 @@
+
 /**
  * Changes made:
  * - 2024-09-11: Created auction service for all auction-related operations
  * - 2024-09-19: Optimized queries for better performance and reduced latency
+ * - 2024-09-20: Fixed foreign key relationship issue in join query
  */
 
 import { BaseService } from "./baseService";
@@ -15,6 +17,12 @@ export interface AuctionResult {
   unique_bidders: number;
   sale_status: string | null;
   created_at: string;
+  // Optional fields from joined car data
+  title?: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  auction_end_time?: string;
 }
 
 export interface PlaceBidResult {
@@ -30,7 +38,22 @@ export class AuctionService extends BaseService {
    */
   async getSellerAuctionResults(sellerId: string): Promise<AuctionResult[]> {
     try {
-      // Perform a single optimized JOIN query instead of two separate queries
+      // First get the car IDs belonging to the seller
+      const { data: sellerCars, error: carsError } = await this.supabase
+        .from('cars')
+        .select('id, title, make, model, year, auction_end_time')
+        .eq('seller_id', sellerId);
+      
+      if (carsError) throw carsError;
+      
+      if (!sellerCars || sellerCars.length === 0) {
+        return [];
+      }
+      
+      // Extract the car IDs
+      const carIds = sellerCars.map(car => car.id);
+      
+      // Then get the auction results for those cars
       const { data: results, error } = await this.supabase
         .from('auction_results')
         .select(`
@@ -40,16 +63,9 @@ export class AuctionService extends BaseService {
           total_bids, 
           unique_bidders,
           sale_status, 
-          created_at,
-          cars:car_id (
-            title, 
-            make, 
-            model, 
-            year, 
-            auction_end_time
-          )
+          created_at
         `)
-        .eq('cars.seller_id', sellerId);
+        .in('car_id', carIds);
 
       if (error) throw error;
       
@@ -57,23 +73,27 @@ export class AuctionService extends BaseService {
         return [];
       }
       
-      // Transform the joined data to the expected format
-      return results.map(result => ({
-        id: result.id,
-        car_id: result.car_id,
-        title: result.cars?.title || 'Unknown Vehicle',
-        make: result.cars?.make || 'Unknown',
-        model: result.cars?.model || '',
-        year: result.cars?.year || new Date().getFullYear(),
-        final_price: result.final_price,
-        total_bids: result.total_bids || 0,
-        unique_bidders: result.unique_bidders || 0,
-        sale_status: result.sale_status,
-        created_at: result.created_at,
-        auction_end_time: result.cars?.auction_end_time
-      }));
+      // Combine the data
+      return results.map(result => {
+        const car = sellerCars.find(c => c.id === result.car_id);
+        return {
+          id: result.id,
+          car_id: result.car_id,
+          final_price: result.final_price,
+          total_bids: result.total_bids || 0,
+          unique_bidders: result.unique_bidders || 0,
+          sale_status: result.sale_status,
+          created_at: result.created_at,
+          title: car?.title || 'Unknown Vehicle',
+          make: car?.make || 'Unknown',
+          model: car?.model || '',
+          year: car?.year || new Date().getFullYear(),
+          auction_end_time: car?.auction_end_time
+        };
+      });
     } catch (error: any) {
       this.handleError(error, "Failed to fetch auction results");
+      return [];
     }
   }
   
