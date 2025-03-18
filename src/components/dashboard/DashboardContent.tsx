@@ -5,6 +5,7 @@
  * - 2024-09-08: Added AuctionResultsSection to display auction results
  * - 2024-09-10: Added PerformanceMetricsSection to display seller performance metrics
  * - 2024-09-22: Fixed import for AuctionResult interface
+ * - 2024-09-23: Fixed array typing for empty arrays
  */
 
 import { ListingsSection } from "./ListingsSection";

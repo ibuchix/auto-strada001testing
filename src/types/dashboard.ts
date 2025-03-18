@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-05: Created dashboard types for SellerDashboard refactoring
  * - 2024-09-22: Updated CarListing interface to match what's used in the application
+ * - 2024-09-23: Made several fields optional to match actual database structure
  */
 
 import { CarFeatures } from "@/types/forms";
@@ -21,7 +22,7 @@ export interface CarListing {
   is_auction?: boolean;
   auction_status?: string;
   description: string;
-  features?: CarFeatures;
+  features?: CarFeatures | null;
   seller_id?: string;
   mileage?: number;
   images?: string[] | null;

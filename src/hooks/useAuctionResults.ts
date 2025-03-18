@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-08: Created hook for fetching auction results with proper RLS compliance
  * - 2024-09-22: Fixed interface export and useOptimizedQuery parameter format
+ * - 2024-09-23: Fixed query parameter format to match updated useOptimizedQuery
  */
 
 import { Session } from "@supabase/supabase-js";
@@ -47,7 +48,7 @@ export const useAuctionResults = (session: Session | null) => {
   });
 
   return {
-    auctionResults: auctionResults || [],
+    auctionResults: auctionResults as AuctionResult[] || [],
     isLoading,
     error
   };

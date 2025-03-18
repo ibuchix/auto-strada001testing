@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-08: Created hook for fetching seller listings with proper RLS compliance
  * - 2024-09-22: Fixed type compatibility with cars table and CarListing interface
+ * - 2024-09-23: Added proper type casting and improved db type compatibility
  */
 
 import { useState, useCallback } from "react";
@@ -27,6 +28,7 @@ interface DbCarListing {
   is_auction: boolean;
   features: Json;
   description?: string;
+  updated_at?: string;
   [key: string]: any; // Allow other fields from the database
 }
 
@@ -67,6 +69,11 @@ export const useSellerListings = (session: Session | null) => {
       year: item.year || new Date().getFullYear(),
       is_draft: item.is_draft,
       is_auction: item.is_auction || false,
+      auction_status: item.auction_status,
+      mileage: item.mileage,
+      images: item.images,
+      updated_at: item.updated_at,
+      // Add any other required fields from CarListing interface
     }));
   };
   
@@ -80,11 +87,11 @@ export const useSellerListings = (session: Session | null) => {
   
   // Separate active listings from drafts
   const activeListings = listings?.filter(
-    (listing: CarListing) => !listing.is_draft
+    (listing) => !listing.is_draft
   ) || [];
   
   const draftListings = listings?.filter(
-    (listing: CarListing) => listing.is_draft
+    (listing) => listing.is_draft
   ) || [];
   
   return {

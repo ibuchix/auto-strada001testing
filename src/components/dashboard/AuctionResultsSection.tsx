@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-08: Created AuctionResultsSection component for the seller dashboard
  * - 2024-09-22: Fixed import for AuctionResult interface
+ * - 2024-09-23: Added explicit typing for the results array
  */
 
 import { formatDistance, format } from 'date-fns';

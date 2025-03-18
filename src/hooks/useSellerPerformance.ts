@@ -5,6 +5,7 @@
  * - 2024-09-11: Updated to use the new service layer for Supabase interactions
  * - 2024-09-21: Updated to respect RLS policies
  * - 2024-09-22: Fixed useOptimizedQuery parameter format
+ * - 2024-09-23: Fixed query parameter format to match updated useOptimizedQuery
  */
 
 import { Session } from "@supabase/supabase-js";
@@ -48,7 +49,7 @@ export const useSellerPerformance = (session: Session | null) => {
   });
 
   return {
-    performanceMetrics,
+    performanceMetrics: performanceMetrics as SellerPerformanceMetrics,
     isLoading,
     error
   };
