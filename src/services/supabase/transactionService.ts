@@ -4,6 +4,7 @@
  * - 2024-10-16: Created transaction service for reliable Supabase operations tracking and confirmation
  * - 2024-10-24: Fixed type issues with audit log entries and Date objects
  * - 2024-10-25: Fixed Date object serialization for database inserts
+ * - 2024-10-26: Fixed audit_logs action type to use proper enum values
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -228,9 +229,13 @@ export class TransactionService extends BaseService {
         error: details.errorDetails || null
       };
 
+      // Convert transaction type to an appropriate audit_log action type
+      // The issue was that we were trying to pass a string to a field that expects a specific enum
+      const actionType = this.mapTransactionTypeToAuditAction(details.type, details.operation);
+
       await this.supabase.from('audit_logs').insert({
         user_id: details.userId,
-        action: details.operation,
+        action: actionType,
         entity_type: details.entityType || details.type,
         entity_id: details.entityId,
         details: formattedDetails
@@ -238,6 +243,34 @@ export class TransactionService extends BaseService {
     } catch (error) {
       // Just log to console if we can't log to db - don't throw
       console.error('Failed to log transaction to audit_logs:', error);
+    }
+  }
+  
+  /**
+   * Map transaction types to valid audit log action types
+   */
+  private mapTransactionTypeToAuditAction(type: TransactionType, operation: string): string {
+    // Map our transaction types to the specific action types defined in the database
+    switch (type) {
+      case TransactionType.CREATE:
+        return 'create';
+      case TransactionType.UPDATE:
+        return 'update';
+      case TransactionType.DELETE:
+        return 'delete';
+      case TransactionType.AUCTION:
+        // For auction operations, try to be more specific
+        if (operation.toLowerCase().includes('bid')) {
+          return 'auto_proxy_bid';
+        }
+        return 'auction_closed';
+      case TransactionType.AUTHENTICATION:
+        return 'login'; // Or 'logout' but we can't determine which from just the type
+      case TransactionType.OTHER:
+        return 'system_alert';
+      default:
+        // Default safe fallback
+        return 'system_alert';
     }
   }
   
