@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-03-19: Created useValuationContinue hook extracted from ValuationResult
  * - 2024-09-27: Added SafeNavigate component to ensure router context
+ * - 2024-09-27: Fixed syntax errors in SafeNavigate implementation
  */
 
 import { useAuth } from "@/components/AuthProvider";

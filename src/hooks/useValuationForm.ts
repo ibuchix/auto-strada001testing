@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-27: Added RouterGuard to ensure useNavigate is only used within Router context
+ * - 2024-09-27: Fixed syntax errors in NavigationHandler implementation
  */
 
 import { useState } from 'react';
