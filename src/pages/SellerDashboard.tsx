@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-26: Fixed TypeScript errors
@@ -12,9 +11,9 @@
  * - 2024-07-05: Updated to handle seller profiles from the new sellers table
  * - 2024-08-22: Refactored into smaller components for better maintainability
  * - 2024-09-05: Further refactored to use new component structure and hooks
- * - 2024-09-07: Added real-time listing status updates
  * - 2024-09-08: Added auction results section to display completed auctions
  * - 2024-09-10: Added seller performance metrics section
+ * - 2024-09-13: Replaced individual real-time subscriptions with comprehensive useRealtimeSubscriptions hook
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -24,10 +23,10 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardLoading } from "@/components/dashboard/DashboardLoading";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { useSellerListings } from "@/hooks/useSellerListings";
-import { useRealtimeListings } from "@/hooks/useRealtimeListings";
 import { useAuctionResults } from "@/hooks/useAuctionResults";
 import { useSellerPerformance } from "@/hooks/useSellerPerformance";
 import { useCallback } from "react";
+import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
 
 const SellerDashboard = () => {
   const { session } = useAuth();
@@ -55,8 +54,8 @@ const SellerDashboard = () => {
     forceRefresh();
   }, [forceRefresh]);
 
-  // Subscribe to real-time listing updates
-  useRealtimeListings(session, handleListingUpdate);
+  // Setup real-time subscriptions for all seller-related events
+  useRealtimeSubscriptions(session);
 
   return (
     <div className="min-h-screen bg-white">
