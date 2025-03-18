@@ -2,22 +2,29 @@
 /**
  * Changes made:
  * - 2024-09-05: Created DashboardContent component from SellerDashboard refactoring
+ * - 2024-09-08: Added AuctionResultsSection to display auction results
  */
 
 import { ListingsSection } from "./ListingsSection";
 import { DashboardStats } from "./DashboardStats";
 import { ActivitySection } from "./ActivitySection";
+import { AuctionResultsSection } from "./AuctionResultsSection";
 import { CarListing } from "@/types/dashboard";
+import { AuctionResult } from "@/hooks/useAuctionResults";
 
 interface DashboardContentProps {
   activeListings: CarListing[];
   draftListings: CarListing[];
+  auctionResults: AuctionResult[];
+  isResultsLoading: boolean;
   onRefresh: () => void;
 }
 
 export const DashboardContent = ({ 
   activeListings,
   draftListings,
+  auctionResults,
+  isResultsLoading,
   onRefresh
 }: DashboardContentProps) => {
   return (
@@ -51,6 +58,14 @@ export const DashboardContent = ({
         <div className="lg:col-span-1">
           <ActivitySection />
         </div>
+      </div>
+
+      {/* Auction Results Section */}
+      <div className="mt-8">
+        <AuctionResultsSection 
+          results={auctionResults} 
+          isLoading={isResultsLoading} 
+        />
       </div>
     </div>
   );
