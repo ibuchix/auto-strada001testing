@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-26: Created useSellerProfile hook to fetch seller profile data
+ * - 2024-09-27: Fixed table name to use 'sellers' instead of non-existent 'seller_profiles'
  */
 
 import { useState, useEffect } from 'react';
@@ -13,10 +14,12 @@ interface SellerProfile {
   user_id: string;
   is_verified: boolean;
   created_at: string;
-  profile_picture?: string;
-  first_name?: string;
-  last_name?: string;
-  phone?: string;
+  full_name?: string;
+  company_name?: string;
+  address?: string;
+  tax_id?: string;
+  verification_status: string;
+  updated_at: string;
 }
 
 export const useSellerProfile = (session: Session | null) => {
@@ -34,10 +37,10 @@ export const useSellerProfile = (session: Session | null) => {
       try {
         setIsLoading(true);
         const { data, error } = await supabase
-          .from('seller_profiles')
+          .from('sellers')
           .select('*')
           .eq('user_id', session.user.id)
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         
