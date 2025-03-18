@@ -4,6 +4,7 @@
  * - 2024-09-11: Implemented CarService with basic CRUD operations
  * - 2024-09-16: Added retry and fallback logic for improved resilience
  * - 2024-09-17: Fixed TypeScript type errors and improved return types
+ * - 2024-09-18: Updated withRetry method implementation to fix type compatibility
  */
 
 import { BaseService } from "./baseService";
@@ -16,11 +17,13 @@ export class CarService extends BaseService {
    */
   async getCarById(id: string) {
     return this.withRetry(
-      () => this.supabase
-        .from("cars")
-        .select("*")
-        .eq("id", id)
-        .single(),
+      async () => {
+        return this.supabase
+          .from("cars")
+          .select("*")
+          .eq("id", id)
+          .single();
+      },
       {
         errorMessage: "Failed to load vehicle details",
         retryDelay: 800
@@ -39,38 +42,40 @@ export class CarService extends BaseService {
     limit?: number;
     page?: number;
   } = {}) {
-    const query = this.supabase
-      .from("cars")
-      .select("*");
-      
-    if (options.status) {
-      query.eq("status", options.status);
-    }
-    
-    if (options.sellerId) {
-      query.eq("seller_id", options.sellerId);
-    }
-    
-    if (options.isAuction !== undefined) {
-      query.eq("is_auction", options.isAuction);
-    }
-    
-    if (options.auctionStatus) {
-      query.eq("auction_status", options.auctionStatus);
-    }
-    
-    if (options.limit) {
-      query.limit(options.limit);
-    }
-    
-    // Add pagination if needed
-    if (options.page && options.limit) {
-      const offset = (options.page - 1) * options.limit;
-      query.range(offset, offset + options.limit - 1);
-    }
-    
     return this.withRetry(
-      () => query,
+      async () => {
+        const query = this.supabase
+          .from("cars")
+          .select("*");
+          
+        if (options.status) {
+          query.eq("status", options.status);
+        }
+        
+        if (options.sellerId) {
+          query.eq("seller_id", options.sellerId);
+        }
+        
+        if (options.isAuction !== undefined) {
+          query.eq("is_auction", options.isAuction);
+        }
+        
+        if (options.auctionStatus) {
+          query.eq("auction_status", options.auctionStatus);
+        }
+        
+        if (options.limit) {
+          query.limit(options.limit);
+        }
+        
+        // Add pagination if needed
+        if (options.page && options.limit) {
+          const offset = (options.page - 1) * options.limit;
+          query.range(offset, offset + options.limit - 1);
+        }
+        
+        return query;
+      },
       {
         errorMessage: "Failed to load vehicle listings",
         fallbackValue: [],
@@ -84,13 +89,15 @@ export class CarService extends BaseService {
    */
   async getActiveListings(limit = 10) {
     return this.withRetry(
-      () => this.supabase
-        .from("cars")
-        .select("*")
-        .eq("status", "available")
-        .eq("is_draft", false)
-        .order("created_at", { ascending: false })
-        .limit(limit),
+      async () => {
+        return this.supabase
+          .from("cars")
+          .select("*")
+          .eq("status", "available")
+          .eq("is_draft", false)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+      },
       {
         fallbackValue: [],
         errorMessage: "Failed to load active listings"
@@ -103,13 +110,15 @@ export class CarService extends BaseService {
    */
   async getActiveAuctions(limit = 10) {
     return this.withRetry(
-      () => this.supabase
-        .from("cars")
-        .select("*")
-        .eq("is_auction", true)
-        .eq("auction_status", "active")
-        .order("auction_end_time", { ascending: true })
-        .limit(limit),
+      async () => {
+        return this.supabase
+          .from("cars")
+          .select("*")
+          .eq("is_auction", true)
+          .eq("auction_status", "active")
+          .order("auction_end_time", { ascending: true })
+          .limit(limit);
+      },
       {
         fallbackValue: [],
         errorMessage: "Failed to load active auctions"
@@ -122,14 +131,16 @@ export class CarService extends BaseService {
    */
   async getUpcomingAuctions(limit = 10) {
     return this.withRetry(
-      () => this.supabase
-        .from("cars")
-        .select("*")
-        .eq("is_auction", true)
-        .eq("status", "available")
-        .is("auction_status", null)
-        .order("created_at", { ascending: false })
-        .limit(limit),
+      async () => {
+        return this.supabase
+          .from("cars")
+          .select("*")
+          .eq("is_auction", true)
+          .eq("status", "available")
+          .is("auction_status", null)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+      },
       {
         fallbackValue: [],
         errorMessage: "Failed to load upcoming auctions"
@@ -142,13 +153,15 @@ export class CarService extends BaseService {
    */
   async getCompletedAuctions(limit = 10) {
     return this.withRetry(
-      () => this.supabase
-        .from("cars")
-        .select("*")
-        .eq("is_auction", true)
-        .or("auction_status.eq.ended,auction_status.eq.sold")
-        .order("updated_at", { ascending: false })
-        .limit(limit),
+      async () => {
+        return this.supabase
+          .from("cars")
+          .select("*")
+          .eq("is_auction", true)
+          .or("auction_status.eq.ended,auction_status.eq.sold")
+          .order("updated_at", { ascending: false })
+          .limit(limit);
+      },
       {
         fallbackValue: [],
         errorMessage: "Failed to load auction history"
@@ -161,10 +174,12 @@ export class CarService extends BaseService {
    */
   async createCar(carData: Partial<CarListing>) {
     const result = await this.withRetry(
-      () => this.supabase
-        .from("cars")
-        .insert(carData)
-        .select(),
+      async () => {
+        return this.supabase
+          .from("cars")
+          .insert(carData)
+          .select();
+      },
       {
         errorMessage: "Failed to create listing"
       }
@@ -182,11 +197,13 @@ export class CarService extends BaseService {
    */
   async updateCar(id: string, carData: Partial<CarListing>) {
     const result = await this.withRetry(
-      () => this.supabase
-        .from("cars")
-        .update(carData)
-        .eq("id", id)
-        .select(),
+      async () => {
+        return this.supabase
+          .from("cars")
+          .update(carData)
+          .eq("id", id)
+          .select();
+      },
       {
         errorMessage: "Failed to update listing"
       }
@@ -204,10 +221,12 @@ export class CarService extends BaseService {
    */
   async deleteCar(id: string) {
     const result = await this.withRetry(
-      () => this.supabase
-        .from("cars")
-        .delete()
-        .eq("id", id),
+      async () => {
+        return this.supabase
+          .from("cars")
+          .delete()
+          .eq("id", id);
+      },
       {
         errorMessage: "Failed to delete listing"
       }
@@ -225,17 +244,19 @@ export class CarService extends BaseService {
    */
   async getCarBids(carId: string) {
     return this.withRetry(
-      () => this.supabase
-        .from("bids")
-        .select(`
-          id,
-          amount,
-          status,
-          created_at,
-          dealer:dealer_id(id, dealership_name)
-        `)
-        .eq("car_id", carId)
-        .order("created_at", { ascending: false }),
+      async () => {
+        return this.supabase
+          .from("bids")
+          .select(`
+            id,
+            amount,
+            status,
+            created_at,
+            dealer:dealer_id(id, dealership_name)
+          `)
+          .eq("car_id", carId)
+          .order("created_at", { ascending: false });
+      },
       {
         fallbackValue: [],
         errorMessage: "Failed to load bid history"

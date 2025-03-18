@@ -4,6 +4,7 @@
  * - 2024-09-11: Created base service for all Supabase interactions
  * - 2024-09-16: Added retry and fallback logic for improved resilience
  * - 2024-09-17: Fixed TypeScript type issues with PostgrestBuilder
+ * - 2024-09-18: Updated withRetry method to use Promise<{ data: T | null; error: any }> type
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -60,7 +61,7 @@ export class BaseService {
    * @returns The result of the operation
    */
   protected async withRetry<T>(
-    operation: () => PostgrestBuilder<any, any>,
+    operation: () => Promise<{ data: T | null; error: any }>,
     options: {
       maxRetries?: number;
       retryDelay?: number;
@@ -95,7 +96,7 @@ export class BaseService {
         
         // If operation succeeded, return the data
         if (!error) {
-          return data as T;
+          return data;
         }
         
         // If operation failed but the error is retryable
