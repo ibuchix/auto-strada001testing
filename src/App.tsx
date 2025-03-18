@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of app routing
@@ -6,6 +7,8 @@
  * - 2024-03-19: Removed Partners route
  * - 2024-07-06: Added password reset routes
  * - 2024-09-08: Fixed Index component import to resolve module resolution issue
+ * - 2024-10-20: Fixed React Query import to use @tanstack/react-query instead of react-query
+ * - 2024-10-20: Fixed RealtimeProvider import path
  */
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
@@ -28,9 +31,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ResetPassword } from "@/components/auth/ResetPassword";
 import { UpdatePassword } from "@/components/auth/UpdatePassword";
-import { QueryClientProvider } from "react-query";
-import { RealtimeProvider } from "@/components/realtime/RealtimeProvider";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { RealtimeProvider } from "@/components/RealtimeProvider";
 import { TransactionProvider } from "./components/transaction/TransactionProvider";
+import { queryClient } from "./main";
 
 function App() {
   return (

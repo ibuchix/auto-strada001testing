@@ -12,7 +12,8 @@ if (!rootElement) {
   throw new Error('Failed to find the root element')
 }
 
-const queryClient = new QueryClient({
+// Create queryClient and export it so it can be imported by other files
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
