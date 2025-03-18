@@ -4,6 +4,7 @@
  * - 2024-06-22: Extracted VIN validation functionality from operations.ts
  * - 2024-07-07: Added better error handling, rate limiting, and enhanced logging
  * - 2024-07-15: Added caching for recent VIN validations
+ * - 2024-07-18: Enhanced VIN reservation handling for more reliability
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
@@ -17,6 +18,11 @@ import {
   getCachedValidation,
   cacheValidation
 } from './utils.ts';
+import {
+  activateReservation,
+  validateReservation,
+  releaseReservation
+} from './reservations.ts';
 
 export const validateVin = async (
   supabase: ReturnType<typeof createClient<Database>>,
@@ -45,6 +51,35 @@ export const validateVin = async (
     // Apply rate limiting
     if (checkRateLimit(vin)) {
       throw new ValidationError('Too many requests for this VIN. Please try again later.', 'RATE_LIMIT_EXCEEDED');
+    }
+
+    // Check if a valid reservation already exists for this user and VIN
+    const reservationCheck = await validateReservation(supabase, vin, userId);
+    if (reservationCheck.valid && reservationCheck.reservation) {
+      logOperation('using_existing_reservation', { 
+        requestId, 
+        vin, 
+        reservationId: reservationCheck.reservation.id 
+      });
+      
+      // Get the valuation data from the reservation
+      const valuationData = reservationCheck.reservation.valuation_data;
+      
+      // If we have valid data in the existing reservation, return it
+      if (valuationData && valuationData.make && valuationData.model && valuationData.year) {
+        return {
+          success: true,
+          data: {
+            make: valuationData.make,
+            model: valuationData.model,
+            year: valuationData.year,
+            valuation: valuationData.price || valuationData.valuation,
+            averagePrice: valuationData.averagePrice,
+            reservePrice: valuationData.reservePrice,
+            reservationId: reservationCheck.reservation.id
+          }
+        };
+      }
     }
 
     // Check cache first before database and API calls
@@ -95,6 +130,10 @@ export const validateVin = async (
           throw reservationError;
         }
         
+        // Activate the reservation
+        await activateReservation(supabase, reservation.id, userId);
+        
+        // Store reservation ID in response to be saved in localStorage
         return {
           success: true,
           data: {
@@ -243,6 +282,9 @@ export const validateVin = async (
       }, 'error');
       throw reservationError;
     }
+    
+    // Activate the reservation after creation
+    await activateReservation(supabase, reservation.id, userId);
 
     logOperation('validateVin_success', {
       requestId,
