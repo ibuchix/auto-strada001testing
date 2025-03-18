@@ -1294,6 +1294,30 @@ export type Database = {
         }
         Relationships: []
       }
+      vin_valuation_cache: {
+        Row: {
+          created_at: string
+          id: string
+          mileage: number
+          valuation_data: Json
+          vin: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mileage: number
+          valuation_data: Json
+          vin: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mileage?: number
+          valuation_data?: Json
+          vin?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       auction_activity_stats: {
@@ -1361,6 +1385,10 @@ export type Database = {
           email_to_check: string
         }
         Returns: Json
+      }
+      cleanup_vin_valuation_cache: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       close_ended_auctions: {
         Args: Record<PropertyKey, never>
