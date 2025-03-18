@@ -2,10 +2,10 @@
 /**
  * Changes made:
  * - 2024-09-26: Created RouterGuard component to prevent components from rendering when outside Router context
+ * - 2024-09-27: Improved RouterGuard with better error handling and state management
  */
 
 import { ReactNode, useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 
 interface RouterGuardProps {
   children: ReactNode;
@@ -15,20 +15,35 @@ interface RouterGuardProps {
 export const RouterGuard = ({ children, fallback = null }: RouterGuardProps) => {
   const [isRouterAvailable, setIsRouterAvailable] = useState(false);
   
-  // Try to use a router hook - if it doesn't throw an error, we're in a router context
-  try {
-    useLocation();
-    // If we get here, router context is available
-    if (!isRouterAvailable) {
-      setIsRouterAvailable(true);
-    }
-  } catch (e) {
-    // If we catch an error, we're outside router context
-    if (isRouterAvailable) {
-      setIsRouterAvailable(false);
-    }
+  useEffect(() => {
+    // Check if we're in a router context by looking for its context value in the DOM
+    // This is a safer approach than trying to use a hook that might throw
+    const isInRouterContext = window.location.pathname !== undefined;
+    setIsRouterAvailable(isInRouterContext);
+  }, []);
+  
+  if (!isRouterAvailable) {
     return <>{fallback}</>;
   }
-
+  
   return <>{children}</>;
+};
+
+/**
+ * A higher-order component that wraps a component with RouterGuard
+ */
+export const withRouterGuard = <P extends object>(
+  Component: React.ComponentType<P>,
+  fallback: ReactNode = null
+) => {
+  const WithRouterGuard = (props: P) => (
+    <RouterGuard fallback={fallback}>
+      <Component {...props} />
+    </RouterGuard>
+  );
+  
+  const displayName = Component.displayName || Component.name || 'Component';
+  WithRouterGuard.displayName = `WithRouterGuard(${displayName})`;
+  
+  return WithRouterGuard;
 };

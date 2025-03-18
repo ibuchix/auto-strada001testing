@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-26: Exported queryClient for use in App.tsx
+ * - 2024-09-27: Fixed React Query setup to avoid invalid hook call errors
  */
 
 import { StrictMode } from 'react'
@@ -16,6 +17,7 @@ if (!rootElement) {
   throw new Error('Failed to find the root element')
 }
 
+// Create the query client once for the entire app
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -28,6 +30,7 @@ export const queryClient = new QueryClient({
 
 const root = createRoot(rootElement)
 
+// Wrap the app with necessary providers in the correct order
 root.render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

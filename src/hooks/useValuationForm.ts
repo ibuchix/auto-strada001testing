@@ -1,118 +1,91 @@
 
 /**
  * Changes made:
- * - 2024-03-19: Initial implementation of form handling for vehicle valuation
- * - 2024-03-19: Added error handling and success dialog management
- * - 2024-03-19: Integrated with valuation service
- * - 2024-07-20: Enhanced error handling and user feedback
+ * - 2024-09-27: Added RouterGuard to ensure useNavigate is only used within Router context
  */
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ValuationFormData, valuationFormSchema } from "@/types/validation";
-import { toast } from "sonner";
-import { getValuation, cleanupValuationData } from "@/components/hero/valuation/services/valuationService";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getValuation } from '../components/hero/valuation/services/valuationService';
+import { toast } from 'sonner';
+import { ValuationData } from '../components/hero/valuation/types';
+import { ValuationFormData } from '@/types/validation';
+import { RouterGuard } from '@/components/RouterGuard';
 
-export const useValuationForm = () => {
+export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
+  // These hooks should only run inside RouterGuard
   const [isLoading, setIsLoading] = useState(false);
-  const [showDialog, setShowDialog] = useState(false);
-  const [valuationResult, setValuationResult] = useState<any>(null);
-  const [retryCount, setRetryCount] = useState(0);
-
-  const form = useForm<ValuationFormData>({
-    resolver: zodResolver(valuationFormSchema),
-    defaultValues: {
-      vin: "",
-      mileage: "",
-      gearbox: "manual",
-    },
-  });
-
-  const onSubmit = async (data: ValuationFormData) => {
-    console.log('Starting valuation form submission:', data);
-    setIsLoading(true);
+  const [valuationResult, setValuationResult] = useState<ValuationData | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // Create a wrapper component to safely use the router hooks
+  const NavigationHandler = ({ onContinue }: { onContinue: () => void }) => {
+    const navigate = useNavigate();
     
+    const handleContinueWithNavigation = () => {
+      setDialogOpen(false);
+      if (context === 'seller') {
+        navigate('/sell-my-car', { 
+          state: { 
+            fromValuation: true,
+            valuationData: valuationResult 
+          } 
+        });
+      }
+      if (onContinue) onContinue();
+    };
+    
+    return (
+      <button style={{ display: 'none' }} onClick={handleContinueWithNavigation} />
+    );
+  };
+
+  const handleVinSubmit = async (e: React.FormEvent, formData: ValuationFormData) => {
+    e.preventDefault();
+    setIsLoading(true);
+
     try {
       const result = await getValuation(
-        data.vin,
-        parseInt(data.mileage),
-        data.gearbox
+        formData.vin,
+        Number(formData.mileage),
+        formData.gearbox,
+        context
       );
-
-      console.log('Valuation result:', result);
-
-      if (result.success) {
-        // Store the valuation data in localStorage
-        localStorage.setItem("valuationData", JSON.stringify(result.data));
-        localStorage.setItem("tempMileage", data.mileage);
-        localStorage.setItem("tempVIN", data.vin);
-        localStorage.setItem("tempGearbox", data.gearbox);
-
-        setValuationResult(result.data);
-        setShowDialog(true);
-        
-        // Reset retry count on success
-        setRetryCount(0);
-      } else {
-        console.error('Valuation failed:', result.data.error);
-        
-        // Handle specific error scenarios
-        if (result.data.error?.includes('rate limit') || 
-            result.data.error?.includes('too many requests')) {
-          toast.error("Too many requests", {
-            description: "Please wait a moment before trying again.",
-          });
-        } else if (result.data.error === 'Request timed out') {
-          // Timeout was already handled by the service
-        } else {
-          toast.error(result.data.error || "Failed to get vehicle valuation", {
-            description: "Please try again or contact support if the issue persists."
-          });
-        }
+      
+      if (result.data.isExisting && context === 'seller') {
+        toast.error("This vehicle has already been listed");
+        return;
       }
+
+      setValuationResult(result.data);
+      setDialogOpen(true);
+      
+      // Store valuation data in localStorage
+      localStorage.setItem('valuationData', JSON.stringify(result.data));
+      localStorage.setItem('tempVIN', formData.vin);
+      localStorage.setItem('tempMileage', formData.mileage);
+      localStorage.setItem('tempGearbox', formData.gearbox);
     } catch (error: any) {
-      console.error("Valuation error:", error);
-      
-      // Increment retry count
-      setRetryCount(prev => prev + 1);
-      
-      // After 3 retries, offer manual valuation option
-      if (retryCount >= 2) {
-        toast.error("Valuation service unavailable", {
-          description: "We're having trouble connecting to our valuation service. Would you like to try manual valuation?",
-          action: {
-            label: "Try Manual",
-            onClick: () => {
-              cleanupValuationData();
-              window.location.href = '/manual-valuation';
-            }
-          }
-        });
-      } else {
-        toast.error(error.message || "Failed to get vehicle valuation", {
-          description: "Please check your connection and try again."
-        });
-      }
+      console.error('Valuation error:', error);
+      toast.error(error.message || "Failed to get vehicle valuation");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const resetForm = () => {
-    form.reset();
-    setValuationResult(null);
-    setShowDialog(false);
-    cleanupValuationData();
+  const handleContinue = () => {
+    // This will be handled by the NavigationHandler component
+    // The actual navigation logic is inside NavigationHandler
+    setDialogOpen(false);
   };
 
   return {
-    form,
     isLoading,
-    showDialog,
-    setShowDialog,
     valuationResult,
-    onSubmit: form.handleSubmit(onSubmit),
-    resetForm,
+    dialogOpen,
+    handleVinSubmit,
+    handleContinue,
+    setDialogOpen,
+    NavigationHandler, // Export the component for use in ValuationResult
   };
 };

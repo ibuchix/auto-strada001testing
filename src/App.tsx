@@ -10,6 +10,7 @@
  * - 2024-09-25: Added NotificationProvider to provide notification context throughout the app
  * - 2024-09-26: Fixed ReactQueryDevtools import path and removed duplicate QueryClient
  * - 2024-09-26: Rearranged component hierarchy to ensure Router context is available
+ * - 2024-09-27: Removed duplicate QueryClientProvider to fix invalid hook call errors
  */
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
@@ -34,14 +35,12 @@ import { ResetPassword } from '@/components/auth/ResetPassword';
 import { UpdatePassword } from '@/components/auth/UpdatePassword';
 import { NotificationProvider } from '@/components/NotificationProvider';
 import { RealtimeProvider } from '@/components/RealtimeProvider';
-import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { queryClient } from '@/main'; // Import the queryClient from main.tsx
 
-// Use the existing QueryClient from main.tsx instead of creating a new one
+// Don't create a new QueryClientProvider here, as it's already in main.tsx
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <>
       <Router>
         <AuthProvider>
           <NotificationProvider>
@@ -71,7 +70,7 @@ function App() {
         </AuthProvider>
       </Router>
       <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
+    </>
   );
 }
 
