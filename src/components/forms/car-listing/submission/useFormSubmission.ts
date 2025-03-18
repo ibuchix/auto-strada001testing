@@ -5,6 +5,7 @@
  * - 2024-10-17: Fixed syntax errors in the useFormSubmission hook
  * - 2024-10-18: Completely rewrote the file to fix structural and syntax errors
  * - 2024-10-22: Fixed syntax errors and type issues with toast custom rendering
+ * - 2024-10-23: Corrected issues with JSX in toast.custom and code structure
  */
 
 import { useState } from "react";
