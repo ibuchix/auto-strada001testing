@@ -3,11 +3,20 @@
  * Changes made:
  * - 2024-06-22: Extracted VIN validation functionality from operations.ts
  * - 2024-07-07: Added better error handling, rate limiting, and enhanced logging
+ * - 2024-07-15: Added caching for recent VIN validations
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { Database } from '../_shared/database.types.ts';
-import { calculateChecksum, checkRateLimit, logOperation, ValidationError, withRetry } from './utils.ts';
+import { 
+  calculateChecksum, 
+  checkRateLimit, 
+  logOperation, 
+  ValidationError, 
+  withRetry,
+  getCachedValidation,
+  cacheValidation
+} from './utils.ts';
 
 export const validateVin = async (
   supabase: ReturnType<typeof createClient<Database>>,
@@ -16,7 +25,8 @@ export const validateVin = async (
   gearbox: string,
   userId: string
 ) => {
-  logOperation('validateVin_start', { vin, mileage, gearbox, userId: userId });
+  const requestId = crypto.randomUUID();
+  logOperation('validateVin_start', { requestId, vin, mileage, gearbox, userId });
 
   try {
     // Check input validity
@@ -37,6 +47,69 @@ export const validateVin = async (
       throw new ValidationError('Too many requests for this VIN. Please try again later.', 'RATE_LIMIT_EXCEEDED');
     }
 
+    // Check cache first before database and API calls
+    const cachedData = getCachedValidation(vin, mileage);
+    if (cachedData) {
+      logOperation('using_cached_validation', { requestId, vin, mileage });
+      
+      // If the cached data indicates the vehicle already exists
+      if (cachedData.isExisting) {
+        return {
+          success: true,
+          data: {
+            isExisting: true,
+            error: 'This vehicle has already been listed'
+          }
+        };
+      }
+      
+      // If we have a valid cached valuation, create a reservation and return the data
+      if (cachedData.make && cachedData.model && cachedData.year) {
+        logOperation('create_reservation_from_cache', { 
+          requestId, 
+          vin, 
+          make: cachedData.make, 
+          model: cachedData.model 
+        });
+        
+        // Create a reservation for this VIN
+        const { data: reservation, error: reservationError } = await supabase
+          .from('vin_reservations')
+          .insert([
+            {
+              vin,
+              user_id: userId,
+              status: 'pending',
+              valuation_data: cachedData
+            }
+          ])
+          .select()
+          .single();
+
+        if (reservationError) {
+          logOperation('reservation_creation_error', { 
+            requestId,
+            vin, 
+            error: reservationError.message 
+          }, 'error');
+          throw reservationError;
+        }
+        
+        return {
+          success: true,
+          data: {
+            make: cachedData.make,
+            model: cachedData.model,
+            year: cachedData.year,
+            valuation: cachedData.price || cachedData.valuation,
+            averagePrice: cachedData.averagePrice,
+            reservePrice: cachedData.reservePrice,
+            reservationId: reservation.id
+          }
+        };
+      }
+    }
+
     // Check if vehicle already exists
     const { data: existingVehicle, error: existingVehicleError } = await supabase
       .from('cars')
@@ -46,6 +119,7 @@ export const validateVin = async (
 
     if (existingVehicleError && existingVehicleError.code !== 'PGRST116') {
       logOperation('existing_vehicle_check_error', { 
+        requestId,
         vin, 
         error: existingVehicleError.message 
       }, 'error');
@@ -56,7 +130,15 @@ export const validateVin = async (
     }
 
     if (existingVehicle) {
-      logOperation('vehicle_already_exists', { vin, vehicleId: existingVehicle.id });
+      logOperation('vehicle_already_exists', { 
+        requestId,
+        vin, 
+        vehicleId: existingVehicle.id 
+      });
+      
+      // Cache this result
+      cacheValidation(vin, { isExisting: true }, mileage);
+      
       return {
         success: true,
         data: {
@@ -70,7 +152,11 @@ export const validateVin = async (
     const checksum = await calculateChecksum(vin);
     const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:AUTOSTRA/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
     
-    logOperation('fetching_valuation', { vin, url: valuationUrl });
+    logOperation('fetching_valuation', { 
+      requestId,
+      vin, 
+      url: valuationUrl 
+    });
     
     const data = await withRetry(async () => {
       const response = await fetch(valuationUrl);
@@ -84,7 +170,11 @@ export const validateVin = async (
     });
 
     if (!data.success) {
-      logOperation('valuation_api_error', { vin, apiResponse: data }, 'error');
+      logOperation('valuation_api_error', { 
+        requestId,
+        vin, 
+        apiResponse: data 
+      }, 'error');
       throw new ValidationError(
         data.message || 'Failed to get valuation', 
         'VALUATION_ERROR'
@@ -102,6 +192,7 @@ export const validateVin = async (
       
     if (reservePriceError) {
       logOperation('reserve_price_calculation_error', { 
+        requestId,
         vin, 
         basePrice, 
         error: reservePriceError.message 
@@ -113,7 +204,22 @@ export const validateVin = async (
     }
     
     const reservePrice = reservePriceResult || 0;
-    logOperation('calculated_reserve_price', { vin, basePrice, reservePrice });
+    logOperation('calculated_reserve_price', { 
+      requestId,
+      vin, 
+      basePrice, 
+      reservePrice 
+    });
+    
+    // Add the reserve price to the data for caching
+    const valuationData = {
+      ...data,
+      reservePrice,
+      basePrice
+    };
+    
+    // Cache the valuation data
+    cacheValidation(vin, valuationData, mileage);
 
     // Create a reservation for this VIN
     const { data: reservation, error: reservationError } = await supabase
@@ -123,11 +229,7 @@ export const validateVin = async (
           vin,
           user_id: userId,
           status: 'pending',
-          valuation_data: {
-            ...data,
-            reservePrice,
-            basePrice
-          }
+          valuation_data: valuationData
         }
       ])
       .select()
@@ -135,6 +237,7 @@ export const validateVin = async (
 
     if (reservationError) {
       logOperation('reservation_creation_error', { 
+        requestId,
         vin, 
         error: reservationError.message 
       }, 'error');
@@ -142,6 +245,7 @@ export const validateVin = async (
     }
 
     logOperation('validateVin_success', {
+      requestId,
       vin,
       reservationId: reservation.id,
       make: data.make,
@@ -165,6 +269,7 @@ export const validateVin = async (
   } catch (error) {
     // Enhanced error handling
     logOperation('validateVin_error', { 
+      requestId,
       vin, 
       errorMessage: error.message,
       errorCode: error.code || 'UNKNOWN_ERROR',

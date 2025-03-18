@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-22: Enhanced with checksum calculation functionality from operations.ts
  * - 2024-07-07: Added rate limiting, improved error handling, and enhanced logging
+ * - 2024-07-15: Added caching for recent VIN validations
  */
 
 import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
@@ -11,6 +12,85 @@ import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 const rateLimits = new Map<string, { count: number, resetTime: number }>();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute window
 const MAX_REQUESTS_PER_WINDOW = 10; // Maximum 10 requests per minute per VIN
+
+// Simple in-memory cache for VIN validations
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+
+const validationCache = new Map<string, CacheEntry>();
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes cache lifetime
+
+/**
+ * Get cached validation data for a VIN
+ * @param vin The VIN to check cache for
+ * @param mileage The mileage to check cache for (optional)
+ * @returns The cached data or null if not found or expired
+ */
+export function getCachedValidation(vin: string, mileage?: number): any | null {
+  const cacheKey = mileage ? `${vin}-${mileage}` : vin;
+  const cachedEntry = validationCache.get(cacheKey);
+  
+  if (!cachedEntry) {
+    return null;
+  }
+  
+  const now = Date.now();
+  
+  // Check if entry is expired
+  if (now - cachedEntry.timestamp > CACHE_TTL) {
+    validationCache.delete(cacheKey);
+    return null;
+  }
+  
+  logOperation('cache_hit', { vin, mileage, cacheAge: now - cachedEntry.timestamp });
+  return cachedEntry.data;
+}
+
+/**
+ * Store validation data in cache
+ * @param vin The VIN to cache data for
+ * @param data The data to cache
+ * @param mileage The mileage to associate with cache (optional)
+ */
+export function cacheValidation(vin: string, data: any, mileage?: number): void {
+  const cacheKey = mileage ? `${vin}-${mileage}` : vin;
+  
+  validationCache.set(cacheKey, {
+    data,
+    timestamp: Date.now()
+  });
+  
+  logOperation('cache_store', { vin, mileage });
+  
+  // Prune expired entries from cache occasionally
+  if (Math.random() < 0.1) { // ~10% chance on each cache operation
+    pruneExpiredCache();
+  }
+}
+
+/**
+ * Remove expired entries from cache
+ */
+function pruneExpiredCache(): void {
+  const now = Date.now();
+  let prunedCount = 0;
+  
+  for (const [key, entry] of validationCache.entries()) {
+    if (now - entry.timestamp > CACHE_TTL) {
+      validationCache.delete(key);
+      prunedCount++;
+    }
+  }
+  
+  if (prunedCount > 0) {
+    logOperation('cache_pruned', { 
+      prunedCount, 
+      remainingEntries: validationCache.size 
+    });
+  }
+}
 
 export function calculateMD5(input: string): string {
   const encoder = new TextEncoder();
