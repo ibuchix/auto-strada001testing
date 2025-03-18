@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-16: Created transaction service for reliable Supabase operations tracking and confirmation
+ * - 2024-10-24: Fixed type issues with audit log entries and Date objects
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -51,8 +52,9 @@ export interface TransactionOptions {
   retryCount?: number;
   retryDelay?: number;
   description?: string;
-  onSuccess?: (result: any, details: TransactionDetails) => void;
-  onError?: (error: any, details: TransactionDetails) => void;
+  metadata?: Record<string, any>;
+  onSuccess?: (result: any) => void;
+  onError?: (error: any) => void;
   onComplete?: (details: TransactionDetails) => void;
 }
 
@@ -75,6 +77,7 @@ export class TransactionService extends BaseService {
       retryCount = 0,
       retryDelay = 1000,
       description = '',
+      metadata = {},
       onSuccess,
       onError,
       onComplete
@@ -94,7 +97,8 @@ export class TransactionService extends BaseService {
       type,
       status: TransactionStatus.PENDING,
       startTime: new Date(),
-      userId
+      userId,
+      metadata: { ...metadata }
     };
     
     // Store in active transactions
@@ -134,7 +138,7 @@ export class TransactionService extends BaseService {
           
           // Call success callback if provided
           if (onSuccess) {
-            onSuccess(result, transactionDetails);
+            onSuccess(result);
           }
           
           // Log successful transaction if enabled
@@ -186,7 +190,7 @@ export class TransactionService extends BaseService {
       
       // Call error callback if provided
       if (onError) {
-        onError(error, transactionDetails);
+        onError(error);
       }
       
       // Log failed transaction
@@ -213,19 +217,22 @@ export class TransactionService extends BaseService {
    */
   private async logTransaction(details: TransactionDetails): Promise<void> {
     try {
+      // Format dates as ISO strings for JSON compatibility
+      const formattedDetails = {
+        transaction_id: details.id,
+        status: details.status,
+        start_time: details.startTime.toISOString(),
+        end_time: details.endTime ? details.endTime.toISOString() : null,
+        metadata: details.metadata,
+        error: details.errorDetails
+      };
+
       await this.supabase.from('audit_logs').insert({
         user_id: details.userId,
         action: details.operation as any,
         entity_type: details.entityType || details.type,
         entity_id: details.entityId,
-        details: {
-          transaction_id: details.id,
-          status: details.status,
-          start_time: details.startTime,
-          end_time: details.endTime,
-          metadata: details.metadata,
-          error: details.errorDetails
-        }
+        details: formattedDetails
       });
     } catch (error) {
       // Just log to console if we can't log to db - don't throw

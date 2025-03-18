@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-16: Added transaction status indicator and improved error handling with transaction system
+ * - 2024-10-24: Fixed type errors with transaction system usage
  */
 
 import { useState } from 'react';
@@ -20,11 +21,12 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { placeBid } from '@/utils/bidUtils';
+import { placeBid, BidResponse } from '@/utils/bidUtils';
 import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 import { useAuth } from '@/components/AuthProvider';
 import { TransactionStatusIndicator } from '@/components/transaction/TransactionStatusIndicator';
 import { useAuctionTransaction } from '@/hooks/useTransaction';
+import { TransactionType } from '@/services/supabase/transactionService';
 
 const formSchema = z.object({
   amount: z.coerce.number().positive('Bid must be positive'),
@@ -68,7 +70,7 @@ export const BidForm = ({
     }
     
     executeTransaction(
-      "Place Bid", 
+      "Place Bid",
       async () => {
         const result = await placeBid({
           carId,
@@ -78,7 +80,7 @@ export const BidForm = ({
           maxProxyAmount: values.isProxy ? values.maxProxyAmount : undefined,
         });
         
-        if (result.success) {
+        if (result && 'success' in result && result.success) {
           form.reset({
             amount: values.amount + minBidIncrement,
             isProxy: false,

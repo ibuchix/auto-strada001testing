@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-16: Created Transaction Provider component to track and manage critical operations
+ * - 2024-10-24: Fixed type issues with callback functions
  */
 
 import { createContext, useContext, ReactNode, useState, useCallback } from "react";
@@ -36,13 +37,13 @@ export const TransactionProvider = ({
   const [currentTransaction, setCurrentTransaction] = useState<TransactionDetails | null>(null);
   
   const { executeTransaction, isLoading } = useTransaction({
-    onSuccess: (_, details) => {
-      addToHistory(details);
-      setCurrentTransaction(null);
+    onSuccess: (result: any) => {
+      // This type enforces compatibility with the TransactionOptions interface
+      // We'll get transaction details from the history instead
     },
-    onError: (_, details) => {
-      addToHistory(details);
-      setCurrentTransaction(null);
+    onError: (error: any) => {
+      // This type enforces compatibility with the TransactionOptions interface
+      // We'll get transaction details from the history instead
     }
   });
 
@@ -75,10 +76,41 @@ export const TransactionProvider = ({
         operation,
         type,
         callback,
-        options
+        {
+          ...options,
+          onSuccess: (result: any) => {
+            if (options?.onSuccess) {
+              options.onSuccess(result);
+            }
+            
+            // Update transaction history
+            const completedTransaction: TransactionDetails = {
+              ...placeholderTransaction,
+              status: TransactionStatus.SUCCESS,
+              endTime: new Date()
+            };
+            addToHistory(completedTransaction);
+            setCurrentTransaction(null);
+          },
+          onError: (error: any) => {
+            if (options?.onError) {
+              options.onError(error);
+            }
+            
+            // Update transaction history
+            const failedTransaction: TransactionDetails = {
+              ...placeholderTransaction,
+              status: TransactionStatus.ERROR,
+              endTime: new Date(),
+              errorDetails: error?.message || 'Unknown error'
+            };
+            addToHistory(failedTransaction);
+            setCurrentTransaction(null);
+          }
+        }
       );
     },
-    [executeTransaction]
+    [executeTransaction, addToHistory]
   );
 
   const clearHistory = useCallback(() => {

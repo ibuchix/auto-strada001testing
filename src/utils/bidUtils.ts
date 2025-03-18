@@ -1,12 +1,14 @@
+
 /**
  * Changes made:
  * - 2024-06-14: Updated to use the secure place_bid SQL function
  * - 2024-06-14: Added type assertions for proper TypeScript compatibility
  * - 2024-06-14: Improved error handling for bid operations
+ * - 2024-10-24: Fixed type issues with the transaction system
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { transactionService, TransactionType } from "@/services/supabase/transactionService";
+import { transactionService, TransactionType, TransactionOptions } from "@/services/supabase/transactionService";
 
 export interface BidData {
   carId: string;
@@ -54,9 +56,9 @@ export const placeBid = async ({
   amount: number;
   isProxy?: boolean;
   maxProxyAmount?: number;
-}) => {
+}): Promise<BidResponse> => {
   // Use the transaction service to track this critical operation
-  return transactionService.executeTransaction(
+  return transactionService.executeTransaction<BidResponse>(
     "Place Bid",
     TransactionType.AUCTION,
     async () => {
@@ -72,28 +74,34 @@ export const placeBid = async ({
         throw new Error(error.message);
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to place bid');
+      const typedData = data as unknown as BidResponse;
+      
+      if (!typedData.success) {
+        throw new Error(typedData.error || 'Failed to place bid');
       }
 
       // Add transaction-specific metadata
-      transactionService.updateTransactionMetadata(crypto.randomUUID(), {
+      const transactionId = crypto.randomUUID();
+      transactionService.updateTransactionMetadata(transactionId, {
         bidAmount: amount,
         isProxy,
         maxProxyAmount,
         carId,
-        bidId: data.bid_id
+        bidId: typedData.bid_id
       });
 
-      return data;
+      return typedData;
     },
     {
-      entityId: carId,
-      entityType: 'car',
       description: `Bid of ${amount} PLN ${isProxy ? '(Proxy)' : ''}`,
       showToast: true,
-      retryCount: isProxy ? 0 : 1 // Only retry manual bids, not proxy bids
-    }
+      retryCount: isProxy ? 0 : 1, // Only retry manual bids, not proxy bids
+      metadata: {
+        carId,
+        bidAmount: amount,
+        isProxy
+      }
+    } as TransactionOptions
   );
 };
 
