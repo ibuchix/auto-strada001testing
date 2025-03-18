@@ -12,6 +12,7 @@
  * - 2024-07-05: Updated to handle seller profiles from the new sellers table
  * - 2024-08-22: Refactored into smaller components for better maintainability
  * - 2024-09-05: Further refactored to use new component structure and hooks
+ * - 2024-09-07: Added real-time listing status updates
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -21,6 +22,8 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardLoading } from "@/components/dashboard/DashboardLoading";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { useSellerListings } from "@/hooks/useSellerListings";
+import { useRealtimeListings } from "@/hooks/useRealtimeListings";
+import { useCallback } from "react";
 
 const SellerDashboard = () => {
   const { session } = useAuth();
@@ -30,6 +33,14 @@ const SellerDashboard = () => {
     isLoading, 
     forceRefresh 
   } = useSellerListings(session);
+
+  // Memoize the refresh callback to prevent unnecessary hook recreations
+  const handleListingUpdate = useCallback(() => {
+    forceRefresh();
+  }, [forceRefresh]);
+
+  // Subscribe to real-time listing updates
+  useRealtimeListings(session, handleListingUpdate);
 
   return (
     <div className="min-h-screen bg-white">

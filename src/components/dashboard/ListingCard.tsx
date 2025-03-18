@@ -1,8 +1,10 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of listing card component
  * - 2024-03-19: Added support for draft and active states
  * - 2024-03-19: Implemented listing activation functionality
+ * - 2024-09-07: Updated to work better with real-time updates
  */
 
 import { Card } from "@/components/ui/card";
@@ -11,6 +13,7 @@ import { ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useState } from "react";
 
 interface ListingCardProps {
   id: string;
@@ -23,8 +26,12 @@ interface ListingCardProps {
 
 export const ListingCard = ({ id, title, price, status, isDraft, onStatusChange }: ListingCardProps) => {
   const navigate = useNavigate();
+  const [isActivating, setIsActivating] = useState(false);
 
   const activateListing = async () => {
+    if (isActivating) return;
+    
+    setIsActivating(true);
     try {
       const { error } = await supabase
         .from('cars')
@@ -36,11 +43,16 @@ export const ListingCard = ({ id, title, price, status, isDraft, onStatusChange 
 
       if (error) throw error;
       
-      toast.success("Listing activated successfully!");
-      if (onStatusChange) onStatusChange();
+      // Toast notification will be shown by the real-time subscription
+      // We don't need to force refresh because the real-time subscription will handle it
     } catch (error: any) {
       console.error('Error activating listing:', error);
       toast.error(error.message || "Failed to activate listing");
+      
+      // Only manually refresh if there was an error
+      if (onStatusChange) onStatusChange();
+    } finally {
+      setIsActivating(false);
     }
   };
 
@@ -62,9 +74,10 @@ export const ListingCard = ({ id, title, price, status, isDraft, onStatusChange 
               variant="default"
               size="sm"
               onClick={activateListing}
+              disabled={isActivating}
               className="bg-[#21CA6F] hover:bg-[#21CA6F]/90"
             >
-              Activate Listing
+              {isActivating ? 'Activating...' : 'Activate Listing'}
             </Button>
           )}
           <Button 
