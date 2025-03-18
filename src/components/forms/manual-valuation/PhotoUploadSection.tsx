@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-08-15: Added service history document upload functionality
  * - 2024-08-15: Improved file selection and preview UI
+ * - 2024-08-16: Fixed File constructor usage for document preview
  */
 
 import { FormField, FormItem, FormLabel } from "@/components/ui/form";
@@ -13,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Camera, File, UploadCloud, X } from "lucide-react";
+import { Camera, File as FileIcon, UploadCloud, X } from "lucide-react";
 import { RequiredPhotos } from "../car-listing/photo-upload/RequiredPhotos";
 import { AdditionalPhotos } from "../car-listing/photo-upload/AdditionalPhotos";
 import { Button } from "@/components/ui/button";
@@ -190,7 +191,7 @@ export const PhotoUploadSection = ({ form, onProgressUpdate }: PhotoUploadSectio
         <h3 className="text-xl font-semibold">Service History Documents</h3>
         
         <Alert className="mb-4 border-secondary/20 bg-secondary/5">
-          <File className="h-4 w-4 text-secondary" />
+          <FileIcon className="h-4 w-4 text-secondary" />
           <AlertDescription className="ml-2">
             Upload any service records, maintenance history, or other documentation that verifies the vehicle's service history.
           </AlertDescription>
@@ -231,7 +232,7 @@ export const PhotoUploadSection = ({ form, onProgressUpdate }: PhotoUploadSectio
               {selectedDocuments.map((file, index) => (
                 <div key={index} className="relative border rounded-md overflow-hidden p-4">
                   <div className="flex items-center">
-                    <File className="h-6 w-6 text-gray-400 mr-2" />
+                    <FileIcon className="h-6 w-6 text-gray-400 mr-2" />
                     <div className="text-sm truncate">{file.name}</div>
                   </div>
                   <button
@@ -256,7 +257,7 @@ export const PhotoUploadSection = ({ form, onProgressUpdate }: PhotoUploadSectio
                   {url.toLowerCase().endsWith('.pdf') ? (
                     <div className="border rounded-md overflow-hidden p-4">
                       <div className="flex items-center">
-                        <File className="h-6 w-6 text-gray-400 mr-2" />
+                        <FileIcon className="h-6 w-6 text-gray-400 mr-2" />
                         <div className="text-sm truncate">Document {index + 1}</div>
                       </div>
                       <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline mt-2 block">
@@ -265,7 +266,7 @@ export const PhotoUploadSection = ({ form, onProgressUpdate }: PhotoUploadSectio
                     </div>
                   ) : (
                     <ImagePreview 
-                      file={new File([], `Document ${index + 1}`, { type: 'image/jpeg' })}
+                      file={new File([], `Document ${index + 1}`)}
                       onRemove={() => removeUploadedFile(url)}
                       imageUrl={url}
                     />

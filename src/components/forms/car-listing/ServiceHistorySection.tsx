@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-08-15: Added Supabase Storage integration for service document uploads
  * - 2024-08-15: Implemented document preview and file listing
+ * - 2024-08-16: Fixed File constructor usage for document preview
  */
 
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
@@ -10,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, File, X } from "lucide-react";
+import { UploadCloud, File as FileIcon, X } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
@@ -225,7 +226,7 @@ export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProp
                 {selectedFiles.map((file, index) => (
                   <div key={index} className="relative border rounded-md overflow-hidden p-4">
                     <div className="flex items-center">
-                      <File className="h-6 w-6 text-gray-400 mr-2" />
+                      <FileIcon className="h-6 w-6 text-gray-400 mr-2" />
                       <div className="text-sm truncate">{file.name}</div>
                     </div>
                     <button
@@ -250,7 +251,7 @@ export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProp
                     {url.toLowerCase().endsWith('.pdf') ? (
                       <div className="border rounded-md overflow-hidden p-4">
                         <div className="flex items-center">
-                          <File className="h-6 w-6 text-gray-400 mr-2" />
+                          <FileIcon className="h-6 w-6 text-gray-400 mr-2" />
                           <div className="text-sm truncate">Document {index + 1}</div>
                         </div>
                         <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline mt-2 block">
@@ -259,7 +260,7 @@ export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProp
                       </div>
                     ) : (
                       <ImagePreview 
-                        file={new File([], `Document ${index + 1}`, { type: 'image/jpeg' })}
+                        file={new File([], `Document ${index + 1}`)}
                         onRemove={() => removeUploadedFile(url)}
                         imageUrl={url}
                       />
