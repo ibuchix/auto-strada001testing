@@ -1,16 +1,10 @@
 
-/**
- * Changes made:
- * - 2024-09-26: Added defensive check for Router context with useNavigate
- */
-
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export const HeroSection = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // Added to confirm Router context exists
 
   return (
     <section className="pt-16 pb-16 relative overflow-hidden">
@@ -63,7 +57,7 @@ export const HeroSection = () => {
           </div>
 
           <Button 
-            onClick={() => navigate('/sell-my-car')}
+            onClick={() => navigate('/')}
             className="h-14 px-8 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white text-lg"
           >
             Start Selling

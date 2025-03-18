@@ -6,7 +6,6 @@
  * - 2024-09-21: Updated to respect RLS policies
  * - 2024-09-22: Fixed useOptimizedQuery parameter format
  * - 2024-09-23: Fixed query parameter format to match updated useOptimizedQuery
- * - 2024-09-24: Updated useOptimizedQuery call to use the correct object parameter pattern
  */
 
 import { Session } from "@supabase/supabase-js";

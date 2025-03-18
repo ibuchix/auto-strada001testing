@@ -4,24 +4,11 @@
  * - 2024-09-19: Created optimized query hook for better React Query performance
  * - 2024-09-20: Fixed type error with onError meta property
  * - 2024-09-21: Added session validation and handling for RLS
- * - 2024-09-24: Fixed parameter handling to support object parameter pattern
  */
 
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
-
-// Type for the object parameter pattern
-export interface OptimizedQueryParams<TData, TError = Error> {
-  queryKey: string | any[];
-  queryFn: () => Promise<TData>;
-  enabled?: boolean;
-  requireAuth?: boolean;
-  errorMessage?: string;
-  showErrorToast?: boolean;
-  meta?: Record<string, any>;
-  [key: string]: any; // Allow other UseQueryOptions properties
-}
 
 /**
  * A hook for optimized data fetching with React Query
@@ -29,21 +16,24 @@ export interface OptimizedQueryParams<TData, TError = Error> {
  * and respect for Row-Level Security policies
  */
 export function useOptimizedQuery<TData, TError = Error>(
-  params: OptimizedQueryParams<TData, TError>
+  queryKey: string | any[],
+  queryFn: () => Promise<TData>,
+  options?: Omit<UseQueryOptions<TData, TError, TData>, 'queryKey' | 'queryFn'> & {
+    errorMessage?: string;
+    showErrorToast?: boolean;
+    requireAuth?: boolean;
+  }
 ) {
   const { session } = useAuth();
   const {
-    queryKey,
-    queryFn,
     errorMessage = "Failed to load data",
     showErrorToast = true,
     requireAuth = false,
-    meta = {},
     ...queryOptions
-  } = params;
+  } = options || {};
 
   // Check if authentication is required but user is not logged in
-  const enabled = queryOptions.enabled !== false && (!requireAuth || !!session);
+  const enabled = !requireAuth || !!session;
 
   return useQuery({
     queryKey: Array.isArray(queryKey) ? queryKey : [queryKey],
@@ -55,7 +45,7 @@ export function useOptimizedQuery<TData, TError = Error>(
     enabled,
     ...queryOptions,
     meta: {
-      ...(meta || {}),
+      ...(queryOptions?.meta || {}),
       onError: (error: any) => {
         console.error(`Query error for ${JSON.stringify(queryKey)}:`, error);
         
@@ -74,8 +64,8 @@ export function useOptimizedQuery<TData, TError = Error>(
         }
         
         // Forward to any user-provided onError if it exists
-        if (meta?.onError && typeof meta.onError === 'function') {
-          meta.onError(error);
+        if (queryOptions?.meta?.onError && typeof queryOptions.meta.onError === 'function') {
+          queryOptions.meta.onError(error);
         }
       }
     }
@@ -86,35 +76,30 @@ export function useOptimizedQuery<TData, TError = Error>(
  * A hook for optimized paginated data fetching that respects RLS
  */
 export function useOptimizedPaginatedQuery<TData, TError = Error>(
-  params: OptimizedQueryParams<TData, TError> & {
+  queryKey: string | any[],
+  queryFn: (page: number, pageSize: number) => Promise<TData>,
+  options?: Omit<UseQueryOptions<TData, TError, TData>, 'queryKey' | 'queryFn'> & {
     page?: number;
     pageSize?: number;
+    errorMessage?: string;
+    showErrorToast?: boolean;
+    requireAuth?: boolean;
   }
 ) {
   const {
-    queryKey,
-    queryFn,
     page = 1,
     pageSize = 20,
     ...restOptions
-  } = params;
-  
-  // Create a paginated query function that takes page and pageSize
-  const paginatedQueryFn = () => {
-    if (typeof queryFn === 'function') {
-      return queryFn();
-    }
-    return Promise.reject(new Error("Invalid query function"));
-  };
+  } = options || {};
   
   // Create a query key that includes pagination parameters
   const paginatedQueryKey = Array.isArray(queryKey) 
     ? [...queryKey, { page, pageSize }] 
     : [queryKey, { page, pageSize }];
   
-  return useOptimizedQuery({
-    ...restOptions,
-    queryKey: paginatedQueryKey,
-    queryFn: paginatedQueryFn,
-  });
+  return useOptimizedQuery(
+    paginatedQueryKey,
+    () => queryFn(page, pageSize),
+    restOptions
+  );
 }
