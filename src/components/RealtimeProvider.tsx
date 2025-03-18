@@ -1,9 +1,9 @@
-
 /**
  * Changes made:
  * - 2024-09-07: Enhanced to include car status updates in real-time invalidation
  * - 2024-09-13: Added comprehensive real-time subscriptions for admin and dealer
  * - 2024-09-16: Added resilience with retry logic for channel subscriptions
+ * - 2024-09-25: Added support for notification system
  */
 
 import { useEffect } from 'react';
@@ -79,7 +79,7 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
       )
     );
 
-    // For admin users, subscribe to additional real-time events
+    // For authenticated users, subscribe to additional real-time events
     if (session?.user) {
       // Check user role from local storage or session
       const userRole = localStorage.getItem('userRole');
@@ -142,6 +142,21 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
           )
         );
       }
+      
+      // Subscribe to notifications table for real-time notification invalidation
+      subscribeWithRetry('user-notifications-invalidation', (channel) =>
+        channel.on('postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${session.user.id}`
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications', session.user.id] });
+          }
+        )
+      );
     }
 
     return () => {
