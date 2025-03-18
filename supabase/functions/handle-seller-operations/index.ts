@@ -1,9 +1,9 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { corsHeaders } from '../_shared/cors.ts';
-import { validateVin } from './vin-validation.ts';
-import { processProxyBids } from './operations.ts';
+import { corsHeaders, logOperation } from './utils.ts';
+import { ValuationRequest, ProxyBidRequest } from './types.ts';
+import { validateVin, processProxyBids } from './operations.ts';
 
 serve(async (req) => {
   // Add detailed request logging
@@ -19,7 +19,12 @@ serve(async (req) => {
     const { operation } = requestData;
     
     // Log operation start with request ID for tracing
-    console.log(`Request ${requestId} started: ${operation}`);
+    logOperation('request_start', { 
+      requestId, 
+      operation,
+      method: req.method,
+      url: req.url
+    });
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -34,13 +39,13 @@ serve(async (req) => {
     
     switch (operation) {
       case 'validate_vin': {
-        const { vin, mileage, gearbox, userId } = requestData;
+        const { vin, mileage, gearbox, userId } = requestData as ValuationRequest;
         response = await validateVin(supabase, vin, mileage, gearbox, userId);
         break;
       }
 
       case 'process_proxy_bids': {
-        const { carId } = requestData;
+        const { carId } = requestData as ProxyBidRequest;
         if (!carId) {
           throw new Error('Car ID is required for processing proxy bids');
         }
@@ -54,7 +59,12 @@ serve(async (req) => {
     
     // Log successful completion with timing information
     const executionTime = Date.now() - requestStartTime;
-    console.log(`Request ${requestId} completed in ${executionTime}ms`);
+    logOperation('request_complete', { 
+      requestId, 
+      operation,
+      executionTime,
+      status: 'success'
+    });
     
     return new Response(
       JSON.stringify(response),
@@ -63,13 +73,21 @@ serve(async (req) => {
   } catch (error) {
     // Log detailed error information
     const executionTime = Date.now() - requestStartTime;
-    console.error(`Request error after ${executionTime}ms:`, error.message);
+    logOperation('request_error', { 
+      requestId,
+      executionTime,
+      errorMessage: error.message,
+      errorStack: error.stack,
+      errorCode: error.code || 'UNKNOWN_ERROR'
+    }, 'error');
     
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Failed to process seller operation',
-        errorCode: error.code || 'SYSTEM_ERROR'
+        data: {
+          error: error.message || 'Failed to process seller operation',
+          errorCode: error.code || 'SYSTEM_ERROR'
+        }
       }),
       { 
         status: 500,

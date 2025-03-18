@@ -4,8 +4,6 @@
  * - 2024-10-16: Created transaction service for reliable Supabase operations tracking and confirmation
  * - 2024-10-24: Fixed type issues with audit log entries and Date objects
  * - 2024-10-25: Fixed Date object serialization for database inserts
- * - 2024-10-26: Fixed audit_logs action type to use proper enum values
- * - 2024-10-27: Updated mapTransactionTypeToAuditAction to use specific enum values
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -60,17 +58,6 @@ export interface TransactionOptions {
   onError?: (error: any) => void;
   onComplete?: (details: TransactionDetails) => void;
 }
-
-// Define valid audit log action types based on the database schema
-type AuditLogActionType = 
-  | 'create' 
-  | 'update' 
-  | 'delete' 
-  | 'login' 
-  | 'logout'
-  | 'auction_closed'
-  | 'auto_proxy_bid'
-  | 'system_alert';
 
 export class TransactionService extends BaseService {
   private activeTransactions: Map<string, TransactionDetails> = new Map();
@@ -241,13 +228,9 @@ export class TransactionService extends BaseService {
         error: details.errorDetails || null
       };
 
-      // Convert transaction type to an appropriate audit_log action type
-      // Using the properly typed action values from our defined type
-      const actionType = this.mapTransactionTypeToAuditAction(details.type, details.operation);
-
       await this.supabase.from('audit_logs').insert({
         user_id: details.userId,
-        action: actionType,
+        action: details.operation,
         entity_type: details.entityType || details.type,
         entity_id: details.entityId,
         details: formattedDetails
@@ -255,40 +238,6 @@ export class TransactionService extends BaseService {
     } catch (error) {
       // Just log to console if we can't log to db - don't throw
       console.error('Failed to log transaction to audit_logs:', error);
-    }
-  }
-  
-  /**
-   * Map transaction types to valid audit log action types
-   * Returns a specific enum value that matches what the database expects
-   */
-  private mapTransactionTypeToAuditAction(type: TransactionType, operation: string): AuditLogActionType {
-    // Map our transaction types to the specific action types defined in the database
-    // Ensuring we only return values from the AuditLogActionType type
-    switch (type) {
-      case TransactionType.CREATE:
-        return 'create';
-      case TransactionType.UPDATE:
-        return 'update';
-      case TransactionType.DELETE:
-        return 'delete';
-      case TransactionType.AUCTION:
-        // For auction operations, try to be more specific
-        if (operation.toLowerCase().includes('bid')) {
-          return 'auto_proxy_bid';
-        }
-        return 'auction_closed';
-      case TransactionType.AUTHENTICATION:
-        if (operation.toLowerCase().includes('logout')) {
-          return 'logout';
-        }
-        return 'login';
-      case TransactionType.OTHER:
-      case TransactionType.PAYMENT:
-      case TransactionType.UPLOAD:
-      default:
-        // Default safe fallback
-        return 'system_alert';
     }
   }
   

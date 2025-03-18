@@ -1,106 +1,109 @@
 
 /**
  * Changes made:
- * - 2024-10-28: Created useValuationForm hook to handle valuation form state and submission
- * - 2024-10-29: Fixed supabase import and added context parameter
- * - 2024-10-30: Improved error handling and ensured English messaging
+ * - 2024-03-19: Initial implementation of form handling for vehicle valuation
+ * - 2024-03-19: Added error handling and success dialog management
+ * - 2024-03-19: Integrated with valuation service
+ * - 2024-07-20: Enhanced error handling and user feedback
  */
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTransaction } from "@/hooks/useTransaction";
-import { TransactionType } from "@/services/supabase/transactionService";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/components/AuthProvider";
+import { ValuationFormData, valuationFormSchema } from "@/types/validation";
+import { toast } from "sonner";
+import { getValuation, cleanupValuationData } from "@/components/hero/valuation/services/valuationService";
 
-// Define the form schema for validation
-const valuationFormSchema = z.object({
-  vin: z.string().min(11, "VIN must be at least 11 characters long").max(17),
-  mileage: z.string().refine(val => !isNaN(Number(val)) && Number(val) > 0, {
-    message: "Mileage must be a positive number",
-  }),
-  gearbox: z.enum(["manual", "automatic"])
-});
-
-export type ValuationFormData = z.infer<typeof valuationFormSchema>;
-
-export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
-  const navigate = useNavigate();
+export const useValuationForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [valuationResult, setValuationResult] = useState<any>(null);
-  const { session } = useAuth();
-  
-  // Setup form with validation
+  const [retryCount, setRetryCount] = useState(0);
+
   const form = useForm<ValuationFormData>({
     resolver: zodResolver(valuationFormSchema),
     defaultValues: {
       vin: "",
       mileage: "",
-      gearbox: "automatic"
-    }
+      gearbox: "manual",
+    },
   });
 
-  // Use transaction service for reliable API calls
-  const { executeTransaction } = useTransaction();
+  const onSubmit = async (data: ValuationFormData) => {
+    console.log('Starting valuation form submission:', data);
+    setIsLoading(true);
+    
+    try {
+      const result = await getValuation(
+        data.vin,
+        parseInt(data.mileage),
+        data.gearbox
+      );
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    form.handleSubmit(async (data) => {
-      setIsLoading(true);
-      
-      try {
-        // Execute valuation request using transaction service for reliability
-        const result = await executeTransaction(
-          "Get Vehicle Valuation",
-          TransactionType.OTHER,
-          async () => {
-            const { data: valuation, error } = await supabase.functions.invoke('handle-seller-operations', {
-              body: {
-                operation: 'validate_vin',
-                vin: data.vin,
-                mileage: Number(data.mileage),
-                gearbox: data.gearbox,
-                userId: session?.user?.id
-              }
-            });
-            
-            if (error) throw error;
-            if (!valuation.success) {
-              throw new Error(valuation.error || "Failed to validate VIN");
-            }
-            
-            return valuation.data;
-          }
-        );
+      console.log('Valuation result:', result);
 
-        if (result) {
-          if (result.isExisting) {
-            toast.error("This vehicle has already been listed");
-            return;
-          }
+      if (result.success) {
+        // Store the valuation data in localStorage
+        localStorage.setItem("valuationData", JSON.stringify(result.data));
+        localStorage.setItem("tempMileage", data.mileage);
+        localStorage.setItem("tempVIN", data.vin);
+        localStorage.setItem("tempGearbox", data.gearbox);
 
-          // Store valuation data and VIN details in localStorage
-          localStorage.setItem('valuationData', JSON.stringify(result));
-          localStorage.setItem('tempVIN', data.vin);
-          localStorage.setItem('tempMileage', data.mileage);
-          localStorage.setItem('tempGearbox', data.gearbox);
-          
-          // Update state and show dialog
-          setValuationResult(result);
-          setShowDialog(true);
+        setValuationResult(result.data);
+        setShowDialog(true);
+        
+        // Reset retry count on success
+        setRetryCount(0);
+      } else {
+        console.error('Valuation failed:', result.data.error);
+        
+        // Handle specific error scenarios
+        if (result.data.error?.includes('rate limit') || 
+            result.data.error?.includes('too many requests')) {
+          toast.error("Too many requests", {
+            description: "Please wait a moment before trying again.",
+          });
+        } else if (result.data.error === 'Request timed out') {
+          // Timeout was already handled by the service
+        } else {
+          toast.error(result.data.error || "Failed to get vehicle valuation", {
+            description: "Please try again or contact support if the issue persists."
+          });
         }
-      } catch (error: any) {
-        console.error('Valuation error:', error);
-        toast.error(error.message || "Failed to get vehicle valuation");
-      } finally {
-        setIsLoading(false);
       }
-    })();
+    } catch (error: any) {
+      console.error("Valuation error:", error);
+      
+      // Increment retry count
+      setRetryCount(prev => prev + 1);
+      
+      // After 3 retries, offer manual valuation option
+      if (retryCount >= 2) {
+        toast.error("Valuation service unavailable", {
+          description: "We're having trouble connecting to our valuation service. Would you like to try manual valuation?",
+          action: {
+            label: "Try Manual",
+            onClick: () => {
+              cleanupValuationData();
+              window.location.href = '/manual-valuation';
+            }
+          }
+        });
+      } else {
+        toast.error(error.message || "Failed to get vehicle valuation", {
+          description: "Please check your connection and try again."
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    form.reset();
+    setValuationResult(null);
+    setShowDialog(false);
+    cleanupValuationData();
   };
 
   return {
@@ -109,7 +112,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
     showDialog,
     setShowDialog,
     valuationResult,
-    onSubmit,
-    context
+    onSubmit: form.handleSubmit(onSubmit),
+    resetForm,
   };
 };

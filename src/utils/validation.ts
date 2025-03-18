@@ -2,7 +2,6 @@
 /**
  * Changes made:
  * - 2024-08-20: Enhanced validation utilities with standardized error formatting
- * - 2024-10-30: Added formatCurrency function for consistent currency display
  */
 
 import { md5 } from "js-md5";
@@ -24,17 +23,6 @@ export const isValidMileage = (mileage: string): boolean => {
     Number.isInteger(mileageNum) &&
     /^\d+$/.test(mileage)
   );
-};
-
-/**
- * Format a currency value consistently throughout the application
- */
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'PLN',
-    maximumFractionDigits: 0,
-  }).format(amount);
 };
 
 /**
