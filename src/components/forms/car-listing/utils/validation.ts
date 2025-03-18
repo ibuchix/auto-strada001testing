@@ -2,10 +2,14 @@
 /**
  * Changes made:
  * - 2024-08-20: Enhanced form validation with standardized approach
+ * - 2024-08-22: Added ValidationError type export to fix type errors in RequirementsDisplay.tsx
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { ValidationResult } from "@/utils/validation";
+
+// Export the ValidationError type to be used by RequirementsDisplay
+export type ValidationError = ValidationResult;
 
 export const validateFormData = (data: Partial<CarListingFormData>): ValidationResult[] => {
   const errors: ValidationResult[] = [];
