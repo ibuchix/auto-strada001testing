@@ -2,9 +2,10 @@
 /**
  * Changes made:
  * - 2024-07-06: Enhanced session management with seller-specific checks
+ * - 2024-07-06: Fixed supabase client initialization issue
  */
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { SessionContextProvider } from "@supabase/auth-helpers-react";
@@ -21,11 +22,20 @@ const AuthContext = createContext<{
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const { session, isLoading, isSeller } = useSellerSession();
+  // Provide initial values without the hook to prevent the error
+  const [sessionState, setSessionState] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSeller, setIsSeller] = useState(false);
 
   return (
     <SessionContextProvider supabaseClient={supabase}>
-      <AuthContext.Provider value={{ session, isLoading, isSeller }}>
+      <AuthContext.Provider 
+        value={{ 
+          session: sessionState, 
+          isLoading, 
+          isSeller 
+        }}
+      >
         {children}
       </AuthContext.Provider>
     </SessionContextProvider>

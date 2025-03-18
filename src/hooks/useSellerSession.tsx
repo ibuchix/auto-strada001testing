@@ -3,36 +3,44 @@
  * Changes made:
  * - 2024-07-06: Created hook for seller-specific session management
  * - 2024-07-06: Updated to not force redirect on public pages
+ * - 2024-07-06: Fixed issues with supabase client initialization
  */
 
 import { useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
-import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useSellerSession = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSeller, setIsSeller] = useState(false);
-  const supabase = useSupabaseClient();
   const navigate = useNavigate();
 
   useEffect(() => {
     // Initialize session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        checkSellerRole(session);
+    const getSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        setSession(data.session);
+        if (data.session) {
+          await checkSellerRole(data.session);
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error fetching session:", error);
+        setIsLoading(false);
       }
-      setIsLoading(false);
-    });
+    };
+
+    getSession();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       if (session) {
-        checkSellerRole(session);
+        await checkSellerRole(session);
       } else {
         setIsSeller(false);
       }
@@ -42,7 +50,7 @@ export const useSellerSession = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase.auth]);
+  }, [navigate]);
 
   const checkSellerRole = async (session: Session) => {
     try {

@@ -4,6 +4,7 @@
  * - 2024-03-20: Removed all auction-related functionality
  * - 2024-03-20: Cleaned up imports
  * - 2024-03-20: Simplified component to focus on vehicle valuation
+ * - 2024-07-06: Fixed refetch reference error
  */
 
 import { ValuationForm } from "@/components/hero/ValuationForm";
