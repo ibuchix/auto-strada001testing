@@ -1,11 +1,6 @@
-/**
- * Changes made:
- * - 2024-03-19: Initial implementation of image preview component
- * - 2024-03-19: Added remove functionality and hover effects
- */
 
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
 
 interface ImagePreviewProps {
   file: File;
@@ -13,24 +8,39 @@ interface ImagePreviewProps {
 }
 
 export const ImagePreview = ({ file, onRemove }: ImagePreviewProps) => {
-  const previewUrl = URL.createObjectURL(file);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Create the preview
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
+
+    // Clean up on unmount
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [file]);
 
   return (
-    <div className="relative group">
-      <img
-        src={previewUrl}
-        alt="Preview"
-        className="w-full h-48 object-cover rounded-md"
-        onLoad={() => URL.revokeObjectURL(previewUrl)}
-      />
-      <Button
-        variant="destructive"
-        size="icon"
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+    <div className="relative border rounded-md overflow-hidden">
+      {preview && (
+        <img 
+          src={preview} 
+          alt="Preview"
+          className="w-full h-40 object-cover"
+        />
+      )}
+      <button
+        type="button"
         onClick={onRemove}
+        className="absolute top-2 right-2 bg-white/80 rounded-full p-1 shadow hover:bg-white"
+        aria-label="Remove image"
       >
-        <X className="h-4 w-4" />
-      </Button>
+        <X className="h-4 w-4 text-gray-700" />
+      </button>
+      <div className="text-xs p-2 bg-gray-50 border-t">
+        {file.name}
+      </div>
     </div>
   );
 };

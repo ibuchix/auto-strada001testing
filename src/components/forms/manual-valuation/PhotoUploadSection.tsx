@@ -1,3 +1,4 @@
+
 import { FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { UseFormReturn } from "react-hook-form";
@@ -26,22 +27,29 @@ export const PhotoUploadSection = ({ form, onProgressUpdate }: PhotoUploadSectio
     setProgress(0);
 
     try {
+      // Create unique file path with type-based organization
       const fileExt = file.name.split('.').pop();
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const filePath = `${type}/${fileName}`;
 
+      // Upload to the car-images bucket with proper categorization
       const { error: uploadError } = await supabase.storage
-        .from('manual-valuation-photos')
+        .from('car-images')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('car-images')
+        .getPublicUrl(filePath);
 
       setProgress(100);
       if (onProgressUpdate) onProgressUpdate(100);
 
       // Update form data with the uploaded file path
       const currentPhotos = form.getValues('uploadedPhotos') || [];
-      form.setValue('uploadedPhotos', [...currentPhotos, filePath]);
+      form.setValue('uploadedPhotos', [...currentPhotos, publicUrl]);
 
       toast.success(`Photo uploaded successfully`);
     } catch (error: any) {
