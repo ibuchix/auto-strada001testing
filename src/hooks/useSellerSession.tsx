@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-07-06: Created hook for seller-specific session management
+ * - 2024-07-06: Updated to not force redirect on public pages
  */
 
 import { useEffect, useState } from "react";
@@ -21,14 +22,20 @@ export const useSellerSession = () => {
     // Initialize session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      checkSellerRole(session);
+      if (session) {
+        checkSellerRole(session);
+      }
       setIsLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      checkSellerRole(session);
+      if (session) {
+        checkSellerRole(session);
+      } else {
+        setIsSeller(false);
+      }
       setIsLoading(false);
     });
 
@@ -37,12 +44,7 @@ export const useSellerSession = () => {
     };
   }, [supabase.auth]);
 
-  const checkSellerRole = async (session: Session | null) => {
-    if (!session) {
-      setIsSeller(false);
-      return;
-    }
-
+  const checkSellerRole = async (session: Session) => {
     try {
       // Check user metadata first (faster)
       if (session.user.user_metadata?.role === 'seller') {
@@ -63,13 +65,6 @@ export const useSellerSession = () => {
       }
 
       setIsSeller(profile?.role === 'seller');
-
-      // If not a seller, log them out and redirect
-      if (profile?.role !== 'seller') {
-        await supabase.auth.signOut();
-        toast.error("Access denied. This application is for sellers only.");
-        navigate('/auth');
-      }
     } catch (error) {
       console.error('Error checking seller role:', error);
     }
