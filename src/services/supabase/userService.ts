@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-11: Created user service for auth and profile-related operations
+ * - 2024-09-12: Fixed type issues with role property
  */
 
 import { BaseService } from "./baseService";
@@ -11,7 +12,7 @@ import { toast } from "sonner";
 export interface UserProfile {
   id: string;
   full_name?: string;
-  role?: string;
+  role?: "dealer" | "seller" | "admin";
   updated_at?: string;
   suspended?: boolean;
   avatar_url?: string;
@@ -128,10 +129,15 @@ export class UserService extends BaseService {
    * Update user profile
    */
   async updateUserProfile(userId: string, profile: Partial<UserProfile>): Promise<UserProfile> {
+    // Ensure we're passing the correct type for role
+    const safeProfile: Partial<UserProfile> = {
+      ...profile
+    };
+    
     return await this.handleDatabaseResponse(async () => {
       return await this.supabase
         .from('profiles')
-        .update(profile)
+        .update(safeProfile)
         .eq('id', userId)
         .select()
         .single();

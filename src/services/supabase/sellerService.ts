@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-11: Created seller service for all seller-related operations
+ * - 2024-09-12: Removed redundant code trying to register service
  */
 
 import { BaseService } from "./baseService";
@@ -71,7 +72,3 @@ export class SellerService extends BaseService {
 
 // Export a singleton instance
 export const sellerService = new SellerService();
-
-// Update the index.ts file to include the seller service
-import { supabaseApi } from './index';
-supabaseApi.sellers = sellerService;

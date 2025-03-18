@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-11: Created car service for all car-related database operations
+ * - 2024-09-12: Fixed TypeScript type errors by using literal strings for table names
  */
 
 import { BaseService, Filter, QueryOptions } from "./baseService";
@@ -26,7 +27,6 @@ export interface CarData {
 }
 
 export class CarService extends BaseService {
-  private tableName = 'cars';
   
   /**
    * Get cars with optional filtering
@@ -34,7 +34,7 @@ export class CarService extends BaseService {
   async getCars(options: QueryOptions = {}): Promise<CarData[]> {
     try {
       let query = this.supabase
-        .from(this.tableName)
+        .from('cars')
         .select(options.select || '*');
         
       // Apply filters if provided
@@ -75,7 +75,7 @@ export class CarService extends BaseService {
   async getCarById(id: string): Promise<CarData> {
     return await this.handleDatabaseResponse(async () => {
       return await this.supabase
-        .from(this.tableName)
+        .from('cars')
         .select('*')
         .eq('id', id)
         .single();
@@ -88,7 +88,7 @@ export class CarService extends BaseService {
   async createCar(carData: CarData): Promise<CarData> {
     return await this.handleDatabaseResponse(async () => {
       return await this.supabase
-        .from(this.tableName)
+        .from('cars')
         .insert(carData)
         .select()
         .single();
@@ -101,7 +101,7 @@ export class CarService extends BaseService {
   async updateCar(id: string, carData: Partial<CarData>): Promise<CarData> {
     return await this.handleDatabaseResponse(async () => {
       return await this.supabase
-        .from(this.tableName)
+        .from('cars')
         .update(carData)
         .eq('id', id)
         .select()
@@ -115,7 +115,7 @@ export class CarService extends BaseService {
   async upsertCar(carData: CarData): Promise<CarData> {
     return await this.handleDatabaseResponse(async () => {
       return await this.supabase
-        .from(this.tableName)
+        .from('cars')
         .upsert(carData)
         .select()
         .single();
@@ -128,7 +128,7 @@ export class CarService extends BaseService {
   async deleteCar(id: string): Promise<void> {
     try {
       const { error } = await this.supabase
-        .from(this.tableName)
+        .from('cars')
         .delete()
         .eq('id', id);
       
@@ -144,7 +144,7 @@ export class CarService extends BaseService {
   async getSellerActiveListings(sellerId: string): Promise<CarData[]> {
     try {
       const { data, error } = await this.supabase
-        .from(this.tableName)
+        .from('cars')
         .select('*')
         .eq('seller_id', sellerId)
         .eq('is_draft', false)
@@ -164,7 +164,7 @@ export class CarService extends BaseService {
   async getSellerDraftListings(sellerId: string): Promise<CarData[]> {
     try {
       const { data, error } = await this.supabase
-        .from(this.tableName)
+        .from('cars')
         .select('*')
         .eq('seller_id', sellerId)
         .eq('is_draft', true)
@@ -184,7 +184,7 @@ export class CarService extends BaseService {
   async getSellerAllListings(sellerId: string): Promise<CarData[]> {
     try {
       const { data, error } = await this.supabase
-        .from(this.tableName)
+        .from('cars')
         .select('*')
         .eq('seller_id', sellerId)
         .order('created_at', { ascending: false });
