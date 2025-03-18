@@ -5,6 +5,7 @@
  * - 2024-03-19: Added support for both local storage and backend persistence
  * - 2024-03-19: Implemented auto-save functionality
  * - 2024-08-08: Updated to save current step information
+ * - 2024-08-09: Fixed type errors related to form_metadata field
  */
 
 import { useEffect } from "react";
@@ -90,9 +91,10 @@ export const useFormPersistence = (
               }
             });
             
-            // Restore the current step if it exists in metadata
-            if (draftData.form_metadata?.current_step !== undefined) {
-              localStorage.setItem('formCurrentStep', String(draftData.form_metadata.current_step));
+            // Safely check if form_metadata exists and has current_step
+            const metadata = draftData.form_metadata as Record<string, any> | null;
+            if (metadata && typeof metadata === 'object' && 'current_step' in metadata) {
+              localStorage.setItem('formCurrentStep', String(metadata.current_step));
             }
             
             return;

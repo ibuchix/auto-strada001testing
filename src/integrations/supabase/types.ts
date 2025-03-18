@@ -464,6 +464,7 @@ export type Database = {
           created_at: string
           current_bid: number | null
           features: Json | null
+          form_metadata: Json | null
           id: string
           images: string[] | null
           is_auction: boolean | null
@@ -495,6 +496,7 @@ export type Database = {
           created_at?: string
           current_bid?: number | null
           features?: Json | null
+          form_metadata?: Json | null
           id?: string
           images?: string[] | null
           is_auction?: boolean | null
@@ -526,6 +528,7 @@ export type Database = {
           created_at?: string
           current_bid?: number | null
           features?: Json | null
+          form_metadata?: Json | null
           id?: string
           images?: string[] | null
           is_auction?: boolean | null

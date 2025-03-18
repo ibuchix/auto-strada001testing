@@ -7,6 +7,7 @@
  * - 2024-03-19: Added handling for default values and nullable fields
  * - 2024-03-25: Updated to include additional_photos field
  * - 2024-08-08: Added support for form_metadata with current_step
+ * - 2024-08-09: Fixed type handling for form_metadata field
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
@@ -46,14 +47,15 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     form_metadata: {
       current_step: currentStep,
       last_updated: new Date().toISOString()
-    }
+    } as Json
   };
 };
 
 export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> => {
-  // If form_metadata exists, restore the current step to localStorage
-  if (dbData.form_metadata?.current_step !== undefined) {
-    localStorage.setItem('formCurrentStep', String(dbData.form_metadata.current_step));
+  // Safely handle form_metadata
+  const metadata = dbData.form_metadata as Record<string, any> | null;
+  if (metadata && typeof metadata === 'object' && 'current_step' in metadata) {
+    localStorage.setItem('formCurrentStep', String(metadata.current_step));
   }
   
   return {
