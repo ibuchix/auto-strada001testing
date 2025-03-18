@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-16: Integrated transaction confirmation system for form submissions
+ * - 2024-10-17: Fixed syntax errors in the useFormSubmission hook
  */
 
 import { useState } from "react";
