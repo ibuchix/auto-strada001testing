@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-07-25: Extracted seller valuation from valuationService.ts
  * - 2024-08-01: Added cache support to reduce API calls for identical VINs
+ * - 2024-08-02: Fixed type issues when caching valuation data
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -123,7 +124,7 @@ export async function processSellerValuation(
       };
     }
     
-    // Prepare the valuation data
+    // Prepare the valuation data with required fields for caching
     const valuationData = {
       make: data.data.make,
       model: data.data.model,
@@ -131,7 +132,9 @@ export async function processSellerValuation(
       valuation: data.data.valuation,
       averagePrice: data.data.averagePrice,
       reservePrice: data.data.reservePrice,
-      isExisting: false
+      isExisting: false,
+      vin,
+      transmission: gearbox as TransmissionType
     };
     
     // Store the result in cache for future use
@@ -140,11 +143,7 @@ export async function processSellerValuation(
     console.log('Returning complete valuation data for seller context');
     return {
       success: true,
-      data: {
-        ...valuationData,
-        vin,
-        transmission: gearbox as TransmissionType
-      }
+      data: valuationData
     };
   } catch (error: any) {
     return handleApiError(error, vin, gearbox as TransmissionType);

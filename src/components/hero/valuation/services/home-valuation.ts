@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-07-25: Extracted home valuation from valuationService.ts
  * - 2024-08-01: Added cache support to reduce API calls for identical VINs
+ * - 2024-08-02: Fixed type issues when caching valuation data
  */
 
 import { toast } from "sonner";
@@ -72,14 +73,16 @@ export async function processHomeValuation(
       };
     }
 
-    // Prepare the valuation data
+    // Prepare the valuation data with required fields for caching
     const valuationData = {
       make: data.data.make,
       model: data.data.model,
       year: data.data.year,
       valuation: data.data.valuation,
       averagePrice: data.data.averagePrice,
-      isExisting: false
+      isExisting: false,
+      vin,
+      transmission: gearbox as TransmissionType
     };
     
     // Store the result in cache for future use
@@ -88,11 +91,7 @@ export async function processHomeValuation(
     console.log('Returning complete valuation data for home context');
     return {
       success: true,
-      data: {
-        ...valuationData,
-        vin,
-        transmission: gearbox as TransmissionType
-      }
+      data: valuationData
     };
   } catch (error: any) {
     return handleApiError(error, vin, gearbox as TransmissionType);

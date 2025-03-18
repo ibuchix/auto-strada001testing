@@ -6,6 +6,7 @@
  * - 2024-03-25: Updated TransmissionType to use the database enum
  * - 2024-03-26: Fixed TransmissionType to match PostgreSQL enum values
  * - 2024-03-27: Added explicit string type to ensure compatibility with database
+ * - 2024-08-01: Made vin and transmission properties optional for caching purposes
  */
 
 // Match the PostgreSQL enum 'car_transmission_type'
@@ -22,8 +23,8 @@ export interface ValuationData {
   error?: string;
   isExisting?: boolean;
   noData?: boolean;
-  vin: string;
-  transmission: TransmissionType;
+  vin?: string;  // Made optional for caching purposes
+  transmission?: TransmissionType;  // Made optional for caching purposes
   [key: string]: any;
 }
 

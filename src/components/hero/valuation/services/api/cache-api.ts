@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-08-01: Created caching API for valuation results
+ * - 2024-08-02: Fixed type issues with ValuationData
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -52,7 +53,8 @@ export async function getCachedValuation(
   }
 
   console.log('Found valid cache for VIN:', vin);
-  return cachedEntry.valuation_data;
+  // Ensure we return a proper ValuationData object
+  return cachedEntry.valuation_data as ValuationData;
 }
 
 /**
