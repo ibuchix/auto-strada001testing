@@ -1,202 +1,244 @@
 
 /**
  * Changes made:
- * - 2024-09-11: Created car service for all car-related database operations
- * - 2024-09-12: Fixed TypeScript type errors by using literal strings for table names
+ * - 2024-09-11: Implemented CarService with basic CRUD operations
+ * - 2024-09-16: Added retry and fallback logic for improved resilience
  */
 
-import { BaseService, Filter, QueryOptions } from "./baseService";
+import { BaseService } from "./baseService";
 import { toast } from "sonner";
-
-// Type definition for car data
-export interface CarData {
-  id?: string;
-  title?: string;
-  make?: string;
-  model?: string;
-  year?: number;
-  price?: number;
-  mileage?: number;
-  is_draft?: boolean;
-  seller_id?: string;
-  status?: string;
-  transmission?: string;
-  auction_status?: string;
-  vin?: string;
-  [key: string]: any; // Allow any other properties
-}
+import { CarListing, AuctionStatus } from "@/types/forms";
 
 export class CarService extends BaseService {
+  /**
+   * Fetches a single car listing by ID with retry logic
+   */
+  async getCarById(id: string) {
+    return this.withRetry(
+      () => this.supabase
+        .from("cars")
+        .select("*")
+        .eq("id", id)
+        .single(),
+      {
+        errorMessage: "Failed to load vehicle details",
+        retryDelay: 800
+      }
+    );
+  }
   
   /**
-   * Get cars with optional filtering
+   * Fetches all car listings with configured filters and retry logic
    */
-  async getCars(options: QueryOptions = {}): Promise<CarData[]> {
-    try {
-      let query = this.supabase
-        .from('cars')
-        .select(options.select || '*');
-        
-      // Apply filters if provided
-      if (options.filters && options.filters.length > 0) {
-        options.filters.forEach((filter: Filter) => {
-          query = query.filter(filter.column, filter.operator, filter.value);
-        });
-      }
+  async getCars(options: {
+    status?: string;
+    sellerId?: string;
+    isAuction?: boolean;
+    auctionStatus?: AuctionStatus;
+    limit?: number;
+    page?: number;
+  } = {}) {
+    const query = this.supabase
+      .from("cars")
+      .select("*");
       
-      // Apply ordering if provided
-      if (options.order) {
-        query = query.order(options.order.column, { ascending: options.order.ascending });
-      } else {
-        // Default ordering
-        query = query.order('created_at', { ascending: false });
-      }
-      
-      // Apply pagination if provided
-      if (options.page !== undefined && options.pageSize !== undefined) {
-        const from = options.page * options.pageSize;
-        const to = from + options.pageSize - 1;
-        query = query.range(from, to);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      return data as CarData[];
-    } catch (error: any) {
-      this.handleError(error, "Failed to fetch cars");
+    if (options.status) {
+      query.eq("status", options.status);
     }
+    
+    if (options.sellerId) {
+      query.eq("seller_id", options.sellerId);
+    }
+    
+    if (options.isAuction !== undefined) {
+      query.eq("is_auction", options.isAuction);
+    }
+    
+    if (options.auctionStatus) {
+      query.eq("auction_status", options.auctionStatus);
+    }
+    
+    if (options.limit) {
+      query.limit(options.limit);
+    }
+    
+    // Add pagination if needed
+    if (options.page && options.limit) {
+      const offset = (options.page - 1) * options.limit;
+      query.range(offset, offset + options.limit - 1);
+    }
+    
+    return this.withRetry(
+      () => query,
+      {
+        errorMessage: "Failed to load vehicle listings",
+        fallbackValue: [],
+        maxRetries: 2
+      }
+    );
   }
   
   /**
-   * Get a single car by ID
+   * Fetches active car listings with retry logic
    */
-  async getCarById(id: string): Promise<CarData> {
-    return await this.handleDatabaseResponse(async () => {
-      return await this.supabase
-        .from('cars')
-        .select('*')
-        .eq('id', id)
-        .single();
-    });
+  async getActiveListings(limit = 10) {
+    return this.withRetry(
+      () => this.supabase
+        .from("cars")
+        .select("*")
+        .eq("status", "available")
+        .eq("is_draft", false)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      {
+        fallbackValue: [],
+        errorMessage: "Failed to load active listings"
+      }
+    );
   }
   
   /**
-   * Create a new car listing
+   * Fetches cars with active auctions
    */
-  async createCar(carData: CarData): Promise<CarData> {
-    return await this.handleDatabaseResponse(async () => {
-      return await this.supabase
-        .from('cars')
+  async getActiveAuctions(limit = 10) {
+    return this.withRetry(
+      () => this.supabase
+        .from("cars")
+        .select("*")
+        .eq("is_auction", true)
+        .eq("auction_status", "active")
+        .order("auction_end_time", { ascending: true })
+        .limit(limit),
+      {
+        fallbackValue: [],
+        errorMessage: "Failed to load active auctions"
+      }
+    );
+  }
+  
+  /**
+   * Fetches upcoming auctions
+   */
+  async getUpcomingAuctions(limit = 10) {
+    return this.withRetry(
+      () => this.supabase
+        .from("cars")
+        .select("*")
+        .eq("is_auction", true)
+        .eq("status", "available")
+        .is("auction_status", null)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      {
+        fallbackValue: [],
+        errorMessage: "Failed to load upcoming auctions"
+      }
+    );
+  }
+  
+  /**
+   * Fetches completed auctions
+   */
+  async getCompletedAuctions(limit = 10) {
+    return this.withRetry(
+      () => this.supabase
+        .from("cars")
+        .select("*")
+        .eq("is_auction", true)
+        .or("auction_status.eq.ended,auction_status.eq.sold")
+        .order("updated_at", { ascending: false })
+        .limit(limit),
+      {
+        fallbackValue: [],
+        errorMessage: "Failed to load auction history"
+      }
+    );
+  }
+  
+  /**
+   * Creates a new car listing with retry logic
+   */
+  async createCar(carData: Partial<CarListing>) {
+    const result = await this.withRetry(
+      () => this.supabase
+        .from("cars")
         .insert(carData)
-        .select()
-        .single();
-    });
+        .select(),
+      {
+        errorMessage: "Failed to create listing"
+      }
+    );
+    
+    if (result) {
+      toast.success("Listing created successfully");
+    }
+    
+    return result;
   }
   
   /**
-   * Update an existing car listing
+   * Updates an existing car listing with retry logic
    */
-  async updateCar(id: string, carData: Partial<CarData>): Promise<CarData> {
-    return await this.handleDatabaseResponse(async () => {
-      return await this.supabase
-        .from('cars')
+  async updateCar(id: string, carData: Partial<CarListing>) {
+    const result = await this.withRetry(
+      () => this.supabase
+        .from("cars")
         .update(carData)
-        .eq('id', id)
-        .select()
-        .single();
-    });
+        .eq("id", id)
+        .select(),
+      {
+        errorMessage: "Failed to update listing"
+      }
+    );
+    
+    if (result) {
+      toast.success("Listing updated successfully");
+    }
+    
+    return result;
   }
   
   /**
-   * Upsert car data (create or update)
+   * Deletes a car listing with retry logic
    */
-  async upsertCar(carData: CarData): Promise<CarData> {
-    return await this.handleDatabaseResponse(async () => {
-      return await this.supabase
-        .from('cars')
-        .upsert(carData)
-        .select()
-        .single();
-    });
-  }
-  
-  /**
-   * Delete a car listing
-   */
-  async deleteCar(id: string): Promise<void> {
-    try {
-      const { error } = await this.supabase
-        .from('cars')
+  async deleteCar(id: string) {
+    const result = await this.withRetry(
+      () => this.supabase
+        .from("cars")
         .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-    } catch (error: any) {
-      this.handleError(error, "Failed to delete car");
+        .eq("id", id),
+      {
+        errorMessage: "Failed to delete listing"
+      }
+    );
+    
+    if (result) {
+      toast.success("Listing deleted successfully");
     }
+    
+    return result;
   }
   
   /**
-   * Get seller's active listings
+   * Fetches bids for a specific car
    */
-  async getSellerActiveListings(sellerId: string): Promise<CarData[]> {
-    try {
-      const { data, error } = await this.supabase
-        .from('cars')
-        .select('*')
-        .eq('seller_id', sellerId)
-        .eq('is_draft', false)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      return data;
-    } catch (error: any) {
-      this.handleError(error, "Failed to fetch seller's active listings");
-    }
-  }
-  
-  /**
-   * Get seller's draft listings
-   */
-  async getSellerDraftListings(sellerId: string): Promise<CarData[]> {
-    try {
-      const { data, error } = await this.supabase
-        .from('cars')
-        .select('*')
-        .eq('seller_id', sellerId)
-        .eq('is_draft', true)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      return data;
-    } catch (error: any) {
-      this.handleError(error, "Failed to fetch seller's draft listings");
-    }
-  }
-  
-  /**
-   * Get seller's all listings
-   */
-  async getSellerAllListings(sellerId: string): Promise<CarData[]> {
-    try {
-      const { data, error } = await this.supabase
-        .from('cars')
-        .select('*')
-        .eq('seller_id', sellerId)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      return data;
-    } catch (error: any) {
-      this.handleError(error, "Failed to fetch seller's listings");
-    }
+  async getCarBids(carId: string) {
+    return this.withRetry(
+      () => this.supabase
+        .from("bids")
+        .select(`
+          id,
+          amount,
+          status,
+          created_at,
+          dealer:dealer_id(id, dealership_name)
+        `)
+        .eq("car_id", carId)
+        .order("created_at", { ascending: false }),
+      {
+        fallbackValue: [],
+        errorMessage: "Failed to load bid history"
+      }
+    );
   }
 }
-
-// Export a singleton instance
-export const carService = new CarService();

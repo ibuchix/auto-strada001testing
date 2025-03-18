@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-07: Enhanced to include car status updates in real-time invalidation
  * - 2024-09-13: Added comprehensive real-time subscriptions for admin and dealer
+ * - 2024-09-16: Added resilience with retry logic for channel subscriptions
  */
 
 import { useEffect } from 'react';
@@ -12,8 +13,12 @@ import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/components/AuthProvider';
+import { toast } from 'sonner';
 
 type CarRow = Database['public']['Tables']['cars']['Row'];
+
+// Maximum retries for channel subscription
+const MAX_SUBSCRIPTION_RETRIES = 3;
 
 export const RealtimeProvider = ({ children }: { children: React.ReactNode }) => {
   const queryClient = useQueryClient();
@@ -21,10 +26,40 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
   useRealtimeBids();
 
   useEffect(() => {
+    let subscriptions: { unsubscribe: () => void }[] = [];
+    
+    // Helper function to subscribe with retry logic
+    const subscribeWithRetry = async (
+      channelName: string, 
+      setupFn: (channel: any) => any,
+      retries = 0
+    ) => {
+      try {
+        const channel = supabase.channel(channelName);
+        const subscription = setupFn(channel).subscribe();
+        subscriptions.push(subscription);
+        return subscription;
+      } catch (error) {
+        console.error(`Error subscribing to ${channelName}:`, error);
+        
+        if (retries < MAX_SUBSCRIPTION_RETRIES) {
+          console.log(`Retrying subscription to ${channelName} (attempt ${retries + 1}/${MAX_SUBSCRIPTION_RETRIES})`);
+          // Exponential backoff delay
+          const delay = Math.pow(2, retries) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return subscribeWithRetry(channelName, setupFn, retries + 1);
+        } else {
+          toast.error(`Failed to establish realtime connection for ${channelName}`, {
+            description: "You may not receive updates in real-time. Try refreshing the page."
+          });
+          return null;
+        }
+      }
+    };
+
     // Subscribe to car changes for global state (affects all users)
-    const subscription = supabase
-      .channel('cars_changes')
-      .on('postgres_changes', 
+    subscribeWithRetry('cars_changes', (channel) => 
+      channel.on('postgres_changes', 
         { 
           event: '*', 
           schema: 'public', 
@@ -42,20 +77,17 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
           }
         }
       )
-      .subscribe();
+    );
 
     // For admin users, subscribe to additional real-time events
-    let adminSubscriptions: { unsubscribe: () => void }[] = [];
-    
     if (session?.user) {
       // Check user role from local storage or session
       const userRole = localStorage.getItem('userRole');
       
       if (userRole === 'admin') {
         // Subscribe to verification requests
-        const verificationChannel = supabase
-          .channel('admin-verification-requests')
-          .on('postgres_changes',
+        subscribeWithRetry('admin-verification-requests', (channel) =>
+          channel.on('postgres_changes',
             {
               event: 'INSERT',
               schema: 'public',
@@ -64,8 +96,7 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
             () => {
               queryClient.invalidateQueries({ queryKey: ['verification_requests'] });
             }
-          )
-          .on('postgres_changes',
+          ).on('postgres_changes',
             {
               event: 'INSERT',
               schema: 'public',
@@ -75,14 +106,11 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
               queryClient.invalidateQueries({ queryKey: ['listing_verification_requests'] });
             }
           )
-          .subscribe();
-          
-        adminSubscriptions.push(verificationChannel);
+        );
         
         // Subscribe to disputes
-        const disputesChannel = supabase
-          .channel('admin-disputes')
-          .on('postgres_changes',
+        subscribeWithRetry('admin-disputes', (channel) =>
+          channel.on('postgres_changes',
             {
               event: '*',
               schema: 'public',
@@ -92,9 +120,7 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
               queryClient.invalidateQueries({ queryKey: ['disputes'] });
             }
           )
-          .subscribe();
-          
-        adminSubscriptions.push(disputesChannel);
+        );
       }
       
       // For dealers, subscribe to watchlist updates and auction activity
@@ -102,9 +128,8 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
         const dealerId = session.user.id;
         
         // Subscribe to watchlist updates
-        const watchlistChannel = supabase
-          .channel('dealer-watchlist')
-          .on('postgres_changes',
+        subscribeWithRetry('dealer-watchlist', (channel) =>
+          channel.on('postgres_changes',
             {
               event: '*',
               schema: 'public',
@@ -115,15 +140,18 @@ export const RealtimeProvider = ({ children }: { children: React.ReactNode }) =>
               queryClient.invalidateQueries({ queryKey: ['watchlist', dealerId] });
             }
           )
-          .subscribe();
-          
-        adminSubscriptions.push(watchlistChannel);
+        );
       }
     }
 
     return () => {
-      subscription.unsubscribe();
-      adminSubscriptions.forEach(sub => sub.unsubscribe());
+      subscriptions.forEach(sub => {
+        try {
+          sub.unsubscribe();
+        } catch (error) {
+          console.error('Error unsubscribing:', error);
+        }
+      });
     };
   }, [queryClient, session]);
 
