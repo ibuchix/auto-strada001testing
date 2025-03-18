@@ -31,7 +31,7 @@ export const ValuationResult = ({
   onClose,
   onRetry 
 }: ValuationResultProps) => {
-  const { session } = useAuth();
+  const { session, isSeller, refreshSellerStatus } = useAuth();
   const navigate = useNavigate();
   
   if (!valuationResult) return null;
@@ -49,25 +49,25 @@ export const ValuationResult = ({
       return;
     }
 
-    // Check user's role from the profiles table
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-
-    if (error) {
-      toast.error("Failed to verify user role");
+    // If isSeller is already true, proceed without checking database
+    if (isSeller) {
+      handleSellerContinue();
       return;
     }
 
-    if (profile.role !== 'seller') {
+    // Refresh seller status to ensure we have the latest information
+    const isSellerConfirmed = await refreshSellerStatus();
+    
+    if (isSellerConfirmed) {
+      handleSellerContinue();
+    } else {
       navigate('/auth');
       toast.info("Please sign up as a seller to list your car");
-      return;
     }
-
-    // If they are a seller, handle the navigation based on VIN check result
+  };
+  
+  const handleSellerContinue = () => {
+    // Handle the navigation based on VIN check result
     if (valuationResult.isExisting) {
       toast.error("This vehicle has already been listed");
       onClose();
