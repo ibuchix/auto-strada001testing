@@ -6,6 +6,7 @@
  * - 2024-09-10: Added PerformanceMetricsSection to display seller performance metrics
  * - 2024-09-22: Fixed import for AuctionResult interface
  * - 2024-09-23: Fixed array typing for empty arrays
+ * - 2024-10-16: Updated to handle the new data format from useOptimizedQuery
  */
 
 import { ListingsSection } from "./ListingsSection";

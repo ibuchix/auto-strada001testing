@@ -5,6 +5,7 @@
  * - 2024-09-20: Fixed type error with onError meta property
  * - 2024-09-21: Added session validation and handling for RLS
  * - 2024-10-15: Added offline support with local cache fallback
+ * - 2024-10-16: Fixed function parameter format for consistent usage
  */
 
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
@@ -12,6 +13,13 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { getFromCache, saveToCache } from "@/services/offlineCacheService";
+
+interface OptimizedQueryOptions<TData, TError> extends Omit<UseQueryOptions<TData, TError, TData>, 'queryKey' | 'queryFn'> {
+  errorMessage?: string;
+  showErrorToast?: boolean;
+  requireAuth?: boolean;
+  cacheKey?: string; // Key for offline cache
+}
 
 /**
  * A hook for optimized data fetching with React Query
@@ -21,12 +29,7 @@ import { getFromCache, saveToCache } from "@/services/offlineCacheService";
 export function useOptimizedQuery<TData, TError = Error>(
   queryKey: string | any[],
   queryFn: () => Promise<TData>,
-  options?: Omit<UseQueryOptions<TData, TError, TData>, 'queryKey' | 'queryFn'> & {
-    errorMessage?: string;
-    showErrorToast?: boolean;
-    requireAuth?: boolean;
-    cacheKey?: string; // Key for offline cache
-  }
+  options?: OptimizedQueryOptions<TData, TError>
 ) {
   const { session } = useAuth();
   const { isOffline } = useOfflineStatus({ showToasts: false });
@@ -45,7 +48,7 @@ export function useOptimizedQuery<TData, TError = Error>(
   // Create a cache key string for local storage
   const cacheKeyString = cacheKey || (Array.isArray(queryKey) ? JSON.stringify(queryKey) : queryKey.toString());
 
-  return useQuery({
+  const result = useQuery({
     queryKey: Array.isArray(queryKey) ? queryKey : [queryKey],
     queryFn: async () => {
       try {
@@ -113,6 +116,13 @@ export function useOptimizedQuery<TData, TError = Error>(
       }
     }
   });
+
+  return {
+    data: result.data as TData,
+    isLoading: result.isLoading,
+    error: result.error as TError,
+    ...result
+  };
 }
 
 /**
@@ -121,13 +131,9 @@ export function useOptimizedQuery<TData, TError = Error>(
 export function useOptimizedPaginatedQuery<TData, TError = Error>(
   queryKey: string | any[],
   queryFn: (page: number, pageSize: number) => Promise<TData>,
-  options?: Omit<UseQueryOptions<TData, TError, TData>, 'queryKey' | 'queryFn'> & {
+  options?: OptimizedQueryOptions<TData, TError> & {
     page?: number;
     pageSize?: number;
-    errorMessage?: string;
-    showErrorToast?: boolean;
-    requireAuth?: boolean;
-    cacheKey?: string;
   }
 ) {
   const {

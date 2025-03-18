@@ -4,6 +4,7 @@
  * - 2024-09-08: Created hook for fetching auction results with proper RLS compliance
  * - 2024-09-22: Fixed interface export and useOptimizedQuery parameter format
  * - 2024-09-23: Fixed query parameter format to match updated useOptimizedQuery
+ * - 2024-10-16: Updated to use updated useOptimizedQuery function with proper parameter syntax
  */
 
 import { Session } from "@supabase/supabase-js";
@@ -36,20 +37,13 @@ export const useAuctionResults = (session: Session | null) => {
   };
 
   // Use the optimized query hook to fetch results with proper caching and error handling
-  const { 
-    data: auctionResults,
-    isLoading,
-    error
-  } = useOptimizedQuery({
-    queryKey: ['auction_results', session?.user?.id],
-    queryFn: fetchAuctionResults,
-    enabled: !!session?.user,
-    requireAuth: true, // This ensures the query only runs if the user is authenticated
-  });
-
-  return {
-    auctionResults: auctionResults as AuctionResult[] || [],
-    isLoading,
-    error
-  };
+  return useOptimizedQuery(
+    ['auction_results', session?.user?.id],
+    fetchAuctionResults,
+    {
+      enabled: !!session?.user,
+      requireAuth: true, // This ensures the query only runs if the user is authenticated
+      cacheKey: session?.user?.id ? `auction_results_${session.user.id}` : undefined,
+    }
+  );
 };

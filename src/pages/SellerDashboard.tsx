@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-26: Fixed TypeScript errors
@@ -14,6 +15,7 @@
  * - 2024-09-08: Added auction results section to display completed auctions
  * - 2024-09-10: Added seller performance metrics section
  * - 2024-09-13: Replaced individual real-time subscriptions with comprehensive useRealtimeSubscriptions hook
+ * - 2024-10-16: Updated to handle the new data format from useOptimizedQuery hooks
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -39,13 +41,13 @@ const SellerDashboard = () => {
 
   // Fetch auction results
   const {
-    auctionResults,
+    data: auctionResults,
     isLoading: isResultsLoading
   } = useAuctionResults(session);
 
   // Fetch seller performance metrics
   const {
-    performanceMetrics,
+    data: performanceMetrics,
     isLoading: isMetricsLoading
   } = useSellerPerformance(session);
 
@@ -69,9 +71,9 @@ const SellerDashboard = () => {
           <DashboardContent 
             activeListings={activeListings}
             draftListings={draftListings}
-            auctionResults={auctionResults}
+            auctionResults={auctionResults || []}
             isResultsLoading={isResultsLoading}
-            performanceMetrics={performanceMetrics}
+            performanceMetrics={performanceMetrics || null}
             isMetricsLoading={isMetricsLoading}
             onRefresh={forceRefresh}
           />

@@ -6,6 +6,7 @@
  * - 2024-09-21: Updated to respect RLS policies
  * - 2024-09-22: Fixed useOptimizedQuery parameter format
  * - 2024-09-23: Fixed query parameter format to match updated useOptimizedQuery
+ * - 2024-10-16: Updated to use updated useOptimizedQuery function with proper parameter syntax
  */
 
 import { Session } from "@supabase/supabase-js";
@@ -37,20 +38,13 @@ export const useSellerPerformance = (session: Session | null) => {
   };
 
   // Use React Query with RLS-compliant options
-  const { 
-    data: performanceMetrics,
-    isLoading,
-    error
-  } = useOptimizedQuery({
-    queryKey: ['seller_performance', session?.user?.id],
-    queryFn: fetchPerformanceMetrics,
-    enabled: !!session?.user,
-    requireAuth: true, // Requires authentication for RLS to work
-  });
-
-  return {
-    performanceMetrics: performanceMetrics as SellerPerformanceMetrics,
-    isLoading,
-    error
-  };
+  return useOptimizedQuery(
+    ['seller_performance', session?.user?.id],
+    fetchPerformanceMetrics,
+    {
+      enabled: !!session?.user,
+      requireAuth: true, // Requires authentication for RLS to work
+      cacheKey: session?.user?.id ? `seller_performance_${session.user.id}` : undefined,
+    }
+  );
 };
