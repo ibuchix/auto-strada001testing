@@ -9,6 +9,7 @@
  * - 2024-09-08: Fixed Index component import to resolve module resolution issue
  * - 2024-10-20: Fixed React Query import to use @tanstack/react-query instead of react-query
  * - 2024-10-20: Fixed RealtimeProvider import path
+ * - 2024-10-21: Removed redundant QueryClientProvider since it's already in main.tsx
  */
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
@@ -31,42 +32,38 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ResetPassword } from "@/components/auth/ResetPassword";
 import { UpdatePassword } from "@/components/auth/UpdatePassword";
-import { QueryClientProvider } from "@tanstack/react-query";
 import { RealtimeProvider } from "@/components/RealtimeProvider";
 import { TransactionProvider } from "./components/transaction/TransactionProvider";
-import { queryClient } from "./main";
 
 function App() {
   return (
     <Router>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <TransactionProvider>
-            <RealtimeProvider>
-              <Routes>
-                <Route path="/" element={<IndexPage />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/sellers" element={<Sellers />} />
-                <Route path="/dealers" element={<Dealers />} />
-                <Route path="/dashboard/seller" element={<SellerDashboard />} />
-                <Route path="/dashboard/dealer" element={<DealerDashboard />} />
-                <Route path="/how-it-works" element={<HowItWorks />} />
-                <Route path="/sell-my-car" element={<SellMyCar />} />
-                <Route path="/faq" element={<FAQ />} />
-                <Route path="/dealer-signup" element={<DealerSignup />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/manual-valuation" element={<ManualValuation />} />
-                <Route path="/auth/reset-password" element={<ResetPassword />} />
-                <Route path="/auth/update-password" element={<UpdatePassword />} />
-              </Routes>
-              <Toaster />
-            </RealtimeProvider>
-          </TransactionProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <AuthProvider>
+        <TransactionProvider>
+          <RealtimeProvider>
+            <Routes>
+              <Route path="/" element={<IndexPage />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/sellers" element={<Sellers />} />
+              <Route path="/dealers" element={<Dealers />} />
+              <Route path="/dashboard/seller" element={<SellerDashboard />} />
+              <Route path="/dashboard/dealer" element={<DealerDashboard />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/sell-my-car" element={<SellMyCar />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/dealer-signup" element={<DealerSignup />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/manual-valuation" element={<ManualValuation />} />
+              <Route path="/auth/reset-password" element={<ResetPassword />} />
+              <Route path="/auth/update-password" element={<UpdatePassword />} />
+            </Routes>
+            <Toaster />
+          </RealtimeProvider>
+        </TransactionProvider>
+      </AuthProvider>
     </Router>
   );
 }
