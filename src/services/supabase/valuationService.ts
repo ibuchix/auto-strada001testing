@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-11: Created valuation service for all valuation-related operations
+ * - 2024-09-19: Optimized queries and improved caching for better performance
  */
 
 import { BaseService } from "./baseService";
@@ -21,15 +22,29 @@ export interface ValuationData {
 
 export class ValuationService extends BaseService {
   /**
-   * Get valuation for a VIN
+   * Get valuation for a VIN with optimized cache checking
    */
   async getValuation(vin: string, mileage: number, gearbox: string): Promise<ValuationData | null> {
     try {
+      // Check cache first for performance
+      const cachedData = await this.getCachedValuation(vin, mileage);
+      if (cachedData) {
+        console.log('Using cached valuation data for VIN:', vin);
+        return cachedData;
+      }
+      
       const { data, error } = await this.supabase.functions.invoke('get-vehicle-valuation', {
-        body: { vin, mileage, gearbox, context: 'home' }
+        body: { vin, mileage, gearbox, context: 'home' },
+        // Add function timeout for better performance
+        options: { timeout: 15000 }
       });
       
       if (error) throw error;
+      
+      // Cache the data for future requests
+      if (data) {
+        this.storeValuationCache(vin, mileage, data);
+      }
       
       return data;
     } catch (error: any) {
@@ -39,12 +54,13 @@ export class ValuationService extends BaseService {
   
   /**
    * Get cached valuation for a VIN if available
+   * Optimized with specific column selection
    */
   async getCachedValuation(vin: string, mileage: number): Promise<ValuationData | null> {
     try {
       const { data, error } = await this.supabase
         .from('vin_valuation_cache')
-        .select('*')
+        .select('valuation_data, created_at')
         .eq('vin', vin)
         // Only get cache entries where the mileage is within 5% of the requested mileage
         .gte('mileage', mileage * 0.95)
@@ -75,20 +91,50 @@ export class ValuationService extends BaseService {
   }
   
   /**
-   * Store valuation in cache
+   * Store valuation in cache with optimized insertion
    */
   async storeValuationCache(vin: string, mileage: number, valuationData: ValuationData): Promise<void> {
     try {
-      const { error } = await this.supabase
+      // Check if an entry already exists to avoid duplication
+      const { data, error: checkError } = await this.supabase
         .from('vin_valuation_cache')
-        .insert([{
-          vin,
-          mileage,
-          valuation_data: valuationData
-        }]);
+        .select('id')
+        .eq('vin', vin)
+        .gte('mileage', mileage * 0.95)
+        .lte('mileage', mileage * 1.05)
+        .limit(1);
         
-      if (error) {
-        console.error("Error storing valuation cache:", error);
+      if (checkError) {
+        console.error("Error checking existing cache:", checkError);
+        return;
+      }
+      
+      // If entry exists, update it instead of inserting
+      if (data && data.length > 0) {
+        const { error } = await this.supabase
+          .from('vin_valuation_cache')
+          .update({ 
+            valuation_data: valuationData,
+            created_at: new Date().toISOString()
+          })
+          .eq('id', data[0].id);
+          
+        if (error) {
+          console.error("Error updating valuation cache:", error);
+        }
+      } else {
+        // Insert new cache entry
+        const { error } = await this.supabase
+          .from('vin_valuation_cache')
+          .insert([{
+            vin,
+            mileage,
+            valuation_data: valuationData
+          }]);
+          
+        if (error) {
+          console.error("Error storing valuation cache:", error);
+        }
       }
     } catch (error: any) {
       console.error("Failed to store valuation in cache:", error);

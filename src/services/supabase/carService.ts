@@ -5,6 +5,7 @@
  * - 2024-09-16: Added retry and fallback logic for improved resilience
  * - 2024-09-17: Fixed TypeScript type errors and improved return types
  * - 2024-09-18: Updated withRetry method implementation to fix type compatibility
+ * - 2024-09-19: Optimized queries for better performance and reduced latency
  */
 
 import { BaseService } from "./baseService";
@@ -13,14 +14,14 @@ import { CarListing, AuctionStatus } from "@/types/forms";
 
 export class CarService extends BaseService {
   /**
-   * Fetches a single car listing by ID with retry logic
+   * Fetches a single car listing by ID with retry logic and optimized selection
    */
-  async getCarById(id: string) {
+  async getCarById(id: string, select: string = '*') {
     return this.withRetry(
       async () => {
         return this.supabase
           .from("cars")
-          .select("*")
+          .select(select)
           .eq("id", id)
           .single();
       },
@@ -33,6 +34,7 @@ export class CarService extends BaseService {
   
   /**
    * Fetches all car listings with configured filters and retry logic
+   * Optimized with column selection and pagination
    */
   async getCars(options: {
     status?: string;
@@ -41,38 +43,47 @@ export class CarService extends BaseService {
     auctionStatus?: AuctionStatus;
     limit?: number;
     page?: number;
+    select?: string;
   } = {}) {
+    const {
+      select = '*',
+      page = 1,
+      limit = 20
+    } = options;
+    
     return this.withRetry(
       async () => {
-        const query = this.supabase
+        let query = this.supabase
           .from("cars")
-          .select("*");
+          .select(select);
           
         if (options.status) {
-          query.eq("status", options.status);
+          query = query.eq("status", options.status);
         }
         
         if (options.sellerId) {
-          query.eq("seller_id", options.sellerId);
+          query = query.eq("seller_id", options.sellerId);
         }
         
         if (options.isAuction !== undefined) {
-          query.eq("is_auction", options.isAuction);
+          query = query.eq("is_auction", options.isAuction);
         }
         
         if (options.auctionStatus) {
-          query.eq("auction_status", options.auctionStatus);
+          query = query.eq("auction_status", options.auctionStatus);
         }
         
-        if (options.limit) {
-          query.limit(options.limit);
+        // Apply pagination efficiently using range
+        if (page && limit) {
+          const start = (page - 1) * limit;
+          const end = start + limit - 1;
+          query = query.range(start, end);
+        } else if (limit) {
+          query = query.limit(limit);
         }
         
-        // Add pagination if needed
-        if (options.page && options.limit) {
-          const offset = (options.page - 1) * options.limit;
-          query.range(offset, offset + options.limit - 1);
-        }
+        // Sort by most recently updated for better relevance
+        query = query.order("updated_at", { ascending: false });
         
         return query;
       },
@@ -85,14 +96,14 @@ export class CarService extends BaseService {
   }
   
   /**
-   * Fetches active car listings with retry logic
+   * Fetches active car listings with retry logic and optimized selection
    */
-  async getActiveListings(limit = 10) {
+  async getActiveListings(limit = 10, select = '*') {
     return this.withRetry(
       async () => {
         return this.supabase
           .from("cars")
-          .select("*")
+          .select(select)
           .eq("status", "available")
           .eq("is_draft", false)
           .order("created_at", { ascending: false })
@@ -106,14 +117,16 @@ export class CarService extends BaseService {
   }
   
   /**
-   * Fetches cars with active auctions
+   * Fetches cars with active auctions, optimized with specific field selection
    */
   async getActiveAuctions(limit = 10) {
+    const select = 'id, title, make, model, year, price, current_bid, images, auction_end_time';
+    
     return this.withRetry(
       async () => {
         return this.supabase
           .from("cars")
-          .select("*")
+          .select(select)
           .eq("is_auction", true)
           .eq("auction_status", "active")
           .order("auction_end_time", { ascending: true })
@@ -127,14 +140,16 @@ export class CarService extends BaseService {
   }
   
   /**
-   * Fetches upcoming auctions
+   * Fetches upcoming auctions with optimized field selection
    */
   async getUpcomingAuctions(limit = 10) {
+    const select = 'id, title, make, model, year, price, images, created_at';
+    
     return this.withRetry(
       async () => {
         return this.supabase
           .from("cars")
-          .select("*")
+          .select(select)
           .eq("is_auction", true)
           .eq("status", "available")
           .is("auction_status", null)
@@ -149,14 +164,16 @@ export class CarService extends BaseService {
   }
   
   /**
-   * Fetches completed auctions
+   * Fetches completed auctions with optimized field selection
    */
   async getCompletedAuctions(limit = 10) {
+    const select = 'id, title, make, model, year, price, current_bid, images, updated_at, auction_status';
+    
     return this.withRetry(
       async () => {
         return this.supabase
           .from("cars")
-          .select("*")
+          .select(select)
           .eq("is_auction", true)
           .or("auction_status.eq.ended,auction_status.eq.sold")
           .order("updated_at", { ascending: false })
@@ -171,6 +188,7 @@ export class CarService extends BaseService {
   
   /**
    * Creates a new car listing with retry logic
+   * Only returns essential fields after creation
    */
   async createCar(carData: Partial<CarListing>) {
     const result = await this.withRetry(
@@ -178,7 +196,7 @@ export class CarService extends BaseService {
         return this.supabase
           .from("cars")
           .insert(carData)
-          .select();
+          .select('id, title, created_at');
       },
       {
         errorMessage: "Failed to create listing"
@@ -194,6 +212,7 @@ export class CarService extends BaseService {
   
   /**
    * Updates an existing car listing with retry logic
+   * Only returns essential fields after update
    */
   async updateCar(id: string, carData: Partial<CarListing>) {
     const result = await this.withRetry(
@@ -202,7 +221,7 @@ export class CarService extends BaseService {
           .from("cars")
           .update(carData)
           .eq("id", id)
-          .select();
+          .select('id, title, updated_at');
       },
       {
         errorMessage: "Failed to update listing"
@@ -240,7 +259,7 @@ export class CarService extends BaseService {
   }
   
   /**
-   * Fetches bids for a specific car
+   * Fetches bids for a specific car with optimized field selection
    */
   async getCarBids(carId: string) {
     return this.withRetry(

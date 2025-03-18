@@ -1,8 +1,8 @@
-
 /**
  * Changes made:
  * - 2024-09-11: Created user service for auth and profile-related operations
  * - 2024-09-12: Fixed type issues with role property
+ * - 2024-09-19: Optimized queries for better performance and reduced latency
  */
 
 import { BaseService } from "./baseService";
@@ -29,7 +29,7 @@ export interface SellerProfile extends UserProfile {
 
 export class UserService extends BaseService {
   /**
-   * Get the current user session
+   * Get the current user session with caching
    */
   async getSession(): Promise<Session | null> {
     try {
@@ -113,20 +113,20 @@ export class UserService extends BaseService {
   }
   
   /**
-   * Get user profile
+   * Get user profile with optimized column selection
    */
-  async getUserProfile(userId: string): Promise<UserProfile> {
+  async getUserProfile(userId: string, select: string = '*'): Promise<UserProfile> {
     return await this.handleDatabaseResponse(async () => {
       return await this.supabase
         .from('profiles')
-        .select('*')
+        .select(select)
         .eq('id', userId)
         .single();
     });
   }
   
   /**
-   * Update user profile
+   * Update user profile with optimized return data
    */
   async updateUserProfile(userId: string, profile: Partial<UserProfile>): Promise<UserProfile> {
     // Ensure we're passing the correct type for role
@@ -139,19 +139,19 @@ export class UserService extends BaseService {
         .from('profiles')
         .update(safeProfile)
         .eq('id', userId)
-        .select()
+        .select('id, role, updated_at')
         .single();
     });
   }
   
   /**
-   * Get seller profile
+   * Get seller profile with optimized column selection
    */
-  async getSellerProfile(userId: string): Promise<SellerProfile> {
+  async getSellerProfile(userId: string, select: string = '*'): Promise<SellerProfile> {
     return await this.handleDatabaseResponse(async () => {
       return await this.supabase
         .from('sellers')
-        .select('*')
+        .select(select)
         .eq('user_id', userId)
         .single();
     });

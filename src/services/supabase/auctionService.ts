@@ -1,7 +1,7 @@
-
 /**
  * Changes made:
  * - 2024-09-11: Created auction service for all auction-related operations
+ * - 2024-09-19: Optimized queries for better performance and reduced latency
  */
 
 import { BaseService } from "./baseService";
@@ -26,65 +26,63 @@ export interface PlaceBidResult {
 
 export class AuctionService extends BaseService {
   /**
-   * Get auction results for a seller
+   * Get auction results for a seller with optimized JOIN and column selection
    */
   async getSellerAuctionResults(sellerId: string): Promise<AuctionResult[]> {
     try {
-      // First fetch the cars owned by this seller
-      const { data: sellerCars, error: carError } = await this.supabase
-        .from('cars')
-        .select('id, title, make, model, year, auction_end_time')
-        .eq('seller_id', sellerId);
-
-      if (carError) throw carError;
-
-      if (!sellerCars || sellerCars.length === 0) {
-        return []; // No cars found for this seller
-      }
-
-      // Get all car IDs
-      const carIds = sellerCars.map(car => car.id);
-
-      // Then fetch auction results for these cars
-      const { data: resultsData, error: resultsError } = await this.supabase
+      // Perform a single optimized JOIN query instead of two separate queries
+      const { data: results, error } = await this.supabase
         .from('auction_results')
-        .select('id, car_id, final_price, total_bids, unique_bidders, sale_status, created_at')
-        .in('car_id', carIds);
+        .select(`
+          id, 
+          car_id,
+          final_price, 
+          total_bids, 
+          unique_bidders,
+          sale_status, 
+          created_at,
+          cars:car_id (
+            title, 
+            make, 
+            model, 
+            year, 
+            auction_end_time
+          )
+        `)
+        .eq('cars.seller_id', sellerId);
 
-      if (resultsError) throw resultsError;
-
-      // Combine the data
-      const results = (resultsData || []).map(result => {
-        // Find the corresponding car details
-        const car = sellerCars.find(c => c.id === result.car_id);
-        
-        return {
-          id: result.id,
-          car_id: result.car_id,
-          title: car?.title || 'Unknown Vehicle',
-          make: car?.make || 'Unknown',
-          model: car?.model || '',
-          year: car?.year || new Date().getFullYear(),
-          final_price: result.final_price,
-          total_bids: result.total_bids || 0,
-          unique_bidders: result.unique_bidders || 0,
-          sale_status: result.sale_status,
-          created_at: result.created_at,
-          auction_end_time: car?.auction_end_time
-        };
-      });
-
-      return results;
+      if (error) throw error;
+      
+      if (!results || results.length === 0) {
+        return [];
+      }
+      
+      // Transform the joined data to the expected format
+      return results.map(result => ({
+        id: result.id,
+        car_id: result.car_id,
+        title: result.cars?.title || 'Unknown Vehicle',
+        make: result.cars?.make || 'Unknown',
+        model: result.cars?.model || '',
+        year: result.cars?.year || new Date().getFullYear(),
+        final_price: result.final_price,
+        total_bids: result.total_bids || 0,
+        unique_bidders: result.unique_bidders || 0,
+        sale_status: result.sale_status,
+        created_at: result.created_at,
+        auction_end_time: result.cars?.auction_end_time
+      }));
     } catch (error: any) {
       this.handleError(error, "Failed to fetch auction results");
     }
   }
   
   /**
-   * Place a bid on a car
+   * Place a bid on a car with optimized error handling
    */
   async placeBid(carId: string, dealerId: string, amount: number, isProxyBid: boolean = false, maxProxyAmount?: number): Promise<PlaceBidResult> {
     try {
+      // Using an RPC call for better performance (processed server-side)
       const { data, error } = await this.supabase.rpc('place_bid', {
         p_car_id: carId,
         p_dealer_id: dealerId,

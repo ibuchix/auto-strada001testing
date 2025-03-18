@@ -1,10 +1,11 @@
 
 /**
  * Changes made:
- * - 2024-09-11: Created base service for all Supabase interactions
+ * - 2024-09-11: Implemented base service for all Supabase interactions
  * - 2024-09-16: Added retry and fallback logic for improved resilience
  * - 2024-09-17: Fixed TypeScript type issues with PostgrestBuilder
  * - 2024-09-18: Updated withRetry method to use Promise<{ data: T | null; error: any }> type
+ * - 2024-09-19: Added query optimization utilities for better performance
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -133,6 +134,39 @@ export class BaseService {
   }
   
   /**
+   * Optimize a query by selecting only needed columns
+   * @param query The Supabase query builder
+   * @param columns The columns to select (defaults to '*')
+   * @returns The optimized query
+   */
+  protected optimizeSelect<T extends PostgrestBuilder<any, any>>(
+    query: T,
+    columns: string = '*'
+  ): T {
+    // @ts-ignore - This is safe as select() exists on all query builders
+    return query.select(columns);
+  }
+
+  /**
+   * Apply pagination to a query with optimized count
+   * @param query The query to paginate
+   * @param page The page number (1-based)
+   * @param pageSize The number of items per page
+   * @returns Paginated query
+   */
+  protected paginateQuery<T extends PostgrestBuilder<any, any>>(
+    query: T, 
+    page: number = 1, 
+    pageSize: number = 20
+  ): T {
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize - 1;
+    
+    // @ts-ignore - This is safe as range() exists on all filter builders
+    return query.range(start, end);
+  }
+  
+  /**
    * Check if an error is retryable based on its nature
    */
   private isRetryableError(error: any): boolean {
@@ -162,6 +196,18 @@ export class BaseService {
     
     // By default, don't retry
     return false;
+  }
+
+  /**
+   * Add caching headers to reduce unnecessary refetches
+   * This helps with Supabase's cache-control headers
+   */
+  protected addCacheControl(headers: Record<string, string> = {}): Record<string, string> {
+    return {
+      ...headers,
+      'Cache-Control': 'max-age=60', // Cache for 60 seconds
+      'Prefer': 'return=representation'
+    };
   }
 }
 
