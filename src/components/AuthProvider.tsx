@@ -1,41 +1,31 @@
-import { createContext, useContext, useState } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
-import { SessionContextProvider } from "@supabase/auth-helpers-react";
 
-// Keep our existing auth context for components that directly use it
+/**
+ * Changes made:
+ * - 2024-07-06: Enhanced session management with seller-specific checks
+ */
+
+import { createContext, useContext } from "react";
+import { Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { SessionContextProvider } from "@supabase/auth-helpers-react";
+import { useSellerSession } from "@/hooks/useSellerSession";
+
 const AuthContext = createContext<{
   session: Session | null;
   isLoading: boolean;
+  isSeller: boolean;
 }>({
   session: null,
   isLoading: true,
+  isSeller: false,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { session, isLoading, isSeller } = useSellerSession();
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Wrap everything with the SessionContextProvider from @supabase/auth-helpers-react
-  // This makes the supabase client available via useSupabaseClient() hook
   return (
     <SessionContextProvider supabaseClient={supabase}>
-      <AuthContext.Provider value={{ session, isLoading }}>
+      <AuthContext.Provider value={{ session, isLoading, isSeller }}>
         {children}
       </AuthContext.Provider>
     </SessionContextProvider>
