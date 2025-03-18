@@ -4,6 +4,7 @@
  * - 2024-06-07: Refactored from hooks/useFormSubmission.ts
  * - 2024-06-07: Simplified and focused on submission logic only
  * - 2024-06-12: Further refactored to use specialized utility files
+ * - 2024-08-20: Integrated standardized error handling
  */
 
 import { useState } from "react";
@@ -15,11 +16,20 @@ import { cleanupFormStorage } from "./utils/storageCleanup";
 import { submitCarListing } from "./services/submissionService";
 import { validateFormData } from "../utils/validation";
 import { SubmissionErrorType } from "./types";
+import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
 
 export const useFormSubmission = (userId?: string) => {
-  const [submitting, setSubmitting] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const navigate = useNavigate();
+  const { 
+    error, 
+    setError, 
+    isLoading: submitting, 
+    setIsLoading: setSubmitting,
+    handleSupabaseError
+  } = useSupabaseErrorHandling({ 
+    showToast: false // We'll handle toasts manually for form submission
+  });
 
   const handleSubmit = async (data: CarListingFormData, carId?: string) => {
     if (!userId) {
@@ -36,6 +46,7 @@ export const useFormSubmission = (userId?: string) => {
     }
 
     setSubmitting(true);
+    setError(null);
 
     try {
       // Validate mileage data first
@@ -72,14 +83,21 @@ export const useFormSubmission = (userId?: string) => {
       
     } catch (error: any) {
       console.error('Submission error:', error);
-      toast.error(error.message || "Failed to submit listing", {
-        description: error.description || "Please check your connection and try again. If the problem persists, contact support.",
-        duration: 5000,
-        action: error.action || {
-          label: "Contact Support",
-          onClick: () => window.location.href = 'mailto:support@example.com'
-        }
-      });
+      
+      // Handle submission error type
+      if ('message' in error && 'description' in error) {
+        const submissionError = error as SubmissionErrorType;
+        setError(submissionError.message);
+        
+        toast.error(submissionError.message, {
+          description: submissionError.description,
+          duration: 5000,
+          action: submissionError.action
+        });
+      } else {
+        // Use our standardized error handling
+        handleSupabaseError(error, "Failed to submit listing");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -87,6 +105,7 @@ export const useFormSubmission = (userId?: string) => {
 
   return {
     submitting,
+    error,
     showSuccessDialog,
     setShowSuccessDialog,
     handleSubmit

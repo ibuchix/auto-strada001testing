@@ -1,54 +1,139 @@
 
 /**
  * Changes made:
- * - 2024-06-12: Fixed import error by removing unused imports
- * - 2024-08-08: Added support for restoring current step from localStorage
+ * - 2024-03-19: Initial implementation of form with validation
+ * - 2024-03-19: Added auto-save integration
+ * - 2024-03-19: Added draft loading functionality
+ * - 2024-08-20: Integrated standardized error handling
  */
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
-import { getFormDefaults } from "./useFormDefaults";
+import { CarListingFormData } from "@/types/forms";
+import { useFormPersistence } from "./useFormPersistence";
 import { useLoadDraft } from "./useLoadDraft";
-import { useFormAutoSave } from "./useFormAutoSave";
+import { validateFormData } from "../utils/validation";
+import { supabase } from "@/integrations/supabase/client";
+import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
 
 export const useCarListingForm = (userId?: string, draftId?: string) => {
-  const [carId, setCarId] = useState<string>("");
+  const [carId, setCarId] = useState<string | undefined>(draftId);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [initialStep, setInitialStep] = useState<number>(0);
-  
-  const valuationData = {
-    ...JSON.parse(localStorage.getItem('valuationData') || '{}'),
-    mileage: parseInt(localStorage.getItem('tempMileage') || '0'),
-    transmission: localStorage.getItem('tempGearbox') || 'manual',
-    vin: localStorage.getItem('tempVIN') || ''
-  };
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [validationErrors, setValidationErrors] = useState<any[]>([]);
+  const { error, isLoading, handleSupabaseError, withErrorHandling } = useSupabaseErrorHandling();
 
-  // Try to restore the current step from localStorage
-  useEffect(() => {
-    const savedStep = localStorage.getItem('formCurrentStep');
-    if (savedStep) {
-      setInitialStep(parseInt(savedStep));
-    }
-  }, []);
-
+  // Initialize form with default values
   const form = useForm<CarListingFormData>({
     defaultValues: {
-      ...getFormDefaults(),
-      features: defaultCarFeatures,
-      numberOfKeys: "1",
+      name: "",
+      address: "",
+      mobileNumber: "",
+      features: {
+        satNav: false,
+        panoramicRoof: false,
+        reverseCamera: false,
+        heatedSeats: false,
+        upgradedSound: false
+      },
+      isDamaged: false,
+      damageReports: [],
+      isRegisteredInPoland: false,
+      hasToolPack: false,
+      hasDocumentation: false,
+      isSellingOnBehalf: false,
+      hasPrivatePlate: false,
+      financeAmount: "",
+      serviceHistoryType: "none",
+      uploadedPhotos: [],
+      rimPhotosComplete: false,
+      sellerNotes: "",
       seatMaterial: "cloth",
-      transmission: valuationData.transmission as "manual" | "automatic" | null,
+      numberOfKeys: "1"
     },
   });
 
+  // Load draft if draftId is provided
   useLoadDraft(form, setCarId, setLastSaved, userId, draftId);
-  useFormAutoSave(form, setLastSaved, valuationData, userId, carId);
+
+  // Setup form persistence
+  useFormPersistence(form, userId, currentStep);
+
+  // Update validation errors when form values change
+  useEffect(() => {
+    const subscription = form.watch((data) => {
+      const errors = validateFormData(data);
+      setValidationErrors(errors);
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Load current step from localStorage if available
+  useEffect(() => {
+    const savedStep = localStorage.getItem('formCurrentStep');
+    if (savedStep) {
+      setCurrentStep(parseInt(savedStep, 10));
+    }
+  }, []);
+
+  // Function to save progress manually
+  const saveProgress = async () => {
+    if (!userId) return;
+    
+    return await withErrorHandling(async () => {
+      const formData = form.getValues();
+      
+      // Check if we're creating a new draft or updating an existing one
+      const { data, error } = await supabase
+        .from('cars')
+        .upsert({
+          id: carId,
+          seller_id: userId,
+          name: formData.name,
+          address: formData.address,
+          mobile_number: formData.mobileNumber,
+          features: formData.features,
+          is_damaged: formData.isDamaged,
+          is_registered_in_poland: formData.isRegisteredInPoland,
+          has_tool_pack: formData.hasToolPack,
+          has_documentation: formData.hasDocumentation,
+          is_selling_on_behalf: formData.isSellingOnBehalf,
+          has_private_plate: formData.hasPrivatePlate,
+          finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
+          service_history_type: formData.serviceHistoryType,
+          seller_notes: formData.sellerNotes,
+          seat_material: formData.seatMaterial,
+          number_of_keys: formData.numberOfKeys ? parseInt(formData.numberOfKeys) : 1,
+          additional_photos: formData.uploadedPhotos || [],
+          is_draft: true,
+          form_metadata: {
+            current_step: currentStep
+          }
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Update carId if this was a new draft
+      if (!carId && data) {
+        setCarId(data.id);
+      }
+      
+      setLastSaved(new Date());
+      return data;
+    }, "Failed to save form progress");
+  };
 
   return {
     form,
     carId,
     lastSaved,
-    initialStep
+    currentStep,
+    setCurrentStep,
+    validationErrors,
+    saveProgress,
+    error,
+    isLoading
   };
 };

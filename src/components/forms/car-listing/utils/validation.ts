@@ -1,12 +1,14 @@
+
+/**
+ * Changes made:
+ * - 2024-08-20: Enhanced form validation with standardized approach
+ */
+
 import { CarListingFormData } from "@/types/forms";
+import { ValidationResult } from "@/utils/validation";
 
-export type ValidationError = {
-  field: string;
-  message: string;
-};
-
-export const validateFormData = (data: Partial<CarListingFormData>): ValidationError[] => {
-  const errors: ValidationError[] = [];
+export const validateFormData = (data: Partial<CarListingFormData>): ValidationResult[] => {
+  const errors: ValidationResult[] = [];
 
   // Personal Details
   if (!data.name?.trim()) {
@@ -17,6 +19,8 @@ export const validateFormData = (data: Partial<CarListingFormData>): ValidationE
   }
   if (!data.mobileNumber?.trim()) {
     errors.push({ field: 'mobileNumber', message: 'Mobile number is required' });
+  } else if (!/^\+?[0-9\s\-()]{8,}$/.test(data.mobileNumber)) {
+    errors.push({ field: 'mobileNumber', message: 'Please enter a valid mobile number' });
   }
 
   // Vehicle Status
@@ -35,6 +39,8 @@ export const validateFormData = (data: Partial<CarListingFormData>): ValidationE
   }
   if (!data.numberOfKeys) {
     errors.push({ field: 'numberOfKeys', message: 'Number of keys is required' });
+  } else if (!/^[1-9]\d*$/.test(data.numberOfKeys)) {
+    errors.push({ field: 'numberOfKeys', message: 'Number of keys must be a positive integer' });
   }
 
   // Photos

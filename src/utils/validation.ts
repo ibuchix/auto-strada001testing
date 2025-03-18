@@ -1,3 +1,9 @@
+
+/**
+ * Changes made:
+ * - 2024-08-20: Enhanced validation utilities with standardized error formatting
+ */
+
 import { md5 } from "js-md5";
 
 export const calculateChecksum = (apiId: string, apiSecret: string, vin: string): string => {
@@ -17,4 +23,77 @@ export const isValidMileage = (mileage: string): boolean => {
     Number.isInteger(mileageNum) &&
     /^\d+$/.test(mileage)
   );
+};
+
+/**
+ * Parse Supabase error into a user-friendly message
+ */
+export const parseSupabaseError = (error: any): string => {
+  // Handle specific Supabase error codes
+  if (error?.code === '23505') {
+    return 'This item already exists. Please try with different information.';
+  }
+  
+  if (error?.code === '23503') {
+    return 'This operation references data that doesn\'t exist.';
+  }
+  
+  if (error?.code === '42501') {
+    return 'You don\'t have permission to perform this action.';
+  }
+  
+  // Handle authentication errors
+  if (error?.message?.includes('not authenticated')) {
+    return 'You need to be signed in to perform this action.';
+  }
+  
+  // Handle rate limiting
+  if (error?.message?.includes('rate limit') || error?.message?.includes('too many requests')) {
+    return 'Too many requests. Please try again in a moment.';
+  }
+  
+  // Handle timeout errors
+  if (error?.message?.includes('timeout') || error?.message?.includes('timed out')) {
+    return 'The request took too long to complete. Please try again.';
+  }
+  
+  // Return the error message or a generic one if no message exists
+  return error?.message || error?.error_description || 'An unexpected error occurred. Please try again.';
+};
+
+/**
+ * Validates an object against a schema of validation functions
+ * @param data Object to validate
+ * @param schema Validation schema with field names and validation functions
+ * @returns Array of validation errors (empty if valid)
+ */
+export interface ValidationResult {
+  field: string;
+  message: string;
+}
+
+export interface ValidationSchema {
+  [key: string]: {
+    validate: (value: any) => boolean;
+    message: string;
+  };
+}
+
+export const validateWithSchema = (
+  data: Record<string, any>,
+  schema: ValidationSchema
+): ValidationResult[] => {
+  const errors: ValidationResult[] = [];
+  
+  Object.entries(schema).forEach(([field, { validate, message }]) => {
+    // Skip validation if the field doesn't exist in the data
+    if (!(field in data)) return;
+    
+    // Validate the field
+    if (!validate(data[field])) {
+      errors.push({ field, message });
+    }
+  });
+  
+  return errors;
 };

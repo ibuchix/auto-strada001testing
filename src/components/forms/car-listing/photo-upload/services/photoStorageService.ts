@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-08-17: Extracted storage operations into a separate service
+ * - 2024-08-20: Improved error handling and added more detailed error messages
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -21,15 +22,30 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
     // Show file size for debugging
     console.log(`Uploading file: ${file.name}, size: ${(file.size / 1024).toFixed(2)} KB`);
     
+    // Validate inputs
+    if (!file) throw new Error('No file provided for upload');
+    if (!carId) throw new Error('Car ID is required for photo upload');
+    if (!category) throw new Error('Category is required for photo upload');
+    
+    // Validate file type
+    const validImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!validImageTypes.includes(file.type)) {
+      throw new Error(`Invalid file type: ${file.type}. Please upload a JPEG, PNG, or WEBP image.`);
+    }
+    
     // Compress image if it's too large (> 5MB)
     let fileToUpload = file;
     if (file.size > 5 * 1024 * 1024) {
-      fileToUpload = await compressImage(file);
-      console.log(`Compressed file size: ${(fileToUpload.size / 1024).toFixed(2)} KB`);
+      try {
+        fileToUpload = await compressImage(file);
+        console.log(`Compressed file size: ${(fileToUpload.size / 1024).toFixed(2)} KB`);
+      } catch (compressionError) {
+        console.warn('Image compression failed, using original file:', compressionError);
+      }
     }
 
     // Create unique file path with type-based organization
-    const fileExt = file.name.split('.').pop();
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const filePath = `${carId}/${category}/${uuidv4()}.${fileExt}`;
     
     const { data, error } = await supabase.storage
@@ -41,7 +57,15 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
 
     if (error) {
       console.error('Error uploading image:', error);
-      throw new Error(error.message);
+      
+      // Check for specific storage errors
+      if (error.message?.includes('unauthorized')) {
+        throw new Error('You do not have permission to upload files. Please sign in again.');
+      } else if (error.message?.includes('storage quota')) {
+        throw new Error('Storage quota exceeded. Please contact support.');
+      } else {
+        throw new Error(`Upload failed: ${error.message || 'Unknown storage error'}`);
+      }
     }
 
     // Construct the public URL for the uploaded file
@@ -49,10 +73,17 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       .from('car-images')
       .getPublicUrl(filePath);
 
+    // Save to database
     await savePhotoToDb(filePath, carId, category);
+    
     return publicUrl;
   } catch (error: any) {
     console.error('Error during photo upload:', error);
-    throw error;
+    
+    // Convert error to a user-friendly message
+    const errorMessage = error.message || 'Failed to upload photo. Please try again.';
+    
+    // Rethrow with better message
+    throw new Error(errorMessage);
   }
 };
