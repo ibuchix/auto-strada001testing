@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { OfflineIndicator } from './components/OfflineIndicator.tsx'
 
 const rootElement = document.getElementById('root')
 
@@ -27,6 +28,7 @@ root.render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />
+      <OfflineIndicator />
     </QueryClientProvider>
   </StrictMode>
 )

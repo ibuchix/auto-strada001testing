@@ -1,18 +1,46 @@
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { ChevronRight, WifiOff } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useOfflineStatus } from "@/hooks/useOfflineStatus";
+import { CACHE_KEYS, saveToCache, getFromCache } from "@/services/offlineCacheService";
+import { toast } from "sonner";
 
 export const BottomCTA = () => {
   const [vin, setVin] = useState("");
   const navigate = useNavigate();
+  const { isOffline } = useOfflineStatus({ showToasts: false });
+
+  // Load from cache if available
+  useEffect(() => {
+    const cachedVin = getFromCache<string>(CACHE_KEYS.TEMP_VIN, "");
+    if (cachedVin) {
+      setVin(cachedVin);
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (vin) {
-      navigate('/sell-my-car', { state: { vin } });
+    
+    if (!vin.trim()) {
+      toast.error("Please enter a VIN number");
+      return;
     }
+    
+    // Save to cache regardless of online status
+    saveToCache(CACHE_KEYS.TEMP_VIN, vin);
+    
+    if (isOffline) {
+      toast.info("You're currently offline", {
+        description: "Your VIN has been saved and will be processed when you're back online.",
+        duration: 5000
+      });
+      return;
+    }
+    
+    navigate('/sell-my-car', { state: { vin } });
   };
 
   return (
@@ -30,9 +58,19 @@ export const BottomCTA = () => {
           <Button 
             type="submit"
             className="w-full h-14 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-none flex items-center justify-center gap-2"
+            disabled={!vin.trim()}
           >
-            VALUE YOUR CAR
-            <ChevronRight className="w-6 h-6" />
+            {isOffline ? (
+              <>
+                <WifiOff className="w-5 h-5 mr-2" />
+                SAVE VIN (OFFLINE)
+              </>
+            ) : (
+              <>
+                VALUE YOUR CAR
+                <ChevronRight className="w-6 h-6" />
+              </>
+            )}
           </Button>
         </form>
       </div>

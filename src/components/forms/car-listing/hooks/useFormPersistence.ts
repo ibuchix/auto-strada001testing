@@ -7,6 +7,7 @@
  * - 2024-08-08: Updated to save current step information
  * - 2024-08-09: Fixed type errors related to form_metadata field
  * - 2024-09-02: Enhanced reliability with improved error handling and offline support
+ * - 2024-10-15: Refactored to use central offline status hook and cache service
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -17,6 +18,8 @@ import { toast } from "sonner";
 import { transformFormToDbData, transformDbToFormData } from "../utils/formDataTransformers";
 import { SAVE_DEBOUNCE_TIME } from "../constants";
 import { saveFormData } from "../utils/formSaveUtils";
+import { useOfflineStatus } from "@/hooks/useOfflineStatus";
+import { CACHE_KEYS, saveToCache, getFromCache, storePendingRequest } from "@/services/offlineCacheService";
 
 export const useFormPersistence = (
   form: UseFormReturn<CarListingFormData>,
@@ -26,46 +29,25 @@ export const useFormPersistence = (
   const { watch, setValue } = form;
   const formData = watch();
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [isOffline, setIsOffline] = useState<boolean>(false);
   const pendingSavesRef = useRef<CarListingFormData | null>(null);
   const carIdRef = useRef<string | undefined>(undefined);
   
-  // Listen for online/offline events
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOffline(false);
-      // If we have pending saves, try to save them now
+  // Use the centralized offline status hook
+  const { isOffline } = useOfflineStatus({
+    onOnline: () => {
+      // When coming back online, try to save any pending saves
       if (pendingSavesRef.current) {
         saveProgress(pendingSavesRef.current);
         pendingSavesRef.current = null;
       }
-    };
-    
-    const handleOffline = () => {
-      setIsOffline(true);
-      toast.warning("You are offline", { 
-        description: "Your changes will be saved locally and synced when you're back online.",
-        duration: 5000
-      });
-    };
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    // Set initial state
-    setIsOffline(!navigator.onLine);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+    }
+  });
 
   // Save progress to both localStorage and backend
   const saveProgress = useCallback(async (data: CarListingFormData) => {
-    // Always save to localStorage immediately
-    localStorage.setItem('formProgress', JSON.stringify(data));
-    localStorage.setItem('formCurrentStep', String(currentStep));
+    // Always save to localStorage/cache immediately
+    saveToCache(CACHE_KEYS.FORM_PROGRESS, data);
+    saveToCache(CACHE_KEYS.FORM_STEP, String(currentStep));
     
     // Don't attempt backend save if offline or no user
     if (isOffline || !userId) {
@@ -75,26 +57,36 @@ export const useFormPersistence = (
       
       if (isOffline) {
         pendingSavesRef.current = data;
+        // Store as a pending request for later processing
+        if (userId) {
+          const valuationData = getFromCache('valuationData');
+          if (valuationData) {
+            storePendingRequest({
+              endpoint: '/cars',
+              method: 'UPSERT',
+              body: { formData: data, userId, valuationData, carId: carIdRef.current },
+              id: carIdRef.current || 'new-car'
+            });
+          }
+        }
       }
       
       return;
     }
     
     try {
-      // Get valuation data from localStorage
-      const valuationData = localStorage.getItem('valuationData');
+      // Get valuation data from cache
+      const valuationData = getFromCache('valuationData');
       if (!valuationData) {
-        console.warn('No valuation data found in localStorage');
+        console.warn('No valuation data found in cache');
         return;
       }
-      
-      const parsedValuationData = JSON.parse(valuationData);
       
       // Save to backend using the enhanced saveFormData utility
       const result = await saveFormData(
         data, 
         userId, 
-        parsedValuationData, 
+        valuationData, 
         carIdRef.current
       );
       
@@ -159,7 +151,7 @@ export const useFormPersistence = (
             // Safely check if form_metadata exists and has current_step
             const metadata = draftData.form_metadata as Record<string, any> | null;
             if (metadata && typeof metadata === 'object' && 'current_step' in metadata) {
-              localStorage.setItem('formCurrentStep', String(metadata.current_step));
+              saveToCache(CACHE_KEYS.FORM_STEP, String(metadata.current_step));
             }
             
             setLastSaved(new Date(draftData.updated_at || draftData.created_at));
@@ -170,12 +162,11 @@ export const useFormPersistence = (
         }
       }
 
-      // Fallback to localStorage if no backend data or not authenticated
-      const savedProgress = localStorage.getItem('formProgress');
+      // Fallback to cache if no backend data or not authenticated
+      const savedProgress = getFromCache<CarListingFormData>(CACHE_KEYS.FORM_PROGRESS);
       if (savedProgress) {
         try {
-          const parsed = JSON.parse(savedProgress);
-          Object.entries(parsed).forEach(([key, value]) => {
+          Object.entries(savedProgress).forEach(([key, value]) => {
             if (value !== undefined && value !== null) {
               setValue(key as keyof CarListingFormData, value as any, {
                 shouldValidate: false,
