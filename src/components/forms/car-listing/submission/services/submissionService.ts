@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-12: Created dedicated service for handling form submissions
  * - 2024-06-20: Fixed async/await issue with prepareCarDataForSubmission
+ * - 2024-08-15: Added support for service history file uploads
  */
 
 import { supabase } from "@/integrations/supabase/client";

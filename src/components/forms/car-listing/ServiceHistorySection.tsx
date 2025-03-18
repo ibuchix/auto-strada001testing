@@ -1,8 +1,22 @@
+
+/**
+ * Changes made:
+ * - 2024-08-15: Added Supabase Storage integration for service document uploads
+ * - 2024-08-15: Implemented document preview and file listing
+ */
+
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { UploadCloud, File, X } from "lucide-react";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { v4 as uuidv4 } from "uuid";
+import { toast } from "sonner";
+import { ImagePreview } from "./photo-upload/ImagePreview";
+import { Progress } from "@/components/ui/progress";
 
 interface ServiceHistorySectionProps {
   form: UseFormReturn<CarListingFormData>;
@@ -10,6 +24,105 @@ interface ServiceHistorySectionProps {
 }
 
 export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProps) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  
+  const uploadedFiles = form.watch('serviceHistoryFiles') || [];
+
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    if (!carId) {
+      toast.error("Car ID is required to upload documents");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    try {
+      const newFilesArray = Array.from(files);
+      setSelectedFiles(prev => [...prev, ...newFilesArray]);
+      
+      const totalFiles = newFilesArray.length;
+      let completedFiles = 0;
+      const uploadUrls: string[] = [];
+      
+      for (const file of newFilesArray) {
+        // Create a unique file path in the service_documents folder
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${carId}/service_documents/${uuidv4()}.${fileExt}`;
+        
+        // Upload the file to Supabase Storage
+        const { data, error } = await supabase.storage
+          .from('car-images')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true
+          });
+          
+        if (error) {
+          console.error('Error uploading document:', error);
+          toast.error(`Failed to upload ${file.name}`);
+          continue;
+        }
+        
+        // Get the public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('car-images')
+          .getPublicUrl(filePath);
+        
+        uploadUrls.push(publicUrl);
+        
+        // Track document in database
+        await supabase
+          .from('car_file_uploads')
+          .insert({
+            car_id: carId,
+            file_path: filePath,
+            file_type: file.type,
+            upload_status: 'completed',
+            category: 'service_document'
+          });
+        
+        // Update progress
+        completedFiles++;
+        const newProgress = Math.round((completedFiles / totalFiles) * 100);
+        setUploadProgress(newProgress);
+      }
+      
+      // Update form with uploaded files
+      const currentFiles = form.getValues('serviceHistoryFiles') || [];
+      form.setValue('serviceHistoryFiles', [...currentFiles, ...uploadUrls], { 
+        shouldValidate: true, 
+        shouldDirty: true 
+      });
+      
+      toast.success(`${uploadUrls.length} document(s) uploaded successfully`);
+    } catch (error: any) {
+      console.error('Error uploading documents:', error);
+      toast.error(error.message || 'Failed to upload documents');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    const filesArray = [...selectedFiles];
+    filesArray.splice(index, 1);
+    setSelectedFiles(filesArray);
+  };
+
+  const removeUploadedFile = (url: string) => {
+    const currentFiles = [...(form.getValues('serviceHistoryFiles') || [])];
+    const updatedFiles = currentFiles.filter(fileUrl => fileUrl !== url);
+    form.setValue('serviceHistoryFiles', updatedFiles, { 
+      shouldValidate: true, 
+      shouldDirty: true 
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-6 p-6 bg-accent/30 rounded-lg">
@@ -69,29 +182,100 @@ export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProp
 
         <div className="space-y-4">
           <FormLabel className="text-base font-semibold">Service History Documents</FormLabel>
-          <FormField
-            control={form.control}
-            name="serviceHistoryFiles"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    multiple
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      field.onChange(files);
-                    }}
-                    className="bg-white cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                  />
-                </FormControl>
-                <p className="text-sm text-subtitle mt-2">
-                  Upload service history documents (PDF or images)
-                </p>
-              </FormItem>
-            )}
-          />
+          
+          <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary/50">
+            <UploadCloud className="mx-auto h-10 w-10 text-gray-400" />
+            <p className="mt-2 text-sm text-gray-600">
+              Upload service history documents
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Supports: PDF, JPG, PNG (Max 10MB each)
+            </p>
+            <Button 
+              type="button"
+              variant="outline"
+              className="mt-4"
+              disabled={isUploading}
+              onClick={() => document.getElementById('service-docs-upload')?.click()}
+            >
+              Select Files
+            </Button>
+            <input
+              id="service-docs-upload"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              multiple
+              className="hidden"
+              onChange={(e) => handleFileUpload(e.target.files)}
+              disabled={isUploading}
+            />
+          </div>
+          
+          {isUploading && (
+            <div className="space-y-2">
+              <Progress value={uploadProgress} className="h-2" />
+              <p className="text-sm text-subtitle">Upload progress: {uploadProgress}%</p>
+            </div>
+          )}
+          
+          {selectedFiles.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium mb-2">Selected Files</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {selectedFiles.map((file, index) => (
+                  <div key={index} className="relative border rounded-md overflow-hidden p-4">
+                    <div className="flex items-center">
+                      <File className="h-6 w-6 text-gray-400 mr-2" />
+                      <div className="text-sm truncate">{file.name}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index)}
+                      className="absolute top-2 right-2 bg-white/80 rounded-full p-1 hover:bg-white"
+                    >
+                      <X className="h-4 w-4 text-gray-700" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {uploadedFiles.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium mb-2">Uploaded Documents</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {uploadedFiles.map((url, index) => (
+                  <div key={index} className="relative">
+                    {url.toLowerCase().endsWith('.pdf') ? (
+                      <div className="border rounded-md overflow-hidden p-4">
+                        <div className="flex items-center">
+                          <File className="h-6 w-6 text-gray-400 mr-2" />
+                          <div className="text-sm truncate">Document {index + 1}</div>
+                        </div>
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline mt-2 block">
+                          View PDF
+                        </a>
+                      </div>
+                    ) : (
+                      <ImagePreview 
+                        file={new File([], `Document ${index + 1}`, { type: 'image/jpeg' })}
+                        onRemove={() => removeUploadedFile(url)}
+                        imageUrl={url}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeUploadedFile(url)}
+                      className="absolute top-2 right-2 bg-white/80 rounded-full p-1 hover:bg-white"
+                    >
+                      <X className="h-4 w-4 text-gray-700" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

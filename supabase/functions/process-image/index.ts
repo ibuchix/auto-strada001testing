@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
@@ -43,7 +44,7 @@ serve(async (req) => {
     const filePath = `${carId}/${type}.${fileExt}`
 
     const { error: uploadError } = await supabase.storage
-      .from('car-files')
+      .from('car-images')
       .upload(filePath, file, {
         contentType: file.type,
         upsert: true
