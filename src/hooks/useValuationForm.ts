@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-27: Added RouterGuard to ensure useNavigate is only used within Router context
  * - 2024-09-27: Fixed syntax errors in NavigationHandler implementation
+ * - 2024-09-28: Converted NavigationHandler to a function to avoid JSX in .ts files
  */
 
 import { useState } from 'react';
@@ -13,32 +14,46 @@ import { ValuationData } from '../components/hero/valuation/types';
 import { ValuationFormData } from '@/types/validation';
 import { RouterGuard } from '@/components/RouterGuard';
 
+// Interface for the navigation handler function
+interface NavigationHandlerProps {
+  onContinue: () => void;
+  navigate: ReturnType<typeof useNavigate>;
+  context: 'home' | 'seller';
+  setDialogOpen: (open: boolean) => void;
+  valuationResult: ValuationData | null;
+}
+
+// Function to create a navigation handler
+const createNavigationHandler = (props: NavigationHandlerProps) => {
+  return () => {
+    props.setDialogOpen(false);
+    if (props.context === 'seller') {
+      props.navigate('/sell-my-car', { 
+        state: { 
+          fromValuation: true,
+          valuationData: props.valuationResult 
+        } 
+      });
+    }
+    if (props.onContinue) props.onContinue();
+  };
+};
+
 export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
   // These hooks should only run inside RouterGuard
   const [isLoading, setIsLoading] = useState(false);
   const [valuationResult, setValuationResult] = useState<ValuationData | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  // Create a wrapper component to safely use the router hooks
-  const NavigationHandler = ({ onContinue }: { onContinue: () => void }) => {
-    const navigate = useNavigate();
-    
-    const handleContinueWithNavigation = () => {
-      setDialogOpen(false);
-      if (context === 'seller') {
-        navigate('/sell-my-car', { 
-          state: { 
-            fromValuation: true,
-            valuationData: valuationResult 
-          } 
-        });
-      }
-      if (onContinue) onContinue();
-    };
-    
-    return (
-      <button style={{ display: 'none' }} onClick={handleContinueWithNavigation} />
-    );
+  // Function to create a navigation handler that works with the Router context
+  const getNavigationHandler = (navigate: ReturnType<typeof useNavigate>, onContinue: () => void) => {
+    return createNavigationHandler({
+      onContinue,
+      navigate,
+      context,
+      setDialogOpen,
+      valuationResult
+    });
   };
 
   const handleVinSubmit = async (e: React.FormEvent, formData: ValuationFormData) => {
@@ -75,8 +90,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
   };
 
   const handleContinue = () => {
-    // This will be handled by the NavigationHandler component
-    // The actual navigation logic is inside NavigationHandler
+    // This will be handled differently now
     setDialogOpen(false);
   };
 
@@ -87,6 +101,6 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
     handleVinSubmit,
     handleContinue,
     setDialogOpen,
-    NavigationHandler, // Export the component for use in ValuationResult
+    getNavigationHandler, // Export the function that creates a navigation handler
   };
 };

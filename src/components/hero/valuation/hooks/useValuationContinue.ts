@@ -4,6 +4,7 @@
  * - 2024-03-19: Created useValuationContinue hook extracted from ValuationResult
  * - 2024-09-27: Added SafeNavigate component to ensure router context
  * - 2024-09-27: Fixed syntax errors in SafeNavigate implementation
+ * - 2024-09-28: Converted the SafeNavigate component to a function to avoid JSX in .ts files
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -18,40 +19,39 @@ interface ValuationResultData {
   transmission: string;
 }
 
-// A component that safely uses the navigate hook
-export const SafeNavigate = ({ 
-  path, 
-  state,
-  message,
-  description,
-  onNavigate 
-}: { 
-  path: string, 
-  state?: any,
-  message?: string,
-  description?: string,
-  onNavigate?: () => void
-}) => {
-  const navigate = useNavigate();
-  
-  const performNavigation = () => {
-    if (message) {
-      toast.info(message, { description });
+// Interface for SafeNavigate properties
+interface SafeNavigateProps { 
+  path: string;
+  state?: any;
+  message?: string;
+  description?: string;
+  onNavigate?: () => void;
+}
+
+// Function to create a navigation handler
+const createSafeNavigationHandler = (props: SafeNavigateProps, navigate: ReturnType<typeof useNavigate>) => {
+  return () => {
+    if (props.message) {
+      toast.info(props.message, { description: props.description });
     }
     
-    navigate(path, state ? { state } : undefined);
-    if (onNavigate) onNavigate();
+    navigate(props.path, props.state ? { state: props.state } : undefined);
+    if (props.onNavigate) props.onNavigate();
   };
-  
-  return <button onClick={performNavigation} style={{ display: 'none' }} />;
 };
 
 export const useValuationContinue = () => {
   const { session } = useAuth();
+  const navigate = useNavigate();
+
+  // A function that returns a navigation handler
+  const getSafeNavigate = (props: SafeNavigateProps) => {
+    return createSafeNavigationHandler(props, navigate);
+  };
 
   const handleContinue = async (valuationResult: ValuationResultData) => {
     if (!session) {
-      // Navigation and toast will be handled by the SafeNavigate component
+      // Return navigation configuration
       return {
         path: '/auth',
         message: "Please sign in to list your car",
@@ -107,6 +107,6 @@ export const useValuationContinue = () => {
   return {
     handleContinue,
     isLoggedIn: !!session,
-    SafeNavigate
+    getSafeNavigate // Provide the function that creates a navigation handler
   };
 };
