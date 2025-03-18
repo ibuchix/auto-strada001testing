@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-07: Added proper component implementation with default export
+ * - 2024-09-08: Fixed export syntax to ensure proper module resolution
  */
 
 import React from 'react';
@@ -21,7 +22,7 @@ import { RealtimeProvider } from '@/components/RealtimeProvider';
 // -- Make sure the cars table is in the realtime publication
 // ALTER PUBLICATION supabase_realtime ADD TABLE cars;
 
-const Index = () => {
+const IndexPage = () => {
   return (
     <RealtimeProvider>
       <div className="min-h-screen bg-white">
@@ -38,4 +39,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default IndexPage;

@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of app routing
@@ -5,10 +6,11 @@
  * - 2024-03-19: Implemented toast notifications 
  * - 2024-03-19: Removed Partners route
  * - 2024-07-06: Added password reset routes
+ * - 2024-09-08: Fixed Index component import to resolve module resolution issue
  */
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Index from "@/pages/Index";
+import IndexPage from "@/pages/Index";
 import Auth from "@/pages/Auth";
 import Sellers from "@/pages/Sellers";
 import Dealers from "@/pages/Dealers";
@@ -33,7 +35,7 @@ function App() {
     <Router>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<IndexPage />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/sellers" element={<Sellers />} />
           <Route path="/dealers" element={<Dealers />} />
