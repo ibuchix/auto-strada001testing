@@ -38,6 +38,7 @@ export const ErrorDialog = ({
           <div className="bg-accent/50 p-4 rounded-lg">
             <p className="text-sm text-subtitle">
               Don't worry! You can still list your car by providing the details manually.
+              Our team will review your information and provide a valuation within 24-48 hours.
             </p>
           </div>
         )}

@@ -9,6 +9,7 @@
  * - 2024-03-19: Fixed type error in props passed to ValuationContent
  * - 2024-03-19: Added averagePrice to ValuationContent props
  * - 2024-03-19: Fixed valuation data being passed incorrectly
+ * - 2024-08-05: Enhanced error handling and improved manual valuation flow
  */
 
 import { useNavigate } from "react-router-dom";
@@ -57,13 +58,28 @@ export const ValuationResult = ({
   }
 
   if (hasError || valuationResult.noData) {
+    // Prepare the error message
+    const errorMessage = valuationResult.error || 
+      "No data found for this VIN. Would you like to proceed with manual valuation?";
+    
     return (
       <ErrorDialog 
-        error={valuationResult.error || "No data found for this VIN. Would you like to proceed with manual valuation?"}
+        error={errorMessage}
         onClose={onClose}
         onRetry={onRetry}
         showManualOption={true}
         onManualValuation={() => {
+          // Store the VIN and other data in localStorage for the manual form
+          if (valuationResult.vin) {
+            localStorage.setItem('tempVIN', valuationResult.vin);
+          }
+          if (mileage) {
+            localStorage.setItem('tempMileage', mileage.toString());
+          }
+          if (valuationResult.transmission) {
+            localStorage.setItem('tempGearbox', valuationResult.transmission);
+          }
+          
           if (!isLoggedIn) {
             navigate('/auth');
             toast.info("Please sign in first", {

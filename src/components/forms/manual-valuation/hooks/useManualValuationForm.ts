@@ -5,6 +5,7 @@
  * - 2024-03-20: Updated field mappings to match database schema
  * - 2024-03-25: Fixed table references and field names
  * - 2024-03-26: Fixed TypeScript errors by using proper table references
+ * - 2024-08-05: Added admin notification functionality when a manual valuation is submitted
  */
 
 import { useForm } from "react-hook-form";
@@ -52,17 +53,20 @@ export const useManualValuationForm = () => {
   const onSubmit = async (data: CarListingFormData) => {
     setIsSubmitting(true);
     try {
+      // Get current user
       const user = (await supabase.auth.getUser()).data.user;
       
       if (!user) {
         throw new Error("You must be logged in to submit a valuation request");
       }
       
-      const { error } = await supabase
+      // Insert car record as draft with valuation data
+      const { error, data: carData } = await supabase
         .from("cars")
         .insert({
           seller_id: user.id,
           is_draft: true,
+          status: 'manual_valuation',
           title: `${data.make} ${data.model} ${data.year}`,
           make: data.make,
           model: data.model,
@@ -95,11 +99,36 @@ export const useManualValuationForm = () => {
             accidentHistory: data.accidentHistory,
             engineCapacity: data.engineCapacity
           }
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      toast.success("Valuation request submitted successfully!");
+      // Send notification to admins and confirmation to user
+      try {
+        await supabase.functions.invoke('send-valuation-notification', {
+          body: {
+            userEmail: user.email,
+            vehicleDetails: {
+              make: data.make,
+              model: data.model,
+              year: data.year,
+              vin: data.vin
+            }
+          }
+        });
+        
+        console.log("Valuation notification sent successfully");
+      } catch (notificationError) {
+        console.error("Failed to send notification:", notificationError);
+        // Continue despite notification error
+      }
+
+      toast.success("Valuation request submitted successfully!", {
+        description: "We'll review your request and get back to you within 24-48 hours."
+      });
+      
       navigate("/dashboard/seller");
     } catch (error: any) {
       console.error("Error submitting valuation:", error);
