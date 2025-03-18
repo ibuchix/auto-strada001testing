@@ -17,11 +17,8 @@ import {
   getCachedValidation,
   cacheValidation
 } from './utils.ts';
-import {
-  activateReservation,
-  validateReservation
-} from './reservations.ts';
-import { fetchExternalValuation, calculateReservePrice } from './valuation-api.ts';
+import { validateReservation, createVinReservation } from './reservation-service.ts';
+import { fetchExternalValuation, calculateReservePrice } from './external-api.ts';
 import { checkVehicleExists } from './vehicle-checker.ts';
 
 export const validateVin = async (
@@ -108,30 +105,7 @@ export const validateVin = async (
         });
         
         // Create a reservation for this VIN
-        const { data: reservation, error: reservationError } = await supabase
-          .from('vin_reservations')
-          .insert([
-            {
-              vin,
-              user_id: userId,
-              status: 'pending',
-              valuation_data: cachedData
-            }
-          ])
-          .select()
-          .single();
-
-        if (reservationError) {
-          logOperation('reservation_creation_error', { 
-            requestId,
-            vin, 
-            error: reservationError.message 
-          }, 'error');
-          throw reservationError;
-        }
-        
-        // Activate the reservation
-        await activateReservation(supabase, reservation.id, userId);
+        const reservation = await createVinReservation(supabase, vin, userId, cachedData);
         
         // Store reservation ID in response to be saved in localStorage
         return {
@@ -183,30 +157,7 @@ export const validateVin = async (
     cacheValidation(vin, valuationData, mileage);
 
     // Create a reservation for this VIN
-    const { data: reservation, error: reservationError } = await supabase
-      .from('vin_reservations')
-      .insert([
-        {
-          vin,
-          user_id: userId,
-          status: 'pending',
-          valuation_data: valuationData
-        }
-      ])
-      .select()
-      .single();
-
-    if (reservationError) {
-      logOperation('reservation_creation_error', { 
-        requestId,
-        vin, 
-        error: reservationError.message 
-      }, 'error');
-      throw reservationError;
-    }
-    
-    // Activate the reservation after creation
-    await activateReservation(supabase, reservation.id, userId);
+    const reservation = await createVinReservation(supabase, vin, userId, valuationData);
 
     logOperation('validateVin_success', {
       requestId,

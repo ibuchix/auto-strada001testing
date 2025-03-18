@@ -4,14 +4,15 @@
  * - 2024-07-22: Extracted vehicle checking functionality from vin-validation.ts
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { Database } from '../_shared/database.types.ts';
 import { logOperation, ValidationError, cacheValidation } from './utils.ts';
 
 /**
  * Checks if a vehicle with the given VIN already exists in the database
  */
 export async function checkVehicleExists(
-  supabase: SupabaseClient,
+  supabase: ReturnType<typeof createClient<Database>>,
   vin: string,
   mileage: number,
   requestId: string
