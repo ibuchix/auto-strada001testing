@@ -4,6 +4,7 @@
  * - 2024-06-24: Created SellerRegistrationForm component for seller registration
  * - 2024-06-27: Enhanced form with better styling and visual feedback
  * - 2024-06-28: Added email confirmation field for better validation
+ * - 2024-07-06: Enhanced password validation and improved error messages
  */
 
 import { useForm } from "react-hook-form";
@@ -29,9 +30,12 @@ const formSchema = z.object({
   confirmEmail: z.string().email({
     message: "Please enter a valid email address.",
   }),
-  password: z.string().min(6, {
-    message: "Password must be at least 6 characters.",
-  }),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters.")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter.")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter.")
+    .regex(/[0-9]/, "Password must contain at least one number.")
+    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character."),
   confirmPassword: z.string(),
 }).refine((data) => data.email === data.confirmEmail, {
   message: "Email addresses do not match",

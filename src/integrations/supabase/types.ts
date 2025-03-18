@@ -247,6 +247,56 @@ export type Database = {
           },
         ]
       }
+      auction_schedules: {
+        Row: {
+          car_id: string
+          created_at: string
+          created_by: string | null
+          end_time: string
+          id: string
+          is_manually_controlled: boolean
+          last_status_change: string
+          notes: string | null
+          start_time: string
+          status: Database["public"]["Enums"]["auction_schedule_status"]
+          updated_at: string
+        }
+        Insert: {
+          car_id: string
+          created_at?: string
+          created_by?: string | null
+          end_time: string
+          id?: string
+          is_manually_controlled?: boolean
+          last_status_change?: string
+          notes?: string | null
+          start_time: string
+          status?: Database["public"]["Enums"]["auction_schedule_status"]
+          updated_at?: string
+        }
+        Update: {
+          car_id?: string
+          created_at?: string
+          created_by?: string | null
+          end_time?: string
+          id?: string
+          is_manually_controlled?: boolean
+          last_status_change?: string
+          notes?: string | null
+          start_time?: string
+          status?: Database["public"]["Enums"]["auction_schedule_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auction_schedules_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: Database["public"]["Enums"]["audit_log_type"]
@@ -1041,6 +1091,7 @@ export type Database = {
           created_at: string
           dealer_id: string
           id: string
+          last_processed_amount: number | null
           max_bid_amount: number
           updated_at: string
         }
@@ -1049,6 +1100,7 @@ export type Database = {
           created_at?: string
           dealer_id: string
           id?: string
+          last_processed_amount?: number | null
           max_bid_amount: number
           updated_at?: string
         }
@@ -1057,6 +1109,7 @@ export type Database = {
           created_at?: string
           dealer_id?: string
           id?: string
+          last_processed_amount?: number | null
           max_bid_amount?: number
           updated_at?: string
         }
@@ -1073,6 +1126,71 @@ export type Database = {
             columns: ["dealer_id"]
             isOneToOne: false
             referencedRelation: "dealers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_performance_metrics: {
+        Row: {
+          active_listings: number
+          average_price: number | null
+          average_time_to_sell: unknown | null
+          cancelled_listings: number
+          created_at: string
+          highest_price_sold: number | null
+          id: string
+          last_listing_date: string | null
+          last_sale_date: string | null
+          listing_approval_rate: number | null
+          reserve_price_met_rate: number | null
+          seller_id: string
+          sold_listings: number
+          total_earnings: number
+          total_listings: number
+          updated_at: string
+        }
+        Insert: {
+          active_listings?: number
+          average_price?: number | null
+          average_time_to_sell?: unknown | null
+          cancelled_listings?: number
+          created_at?: string
+          highest_price_sold?: number | null
+          id?: string
+          last_listing_date?: string | null
+          last_sale_date?: string | null
+          listing_approval_rate?: number | null
+          reserve_price_met_rate?: number | null
+          seller_id: string
+          sold_listings?: number
+          total_earnings?: number
+          total_listings?: number
+          updated_at?: string
+        }
+        Update: {
+          active_listings?: number
+          average_price?: number | null
+          average_time_to_sell?: unknown | null
+          cancelled_listings?: number
+          created_at?: string
+          highest_price_sold?: number | null
+          id?: string
+          last_listing_date?: string | null
+          last_sale_date?: string | null
+          listing_approval_rate?: number | null
+          reserve_price_met_rate?: number | null
+          seller_id?: string
+          sold_listings?: number
+          total_earnings?: number
+          total_listings?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_performance_metrics_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1113,6 +1231,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verification_status?: string
+        }
+        Relationships: []
+      }
+      system_health: {
+        Row: {
+          component_name: string
+          created_at: string
+          details: Json | null
+          id: string
+          last_check_time: string
+          status: Database["public"]["Enums"]["system_component_health"]
+          updated_at: string
+        }
+        Insert: {
+          component_name: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          last_check_time?: string
+          status?: Database["public"]["Enums"]["system_component_health"]
+          updated_at?: string
+        }
+        Update: {
+          component_name?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          last_check_time?: string
+          status?: Database["public"]["Enums"]["system_component_health"]
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1204,6 +1352,10 @@ export type Database = {
         }
         Returns: number
       }
+      check_auction_system_health: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       check_email_exists: {
         Args: {
           email_to_check: string
@@ -1211,6 +1363,10 @@ export type Database = {
         Returns: Json
       }
       close_ended_auctions: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      complete_scheduled_auctions: {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
@@ -1279,6 +1435,10 @@ export type Database = {
         }
         Returns: Json
       }
+      process_pending_proxy_bids: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       register_seller: {
         Args: {
           p_user_id: string
@@ -1302,6 +1462,22 @@ export type Database = {
           p_notes?: string
         }
         Returns: Json
+      }
+      start_scheduled_auctions: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      update_auction_status: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      update_system_health: {
+        Args: {
+          p_component_name: string
+          p_status: Database["public"]["Enums"]["system_component_health"]
+          p_details?: Json
+        }
+        Returns: string
       }
       verify_dealer: {
         Args: {
@@ -1327,6 +1503,11 @@ export type Database = {
         | "feature"
         | "promotion"
         | "policy"
+      auction_schedule_status:
+        | "scheduled"
+        | "running"
+        | "completed"
+        | "cancelled"
       audit_log_type:
         | "login"
         | "logout"
@@ -1338,6 +1519,18 @@ export type Database = {
         | "verify"
         | "reject"
         | "approve"
+        | "process_auctions"
+        | "auction_closed"
+        | "auto_proxy_bid"
+        | "start_auction"
+        | "auction_close_failed"
+        | "auction_close_system_error"
+        | "system_reset_failed"
+        | "recovery_failed"
+        | "manual_retry"
+        | "auction_recovery"
+        | "system_health_check"
+        | "system_alert"
       car_transmission_type: "automatic" | "manual"
       dispute_status: "open" | "investigating" | "resolved" | "closed"
       dispute_type:
@@ -1346,6 +1539,7 @@ export type Database = {
         | "listing_accuracy"
         | "auction_process"
         | "other"
+      system_component_health: "healthy" | "degraded" | "failing" | "unknown"
       user_role: "dealer" | "seller" | "admin"
       verification_status: "pending" | "approved" | "rejected"
     }

@@ -9,6 +9,7 @@
  * - 2024-06-25: Fixed registerSeller implementation to properly update user role
  * - 2024-06-28: Removed dealer-specific functionality to make app seller-specific
  * - 2024-07-05: Updated registerSeller to use the database function for more reliable registration
+ * - 2024-07-06: Enhanced error handling and added better validation for seller registration
  */
 
 import { useState } from "react";
@@ -23,29 +24,57 @@ export const useAuthActions = () => {
     try {
       setIsLoading(true);
       
+      // First check if the user already has a role
+      const { data: user, error: userError } = await supabaseClient.auth.getUser(userId);
+      
+      if (userError) {
+        console.error("Error fetching user:", userError);
+        throw new Error("Could not verify user account");
+      }
+
+      // Check if user already has seller role
+      if (user.user?.user_metadata?.role === 'seller') {
+        toast.error("This account is already registered as a seller");
+        return false;
+      }
+
       // Update user metadata to include role
       const { error: metadataError } = await supabaseClient.auth.updateUser({
         data: { role: 'seller' }
       });
 
-      if (metadataError) throw metadataError;
+      if (metadataError) {
+        console.error("Error updating user metadata:", metadataError);
+        throw new Error("Failed to update user role");
+      }
 
       // Use the register_seller database function to ensure both profile and seller entries are created
       const { data, error } = await supabaseClient.rpc('register_seller', {
         p_user_id: userId
       });
       
-      if (error) throw error;
-
-      if (!data) {
-        throw new Error("Failed to register seller profile");
+      if (error) {
+        console.error("Error registering seller:", error);
+        throw new Error(error.message || "Failed to complete seller registration");
       }
 
-      toast.success("Seller registration successful!");
+      if (!data) {
+        throw new Error("Failed to create seller profile");
+      }
+
+      toast.success("Seller registration successful! Redirecting to dashboard...");
       return true;
     } catch (error: any) {
       console.error("Error registering seller:", error);
-      toast.error(error.message || "Failed to register seller");
+      
+      // Provide more specific error messages based on the error type
+      const errorMessage = error.message === 'Failed to update user role' 
+        ? "Could not update your account role. Please try again."
+        : error.message === 'Failed to create seller profile'
+        ? "Could not create your seller profile. Please contact support."
+        : "An unexpected error occurred during registration. Please try again.";
+        
+      toast.error(errorMessage);
       return false;
     } finally {
       setIsLoading(false);
