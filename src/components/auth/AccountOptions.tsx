@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-06-26: Created component for sign-in/sign-up options
@@ -38,9 +37,16 @@ export const AccountOptions = ({
           
           <TabsContent value="auth" className="mt-4 space-y-4">
             <div className="p-4 rounded-lg bg-accent/40">
-              <StandardAuth
-                redirectTo={`${window.location.origin}/auth`}
-              />
+              <StandardAuth />
+            </div>
+            <div className="text-center">
+              <Button 
+                variant="link" 
+                className="text-iris"
+                onClick={() => window.location.href = '/auth/reset-password'}
+              >
+                Forgot Password?
+              </Button>
             </div>
           </TabsContent>
           
