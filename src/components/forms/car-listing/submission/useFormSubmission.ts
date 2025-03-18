@@ -86,13 +86,15 @@ export const useFormSubmission = (userId?: string) => {
           description: `Submitting listing for ${data.make} ${data.model}`,
           onSuccess: () => {
             toast.dismiss(uploadingToast);
-            toast.custom((t) => (
-              <TransactionNotification
-                title="Listing submitted successfully!"
-                description="Your listing will be reviewed by our team."
-                status={TransactionStatus.SUCCESS}
-              />
-            ));
+            toast.custom((t) => {
+              return (
+                <TransactionNotification
+                  title="Listing submitted successfully!"
+                  description="Your listing will be reviewed by our team."
+                  status={TransactionStatus.SUCCESS}
+                />
+              );
+            });
             
             // Clean up storage after successful submission
             cleanupFormStorage();
@@ -107,13 +109,15 @@ export const useFormSubmission = (userId?: string) => {
               const submissionError = error as SubmissionErrorType;
               setError(submissionError.message);
               
-              toast.custom((t) => (
-                <TransactionNotification
-                  title={submissionError.message}
-                  description={submissionError.description}
-                  status={TransactionStatus.ERROR}
-                />
-              ));
+              toast.custom((t) => {
+                return (
+                  <TransactionNotification
+                    title={submissionError.message}
+                    description={submissionError.description}
+                    status={TransactionStatus.ERROR}
+                  />
+                );
+              });
             } else {
               handleSupabaseError(error, "Failed to submit listing");
             }
