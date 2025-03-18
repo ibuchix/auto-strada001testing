@@ -31,15 +31,16 @@ export const useNotifications = (session: Session | null) => {
   const fetchNotifications = async () => {
     if (!session?.user) throw new Error("No authenticated user");
     
+    // Using any type here as a workaround for the table not being in the types yet
     const { data, error } = await supabase
-      .from('notifications')
+      .from('notifications' as any)
       .select('*')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
       .limit(50);
     
     if (error) throw error;
-    return data as Notification[];
+    return data as unknown as Notification[];
   };
 
   // Use the optimized query hook to fetch notifications with proper caching and error handling
@@ -107,7 +108,7 @@ export const useNotifications = (session: Session | null) => {
     if (!session?.user) return;
     
     const { error } = await supabase
-      .from('notifications')
+      .from('notifications' as any)
       .update({ is_read: true })
       .eq('id', notificationId)
       .eq('user_id', session.user.id);
@@ -129,7 +130,7 @@ export const useNotifications = (session: Session | null) => {
     if (!session?.user || unreadCount === 0) return;
     
     const { error } = await supabase
-      .from('notifications')
+      .from('notifications' as any)
       .update({ is_read: true })
       .eq('user_id', session.user.id)
       .eq('is_read', false);

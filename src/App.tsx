@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of app routing
@@ -31,8 +32,11 @@ import { ResetPassword } from '@/components/auth/ResetPassword';
 import { UpdatePassword } from '@/components/auth/UpdatePassword';
 import { NotificationProvider } from '@/components/NotificationProvider';
 import { RealtimeProvider } from '@/components/RealtimeProvider';
-import { QueryClientProvider } from 'react-query';
-import { ReactQueryDevtools } from 'react-query/devtools';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query/devtools';
+
+// Create a client
+const queryClient = new QueryClient();
 
 function App() {
   return (

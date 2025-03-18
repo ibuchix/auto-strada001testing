@@ -24,7 +24,7 @@ export const notificationService = {
    */
   async createNotification(params: CreateNotificationParams): Promise<Notification | null> {
     const { data, error } = await supabase
-      .from('notifications')
+      .from('notifications' as any)
       .insert([params])
       .select()
       .single();
@@ -34,7 +34,7 @@ export const notificationService = {
       return null;
     }
     
-    return data as Notification;
+    return data as unknown as Notification;
   },
   
   /**
@@ -50,7 +50,7 @@ export const notificationService = {
     }));
     
     const { error } = await supabase
-      .from('notifications')
+      .from('notifications' as any)
       .insert(notifications);
     
     if (error) {
@@ -66,7 +66,7 @@ export const notificationService = {
    */
   async markAsRead(notificationId: string, userId: string): Promise<boolean> {
     const { error } = await supabase
-      .from('notifications')
+      .from('notifications' as any)
       .update({ is_read: true })
       .eq('id', notificationId)
       .eq('user_id', userId);
@@ -84,7 +84,7 @@ export const notificationService = {
    */
   async markAllAsRead(userId: string): Promise<boolean> {
     const { error } = await supabase
-      .from('notifications')
+      .from('notifications' as any)
       .update({ is_read: true })
       .eq('user_id', userId)
       .eq('is_read', false);
@@ -102,7 +102,7 @@ export const notificationService = {
    */
   async deleteNotification(notificationId: string, userId: string): Promise<boolean> {
     const { error } = await supabase
-      .from('notifications')
+      .from('notifications' as any)
       .delete()
       .eq('id', notificationId)
       .eq('user_id', userId);
@@ -120,7 +120,7 @@ export const notificationService = {
    */
   async deleteAllNotifications(userId: string): Promise<boolean> {
     const { error } = await supabase
-      .from('notifications')
+      .from('notifications' as any)
       .delete()
       .eq('user_id', userId);
     
