@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-08: Created hook for fetching auction results data for the seller dashboard
+ * - 2024-09-09: Fixed query relationship between cars and auction_results tables
  */
 
 import { useState, useEffect } from "react";
@@ -29,44 +30,49 @@ export const useAuctionResults = (session: Session | null) => {
   const fetchAuctionResults = async () => {
     if (!session?.user) throw new Error("No authenticated user");
 
-    // Query the auction_results table joined with cars to get the relevant data
-    const { data, error } = await supabase
+    // First fetch the cars owned by this seller
+    const { data: sellerCars, error: carError } = await supabase
+      .from('cars')
+      .select('id, title, make, model, year, auction_end_time')
+      .eq('seller_id', session.user.id);
+
+    if (carError) throw carError;
+
+    if (!sellerCars || sellerCars.length === 0) {
+      return []; // No cars found for this seller
+    }
+
+    // Get all car IDs
+    const carIds = sellerCars.map(car => car.id);
+
+    // Then fetch auction results for these cars
+    const { data: resultsData, error: resultsError } = await supabase
       .from('auction_results')
-      .select(`
-        id,
-        car_id,
-        final_price,
-        total_bids,
-        unique_bidders,
-        sale_status,
-        created_at,
-        cars:car_id (
-          title,
-          make,
-          model,
-          year,
-          auction_end_time
-        )
-      `)
-      .eq('cars.seller_id', session.user.id);
+      .select('id, car_id, final_price, total_bids, unique_bidders, sale_status, created_at')
+      .in('car_id', carIds);
 
-    if (error) throw error;
+    if (resultsError) throw resultsError;
 
-    // Transform the response to match our interface
-    const results: AuctionResult[] = (data || []).map(item => ({
-      id: item.id,
-      car_id: item.car_id,
-      title: item.cars?.title || 'Unknown Vehicle',
-      make: item.cars?.make || 'Unknown',
-      model: item.cars?.model || '',
-      year: item.cars?.year || new Date().getFullYear(),
-      final_price: item.final_price,
-      total_bids: item.total_bids || 0,
-      unique_bidders: item.unique_bidders || 0,
-      sale_status: item.sale_status,
-      created_at: item.created_at,
-      auction_end_time: item.cars?.auction_end_time
-    }));
+    // Combine the data
+    const results: AuctionResult[] = (resultsData || []).map(result => {
+      // Find the corresponding car details
+      const car = sellerCars.find(c => c.id === result.car_id);
+      
+      return {
+        id: result.id,
+        car_id: result.car_id,
+        title: car?.title || 'Unknown Vehicle',
+        make: car?.make || 'Unknown',
+        model: car?.model || '',
+        year: car?.year || new Date().getFullYear(),
+        final_price: result.final_price,
+        total_bids: result.total_bids || 0,
+        unique_bidders: result.unique_bidders || 0,
+        sale_status: result.sale_status,
+        created_at: result.created_at,
+        auction_end_time: car?.auction_end_time
+      };
+    });
 
     return results;
   };
