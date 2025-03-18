@@ -67,7 +67,7 @@ export const Navigation = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-8 w-8 p-0">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={sellerProfile?.profile_picture || session?.user?.user_metadata?.avatar_url} alt={session.user.email || "User"} />
+                    <AvatarImage src={session?.user?.user_metadata?.avatar_url} alt={session.user.email || "User"} />
                     <AvatarFallback>{session.user.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
                   </Avatar>
                 </Button>
