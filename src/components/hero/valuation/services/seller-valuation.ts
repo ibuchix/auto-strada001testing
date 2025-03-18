@@ -2,73 +2,97 @@
 /**
  * Changes made:
  * - 2024-07-25: Extracted seller valuation from valuationService.ts
+ * - 2024-08-01: Added cache support to reduce API calls for identical VINs
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { ValuationResult, TransmissionType } from "../types";
+import { hasEssentialData, handleApiError, storeReservationId } from "./utils/validation-helpers";
+import { getCachedValuation, storeValuationCache } from "./api/cache-api";
 import { fetchSellerValuation } from "./api/valuation-api";
-import { 
-  hasEssentialData, 
-  handleApiError, 
-  storeReservationId 
-} from "./utils/validation-helpers";
 
 /**
- * Process valuation for the seller context
+ * Process valuation for the seller page context
  */
 export async function processSellerValuation(
   vin: string,
   mileage: number,
   gearbox: string
 ): Promise<ValuationResult> {
-  console.log('Processing seller context validation for VIN:', vin);
+  console.log('Processing seller page valuation for VIN:', vin);
   
   try {
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Check if user is authenticated
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id;
     
-    if (userError) {
-      console.error('Error getting user:', userError);
-      throw new Error('Authentication error. Please sign in and try again.');
+    if (!userId) {
+      console.log('No authenticated user found, redirecting to authentication');
+      return {
+        success: false,
+        data: {
+          vin,
+          transmission: gearbox as TransmissionType,
+          error: 'User authentication required'
+        }
+      };
     }
     
-    if (!user) {
-      throw new Error('You must be logged in to value a vehicle for selling.');
-    }
+    // First check if we have a cached valuation
+    const cachedData = await getCachedValuation(vin, mileage);
     
-    const { data, error } = await fetchSellerValuation(vin, mileage, gearbox, user.id);
-
-    if (error) {
-      console.error('Seller operation error:', error);
+    if (cachedData) {
+      console.log('Using cached valuation data for VIN:', vin);
+      // Even with cached data, we might need to create a reservation
+      try {
+        // Check if the vehicle already exists in the system
+        if (!cachedData.isExisting) {
+          const { data: reservationData } = await supabase.functions.invoke('handle-seller-operations', {
+            body: {
+              operation: 'create_reservation',
+              vin,
+              userId,
+              valuationData: cachedData
+            }
+          });
+          
+          if (reservationData?.reservation?.id) {
+            storeReservationId(reservationData.reservation.id);
+          }
+        }
+      } catch (reservationError) {
+        console.error('Error creating reservation with cached data:', reservationError);
+        // We can still continue with the cached data even if reservation fails
+      }
       
-      if (error.message?.includes('rate limit') || error.code === 'RATE_LIMIT_EXCEEDED') {
+      return {
+        success: true,
+        data: {
+          ...cachedData,
+          vin,
+          transmission: gearbox as TransmissionType
+        }
+      };
+    }
+    
+    // No cache found, proceed with API call
+    console.log('No cache found, fetching valuation from API for VIN:', vin);
+    const { data, error } = await fetchSellerValuation(vin, mileage, gearbox, userId);
+    
+    if (error) {
+      console.error('Seller valuation error:', error);
+      
+      if (error.message?.includes('rate limit')) {
         throw new Error('Too many requests. Please wait a moment before trying again.');
       }
       
       throw error;
     }
-
-    console.log('Seller validation raw response:', data);
-
-    // If the API returned an error
-    if (!data.success) {
-      const errorMessage = data.error || 'Unknown error occurred during valuation';
-      const errorCode = data.errorCode || 'UNKNOWN_ERROR';
-      
-      if (errorCode === 'RATE_LIMIT_EXCEEDED') {
-        throw new Error('Too many requests. Please wait a moment before trying again.');
-      }
-      
-      throw new Error(errorMessage);
-    }
-
-    // Store reservation ID for car creation process
-    storeReservationId(data?.data?.reservationId);
-
-    // Check for existing vehicle first
+    
+    console.log('Seller valuation raw response:', data);
+    
+    // Check if car already exists
     if (data?.data?.isExisting) {
-      console.log('Vehicle already exists in database');
       return {
         success: true,
         data: {
@@ -79,37 +103,47 @@ export async function processSellerValuation(
         }
       };
     }
-
-    // If we don't have essential data, mark as noData case
+    
+    // Store reservation ID if available
+    if (data?.data?.reservationId) {
+      storeReservationId(data.data.reservationId);
+    }
+    
+    // If we don't have essential data
     if (!hasEssentialData(data?.data)) {
-      console.log('Missing essential vehicle data, marking as noData case');
+      console.log('No essential data found for VIN in seller context');
       return {
         success: true,
         data: {
           vin,
           transmission: gearbox as TransmissionType,
           noData: true,
-          error: 'Could not retrieve complete vehicle information',
-          reservationId: data?.data?.reservationId
+          error: 'No data found for this VIN'
         }
       };
     }
-
-    // If we have all essential data, return complete response
-    console.log('Returning complete vehicle data');
+    
+    // Prepare the valuation data
+    const valuationData = {
+      make: data.data.make,
+      model: data.data.model,
+      year: data.data.year,
+      valuation: data.data.valuation,
+      averagePrice: data.data.averagePrice,
+      reservePrice: data.data.reservePrice,
+      isExisting: false
+    };
+    
+    // Store the result in cache for future use
+    storeValuationCache(vin, mileage, valuationData);
+    
+    console.log('Returning complete valuation data for seller context');
     return {
       success: true,
       data: {
-        make: data.data.make,
-        model: data.data.model,
-        year: data.data.year,
+        ...valuationData,
         vin,
-        transmission: gearbox as TransmissionType,
-        valuation: data.data.valuation,
-        averagePrice: data.data.averagePrice,
-        reservePrice: data.data.reservePrice,
-        isExisting: false,
-        reservationId: data.data.reservationId
+        transmission: gearbox as TransmissionType
       }
     };
   } catch (error: any) {

@@ -2,12 +2,14 @@
 /**
  * Changes made:
  * - 2024-07-25: Extracted home valuation from valuationService.ts
+ * - 2024-08-01: Added cache support to reduce API calls for identical VINs
  */
 
 import { toast } from "sonner";
 import { ValuationResult, TransmissionType } from "../types";
 import { fetchHomeValuation } from "./api/valuation-api";
 import { hasEssentialData, handleApiError } from "./utils/validation-helpers";
+import { getCachedValuation, storeValuationCache } from "./api/cache-api";
 
 /**
  * Process valuation for the home page context
@@ -20,6 +22,23 @@ export async function processHomeValuation(
   console.log('Processing home page valuation for VIN:', vin);
   
   try {
+    // First check if we have a cached valuation
+    const cachedData = await getCachedValuation(vin, mileage);
+    
+    if (cachedData) {
+      console.log('Using cached valuation data for VIN:', vin);
+      return {
+        success: true,
+        data: {
+          ...cachedData,
+          vin,
+          transmission: gearbox as TransmissionType
+        }
+      };
+    }
+    
+    // No cache found, proceed with API call
+    console.log('No cache found, fetching valuation from API for VIN:', vin);
     const { data, error } = await fetchHomeValuation(vin, mileage, gearbox);
 
     if (error) {
@@ -53,18 +72,26 @@ export async function processHomeValuation(
       };
     }
 
+    // Prepare the valuation data
+    const valuationData = {
+      make: data.data.make,
+      model: data.data.model,
+      year: data.data.year,
+      valuation: data.data.valuation,
+      averagePrice: data.data.averagePrice,
+      isExisting: false
+    };
+    
+    // Store the result in cache for future use
+    storeValuationCache(vin, mileage, valuationData);
+
     console.log('Returning complete valuation data for home context');
     return {
       success: true,
       data: {
-        make: data.data.make,
-        model: data.data.model,
-        year: data.data.year,
+        ...valuationData,
         vin,
-        transmission: gearbox as TransmissionType,
-        valuation: data.data.valuation,
-        averagePrice: data.data.averagePrice,
-        isExisting: false
+        transmission: gearbox as TransmissionType
       }
     };
   } catch (error: any) {

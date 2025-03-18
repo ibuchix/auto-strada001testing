@@ -36,6 +36,67 @@ async function generateMd5(message: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Check cache before making external API call
+async function checkCache(supabase: any, vin: string, mileage: number): Promise<any> {
+  console.log('Checking cache for VIN:', vin);
+  
+  const { data, error } = await supabase
+    .from('vin_valuation_cache')
+    .select('*')
+    .eq('vin', vin)
+    // Only get cache entries where the mileage is within 5% of the requested mileage
+    .gte('mileage', mileage * 0.95)
+    .lte('mileage', mileage * 1.05)
+    .order('created_at', { ascending: false })
+    .limit(1);
+    
+  if (error) {
+    console.error('Error checking cache:', error);
+    return null;
+  }
+  
+  if (data && data.length > 0) {
+    const cachedEntry = data[0];
+    
+    // Check if cache is valid (30 days)
+    const cacheDate = new Date(cachedEntry.created_at);
+    const now = new Date();
+    const daysDifference = (now.getTime() - cacheDate.getTime()) / (1000 * 3600 * 24);
+    
+    if (daysDifference <= 30) {
+      console.log('Valid cache found for VIN:', vin);
+      return cachedEntry.valuation_data;
+    }
+    
+    console.log('Cache expired for VIN:', vin);
+  }
+  
+  return null;
+}
+
+// Store valuation data in cache
+async function storeInCache(supabase: any, vin: string, mileage: number, valuationData: any): Promise<void> {
+  try {
+    console.log('Storing valuation in cache for VIN:', vin);
+    
+    const { error } = await supabase
+      .from('vin_valuation_cache')
+      .insert([
+        {
+          vin,
+          mileage,
+          valuation_data: valuationData
+        }
+      ]);
+      
+    if (error) {
+      console.error('Error storing in cache:', error);
+    }
+  } catch (error) {
+    console.error('Failed to store in cache:', error);
+  }
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -55,7 +116,29 @@ serve(async (req) => {
         db: { schema: 'public' }
       }
     );
+    
+    // Check cache first
+    const cachedData = await checkCache(supabase, vin, mileage);
+    
+    if (cachedData) {
+      console.log('Returning cached valuation for VIN:', vin);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            ...cachedData,
+            vin,
+            transmission: gearbox,
+            cached: true
+          }
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
+    // No cache hit, proceed with API call
+    console.log('No cache found, fetching from external API');
+    
     // Calculate checksum for API request using proper MD5 hashing
     const API_ID = 'AUTOSTRA';
     const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
@@ -109,19 +192,25 @@ serve(async (req) => {
     }
     
     console.log('Calculated reserve price from DB function:', reservePrice);
+    
+    // Prepare valuation data for cache and response
+    const valuationData = {
+      make: apiData.functionResponse.userParams.make,
+      model: apiData.functionResponse.userParams.model,
+      year: apiData.functionResponse.userParams.year,
+      vin,
+      transmission: gearbox,
+      valuation: reservePrice,
+      averagePrice: basePrice
+    };
+    
+    // Store in cache for future requests
+    storeInCache(supabase, vin, mileage, valuationData);
 
     return new Response(
       JSON.stringify({
         success: true,
-        data: {
-          make: apiData.functionResponse.userParams.make,
-          model: apiData.functionResponse.userParams.model,
-          year: apiData.functionResponse.userParams.year,
-          vin,
-          transmission: gearbox,
-          valuation: reservePrice,
-          averagePrice: basePrice
-        }
+        data: valuationData
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
