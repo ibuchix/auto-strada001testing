@@ -19,7 +19,6 @@ import { validateFormData } from "../utils/validation";
 import { SubmissionErrorType } from "./types";
 import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
 import { useCreateTransaction } from "@/hooks/useTransaction";
-import { TransactionNotification } from "@/components/transaction/TransactionNotification";
 import { TransactionStatus } from "@/services/supabase/transactionService";
 
 export const useFormSubmission = (userId?: string) => {
@@ -88,13 +87,12 @@ export const useFormSubmission = (userId?: string) => {
           description: `Submitting listing for ${data.make} ${data.model}`,
           onSuccess: () => {
             toast.dismiss(uploadingToast);
-            toast.custom(() => (
-              <TransactionNotification
-                title="Listing submitted successfully!"
-                description="Your listing will be reviewed by our team."
-                status={TransactionStatus.SUCCESS}
-              />
-            ));
+            
+            // Using a function to render component for toast
+            // Instead of JSX, we'll use a more compatible approach in .ts file
+            toast.success("Listing submitted successfully!", {
+              description: "Your listing will be reviewed by our team."
+            });
             
             // Clean up storage after successful submission
             cleanupFormStorage();
@@ -109,13 +107,10 @@ export const useFormSubmission = (userId?: string) => {
               const submissionError = error as SubmissionErrorType;
               setError(submissionError.message);
               
-              toast.custom(() => (
-                <TransactionNotification
-                  title={submissionError.message}
-                  description={submissionError.description}
-                  status={TransactionStatus.ERROR}
-                />
-              ));
+              // Using error toast instead of custom component
+              toast.error(submissionError.message, {
+                description: submissionError.description
+              });
             } else {
               handleSupabaseError(error, "Failed to submit listing");
             }
@@ -128,7 +123,6 @@ export const useFormSubmission = (userId?: string) => {
       console.error('Submission error:', error);
       
       // This will only execute if the executeTransaction wrapper itself fails
-      // which is unlikely but possible
       if ('message' in error && 'description' in error) {
         const submissionError = error as SubmissionErrorType;
         setError(submissionError.message);
