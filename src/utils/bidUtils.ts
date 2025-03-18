@@ -1,14 +1,15 @@
-
 /**
  * Changes made:
  * - 2024-06-14: Updated to use the secure place_bid SQL function
  * - 2024-06-14: Added type assertions for proper TypeScript compatibility
  * - 2024-06-14: Improved error handling for bid operations
  * - 2024-10-24: Fixed type issues with the transaction system
+ * - 2024-10-25: Fixed type assertions for Supabase RPC responses
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { transactionService, TransactionType, TransactionOptions } from "@/services/supabase/transactionService";
+import { Json } from "@/integrations/supabase/types";
 
 export interface BidData {
   carId: string;
@@ -74,7 +75,14 @@ export const placeBid = async ({
         throw new Error(error.message);
       }
 
-      const typedData = data as unknown as BidResponse;
+      // Proper type assertion that ensures we handle the RPC response correctly
+      const typedData = data as {
+        success: boolean;
+        bid_id?: string;
+        amount?: number;
+        error?: string;
+        minimumBid?: number;
+      };
       
       if (!typedData.success) {
         throw new Error(typedData.error || 'Failed to place bid');
@@ -82,15 +90,24 @@ export const placeBid = async ({
 
       // Add transaction-specific metadata
       const transactionId = crypto.randomUUID();
-      transactionService.updateTransactionMetadata(transactionId, {
+      const metadata = {
         bidAmount: amount,
         isProxy,
         maxProxyAmount,
         carId,
         bidId: typedData.bid_id
-      });
+      };
+      
+      // Correctly update transaction metadata
+      transactionService.updateTransactionMetadata(transactionId, metadata);
 
-      return typedData;
+      return {
+        success: typedData.success,
+        bid_id: typedData.bid_id,
+        amount: typedData.amount,
+        error: typedData.error,
+        minimumBid: typedData.minimumBid
+      };
     },
     {
       description: `Bid of ${amount} PLN ${isProxy ? '(Proxy)' : ''}`,

@@ -1,8 +1,8 @@
-
 /**
  * Changes made:
  * - 2024-10-16: Created Transaction Provider component to track and manage critical operations
  * - 2024-10-24: Fixed type issues with callback functions
+ * - 2024-10-25: Aligned callback parameter counts with updated transaction hooks
  */
 
 import { createContext, useContext, ReactNode, useState, useCallback } from "react";

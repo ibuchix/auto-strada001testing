@@ -7,6 +7,7 @@
  * - 2024-10-22: Fixed syntax errors and type issues with toast custom rendering
  * - 2024-10-23: Corrected issues with JSX in toast.custom and code structure
  * - 2024-10-24: Fixed transaction system type errors
+ * - 2024-10-25: Removed JSX in .ts file and fixed transaction options
  */
 
 import { useState } from "react";
@@ -20,7 +21,7 @@ import { validateFormData } from "../utils/validation";
 import { SubmissionErrorType } from "./types";
 import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
 import { useCreateTransaction } from "@/hooks/useTransaction";
-import { TransactionStatus, TransactionOptions } from "@/services/supabase/transactionService";
+import { TransactionStatus, TransactionType, TransactionOptions } from "@/services/supabase/transactionService";
 
 export const useFormSubmission = (userId?: string) => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -85,8 +86,7 @@ export const useFormSubmission = (userId?: string) => {
         {
           description: `Submitting listing for ${data.make} ${data.model}`,
           metadata: {
-            entityType: "car",
-            entityId: carId,
+            carId,
             make: data.make,
             model: data.model
           },

@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-10-16: Added transaction status indicator and improved error handling with transaction system
  * - 2024-10-24: Fixed type errors with transaction system usage
+ * - 2024-10-25: Fixed incorrect executeTransaction parameter order
  */
 
 import { useState } from 'react';
@@ -71,6 +72,7 @@ export const BidForm = ({
     
     executeTransaction(
       "Place Bid",
+      TransactionType.AUCTION,
       async () => {
         const result = await placeBid({
           carId,
@@ -80,7 +82,7 @@ export const BidForm = ({
           maxProxyAmount: values.isProxy ? values.maxProxyAmount : undefined,
         });
         
-        if (result && 'success' in result && result.success) {
+        if (result.success) {
           form.reset({
             amount: values.amount + minBidIncrement,
             isProxy: false,

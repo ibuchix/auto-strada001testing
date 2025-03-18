@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-10-16: Created transaction service for reliable Supabase operations tracking and confirmation
  * - 2024-10-24: Fixed type issues with audit log entries and Date objects
+ * - 2024-10-25: Fixed Date object serialization for database inserts
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -223,13 +224,13 @@ export class TransactionService extends BaseService {
         status: details.status,
         start_time: details.startTime.toISOString(),
         end_time: details.endTime ? details.endTime.toISOString() : null,
-        metadata: details.metadata,
-        error: details.errorDetails
+        metadata: details.metadata || {},
+        error: details.errorDetails || null
       };
 
       await this.supabase.from('audit_logs').insert({
         user_id: details.userId,
-        action: details.operation as any,
+        action: details.operation,
         entity_type: details.entityType || details.type,
         entity_id: details.entityId,
         details: formattedDetails

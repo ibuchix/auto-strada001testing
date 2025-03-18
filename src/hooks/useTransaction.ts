@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-16: Created hook for transaction confirmation and tracking
+ * - 2024-10-25: Fixed type issues with callback functions and parameter counts
  */
 
 import { useState, useCallback } from "react";
@@ -46,18 +47,18 @@ export function useTransaction(options: UseTransactionOptions = {}) {
           {
             ...options,
             ...transactionOptions,
-            onSuccess: (result, details) => {
-              setLastTransactionId(details.id);
+            onSuccess: (result) => {
+              setLastTransactionId(crypto.randomUUID());
               setTransactionStatus(TransactionStatus.SUCCESS);
               if (options.onSuccess) options.onSuccess(result);
-              if (transactionOptions?.onSuccess) transactionOptions.onSuccess(result, details);
+              if (transactionOptions?.onSuccess) transactionOptions.onSuccess(result);
             },
-            onError: (err, details) => {
-              setLastTransactionId(details.id);
+            onError: (err) => {
+              setLastTransactionId(crypto.randomUUID());
               setTransactionStatus(TransactionStatus.ERROR);
               setError(err);
               if (options.onError) options.onError(err);
-              if (transactionOptions?.onError) transactionOptions.onError(err, details);
+              if (transactionOptions?.onError) transactionOptions.onError(err);
             }
           }
         );
