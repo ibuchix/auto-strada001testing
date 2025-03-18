@@ -1,7 +1,7 @@
 
 /**
  * Changes made:
- * - 2024-08-22: Created DashboardContent component from SellerDashboard refactoring
+ * - 2024-09-05: Created DashboardContent component from SellerDashboard refactoring
  */
 
 import { ListingsSection } from "./ListingsSection";
@@ -32,7 +32,8 @@ export const DashboardContent = ({
           <div className="lg:col-span-2">
             <ListingsSection 
               listings={draftListings}
-              onStatusChange={onRefresh} 
+              onStatusChange={onRefresh}
+              title="Draft Listings" 
             />
           </div>
         )}
@@ -42,6 +43,7 @@ export const DashboardContent = ({
           <ListingsSection 
             listings={activeListings} 
             onStatusChange={onRefresh}
+            title="Active Listings"
           />
         </div>
         

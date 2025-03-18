@@ -1,7 +1,7 @@
 
 /**
  * Changes made:
- * - 2024-08-22: Created dashboard types for SellerDashboard refactoring
+ * - 2024-09-05: Created dashboard types for SellerDashboard refactoring
  */
 
 // Define the interface clearly to avoid conflicts

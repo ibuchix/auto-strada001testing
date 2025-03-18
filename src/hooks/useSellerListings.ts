@@ -1,7 +1,7 @@
 
 /**
  * Changes made:
- * - 2024-08-22: Created useSellerListings hook from SellerDashboard refactoring
+ * - 2024-09-05: Created useSellerListings hook from SellerDashboard refactoring
  */
 
 import { useState, useEffect } from "react";

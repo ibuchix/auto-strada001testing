@@ -11,6 +11,7 @@
  * - 2024-07-03: Added DashboardStats and ActivitySection components
  * - 2024-07-05: Updated to handle seller profiles from the new sellers table
  * - 2024-08-22: Refactored into smaller components for better maintainability
+ * - 2024-09-05: Further refactored to use new component structure and hooks
  */
 
 import { useAuth } from "@/components/AuthProvider";

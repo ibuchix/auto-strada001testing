@@ -1,11 +1,7 @@
 
 /**
  * Changes made:
- * - 2024-03-19: Initial implementation of listings section component
- * - 2024-03-19: Added support for empty state and listing cards
- * - 2024-03-19: Implemented status change handling
- * - 2024-03-28: Updated to import CarListing interface from SellerDashboard
- * - 2024-08-22: Updated to import CarListing from types/dashboard.ts
+ * - 2024-09-05: Created ListingsSection component from SellerDashboard refactoring
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,15 +14,20 @@ import { CarListing } from "@/types/dashboard";
 interface ListingsSectionProps {
   listings: CarListing[];
   onStatusChange: () => void;
+  title?: string;
 }
 
-export const ListingsSection = ({ listings, onStatusChange }: ListingsSectionProps) => {
+export const ListingsSection = ({ 
+  listings, 
+  onStatusChange,
+  title = "Your Listings"
+}: ListingsSectionProps) => {
   const navigate = useNavigate();
 
   return (
-    <Card className="lg:col-span-2 bg-white shadow-md animate-fade-in [animation-delay:800ms]">
+    <Card className="bg-white shadow-md animate-fade-in [animation-delay:800ms]">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold text-dark">Your Listings</CardTitle>
+        <CardTitle className="text-2xl font-bold text-dark">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {listings.length > 0 ? (

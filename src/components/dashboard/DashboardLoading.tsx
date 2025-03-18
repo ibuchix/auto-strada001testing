@@ -1,7 +1,7 @@
 
 /**
  * Changes made:
- * - 2024-08-22: Created DashboardLoading component from SellerDashboard refactoring
+ * - 2024-09-05: Created DashboardLoading component from SellerDashboard refactoring
  */
 
 import { Skeleton } from "@/components/ui/skeleton";
