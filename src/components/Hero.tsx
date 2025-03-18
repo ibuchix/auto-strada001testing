@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-28: Updated to pass valuation context to ValuationForm
+ * - 2024-10-29: Fixed ValuationForm props interface
  */
 
 import { BackgroundPattern } from "./hero/BackgroundPattern";
@@ -34,7 +35,7 @@ export const Hero = ({
 
         {showValuationForm && (
           <div className="mt-12">
-            <ValuationForm context={valuationContext} />
+            <ValuationForm valuationContext={valuationContext} />
           </div>
         )}
       </div>

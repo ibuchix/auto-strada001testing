@@ -2,16 +2,19 @@
 /**
  * Changes made:
  * - 2024-10-28: Created useValuationForm hook to handle valuation form state and submission
+ * - 2024-10-29: Fixed supabase import and added context parameter
  */
 
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTransaction } from "@/hooks/useTransaction";
 import { TransactionType } from "@/services/supabase/transactionService";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/AuthProvider";
 
 // Define the form schema for validation
 const valuationFormSchema = z.object({
@@ -24,16 +27,13 @@ const valuationFormSchema = z.object({
 
 export type ValuationFormData = z.infer<typeof valuationFormSchema>;
 
-export const useValuationForm = () => {
+export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [valuationResult, setValuationResult] = useState<any>(null);
+  const { session } = useAuth();
   
-  // Determine context from router state
-  const context = location.state?.valuationContext || 'home';
-
   // Setup form with validation
   const form = useForm<ValuationFormData>({
     resolver: zodResolver(valuationFormSchema),
