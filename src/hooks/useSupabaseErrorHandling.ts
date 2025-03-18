@@ -2,53 +2,76 @@
 /**
  * Changes made:
  * - 2024-08-20: Created hook for standardized Supabase error handling
+ * - 2024-08-25: Refactored to use categorized error handling and improved code organization
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { parseSupabaseError } from "@/utils/validation";
 import { toast } from "sonner";
+import { 
+  ErrorCategory, 
+  categorizeError,
+  getErrorActions,
+  handleCommonError
+} from "@/utils/errorHandlers";
 
 interface UseSupabaseErrorHandlingOptions {
   showToast?: boolean;
   toastDuration?: number;
-  onError?: (error: any, errorMessage: string) => void;
+  onError?: (error: any, errorMessage: string, category: ErrorCategory) => void;
+  defaultCategory?: ErrorCategory;
 }
 
 /**
- * Hook for standardized Supabase error handling
+ * Hook for standardized Supabase error handling with categorization
  */
 export const useSupabaseErrorHandling = (options: UseSupabaseErrorHandlingOptions = {}) => {
-  const { showToast = true, toastDuration = 5000, onError } = options;
+  const { 
+    showToast = true, 
+    toastDuration = 5000, 
+    onError,
+    defaultCategory = ErrorCategory.GENERAL
+  } = options;
+  
   const [error, setError] = useState<string | null>(null);
+  const [errorCategory, setErrorCategory] = useState<ErrorCategory>(defaultCategory);
   const [isLoading, setIsLoading] = useState(false);
 
   /**
-   * Handles Supabase errors with standardized behavior
+   * Handles Supabase errors with standardized behavior and categorization
    */
-  const handleSupabaseError = (error: any, contextMessage?: string) => {
+  const handleSupabaseError = useCallback((error: any, contextMessage?: string) => {
     const errorMessage = parseSupabaseError(error);
     const fullMessage = contextMessage ? `${contextMessage}: ${errorMessage}` : errorMessage;
+    const category = categorizeError(error);
     
-    console.error('Supabase error:', error);
+    console.error(`[${category}] Supabase error:`, error);
     setError(fullMessage);
+    setErrorCategory(category);
     
     if (showToast) {
+      const action = getErrorActions(category);
+      
       toast.error(fullMessage, {
         duration: toastDuration,
+        action: action ? {
+          label: action.label,
+          onClick: action.onClick
+        } : undefined
       });
     }
     
     if (onError) {
-      onError(error, fullMessage);
+      onError(error, fullMessage, category);
     }
     
     return fullMessage;
-  };
+  }, [showToast, toastDuration, onError]);
 
   /**
    * Wraps an async function with loading state and error handling
    */
-  const withErrorHandling = async <T>(
+  const withErrorHandling = useCallback(async <T>(
     asyncFn: () => Promise<T>,
     contextMessage?: string
   ): Promise<T | null> => {
@@ -64,15 +87,30 @@ export const useSupabaseErrorHandling = (options: UseSupabaseErrorHandlingOption
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [handleSupabaseError]);
+
+  /**
+   * Checks if the error is in a specific category
+   */
+  const isErrorCategory = useCallback((category: ErrorCategory): boolean => {
+    return error !== null && errorCategory === category;
+  }, [error, errorCategory]);
 
   return {
     error,
     setError,
+    errorCategory,
     isLoading,
     setIsLoading,
     handleSupabaseError,
     withErrorHandling,
-    clearError: () => setError(null)
+    clearError: useCallback(() => setError(null), []),
+    isErrorCategory,
+    isAuthError: useCallback(() => isErrorCategory(ErrorCategory.AUTHENTICATION), 
+      [isErrorCategory]),
+    isNetworkError: useCallback(() => isErrorCategory(ErrorCategory.NETWORK), 
+      [isErrorCategory]),
+    isPermissionError: useCallback(() => isErrorCategory(ErrorCategory.PERMISSION), 
+      [isErrorCategory])
   };
 };
