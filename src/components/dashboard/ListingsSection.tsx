@@ -5,6 +5,7 @@
  * - 2024-03-19: Added support for empty state and listing cards
  * - 2024-03-19: Implemented status change handling
  * - 2024-03-28: Updated to import CarListing interface from SellerDashboard
+ * - 2024-08-22: Updated to import CarListing from types/dashboard.ts
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { Car } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ListingCard } from "@/components/dashboard/ListingCard";
 import { useNavigate } from "react-router-dom";
-import { CarListing } from "@/pages/SellerDashboard";
+import { CarListing } from "@/types/dashboard";
 
 interface ListingsSectionProps {
   listings: CarListing[];

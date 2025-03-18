@@ -10,195 +10,40 @@
  * - 2024-07-03: Reorganized dashboard layout with distinct sections for active and draft listings
  * - 2024-07-03: Added DashboardStats and ActivitySection components
  * - 2024-07-05: Updated to handle seller profiles from the new sellers table
+ * - 2024-08-22: Refactored into smaller components for better maintainability
  */
 
-import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { ListingsSection } from "@/components/dashboard/ListingsSection";
-import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Json } from "@/integrations/supabase/types";
-import { DashboardStats } from "@/components/dashboard/DashboardStats";
-import { ActivitySection } from "@/components/dashboard/ActivitySection";
-
-// Define the interface clearly to avoid conflicts
-export interface CarListing {
-  id: string;
-  title: string;
-  price: number;
-  status: string;
-  created_at: string;
-  make: string;
-  model: string;
-  year: number;
-  is_draft: boolean;
-  is_auction: boolean;
-  description: string; // Make this required to match the ListingsSection component
-}
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardLoading } from "@/components/dashboard/DashboardLoading";
+import { DashboardContent } from "@/components/dashboard/DashboardContent";
+import { useSellerListings } from "@/hooks/useSellerListings";
 
 const SellerDashboard = () => {
   const { session } = useAuth();
-  const [activeListings, setActiveListings] = useState<CarListing[]>([]);
-  const [draftListings, setDraftListings] = useState<CarListing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [sellerProfile, setSellerProfile] = useState<any>(null);
-
-  const forceRefresh = () => {
-    setRefreshTrigger(prev => prev + 1);
-  };
-
-  // Fetch seller profile
-  useEffect(() => {
-    if (!session?.user) return;
-
-    const fetchSellerProfile = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('sellers')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching seller profile:', error);
-          // If no seller profile exists, try to create one using the register_seller function
-          const { data: registerResult, error: registerError } = await supabase.rpc('register_seller', {
-            p_user_id: session.user.id
-          });
-          
-          if (registerError) {
-            console.error('Error registering seller:', registerError);
-          } else {
-            // Refetch the profile after registration
-            const { data: newProfile, error: refetchError } = await supabase
-              .from('sellers')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-              
-            if (!refetchError && newProfile) {
-              setSellerProfile(newProfile);
-            }
-          }
-        } else {
-          setSellerProfile(data);
-        }
-      } catch (e) {
-        console.error('Error fetching seller profile:', e);
-      }
-    };
-
-    fetchSellerProfile();
-  }, [session]);
-
-  useEffect(() => {
-    if (!session?.user) return;
-
-    const fetchListings = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('cars')
-          .select('*')
-          .eq('seller_id', session.user.id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        // Transform data to match CarListing interface with description field
-        const transformedData: CarListing[] = (data || []).map(car => {
-          // Use features.seller_notes for description if available, otherwise use empty string
-          const features = car.features as Json || {};
-          const sellerNotes = typeof features === 'object' && features !== null 
-            ? ((features as Record<string, any>).seller_notes as string) || '' 
-            : '';
-          
-          return {
-            id: car.id,
-            title: car.title || `${car.make || 'Unknown'} ${car.model || ''} ${car.year || ''}`.trim(),
-            price: car.price || 0,
-            status: car.status || 'available',
-            created_at: car.created_at,
-            make: car.make || 'Unknown',
-            model: car.model || '',
-            year: car.year || new Date().getFullYear(),
-            is_draft: car.is_draft,
-            is_auction: car.is_auction || false,
-            description: sellerNotes
-          };
-        });
-
-        // Filter active and draft listings
-        const activeCars = transformedData.filter(car => !car.is_draft);
-        const draftCars = transformedData.filter(car => car.is_draft);
-
-        setActiveListings(activeCars);
-        setDraftListings(draftCars);
-      } catch (error) {
-        console.error('Error fetching listings:', error);
-        toast.error('Failed to load your listings');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchListings();
-  }, [session, refreshTrigger]);
+  const { 
+    activeListings, 
+    draftListings, 
+    isLoading, 
+    forceRefresh 
+  } = useSellerListings(session);
 
   return (
     <div className="min-h-screen bg-white">
       <Navigation />
       <div className="container mx-auto px-4 py-20 mt-20">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold text-dark">Seller Dashboard</h1>
-          <Button onClick={() => window.location.href = '/sell-my-car'} className="bg-primary hover:bg-primary/90 text-white">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create New Listing
-          </Button>
-        </div>
+        <DashboardHeader title="Seller Dashboard" />
 
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-6">
-            <Skeleton className="h-40 animate-pulse" />
-            <Skeleton className="h-[400px] animate-pulse" />
-          </div>
+          <DashboardLoading />
         ) : (
-          <div className="space-y-8">
-            {/* Dashboard Stats Section */}
-            <DashboardStats activeListings={activeListings.length} />
-
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Draft Listings Section */}
-              {draftListings.length > 0 && (
-                <div className="lg:col-span-2">
-                  <ListingsSection 
-                    listings={draftListings}
-                    onStatusChange={forceRefresh} 
-                  />
-                </div>
-              )}
-              
-              {/* Active Listings Section */}
-              <div className={draftListings.length > 0 ? "lg:col-span-1" : "lg:col-span-2"}>
-                <ListingsSection 
-                  listings={activeListings} 
-                  onStatusChange={forceRefresh}
-                />
-              </div>
-              
-              {/* Activity Section */}
-              <div className="lg:col-span-1">
-                <ActivitySection />
-              </div>
-            </div>
-          </div>
+          <DashboardContent 
+            activeListings={activeListings}
+            draftListings={draftListings}
+            onRefresh={forceRefresh}
+          />
         )}
       </div>
       <Footer />
