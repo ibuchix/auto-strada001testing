@@ -5,6 +5,7 @@
  * - 2024-07-06: Fixed supabase client initialization issue
  * - 2024-08-25: Refactored to properly use the updated useSellerSession hook
  * - 2024-08-25: Added refreshSellerStatus to context for re-checking seller status
+ * - 2024-09-26: Added signOut method to AuthContext
  */
 
 import { createContext, useContext } from "react";
@@ -18,18 +19,25 @@ interface AuthContextType {
   isLoading: boolean;
   isSeller: boolean;
   refreshSellerStatus: () => Promise<boolean>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
   isLoading: true,
   isSeller: false,
-  refreshSellerStatus: async () => false
+  refreshSellerStatus: async () => false,
+  signOut: async () => {}
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Use the refactored hook directly in the provider
   const { session, isLoading, isSeller, refreshSellerStatus } = useSellerSession();
+
+  // Add signOut method
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
 
   return (
     <SessionContextProvider supabaseClient={supabase}>
@@ -38,7 +46,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           session, 
           isLoading, 
           isSeller,
-          refreshSellerStatus
+          refreshSellerStatus,
+          signOut
         }}
       >
         {children}

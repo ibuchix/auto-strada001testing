@@ -1,150 +1,147 @@
 
 /**
  * Changes made:
- * - 2024-09-25: Created NotificationsList component to display notifications in a dropdown
+ * - 2024-09-26: Created NotificationsList component to display user notifications
  */
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { Check, ChevronRight, Bell } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { 
+  Check, 
+  X, 
+  Info, 
+  AlertTriangle, 
+  AlertCircle, 
+  CheckCircle2, 
+  Bell
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotificationContext } from '../NotificationProvider';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Notification } from '@/hooks/useNotifications';
 
 interface NotificationsListProps {
-  onClose?: () => void;
+  onClose: () => void;
 }
 
 export const NotificationsList = ({ onClose }: NotificationsListProps) => {
-  const [activeTab, setActiveTab] = useState('all');
+  const navigate = useNavigate();
   const { 
     notifications, 
-    isLoading, 
+    unreadCount, 
     markAsRead, 
     markAllAsRead,
-    getNotificationClass
+    getNotificationClass,
+    isLoading 
   } = useNotificationContext();
-
-  const unreadNotifications = notifications.filter(n => !n.is_read);
-  const displayNotifications = activeTab === 'unread' ? unreadNotifications : notifications;
-
-  const handleNotificationClick = async (id: string, actionUrl?: string | null) => {
-    await markAsRead(id);
+  
+  const [hoveredNotification, setHoveredNotification] = useState<string | null>(null);
+  
+  const handleNotificationClick = (notification: Notification) => {
+    // Mark as read
+    markAsRead(notification.id);
     
-    if (actionUrl) {
-      // If there's a URL to navigate to
-      window.location.href = actionUrl;
-    }
-    
-    if (onClose) {
+    // Navigate if there's an action URL
+    if (notification.action_url) {
       onClose();
+      navigate(notification.action_url);
     }
   };
-
+  
+  const getIcon = (type: Notification['type']) => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle2 className="h-5 w-5 text-[#21CA6F]" />;
+      case 'error':
+        return <AlertCircle className="h-5 w-5 text-[#DC143C]" />;
+      case 'warning':
+        return <AlertTriangle className="h-5 w-5 text-amber-500" />;
+      default:
+        return <Info className="h-5 w-5 text-[#4B4DED]" />;
+    }
+  };
+  
   return (
-    <div className="flex flex-col w-full">
+    <div className="flex flex-col h-[500px]">
       <div className="flex items-center justify-between px-4 py-2 border-b">
-        <h3 className="font-semibold text-lg text-[#222020]">Notifications</h3>
+        <h3 className="font-semibold text-[#222020]">
+          Notifications
+          {unreadCount > 0 && (
+            <span className="ml-2 text-sm bg-[#DC143C] text-white rounded-full px-1.5 py-0.5">
+              {unreadCount}
+            </span>
+          )}
+        </h3>
         
-        {unreadNotifications.length > 0 && (
+        {unreadCount > 0 && (
           <Button 
             variant="ghost" 
             size="sm" 
-            onClick={markAllAsRead}
-            className="text-xs text-[#4B4DED] font-medium"
+            onClick={() => markAllAsRead()}
+            className="text-xs hover:text-[#4B4DED]"
           >
             Mark all as read
           </Button>
         )}
       </div>
       
-      <Tabs 
-        value={activeTab} 
-        onValueChange={setActiveTab}
-        className="w-full"
-      >
-        <TabsList className="w-full grid grid-cols-2 h-10 px-4 py-1">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="unread">
-            Unread
-            {unreadNotifications.length > 0 && (
-              <span className="ml-1 text-xs bg-[#DC143C] text-white rounded-full w-5 h-5 flex items-center justify-center">
-                {unreadNotifications.length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value={activeTab} className="m-0">
-          <ScrollArea className="h-[300px]">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-[300px]">
-                <p className="text-sm text-[#6A6A77]">Loading notifications...</p>
-              </div>
-            ) : displayNotifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[300px] text-center p-4">
-                <Bell className="h-12 w-12 text-gray-300 mb-2" />
-                <p className="text-sm text-[#6A6A77] mt-2">
-                  {activeTab === 'unread' 
-                    ? "You have no unread notifications" 
-                    : "No notifications yet"}
-                </p>
-              </div>
-            ) : (
-              <ul className="divide-y">
-                {displayNotifications.map((notification) => (
-                  <li 
-                    key={notification.id}
-                    className={cn(
-                      "p-4 hover:bg-gray-50 cursor-pointer transition-colors",
-                      !notification.is_read && "bg-[#EFEFFD]"
-                    )}
-                    onClick={() => handleNotificationClick(notification.id, notification.action_url)}
+      <ScrollArea className="flex-1">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center h-32 text-[#6A6A77]">
+            <span className="text-sm">Loading notifications...</span>
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 text-[#6A6A77]">
+            <Bell className="h-10 w-10 text-[#6A6A77] opacity-20 mb-2" />
+            <p className="text-sm">No notifications yet</p>
+          </div>
+        ) : (
+          <div className="divide-y">
+            {notifications.map((notification) => (
+              <div
+                key={notification.id}
+                className={`
+                  relative p-4 hover:bg-gray-50 cursor-pointer transition-colors
+                  ${!notification.is_read ? 'bg-[#EFEFFD]/30' : ''}
+                `}
+                onClick={() => handleNotificationClick(notification)}
+                onMouseEnter={() => setHoveredNotification(notification.id)}
+                onMouseLeave={() => setHoveredNotification(null)}
+              >
+                <div className="flex">
+                  <div className="mr-3">
+                    {getIcon(notification.type)}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className={`text-sm font-medium ${!notification.is_read ? 'text-[#222020]' : 'text-[#222020]/80'}`}>
+                      {notification.title}
+                    </h4>
+                    <p className={`text-xs mt-0.5 ${!notification.is_read ? 'text-[#6A6A77]' : 'text-[#6A6A77]/80'}`}>
+                      {notification.message}
+                    </p>
+                    <p className="text-xs text-[#6A6A77]/60 mt-2">
+                      {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                    </p>
+                  </div>
+                </div>
+                
+                {!notification.is_read && hoveredNotification === notification.id && (
+                  <button
+                    className="absolute top-2 right-2 p-1 rounded-full bg-gray-100 hover:bg-gray-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markAsRead(notification.id);
+                    }}
                   >
-                    <div className="flex items-start">
-                      <div 
-                        className={cn(
-                          "h-2 w-2 mt-1.5 mr-2 rounded-full flex-shrink-0",
-                          notification.is_read ? "bg-gray-300" : "bg-[#DC143C]"
-                        )}
-                      />
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h4 
-                            className={cn(
-                              "text-sm font-medium",
-                              !notification.is_read ? "text-[#222020]" : "text-[#6A6A77]"
-                            )}
-                          >
-                            {notification.title}
-                          </h4>
-                          <span className="text-xs text-[#6A6A77]">
-                            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                          </span>
-                        </div>
-                        
-                        <p className="text-xs text-[#6A6A77] mt-1">
-                          {notification.message}
-                        </p>
-                        
-                        {notification.action_url && (
-                          <div className="flex items-center text-[#4B4DED] text-xs mt-2">
-                            <span>View details</span>
-                            <ChevronRight className="h-3 w-3 ml-1" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </ScrollArea>
-        </TabsContent>
-      </Tabs>
+                    <Check className="h-3 w-3 text-[#21CA6F]" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
     </div>
   );
 };
