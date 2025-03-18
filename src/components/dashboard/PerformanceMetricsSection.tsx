@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-10: Created PerformanceMetricsSection component to display seller performance metrics
+ * - 2024-09-11: Fixed ChartTooltip implementation to properly work with Recharts
  */
 
 import { SellerPerformanceMetrics } from "@/hooks/useSellerPerformance";
@@ -124,9 +125,7 @@ export const PerformanceMetricsSection = ({
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Bar dataKey="value" />
-                    <ChartTooltip>
-                      <ChartTooltipContent />
-                    </ChartTooltip>
+                    <ChartTooltip />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
