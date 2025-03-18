@@ -10,6 +10,7 @@
  * - 2024-03-19: Added averagePrice to ValuationContent props
  * - 2024-03-19: Fixed valuation data being passed incorrectly
  * - 2024-08-05: Enhanced error handling and improved manual valuation flow
+ * - 2024-10-28: Added support for seller context
  */
 
 import { useNavigate } from "react-router-dom";
@@ -18,6 +19,7 @@ import { ErrorDialog } from "./ErrorDialog";
 import { ExistingVehicleDialog } from "./dialogs/ExistingVehicleDialog";
 import { ValuationContent } from "./ValuationContent";
 import { useValuationContinue } from "../hooks/useValuationContinue";
+import { useAuth } from "@/components/AuthProvider";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -36,22 +38,68 @@ interface ValuationResultProps {
   onContinue: () => void;
   onClose: () => void;
   onRetry?: () => void;
+  context?: 'home' | 'seller';
 }
 
 export const ValuationResult = ({ 
   valuationResult, 
   onContinue, 
   onClose,
-  onRetry 
+  onRetry,
+  context = 'home'
 }: ValuationResultProps) => {
   const navigate = useNavigate();
-  const { handleContinue, isLoggedIn } = useValuationContinue();
+  const { session, isSeller, refreshSellerStatus } = useAuth();
   
   if (!valuationResult) return null;
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = !!valuationResult.error;
   const hasValuation = !hasError && !!(valuationResult.valuation || valuationResult.averagePrice);
+
+  const handleContinue = async () => {
+    if (!session) {
+      navigate('/auth');
+      return;
+    }
+
+    // For seller context, ensure they have seller role
+    if (context === 'seller') {
+      // If isSeller is already true, proceed without checking database
+      if (isSeller) {
+        handleSellerContinue();
+        return;
+      }
+
+      // Refresh seller status to ensure we have the latest information
+      const isSellerConfirmed = await refreshSellerStatus();
+      
+      if (isSellerConfirmed) {
+        handleSellerContinue();
+      } else {
+        navigate('/auth');
+        toast.info("Please sign up as a seller to list your car");
+      }
+    } else {
+      // For home context, just use the standard continuation
+      onContinue();
+    }
+  };
+  
+  const handleSellerContinue = () => {
+    // Handle the navigation based on VIN check result
+    if (valuationResult.isExisting) {
+      toast.error("This vehicle has already been listed");
+      onClose();
+    } else {
+      navigate('/sell-my-car', { 
+        state: { 
+          fromValuation: true,
+          valuationData: valuationResult
+        }
+      });
+    }
+  };
 
   if (hasError && valuationResult.isExisting) {
     return <ExistingVehicleDialog onClose={onClose} onRetry={onRetry} />;
@@ -80,7 +128,7 @@ export const ValuationResult = ({
             localStorage.setItem('tempGearbox', valuationResult.transmission);
           }
           
-          if (!isLoggedIn) {
+          if (!session) {
             navigate('/auth');
             toast.info("Please sign in first", {
               description: "Create an account or sign in to continue with manual valuation.",
@@ -101,12 +149,12 @@ export const ValuationResult = ({
       vin={valuationResult.vin}
       transmission={valuationResult.transmission}
       mileage={mileage}
-      reservePrice={valuationResult.valuation}
+      reservePrice={valuationResult.reservePrice || valuationResult.valuation}
       averagePrice={valuationResult.averagePrice}
       hasValuation={hasValuation}
-      isLoggedIn={isLoggedIn}
+      isLoggedIn={!!session}
       onClose={onClose}
-      onContinue={() => handleContinue(valuationResult)}
+      onContinue={handleContinue}
     />
   );
 };

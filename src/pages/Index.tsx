@@ -1,42 +1,47 @@
 
 /**
  * Changes made:
- * - 2024-09-07: Added proper component implementation with default export
- * - 2024-09-08: Fixed export syntax to ensure proper module resolution
+ * - 2024-10-28: Updated to support valuation form being shown based on route state
  */
 
-import React from 'react';
-import { Hero } from '@/components/Hero';
-import { HowItWorks } from '@/components/HowItWorks';
-import { Benefits } from '@/components/Benefits';
-import { Testimonials } from '@/components/Testimonials';
-import { BottomCTA } from '@/components/BottomCTA';
-import { VerifiedDealers } from '@/components/VerifiedDealers';
-import { Navigation } from '@/components/Navigation';
-import { Footer } from '@/components/Footer';
-import { RealtimeProvider } from '@/components/RealtimeProvider';
+import { useState, useEffect } from "react";
+import { Navigation } from "../components/Navigation";
+import { Hero } from "../components/Hero";
+import { HowItWorks } from "../components/HowItWorks";
+import { Benefits } from "../components/Benefits";
+import { Testimonials } from "../components/Testimonials";
+import { VerifiedDealers } from "../components/VerifiedDealers";
+import { BottomCTA } from "../components/BottomCTA";
+import { Footer } from "../components/Footer";
+import { useLocation } from "react-router-dom";
 
-// Note: The following SQL needs to be run in Supabase for real-time functionality:
-// -- Enable replication identity for cars table to get old records in change events
-// ALTER TABLE cars REPLICA IDENTITY FULL;
-// -- Make sure the cars table is in the realtime publication
-// ALTER PUBLICATION supabase_realtime ADD TABLE cars;
+function IndexPage() {
+  const location = useLocation();
+  const [showValuation, setShowValuation] = useState(false);
+  const [valuationContext, setValuationContext] = useState<'home' | 'seller'>('home');
+  
+  // Check for state from navigation (e.g., from seller dashboard)
+  useEffect(() => {
+    if (location.state?.showValuationForm) {
+      setShowValuation(true);
+      if (location.state?.valuationContext === 'seller') {
+        setValuationContext('seller');
+      }
+    }
+  }, [location.state]);
 
-const IndexPage = () => {
   return (
-    <RealtimeProvider>
-      <div className="min-h-screen bg-white">
-        <Navigation />
-        <Hero />
-        <HowItWorks />
-        <Benefits />
-        <Testimonials />
-        <VerifiedDealers />
-        <BottomCTA />
-        <Footer />
-      </div>
-    </RealtimeProvider>
+    <div className="bg-white">
+      <Navigation />
+      <Hero showValuationForm={showValuation} valuationContext={valuationContext} />
+      <HowItWorks />
+      <Benefits />
+      <Testimonials />
+      <VerifiedDealers />
+      <BottomCTA />
+      <Footer />
+    </div>
   );
-};
+}
 
 export default IndexPage;
