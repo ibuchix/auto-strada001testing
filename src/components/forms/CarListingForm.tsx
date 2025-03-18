@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-08-08: Refactored into a multi-step form with navigation and progress tracking
+ * - 2024-09-02: Enhanced with better draft saving and offline mode indication
  */
 
 import { Form } from "@/components/ui/form";
@@ -24,6 +25,7 @@ import { validateFormData, getFormProgress } from "./car-listing/utils/validatio
 import { MultiStepFormControls } from "./car-listing/MultiStepFormControls";
 import { formSteps } from "./car-listing/constants/formSteps";
 import { Card } from "@/components/ui/card";
+import { Wifi, WifiOff } from "lucide-react";
 
 const FormContent = ({ session, draftId }: { session: any; draftId?: string }) => {
   const { form, carId, lastSaved } = useCarListingForm(
@@ -34,6 +36,8 @@ const FormContent = ({ session, draftId }: { session: any; draftId?: string }) =
   const [formProgress, setFormProgress] = useState(0);
   const [validationErrors, setValidationErrors] = useState([]);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isOffline, setIsOffline] = useState(false);
+  const [formLastSaved, setFormLastSaved] = useState<Date | null>(lastSaved);
   const { submitting, showSuccessDialog, setShowSuccessDialog, handleSubmit } = useFormSubmissionContext();
   const navigate = useNavigate();
 
@@ -45,6 +49,17 @@ const FormContent = ({ session, draftId }: { session: any; draftId?: string }) =
     });
     return () => subscription.unsubscribe();
   }, [form]);
+
+  // Load saved step from localStorage if available
+  useEffect(() => {
+    const savedStep = localStorage.getItem('formCurrentStep');
+    if (savedStep) {
+      const step = parseInt(savedStep, 10);
+      if (!isNaN(step) && step >= 0 && step < formSteps.length) {
+        setCurrentStep(step);
+      }
+    }
+  }, []);
 
   const nextStep = () => {
     if (currentStep < formSteps.length - 1) {
@@ -89,13 +104,35 @@ const FormContent = ({ session, draftId }: { session: any; draftId?: string }) =
       return;
     }
 
+    if (isOffline) {
+      toast.error("You are offline", {
+        description: "Please reconnect to the internet to submit your listing.",
+        duration: 5000
+      });
+      return;
+    }
+
     await handleSubmit(data, carId);
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full max-w-4xl mx-auto px-4 md:px-6">
-        <LastSaved timestamp={lastSaved ? new Date(lastSaved) : null} />
+        <div className="flex items-center justify-between">
+          <LastSaved timestamp={formLastSaved} />
+          {isOffline && (
+            <div className="flex items-center text-amber-500 gap-2">
+              <WifiOff size={16} />
+              <span className="text-sm">Offline mode</span>
+            </div>
+          )}
+          {!isOffline && formLastSaved && (
+            <div className="flex items-center text-green-500 gap-2">
+              <Wifi size={16} />
+              <span className="text-sm">Changes saved</span>
+            </div>
+          )}
+        </div>
         
         <div className="sticky top-0 bg-white z-10 pt-4 pb-2 border-b">
           <FormProgress 
@@ -134,9 +171,14 @@ const FormContent = ({ session, draftId }: { session: any; draftId?: string }) =
           isSubmitting={submitting}
           isLastStep={currentStep === formSteps.length - 1}
           onSubmit={form.handleSubmit(onSubmit)}
+          isOffline={isOffline}
         />
         
-        <ProgressPreservation currentStep={currentStep} />
+        <ProgressPreservation 
+          currentStep={currentStep} 
+          onLastSavedChange={setFormLastSaved}
+          onOfflineStatusChange={setIsOffline}
+        />
       </form>
 
       <SuccessDialog 

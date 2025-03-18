@@ -6,15 +6,17 @@
  * - 2024-03-19: Implemented auto-save functionality
  * - 2024-08-08: Updated to save current step information
  * - 2024-08-09: Fixed type errors related to form_metadata field
+ * - 2024-09-02: Enhanced reliability with improved error handling and offline support
  */
 
-import { useEffect } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { transformFormToDbData, transformDbToFormData } from "../utils/formDataTransformers";
 import { SAVE_DEBOUNCE_TIME } from "../constants";
+import { saveFormData } from "../utils/formSaveUtils";
 
 export const useFormPersistence = (
   form: UseFormReturn<CarListingFormData>,
@@ -23,49 +25,109 @@ export const useFormPersistence = (
 ) => {
   const { watch, setValue } = form;
   const formData = watch();
-
-  // Save progress to both localStorage and backend
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const pendingSavesRef = useRef<CarListingFormData | null>(null);
+  const carIdRef = useRef<string | undefined>(undefined);
+  
+  // Listen for online/offline events
   useEffect(() => {
-    const saveProgress = async () => {
-      // Save to localStorage
-      localStorage.setItem('formProgress', JSON.stringify(formData));
-      localStorage.setItem('formCurrentStep', String(currentStep));
-
-      // Save to backend if user is authenticated
-      if (userId) {
-        try {
-          const dbData = transformFormToDbData(formData, userId);
-          
-          // Add the current step to the metadata
-          dbData.form_metadata = {
-            ...(dbData.form_metadata || {}),
-            current_step: currentStep
-          };
-
-          const { error } = await supabase.from('cars').upsert(dbData);
-
-          if (error) {
-            console.error('Error saving draft:', error);
-            toast.error("Failed to save draft", {
-              description: "Your progress is saved locally but not synced to the cloud.",
-              duration: 3000
-            });
-          }
-        } catch (error) {
-          console.error('Error saving draft:', error);
-        }
+    const handleOnline = () => {
+      setIsOffline(false);
+      // If we have pending saves, try to save them now
+      if (pendingSavesRef.current) {
+        saveProgress(pendingSavesRef.current);
+        pendingSavesRef.current = null;
       }
     };
-
-    // Save progress every 30 seconds
-    const intervalId = setInterval(saveProgress, SAVE_DEBOUNCE_TIME);
-
-    // Save on unmount
-    return () => {
-      clearInterval(intervalId);
-      saveProgress();
+    
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast.warning("You are offline", { 
+        description: "Your changes will be saved locally and synced when you're back online.",
+        duration: 5000
+      });
     };
-  }, [formData, userId, currentStep]);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Set initial state
+    setIsOffline(!navigator.onLine);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Save progress to both localStorage and backend
+  const saveProgress = useCallback(async (data: CarListingFormData) => {
+    // Always save to localStorage immediately
+    localStorage.setItem('formProgress', JSON.stringify(data));
+    localStorage.setItem('formCurrentStep', String(currentStep));
+    
+    // Don't attempt backend save if offline or no user
+    if (isOffline || !userId) {
+      if (!isOffline && !userId) {
+        console.warn('Not saving to backend: No user ID provided');
+      }
+      
+      if (isOffline) {
+        pendingSavesRef.current = data;
+      }
+      
+      return;
+    }
+    
+    try {
+      // Get valuation data from localStorage
+      const valuationData = localStorage.getItem('valuationData');
+      if (!valuationData) {
+        console.warn('No valuation data found in localStorage');
+        return;
+      }
+      
+      const parsedValuationData = JSON.parse(valuationData);
+      
+      // Save to backend using the enhanced saveFormData utility
+      const result = await saveFormData(
+        data, 
+        userId, 
+        parsedValuationData, 
+        carIdRef.current
+      );
+      
+      if (result.success) {
+        setLastSaved(new Date());
+        if (result.carId) {
+          carIdRef.current = result.carId;
+        }
+      }
+    } catch (error) {
+      console.error('Error in saveProgress:', error);
+      // Store for later retry if save fails
+      pendingSavesRef.current = data;
+    }
+  }, [userId, isOffline, currentStep]);
+
+  // Set up auto-save
+  useEffect(() => {
+    const debouncedSave = setTimeout(() => {
+      saveProgress(formData);
+    }, SAVE_DEBOUNCE_TIME);
+
+    return () => {
+      clearTimeout(debouncedSave);
+    };
+  }, [formData, saveProgress]);
+
+  // Save on unmount
+  useEffect(() => {
+    return () => {
+      saveProgress(formData);
+    };
+  }, [formData, saveProgress]);
 
   // Restore progress on mount
   useEffect(() => {
@@ -78,9 +140,12 @@ export const useFormPersistence = (
             .select('*')
             .eq('seller_id', userId)
             .eq('is_draft', true)
+            .order('updated_at', { ascending: false })
+            .limit(1)
             .maybeSingle();
 
           if (!error && draftData) {
+            carIdRef.current = draftData.id;
             const formValues = transformDbToFormData(draftData);
             Object.entries(formValues).forEach(([key, value]) => {
               if (value !== undefined && value !== null) {
@@ -97,6 +162,7 @@ export const useFormPersistence = (
               localStorage.setItem('formCurrentStep', String(metadata.current_step));
             }
             
+            setLastSaved(new Date(draftData.updated_at || draftData.created_at));
             return;
           }
         } catch (error) {
@@ -129,4 +195,11 @@ export const useFormPersistence = (
 
     restoreProgress();
   }, [setValue, userId]);
+
+  return {
+    lastSaved,
+    isOffline,
+    saveProgress: () => saveProgress(formData),
+    carId: carIdRef.current
+  };
 };
