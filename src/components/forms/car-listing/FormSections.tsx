@@ -1,8 +1,10 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of form sections component
  * - 2024-03-19: Added all required sections for car listing
  * - 2024-03-19: Implemented upload progress tracking
+ * - 2024-08-08: Updated to conditionally render sections based on current step
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -19,62 +21,95 @@ import { DamageSection } from "./DamageSection";
 import { RimPhotosSection } from "./RimPhotosSection";
 import { WarningLightsSection } from "./WarningLightsSection";
 import { UploadProgress } from "./UploadProgress";
+import { formSteps } from "./constants/formSteps";
 
 interface FormSectionsProps {
   form: UseFormReturn<CarListingFormData>;
   carId?: string;
   uploadProgress: number;
   onProgressUpdate: (progress: number) => void;
+  currentStep?: number;
 }
 
-export const FormSections = ({ form, carId, uploadProgress, onProgressUpdate }: FormSectionsProps) => {
+export const FormSections = ({ 
+  form, 
+  carId, 
+  uploadProgress, 
+  onProgressUpdate,
+  currentStep = 0
+}: FormSectionsProps) => {
+  const currentSections = formSteps[currentStep]?.sections || [];
+
   return (
     <div className="space-y-6">
-      <Card className="p-4 md:p-6">
-        <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Personal Details</h2>
-        <PersonalDetailsSection form={form} />
-      </Card>
+      {/* Personal Details */}
+      {currentSections.includes('personal-details') && (
+        <div>
+          <PersonalDetailsSection form={form} />
+        </div>
+      )}
 
-      <Card className="p-4 md:p-6">
-        <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Vehicle Status</h2>
-        <VehicleStatusSection form={form} />
-      </Card>
+      {/* Vehicle Status */}
+      {currentSections.includes('vehicle-status') && (
+        <div>
+          <VehicleStatusSection form={form} />
+        </div>
+      )}
 
-      <DamageSection form={form} carId={carId} />
+      {/* Damage Section */}
+      {currentSections.includes('damage') && (
+        <DamageSection form={form} carId={carId} />
+      )}
       
-      <RimPhotosSection form={form} carId={carId} />
+      {/* Rim Photos Section */}
+      {currentSections.includes('rims') && (
+        <RimPhotosSection form={form} carId={carId} />
+      )}
       
-      <WarningLightsSection form={form} carId={carId} />
+      {/* Warning Lights Section */}
+      {currentSections.includes('warning-lights') && (
+        <WarningLightsSection form={form} carId={carId} />
+      )}
 
-      <Card className="p-4 md:p-6">
-        <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Features</h2>
-        <FeaturesSection form={form} />
-      </Card>
+      {/* Features */}
+      {currentSections.includes('features') && (
+        <div>
+          <FeaturesSection form={form} />
+        </div>
+      )}
 
-      <Card className="p-4 md:p-6">
-        <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Service History</h2>
-        <ServiceHistorySection form={form} carId={carId} />
-      </Card>
+      {/* Service History */}
+      {currentSections.includes('service-history') && (
+        <div>
+          <ServiceHistorySection form={form} carId={carId} />
+        </div>
+      )}
 
-      <Card className="p-4 md:p-6">
-        <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Additional Information</h2>
-        <AdditionalInfoSection form={form} />
-      </Card>
+      {/* Additional Information */}
+      {currentSections.includes('additional-info') && (
+        <div>
+          <AdditionalInfoSection form={form} />
+        </div>
+      )}
 
-      <Card className="p-4 md:p-6">
-        <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Photos</h2>
-        <PhotoUploadSection 
-          form={form} 
-          carId={carId} 
-          onProgressUpdate={onProgressUpdate}
-        />
-        <UploadProgress progress={uploadProgress} />
-      </Card>
+      {/* Photos */}
+      {currentSections.includes('photos') && (
+        <div>
+          <PhotoUploadSection 
+            form={form} 
+            carId={carId} 
+            onProgressUpdate={onProgressUpdate}
+          />
+          <UploadProgress progress={uploadProgress} />
+        </div>
+      )}
 
-      <Card className="p-4 md:p-6">
-        <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">Seller Notes</h2>
-        <SellerNotesSection form={form} />
-      </Card>
+      {/* Seller Notes */}
+      {currentSections.includes('seller-notes') && (
+        <div>
+          <SellerNotesSection form={form} />
+        </div>
+      )}
     </div>
   );
 };

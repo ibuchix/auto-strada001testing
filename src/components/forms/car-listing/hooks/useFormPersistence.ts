@@ -1,8 +1,10 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of form persistence logic
  * - 2024-03-19: Added support for both local storage and backend persistence
  * - 2024-03-19: Implemented auto-save functionality
+ * - 2024-08-08: Updated to save current step information
  */
 
 import { useEffect } from "react";
@@ -11,10 +13,12 @@ import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { transformFormToDbData, transformDbToFormData } from "../utils/formDataTransformers";
+import { SAVE_DEBOUNCE_TIME } from "../constants";
 
 export const useFormPersistence = (
   form: UseFormReturn<CarListingFormData>,
-  userId?: string
+  userId?: string,
+  currentStep: number = 0
 ) => {
   const { watch, setValue } = form;
   const formData = watch();
@@ -24,11 +28,19 @@ export const useFormPersistence = (
     const saveProgress = async () => {
       // Save to localStorage
       localStorage.setItem('formProgress', JSON.stringify(formData));
+      localStorage.setItem('formCurrentStep', String(currentStep));
 
       // Save to backend if user is authenticated
       if (userId) {
         try {
           const dbData = transformFormToDbData(formData, userId);
+          
+          // Add the current step to the metadata
+          dbData.form_metadata = {
+            ...(dbData.form_metadata || {}),
+            current_step: currentStep
+          };
+
           const { error } = await supabase.from('cars').upsert(dbData);
 
           if (error) {
@@ -45,14 +57,14 @@ export const useFormPersistence = (
     };
 
     // Save progress every 30 seconds
-    const intervalId = setInterval(saveProgress, 30000);
+    const intervalId = setInterval(saveProgress, SAVE_DEBOUNCE_TIME);
 
     // Save on unmount
     return () => {
       clearInterval(intervalId);
       saveProgress();
     };
-  }, [formData, userId]);
+  }, [formData, userId, currentStep]);
 
   // Restore progress on mount
   useEffect(() => {
@@ -77,6 +89,12 @@ export const useFormPersistence = (
                 });
               }
             });
+            
+            // Restore the current step if it exists in metadata
+            if (draftData.form_metadata?.current_step !== undefined) {
+              localStorage.setItem('formCurrentStep', String(draftData.form_metadata.current_step));
+            }
+            
             return;
           }
         } catch (error) {

@@ -6,6 +6,7 @@
  * - 2024-03-19: Added support for converting between form and database formats
  * - 2024-03-19: Added handling for default values and nullable fields
  * - 2024-03-25: Updated to include additional_photos field
+ * - 2024-08-08: Added support for form_metadata with current_step
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
@@ -15,6 +16,7 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
   const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const vin = localStorage.getItem('tempVIN') || '';
+  const currentStep = parseInt(localStorage.getItem('formCurrentStep') || '0');
 
   return {
     seller_id: userId,
@@ -40,11 +42,20 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     title: `${valuationData.make || ''} ${valuationData.model || ''} ${valuationData.year || ''}`.trim() || 'Draft Listing',
     vin: vin,
     transmission: formData.transmission,
-    additional_photos: formData.uploadedPhotos || []
+    additional_photos: formData.uploadedPhotos || [],
+    form_metadata: {
+      current_step: currentStep,
+      last_updated: new Date().toISOString()
+    }
   };
 };
 
 export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> => {
+  // If form_metadata exists, restore the current step to localStorage
+  if (dbData.form_metadata?.current_step !== undefined) {
+    localStorage.setItem('formCurrentStep', String(dbData.form_metadata.current_step));
+  }
+  
   return {
     name: dbData.name || "",
     address: dbData.address || "",

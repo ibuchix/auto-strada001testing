@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2024-08-08: Refactored into a multi-step form with navigation and progress tracking
+ */
+
 import { Form } from "@/components/ui/form";
 import { useAuth } from "@/components/AuthProvider";
 import { useCarListingForm } from "./car-listing/hooks/useCarListingForm";
@@ -16,6 +21,9 @@ import { toast } from "sonner";
 import { FormProgress } from "./car-listing/FormProgress";
 import { RequirementsDisplay } from "./car-listing/RequirementsDisplay";
 import { validateFormData, getFormProgress } from "./car-listing/utils/validation";
+import { MultiStepFormControls } from "./car-listing/MultiStepFormControls";
+import { formSteps } from "./car-listing/constants/formSteps";
+import { Card } from "@/components/ui/card";
 
 const FormContent = ({ session, draftId }: { session: any; draftId?: string }) => {
   const { form, carId, lastSaved } = useCarListingForm(
@@ -25,6 +33,7 @@ const FormContent = ({ session, draftId }: { session: any; draftId?: string }) =
   const [uploadProgress, setUploadProgress] = useState(0);
   const [formProgress, setFormProgress] = useState(0);
   const [validationErrors, setValidationErrors] = useState([]);
+  const [currentStep, setCurrentStep] = useState(0);
   const { submitting, showSuccessDialog, setShowSuccessDialog, handleSubmit } = useFormSubmissionContext();
   const navigate = useNavigate();
 
@@ -36,6 +45,27 @@ const FormContent = ({ session, draftId }: { session: any; draftId?: string }) =
     });
     return () => subscription.unsubscribe();
   }, [form]);
+
+  const nextStep = () => {
+    if (currentStep < formSteps.length - 1) {
+      setCurrentStep(currentStep + 1);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const goToStep = (step: number) => {
+    if (step >= 0 && step < formSteps.length) {
+      setCurrentStep(step);
+      window.scrollTo(0, 0);
+    }
+  };
 
   const onSubmit = async (data: any) => {
     const storedMileage = localStorage.getItem('tempMileage');
@@ -67,18 +97,46 @@ const FormContent = ({ session, draftId }: { session: any; draftId?: string }) =
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full max-w-4xl mx-auto px-4 md:px-6">
         <LastSaved timestamp={lastSaved ? new Date(lastSaved) : null} />
         
-        <FormProgress progress={formProgress} />
-        <RequirementsDisplay errors={validationErrors} />
+        <div className="sticky top-0 bg-white z-10 pt-4 pb-2 border-b">
+          <FormProgress 
+            progress={formProgress} 
+            steps={formSteps}
+            currentStep={currentStep}
+            onStepClick={goToStep}
+          />
+        </div>
         
-        <FormSections
-          form={form}
-          carId={carId}
-          uploadProgress={uploadProgress}
-          onProgressUpdate={setUploadProgress}
-        />
+        {validationErrors.length > 0 && (
+          <RequirementsDisplay errors={validationErrors} />
+        )}
+        
+        <Card className="p-6">
+          <h2 className="text-2xl font-bold mb-6 text-center">
+            {formSteps[currentStep].title}
+          </h2>
+          
+          <div className="space-y-6">
+            <FormSections
+              form={form}
+              carId={carId}
+              uploadProgress={uploadProgress}
+              onProgressUpdate={setUploadProgress}
+              currentStep={currentStep}
+            />
+          </div>
+        </Card>
 
-        <FormSubmitButton isSubmitting={submitting} />
-        <ProgressPreservation />
+        <MultiStepFormControls 
+          currentStep={currentStep} 
+          totalSteps={formSteps.length}
+          onNext={nextStep}
+          onPrevious={prevStep}
+          isSubmitting={submitting}
+          isLastStep={currentStep === formSteps.length - 1}
+          onSubmit={form.handleSubmit(onSubmit)}
+        />
+        
+        <ProgressPreservation currentStep={currentStep} />
       </form>
 
       <SuccessDialog 

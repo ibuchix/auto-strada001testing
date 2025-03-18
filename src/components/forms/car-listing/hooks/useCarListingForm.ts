@@ -2,9 +2,10 @@
 /**
  * Changes made:
  * - 2024-06-12: Fixed import error by removing unused imports
+ * - 2024-08-08: Added support for restoring current step from localStorage
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 import { getFormDefaults } from "./useFormDefaults";
@@ -14,6 +15,7 @@ import { useFormAutoSave } from "./useFormAutoSave";
 export const useCarListingForm = (userId?: string, draftId?: string) => {
   const [carId, setCarId] = useState<string>("");
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [initialStep, setInitialStep] = useState<number>(0);
   
   const valuationData = {
     ...JSON.parse(localStorage.getItem('valuationData') || '{}'),
@@ -21,6 +23,14 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
     transmission: localStorage.getItem('tempGearbox') || 'manual',
     vin: localStorage.getItem('tempVIN') || ''
   };
+
+  // Try to restore the current step from localStorage
+  useEffect(() => {
+    const savedStep = localStorage.getItem('formCurrentStep');
+    if (savedStep) {
+      setInitialStep(parseInt(savedStep));
+    }
+  }, []);
 
   const form = useForm<CarListingFormData>({
     defaultValues: {
@@ -38,6 +48,7 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
   return {
     form,
     carId,
-    lastSaved
+    lastSaved,
+    initialStep
   };
 };
