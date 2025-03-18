@@ -9,6 +9,7 @@
  * - 2024-06-17: Added processProxyBids function to handle automated bidding
  * - 2024-06-19: Refactored to use database function for reserve price calculation
  * - 2024-06-22: Refactored into separate modules for better organization
+ * - 2024-07-22: Updated imports after refactoring utils and validation into smaller modules
  */
 
 // Export the functions from their respective modules

@@ -5,24 +5,24 @@
  * - 2024-07-07: Added better error handling, rate limiting, and enhanced logging
  * - 2024-07-15: Added caching for recent VIN validations
  * - 2024-07-18: Enhanced VIN reservation handling for more reliability
+ * - 2024-07-22: Refactored into smaller modules for better maintainability
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { Database } from '../_shared/database.types.ts';
 import { 
-  calculateChecksum, 
   checkRateLimit, 
   logOperation, 
   ValidationError, 
-  withRetry,
   getCachedValidation,
   cacheValidation
 } from './utils.ts';
 import {
   activateReservation,
-  validateReservation,
-  releaseReservation
+  validateReservation
 } from './reservations.ts';
+import { fetchExternalValuation, calculateReservePrice } from './valuation-api.ts';
+import { checkVehicleExists } from './vehicle-checker.ts';
 
 export const validateVin = async (
   supabase: ReturnType<typeof createClient<Database>>,
@@ -150,34 +150,8 @@ export const validateVin = async (
     }
 
     // Check if vehicle already exists
-    const { data: existingVehicle, error: existingVehicleError } = await supabase
-      .from('cars')
-      .select('id')
-      .eq('vin', vin)
-      .single();
-
-    if (existingVehicleError && existingVehicleError.code !== 'PGRST116') {
-      logOperation('existing_vehicle_check_error', { 
-        requestId,
-        vin, 
-        error: existingVehicleError.message 
-      }, 'error');
-      throw new ValidationError(
-        'Error checking existing vehicle', 
-        'DATABASE_ERROR'
-      );
-    }
-
-    if (existingVehicle) {
-      logOperation('vehicle_already_exists', { 
-        requestId,
-        vin, 
-        vehicleId: existingVehicle.id 
-      });
-      
-      // Cache this result
-      cacheValidation(vin, { isExisting: true }, mileage);
-      
+    const vehicleExists = await checkVehicleExists(supabase, vin, mileage, requestId);
+    if (vehicleExists) {
       return {
         success: true,
         data: {
@@ -187,68 +161,16 @@ export const validateVin = async (
       };
     }
 
-    // Get valuation from external API with retry mechanism
-    const checksum = await calculateChecksum(vin);
-    const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:AUTOSTRA/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-    
-    logOperation('fetching_valuation', { 
-      requestId,
-      vin, 
-      url: valuationUrl 
-    });
-    
-    const data = await withRetry(async () => {
-      const response = await fetch(valuationUrl);
-      if (!response.ok) {
-        throw new ValidationError(
-          `API responded with status: ${response.status}`, 
-          'API_ERROR'
-        );
-      }
-      return await response.json();
-    });
-
-    if (!data.success) {
-      logOperation('valuation_api_error', { 
-        requestId,
-        vin, 
-        apiResponse: data 
-      }, 'error');
-      throw new ValidationError(
-        data.message || 'Failed to get valuation', 
-        'VALUATION_ERROR'
-      );
-    }
+    // Get valuation from external API
+    const data = await fetchExternalValuation(vin, mileage, requestId);
 
     // Calculate base price (average of min and median prices from API)
     const priceMin = data.price_min || data.price;
     const priceMed = data.price_med || data.price;
     const basePrice = (priceMin + priceMed) / 2;
     
-    // Use the database function to calculate reserve price
-    const { data: reservePriceResult, error: reservePriceError } = await supabase
-      .rpc('calculate_reserve_price', { p_base_price: basePrice });
-      
-    if (reservePriceError) {
-      logOperation('reserve_price_calculation_error', { 
-        requestId,
-        vin, 
-        basePrice, 
-        error: reservePriceError.message 
-      }, 'error');
-      throw new ValidationError(
-        'Failed to calculate reserve price', 
-        'RESERVE_PRICE_ERROR'
-      );
-    }
-    
-    const reservePrice = reservePriceResult || 0;
-    logOperation('calculated_reserve_price', { 
-      requestId,
-      vin, 
-      basePrice, 
-      reservePrice 
-    });
+    // Get reserve price
+    const reservePrice = await calculateReservePrice(supabase, basePrice, requestId);
     
     // Add the reserve price to the data for caching
     const valuationData = {
