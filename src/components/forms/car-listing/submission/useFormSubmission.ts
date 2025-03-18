@@ -4,6 +4,7 @@
  * - 2024-10-16: Integrated transaction confirmation system for form submissions
  * - 2024-10-17: Fixed syntax errors in the useFormSubmission hook
  * - 2024-10-18: Completely rewrote the file to fix structural and syntax errors
+ * - 2024-10-22: Fixed syntax errors and type issues with toast custom rendering
  */
 
 import { useState } from "react";
@@ -86,15 +87,13 @@ export const useFormSubmission = (userId?: string) => {
           description: `Submitting listing for ${data.make} ${data.model}`,
           onSuccess: () => {
             toast.dismiss(uploadingToast);
-            toast.custom((t) => {
-              return (
-                <TransactionNotification
-                  title="Listing submitted successfully!"
-                  description="Your listing will be reviewed by our team."
-                  status={TransactionStatus.SUCCESS}
-                />
-              );
-            });
+            toast.custom(() => (
+              <TransactionNotification
+                title="Listing submitted successfully!"
+                description="Your listing will be reviewed by our team."
+                status={TransactionStatus.SUCCESS}
+              />
+            ));
             
             // Clean up storage after successful submission
             cleanupFormStorage();
@@ -109,15 +108,13 @@ export const useFormSubmission = (userId?: string) => {
               const submissionError = error as SubmissionErrorType;
               setError(submissionError.message);
               
-              toast.custom((t) => {
-                return (
-                  <TransactionNotification
-                    title={submissionError.message}
-                    description={submissionError.description}
-                    status={TransactionStatus.ERROR}
-                  />
-                );
-              });
+              toast.custom(() => (
+                <TransactionNotification
+                  title={submissionError.message}
+                  description={submissionError.description}
+                  status={TransactionStatus.ERROR}
+                />
+              ));
             } else {
               handleSupabaseError(error, "Failed to submit listing");
             }

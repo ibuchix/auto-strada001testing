@@ -1,11 +1,15 @@
+
 /**
  * Changes made:
  * - 2024-06-07: Created FormSubmissionProvider component to handle context
+ * - 2024-10-22: Fixed missing TransactionStatus import and type issues
  */
 
 import { createContext, useContext } from "react";
 import { FormSubmissionContextType, FormSubmissionProviderProps } from "./types";
 import { useFormSubmission } from "./useFormSubmission";
+import { CarListingFormData } from "@/types/forms";
+import { TransactionStatus } from "@/services/supabase/transactionService";
 
 const FormSubmissionContext = createContext<FormSubmissionContextType | null>(null);
 
@@ -43,6 +47,7 @@ export const FormSubmissionProvider = ({ children, userId }: FormSubmissionProvi
   );
 };
 
+// Define the extended FormSubmissionContextType interface
 export interface FormSubmissionContextType {
   submitting: boolean;
   error: string | null;
