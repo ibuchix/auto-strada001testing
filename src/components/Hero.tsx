@@ -1,8 +1,8 @@
-
 /**
  * Changes made:
  * - 2024-03-20: Fixed type errors with Supabase query for current_bid
  * - 2024-03-20: Added proper error handling for missing fields
+ * - 2024-03-20: Added error handling for failed auctions query to prevent page crash
  */
 
 import { ValuationForm } from "@/components/hero/ValuationForm";
@@ -29,11 +29,10 @@ export const Hero = () => {
   const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState<{[key: string]: string}>({});
   
-  const { data: activeAuctions, isLoading, refetch } = useQuery({
+  const { data: activeAuctions, isLoading } = useQuery({
     queryKey: ['activeAuctions'],
     queryFn: async () => {
       try {
-        // Query cars with active auctions and their latest bid
         const { data, error } = await supabase
           .from('cars')
           .select(`
@@ -45,13 +44,12 @@ export const Hero = () => {
           .limit(3);
 
         if (error) {
-          toast.error("Failed to load auctions");
-          throw error;
+          console.error("Failed to load auctions:", error);
+          return []; // Return empty array instead of throwing
         }
 
         if (!data) return [];
 
-        // Transform to expected format with fallbacks for missing fields
         return data.map(car => ({
           id: car.id,
           make: car.make || 'Unknown',
@@ -63,13 +61,12 @@ export const Hero = () => {
         }));
       } catch (error) {
         console.error('Error fetching active auctions:', error);
-        return [];
+        return []; // Return empty array on error
       }
     },
-    refetchInterval: 30000 // Refetch every 30 seconds
+    retry: false // Don't retry failed requests
   });
 
-  // Subscribe to real-time updates
   useEffect(() => {
     const subscription = supabase
       .channel('auction-updates')
@@ -82,7 +79,6 @@ export const Hero = () => {
           filter: 'auction_status=eq.active'
         },
         () => {
-          // Refetch auctions when changes occur
           void refetch();
         }
       )
@@ -93,7 +89,6 @@ export const Hero = () => {
     };
   }, [refetch]);
 
-  // Update countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
       const newTimeLeft: {[key: string]: string} = {};
@@ -166,7 +161,6 @@ export const Hero = () => {
     <div className="relative min-h-[700px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-gray-50 mt-4">
       <BackgroundPattern />
 
-      {/* Content */}
       <div className="container relative z-10 max-w-4xl mx-auto px-4 py-20">
         <div className="text-center max-w-2xl mx-auto animate-fade-in">
           <h1 className="text-6xl md:text-7xl font-bold mb-6 leading-tight">
@@ -180,7 +174,7 @@ export const Hero = () => {
           
           <ValuationForm />
 
-          {/* Active Auctions Section */}
+          {/* Active Auctions Section - Only show if we have auctions */}
           {activeAuctions && activeAuctions.length > 0 && (
             <div className="mt-16">
               <h2 className="text-2xl font-bold text-dark mb-6">Live Auctions</h2>
