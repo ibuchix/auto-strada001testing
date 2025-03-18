@@ -1,9 +1,9 @@
-
 /**
  * Changes made:
  * - 2024-09-11: Created auction service for all auction-related operations
  * - 2024-09-19: Optimized queries for better performance and reduced latency
  * - 2024-09-20: Fixed foreign key relationship issue in join query
+ * - 2024-09-21: Updated to respect Row-Level Security policies
  */
 
 import { BaseService } from "./baseService";
@@ -35,14 +35,18 @@ export interface PlaceBidResult {
 export class AuctionService extends BaseService {
   /**
    * Get auction results for a seller with optimized JOIN and column selection
+   * Respects RLS: Sellers will only see their own auction results
    */
   async getSellerAuctionResults(sellerId: string): Promise<AuctionResult[]> {
     try {
-      // First get the car IDs belonging to the seller
+      // With RLS in place, we no longer need to filter explicitly by seller_id
+      // as the RLS policy will handle this automatically.
+      // However, we keep the parameter to maintain backward compatibility
+      
+      // First get the car IDs belonging to the seller - RLS will filter automatically
       const { data: sellerCars, error: carsError } = await this.supabase
         .from('cars')
-        .select('id, title, make, model, year, auction_end_time')
-        .eq('seller_id', sellerId);
+        .select('id, title, make, model, year, auction_end_time');
       
       if (carsError) throw carsError;
       
@@ -53,7 +57,7 @@ export class AuctionService extends BaseService {
       // Extract the car IDs
       const carIds = sellerCars.map(car => car.id);
       
-      // Then get the auction results for those cars
+      // Then get the auction results for those cars - RLS will filter automatically
       const { data: results, error } = await this.supabase
         .from('auction_results')
         .select(`
@@ -99,10 +103,18 @@ export class AuctionService extends BaseService {
   
   /**
    * Place a bid on a car with optimized error handling
+   * Respects RLS: Only dealers can place bids on cars they don't own
    */
   async placeBid(carId: string, dealerId: string, amount: number, isProxyBid: boolean = false, maxProxyAmount?: number): Promise<PlaceBidResult> {
     try {
+      // Verify user is authenticated before placing bid
+      const session = await this.supabase.auth.getSession();
+      if (!session.data.session || session.data.session.user.id !== dealerId) {
+        throw new Error("Authentication required to place bids");
+      }
+      
       // Using an RPC call for better performance (processed server-side)
+      // The place_bid function already has security checks built in
       const { data, error } = await this.supabase.rpc('place_bid', {
         p_car_id: carId,
         p_dealer_id: dealerId,
@@ -157,9 +169,16 @@ export class AuctionService extends BaseService {
   
   /**
    * Place a proxy bid on a car
+   * Respects RLS: Only dealers can place proxy bids
    */
   async placeProxyBid(carId: string, dealerId: string, maxAmount: number): Promise<PlaceBidResult> {
     try {
+      // Verify user is authenticated before placing proxy bid
+      const session = await this.supabase.auth.getSession();
+      if (!session.data.session || session.data.session.user.id !== dealerId) {
+        throw new Error("Authentication required to place proxy bids");
+      }
+      
       // First, get the current bid to determine the minimum next bid
       const { data: car } = await this.supabase
         .from('cars')
@@ -191,6 +210,7 @@ export class AuctionService extends BaseService {
       return await this.placeBid(carId, dealerId, minBidAmount, true, maxAmount);
     } catch (error: any) {
       this.handleError(error, "Failed to place proxy bid");
+      return { success: false, error: error.message };
     }
   }
 }

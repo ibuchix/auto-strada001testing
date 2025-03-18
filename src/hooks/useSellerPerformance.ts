@@ -3,10 +3,11 @@
  * Changes made:
  * - 2024-09-10: Created hook for fetching seller performance metrics data for the seller dashboard
  * - 2024-09-11: Updated to use the new service layer for Supabase interactions
+ * - 2024-09-21: Updated to respect RLS policies
  */
 
 import { Session } from "@supabase/supabase-js";
-import { useQuery } from "@tanstack/react-query";
+import { useOptimizedQuery } from "./useOptimizedQuery";
 import { sellerService } from "@/services/supabase/sellerService";
 
 export interface SellerPerformanceMetrics {
@@ -33,15 +34,16 @@ export const useSellerPerformance = (session: Session | null) => {
     return await sellerService.getSellerPerformanceMetrics(session.user.id);
   };
 
-  // Use React Query to fetch and cache the metrics
+  // Use React Query with RLS-compliant options
   const { 
     data: performanceMetrics,
     isLoading,
     error
-  } = useQuery({
+  } = useOptimizedQuery({
     queryKey: ['seller_performance', session?.user?.id],
     queryFn: fetchPerformanceMetrics,
     enabled: !!session?.user,
+    requireAuth: true, // Requires authentication for RLS to work
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
   });

@@ -6,6 +6,7 @@
  * - 2024-09-17: Fixed TypeScript type errors and improved return types
  * - 2024-09-18: Updated withRetry method implementation to fix type compatibility
  * - 2024-09-19: Optimized queries for better performance and reduced latency
+ * - 2024-09-21: Updated to properly respect RLS policies
  */
 
 import { BaseService } from "./baseService";
@@ -15,6 +16,7 @@ import { CarListing, AuctionStatus } from "@/types/forms";
 export class CarService extends BaseService {
   /**
    * Fetches a single car listing by ID with retry logic and optimized selection
+   * RLS Compliant: Users can only view non-draft listings or their own listings
    */
   async getCarById(id: string, select: string = '*') {
     return this.withRetry(
@@ -189,8 +191,19 @@ export class CarService extends BaseService {
   /**
    * Creates a new car listing with retry logic
    * Only returns essential fields after creation
+   * RLS Compliant: Users can only create listings with their own seller_id
    */
   async createCar(carData: Partial<CarListing>) {
+    // Verify that the seller_id in carData matches the authenticated user's ID
+    const { data: session } = await this.supabase.auth.getSession();
+    
+    if (session?.session && carData.seller_id && carData.seller_id !== session.session.user.id) {
+      toast.error("Permission Denied", {
+        description: "You can only create listings for yourself."
+      });
+      return null;
+    }
+    
     const result = await this.withRetry(
       async () => {
         return this.supabase
@@ -213,6 +226,7 @@ export class CarService extends BaseService {
   /**
    * Updates an existing car listing with retry logic
    * Only returns essential fields after update
+   * RLS Compliant: Users can only update their own draft listings
    */
   async updateCar(id: string, carData: Partial<CarListing>) {
     const result = await this.withRetry(
@@ -237,6 +251,7 @@ export class CarService extends BaseService {
   
   /**
    * Deletes a car listing with retry logic
+   * RLS Compliant: Users can only delete their own listings
    */
   async deleteCar(id: string) {
     const result = await this.withRetry(
@@ -260,6 +275,7 @@ export class CarService extends BaseService {
   
   /**
    * Fetches bids for a specific car with optimized field selection
+   * RLS Compliant: Only accessible to the car's seller or admin users
    */
   async getCarBids(carId: string) {
     return this.withRetry(

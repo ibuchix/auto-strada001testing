@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-09-11: Implemented base service for all Supabase interactions
@@ -6,6 +5,7 @@
  * - 2024-09-17: Fixed TypeScript type issues with PostgrestBuilder
  * - 2024-09-18: Updated withRetry method to use Promise<{ data: T | null; error: any }> type
  * - 2024-09-19: Added query optimization utilities for better performance
+ * - 2024-09-21: Enhanced error handling for Row-Level Security (RLS) violations
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -21,9 +21,38 @@ const DEFAULT_RETRY_DELAY = 1000;
 export class BaseService {
   protected supabase = supabase;
   
-  // Utility method to handle database errors consistently
+  /**
+   * Utility method to handle database errors consistently
+   * Improved to handle RLS violations
+   */
   protected handleError(error: any, customMessage: string = "Operation failed"): never {
     console.error(`Database error:`, error);
+    
+    // Check if this is an RLS violation or permission error
+    if (error?.code === 'PGRST301' || 
+        error?.code === '42501' || 
+        error?.message?.includes('permission denied') ||
+        error?.message?.includes('violates row-level security')) {
+      
+      toast.error("Access Denied", {
+        description: "You don't have permission to perform this action. Please check your access rights."
+      });
+      
+      throw new Error("Permission denied due to Row-Level Security policy");
+    }
+    
+    // Check if this is an authentication error
+    if (error?.code === '401' || 
+        error?.message?.includes('JWT') || 
+        error?.message?.includes('auth')) {
+      
+      toast.error("Authentication Required", {
+        description: "Please sign in to perform this action."
+      });
+      
+      throw new Error("Authentication required");
+    }
+    
     const errorMessage = error?.message || customMessage;
     
     // Display error to user via toast

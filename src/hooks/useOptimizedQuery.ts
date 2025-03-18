@@ -3,14 +3,17 @@
  * Changes made:
  * - 2024-09-19: Created optimized query hook for better React Query performance
  * - 2024-09-20: Fixed type error with onError meta property
+ * - 2024-09-21: Added session validation and handling for RLS
  */
 
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useAuth } from "@/components/AuthProvider";
 
 /**
  * A hook for optimized data fetching with React Query
- * Includes automatic error handling, caching, and performance optimizations
+ * Includes automatic error handling, caching, performance optimizations,
+ * and respect for Row-Level Security policies
  */
 export function useOptimizedQuery<TData, TError = Error>(
   queryKey: string | any[],
@@ -18,13 +21,19 @@ export function useOptimizedQuery<TData, TError = Error>(
   options?: Omit<UseQueryOptions<TData, TError, TData>, 'queryKey' | 'queryFn'> & {
     errorMessage?: string;
     showErrorToast?: boolean;
+    requireAuth?: boolean;
   }
 ) {
+  const { session } = useAuth();
   const {
     errorMessage = "Failed to load data",
     showErrorToast = true,
+    requireAuth = false,
     ...queryOptions
   } = options || {};
+
+  // Check if authentication is required but user is not logged in
+  const enabled = !requireAuth || !!session;
 
   return useQuery({
     queryKey: Array.isArray(queryKey) ? queryKey : [queryKey],
@@ -33,6 +42,7 @@ export function useOptimizedQuery<TData, TError = Error>(
     gcTime: 10 * 60 * 1000, // 10 minutes garbage collection time
     refetchOnWindowFocus: false, // Disable refetching on window focus for better performance
     retry: 2, // Retry failed requests twice
+    enabled,
     ...queryOptions,
     meta: {
       ...(queryOptions?.meta || {}),
@@ -40,9 +50,17 @@ export function useOptimizedQuery<TData, TError = Error>(
         console.error(`Query error for ${JSON.stringify(queryKey)}:`, error);
         
         if (showErrorToast) {
-          toast.error(errorMessage, {
-            description: error?.message || "Please try again later"
-          });
+          // Check if error is related to authentication/authorization
+          if (error?.code === '401' || error?.code === 'PGRST301' || 
+              error?.message?.includes('JWT') || error?.message?.includes('auth')) {
+            toast.error("Authentication Required", {
+              description: "Please sign in to access this data"
+            });
+          } else {
+            toast.error(errorMessage, {
+              description: error?.message || "Please try again later"
+            });
+          }
         }
         
         // Forward to any user-provided onError if it exists
@@ -55,7 +73,7 @@ export function useOptimizedQuery<TData, TError = Error>(
 }
 
 /**
- * A hook for optimized paginated data fetching
+ * A hook for optimized paginated data fetching that respects RLS
  */
 export function useOptimizedPaginatedQuery<TData, TError = Error>(
   queryKey: string | any[],
@@ -65,6 +83,7 @@ export function useOptimizedPaginatedQuery<TData, TError = Error>(
     pageSize?: number;
     errorMessage?: string;
     showErrorToast?: boolean;
+    requireAuth?: boolean;
   }
 ) {
   const {
