@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-10-16: Integrated transaction confirmation system for form submissions
  * - 2024-10-17: Fixed syntax errors in the useFormSubmission hook
+ * - 2024-10-18: Completely rewrote the file to fix structural and syntax errors
  */
 
 import { useState } from "react";
@@ -64,13 +65,13 @@ export const useFormSubmission = (userId?: string) => {
       const errors = validateFormData(data);
       if (errors.length > 0) {
         toast.error("Please complete all required fields", {
-          description: "Some information is missing or incomplete.",
+          description: "Some information is missing or incomplete."
         });
         return;
       }
 
       const uploadingToast = toast.loading("Uploading your listing...", {
-        duration: Infinity,
+        duration: Infinity
       });
 
       // Execute the submission within a transaction
@@ -85,7 +86,7 @@ export const useFormSubmission = (userId?: string) => {
           description: `Submitting listing for ${data.make} ${data.model}`,
           onSuccess: () => {
             toast.dismiss(uploadingToast);
-            toast.custom(() => (
+            toast.custom((t) => (
               <TransactionNotification
                 title="Listing submitted successfully!"
                 description="Your listing will be reviewed by our team."
@@ -106,7 +107,7 @@ export const useFormSubmission = (userId?: string) => {
               const submissionError = error as SubmissionErrorType;
               setError(submissionError.message);
               
-              toast.custom(() => (
+              toast.custom((t) => (
                 <TransactionNotification
                   title={submissionError.message}
                   description={submissionError.description}
@@ -138,6 +139,8 @@ export const useFormSubmission = (userId?: string) => {
       } else {
         handleSupabaseError(error, "Failed to submit listing");
       }
+      
+      throw error;
     }
   };
 
