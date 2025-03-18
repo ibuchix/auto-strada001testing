@@ -4,6 +4,7 @@
  * - 2024-09-10: Created hook for fetching seller performance metrics data for the seller dashboard
  * - 2024-09-11: Updated to use the new service layer for Supabase interactions
  * - 2024-09-21: Updated to respect RLS policies
+ * - 2024-09-22: Fixed useOptimizedQuery parameter format
  */
 
 import { Session } from "@supabase/supabase-js";
@@ -44,8 +45,6 @@ export const useSellerPerformance = (session: Session | null) => {
     queryFn: fetchPerformanceMetrics,
     enabled: !!session?.user,
     requireAuth: true, // Requires authentication for RLS to work
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
   });
 
   return {

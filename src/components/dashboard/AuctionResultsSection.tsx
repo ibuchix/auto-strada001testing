@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-08: Created AuctionResultsSection component for the seller dashboard
+ * - 2024-09-22: Fixed import for AuctionResult interface
  */
 
 import { formatDistance, format } from 'date-fns';

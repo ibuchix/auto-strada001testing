@@ -2,11 +2,29 @@
 /**
  * Changes made:
  * - 2024-09-08: Created hook for fetching auction results with proper RLS compliance
+ * - 2024-09-22: Fixed interface export and useOptimizedQuery parameter format
  */
 
 import { Session } from "@supabase/supabase-js";
 import { useOptimizedQuery } from "./useOptimizedQuery";
-import { auctionService, AuctionResult } from "@/services/supabase/auctionService";
+import { auctionService } from "@/services/supabase/auctionService";
+
+// Export the interface so it can be imported by other components
+export interface AuctionResult {
+  id: string;
+  car_id: string;
+  final_price: number | null;
+  total_bids: number;
+  unique_bidders: number;
+  sale_status: string | null;
+  created_at: string;
+  // Optional fields from joined car data
+  title?: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  auction_end_time?: string;
+}
 
 export const useAuctionResults = (session: Session | null) => {
   // Function to fetch auction results for the authenticated seller
@@ -26,8 +44,6 @@ export const useAuctionResults = (session: Session | null) => {
     queryFn: fetchAuctionResults,
     enabled: !!session?.user,
     requireAuth: true, // This ensures the query only runs if the user is authenticated
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
   });
 
   return {
