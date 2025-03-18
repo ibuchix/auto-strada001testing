@@ -1,8 +1,7 @@
 
 /**
  * Changes made:
- * - 2024-03-30: Created BidForm component with real-time capabilities
- * - 2024-03-30: Integrated with bid utilities for conflict resolution
+ * - 2024-10-16: Added transaction status indicator and improved error handling with transaction system
  */
 
 import { useState } from 'react';
@@ -24,6 +23,8 @@ import {
 import { placeBid } from '@/utils/bidUtils';
 import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 import { useAuth } from '@/components/AuthProvider';
+import { TransactionStatusIndicator } from '@/components/transaction/TransactionStatusIndicator';
+import { useAuctionTransaction } from '@/hooks/useTransaction';
 
 const formSchema = z.object({
   amount: z.coerce.number().positive('Bid must be positive'),
@@ -44,7 +45,7 @@ export const BidForm = ({
   minBidIncrement,
   onBidPlaced 
 }: BidFormProps) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { executeTransaction, isLoading: isTransactionLoading, transactionStatus } = useAuctionTransaction();
   const { session } = useAuth();
   const { isConnected, reconnect } = useRealtimeBids();
   
@@ -66,32 +67,38 @@ export const BidForm = ({
       return;
     }
     
-    setIsSubmitting(true);
-    
-    try {
-      const result = await placeBid({
-        carId,
-        dealerId: session.user.id,
-        amount: values.amount,
-        isProxy: values.isProxy,
-        maxProxyAmount: values.isProxy ? values.maxProxyAmount : undefined,
-      });
-      
-      if (result.success) {
-        form.reset({
-          amount: values.amount + minBidIncrement,
-          isProxy: false,
-          maxProxyAmount: values.amount + minBidIncrement,
+    executeTransaction(
+      "Place Bid", 
+      async () => {
+        const result = await placeBid({
+          carId,
+          dealerId: session.user.id,
+          amount: values.amount,
+          isProxy: values.isProxy,
+          maxProxyAmount: values.isProxy ? values.maxProxyAmount : undefined,
         });
         
-        if (onBidPlaced) {
-          onBidPlaced();
+        if (result.success) {
+          form.reset({
+            amount: values.amount + minBidIncrement,
+            isProxy: false,
+            maxProxyAmount: values.amount + minBidIncrement,
+          });
+          
+          if (onBidPlaced) {
+            onBidPlaced();
+          }
         }
+        
+        return result;
+      },
+      {
+        description: `Bid of ${values.amount} PLN ${values.isProxy ? '(Proxy)' : ''}`
       }
-    } finally {
-      setIsSubmitting(false);
-    }
+    );
   };
+  
+  const isSubmitting = isTransactionLoading;
   
   return (
     <Card>
@@ -185,13 +192,26 @@ export const BidForm = ({
               />
             )}
             
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isSubmitting || !isConnected}
-            >
-              {isSubmitting ? 'Placing Bid...' : 'Place Bid'}
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isSubmitting || !isConnected}
+              >
+                {isSubmitting ? 'Placing Bid...' : 'Place Bid'}
+              </Button>
+              
+              {transactionStatus && (
+                <div className="flex justify-center">
+                  <TransactionStatusIndicator 
+                    status={transactionStatus} 
+                    pendingText="Processing bid..."
+                    successText="Bid placed successfully"
+                    errorText="Bid failed"
+                  />
+                </div>
+              )}
+            </div>
           </form>
         </Form>
       </CardContent>

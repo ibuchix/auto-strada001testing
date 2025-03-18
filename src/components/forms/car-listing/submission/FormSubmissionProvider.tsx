@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-06-07: Created FormSubmissionProvider component to handle context
@@ -19,11 +18,36 @@ export const useFormSubmissionContext = () => {
 };
 
 export const FormSubmissionProvider = ({ children, userId }: FormSubmissionProviderProps) => {
-  const formSubmission = useFormSubmission(userId);
+  const {
+    submitting,
+    error,
+    transactionStatus,
+    showSuccessDialog,
+    setShowSuccessDialog,
+    handleSubmit
+  } = useFormSubmission(userId);
 
   return (
-    <FormSubmissionContext.Provider value={formSubmission}>
+    <FormSubmissionContext.Provider
+      value={{
+        submitting,
+        error,
+        transactionStatus,
+        showSuccessDialog,
+        setShowSuccessDialog,
+        handleSubmit
+      }}
+    >
       {children}
     </FormSubmissionContext.Provider>
   );
 };
+
+export interface FormSubmissionContextType {
+  submitting: boolean;
+  error: string | null;
+  transactionStatus?: TransactionStatus | null;
+  showSuccessDialog: boolean;
+  setShowSuccessDialog: (show: boolean) => void;
+  handleSubmit: (data: CarListingFormData, carId?: string) => Promise<any>;
+}

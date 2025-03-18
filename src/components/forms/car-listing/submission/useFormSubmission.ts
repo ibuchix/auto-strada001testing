@@ -1,10 +1,7 @@
 
 /**
  * Changes made:
- * - 2024-06-07: Refactored from hooks/useFormSubmission.ts
- * - 2024-06-07: Simplified and focused on submission logic only
- * - 2024-06-12: Further refactored to use specialized utility files
- * - 2024-08-20: Integrated standardized error handling
+ * - 2024-10-16: Integrated transaction confirmation system for form submissions
  */
 
 import { useState } from "react";
@@ -17,6 +14,9 @@ import { submitCarListing } from "./services/submissionService";
 import { validateFormData } from "../utils/validation";
 import { SubmissionErrorType } from "./types";
 import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
+import { useCreateTransaction } from "@/hooks/useTransaction";
+import { TransactionNotification } from "@/components/transaction/TransactionNotification";
+import { TransactionStatus } from "@/services/supabase/transactionService";
 
 export const useFormSubmission = (userId?: string) => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -24,11 +24,19 @@ export const useFormSubmission = (userId?: string) => {
   const { 
     error, 
     setError, 
-    isLoading: submitting, 
-    setIsLoading: setSubmitting,
     handleSupabaseError
   } = useSupabaseErrorHandling({ 
-    showToast: false // We'll handle toasts manually for form submission
+    showToast: false // We'll handle toasts via transaction system
+  });
+
+  const { 
+    execute: executeSubmission, 
+    isLoading: submitting, 
+    transactionStatus
+  } = useCreateTransaction({
+    showToast: false, // We'll handle custom notifications
+    retryCount: 1,
+    logToDb: true
   });
 
   const handleSubmit = async (data: CarListingFormData, carId?: string) => {
@@ -45,7 +53,6 @@ export const useFormSubmission = (userId?: string) => {
       return;
     }
 
-    setSubmitting(true);
     setError(null);
 
     try {
@@ -58,7 +65,6 @@ export const useFormSubmission = (userId?: string) => {
         toast.error("Please complete all required fields", {
           description: "Some information is missing or incomplete.",
         });
-        setSubmitting(false);
         return;
       }
 
@@ -66,25 +72,59 @@ export const useFormSubmission = (userId?: string) => {
         duration: Infinity,
       });
 
-      // Submit the data
-      await submitCarListing(data, userId, carId);
-
-      toast.dismiss(uploadingToast);
-
-      toast.success("Listing submitted successfully!", {
-        description: "Your listing will be reviewed by our team.",
-      });
+      // Execute the submission within a transaction
+      const result = await executeSubmission(
+        "Submit Car Listing",
+        async () => {
+          return await submitCarListing(data, userId, carId);
+        },
+        {
+          entityType: "car",
+          entityId: carId,
+          description: `Submitting listing for ${data.make} ${data.model}`,
+          onSuccess: () => {
+            toast.dismiss(uploadingToast);
+            toast.custom(() => (
+              <TransactionNotification
+                title="Listing submitted successfully!"
+                description="Your listing will be reviewed by our team."
+                status={TransactionStatus.SUCCESS}
+              />
+            ));
+            
+            // Clean up storage after successful submission
+            cleanupFormStorage();
+            
+            // Show success dialog
+            setShowSuccessDialog(true);
+          },
+          onError: (error) => {
+            toast.dismiss(uploadingToast);
+            
+            if ('message' in error && 'description' in error) {
+              const submissionError = error as SubmissionErrorType;
+              setError(submissionError.message);
+              
+              toast.custom(() => (
+                <TransactionNotification
+                  title={submissionError.message}
+                  description={submissionError.description}
+                  status={TransactionStatus.ERROR}
+                />
+              ));
+            } else {
+              handleSupabaseError(error, "Failed to submit listing");
+            }
+          }
+        }
+      );
       
-      // Clean up storage after successful submission
-      cleanupFormStorage();
-      
-      // Show success dialog
-      setShowSuccessDialog(true);
-      
+      return result;
     } catch (error: any) {
       console.error('Submission error:', error);
       
-      // Handle submission error type
+      // This will only execute if the executeTransaction wrapper itself fails
+      // which is unlikely but possible
       if ('message' in error && 'description' in error) {
         const submissionError = error as SubmissionErrorType;
         setError(submissionError.message);
@@ -95,17 +135,15 @@ export const useFormSubmission = (userId?: string) => {
           action: submissionError.action
         });
       } else {
-        // Use our standardized error handling
         handleSupabaseError(error, "Failed to submit listing");
       }
-    } finally {
-      setSubmitting(false);
     }
   };
 
   return {
     submitting,
     error,
+    transactionStatus,
     showSuccessDialog,
     setShowSuccessDialog,
     handleSubmit

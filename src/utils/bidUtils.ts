@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-06-14: Updated to use the secure place_bid SQL function
@@ -7,6 +6,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { transactionService, TransactionType } from "@/services/supabase/transactionService";
 
 export interface BidData {
   carId: string;
@@ -42,51 +42,59 @@ export const calculateMinimumBid = (
  * Places a bid using the secure place_bid function
  * This ensures all bid validation and conflict resolution happens atomically
  */
-export const placeBid = async (data: BidData): Promise<BidResponse> => {
-  try {
-    // Call the place_bid function with proper parameters
-    const { data: result, error } = await supabase.rpc(
-      'place_bid' as any, 
-      {
-        p_car_id: data.carId,
-        p_dealer_id: data.dealerId,
-        p_amount: data.amount,
-        p_is_proxy: data.isProxy || false,
-        p_max_proxy_amount: data.maxProxyAmount || null
+export const placeBid = async ({
+  carId,
+  dealerId,
+  amount,
+  isProxy = false,
+  maxProxyAmount
+}: {
+  carId: string;
+  dealerId: string;
+  amount: number;
+  isProxy?: boolean;
+  maxProxyAmount?: number;
+}) => {
+  // Use the transaction service to track this critical operation
+  return transactionService.executeTransaction(
+    "Place Bid",
+    TransactionType.AUCTION,
+    async () => {
+      const { data, error } = await supabase.rpc('place_bid', {
+        p_car_id: carId,
+        p_dealer_id: dealerId,
+        p_amount: amount,
+        p_is_proxy: isProxy,
+        p_max_proxy_amount: maxProxyAmount
+      });
+
+      if (error) {
+        throw new Error(error.message);
       }
-    );
 
-    if (error) {
-      console.error('Bid placement error:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to place bid');
+      }
+
+      // Add transaction-specific metadata
+      transactionService.updateTransactionMetadata(crypto.randomUUID(), {
+        bidAmount: amount,
+        isProxy,
+        maxProxyAmount,
+        carId,
+        bidId: data.bid_id
+      });
+
+      return data;
+    },
+    {
+      entityId: carId,
+      entityType: 'car',
+      description: `Bid of ${amount} PLN ${isProxy ? '(Proxy)' : ''}`,
+      showToast: true,
+      retryCount: isProxy ? 0 : 1 // Only retry manual bids, not proxy bids
     }
-
-    // The function returns a JSON object with fields we need to extract
-    const typedResult = result as unknown as {
-      success: boolean;
-      bid_id?: string;
-      amount?: number;
-      error?: string;
-      minimum_bid?: number;
-    };
-
-    return {
-      success: typedResult.success,
-      bid_id: typedResult.bid_id,
-      amount: typedResult.amount,
-      error: typedResult.error,
-      minimumBid: typedResult.minimum_bid
-    };
-  } catch (error: any) {
-    console.error('Unexpected bid error:', error);
-    return {
-      success: false,
-      error: error.message || 'An unexpected error occurred'
-    };
-  }
+  );
 };
 
 /**
