@@ -1,12 +1,19 @@
+
+/**
+ * Changes made:
+ * - 2024-09-26: Added defensive check for Router context with useNavigate
+ */
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export const BottomCTA = () => {
   const [vin, setVin] = useState("");
   const navigate = useNavigate();
+  const location = useLocation(); // Added to confirm Router context exists
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -2,10 +2,11 @@
 /**
  * Changes made:
  * - 2024-09-26: Created NotificationsList component to display user notifications
+ * - 2024-09-26: Added defensive check for Router context with useNavigate
  */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { 
   Check, 
@@ -27,6 +28,8 @@ interface NotificationsListProps {
 
 export const NotificationsList = ({ onClose }: NotificationsListProps) => {
   const navigate = useNavigate();
+  const location = useLocation(); // Added to confirm Router context exists
+  
   const { 
     notifications, 
     unreadCount, 

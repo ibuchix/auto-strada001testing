@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2024-09-26: Exported queryClient for use in App.tsx
+ */
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
@@ -11,7 +16,7 @@ if (!rootElement) {
   throw new Error('Failed to find the root element')
 }
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes

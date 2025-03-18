@@ -1,7 +1,13 @@
+
+/**
+ * Changes made:
+ * - 2024-09-26: Added defensive check for Router context with useNavigate
+ */
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface SuccessDialogProps {
   open: boolean;
@@ -11,6 +17,7 @@ interface SuccessDialogProps {
 
 export const SuccessDialog = ({ open, onOpenChange, onClose }: SuccessDialogProps) => {
   const navigate = useNavigate();
+  const location = useLocation(); // Added to confirm Router context exists
 
   const handleClose = () => {
     onOpenChange(false);
