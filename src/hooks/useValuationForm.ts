@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-10-28: Created useValuationForm hook to handle valuation form state and submission
  * - 2024-10-29: Fixed supabase import and added context parameter
+ * - 2024-10-30: Improved error handling and ensured English messaging
  */
 
 import { useState } from 'react';
