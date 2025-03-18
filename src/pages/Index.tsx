@@ -1,3 +1,4 @@
+
 // We're not actually modifying this file.
 // This is a temporary placeholder to include the SQL changes to be run on Supabase.
 // The user needs to run the following SQL in the Supabase SQL editor:
@@ -9,3 +10,4 @@
 //
 // This allows Supabase to send complete old records in the real-time updates
 // which we need to compare changes between states.
+
