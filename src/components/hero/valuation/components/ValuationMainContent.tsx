@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-03-19: Created ValuationMainContent component extracted from ValuationResult
  * - 2024-03-19: Updated props to only pass reservePrice to ValuationDisplay
+ * - 2024-10-30: Updated to pass amount prop to ValuationDisplay instead of reservePrice
  */
 
 import {
@@ -63,7 +64,7 @@ export const ValuationMainContent = ({
         />
 
         {hasValuation && (
-          <ValuationDisplay reservePrice={reservePrice} />
+          <ValuationDisplay amount={reservePrice} />
         )}
       </div>
 

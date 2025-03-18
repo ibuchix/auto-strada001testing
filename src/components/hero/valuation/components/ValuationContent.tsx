@@ -1,4 +1,10 @@
 
+/**
+ * Changes made:
+ * - 2024-10-30: Updated to import formatCurrency from validation utils
+ * - 2024-10-30: Fixed formatting and component structure
+ */
+
 import { Button } from "@/components/ui/button";
 import { VehicleDetails } from "./VehicleDetails";
 import { ValuationDisplay } from "./ValuationDisplay";

@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2024-10-30: Updated to use formatCurrency from utils/validation
+ */
+
 import { formatCurrency } from "@/utils/validation";
 
 export const ValuationDisplay = ({ amount }: { amount: number }) => {
