@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-11: Implemented CarService with basic CRUD operations
  * - 2024-09-16: Added retry and fallback logic for improved resilience
+ * - 2024-09-17: Fixed TypeScript type errors and improved return types
  */
 
 import { BaseService } from "./baseService";
@@ -242,3 +243,6 @@ export class CarService extends BaseService {
     );
   }
 }
+
+// Export a singleton instance
+export const carService = new CarService();

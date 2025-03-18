@@ -65,6 +65,41 @@ export interface CarListingFormData {
   serviceHistoryFiles?: string[];
 }
 
+export type AuctionStatus = 'active' | 'ended' | 'sold' | 'cancelled' | null;
+
+export interface CarListing {
+  id?: string;
+  title?: string;
+  description?: string;
+  seller_id?: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  price: number;
+  mileage?: number;
+  features?: CarFeatures;
+  is_draft: boolean;
+  is_auction?: boolean;
+  auction_status?: AuctionStatus;
+  auction_end_time?: string | null;
+  reserve_price?: number | null;
+  current_bid?: number | null;
+  minimum_bid_increment?: number;
+  images?: string[] | null;
+  vin?: string | null;
+  transmission?: string | null;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
+  seller_notes?: string | null;
+  additional_photos?: Json | null;
+  mobile_number?: string | null;
+  is_damaged?: boolean;
+  required_photos?: Json | null;
+  form_metadata?: Json | null;
+  registration_number?: string | null;
+}
+
 export const transformFeaturesForDb = (features: CarFeatures): Json => {
   return features as unknown as Json;
 };

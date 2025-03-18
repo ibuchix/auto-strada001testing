@@ -3,10 +3,12 @@
  * Changes made:
  * - 2024-09-11: Created base service for all Supabase interactions
  * - 2024-09-16: Added retry and fallback logic for improved resilience
+ * - 2024-09-17: Fixed TypeScript type issues with PostgrestBuilder
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PostgrestBuilder } from "@supabase/postgrest-js";
 
 // Maximum retries for any Supabase operation
 const DEFAULT_MAX_RETRIES = 3;
@@ -58,7 +60,7 @@ export class BaseService {
    * @returns The result of the operation
    */
   protected async withRetry<T>(
-    operation: () => Promise<{ data: T | null; error: any }>,
+    operation: () => PostgrestBuilder<any, any>,
     options: {
       maxRetries?: number;
       retryDelay?: number;
@@ -88,11 +90,12 @@ export class BaseService {
           await new Promise(resolve => setTimeout(resolve, backoffTime));
         }
         
+        // Execute the operation and await its result
         const { data, error } = await operation();
         
         // If operation succeeded, return the data
         if (!error) {
-          return data;
+          return data as T;
         }
         
         // If operation failed but the error is retryable

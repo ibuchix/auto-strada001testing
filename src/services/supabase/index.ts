@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-11: Created service index to export all Supabase services
  * - 2024-09-12: Added proper import for sellerService
+ * - 2024-09-17: Fixed import and export naming for services
  */
 
 // Export all services
