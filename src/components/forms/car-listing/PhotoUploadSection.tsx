@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-08-09: Enhanced to use categorized Supabase Storage
  * - 2024-08-09: Added upload progress tracking
+ * - 2024-08-17: Updated imports to use refactored photo upload hook
  */
 
 import { UseFormReturn } from "react-hook-form";
