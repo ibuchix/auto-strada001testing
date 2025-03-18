@@ -5,6 +5,7 @@
  * - 2024-10-24: Fixed type issues with audit log entries and Date objects
  * - 2024-10-25: Fixed Date object serialization for database inserts
  * - 2024-10-26: Fixed audit_logs action type to use proper enum values
+ * - 2024-10-27: Updated mapTransactionTypeToAuditAction to use specific enum values
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +60,17 @@ export interface TransactionOptions {
   onError?: (error: any) => void;
   onComplete?: (details: TransactionDetails) => void;
 }
+
+// Define valid audit log action types based on the database schema
+type AuditLogActionType = 
+  | 'create' 
+  | 'update' 
+  | 'delete' 
+  | 'login' 
+  | 'logout'
+  | 'auction_closed'
+  | 'auto_proxy_bid'
+  | 'system_alert';
 
 export class TransactionService extends BaseService {
   private activeTransactions: Map<string, TransactionDetails> = new Map();
@@ -230,7 +242,7 @@ export class TransactionService extends BaseService {
       };
 
       // Convert transaction type to an appropriate audit_log action type
-      // The issue was that we were trying to pass a string to a field that expects a specific enum
+      // Using the properly typed action values from our defined type
       const actionType = this.mapTransactionTypeToAuditAction(details.type, details.operation);
 
       await this.supabase.from('audit_logs').insert({
@@ -248,9 +260,11 @@ export class TransactionService extends BaseService {
   
   /**
    * Map transaction types to valid audit log action types
+   * Returns a specific enum value that matches what the database expects
    */
-  private mapTransactionTypeToAuditAction(type: TransactionType, operation: string): string {
+  private mapTransactionTypeToAuditAction(type: TransactionType, operation: string): AuditLogActionType {
     // Map our transaction types to the specific action types defined in the database
+    // Ensuring we only return values from the AuditLogActionType type
     switch (type) {
       case TransactionType.CREATE:
         return 'create';
@@ -265,9 +279,13 @@ export class TransactionService extends BaseService {
         }
         return 'auction_closed';
       case TransactionType.AUTHENTICATION:
-        return 'login'; // Or 'logout' but we can't determine which from just the type
+        if (operation.toLowerCase().includes('logout')) {
+          return 'logout';
+        }
+        return 'login';
       case TransactionType.OTHER:
-        return 'system_alert';
+      case TransactionType.PAYMENT:
+      case TransactionType.UPLOAD:
       default:
         // Default safe fallback
         return 'system_alert';
