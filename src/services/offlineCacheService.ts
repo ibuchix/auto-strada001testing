@@ -1,6 +1,8 @@
+
 /**
  * Changes made:
  * - 2024-10-15: Created a central service for offline data caching
+ * - 2024-12-16: Fixed JSON parsing error by adding safe parsing logic for string values
  */
 
 // Cache keys for different types of data
@@ -21,7 +23,13 @@ export const CACHE_KEYS = {
  */
 export const saveToCache = <T>(key: string, data: T): void => {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    // If data is a string, store it directly
+    if (typeof data === 'string') {
+      localStorage.setItem(key, data);
+    } else {
+      // For objects and other types, use JSON.stringify
+      localStorage.setItem(key, JSON.stringify(data));
+    }
   } catch (error) {
     console.error(`Failed to save data to cache (${key}):`, error);
   }
@@ -33,7 +41,41 @@ export const saveToCache = <T>(key: string, data: T): void => {
 export const getFromCache = <T>(key: string, defaultValue: T | null = null): T | null => {
   try {
     const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
+    
+    if (item === null) {
+      return defaultValue;
+    }
+    
+    // Handle different expected return types
+    if (defaultValue !== null) {
+      // If defaultValue is a string, return the raw item
+      if (typeof defaultValue === 'string') {
+        return item as unknown as T;
+      }
+      
+      // If defaultValue is a number, try to parse as number
+      if (typeof defaultValue === 'number') {
+        const num = Number(item);
+        return !isNaN(num) ? num as unknown as T : defaultValue;
+      }
+      
+      // If defaultValue is a boolean, handle specific boolean strings
+      if (typeof defaultValue === 'boolean') {
+        return (item === 'true' ? true : item === 'false' ? false : defaultValue) as unknown as T;
+      }
+    }
+    
+    // For complex objects, try JSON.parse with fallback to the raw value
+    try {
+      return JSON.parse(item) as T;
+    } catch (parseError) {
+      // If JSON parsing fails, return the raw string if that's what was expected
+      if (typeof defaultValue === 'string' || defaultValue === null) {
+        return item as unknown as T;
+      }
+      console.warn(`Failed to parse JSON from cache (${key}), returning raw string:`, parseError);
+      return defaultValue;
+    }
   } catch (error) {
     console.error(`Failed to get data from cache (${key}):`, error);
     return defaultValue;

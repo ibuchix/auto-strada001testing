@@ -21,12 +21,7 @@ export const BottomCTA = () => {
         setVin(cachedVin);
       }
     } catch (error) {
-      console.error("Failed to get data from cache (tempVIN):", error);
-      // If there's an error with the cache, try to get directly from localStorage
-      const directVin = localStorage.getItem(CACHE_KEYS.TEMP_VIN);
-      if (directVin && typeof directVin === 'string' && directVin !== 'undefined') {
-        setVin(directVin);
-      }
+      console.error("Failed to load cached VIN:", error);
     }
   }, []);
 
@@ -38,9 +33,8 @@ export const BottomCTA = () => {
       return;
     }
     
-    // Save to cache regardless of online status
-    // Use direct localStorage to avoid potential JSON parsing issues
-    localStorage.setItem(CACHE_KEYS.TEMP_VIN, vin);
+    // Save to cache using the improved function that properly handles strings
+    saveToCache(CACHE_KEYS.TEMP_VIN, vin);
     
     if (isOffline) {
       toast.info("You're currently offline", {
@@ -50,8 +44,6 @@ export const BottomCTA = () => {
       return;
     }
     
-    // Instead of passing vin in state, use a more reliable method
-    localStorage.setItem('tempVIN', vin);
     // Navigate to valuation page to properly process the VIN
     navigate('/', { state: { directValuation: true } });
   };

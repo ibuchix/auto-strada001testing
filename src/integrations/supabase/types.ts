@@ -1526,6 +1526,46 @@ export type Database = {
           year: number | null
         }[]
       }
+      get_seller_performance_metrics: {
+        Args: {
+          p_seller_id: string
+        }
+        Returns: {
+          active_listings: number
+          average_price: number | null
+          average_time_to_sell: unknown | null
+          cancelled_listings: number
+          created_at: string
+          highest_price_sold: number | null
+          id: string
+          last_listing_date: string | null
+          last_sale_date: string | null
+          listing_approval_rate: number | null
+          reserve_price_met_rate: number | null
+          seller_id: string
+          sold_listings: number
+          total_earnings: number
+          total_listings: number
+          updated_at: string
+        }[]
+      }
+      get_seller_profile: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: {
+          address: string | null
+          company_name: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          is_verified: boolean
+          tax_id: string | null
+          updated_at: string
+          user_id: string
+          verification_status: string
+        }[]
+      }
       get_user_id_by_email: {
         Args: {
           p_email: string
@@ -1533,6 +1573,10 @@ export type Database = {
         Returns: Json
       }
       is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_seller: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
