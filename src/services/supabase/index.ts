@@ -8,16 +8,19 @@
  * - 2024-09-19: Added performance optimizations and improved service exports
  * - 2024-10-28: Updated to import from transaction system's new location
  * - 2024-11-18: Updated to include refactored user-related services
+ * - 2024-11-20: Fixed TypeScript errors with proper type exports
  */
 
 // Export services from auth module
 export * from './auth/sessionService';
 
 // Export services from profiles module
-export * from './profiles/profileService';
+export { profileService } from './profiles/profileService';
+export type { UserProfile } from './profiles/profileService';
 
 // Export services from sellers module
-export * from './sellers/sellerProfileService';
+export { sellerProfileService } from './sellers/sellerProfileService';
+export type { SellerProfile } from './sellers/sellerProfileService';
 
 // Export all other services
 export * from './baseService';

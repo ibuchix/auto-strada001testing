@@ -5,6 +5,7 @@
  * - 2024-11-18: Extracted from useSellerSession to improve maintainability
  * - 2024-11-18: Enhanced fallback mechanisms for seller role detection
  * - 2024-11-19: Updated to use refactored profile and seller services
+ * - 2024-11-20: Fixed type imports with proper import syntax
  */
 
 import { useCallback } from "react";

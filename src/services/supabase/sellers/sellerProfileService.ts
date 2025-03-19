@@ -3,10 +3,11 @@
  * Changes made:
  * - 2024-11-18: Created dedicated service for seller-specific operations
  * - 2024-11-18: Extracted from userService.ts to improve maintainability
+ * - 2024-11-20: Updated UserProfile import to fix TypeScript error
  */
 
 import { BaseService } from "../baseService";
-import { UserProfile } from "../profiles/profileService";
+import type { UserProfile } from "../profiles/profileService";
 
 export interface SellerProfile extends UserProfile {
   company_name?: string;

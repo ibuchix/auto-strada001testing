@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-11-18: Created dedicated service for profile-related operations
  * - 2024-11-18: Extracted from userService.ts to improve maintainability
+ * - 2024-11-20: Exported UserProfile type with proper TypeScript syntax
  */
 
 import { BaseService } from "../baseService";
