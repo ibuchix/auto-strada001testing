@@ -7,6 +7,7 @@
  * - 2024-06-07: Updated to use refactored form components
  * - 2024-10-19: Added validation to ensure VIN check was performed before accessing page
  * - 2024-11-11: Fixed issue with data validation that prevented form display
+ * - 2024-11-11: Improved error handling for inconsistent localStorage data
  */
 
 import { Navigation } from "@/components/Navigation";
@@ -40,14 +41,27 @@ const SellMyCar = () => {
       const valuationData = valuationDataStr ? JSON.parse(valuationDataStr) : null;
       
       // Validate that we have the minimum required data
-      if (!tempVIN || !tempMileage || !valuationData) {
-        console.error("Missing data:", { tempVIN, tempMileage, valuationData });
+      if (!tempVIN || !tempMileage) {
+        console.error("Missing required data:", { tempVIN, tempMileage });
         toast.error("Please complete a vehicle valuation first");
         navigate("/");
         return;
       }
       
+      // Check if valuation data is present, but don't block if it's not
+      // This allows manual entry as a fallback
+      if (!valuationData) {
+        console.warn("Missing valuation data, but proceeding with basic info");
+        toast.info("Limited vehicle data available. Some fields may need manual entry.");
+      }
+      
       // All checks passed, form is valid to display
+      console.log("Form validation passed, proceeding with data:", { 
+        tempVIN, 
+        tempMileage, 
+        valuationData 
+      });
+      
       setIsValid(true);
       
     } catch (error) {

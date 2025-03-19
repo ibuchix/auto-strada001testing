@@ -5,6 +5,7 @@
  * - 2024-03-19: Added vin prop and passed it to VehicleDetails
  * - 2024-03-19: Added averagePrice prop to handle API response data
  * - 2024-03-19: Fixed reserve price prop to use valuation instead of reservePrice
+ * - 2024-11-11: Fixed button click handling for mobile devices by improving event handler
  */
 
 import { 
@@ -46,6 +47,13 @@ export const ValuationContent = ({
   onClose,
   onContinue
 }: ValuationContentProps) => {
+  // Create a proper event handler to prevent event propagation issues
+  const handleContinueClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onContinue();
+  };
+
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
@@ -81,8 +89,9 @@ export const ValuationContent = ({
           Close
         </Button>
         <Button 
-          onClick={onContinue}
+          onClick={handleContinueClick}
           className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
+          type="button"
         >
           {!isLoggedIn 
             ? "Sign Up to List Your Car" 
