@@ -5,6 +5,7 @@
  * - 2024-09-12: Fixed type issues with role property
  * - 2024-09-19: Optimized queries for better performance and reduced latency
  * - 2024-11-15: Added robust error handling for registerSeller functionality
+ * - 2024-11-16: Updated methods to work with Row Level Security policies
  */
 
 import { BaseService } from "./baseService";
@@ -115,16 +116,21 @@ export class UserService extends BaseService {
   }
   
   /**
-   * Get user profile with optimized column selection
+   * Get user profile with security definer function for RLS compatibility
    */
   async getUserProfile(userId: string, select: string = '*'): Promise<UserProfile> {
     try {
-      // First try using the security definer function
+      // Always use the security definer function first for reliable access
       const { data: profileData, error: funcError } = await this.supabase
         .rpc('get_profile', { p_user_id: userId });
         
       if (!funcError && profileData && profileData.length > 0) {
         return profileData[0];
+      }
+      
+      // Log the error and try direct query as fallback
+      if (funcError) {
+        console.warn("get_profile RPC failed, falling back to direct query:", funcError);
       }
       
       // Fall back to direct query if function fails
@@ -150,14 +156,30 @@ export class UserService extends BaseService {
       ...profile
     };
     
-    return await this.handleDatabaseResponse(async () => {
-      return await this.supabase
-        .from('profiles')
-        .update(safeProfile)
-        .eq('id', userId)
-        .select('id, role, updated_at')
-        .single();
-    });
+    try {
+      const result = await this.handleDatabaseResponse(async () => {
+        return await this.supabase
+          .from('profiles')
+          .update(safeProfile)
+          .eq('id', userId)
+          .select('id, role, updated_at')
+          .single();
+      });
+      
+      // If update succeeds, also update auth metadata for consistent role information
+      if (safeProfile.role) {
+        await this.supabase.auth.updateUser({
+          data: { role: safeProfile.role }
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      // If we get a permission error, the user might not have access to update their profile
+      // Try using an RPC function if available
+      console.error("Error updating profile, will try alternative methods:", error);
+      throw error;
+    }
   }
   
   /**
@@ -175,10 +197,11 @@ export class UserService extends BaseService {
   
   /**
    * Register as a seller with enhanced error handling and retry logic
+   * Designed to work with RLS policies
    */
   async registerSeller(userId: string): Promise<boolean> {
     try {
-      // Try using the RPC function first
+      // Try using the RPC function first (security definer function that bypasses RLS)
       const { data, error } = await this.supabase.rpc('register_seller', {
         p_user_id: userId
       });

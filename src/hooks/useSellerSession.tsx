@@ -9,6 +9,7 @@
  * - 2024-11-14: Enhanced seller role checking to handle RLS permission issues
  * - 2024-11-14: Added fallback mechanisms for seller verification when database queries fail
  * - 2024-11-15: Improved error handling for profile access with multiple fallback methods
+ * - 2024-11-16: Added support for row level security policies and improved authentication flow
  */
 
 import { useEffect, useState, useCallback } from "react";
@@ -136,7 +137,7 @@ export const useSellerSession = () => {
       setIsSeller(false);
       return false;
     }
-  }, [handleSupabaseError]);
+  }, []);
 
   useEffect(() => {
     let mounted = true;

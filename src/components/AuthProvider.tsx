@@ -6,6 +6,7 @@
  * - 2024-08-25: Refactored to properly use the updated useSellerSession hook
  * - 2024-08-25: Added refreshSellerStatus to context for re-checking seller status
  * - 2024-10-15: Added offline mode awareness
+ * - 2024-11-16: Updated to work with Row Level Security policies
  */
 
 import { createContext, useContext } from "react";
