@@ -5,6 +5,7 @@
  * - 2024-09-22: Fixed type compatibility with cars table and CarListing interface
  * - 2024-09-23: Added proper type casting and improved db type compatibility
  * - 2024-11-21: Updated to use security definer function for RLS compatibility
+ * - 2024-11-22: Fixed TypeScript errors with RPC function and type casting
  */
 
 import { useState, useCallback } from "react";
@@ -12,8 +13,6 @@ import { Session } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CarListing } from "@/types/dashboard";
-import { transformFeaturesFromDb } from "@/types/forms";
-import { Json } from "@/integrations/supabase/types";
 import { AuthErrorHandler } from "@/components/error-handling/AuthErrorHandler";
 import { toast } from "sonner";
 
@@ -29,7 +28,7 @@ interface DbCarListing {
   year: number;
   is_draft: boolean;
   is_auction: boolean;
-  features: Json;
+  features: any;
   description?: string;
   updated_at?: string;
   [key: string]: any; // Allow other fields from the database
@@ -58,7 +57,7 @@ export const useSellerListings = (session: Session | null) => {
       const { data: funcData, error: funcError } = await supabase
         .rpc('get_seller_listings', { 
           p_seller_id: session.user.id 
-        });
+        }) as { data: DbCarListing[] | null, error: any };
         
       if (!funcError && funcData) {
         return transformListingsData(funcData);
@@ -89,7 +88,7 @@ export const useSellerListings = (session: Session | null) => {
           throw error;
         }
         
-        return transformListingsData(data || []);
+        return transformListingsData(data as DbCarListing[] || []);
       }
       
       return [];
