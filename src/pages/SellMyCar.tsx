@@ -5,6 +5,7 @@
  * - 2024-03-19: Added authentication check
  * - 2024-03-19: Implemented form integration
  * - 2024-06-07: Updated to use refactored form components
+ * - 2024-10-19: Added validation to ensure VIN check was performed before accessing page
  */
 
 import { Navigation } from "@/components/Navigation";
@@ -20,9 +21,21 @@ const SellMyCar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check if user is authenticated
     if (!session) {
       toast.error("Please sign in to create a listing");
       navigate("/auth");
+      return;
+    }
+    
+    // Check if VIN check was performed
+    const valuationData = localStorage.getItem("valuationData");
+    const tempVIN = localStorage.getItem("tempVIN");
+    
+    if (!valuationData || !tempVIN) {
+      toast.error("Please complete a vehicle valuation first");
+      navigate("/");
+      return;
     }
   }, [session, navigate]);
 

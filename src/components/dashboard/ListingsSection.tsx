@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-05: Created ListingsSection component from SellerDashboard refactoring
+ * - 2024-10-19: Updated "Create New Listing" button to navigate to homepage for VIN check
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,7 +53,7 @@ export const ListingsSection = ({
               Start listing your vehicles to receive bids from potential buyers.
             </p>
             <Button 
-              onClick={() => navigate('/sell-my-car')}
+              onClick={() => navigate('/')}
               className="bg-primary hover:bg-primary/90 text-white"
             >
               Create New Listing
