@@ -8,6 +8,7 @@
  * - 2024-11-22: Fixed TypeScript errors with RPC function and type casting
  * - 2024-11-23: Fixed RPC function type compatibility issue using a more reliable approach
  * - 2024-11-24: Implemented a more direct query approach to bypass TypeScript limitations
+ * - 2024-11-25: Fixed TypeScript errors by accessing Supabase URL and key properly
  */
 
 import { useState, useCallback } from "react";
@@ -17,6 +18,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { CarListing } from "@/types/dashboard";
 import { AuthErrorHandler } from "@/components/error-handling/AuthErrorHandler";
 import { toast } from "sonner";
+
+// Get the Supabase URL and key from the environment variables
+// These are the same values used when creating the supabase client
+const SUPABASE_URL = "https://sdvakfhmoaoucmhbhwvy.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkdmFrZmhtb2FvdWNtaGJod3Z5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ3OTI1OTEsImV4cCI6MjA1MDM2ODU5MX0.wvvxbqF3Hg_fmQ_4aJCqISQvcFXhm-2BngjvO6EHL0M";
 
 // Define a type that matches what comes from the database
 interface DbCarListing {
@@ -57,11 +63,11 @@ export const useSellerListings = (session: Session | null) => {
     try {
       // Use direct SQL query approach to bypass TypeScript RPC limitations
       // This uses a raw query with the security definer function via the REST API
-      const res = await fetch(`${supabase.supabaseUrl}/rest/v1/rpc/get_seller_listings`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_seller_listings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': supabase.supabaseKey,
+          'apikey': SUPABASE_KEY,
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
