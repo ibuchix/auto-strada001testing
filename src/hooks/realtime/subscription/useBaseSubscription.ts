@@ -2,11 +2,12 @@
 /**
  * Changes made:
  * - 2024-12-11: Created base subscription hook with shared functionality
+ * - 2024-12-14: Fixed channel subscription type error with correct Supabase API signature
  */
 
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -21,7 +22,7 @@ export const useBaseSubscription = (userId: string | undefined, isActive: boolea
     table: string,
     filter: string,
     event: 'INSERT' | 'UPDATE' | 'DELETE' | '*',
-    handler: (payload: any) => void
+    handler: (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => void
   ): RealtimeChannel => {
     return supabase
       .channel(channelName)
