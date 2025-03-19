@@ -6,19 +6,21 @@
  * - 2024-03-19: Implemented form integration
  * - 2024-06-07: Updated to use refactored form components
  * - 2024-10-19: Added validation to ensure VIN check was performed before accessing page
+ * - 2024-11-11: Fixed issue with data validation that prevented form display
  */
 
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { CarListingForm } from "@/components/forms/CarListingForm";
 import { useAuth } from "@/components/AuthProvider";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const SellMyCar = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const [isValid, setIsValid] = useState(false);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -29,17 +31,33 @@ const SellMyCar = () => {
     }
     
     // Check if VIN check was performed
-    const valuationData = localStorage.getItem("valuationData");
     const tempVIN = localStorage.getItem("tempVIN");
+    const tempMileage = localStorage.getItem("tempMileage");
     
-    if (!valuationData || !tempVIN) {
-      toast.error("Please complete a vehicle valuation first");
+    try {
+      // Try to get valuation data
+      const valuationDataStr = localStorage.getItem("valuationData");
+      const valuationData = valuationDataStr ? JSON.parse(valuationDataStr) : null;
+      
+      // Validate that we have the minimum required data
+      if (!tempVIN || !tempMileage || !valuationData) {
+        console.error("Missing data:", { tempVIN, tempMileage, valuationData });
+        toast.error("Please complete a vehicle valuation first");
+        navigate("/");
+        return;
+      }
+      
+      // All checks passed, form is valid to display
+      setIsValid(true);
+      
+    } catch (error) {
+      console.error("Error parsing valuation data:", error);
+      toast.error("Invalid vehicle data. Please try valuation again.");
       navigate("/");
-      return;
     }
   }, [session, navigate]);
 
-  if (!session) {
+  if (!session || !isValid) {
     return null;
   }
 

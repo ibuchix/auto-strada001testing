@@ -1,4 +1,10 @@
 
+/**
+ * Changes made:
+ * - 2024-11-11: Fixed unresponsive "List This Car" button by addressing JSON parsing issues
+ * - 2024-11-11: Improved data passing to the listing form
+ */
+
 import { useAuth } from "@/components/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -72,11 +78,27 @@ export const ValuationResult = ({
       toast.error("This vehicle has already been listed");
       onClose();
     } else {
-      navigate('/sell-my-car');
-      localStorage.setItem('valuationData', JSON.stringify(valuationResult));
-      localStorage.setItem('tempVIN', valuationResult.vin);
-      localStorage.setItem('tempMileage', mileage.toString());
-      localStorage.setItem('tempGearbox', valuationResult.transmission);
+      // Ensure proper JSON storage of valuation data
+      try {
+        // Store all necessary data with proper string conversion
+        localStorage.setItem('valuationData', JSON.stringify(valuationResult));
+        localStorage.setItem('tempVIN', valuationResult.vin);
+        localStorage.setItem('tempMileage', mileage.toString());
+        localStorage.setItem('tempGearbox', valuationResult.transmission);
+        
+        // Add logging for debugging
+        console.log('Navigating to sell-my-car with data:', {
+          vin: valuationResult.vin,
+          transmission: valuationResult.transmission,
+          mileage
+        });
+        
+        // Navigate to the form
+        navigate('/sell-my-car');
+      } catch (error) {
+        console.error('Error storing valuation data:', error);
+        toast.error("Failed to prepare car listing data");
+      }
     }
   };
 

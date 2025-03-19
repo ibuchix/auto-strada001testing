@@ -40,7 +40,10 @@ export const BottomCTA = () => {
       return;
     }
     
-    navigate('/sell-my-car', { state: { vin } });
+    // Instead of passing vin in state, use a more reliable method
+    localStorage.setItem('tempVIN', vin);
+    // Navigate to valuation page to properly process the VIN
+    navigate('/', { state: { directValuation: true } });
   };
 
   return (
