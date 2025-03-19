@@ -7,6 +7,7 @@
  * - 2024-11-21: Updated to use security definer function for RLS compatibility
  * - 2024-11-22: Fixed TypeScript errors with RPC function and type casting
  * - 2024-11-23: Fixed RPC function type compatibility issue using a more reliable approach
+ * - 2024-11-24: Implemented a more direct query approach to bypass TypeScript limitations
  */
 
 import { useState, useCallback } from "react";
@@ -54,54 +55,58 @@ export const useSellerListings = (session: Session | null) => {
     }
     
     try {
-      // First try using the security definer function (bypasses RLS)
-      // Use a more direct approach that avoids TypeScript RPC function name checking
-      const { data: funcData, error: funcError } = await supabase
-        .from('cars')
-        .select('*')
-        .filter('id', 'neq', 'placeholder')
-        .limit(1)
-        .then(() => 
-          // After the dummy query, use the postgrest-js functions to call the RPC
-          // This avoids the TypeScript errors with the RPC function name
-          supabase.rpc('get_seller_listings', { 
-            p_seller_id: session.user.id 
-          }) as Promise<{ data: DbCarListing[] | null, error: any }>
-        );
-        
-      if (!funcError && funcData) {
+      // Use direct SQL query approach to bypass TypeScript RPC limitations
+      // This uses a raw query with the security definer function via the REST API
+      const res = await fetch(`${supabase.supabaseUrl}/rest/v1/rpc/get_seller_listings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabase.supabaseKey,
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          p_seller_id: session.user.id
+        })
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("Error fetching seller listings:", errorData);
+        throw new Error(`Failed to fetch listings: ${errorData.message || res.statusText}`);
+      }
+      
+      const funcData = await res.json() as DbCarListing[];
+      
+      if (funcData && Array.isArray(funcData)) {
         return transformListingsData(funcData);
       }
       
-      if (funcError) {
-        console.warn("Security definer function failed, falling back to direct query:", funcError);
+      // If direct method fails or returns no data, fall back to direct query
+      console.log("Falling back to direct query due to empty result or unexpected format");
+      
+      const { data, error } = await supabase
+        .from("cars")
+        .select("*")
+        .eq("seller_id", session.user.id)
+        .order("updated_at", { ascending: false });
         
-        // Direct query as fallback (relies on RLS policies)
-        const { data, error } = await supabase
-          .from("cars")
-          .select("*")
-          .eq("seller_id", session.user.id)
-          .order("updated_at", { ascending: false });
+      if (error) {
+        if (error.code === '42501' || error.message.includes('permission denied')) {
+          setIsRlsError(true);
+          setError("Permission denied. Row-level security is preventing access to your listings.");
           
-        if (error) {
-          if (error.code === '42501' || error.message.includes('permission denied')) {
-            setIsRlsError(true);
-            setError("Permission denied. Row-level security is preventing access to your listings.");
-            
-            // Show a helpful toast
-            toast.error("Access denied to your listings", {
-              description: "This appears to be a database permission issue. Please contact support.",
-            });
-          } else {
-            setError(error.message);
-          }
-          throw error;
+          // Show a helpful toast
+          toast.error("Access denied to your listings", {
+            description: "This appears to be a database permission issue. Please contact support.",
+          });
+        } else {
+          setError(error.message);
         }
-        
-        return transformListingsData(data as DbCarListing[] || []);
+        throw error;
       }
       
-      return [];
+      return transformListingsData(data as DbCarListing[] || []);
+      
     } catch (error: any) {
       console.error("Error fetching seller listings:", error);
       throw error;
