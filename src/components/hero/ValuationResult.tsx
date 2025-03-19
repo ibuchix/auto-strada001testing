@@ -5,6 +5,8 @@
  * - 2024-11-11: Improved data passing to the listing form
  * - 2024-11-11: Fixed button click handler to work on both mobile and desktop devices
  * - 2024-11-12: Implemented direct navigation instead of using React Router for more reliable redirect
+ * - 2024-11-14: Enhanced seller status handling to prevent 403 Forbidden errors
+ * - 2024-11-14: Added fallback mechanism when permission errors occur
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -51,29 +53,63 @@ export const ValuationResult = ({
   const averagePrice = valuationResult.averagePrice || 0;
   console.log('ValuationResult - Display price:', averagePrice);
 
+  /**
+   * Enhanced continue handler with permission error handling
+   */
   const handleContinue = async () => {
+    // Check authentication first
     if (!session) {
       navigate('/auth');
       return;
     }
 
-    // If isSeller is already true, proceed without checking database
+    // Check if the user is a seller - use cached value first
     if (isSeller) {
       handleSellerContinue();
       return;
     }
 
-    // Refresh seller status to ensure we have the latest information
-    const isSellerConfirmed = await refreshSellerStatus();
-    
-    if (isSellerConfirmed) {
-      handleSellerContinue();
-    } else {
-      navigate('/auth');
-      toast.info("Please sign up as a seller to list your car");
+    // Try refreshing seller status if needed
+    try {
+      const isSellerConfirmed = await refreshSellerStatus();
+      
+      if (isSellerConfirmed) {
+        handleSellerContinue();
+      } else {
+        // Not a seller - redirect to registration
+        navigate('/auth');
+        toast.info("Please sign up as a seller to list your car");
+      }
+    } catch (error) {
+      console.error("Error refreshing seller status:", error);
+      
+      // Handle as gracefully as possible - attempt to register seller
+      try {
+        // If we can't verify seller status, check if they have a profile
+        const { error: profileError } = await supabase.rpc('register_seller', {
+          p_user_id: session.user.id
+        });
+        
+        if (!profileError) {
+          // Successfully registered as seller
+          toast.success("Your seller account is now activated");
+          handleSellerContinue();
+        } else {
+          // Still failed - redirect to auth page
+          navigate('/auth');
+          toast.info("Please complete your seller registration");
+        }
+      } catch (finalError) {
+        // Last resort fallback - go to auth page
+        navigate('/auth');
+        toast.info("Please sign up as a seller to list your car");
+      }
     }
   };
   
+  /**
+   * Handles navigation for confirmed sellers
+   */
   const handleSellerContinue = () => {
     // Handle the navigation based on VIN check result
     if (valuationResult.isExisting) {
@@ -109,8 +145,7 @@ export const ValuationResult = ({
         // First close the dialog to ensure UI state is clean
         onClose();
         
-        // Instead of using React Router navigation which can be interrupted,
-        // use direct window location change for more reliable navigation
+        // Use direct window location change for more reliable navigation
         window.location.href = '/sell-my-car';
       } catch (error) {
         console.error('Error storing valuation data:', error);

@@ -3,12 +3,13 @@
  * Changes made:
  * - 2024-06-26: Created component for seller registration view
  * - 2024-06-27: Redesigned for modern appearance with card-based layout
+ * - 2024-11-14: Added status message display during registration process
  */
 
 import { Button } from "@/components/ui/button";
 import { SellerRegistrationForm } from "@/components/auth/SellerRegistrationForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 interface SellerRegistrationViewProps {
   onSubmit: (email: string, password: string) => void;
@@ -31,17 +32,30 @@ export const SellerRegistrationView = ({
       </CardHeader>
       
       <CardContent className="p-6">
-        <div className="bg-accent/40 p-6 rounded-lg">
-          <SellerRegistrationForm 
-            onSubmit={onSubmit} 
-            isLoading={isLoading} 
-          />
-        </div>
+        {isLoading ? (
+          <div className="bg-accent/40 p-6 rounded-lg flex flex-col items-center justify-center min-h-[300px]">
+            <Loader2 size={40} className="animate-spin mb-4 text-primary" />
+            <p className="text-center text-subtitle">
+              Creating your seller account...
+            </p>
+            <p className="text-center text-sm mt-2 max-w-xs">
+              This process ensures you'll be able to list vehicles for sale on our platform
+            </p>
+          </div>
+        ) : (
+          <div className="bg-accent/40 p-6 rounded-lg">
+            <SellerRegistrationForm 
+              onSubmit={onSubmit} 
+              isLoading={isLoading} 
+            />
+          </div>
+        )}
         
         <Button
           variant="ghost"
           onClick={onBack}
           className="w-full mt-4 text-[#4B4DED] font-medium flex items-center justify-center gap-2"
+          disabled={isLoading}
         >
           <ArrowLeft size={16} />
           Back to Sign In / Sign Up

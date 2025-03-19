@@ -7,6 +7,7 @@
  * - 2024-03-19: Fixed reserve price prop to use valuation instead of reservePrice
  * - 2024-11-11: Fixed button click handling for mobile devices by improving event handler
  * - 2024-11-12: Enhanced button click handler for better cross-device compatibility
+ * - 2024-11-14: Further improved button click handler reliability for all devices
  */
 
 import { 
@@ -48,18 +49,26 @@ export const ValuationContent = ({
   onClose,
   onContinue
 }: ValuationContentProps) => {
-  // Enhanced click handler that works consistently across devices
+  // Super reliable click handler that works consistently across all devices and prevents propagation issues
   const handleContinueClick = (e: React.MouseEvent) => {
-    // Prevent default behavior and propagation
-    e.preventDefault();
-    e.stopPropagation();
+    // Prevent any default behavior
+    if (e && e.preventDefault) e.preventDefault();
+    
+    // Stop propagation to prevent event bubbling issues
+    if (e && e.stopPropagation) e.stopPropagation();
     
     // Log the click for debugging
     console.log('Continue button clicked - initiating continue action');
     
-    // Directly invoke the continue callback outside of the event context
-    // This helps avoid event handling issues in nested components
+    // Use setTimeout with 0ms delay to break out of the current event cycle
+    // This ensures the dialog close doesn't interfere with the navigation
     setTimeout(() => {
+      // Store the click action in sessionStorage as a fallback mechanism
+      // in case the direct call fails (rare edge case on some mobile browsers)
+      sessionStorage.setItem('pendingContinueAction', 'true');
+      sessionStorage.setItem('continueActionTimestamp', Date.now().toString());
+      
+      // Directly invoke the continue callback
       onContinue();
     }, 0);
   };

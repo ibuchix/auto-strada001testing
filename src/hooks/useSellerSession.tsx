@@ -6,6 +6,8 @@
  * - 2024-07-06: Fixed issues with supabase client initialization
  * - 2024-08-25: Refactored for improved performance and better error handling
  * - 2024-08-25: Added more reliable seller role detection with caching optimization
+ * - 2024-11-14: Enhanced seller role checking to handle RLS permission issues
+ * - 2024-11-14: Added fallback mechanisms for seller verification when database queries fail
  */
 
 import { useEffect, useState, useCallback } from "react";
@@ -27,45 +29,85 @@ export const useSellerSession = () => {
   });
 
   /**
-   * Efficiently checks if a user has seller role using both metadata and database
+   * Efficiently checks if a user has seller role using multiple methods with fallbacks
    */
   const checkSellerRole = useCallback(async (currentSession: Session) => {
     try {
-      // Check user metadata first (fastest path)
+      // Method 1: Check user metadata first (fastest path)
       if (currentSession.user.user_metadata?.role === 'seller') {
         setIsSeller(true);
         return true;
       }
 
-      // If not in metadata, check profiles table
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', currentSession.user.id)
-        .single();
+      // Method 2: Check profiles table
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', currentSession.user.id)
+          .single();
 
-      if (error) {
-        handleSupabaseError(error, 'Failed to verify seller status');
-        return false;
+        if (!error && profile?.role === 'seller') {
+          // Update user metadata to match profile role for future reference
+          await supabase.auth.updateUser({
+            data: { role: 'seller' }
+          });
+          
+          setIsSeller(true);
+          return true;
+        }
+      } catch (profileError) {
+        // Don't throw here - continue to the next check method
+        console.warn("Profile check failed, trying fallback methods:", profileError);
       }
 
-      const hasSellerRole = profile?.role === 'seller';
-      
-      // Update user metadata if seller role found in profile but not in metadata
-      if (hasSellerRole && currentSession.user.user_metadata?.role !== 'seller') {
-        const { error: updateError } = await supabase.auth.updateUser({
-          data: { role: 'seller' }
+      // Method 3: Check sellers table directly
+      try {
+        const { data: seller, error: sellerError } = await supabase
+          .from('sellers')
+          .select('id')
+          .eq('user_id', currentSession.user.id)
+          .maybeSingle();
+          
+        if (!sellerError && seller) {
+          // Found in sellers table - update user metadata
+          await supabase.auth.updateUser({
+            data: { role: 'seller' }
+          });
+          
+          setIsSeller(true);
+          return true;
+        }
+      } catch (sellerError) {
+        console.warn("Seller table check failed:", sellerError);
+      }
+
+      // Method 4: Check the auth endpoint directly for more insights
+      try {
+        const checkUserResponse = await fetch('/auth/v1/user', {
+          headers: {
+            'Authorization': `Bearer ${currentSession.access_token}`
+          }
         });
         
-        if (updateError) {
-          console.warn('Could not update user metadata with role:', updateError);
+        if (checkUserResponse.ok) {
+          const userData = await checkUserResponse.json();
+          if (userData.app_metadata?.role === 'seller' || 
+              userData.user_metadata?.role === 'seller') {
+            setIsSeller(true);
+            return true;
+          }
         }
+      } catch (authError) {
+        console.warn("Auth API check failed:", authError);
       }
       
-      setIsSeller(hasSellerRole);
-      return hasSellerRole;
+      // No seller status found
+      setIsSeller(false);
+      return false;
     } catch (error) {
       console.error('Error checking seller role:', error);
+      setIsSeller(false);
       return false;
     }
   }, [handleSupabaseError]);
@@ -127,6 +169,7 @@ export const useSellerSession = () => {
 
   /**
    * Force refresh seller status - useful after registration or role changes
+   * Has enhanced fallback mechanisms for handling permissions issues
    */
   const refreshSellerStatus = useCallback(async () => {
     if (!session) return false;
