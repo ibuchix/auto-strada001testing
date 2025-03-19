@@ -9,6 +9,7 @@
  * - 2024-08-08: Added support for form_metadata with current_step
  * - 2024-08-09: Fixed type handling for form_metadata field
  * - 2024-12-05: Added error handling for localStorage data access
+ * - 2024-12-06: Fixed type errors with valuationData properties
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
@@ -16,7 +17,7 @@ import { Json } from "@/integrations/supabase/types";
 
 export const transformFormToDbData = (formData: CarListingFormData, userId: string): any => {
   // Safely retrieve data from localStorage with fallbacks
-  let valuationData = {};
+  let valuationData: Record<string, any> = {};
   let mileage = 0;
   let vin = '';
   let currentStep = 0;
@@ -41,11 +42,14 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
       ? `${valuationData.make || ''} ${valuationData.model || ''} ${valuationData.year || ''}`.trim()
       : 'Draft Listing';
   
-  const price = valuationData && 
-    typeof valuationData === 'object' && 
-    ('valuation' in valuationData || 'averagePrice' in valuationData) 
-      ? (valuationData.valuation || valuationData.averagePrice || 0) 
-      : 0;
+  // Safely extract price from valuation data, handling undefined/missing values
+  const price = valuationData && typeof valuationData === 'object' 
+    ? ('valuation' in valuationData && valuationData.valuation !== undefined && valuationData.valuation !== null
+        ? valuationData.valuation 
+        : ('averagePrice' in valuationData && valuationData.averagePrice !== undefined && valuationData.averagePrice !== null
+            ? valuationData.averagePrice 
+            : 0)) 
+    : 0;
 
   return {
     seller_id: userId,
