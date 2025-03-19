@@ -7,9 +7,19 @@
  * - 2024-09-18: Updated imports to use the exported singleton instances
  * - 2024-09-19: Added performance optimizations and improved service exports
  * - 2024-10-28: Updated to import from transaction system's new location
+ * - 2024-11-18: Updated to include refactored user-related services
  */
 
-// Export all services
+// Export services from auth module
+export * from './auth/sessionService';
+
+// Export services from profiles module
+export * from './profiles/profileService';
+
+// Export services from sellers module
+export * from './sellers/sellerProfileService';
+
+// Export all other services
 export * from './baseService';
 export * from './carService';
 export * from './userService';
@@ -25,6 +35,9 @@ import { auctionService } from './auctionService';
 import { valuationService } from './valuationService';
 import { sellerService } from './sellerService';
 import { transactionService } from './transactions';
+import { sessionService } from './auth/sessionService';
+import { profileService } from './profiles/profileService';
+import { sellerProfileService } from './sellers/sellerProfileService';
 
 // Export a general API object with all services
 export const supabaseApi = {
@@ -33,7 +46,10 @@ export const supabaseApi = {
   auctions: auctionService,
   valuations: valuationService,
   sellers: sellerService,
-  transactions: transactionService
+  transactions: transactionService,
+  session: sessionService,
+  profiles: profileService,
+  sellerProfiles: sellerProfileService
 };
 
 export default supabaseApi;

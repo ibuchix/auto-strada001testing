@@ -4,11 +4,13 @@
  * - 2024-11-18: Created dedicated hook for seller role verification
  * - 2024-11-18: Extracted from useSellerSession to improve maintainability
  * - 2024-11-18: Enhanced fallback mechanisms for seller role detection
+ * - 2024-11-19: Updated to use refactored profile and seller services
  */
 
 import { useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { profileService, sellerProfileService } from "@/services/supabase";
 
 /**
  * Hook providing functions to check if a user has seller role
@@ -27,10 +29,9 @@ export const useSellerRoleCheck = () => {
 
       // Method 2: Check profiles table using the security definer function
       try {
-        const { data: profile, error } = await supabase
-          .rpc('get_profile', { p_user_id: currentSession.user.id });
-
-        if (!error && profile && profile.length > 0 && profile[0]?.role === 'seller') {
+        const profile = await profileService.getUserProfile(currentSession.user.id);
+        
+        if (profile?.role === 'seller') {
           // Update user metadata to match profile role for future reference
           await supabase.auth.updateUser({
             data: { role: 'seller' }
@@ -43,36 +44,11 @@ export const useSellerRoleCheck = () => {
         console.warn("Profile check via function failed, trying direct query:", profileError);
       }
 
-      // Method 3: Direct profile query with explicit selection
+      // Method 3: Check sellers table directly
       try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', currentSession.user.id)
-          .single();
-
-        if (!error && profile?.role === 'seller') {
-          // Update user metadata to match profile role for future reference
-          await supabase.auth.updateUser({
-            data: { role: 'seller' }
-          });
+        const seller = await sellerProfileService.getSellerProfile(currentSession.user.id);
           
-          return true;
-        }
-      } catch (directQueryError) {
-        // Don't throw here - continue to the next check method
-        console.warn("Direct profile query failed, trying fallback methods:", directQueryError);
-      }
-
-      // Method 4: Check sellers table directly
-      try {
-        const { data: seller, error: sellerError } = await supabase
-          .from('sellers')
-          .select('id')
-          .eq('user_id', currentSession.user.id)
-          .maybeSingle();
-          
-        if (!sellerError && seller) {
+        if (seller) {
           // Found in sellers table - update user metadata
           await supabase.auth.updateUser({
             data: { role: 'seller' }
@@ -96,12 +72,10 @@ export const useSellerRoleCheck = () => {
         console.warn("Seller table check failed:", sellerError);
       }
 
-      // Method 5: Use register_seller RPC if all else fails
+      // Method 4: Use register_seller RPC if all else fails
       try {
-        const { data: registerResult, error: registerError } = await supabase
-          .rpc('register_seller', { p_user_id: currentSession.user.id });
-
-        if (!registerError && registerResult) {
+        const result = await sellerProfileService.registerSeller(currentSession.user.id);
+        if (result) {
           console.log("Successfully registered as seller via RPC");
           return true;
         }
