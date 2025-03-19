@@ -16,6 +16,7 @@
  * - 2024-09-10: Added seller performance metrics section
  * - 2024-09-13: Replaced individual real-time subscriptions with comprehensive useRealtimeSubscriptions hook
  * - 2024-10-16: Updated to handle the new data format from useOptimizedQuery hooks
+ * - 2024-11-11: Improved mobile layout by reducing excessive spacing
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -29,9 +30,11 @@ import { useAuctionResults } from "@/hooks/useAuctionResults";
 import { useSellerPerformance } from "@/hooks/useSellerPerformance";
 import { useCallback } from "react";
 import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const SellerDashboard = () => {
   const { session } = useAuth();
+  const isMobile = useIsMobile();
   const { 
     activeListings, 
     draftListings, 
@@ -59,10 +62,15 @@ const SellerDashboard = () => {
   // Setup real-time subscriptions for all seller-related events
   useRealtimeSubscriptions(session);
 
+  // Conditionally apply spacing classes based on mobile vs desktop
+  const containerClasses = isMobile 
+    ? "container mx-auto px-4 py-6 mt-4" 
+    : "container mx-auto px-4 py-20 mt-20";
+
   return (
     <div className="min-h-screen bg-white">
       <Navigation />
-      <div className="container mx-auto px-4 py-20 mt-20">
+      <div className={containerClasses}>
         <DashboardHeader title="Seller Dashboard" />
 
         {isLoading ? (
