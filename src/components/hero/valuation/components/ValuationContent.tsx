@@ -6,6 +6,7 @@
  * - 2024-03-19: Added averagePrice prop to handle API response data
  * - 2024-03-19: Fixed reserve price prop to use valuation instead of reservePrice
  * - 2024-11-11: Fixed button click handling for mobile devices by improving event handler
+ * - 2024-11-12: Enhanced button click handler for better cross-device compatibility
  */
 
 import { 
@@ -47,11 +48,20 @@ export const ValuationContent = ({
   onClose,
   onContinue
 }: ValuationContentProps) => {
-  // Create a proper event handler to prevent event propagation issues
+  // Enhanced click handler that works consistently across devices
   const handleContinueClick = (e: React.MouseEvent) => {
+    // Prevent default behavior and propagation
     e.preventDefault();
     e.stopPropagation();
-    onContinue();
+    
+    // Log the click for debugging
+    console.log('Continue button clicked - initiating continue action');
+    
+    // Directly invoke the continue callback outside of the event context
+    // This helps avoid event handling issues in nested components
+    setTimeout(() => {
+      onContinue();
+    }, 0);
   };
 
   return (

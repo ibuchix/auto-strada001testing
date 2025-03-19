@@ -4,6 +4,7 @@
  * - 2024-11-11: Fixed unresponsive "List This Car" button by addressing JSON parsing issues
  * - 2024-11-11: Improved data passing to the listing form
  * - 2024-11-11: Fixed button click handler to work on both mobile and desktop devices
+ * - 2024-11-12: Implemented direct navigation instead of using React Router for more reliable redirect
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -98,21 +99,19 @@ export const ValuationResult = ({
         localStorage.setItem('tempGearbox', valuationResult.transmission);
         
         // Add logging for debugging
-        console.log('Navigating to sell-my-car with data:', {
+        console.log('Initiating navigation to sell-my-car with data:', {
           vin: valuationResult.vin,
           transmission: valuationResult.transmission,
           mileage,
           valuationData
         });
         
-        // Close the dialog first to prevent UI issues
+        // First close the dialog to ensure UI state is clean
         onClose();
         
-        // Use a small timeout to ensure the dialog is fully closed before navigation
-        setTimeout(() => {
-          // Navigate to the form
-          navigate('/sell-my-car');
-        }, 100);
+        // Instead of using React Router navigation which can be interrupted,
+        // use direct window location change for more reliable navigation
+        window.location.href = '/sell-my-car';
       } catch (error) {
         console.error('Error storing valuation data:', error);
         toast.error("Failed to prepare car listing data");

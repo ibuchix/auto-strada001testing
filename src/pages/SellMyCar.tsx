@@ -8,6 +8,7 @@
  * - 2024-10-19: Added validation to ensure VIN check was performed before accessing page
  * - 2024-11-11: Fixed issue with data validation that prevented form display
  * - 2024-11-11: Improved error handling for inconsistent localStorage data
+ * - 2024-11-12: Enhanced page load handling for direct navigation cases
  */
 
 import { Navigation } from "@/components/Navigation";
@@ -22,6 +23,7 @@ const SellMyCar = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [isValid, setIsValid] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -63,15 +65,26 @@ const SellMyCar = () => {
       });
       
       setIsValid(true);
-      
     } catch (error) {
       console.error("Error parsing valuation data:", error);
       toast.error("Invalid vehicle data. Please try valuation again.");
       navigate("/");
+    } finally {
+      setIsLoading(false);
     }
   }, [session, navigate]);
 
-  if (!session || !isValid) {
+  if (!session || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-center">
+          <p className="text-xl">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isValid) {
     return null;
   }
 

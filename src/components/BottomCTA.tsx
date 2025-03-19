@@ -15,9 +15,18 @@ export const BottomCTA = () => {
 
   // Load from cache if available
   useEffect(() => {
-    const cachedVin = getFromCache<string>(CACHE_KEYS.TEMP_VIN, "");
-    if (cachedVin) {
-      setVin(cachedVin);
+    try {
+      const cachedVin = getFromCache<string>(CACHE_KEYS.TEMP_VIN, "");
+      if (cachedVin) {
+        setVin(cachedVin);
+      }
+    } catch (error) {
+      console.error("Failed to get data from cache (tempVIN):", error);
+      // If there's an error with the cache, try to get directly from localStorage
+      const directVin = localStorage.getItem(CACHE_KEYS.TEMP_VIN);
+      if (directVin && typeof directVin === 'string' && directVin !== 'undefined') {
+        setVin(directVin);
+      }
     }
   }, []);
 
@@ -30,7 +39,8 @@ export const BottomCTA = () => {
     }
     
     // Save to cache regardless of online status
-    saveToCache(CACHE_KEYS.TEMP_VIN, vin);
+    // Use direct localStorage to avoid potential JSON parsing issues
+    localStorage.setItem(CACHE_KEYS.TEMP_VIN, vin);
     
     if (isOffline) {
       toast.info("You're currently offline", {
