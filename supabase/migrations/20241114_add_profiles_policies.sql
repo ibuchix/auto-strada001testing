@@ -20,7 +20,7 @@ BEGIN
 END
 $$;
 
--- Create policy for users to update their own profile
+-- Create policy that allows users to update their own profile
 DO $$
 BEGIN
   IF NOT EXISTS (

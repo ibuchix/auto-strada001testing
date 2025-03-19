@@ -1476,6 +1476,19 @@ export type Database = {
         }
         Returns: Json
       }
+      get_profile: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: {
+          avatar_url: string | null
+          full_name: string | null
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          suspended: boolean
+          updated_at: string
+        }[]
+      }
       get_user_id_by_email: {
         Args: {
           p_email: string

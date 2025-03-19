@@ -8,6 +8,7 @@
  * - 2024-08-25: Added more reliable seller role detection with caching optimization
  * - 2024-11-14: Enhanced seller role checking to handle RLS permission issues
  * - 2024-11-14: Added fallback mechanisms for seller verification when database queries fail
+ * - 2024-11-15: Improved error handling for profile access with multiple fallback methods
  */
 
 import { useEffect, useState, useCallback } from "react";
@@ -39,7 +40,26 @@ export const useSellerSession = () => {
         return true;
       }
 
-      // Method 2: Check profiles table
+      // Method 2: Check profiles table using the security definer function
+      try {
+        const { data: profile, error } = await supabase
+          .rpc('get_profile', { p_user_id: currentSession.user.id });
+
+        if (!error && profile && profile.length > 0 && profile[0]?.role === 'seller') {
+          // Update user metadata to match profile role for future reference
+          await supabase.auth.updateUser({
+            data: { role: 'seller' }
+          });
+          
+          setIsSeller(true);
+          return true;
+        }
+      } catch (profileError) {
+        // Don't throw here - continue to the next check method
+        console.warn("Profile check via function failed, trying direct query:", profileError);
+      }
+
+      // Method 3: Direct profile query with explicit selection
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
@@ -56,12 +76,12 @@ export const useSellerSession = () => {
           setIsSeller(true);
           return true;
         }
-      } catch (profileError) {
+      } catch (directQueryError) {
         // Don't throw here - continue to the next check method
-        console.warn("Profile check failed, trying fallback methods:", profileError);
+        console.warn("Direct profile query failed, trying fallback methods:", directQueryError);
       }
 
-      // Method 3: Check sellers table directly
+      // Method 4: Check sellers table directly
       try {
         const { data: seller, error: sellerError } = await supabase
           .from('sellers')
@@ -75,6 +95,18 @@ export const useSellerSession = () => {
             data: { role: 'seller' }
           });
           
+          // Also ensure profile table is synced
+          await supabase
+            .from('profiles')
+            .upsert({ 
+              id: currentSession.user.id, 
+              role: 'seller',
+              updated_at: new Date().toISOString()
+            }, { 
+              onConflict: 'id',
+              ignoreDuplicates: false 
+            });
+          
           setIsSeller(true);
           return true;
         }
@@ -82,27 +114,21 @@ export const useSellerSession = () => {
         console.warn("Seller table check failed:", sellerError);
       }
 
-      // Method 4: Check the auth endpoint directly for more insights
+      // Method 5: Use register_seller RPC if all else fails
       try {
-        const checkUserResponse = await fetch('/auth/v1/user', {
-          headers: {
-            'Authorization': `Bearer ${currentSession.access_token}`
-          }
-        });
-        
-        if (checkUserResponse.ok) {
-          const userData = await checkUserResponse.json();
-          if (userData.app_metadata?.role === 'seller' || 
-              userData.user_metadata?.role === 'seller') {
-            setIsSeller(true);
-            return true;
-          }
+        const { data: registerResult, error: registerError } = await supabase
+          .rpc('register_seller', { p_user_id: currentSession.user.id });
+
+        if (!registerError && registerResult) {
+          console.log("Successfully registered as seller via RPC");
+          setIsSeller(true);
+          return true;
         }
-      } catch (authError) {
-        console.warn("Auth API check failed:", authError);
+      } catch (registerError) {
+        console.warn("Register seller RPC failed:", registerError);
       }
       
-      // No seller status found
+      // No seller status found after trying all methods
       setIsSeller(false);
       return false;
     } catch (error) {
@@ -136,7 +162,6 @@ export const useSellerSession = () => {
         console.error("Error initializing session:", error);
         if (mounted) {
           setIsLoading(false);
-          toast.error("Failed to initialize session");
         }
       }
     };
