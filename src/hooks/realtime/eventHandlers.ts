@@ -9,19 +9,20 @@
  * - 2024-06-18: Enhanced toast notifications with custom types and styled messages
  * - 2024-12-09: Refactored event handlers for better type safety and code organization
  * - 2024-12-10: Updated to handle Supabase payload types correctly
+ * - 2024-12-11: Fixed typing issues with payload data access
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { EnhancedToast, RealtimePayload } from './types';
 
 // Helper to access new data from payload regardless of event type
-const getNewData = (payload: RealtimePayload) => {
-  return payload.new;
+const getNewData = (payload: RealtimePayload): Record<string, any> => {
+  return payload.new || {};
 };
 
 // Helper to access old data from payload regardless of event type
-const getOldData = (payload: RealtimePayload) => {
-  return payload.old;
+const getOldData = (payload: RealtimePayload): Record<string, any> => {
+  return payload.old || {};
 };
 
 // Handle incoming new bids
@@ -157,8 +158,8 @@ export const handleAuctionExtension = (payload: RealtimePayload, toast: Enhanced
   const oldCar = getOldData(payload);
   
   // Calculate how much time was added by comparing old and new end times
-  const oldEndTime = new Date(oldCar.auction_end_time);
-  const newEndTime = new Date(newCar.auction_end_time);
+  const oldEndTime = new Date(oldCar.auction_end_time || new Date());
+  const newEndTime = new Date(newCar.auction_end_time || new Date());
   const minutesAdded = Math.round((newEndTime.getTime() - oldEndTime.getTime()) / 60000);
   
   if (minutesAdded > 0) {
