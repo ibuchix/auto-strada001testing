@@ -1,9 +1,9 @@
-
 /**
  * Changes made:
  * - 2024-10-16: Added transaction status indicator and improved error handling with transaction system
  * - 2024-10-24: Fixed type errors with transaction system usage
  * - 2024-10-25: Fixed incorrect executeTransaction parameter order
+ * - 2024-12-08: Improved realtime connection handling and added reconnection UI
  */
 
 import { useState } from 'react';
@@ -28,6 +28,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { TransactionStatusIndicator } from '@/components/transaction/TransactionStatusIndicator';
 import { useAuctionTransaction } from '@/hooks/useTransaction';
 import { TransactionType } from '@/services/supabase/transactionService';
+import { AlertTriangle } from 'lucide-react';
 
 const formSchema = z.object({
   amount: z.coerce.number().positive('Bid must be positive'),
@@ -111,17 +112,22 @@ export const BidForm = ({
       </CardHeader>
       <CardContent>
         {!isConnected && (
-          <div className="mb-4 p-2 bg-yellow-50 text-yellow-800 rounded">
-            <p className="text-sm">
-              Real-time connection lost. 
-              <Button 
-                variant="link" 
-                className="p-0 h-auto text-yellow-800 underline"
-                onClick={reconnect}
-              >
-                Reconnect
-              </Button>
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertTriangle size={18} />
+              <p className="font-medium">Realtime connection lost</p>
+            </div>
+            <p className="text-sm mb-2">
+              You won't receive live updates about new bids or auction changes.
             </p>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="w-full text-amber-800 border-amber-300 hover:bg-amber-100"
+              onClick={reconnect}
+            >
+              Reconnect
+            </Button>
           </div>
         )}
         

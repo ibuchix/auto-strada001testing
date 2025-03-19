@@ -1,8 +1,8 @@
-
 /**
  * Changes made:
  * - 2024-06-18: Enhanced with visual feedback using custom components
  * - 2024-06-18: Improved toast notifications with BidNotification component
+ * - 2024-12-08: Added reconnection support for WebSocket connection failures
  */
 
 import { useEffect } from 'react';
@@ -17,9 +17,11 @@ import {
   handleAuctionExtension
 } from './realtime/eventHandlers';
 import { BidNotification } from '@/components/auction/BidNotification';
+import { useRealtime } from '@/components/RealtimeProvider';
 
 export const useRealtimeBids = () => {
   const { toast } = useToast();
+  const { reconnect, isConnected } = useRealtime();
   
   useEffect(() => {
     const userId = localStorage.getItem('userId');
@@ -45,6 +47,12 @@ export const useRealtimeBids = () => {
         variant: type === 'error' ? 'destructive' : 'default',
       });
     };
+    
+    // Only set up channels if we have a connection
+    if (!isConnected) {
+      console.log('Realtime connection not established, channels not subscribed');
+      return;
+    }
     
     // Set up subscription for new bids
     const newBidsChannel = supabase
@@ -143,7 +151,7 @@ export const useRealtimeBids = () => {
       supabase.removeChannel(proxyBidChannel);
       supabase.removeChannel(auctionExtensionChannel);
     };
-  }, [toast]);
+  }, [toast, isConnected]);
   
-  return null;
+  return { reconnect, isConnected };
 };
