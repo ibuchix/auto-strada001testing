@@ -2,10 +2,12 @@
 /**
  * Changes made:
  * - 2024-12-09: Created dedicated hook for channel subscription management
+ * - 2024-12-10: Updated to use correct Supabase payload types
  */
 
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { 
   handleNewBid, 
   handleBidStatusUpdate, 
@@ -14,13 +16,7 @@ import {
   handleProxyBidUpdate,
   handleAuctionExtension
 } from './eventHandlers';
-
-type EnhancedToast = (
-  type: 'success' | 'error' | 'info' | 'warning',
-  title: string, 
-  description?: string,
-  duration?: number
-) => void;
+import { EnhancedToast } from './types';
 
 export const useChannelSubscription = (
   enhancedToast: EnhancedToast, 
@@ -67,7 +63,7 @@ const setupNewBidsChannel = (enhancedToast: EnhancedToast) => {
         schema: 'public',
         table: 'bids',
       },
-      (payload) => handleNewBid(payload, enhancedToast)
+      (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => handleNewBid(payload, enhancedToast)
     )
     .subscribe();
 };
@@ -83,7 +79,7 @@ const setupBidStatusChannel = (userId: string, enhancedToast: EnhancedToast) => 
         table: 'bids',
         filter: `dealer_id=eq.${userId}`,
       },
-      (payload) => handleBidStatusUpdate(payload, enhancedToast)
+      (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => handleBidStatusUpdate(payload, enhancedToast)
     )
     .subscribe();
 };
@@ -99,7 +95,7 @@ const setupSellerBidsChannel = (userId: string, enhancedToast: EnhancedToast) =>
         table: 'bids',
         filter: `car.seller_id=eq.${userId}`,
       },
-      (payload) => handleSellerBidUpdate(payload, enhancedToast)
+      (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => handleSellerBidUpdate(payload, enhancedToast)
     )
     .subscribe();
 };
@@ -115,7 +111,7 @@ const setupCarStatusChannel = (enhancedToast: EnhancedToast) => {
         table: 'cars',
         filter: `auction_status=neq.pending`,
       },
-      (payload) => handleCarStatusUpdate(payload, enhancedToast)
+      (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => handleCarStatusUpdate(payload, enhancedToast)
     )
     .subscribe();
 };
@@ -130,7 +126,7 @@ const setupProxyBidChannel = (enhancedToast: EnhancedToast) => {
         schema: 'public',
         table: 'proxy_bids',
       },
-      (payload) => handleProxyBidUpdate(payload, enhancedToast)
+      (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => handleProxyBidUpdate(payload, enhancedToast)
     )
     .subscribe();
 };
@@ -146,7 +142,7 @@ const setupAuctionExtensionChannel = (enhancedToast: EnhancedToast) => {
         table: 'cars',
         filter: `auction_status=eq.active`,
       },
-      (payload) => handleAuctionExtension(payload, enhancedToast)
+      (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => handleAuctionExtension(payload, enhancedToast)
     )
     .subscribe();
 };

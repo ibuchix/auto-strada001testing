@@ -8,15 +8,26 @@
  * - 2024-06-16: Added event handler for proxy bid updates and processing
  * - 2024-06-18: Enhanced toast notifications with custom types and styled messages
  * - 2024-12-09: Refactored event handlers for better type safety and code organization
+ * - 2024-12-10: Updated to handle Supabase payload types correctly
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { EnhancedToast, RealtimePayload } from './types';
 
+// Helper to access new data from payload regardless of event type
+const getNewData = (payload: RealtimePayload) => {
+  return payload.new;
+};
+
+// Helper to access old data from payload regardless of event type
+const getOldData = (payload: RealtimePayload) => {
+  return payload.old;
+};
+
 // Handle incoming new bids
 export const handleNewBid = (payload: RealtimePayload, toast: EnhancedToast) => {
   const userId = localStorage.getItem('userId');
-  const { new: newBid } = payload;
+  const newBid = getNewData(payload);
   
   // Don't notify for your own bids
   if (newBid.dealer_id === userId) {
@@ -32,7 +43,8 @@ export const handleNewBid = (payload: RealtimePayload, toast: EnhancedToast) => 
 
 // Handle bid status updates for dealer's own bids
 export const handleBidStatusUpdate = (payload: RealtimePayload, toast: EnhancedToast) => {
-  const { new: newBidStatus, old: oldBidStatus } = payload;
+  const newBidStatus = getNewData(payload);
+  const oldBidStatus = getOldData(payload);
   
   // Only notify if status changed to 'outbid'
   if (newBidStatus.status === 'outbid' && oldBidStatus.status !== 'outbid') {
@@ -47,7 +59,7 @@ export const handleBidStatusUpdate = (payload: RealtimePayload, toast: EnhancedT
 
 // Handle bid updates on the seller's cars
 export const handleSellerBidUpdate = (payload: RealtimePayload, toast: EnhancedToast) => {
-  const { new: newBid } = payload;
+  const newBid = getNewData(payload);
   
   const bidStatus = newBid.status === 'active' ? 'success' : 'info';
   const statusText = newBid.status === 'active' ? 'accepted' : newBid.status;
@@ -61,7 +73,8 @@ export const handleSellerBidUpdate = (payload: RealtimePayload, toast: EnhancedT
 
 // Handle car status updates
 export const handleCarStatusUpdate = (payload: RealtimePayload, toast: EnhancedToast) => {
-  const { new: newCar, old: oldCar } = payload;
+  const newCar = getNewData(payload);
+  const oldCar = getOldData(payload);
   
   if (newCar.auction_status === 'ended' && oldCar.auction_status === 'active') {
     toast(
@@ -89,7 +102,7 @@ export const handleCarStatusUpdate = (payload: RealtimePayload, toast: EnhancedT
 
 // Handle proxy bid updates
 export const handleProxyBidUpdate = async (payload: RealtimePayload, toast: EnhancedToast) => {
-  const { new: newProxyBid } = payload;
+  const newProxyBid = getNewData(payload);
   const userId = localStorage.getItem('userId');
   
   // Only show notifications for your own proxy bids
@@ -140,10 +153,11 @@ const triggerProxyBidProcessing = async (carId: string) => {
 
 // Handle auction time extension
 export const handleAuctionExtension = (payload: RealtimePayload, toast: EnhancedToast) => {
-  const { new: newCar } = payload;
+  const newCar = getNewData(payload);
+  const oldCar = getOldData(payload);
   
   // Calculate how much time was added by comparing old and new end times
-  const oldEndTime = new Date(payload.old.auction_end_time);
+  const oldEndTime = new Date(oldCar.auction_end_time);
   const newEndTime = new Date(newCar.auction_end_time);
   const minutesAdded = Math.round((newEndTime.getTime() - oldEndTime.getTime()) / 60000);
   
