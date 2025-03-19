@@ -7,19 +7,14 @@
  * - 2024-03-30: Added comprehensive status notifications
  * - 2024-06-16: Added event handler for proxy bid updates and processing
  * - 2024-06-18: Enhanced toast notifications with custom types and styled messages
+ * - 2024-12-09: Refactored event handlers for better type safety and code organization
  */
 
 import { supabase } from '@/integrations/supabase/client';
-
-type EnhancedToast = (
-  type: 'success' | 'error' | 'info' | 'warning',
-  title: string,
-  description?: string,
-  duration?: number
-) => void;
+import { EnhancedToast, RealtimePayload } from './types';
 
 // Handle incoming new bids
-export const handleNewBid = (payload: any, toast: EnhancedToast) => {
+export const handleNewBid = (payload: RealtimePayload, toast: EnhancedToast) => {
   const userId = localStorage.getItem('userId');
   const { new: newBid } = payload;
   
@@ -36,7 +31,7 @@ export const handleNewBid = (payload: any, toast: EnhancedToast) => {
 };
 
 // Handle bid status updates for dealer's own bids
-export const handleBidStatusUpdate = (payload: any, toast: EnhancedToast) => {
+export const handleBidStatusUpdate = (payload: RealtimePayload, toast: EnhancedToast) => {
   const { new: newBidStatus, old: oldBidStatus } = payload;
   
   // Only notify if status changed to 'outbid'
@@ -51,7 +46,7 @@ export const handleBidStatusUpdate = (payload: any, toast: EnhancedToast) => {
 };
 
 // Handle bid updates on the seller's cars
-export const handleSellerBidUpdate = (payload: any, toast: EnhancedToast) => {
+export const handleSellerBidUpdate = (payload: RealtimePayload, toast: EnhancedToast) => {
   const { new: newBid } = payload;
   
   const bidStatus = newBid.status === 'active' ? 'success' : 'info';
@@ -65,7 +60,7 @@ export const handleSellerBidUpdate = (payload: any, toast: EnhancedToast) => {
 };
 
 // Handle car status updates
-export const handleCarStatusUpdate = (payload: any, toast: EnhancedToast) => {
+export const handleCarStatusUpdate = (payload: RealtimePayload, toast: EnhancedToast) => {
   const { new: newCar, old: oldCar } = payload;
   
   if (newCar.auction_status === 'ended' && oldCar.auction_status === 'active') {
@@ -93,7 +88,7 @@ export const handleCarStatusUpdate = (payload: any, toast: EnhancedToast) => {
 };
 
 // Handle proxy bid updates
-export const handleProxyBidUpdate = async (payload: any, toast: EnhancedToast) => {
+export const handleProxyBidUpdate = async (payload: RealtimePayload, toast: EnhancedToast) => {
   const { new: newProxyBid } = payload;
   const userId = localStorage.getItem('userId');
   
@@ -106,39 +101,45 @@ export const handleProxyBidUpdate = async (payload: any, toast: EnhancedToast) =
       5000
     );
     
-    // Get the user's session
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session) {
-      // Trigger the edge function to process proxy bids
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/handle-seller-operations`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              operation: 'process_proxy_bids',
-              carId: newProxyBid.car_id
-            }),
-          }
-        );
-        
-        if (!response.ok) {
-          console.warn('Failed to process proxy bids:', await response.text());
+    // Trigger proxy bid processing
+    await triggerProxyBidProcessing(newProxyBid.car_id);
+  }
+};
+
+// Helper function to process proxy bids
+const triggerProxyBidProcessing = async (carId: string) => {
+  // Get the user's session
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (session) {
+    // Trigger the edge function to process proxy bids
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/handle-seller-operations`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            operation: 'process_proxy_bids',
+            carId
+          }),
         }
-      } catch (error) {
-        console.error('Error processing proxy bids:', error);
+      );
+      
+      if (!response.ok) {
+        console.warn('Failed to process proxy bids:', await response.text());
       }
+    } catch (error) {
+      console.error('Error processing proxy bids:', error);
     }
   }
 };
 
 // Handle auction time extension
-export const handleAuctionExtension = (payload: any, toast: EnhancedToast) => {
+export const handleAuctionExtension = (payload: RealtimePayload, toast: EnhancedToast) => {
   const { new: newCar } = payload;
   
   // Calculate how much time was added by comparing old and new end times
