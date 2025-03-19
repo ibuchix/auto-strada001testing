@@ -4,6 +4,7 @@
  * - 2024-10-16: Created transaction service for reliable Supabase operations tracking and confirmation
  * - 2024-10-24: Fixed type issues with audit log entries and Date objects
  * - 2024-10-25: Fixed Date object serialization for database inserts
+ * - 2024-10-27: Fixed type mismatch with audit_logs action field and user_id property
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -228,17 +229,45 @@ export class TransactionService extends BaseService {
         error: details.errorDetails || null
       };
 
+      // Map operation string to valid audit_log_type enum value
+      // This ensures we're using a valid action type from the enum
+      const actionType = this.mapOperationToAuditLogType(details.operation);
+
       await this.supabase.from('audit_logs').insert({
-        user_id: details.userId,
-        action: details.operation,
+        action: actionType,
         entity_type: details.entityType || details.type,
         entity_id: details.entityId,
-        details: formattedDetails
+        details: formattedDetails,
+        user_id: details.userId
       });
     } catch (error) {
       // Just log to console if we can't log to db - don't throw
       console.error('Failed to log transaction to audit_logs:', error);
     }
+  }
+  
+  /**
+   * Map operation string to valid audit_log_type enum value
+   * This ensures compatibility with the database enum type
+   */
+  private mapOperationToAuditLogType(operation: string): "login" | "logout" | "create" | "update" | "delete" | "suspend" | "reinstate" | "verify" | "reject" | "approve" | "process_auctions" | "auction_closed" | "auto_proxy_bid" | "start_auction" | "auction_close_failed" | "auction_close_system_error" | "system_reset_failed" | "recovery_failed" | "manual_retry" | "auction_recovery" | "system_health_check" | "system_alert" {
+    // Map our operation to one of the valid enum values
+    // Default to "create" if no match is found
+    const operationMap: Record<string, any> = {
+      'create': 'create',
+      'update': 'update',
+      'delete': 'delete',
+      'login': 'login',
+      'logout': 'logout',
+      'upload': 'create',
+      'auction': 'auction_closed',
+      'payment': 'update',
+      'authentication': 'login',
+      // Add more mappings as needed
+    };
+    
+    // Return the mapped value or default to "create"
+    return operationMap[operation.toLowerCase()] || 'create';
   }
   
   /**
