@@ -5,19 +5,47 @@
  * - 2024-03-20: Updated property names to match database fields
  * - 2024-03-19: Added support for converting between form and database formats
  * - 2024-03-19: Added handling for default values and nullable fields
- * - 2024-03-25: Updated to include additional_photos field
+ * - 2024-03-25: Added support for additional_photos field
  * - 2024-08-08: Added support for form_metadata with current_step
  * - 2024-08-09: Fixed type handling for form_metadata field
+ * - 2024-12-05: Added error handling for localStorage data access
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 import { Json } from "@/integrations/supabase/types";
 
 export const transformFormToDbData = (formData: CarListingFormData, userId: string): any => {
-  const valuationData = JSON.parse(localStorage.getItem('valuationData') || '{}');
-  const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-  const vin = localStorage.getItem('tempVIN') || '';
-  const currentStep = parseInt(localStorage.getItem('formCurrentStep') || '0');
+  // Safely retrieve data from localStorage with fallbacks
+  let valuationData = {};
+  let mileage = 0;
+  let vin = '';
+  let currentStep = 0;
+  
+  try {
+    const valuationDataStr = localStorage.getItem('valuationData');
+    valuationData = valuationDataStr ? JSON.parse(valuationDataStr) : {};
+    
+    mileage = parseInt(localStorage.getItem('tempMileage') || '0');
+    vin = localStorage.getItem('tempVIN') || '';
+    currentStep = parseInt(localStorage.getItem('formCurrentStep') || '0');
+  } catch (error) {
+    console.error('Error reading from localStorage:', error);
+  }
+  
+  // Create basic form data even if localStorage data is missing
+  const title = valuationData && 
+    typeof valuationData === 'object' && 
+    'make' in valuationData && 
+    'model' in valuationData && 
+    'year' in valuationData
+      ? `${valuationData.make || ''} ${valuationData.model || ''} ${valuationData.year || ''}`.trim()
+      : 'Draft Listing';
+  
+  const price = valuationData && 
+    typeof valuationData === 'object' && 
+    ('valuation' in valuationData || 'averagePrice' in valuationData) 
+      ? (valuationData.valuation || valuationData.averagePrice || 0) 
+      : 0;
 
   return {
     seller_id: userId,
@@ -39,8 +67,8 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     is_draft: true,
     last_saved: new Date().toISOString(),
     mileage: mileage,
-    price: valuationData.valuation || valuationData.averagePrice || 0,
-    title: `${valuationData.make || ''} ${valuationData.model || ''} ${valuationData.year || ''}`.trim() || 'Draft Listing',
+    price: price,
+    title: title,
     vin: vin,
     transmission: formData.transmission,
     additional_photos: formData.uploadedPhotos || [],
@@ -55,7 +83,11 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
   // Safely handle form_metadata
   const metadata = dbData.form_metadata as Record<string, any> | null;
   if (metadata && typeof metadata === 'object' && 'current_step' in metadata) {
-    localStorage.setItem('formCurrentStep', String(metadata.current_step));
+    try {
+      localStorage.setItem('formCurrentStep', String(metadata.current_step));
+    } catch (error) {
+      console.error('Error writing to localStorage:', error);
+    }
   }
   
   return {

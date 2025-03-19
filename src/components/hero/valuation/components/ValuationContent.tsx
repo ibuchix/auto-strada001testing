@@ -8,6 +8,7 @@
  * - 2024-11-11: Fixed button click handling for mobile devices by improving event handler
  * - 2024-11-12: Enhanced button click handler for better cross-device compatibility
  * - 2024-11-14: Further improved button click handler reliability for all devices
+ * - 2024-12-05: Completely redesigned button click handler for maximum reliability
  */
 
 import { 
@@ -19,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ValuationDisplay } from "./ValuationDisplay";
 import { VehicleDetails } from "./VehicleDetails";
+import { useCallback } from "react";
 
 interface ValuationContentProps {
   make: string;
@@ -49,29 +51,46 @@ export const ValuationContent = ({
   onClose,
   onContinue
 }: ValuationContentProps) => {
-  // Super reliable click handler that works consistently across all devices and prevents propagation issues
-  const handleContinueClick = (e: React.MouseEvent) => {
-    // Prevent any default behavior
-    if (e && e.preventDefault) e.preventDefault();
+  // Stabilized callback to prevent recreation on each render
+  const handleContinueClick = useCallback((e: React.MouseEvent) => {
+    console.log('Continue button clicked - preparing to navigate');
     
-    // Stop propagation to prevent event bubbling issues
-    if (e && e.stopPropagation) e.stopPropagation();
+    // Prevent default behavior and stop event propagation
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     
-    // Log the click for debugging
-    console.log('Continue button clicked - initiating continue action');
+    // Store last interaction timestamp as a debug reference
+    try {
+      localStorage.setItem('lastButtonClick', new Date().toISOString());
+      localStorage.setItem('listCarAction', 'initiated');
+    } catch (err) {
+      console.warn('Error saving click state to localStorage:', err);
+    }
     
-    // Use setTimeout with 0ms delay to break out of the current event cycle
-    // This ensures the dialog close doesn't interfere with the navigation
+    // Close dialog first (if needed) by calling onClose
+    // This prevents the dialog from blocking navigation
+    onClose();
+    
+    // Add a minimal delay to ensure dialog closing doesn't interfere
     setTimeout(() => {
-      // Store the click action in sessionStorage as a fallback mechanism
-      // in case the direct call fails (rare edge case on some mobile browsers)
-      sessionStorage.setItem('pendingContinueAction', 'true');
-      sessionStorage.setItem('continueActionTimestamp', Date.now().toString());
+      console.log('Executing continue action');
       
-      // Directly invoke the continue callback
-      onContinue();
-    }, 0);
-  };
+      try {
+        // Execute the continue callback
+        onContinue();
+        
+        // Update action status
+        localStorage.setItem('listCarAction', 'completed');
+      } catch (error) {
+        console.error('Error in continue action:', error);
+        
+        // Store error for debugging
+        localStorage.setItem('listCarActionError', error instanceof Error ? error.message : String(error));
+      }
+    }, 100);
+  }, [onClose, onContinue]);
 
   return (
     <DialogContent className="sm:max-w-md">
@@ -111,6 +130,7 @@ export const ValuationContent = ({
           onClick={handleContinueClick}
           className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
           type="button"
+          id="list-car-button"
         >
           {!isLoggedIn 
             ? "Sign Up to List Your Car" 

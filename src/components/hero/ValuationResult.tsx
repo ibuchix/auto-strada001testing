@@ -7,6 +7,7 @@
  * - 2024-11-12: Implemented direct navigation instead of using React Router for more reliable redirect
  * - 2024-11-14: Enhanced seller status handling to prevent 403 Forbidden errors
  * - 2024-11-14: Added fallback mechanism when permission errors occur
+ * - 2024-12-05: Completely redesigned navigation flow for maximum reliability with detailed logging
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -54,104 +55,115 @@ export const ValuationResult = ({
   console.log('ValuationResult - Display price:', averagePrice);
 
   /**
-   * Enhanced continue handler with permission error handling
+   * Enhanced continue handler with better logging and error handling
    */
   const handleContinue = async () => {
-    // Check authentication first
+    console.log('handleContinue initiated', { isLoggedIn: !!session });
+    
+    // STEP 1: Check authentication first
     if (!session) {
+      console.log('User not authenticated, redirecting to auth page');
       navigate('/auth');
       return;
     }
 
-    // Check if the user is a seller - use cached value first
-    if (isSeller) {
-      handleSellerContinue();
+    // STEP 2: Store the valuation data in localStorage with better error handling
+    try {
+      console.log('Saving valuation data to localStorage');
+      
+      // Create a clean data object without circular references
+      const valuationData = {
+        make: valuationResult.make,
+        model: valuationResult.model,
+        year: valuationResult.year,
+        vin: valuationResult.vin,
+        transmission: valuationResult.transmission,
+        valuation: valuationResult.valuation,
+        averagePrice: valuationResult.averagePrice
+      };
+      
+      // Store all data pieces individually to reduce potential JSON errors
+      localStorage.setItem('valuationData', JSON.stringify(valuationData));
+      localStorage.setItem('tempVIN', valuationResult.vin);
+      localStorage.setItem('tempMileage', mileage.toString());
+      localStorage.setItem('tempGearbox', valuationResult.transmission);
+      localStorage.setItem('listingTimestamp', new Date().toISOString());
+      
+      console.log('Successfully saved valuation data');
+    } catch (error) {
+      console.error('Failed to save valuation data:', error);
+      toast.error("Error preparing car data", { 
+        description: "Please try again or contact support."
+      });
       return;
     }
 
-    // Try refreshing seller status if needed
-    try {
-      const isSellerConfirmed = await refreshSellerStatus();
-      
-      if (isSellerConfirmed) {
-        handleSellerContinue();
-      } else {
-        // Not a seller - redirect to registration
-        navigate('/auth');
-        toast.info("Please sign up as a seller to list your car");
-      }
-    } catch (error) {
-      console.error("Error refreshing seller status:", error);
-      
-      // Handle as gracefully as possible - attempt to register seller
+    // STEP 3: Check seller status and handle navigation
+    console.log('Starting seller status verification', { currentStatus: isSeller });
+    
+    if (isSeller) {
+      // Already verified as seller, proceed to listing page
+      console.log('User already verified as seller, proceeding to listing page');
+      navigateToListingPage();
+    } else {
+      // Need to verify or register as seller
       try {
-        // If we can't verify seller status, check if they have a profile
-        const { error: profileError } = await supabase.rpc('register_seller', {
-          p_user_id: session.user.id
-        });
+        console.log('Attempting to refresh seller status');
+        const isSellerConfirmed = await refreshSellerStatus();
         
-        if (!profileError) {
-          // Successfully registered as seller
-          toast.success("Your seller account is now activated");
-          handleSellerContinue();
+        if (isSellerConfirmed) {
+          console.log('Seller status confirmed, proceeding to listing page');
+          navigateToListingPage();
         } else {
-          // Still failed - redirect to auth page
-          navigate('/auth');
-          toast.info("Please complete your seller registration");
+          // Try to register as seller automatically
+          console.log('Not currently a seller, attempting registration');
+          const { error: registerError } = await supabase.rpc('register_seller', {
+            p_user_id: session.user.id
+          });
+          
+          if (!registerError) {
+            console.log('Successfully registered as seller, proceeding to listing page');
+            toast.success("Seller account activated");
+            navigateToListingPage();
+          } else {
+            console.error('Failed to register as seller:', registerError);
+            navigateToSellerRegistration();
+          }
         }
-      } catch (finalError) {
-        // Last resort fallback - go to auth page
-        navigate('/auth');
-        toast.info("Please sign up as a seller to list your car");
+      } catch (error) {
+        console.error('Error verifying seller status:', error);
+        navigateToSellerRegistration();
       }
     }
   };
   
   /**
-   * Handles navigation for confirmed sellers
+   * Handles actual navigation to the listing page
    */
-  const handleSellerContinue = () => {
-    // Handle the navigation based on VIN check result
-    if (valuationResult.isExisting) {
-      toast.error("This vehicle has already been listed");
-      onClose();
-    } else {
-      // Ensure proper JSON storage of valuation data
-      try {
-        // Store all necessary data with proper string conversion
-        const valuationData = {
-          make: valuationResult.make,
-          model: valuationResult.model,
-          year: valuationResult.year,
-          vin: valuationResult.vin,
-          transmission: valuationResult.transmission,
-          valuation: valuationResult.valuation,
-          averagePrice: valuationResult.averagePrice
-        };
-        
-        localStorage.setItem('valuationData', JSON.stringify(valuationData));
-        localStorage.setItem('tempVIN', valuationResult.vin);
-        localStorage.setItem('tempMileage', mileage.toString());
-        localStorage.setItem('tempGearbox', valuationResult.transmission);
-        
-        // Add logging for debugging
-        console.log('Initiating navigation to sell-my-car with data:', {
-          vin: valuationResult.vin,
-          transmission: valuationResult.transmission,
-          mileage,
-          valuationData
-        });
-        
-        // First close the dialog to ensure UI state is clean
-        onClose();
-        
-        // Use direct window location change for more reliable navigation
-        window.location.href = '/sell-my-car';
-      } catch (error) {
-        console.error('Error storing valuation data:', error);
-        toast.error("Failed to prepare car listing data");
-      }
-    }
+  const navigateToListingPage = () => {
+    console.log('Executing navigation to sell-my-car page');
+    
+    // First close any open dialogs
+    onClose();
+    
+    // Use navigate with replace: true to avoid back button issues
+    navigate('/sell-my-car', { replace: true });
+    
+    // As a fallback, also schedule a direct location change 
+    // This helps in rare cases where React Router navigation fails
+    setTimeout(() => {
+      console.log('Executing fallback direct navigation');
+      window.location.href = '/sell-my-car';
+    }, 500);
+  };
+  
+  /**
+   * Redirects to seller registration
+   */
+  const navigateToSellerRegistration = () => {
+    console.log('Redirecting to seller registration');
+    toast.info("Please complete your seller registration");
+    navigate('/auth');
   };
 
   if (hasError && valuationResult.isExisting) {
