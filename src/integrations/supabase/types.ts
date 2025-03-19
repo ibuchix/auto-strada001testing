@@ -1489,6 +1489,43 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_seller_listings: {
+        Args: {
+          p_seller_id: string
+        }
+        Returns: {
+          additional_photos: Json | null
+          auction_end_time: string | null
+          auction_status: string | null
+          created_at: string
+          current_bid: number | null
+          features: Json | null
+          form_metadata: Json | null
+          id: string
+          images: string[] | null
+          is_auction: boolean | null
+          is_damaged: boolean | null
+          is_draft: boolean
+          is_manually_controlled: boolean | null
+          make: string | null
+          mileage: number | null
+          minimum_bid_increment: number | null
+          mobile_number: string | null
+          model: string | null
+          price: number
+          registration_number: string | null
+          required_photos: Json | null
+          reserve_price: number | null
+          seller_id: string | null
+          seller_notes: string | null
+          status: string | null
+          title: string | null
+          transmission: string | null
+          updated_at: string
+          vin: string | null
+          year: number | null
+        }[]
+      }
       get_user_id_by_email: {
         Args: {
           p_email: string
