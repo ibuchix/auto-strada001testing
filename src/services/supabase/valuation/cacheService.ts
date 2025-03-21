@@ -8,6 +8,7 @@
  * - 2025-04-28: Fixed TypeScript errors with method calls
  * - 2025-05-01: Fixed PostgrestError handling in error methods
  * - 2025-05-16: Fixed RPC function type errors using "as any" casting
+ * - 2025-05-17: Updated RPC function calls to use actual function names
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";

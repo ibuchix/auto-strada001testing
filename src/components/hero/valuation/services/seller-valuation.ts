@@ -10,6 +10,7 @@
  * - 2025-04-28: Fixed method name mismatches for TypeScript compatibility
  * - 2025-05-15: Refined implementation with improved separation of concerns
  * - 2025-05-16: Fixed import function name to match exported name
+ * - 2025-05-17: Fixed function name references to match actual exports
  */
 
 import { supabase } from "@/integrations/supabase/client";
