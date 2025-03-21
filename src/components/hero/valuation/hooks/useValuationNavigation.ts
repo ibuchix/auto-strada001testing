@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-04-21: Created dedicated hook for valuation navigation logic extracted from ValuationResult
@@ -9,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCallback } from "react";
+import { sellerRecoveryService } from "@/services/supabase/sellers/sellerRecoveryService";
 
 interface ValuationData {
   make: string;
@@ -139,6 +139,47 @@ export const useValuationNavigation = () => {
         toast.error("Verification failed");
         navigateToSellerRegistration();
         return;
+      }
+      
+      // New step: Check if there's a partial registration that can be repaired
+      if (!sellerVerified) {
+        try {
+          console.log('Checking for partial registration that can be repaired');
+          const diagnosis = await sellerRecoveryService.diagnoseSellerRegistration(session.user.id);
+          
+          // If any component exists, attempt repair
+          if (diagnosis.metadataHasRole || diagnosis.profileHasRole || diagnosis.sellerRecordExists) {
+            console.log('Detected partial registration, attempting repair');
+            
+            const repairResult = await sellerRecoveryService.repairSellerRegistration(session.user.id);
+            
+            if (repairResult.success && repairResult.repaired) {
+              console.log('Successfully repaired registration');
+              toast.success("Registration repaired successfully");
+              
+              // Refresh seller status after repair
+              sellerVerified = await refreshSellerStatus();
+              
+              if (!sellerVerified) {
+                console.log('Registration repair completed but seller status still not verified');
+                navigateToSellerRegistration();
+                return;
+              }
+            } else {
+              console.log('Registration repair failed or was not needed');
+              navigateToSellerRegistration();
+              return;
+            }
+          } else {
+            console.log('No partial registration detected, redirecting to seller registration');
+            navigateToSellerRegistration();
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking for partial registration:', error);
+          navigateToSellerRegistration();
+          return;
+        }
       }
     }
     

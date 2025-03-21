@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-26: Fixed TypeScript errors
@@ -36,6 +35,7 @@ import { AuthErrorHandler } from "@/components/error-handling/AuthErrorHandler";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { sellerProfileService } from "@/services/supabase";
+import { RegistrationStatusCheck } from "@/components/auth/recovery/RegistrationStatusCheck";
 
 const SellerDashboard = () => {
   const { session, refreshSellerStatus } = useAuth();
@@ -96,7 +96,10 @@ const SellerDashboard = () => {
     <div className="min-h-screen bg-white">
       <Navigation />
       <div className={containerClasses}>
-        <DashboardHeader title="Seller Dashboard" />
+        <DashboardHeader title="Seller Dashboard" isLoading={isLoading} />
+        
+        {/* Add the registration status check */}
+        <RegistrationStatusCheck />
         
         {/* Display RLS errors with recovery options */}
         {isRlsError && (

@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of app routing
@@ -34,6 +33,7 @@ import { ResetPassword } from "@/components/auth/ResetPassword";
 import { UpdatePassword } from "@/components/auth/UpdatePassword";
 import { RealtimeProvider } from "@/components/RealtimeProvider";
 import { TransactionProvider } from "./components/transaction/TransactionProvider";
+import SellerRegistrationRepairPage from "./pages/SellerRegistrationRepair";
 
 function App() {
   return (
@@ -59,6 +59,7 @@ function App() {
               <Route path="/manual-valuation" element={<ManualValuation />} />
               <Route path="/auth/reset-password" element={<ResetPassword />} />
               <Route path="/auth/update-password" element={<UpdatePassword />} />
+              <Route path="/seller-registration-repair" element={<SellerRegistrationRepairPage />} />
             </Routes>
             <Toaster />
           </RealtimeProvider>
