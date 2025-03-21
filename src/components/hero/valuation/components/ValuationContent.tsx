@@ -11,17 +11,17 @@
  * - 2024-12-05: Completely redesigned button click handler for maximum reliability
  * - 2025-03-21: Added logging and improved event handling for more reliable navigation
  * - 2025-06-12: Added comprehensive debugging for button click interactions
+ * - 2025-07-04: Refactored into smaller components for better maintainability
  */
 
 import { 
   DialogContent, 
   DialogHeader, 
-  DialogTitle,
-  DialogFooter
+  DialogTitle
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { ValuationDisplay } from "./ValuationDisplay";
 import { VehicleDetails } from "./VehicleDetails";
+import { ValuationDialogFooter } from "./layout/DialogFooter";
 import { useCallback, useEffect, useRef } from "react";
 
 interface ValuationContentProps {
@@ -55,25 +55,6 @@ export const ValuationContent = ({
 }: ValuationContentProps) => {
   // Track if component is mounted to prevent state updates after unmount
   const isMounted = useRef(true);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  
-  // Debug function to check if button is visible and properly rendered
-  const debugButtonState = () => {
-    if (buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      console.log('Button state:', {
-        exists: !!buttonRef.current,
-        visible: rect.width > 0 && rect.height > 0,
-        position: {x: rect.x, y: rect.y},
-        dimensions: {width: rect.width, height: rect.height},
-        disabled: buttonRef.current.disabled,
-        className: buttonRef.current.className,
-        zIndex: window.getComputedStyle(buttonRef.current).zIndex
-      });
-    } else {
-      console.warn('Button reference is null - not mounted or not rendered');
-    }
-  };
   
   // Clean up on unmount
   useEffect(() => {
@@ -89,11 +70,6 @@ export const ValuationContent = ({
       make, model, year, hasValuation, isLoggedIn
     });
     
-    // Debug timeout to check button after render is complete
-    setTimeout(() => {
-      debugButtonState();
-    }, 500);
-    
     return () => {
       console.log('ValuationContent - useEffect cleanup executed');
     };
@@ -108,8 +84,6 @@ export const ValuationContent = ({
       target: e.target instanceof HTMLElement ? e.target.tagName : 'Unknown',
       currentTarget: e.currentTarget instanceof HTMLElement ? e.currentTarget.tagName : 'Unknown',
       isTrusted: e.isTrusted,
-      buttonId: buttonRef.current?.id,
-      buttonTestId: buttonRef.current?.getAttribute('data-testid'),
       eventPhase: e.eventPhase,
       bubbles: e.bubbles,
       cancelable: e.cancelable,
@@ -117,9 +91,6 @@ export const ValuationContent = ({
       timeStamp: e.timeStamp,
       mounted: isMounted.current
     });
-    
-    // Capture button state at time of click
-    debugButtonState();
     
     // Prevent default behavior and stop event propagation
     if (e) {
@@ -139,7 +110,6 @@ export const ValuationContent = ({
       localStorage.setItem('lastButtonClick', new Date().toISOString());
       localStorage.setItem('listCarAction', 'initiated');
       localStorage.setItem('clickEventDetails', JSON.stringify({
-        buttonText: buttonRef.current?.textContent,
         isLoggedIn,
         make,
         model,
@@ -195,28 +165,11 @@ export const ValuationContent = ({
         )}
       </div>
 
-      <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
-        <Button 
-          variant="outline"
-          onClick={onClose}
-          className="w-full sm:w-auto"
-        >
-          Close
-        </Button>
-        <Button 
-          ref={buttonRef}
-          onClick={handleContinueClick}
-          className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
-          type="button"
-          id="list-car-button"
-          data-testid="list-car-button"
-        >
-          {!isLoggedIn 
-            ? "Sign Up to List Your Car" 
-            : "List This Car"
-          }
-        </Button>
-      </DialogFooter>
+      <ValuationDialogFooter
+        isLoggedIn={isLoggedIn}
+        onClose={onClose}
+        onContinue={handleContinueClick}
+      />
     </DialogContent>
   );
 };
