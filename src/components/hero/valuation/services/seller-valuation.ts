@@ -4,6 +4,7 @@
  * - 2024-07-25: Extracted seller valuation from valuationService.ts
  * - 2024-08-01: Added cache support to reduce API calls for identical VINs
  * - 2024-08-02: Fixed type issues when caching valuation data
+ * - 2025-04-22: Enhanced error handling and cache interaction
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +41,12 @@ export async function processSellerValuation(
     }
     
     // First check if we have a cached valuation
-    const cachedData = await getCachedValuation(vin, mileage);
+    let cachedData = null;
+    try {
+      cachedData = await getCachedValuation(vin, mileage);
+    } catch (cacheError) {
+      console.warn('Error retrieving from cache, continuing with direct API call:', cacheError);
+    }
     
     if (cachedData) {
       console.log('Using cached valuation data for VIN:', vin);
@@ -138,7 +144,12 @@ export async function processSellerValuation(
     };
     
     // Store the result in cache for future use
-    storeValuationCache(vin, mileage, valuationData);
+    try {
+      await storeValuationCache(vin, mileage, valuationData);
+    } catch (cacheError) {
+      console.warn('Failed to cache valuation data:', cacheError);
+      // Continue anyway since caching is not critical
+    }
     
     console.log('Returning complete valuation data for seller context');
     return {
