@@ -6,11 +6,13 @@
  * - 2024-06-20: Fixed function declaration to properly mark as async
  * - 2024-06-21: Added proper error handling for reserve price calculation
  * - 2024-07-24: Enhanced validation and fallback mechanisms for valuation data
+ * - 2024-07-28: Improved mileage retrieval and validation with better error handling
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { calculateReservePrice } from "./reservePriceCalculator";
 import { supabase } from "@/integrations/supabase/client";
+import { validateMileageData } from "./validationHandler";
 
 /**
  * Prepares car data for submission to Supabase
@@ -35,13 +37,9 @@ export const prepareCarDataForSubmission = async (
     throw new Error(`Missing required valuation fields: ${missingFields.join(', ')}`);
   }
   
-  // Ensure we have a valid mileage
-  const mileage = typeof valuationData.mileage === 'number' ? valuationData.mileage : 
-                 parseInt(localStorage.getItem('tempMileage') || '0');
-  
-  if (!mileage && mileage !== 0) {
-    throw new Error("Vehicle mileage is required");
-  }
+  // Ensure we have a valid mileage using the improved validation function
+  const mileage = validateMileageData();
+  console.log('Validated mileage:', mileage);
 
   // Calculate base price (average of min and med prices if available, or fall back to valuation/averagePrice)
   let priceX;

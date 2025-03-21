@@ -4,6 +4,7 @@
  * - 2024-06-12: Created dedicated utility for validation handling
  * - 2024-07-24: Enhanced validation with fallback mechanisms and improved error messages
  * - 2024-07-24: Added retrieval of valuation data from multiple possible sources
+ * - 2024-07-28: Improved mileage validation with better fallbacks and error handling
  */
 
 import { SubmissionErrorType } from "../types";
@@ -96,33 +97,58 @@ export const validateValuationData = (): any => {
 /**
  * Validates mileage data from localStorage with improved fallback
  * @throws SubmissionErrorType if validation fails
+ * @returns Validated mileage as a number
  */
-export const validateMileageData = (): void => {
+export const validateMileageData = (): number => {
   console.log('Validating mileage data...');
   
   // Try to get mileage from various sources
-  const storedMileage = localStorage.getItem('tempMileage');
+  let mileage: number | null = null;
+  let mileageSource = '';
   
-  if (!storedMileage) {
-    console.log('Mileage not found in tempMileage, checking valuationData...');
-    
-    // Try to extract from valuation data
+  // First, try direct localStorage access
+  const storedMileage = localStorage.getItem('tempMileage');
+  if (storedMileage) {
+    mileage = Number(storedMileage);
+    mileageSource = 'localStorage';
+    console.log('Found mileage in localStorage:', mileage);
+  } 
+  // Then try from valuation data
+  else {
     try {
       const valuationData = localStorage.getItem('valuationData');
       if (valuationData) {
         const parsedData = JSON.parse(valuationData);
-        if (parsedData.mileage) {
-          console.log('Found mileage in valuationData:', parsedData.mileage);
+        if (parsedData.mileage !== undefined && parsedData.mileage !== null) {
+          mileage = Number(parsedData.mileage);
+          mileageSource = 'valuationData';
+          console.log('Found mileage in valuationData:', mileage);
+          
           // Save it for future use
-          localStorage.setItem('tempMileage', String(parsedData.mileage));
-          return;
+          localStorage.setItem('tempMileage', String(mileage));
         }
       }
     } catch (error) {
       console.error('Error extracting mileage from valuation data:', error);
     }
-    
-    console.error('No mileage information found after recovery attempts');
+  }
+  
+  // Third, try from cached form data
+  if ((mileage === null || isNaN(mileage)) && mileage !== 0) {
+    const formData = getFromCache(CACHE_KEYS.FORM_PROGRESS);
+    if (formData && typeof formData === 'object' && 'mileage' in formData) {
+      mileage = Number(formData.mileage);
+      mileageSource = 'formCache';
+      console.log('Found mileage in form cache:', mileage);
+      
+      // Save it for future use
+      localStorage.setItem('tempMileage', String(mileage));
+    }
+  }
+  
+  // Final validation
+  if ((mileage === null || isNaN(mileage)) && mileage !== 0) {
+    console.error('No valid mileage information found after all recovery attempts');
     throw {
       message: "Missing vehicle mileage information",
       description: "Please complete the vehicle valuation first. You'll be redirected to start the process.",
@@ -131,7 +157,8 @@ export const validateMileageData = (): void => {
         onClick: () => window.location.href = '/sellers'
       }
     } as SubmissionErrorType;
-  } else {
-    console.log('Mileage validation successful:', storedMileage);
   }
+  
+  console.log(`Mileage validation successful: ${mileage} (source: ${mileageSource})`);
+  return mileage as number;
 };

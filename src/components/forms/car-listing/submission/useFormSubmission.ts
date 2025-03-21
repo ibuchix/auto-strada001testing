@@ -9,6 +9,7 @@
  * - 2024-10-24: Fixed transaction system type errors
  * - 2024-10-25: Removed JSX in .ts file and fixed transaction options
  * - 2024-07-24: Enhanced valuation data validation and error handling
+ * - 2024-07-28: Added debug utilities to help diagnose mileage issues
  */
 
 import { useState } from "react";
@@ -23,6 +24,7 @@ import { SubmissionErrorType } from "./types";
 import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
 import { useCreateTransaction } from "@/hooks/useTransaction";
 import { TransactionOptions } from "@/services/supabase/transactionService";
+import { debugMileageData, logAllLocalStorage } from "../utils/debugUtils";
 
 export const useFormSubmission = (userId?: string) => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -47,6 +49,10 @@ export const useFormSubmission = (userId?: string) => {
 
   const handleSubmit = async (data: CarListingFormData, carId?: string) => {
     console.log('Form submission handler triggered');
+    console.log('Debugging mileage data before submission:');
+    debugMileageData();
+    console.log('All localStorage items:');
+    logAllLocalStorage();
     
     if (!userId) {
       toast.error("Please sign in to submit a listing", {

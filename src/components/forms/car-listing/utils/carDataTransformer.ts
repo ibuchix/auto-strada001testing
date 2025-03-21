@@ -6,6 +6,7 @@
  * - 2024-03-25: Updated car preparation to include seller_id field
  * - 2024-07-24: Enhanced valuation data validation with more helpful error messages
  * - 2024-07-27: Fixed type comparison error when checking mileage value
+ * - 2024-07-28: Added robust mileage retrieval with fallbacks from localStorage
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -33,8 +34,28 @@ export const prepareCarData = (
     throw new Error("Vehicle VIN information missing. Please complete the valuation process again.");
   }
   
-  // Fixed type comparison error - checking if mileage is defined rather than comparing with 0
-  if (valuationData.mileage === undefined || valuationData.mileage === null) {
+  // Improved mileage detection with multiple fallbacks
+  let mileage: number | null = null;
+  
+  // Try to get mileage from valuationData first
+  if (valuationData.mileage !== undefined && valuationData.mileage !== null) {
+    mileage = Number(valuationData.mileage);
+    console.log('Using mileage from valuation data:', mileage);
+  } 
+  // Then try localStorage as fallback
+  else {
+    const storedMileage = localStorage.getItem('tempMileage');
+    if (storedMileage) {
+      mileage = Number(storedMileage);
+      console.log('Using mileage from localStorage:', mileage);
+      
+      // Update valuationData with the mileage from localStorage for consistency
+      valuationData.mileage = mileage;
+    }
+  }
+  
+  // Final validation of mileage
+  if ((mileage === null || isNaN(mileage)) && mileage !== 0) {
     throw new Error("Vehicle mileage information missing. Please complete the valuation process again.");
   }
   
@@ -76,7 +97,7 @@ export const prepareCarData = (
     model: valuationData.model,
     year: valuationData.year,
     vin: valuationData.vin,
-    mileage: valuationData.mileage,
+    mileage: mileage, // Using the validated mileage value
     price: price,
     transmission: valuationData.transmission || null,
     valuation_data: valuationData,

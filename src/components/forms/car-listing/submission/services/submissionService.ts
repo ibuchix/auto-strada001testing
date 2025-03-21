@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-12: Created dedicated service for form submission
  * - 2024-07-24: Enhanced handling of valuation data with improved validation
+ * - 2024-07-28: Improved mileage validation with better fallback mechanisms
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -20,8 +21,22 @@ export const submitCarListing = async (
   
   try {
     // Validate required data first with enhanced validation
-    validateMileageData();
+    console.log('Validating mileage data...');
+    const mileage = validateMileageData();
+    console.log('Mileage validated successfully:', mileage);
+    
+    console.log('Validating valuation data...');
     const valuationData = validateValuationData();
+    console.log('Valuation data validated successfully');
+    
+    // Ensure mileage is consistent in valuationData
+    if (valuationData.mileage === undefined || valuationData.mileage === null) {
+      valuationData.mileage = mileage;
+      console.log('Updated valuation data with validated mileage:', mileage);
+      
+      // Store the updated valuation data
+      localStorage.setItem('valuationData', JSON.stringify(valuationData));
+    }
     
     console.log('Validation successful, preparing data for submission');
     
