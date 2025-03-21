@@ -6,6 +6,7 @@
  * - 2024-07-15: Added caching for recent VIN validations
  * - 2024-07-18: Enhanced VIN reservation handling for more reliability
  * - 2024-07-22: Refactored into smaller modules for better maintainability
+ * - 2025-07-04: Further refactored into dedicated service modules
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
@@ -14,12 +15,17 @@ import {
   checkRateLimit, 
   logOperation, 
   ValidationError, 
-  getCachedValidation,
-  cacheValidation
+  getCachedValidation
 } from './utils.ts';
-import { validateReservation, createVinReservation } from './reservation-service.ts';
 import { fetchExternalValuation, calculateReservePrice } from './external-api.ts';
-import { checkVehicleExists } from './vehicle-checker.ts';
+import { 
+  validateVinInput, 
+  checkExistingEntities 
+} from './services/validation-service.ts';
+import {
+  processValidationResult,
+  handleValidationError
+} from './services/validation-processor.ts';
 
 export const validateVin = async (
   supabase: ReturnType<typeof createClient<Database>>,
@@ -32,54 +38,24 @@ export const validateVin = async (
   logOperation('validateVin_start', { requestId, vin, mileage, gearbox, userId });
 
   try {
-    // Check input validity
-    if (!vin || vin.length < 11) {
-      throw new ValidationError('Invalid VIN format', 'INVALID_VIN_FORMAT');
-    }
+    // Validate input parameters
+    validateVinInput(vin, mileage, userId);
     
-    if (!mileage || mileage < 0) {
-      throw new ValidationError('Invalid mileage value', 'INVALID_MILEAGE');
-    }
-    
-    if (!userId) {
-      throw new ValidationError('User ID is required', 'MISSING_USER_ID');
-    }
-
     // Apply rate limiting
     if (checkRateLimit(vin)) {
       throw new ValidationError('Too many requests for this VIN. Please try again later.', 'RATE_LIMIT_EXCEEDED');
     }
 
-    // Check if a valid reservation already exists for this user and VIN
-    const reservationCheck = await validateReservation(supabase, vin, userId);
-    if (reservationCheck.valid && reservationCheck.reservation) {
-      logOperation('using_existing_reservation', { 
-        requestId, 
-        vin, 
-        reservationId: reservationCheck.reservation.id 
-      });
-      
-      // Get the valuation data from the reservation
-      const valuationData = reservationCheck.reservation.valuation_data;
-      
-      // If we have valid data in the existing reservation, return it
-      if (valuationData && valuationData.make && valuationData.model && valuationData.year) {
-        return {
-          success: true,
-          data: {
-            make: valuationData.make,
-            model: valuationData.model,
-            year: valuationData.year,
-            valuation: valuationData.price || valuationData.valuation,
-            averagePrice: valuationData.averagePrice,
-            reservePrice: valuationData.reservePrice,
-            reservationId: reservationCheck.reservation.id
-          }
-        };
-      }
+    // Check for existing reservation or vehicle
+    const existingCheck = await checkExistingEntities(supabase, vin, userId, mileage, requestId);
+    if (existingCheck.isExistingReservation || existingCheck.isExistingVehicle) {
+      return {
+        success: true,
+        data: existingCheck.data
+      };
     }
 
-    // Check cache first before database and API calls
+    // Check cache first before API calls
     const cachedData = getCachedValidation(vin, mileage);
     if (cachedData) {
       logOperation('using_cached_validation', { requestId, vin, mileage });
@@ -95,44 +71,10 @@ export const validateVin = async (
         };
       }
       
-      // If we have a valid cached valuation, create a reservation and return the data
+      // If we have a valid cached valuation, process the result
       if (cachedData.make && cachedData.model && cachedData.year) {
-        logOperation('create_reservation_from_cache', { 
-          requestId, 
-          vin, 
-          make: cachedData.make, 
-          model: cachedData.model 
-        });
-        
-        // Create a reservation for this VIN
-        const reservation = await createVinReservation(supabase, vin, userId, cachedData);
-        
-        // Store reservation ID in response to be saved in localStorage
-        return {
-          success: true,
-          data: {
-            make: cachedData.make,
-            model: cachedData.model,
-            year: cachedData.year,
-            valuation: cachedData.price || cachedData.valuation,
-            averagePrice: cachedData.averagePrice,
-            reservePrice: cachedData.reservePrice,
-            reservationId: reservation.id
-          }
-        };
+        return await processValidationResult(supabase, vin, userId, cachedData, mileage, requestId);
       }
-    }
-
-    // Check if vehicle already exists
-    const vehicleExists = await checkVehicleExists(supabase, vin, mileage, requestId);
-    if (vehicleExists) {
-      return {
-        success: true,
-        data: {
-          isExisting: true,
-          error: 'This vehicle has already been listed'
-        }
-      };
     }
 
     // Get valuation from external API
@@ -153,56 +95,10 @@ export const validateVin = async (
       basePrice
     };
     
-    // Cache the valuation data
-    cacheValidation(vin, valuationData, mileage);
-
-    // Create a reservation for this VIN
-    const reservation = await createVinReservation(supabase, vin, userId, valuationData);
-
-    logOperation('validateVin_success', {
-      requestId,
-      vin,
-      reservationId: reservation.id,
-      make: data.make,
-      model: data.model,
-      year: data.year
-    });
-
-    return {
-      success: true,
-      data: {
-        make: data.make,
-        model: data.model,
-        year: data.year,
-        valuation: data.price,
-        averagePrice: data.averagePrice,
-        reservePrice,
-        reservationId: reservation.id
-      }
-    };
+    // Process the validation result
+    return await processValidationResult(supabase, vin, userId, valuationData, mileage, requestId);
 
   } catch (error) {
-    // Enhanced error handling
-    logOperation('validateVin_error', { 
-      requestId,
-      vin, 
-      errorMessage: error.message,
-      errorCode: error.code || 'UNKNOWN_ERROR',
-      stack: error.stack
-    }, 'error');
-    
-    if (error instanceof ValidationError) {
-      return {
-        success: false,
-        error: error.message,
-        errorCode: error.code
-      };
-    }
-    
-    return {
-      success: false,
-      error: error.message || 'Failed to validate VIN',
-      errorCode: 'SYSTEM_ERROR'
-    };
+    return handleValidationError(error, vin, requestId);
   }
 };
