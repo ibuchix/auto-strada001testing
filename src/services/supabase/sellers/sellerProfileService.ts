@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - Updated to support automatic verification of sellers
+ * - 2024-12-31: Fixed type import to use types.ts instead of local definition
  */
 
 import { BaseService } from "../baseService";

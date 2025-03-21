@@ -9,6 +9,7 @@
  * - 2024-11-18: Refactored into smaller services for better maintainability
  * - 2024-11-18: Simplified to re-export from specialized service modules
  * - 2024-11-20: Fixed TypeScript errors with proper "export type" syntax
+ * - 2024-12-31: Fixed import path for SellerProfile type
  */
 
 // Re-export from specialized service modules
@@ -17,7 +18,7 @@ export { sessionService } from './auth/sessionService';
 export { profileService } from './profiles/profileService';
 export type { UserProfile } from './profiles/profileService';
 export { sellerProfileService } from './sellers/sellerProfileService';
-export type { SellerProfile } from './sellers/sellerProfileService';
+export type { SellerProfile } from './sellers/types';
 
 // For backward compatibility, create a consolidated service
 import { BaseService } from "./baseService";

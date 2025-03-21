@@ -10,6 +10,7 @@
  * - 2024-11-18: Updated to include refactored user-related services
  * - 2024-11-20: Fixed TypeScript errors with proper type exports
  * - 2024-12-31: Updated import paths for refactored seller services
+ * - 2024-12-31: Fixed SellerProfile type import from types.ts
  */
 
 // Export services from auth module
