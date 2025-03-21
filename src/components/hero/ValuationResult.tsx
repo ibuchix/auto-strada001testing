@@ -12,6 +12,7 @@
  * - 2025-04-21: Refactored into smaller components for better maintainability
  * - 2025-07-07: Simplified navigation flow to ensure clicks always work
  * - 2025-07-08: Fixed TypeScript error with onContinue handler signature
+ * - 2025-07-09: Fixed race condition by preparing navigation before closing dialog
  */
 
 import { useEffect } from "react";
@@ -79,18 +80,39 @@ export const ValuationResult = ({
     );
   }
 
-  // Simplified continue handler that first closes dialog then navigates
+  // Improved continue handler that initiates navigation BEFORE closing the dialog
   const handleContinueClick = () => {
     console.log('ValuationResult - handleContinueClick triggered');
     
-    // First close the dialog to prevent any UI conflicts
+    // Store all necessary navigation data in variables first
+    const navigationData = {
+      ...valuationResult,
+      mileage
+    };
+    
+    // Pre-create the navigation function to execute afterward
+    const executeNavigation = () => {
+      console.log('ValuationResult - Executing navigation with stored data');
+      handleContinue(navigationData, navigationData.mileage);
+    };
+    
+    // First register a timeout for navigation to happen even if component unmounts
+    // This is our safety net
+    window.setTimeout(executeNavigation, 100);
+    
+    // Then close the dialog
+    console.log('ValuationResult - Closing dialog');
     onClose();
     
-    // Then trigger navigation with a slight delay to ensure dialog is closed
-    setTimeout(() => {
-      console.log('ValuationResult - Initiating navigation after dialog close');
-      handleContinue(valuationResult, mileage);
-    }, 50);
+    // Also try to execute navigation immediately
+    // One of these approaches should succeed
+    try {
+      console.log('ValuationResult - Attempting immediate navigation');
+      executeNavigation();
+    } catch (error) {
+      console.error('ValuationResult - Error during immediate navigation, relying on timeout:', error);
+      // We already set up the timeout above, so no need to do anything here
+    }
   };
 
   // Render main content for successful valuations

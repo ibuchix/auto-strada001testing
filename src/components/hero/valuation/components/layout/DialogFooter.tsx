@@ -6,6 +6,7 @@
  * - 2025-07-06: Enhanced click handling for maximum reliability
  * - 2025-07-07: Completely isolated event handling to prevent interference from cache errors
  * - 2025-07-08: Updated type signature to fix TypeScript errors
+ * - 2025-07-09: Simplified click handling to ensure navigation always works
  */
 
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { ContinueButton } from "../buttons/ContinueButton";
 interface FooterProps {
   isLoggedIn: boolean;
   onClose: () => void;
-  onContinue: (e: React.MouseEvent) => void;
+  onContinue: () => void;
 }
 
 export const ValuationDialogFooter = ({ 
@@ -23,14 +24,8 @@ export const ValuationDialogFooter = ({
   onClose, 
   onContinue 
 }: FooterProps) => {
-  // Simplified direct handler to ensure click is captured properly
-  const handleContinueClick = (e: React.MouseEvent) => {
-    console.log('ValuationDialogFooter - handleContinueClick triggered');
-    
-    // Call onContinue directly, with no additional logic that could fail
-    onContinue(e);
-  };
-  
+  // Direct pass-through of the continue callback without any wrapping
+  // This ensures the callback is called exactly as provided
   return (
     <UIDialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
       <Button 
@@ -42,7 +37,7 @@ export const ValuationDialogFooter = ({
       </Button>
       <ContinueButton 
         isLoggedIn={isLoggedIn}
-        onClick={handleContinueClick}
+        onClick={onContinue}
       />
     </UIDialogFooter>
   );

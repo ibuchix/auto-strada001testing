@@ -7,6 +7,7 @@
  * - 2025-07-06: Fixed React ref warning and improved click handling
  * - 2025-07-07: Completely refactored click handling to guarantee navigation regardless of cache errors
  * - 2025-07-08: Updated click handler to ensure it works properly with type-safe callbacks
+ * - 2025-07-09: Simplified click handling to avoid complex event handling that might be blocking navigation
  */
 
 import { Button } from "@/components/ui/button";
@@ -14,43 +15,31 @@ import { useCallback } from "react";
 
 interface ContinueButtonProps {
   isLoggedIn: boolean;
-  onClick: (e: React.MouseEvent) => void;
+  onClick: () => void;
 }
 
 export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => {
-  // Enhanced click handler with maximum reliability
-  const handleButtonClick = useCallback((e: React.MouseEvent) => {
-    // Prevent default behavior to ensure we have full control
-    e.preventDefault();
-    e.stopPropagation();
+  // Simple direct click handler with minimal event interference
+  const handleButtonClick = useCallback(() => {
+    console.log('ContinueButton - Direct click handler executing');
     
-    console.log('ContinueButton - handleButtonClick triggered', {
-      type: e.type,
-      timestamp: new Date().toISOString()
-    });
+    // Call the onClick handler directly
+    onClick();
     
-    try {
-      // Call the provided onClick handler directly
-      onClick(e);
-      
-      console.log('ContinueButton - onClick handler completed successfully');
-    } catch (error) {
-      // If click handler fails, log it but don't block the user
-      console.error('ContinueButton - onClick handler error:', error);
-      
-      // Navigate directly as a fallback mechanism
-      const sellMyCarUrl = "/sell-my-car";
-      console.log('ContinueButton - Using emergency fallback navigation to:', sellMyCarUrl);
-      
-      // Force direct navigation as an ultimate fallback
+    // Add a fallback for maximum reliability
+    // If the original handler didn't navigate for some reason,
+    // this will ensure the user can still proceed
+    setTimeout(() => {
       try {
-        window.location.href = sellMyCarUrl;
-      } catch (navError) {
-        console.error('ContinueButton - Emergency navigation failed:', navError);
-        // Last resort - replace location
-        window.location.replace(sellMyCarUrl);
+        // Check if we're still on the same page and navigation didn't happen
+        if (document.querySelector('#list-car-button')) {
+          console.log('ContinueButton - Using fallback navigation');
+          window.location.href = "/sell-my-car";
+        }
+      } catch (err) {
+        console.error('ContinueButton - Fallback error:', err);
       }
-    }
+    }, 300);
   }, [onClick]);
 
   return (

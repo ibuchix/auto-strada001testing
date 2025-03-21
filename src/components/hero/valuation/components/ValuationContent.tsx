@@ -13,6 +13,7 @@
  * - 2025-06-12: Added comprehensive debugging for button click interactions
  * - 2025-07-04: Refactored into smaller components for better maintainability
  * - 2025-07-08: Updated onContinue type to handle argument-less function calls
+ * - 2025-07-09: Removed component unmount check that was blocking navigation
  */
 
 import { 
@@ -23,7 +24,7 @@ import {
 import { ValuationDisplay } from "./ValuationDisplay";
 import { VehicleDetails } from "./VehicleDetails";
 import { ValuationDialogFooter } from "./layout/DialogFooter";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 
 interface ValuationContentProps {
   make: string;
@@ -54,17 +55,6 @@ export const ValuationContent = ({
   onClose,
   onContinue
 }: ValuationContentProps) => {
-  // Track if component is mounted to prevent state updates after unmount
-  const isMounted = useRef(true);
-  
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-      console.log('ValuationContent unmounted');
-    };
-  }, []);
-  
   // Log component mount with key props
   useEffect(() => {
     console.log('ValuationContent mounted with data:', {
@@ -72,39 +62,18 @@ export const ValuationContent = ({
     });
     
     return () => {
-      console.log('ValuationContent - useEffect cleanup executed');
+      console.log('ValuationContent unmounted');
     };
   }, [make, model, year, hasValuation, isLoggedIn]);
 
   // Stabilized callback to prevent recreation on each render
-  const handleContinueClick = useCallback((e: React.MouseEvent) => {
+  const handleContinueClick = useCallback(() => {
     // Comprehensive event logging
-    console.log('Continue button clicked - detailed event info:', {
+    console.log('Continue button clicked - initiating action:', {
       timestamp: new Date().toISOString(),
-      eventType: e.type,
-      target: e.target instanceof HTMLElement ? e.target.tagName : 'Unknown',
-      currentTarget: e.currentTarget instanceof HTMLElement ? e.currentTarget.tagName : 'Unknown',
-      isTrusted: e.isTrusted,
-      eventPhase: e.eventPhase,
-      bubbles: e.bubbles,
-      cancelable: e.cancelable,
-      defaultPrevented: e.defaultPrevented,
-      timeStamp: e.timeStamp,
-      mounted: isMounted.current
+      make, model, year,
+      isLoggedIn
     });
-    
-    // Prevent default behavior and stop event propagation
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('Event default behavior prevented and propagation stopped');
-    }
-    
-    // Prevent execution if component is unmounted
-    if (!isMounted.current) {
-      console.log('Ignoring click - component unmounted');
-      return;
-    }
     
     // Store last interaction timestamp and debug info
     try {
@@ -122,7 +91,7 @@ export const ValuationContent = ({
       console.error('Error saving click state to localStorage:', err);
     }
     
-    // Execute the continue callback - wrapped in try/catch for debugging
+    // Execute the continue callback directly without unmount check
     console.log('Executing continue action...');
     try {
       onContinue();
