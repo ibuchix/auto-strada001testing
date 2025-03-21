@@ -11,6 +11,7 @@
  * - 2024-11-20: Fixed TypeScript errors with proper type exports
  * - 2024-12-31: Updated import paths for refactored seller services
  * - 2024-12-31: Fixed SellerProfile type import from types.ts
+ * - 2024-10-15: Updated imports for refactored base and valuation services
  */
 
 // Export services from auth module
@@ -29,7 +30,7 @@ export * from './baseService';
 export * from './carService';
 export * from './userService';
 export * from './auctionService';
-export * from './valuationService';
+export * from './valuation/index';
 export * from './sellerService';
 export * from './transactions';
 
