@@ -9,6 +9,7 @@
  * - 2024-10-28: Updated to import from transaction system's new location
  * - 2024-11-18: Updated to include refactored user-related services
  * - 2024-11-20: Fixed TypeScript errors with proper type exports
+ * - 2024-12-31: Updated import paths for refactored seller services
  */
 
 // Export services from auth module
@@ -20,7 +21,7 @@ export type { UserProfile } from './profiles/profileService';
 
 // Export services from sellers module
 export { sellerProfileService } from './sellers/sellerProfileService';
-export type { SellerProfile } from './sellers/sellerProfileService';
+export type { SellerProfile } from './sellers/types';
 
 // Export all other services
 export * from './baseService';
