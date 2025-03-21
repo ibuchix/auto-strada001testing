@@ -6,6 +6,7 @@
  * - 2024-08-02: Fixed type issues when caching valuation data
  * - 2025-04-22: Enhanced error handling and cache interaction
  * - 2025-04-23: Improved cache function integration with enhanced error handling
+ * - 2025-04-27: Updated imports for refactored cache-api module
  */
 
 import { supabase } from "@/integrations/supabase/client";

@@ -4,6 +4,7 @@
  * - 2024-07-25: Extracted home valuation from valuationService.ts
  * - 2024-08-01: Added cache support to reduce API calls for identical VINs
  * - 2024-08-02: Fixed type issues when caching valuation data
+ * - 2025-04-27: Updated imports for refactored cache-api module
  */
 
 import { toast } from "sonner";
