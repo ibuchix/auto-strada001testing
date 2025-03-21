@@ -11,6 +11,7 @@
  * - 2024-07-05: Updated registerSeller to use the database function for more reliable registration
  * - 2024-07-06: Enhanced error handling and added better validation for seller registration
  * - 2024-12-18: Improved registerSeller with progressive fallback methods for robustness
+ * - 2024-12-22: Added debug logging and improved profiles update logic
  */
 
 import { useState } from "react";
@@ -36,7 +37,10 @@ export const useAuthActions = () => {
       }
 
       // Check if user already has seller role
-      if (user.user?.user_metadata?.role === 'seller') {
+      const hasSellerRole = user.user?.user_metadata?.role === 'seller';
+      console.log("User metadata:", user.user?.user_metadata, "Has seller role:", hasSellerRole);
+
+      if (hasSellerRole) {
         console.log("User already has seller role in metadata");
         
         // Still update cache to ensure consistency
@@ -47,16 +51,22 @@ export const useAuthActions = () => {
         });
         
         // Check if seller entry exists
-        const { data: sellerExists } = await supabaseClient
+        const { data: sellerExists, error: sellerCheckError } = await supabaseClient
           .from('sellers')
           .select('id')
           .eq('user_id', userId)
           .maybeSingle();
           
+        if (sellerCheckError) {
+          console.error("Error checking if seller exists:", sellerCheckError);
+        }
+          
         if (sellerExists) {
           console.log("Seller record already exists:", sellerExists);
           return true;
         }
+        
+        console.log("Seller role found in metadata but no seller record exists. Creating...");
       }
 
       console.log("Updating user metadata with seller role");
@@ -69,87 +79,102 @@ export const useAuthActions = () => {
         console.error("Error updating user metadata:", metadataError);
         throw new Error("Failed to update user role");
       }
-
-      console.log("Calling register_seller database function");
-      // Method 1: Try using the RPC function first (security definer function that bypasses RLS)
-      const { data: rpcResult, error: rpcError } = await supabaseClient.rpc('register_seller', {
-        p_user_id: userId
-      });
       
-      if (!rpcError && rpcResult) {
-        console.log("Successfully registered seller via RPC function");
-        return true;
+      // First check if profile exists before creating or updating
+      const { data: profileExists, error: profileCheckError } = await supabaseClient
+        .from('profiles')
+        .select('id, role')
+        .eq('id', userId)
+        .maybeSingle();
+        
+      if (profileCheckError) {
+        console.error("Error checking profile:", profileCheckError);
       }
       
-      console.warn("RPC register_seller failed, falling back to manual registration:", rpcError);
-
-      // Method 2: Try manual registration with profiles update
-      try {
-        console.log("Attempting manual profile creation/update");
-        
-        // First check if profile exists
-        const { data: existingProfile } = await supabaseClient
+      // Create or update profile with seller role
+      if (profileExists) {
+        console.log("Profile exists, updating with seller role:", profileExists);
+        const { error: profileUpdateError } = await supabaseClient
           .from('profiles')
-          .select('id, role')
-          .eq('id', userId)
-          .maybeSingle();
+          .update({ 
+            role: 'seller',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId);
           
-        if (existingProfile) {
-          console.log("Profile exists, updating role:", existingProfile);
-          // Update existing profile
-          await supabaseClient
-            .from('profiles')
-            .update({ 
-              role: 'seller',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', userId);
-        } else {
-          console.log("Profile doesn't exist, creating new profile");
-          // Create new profile
-          await supabaseClient
-            .from('profiles')
-            .insert({ 
-              id: userId, 
-              role: 'seller',
-              updated_at: new Date().toISOString()
-            });
+        if (profileUpdateError) {
+          console.error("Error updating profile:", profileUpdateError);
         }
-            
-        // Method 3: Check if seller record exists, create if needed
-        const { data: sellerExists } = await supabaseClient
-          .from('sellers')
-          .select('id')
-          .eq('user_id', userId)
-          .maybeSingle();
+      } else {
+        console.log("Profile doesn't exist, creating with seller role");
+        const { error: profileCreateError } = await supabaseClient
+          .from('profiles')
+          .insert({ 
+            id: userId, 
+            role: 'seller',
+            updated_at: new Date().toISOString()
+          });
           
-        if (!sellerExists) {
-          console.log("Seller record doesn't exist, creating new seller record");
-          await supabaseClient
-            .from('sellers')
-            .insert({
-              user_id: userId,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-        } else {
-          console.log("Seller record already exists:", sellerExists);
+        if (profileCreateError) {
+          console.error("Error creating profile:", profileCreateError);
         }
+      }
+          
+      // Check if seller record exists, create if needed
+      const { data: sellerExists, error: sellerCheckError } = await supabaseClient
+        .from('sellers')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
         
-        // Save profile to cache for offline access
-        saveToCache(CACHE_KEYS.USER_PROFILE, {
-          id: userId,
-          role: 'seller',
-          updated_at: new Date().toISOString()
+      if (sellerCheckError) {
+        console.error("Error checking if seller exists:", sellerCheckError);
+      }
+        
+      if (!sellerExists) {
+        console.log("Seller record doesn't exist, creating new seller record");
+        const { error: sellerCreateError } = await supabaseClient
+          .from('sellers')
+          .insert({
+            user_id: userId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            verification_status: 'pending'
+          });
+          
+        if (sellerCreateError) {
+          console.error("Error creating seller record:", sellerCreateError);
+          throw new Error("Failed to create seller profile");
+        }
+      } else {
+        console.log("Seller record already exists:", sellerExists);
+      }
+      
+      // Try to call the RPC function as a backup to ensure all side effects are triggered
+      try {
+        const { error: rpcError } = await supabaseClient.rpc('register_seller', {
+          p_user_id: userId
         });
         
-        console.log("Manual seller registration successful");
-        toast.success("Seller registration successful!");
-        return true;
-      } catch (fallbackError) {
-        console.error("All seller registration methods failed:", fallbackError);
-        throw fallbackError;
+        if (rpcError) {
+          console.warn("RPC register_seller failed but direct updates succeeded:", rpcError);
+        } else {
+          console.log("RPC register_seller succeeded as backup");
+        }
+      } catch (rpcError) {
+        console.warn("RPC register_seller failed but direct updates succeeded:", rpcError);
       }
+      
+      // Save profile to cache for offline access
+      saveToCache(CACHE_KEYS.USER_PROFILE, {
+        id: userId,
+        role: 'seller',
+        updated_at: new Date().toISOString()
+      });
+      
+      console.log("Seller registration successful");
+      toast.success("Seller registration successful!");
+      return true;
     } catch (error: any) {
       console.error("Error registering seller:", error);
       

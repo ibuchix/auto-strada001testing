@@ -5,6 +5,7 @@
  * - 2024-06-28: Removed dealer-specific logic to make app seller-specific
  * - 2024-07-05: Updated to use proper seller registration with profiles table
  * - 2024-12-18: Enhanced registration flow with better error handling and role assignment
+ * - 2024-12-22: Added improved debugging and role consistency checks
  */
 
 import { useState, useEffect } from "react";
@@ -32,6 +33,25 @@ export const useAuthPage = () => {
           // Check if user has a role in metadata
           if (user?.user_metadata?.role === "seller") {
             console.log("User has seller role in metadata");
+            
+            // Verify seller record exists in database
+            const { data: sellerExists, error: sellerError } = await supabase
+              .from('sellers')
+              .select('id')
+              .eq('user_id', user?.id)
+              .maybeSingle();
+              
+            if (sellerError) {
+              console.error("Error checking seller record:", sellerError);
+            }
+            
+            // If seller record doesn't exist despite having role in metadata,
+            // trigger seller registration to repair the inconsistency
+            if (!sellerExists && user?.id) {
+              console.log("Seller role in metadata but no seller record found. Repairing...");
+              await registerSeller(user.id);
+            }
+            
             navigate("/dashboard/seller");
             return;
           }
@@ -46,12 +66,30 @@ export const useAuthPage = () => {
           console.log("Profile check result:", { profile, error });
 
           if (!error && profile && profile.role === 'seller') {
-            console.log("User has seller role in profiles table");
+            console.log("User has seller role in profiles table but not in metadata. Syncing...");
             
             // Update metadata to match profile for consistency
             await supabase.auth.updateUser({
               data: { role: 'seller' }
             });
+            
+            // Verify seller record exists
+            const { data: sellerExists, error: sellerError } = await supabase
+              .from('sellers')
+              .select('id')
+              .eq('user_id', user?.id)
+              .maybeSingle();
+              
+            if (sellerError) {
+              console.error("Error checking seller record:", sellerError);
+            }
+            
+            // If seller record doesn't exist despite having role in profile,
+            // trigger seller registration to repair the inconsistency
+            if (!sellerExists && user?.id) {
+              console.log("Seller role in profile but no seller record found. Repairing...");
+              await registerSeller(user.id);
+            }
             
             navigate("/dashboard/seller");
           }
@@ -62,14 +100,14 @@ export const useAuthPage = () => {
 
       checkUserRole();
     }
-  }, [session, navigate, user]);
+  }, [session, navigate, user, registerSeller]);
 
   const handleSellerSubmit = async (email: string, password: string) => {
     try {
       setRegistrationStep('processing');
       console.log("Starting seller registration for:", email);
       
-      // Step 1: Sign up the user
+      // Step 1: Sign up the user with role metadata
       const { error: signUpError, data: signUpData } = await supabase.auth.signUp({
         email,
         password,
@@ -87,7 +125,14 @@ export const useAuthPage = () => {
         return;
       }
 
-      console.log("User signed up successfully:", signUpData);
+      console.log("User signed up successfully with metadata:", signUpData);
+      
+      if (!signUpData.user?.id) {
+        console.error("User ID is missing after sign up");
+        toast.error("Registration failed: User ID not found");
+        setRegistrationStep('initial');
+        return;
+      }
       
       // Step 2: Sign in the user automatically
       const { error: signInError, data } = await supabase.auth.signInWithPassword({
@@ -113,7 +158,11 @@ export const useAuthPage = () => {
           console.log("Seller registration successful, redirecting to dashboard");
           toast.success("Registration successful! Welcome to your seller dashboard.");
           setRegistrationStep('complete');
-          navigate("/dashboard/seller");
+          
+          // Add a brief delay before redirecting to ensure all state is updated
+          setTimeout(() => {
+            navigate("/dashboard/seller");
+          }, 1000);
         } else {
           console.error("Failed to register as seller after account creation");
           toast.error("Account created but seller registration failed. Please contact support.");
