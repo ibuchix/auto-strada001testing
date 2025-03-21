@@ -1393,6 +1393,12 @@ export type Database = {
         }
         Returns: Json
       }
+      analyze_bidding_strategy: {
+        Args: {
+          p_dealer_id: string
+        }
+        Returns: Json
+      }
       approve_listing: {
         Args: {
           p_listing_id: string
@@ -1408,6 +1414,14 @@ export type Database = {
         }
         Returns: Json
       }
+      calculate_optimal_proxy_bid: {
+        Args: {
+          p_car_id: string
+          p_dealer_id: string
+          p_max_budget: number
+        }
+        Returns: Json
+      }
       calculate_reserve_price: {
         Args: {
           p_base_price: number
@@ -1420,6 +1434,14 @@ export type Database = {
           p_price_med: number
         }
         Returns: number
+      }
+      can_perform_action: {
+        Args: {
+          p_action: string
+          p_entity_type: string
+          p_entity_id: string
+        }
+        Returns: boolean
       }
       check_auction_system_health: {
         Args: Record<PropertyKey, never>
@@ -1469,6 +1491,32 @@ export type Database = {
           record_exists: boolean
           error_message: string
         }[]
+      }
+      get_auction_activity_metrics: {
+        Args: {
+          p_car_id: string
+        }
+        Returns: Json
+      }
+      get_bid_recommendations: {
+        Args: {
+          p_car_id: string
+          p_dealer_id: string
+        }
+        Returns: Json
+      }
+      get_bid_status: {
+        Args: {
+          p_car_id: string
+          p_dealer_id: string
+        }
+        Returns: Json
+      }
+      get_dealer_bid_exposure: {
+        Args: {
+          p_dealer_id: string
+        }
+        Returns: Json
       }
       get_dealer_by_user_id: {
         Args: {
@@ -1576,6 +1624,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_dealer: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_seller: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -1591,6 +1643,15 @@ export type Database = {
           p_user_agent?: string
         }
         Returns: string
+      }
+      perform_admin_action: {
+        Args: {
+          p_action: string
+          p_entity_type: string
+          p_entity_id: string
+          p_details?: Json
+        }
+        Returns: boolean
       }
       place_bid: {
         Args: {

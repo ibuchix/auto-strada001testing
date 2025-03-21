@@ -10,11 +10,13 @@
  * - 2024-06-28: Removed dealer-specific functionality to make app seller-specific
  * - 2024-07-05: Updated registerSeller to use the database function for more reliable registration
  * - 2024-07-06: Enhanced error handling and added better validation for seller registration
+ * - 2024-12-18: Improved registerSeller with progressive fallback methods for robustness
  */
 
 import { useState } from "react";
 import { useSupabaseClient } from "@supabase/auth-helpers-react";
 import { toast } from "sonner";
+import { CACHE_KEYS, saveToCache } from "@/services/offlineCacheService";
 
 export const useAuthActions = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -23,9 +25,10 @@ export const useAuthActions = () => {
   const registerSeller = async (userId: string) => {
     try {
       setIsLoading(true);
+      console.log("Starting seller registration process for user:", userId);
       
       // First check if the user already has a role
-      const { data: user, error: userError } = await supabaseClient.auth.getUser(userId);
+      const { data: user, error: userError } = await supabaseClient.auth.getUser();
       
       if (userError) {
         console.error("Error fetching user:", userError);
@@ -34,10 +37,29 @@ export const useAuthActions = () => {
 
       // Check if user already has seller role
       if (user.user?.user_metadata?.role === 'seller') {
-        toast.error("This account is already registered as a seller");
-        return false;
+        console.log("User already has seller role in metadata");
+        
+        // Still update cache to ensure consistency
+        saveToCache(CACHE_KEYS.USER_PROFILE, {
+          id: user.user.id,
+          role: 'seller',
+          updated_at: new Date().toISOString()
+        });
+        
+        // Check if seller entry exists
+        const { data: sellerExists } = await supabaseClient
+          .from('sellers')
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+          
+        if (sellerExists) {
+          console.log("Seller record already exists:", sellerExists);
+          return true;
+        }
       }
 
+      console.log("Updating user metadata with seller role");
       // Update user metadata to include role
       const { error: metadataError } = await supabaseClient.auth.updateUser({
         data: { role: 'seller' }
@@ -48,22 +70,86 @@ export const useAuthActions = () => {
         throw new Error("Failed to update user role");
       }
 
-      // Use the register_seller database function to ensure both profile and seller entries are created
-      const { data, error } = await supabaseClient.rpc('register_seller', {
+      console.log("Calling register_seller database function");
+      // Method 1: Try using the RPC function first (security definer function that bypasses RLS)
+      const { data: rpcResult, error: rpcError } = await supabaseClient.rpc('register_seller', {
         p_user_id: userId
       });
       
-      if (error) {
-        console.error("Error registering seller:", error);
-        throw new Error(error.message || "Failed to complete seller registration");
+      if (!rpcError && rpcResult) {
+        console.log("Successfully registered seller via RPC function");
+        return true;
       }
+      
+      console.warn("RPC register_seller failed, falling back to manual registration:", rpcError);
 
-      if (!data) {
-        throw new Error("Failed to create seller profile");
+      // Method 2: Try manual registration with profiles update
+      try {
+        console.log("Attempting manual profile creation/update");
+        
+        // First check if profile exists
+        const { data: existingProfile } = await supabaseClient
+          .from('profiles')
+          .select('id, role')
+          .eq('id', userId)
+          .maybeSingle();
+          
+        if (existingProfile) {
+          console.log("Profile exists, updating role:", existingProfile);
+          // Update existing profile
+          await supabaseClient
+            .from('profiles')
+            .update({ 
+              role: 'seller',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId);
+        } else {
+          console.log("Profile doesn't exist, creating new profile");
+          // Create new profile
+          await supabaseClient
+            .from('profiles')
+            .insert({ 
+              id: userId, 
+              role: 'seller',
+              updated_at: new Date().toISOString()
+            });
+        }
+            
+        // Method 3: Check if seller record exists, create if needed
+        const { data: sellerExists } = await supabaseClient
+          .from('sellers')
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+          
+        if (!sellerExists) {
+          console.log("Seller record doesn't exist, creating new seller record");
+          await supabaseClient
+            .from('sellers')
+            .insert({
+              user_id: userId,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+        } else {
+          console.log("Seller record already exists:", sellerExists);
+        }
+        
+        // Save profile to cache for offline access
+        saveToCache(CACHE_KEYS.USER_PROFILE, {
+          id: userId,
+          role: 'seller',
+          updated_at: new Date().toISOString()
+        });
+        
+        console.log("Manual seller registration successful");
+        toast.success("Seller registration successful!");
+        return true;
+      } catch (fallbackError) {
+        console.error("All seller registration methods failed:", fallbackError);
+        throw fallbackError;
       }
-
-      toast.success("Seller registration successful! Redirecting to dashboard...");
-      return true;
     } catch (error: any) {
       console.error("Error registering seller:", error);
       

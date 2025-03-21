@@ -4,23 +4,26 @@
  * - 2024-06-26: Created component for seller registration view
  * - 2024-06-27: Redesigned for modern appearance with card-based layout
  * - 2024-11-14: Added status message display during registration process
+ * - 2024-12-18: Enhanced with better loading states and progress feedback
  */
 
 import { Button } from "@/components/ui/button";
 import { SellerRegistrationForm } from "@/components/auth/SellerRegistrationForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle } from "lucide-react";
 
 interface SellerRegistrationViewProps {
   onSubmit: (email: string, password: string) => void;
   onBack: () => void;
   isLoading: boolean;
+  registrationStep?: 'initial' | 'processing' | 'complete';
 }
 
 export const SellerRegistrationView = ({
   onSubmit,
   onBack,
-  isLoading
+  isLoading,
+  registrationStep = 'initial'
 }: SellerRegistrationViewProps) => {
   return (
     <Card className="w-full max-w-md border-none shadow-lg animate-fade-in">
@@ -32,14 +35,24 @@ export const SellerRegistrationView = ({
       </CardHeader>
       
       <CardContent className="p-6">
-        {isLoading ? (
+        {registrationStep === 'processing' || isLoading ? (
           <div className="bg-accent/40 p-6 rounded-lg flex flex-col items-center justify-center min-h-[300px]">
             <Loader2 size={40} className="animate-spin mb-4 text-primary" />
-            <p className="text-center text-subtitle">
+            <p className="text-center text-subtitle font-medium">
               Creating your seller account...
             </p>
-            <p className="text-center text-sm mt-2 max-w-xs">
-              This process ensures you'll be able to list vehicles for sale on our platform
+            <p className="text-center text-sm mt-2 max-w-xs text-muted-foreground">
+              We're setting up your profile so you can start listing vehicles for sale
+            </p>
+          </div>
+        ) : registrationStep === 'complete' ? (
+          <div className="bg-accent/40 p-6 rounded-lg flex flex-col items-center justify-center min-h-[300px]">
+            <CheckCircle size={40} className="mb-4 text-green-600" />
+            <p className="text-center text-subtitle font-medium">
+              Registration successful!
+            </p>
+            <p className="text-center text-sm mt-2 max-w-xs text-muted-foreground">
+              Your seller account has been created. You'll be redirected to your dashboard shortly.
             </p>
           </div>
         ) : (
@@ -55,7 +68,7 @@ export const SellerRegistrationView = ({
           variant="ghost"
           onClick={onBack}
           className="w-full mt-4 text-[#4B4DED] font-medium flex items-center justify-center gap-2"
-          disabled={isLoading}
+          disabled={isLoading || registrationStep === 'processing' || registrationStep === 'complete'}
         >
           <ArrowLeft size={16} />
           Back to Sign In / Sign Up

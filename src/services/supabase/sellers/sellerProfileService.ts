@@ -4,6 +4,7 @@
  * - 2024-11-18: Created dedicated service for seller-specific operations
  * - 2024-11-18: Extracted from userService.ts to improve maintainability
  * - 2024-11-20: Updated UserProfile import to fix TypeScript error
+ * - 2024-12-18: Enhanced registerSeller with better error handling and fallbacks
  */
 
 import { BaseService } from "../baseService";
@@ -38,35 +39,63 @@ export class SellerProfileService extends BaseService {
    */
   async registerSeller(userId: string): Promise<boolean> {
     try {
+      console.log("SellerProfileService: Starting registration for user ID:", userId);
+      
       // Try using the RPC function first (security definer function that bypasses RLS)
       const { data, error } = await this.supabase.rpc('register_seller', {
         p_user_id: userId
       });
       
+      if (!error && data) {
+        console.log("SellerProfileService: Successfully registered via RPC function");
+        return true;
+      }
+      
       if (error) {
-        console.warn("RPC register_seller failed, falling back to manual update:", error);
+        console.warn("SellerProfileService: RPC register_seller failed, falling back to manual methods:", error);
         
         // Fallback method 1: Try to update profile directly
         try {
-          await this.supabase
+          console.log("SellerProfileService: Attempting manual profile creation/update");
+          
+          // First check if profile exists
+          const { data: profileExists } = await this.supabase
             .from('profiles')
-            .upsert({ 
-              id: userId, 
-              role: 'seller',
-              updated_at: new Date().toISOString()
-            }, { 
-              onConflict: 'id',
-              ignoreDuplicates: false 
-            });
+            .select('id')
+            .eq('id', userId)
+            .maybeSingle();
             
-          // Also create seller record if needed
+          if (profileExists) {
+            console.log("SellerProfileService: Profile exists, updating role");
+            // Update existing profile
+            await this.supabase
+              .from('profiles')
+              .update({ 
+                role: 'seller',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', userId);
+          } else {
+            console.log("SellerProfileService: Profile doesn't exist, creating new profile");
+            // Create new profile
+            await this.supabase
+              .from('profiles')
+              .insert({ 
+                id: userId, 
+                role: 'seller',
+                updated_at: new Date().toISOString()
+              });
+          }
+              
+          // Check if seller record exists, create if needed
           const { data: sellerExists } = await this.supabase
             .from('sellers')
             .select('id')
             .eq('user_id', userId)
             .maybeSingle();
-            
+              
           if (!sellerExists) {
+            console.log("SellerProfileService: Seller record doesn't exist, creating new seller record");
             await this.supabase
               .from('sellers')
               .insert({
@@ -74,6 +103,8 @@ export class SellerProfileService extends BaseService {
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               });
+          } else {
+            console.log("SellerProfileService: Seller record already exists");
           }
           
           // Update user metadata
@@ -81,9 +112,10 @@ export class SellerProfileService extends BaseService {
             data: { role: 'seller' }
           });
           
+          console.log("SellerProfileService: Manual registration successful");
           return true;
         } catch (fallbackError) {
-          console.error("All seller registration methods failed:", fallbackError);
+          console.error("SellerProfileService: All seller registration methods failed:", fallbackError);
           throw fallbackError;
         }
       }
@@ -91,6 +123,7 @@ export class SellerProfileService extends BaseService {
       return !!data;
     } catch (error: any) {
       this.handleError(error, "Failed to register as seller");
+      return false;
     }
   }
 }

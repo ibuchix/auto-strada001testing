@@ -16,6 +16,7 @@
  * - 2024-06-26: Refactored into smaller components
  * - 2024-06-27: Redesigned auth page with improved layout and visuals
  * - 2024-06-28: Removed dealer registration functionality to make app seller-specific
+ * - 2024-12-18: Updated to use enhanced registration step tracking
  */
 
 import { AccountOptions } from "@/components/auth/AccountOptions";
@@ -26,6 +27,7 @@ const AuthPage = () => {
   const {
     isSeller,
     isLoading,
+    registrationStep,
     setIsSeller,
     handleSellerSubmit,
     resetRegistrationState
@@ -50,6 +52,7 @@ const AuthPage = () => {
                 onSubmit={handleSellerSubmit}
                 onBack={resetRegistrationState}
                 isLoading={isLoading}
+                registrationStep={registrationStep}
               />
             ) : (
               <AccountOptions
