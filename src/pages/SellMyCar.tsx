@@ -11,6 +11,7 @@
  * - 2024-11-12: Enhanced page load handling for direct navigation cases
  * - 2024-12-05: Completely redesigned data validation and error handling
  * - 2024-12-29: Improved seller verification with enhanced error handling and better feedback
+ * - 2025-07-05: Fixed issues with direct navigation from valuation result
  */
 
 import { Navigation } from "@/components/Navigation";
@@ -18,7 +19,7 @@ import { Footer } from "@/components/Footer";
 import { CarListingForm } from "@/components/forms/CarListingForm";
 import { useAuth } from "@/components/AuthProvider";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { Button } from "@/components/ui/button";
 const SellMyCar = () => {
   const { session, isSeller, refreshSellerStatus } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isValid, setIsValid] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -37,7 +39,9 @@ const SellMyCar = () => {
       try {
         console.log('SellMyCar: Starting validation', { 
           isLoggedIn: !!session, 
-          isSeller 
+          isSeller,
+          locationState: location.state,
+          hasLocationState: !!location.state
         });
         
         // Step 1: Check authentication
@@ -73,7 +77,28 @@ const SellMyCar = () => {
           }
         }
         
-        // Step 3: Validate required data from localStorage
+        // Step 3: Try to get data from location state first (most reliable)
+        const stateData = location.state?.valuationData;
+        
+        if (stateData) {
+          console.log('SellMyCar: Using data from location state');
+          
+          // If we have data from navigation state, make sure it's also in localStorage
+          localStorage.setItem('valuationData', JSON.stringify(stateData));
+          
+          if (stateData.vin) {
+            localStorage.setItem('tempVIN', stateData.vin);
+          }
+          
+          if (location.state?.fromValuation) {
+            console.log('SellMyCar: Valid navigation from valuation');
+            setIsValid(true);
+            setIsLoading(false);
+            return;
+          }
+        }
+        
+        // Step 4: Validate required data from localStorage as fallback
         console.log('SellMyCar: Validating localStorage data');
         const tempVIN = localStorage.getItem("tempVIN");
         const tempMileage = localStorage.getItem("tempMileage");
@@ -87,7 +112,7 @@ const SellMyCar = () => {
           return;
         }
         
-        // Step 4: Parse and validate the valuation data (but continue even if missing)
+        // Step 5: Parse and validate the valuation data (but continue even if missing)
         try {
           if (valuationDataStr) {
             const valuationData = JSON.parse(valuationDataStr);
@@ -118,7 +143,7 @@ const SellMyCar = () => {
     };
 
     validateAndLoadData();
-  }, [session, isSeller, navigate, refreshSellerStatus]);
+  }, [session, isSeller, navigate, refreshSellerStatus, location]);
 
   // Retry seller verification manually
   const handleRetrySellerVerification = async () => {

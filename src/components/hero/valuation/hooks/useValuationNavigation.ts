@@ -6,6 +6,7 @@
  * - 2024-12-05: Improved navigation reliability with more robust checks
  * - 2025-03-21: Added comprehensive logging for navigation flow
  * - 2025-06-12: Enhanced navigation debugging with detailed error tracking
+ * - 2025-07-05: Fixed direct navigation issue preventing listing process
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -60,15 +61,39 @@ export const useValuationNavigation = () => {
         console.log('VIN reservation ID stored:', valuationData.reservationId);
       }
 
+      // Force store the complete valuation data in localStorage to ensure it's available
+      localStorage.setItem('valuationData', JSON.stringify(valuationData));
+      
       // If seller status is already verified, proceed to listing page
       if (isSeller) {
         console.log('User is verified seller, navigating to listing page');
-        navigate('/sell-my-car', { 
-          state: { 
-            fromValuation: true,
-            valuationData
-          } 
-        });
+        
+        // Use window.location for more reliable navigation
+        // This bypasses potential React Router issues
+        const sellMyCarUrl = "/sell-my-car";
+        console.log('Navigating to:', sellMyCarUrl);
+        
+        // Try both navigation methods for maximum reliability
+        try {
+          navigate(sellMyCarUrl, { 
+            state: { 
+              fromValuation: true,
+              valuationData
+            },
+            replace: true
+          });
+          
+          // Set a backup navigation after a short delay
+          setTimeout(() => {
+            if (window.location.pathname !== sellMyCarUrl) {
+              console.log('Fallback navigation with window.location.href');
+              window.location.href = sellMyCarUrl;
+            }
+          }, 100);
+        } catch (navError) {
+          console.error('Navigation error:', navError);
+          window.location.href = sellMyCarUrl;
+        }
         return;
       }
       
@@ -78,14 +103,31 @@ export const useValuationNavigation = () => {
         description: "You'll need to complete your seller profile during the listing process."
       });
       
-      navigate('/sell-my-car', { 
-        state: { 
-          fromValuation: true,
-          valuationData,
-          requiresSellerVerification: true
-        } 
-      });
+      // Use window.location for more reliable navigation
+      const sellMyCarUrl = "/sell-my-car";
+      console.log('Navigating to:', sellMyCarUrl);
       
+      try {
+        navigate(sellMyCarUrl, { 
+          state: { 
+            fromValuation: true,
+            valuationData,
+            requiresSellerVerification: true
+          },
+          replace: true 
+        });
+        
+        // Set a backup navigation after a short delay
+        setTimeout(() => {
+          if (window.location.pathname !== sellMyCarUrl) {
+            console.log('Fallback navigation with window.location.href');
+            window.location.href = sellMyCarUrl;
+          }
+        }, 100);
+      } catch (navError) {
+        console.error('Navigation error:', navError);
+        window.location.href = sellMyCarUrl;
+      }
     } catch (error) {
       console.error('Navigation error during valuation continue:', error);
       
@@ -106,6 +148,14 @@ export const useValuationNavigation = () => {
       toast.error("Unable to process request", {
         description: "There was a problem listing your car. Please try again or contact support."
       });
+      
+      // Fallback navigation as last resort
+      try {
+        navigate('/sell-my-car');
+      } catch (fallbackError) {
+        console.error('Fallback navigation failed:', fallbackError);
+        window.location.href = '/sell-my-car';
+      }
     }
   };
 

@@ -2,6 +2,8 @@
 /**
  * Changes made:
  * - 2025-07-04: Created dedicated component for the continue button with enhanced click handling
+ * - 2025-07-05: Fixed button click propagation issues that prevented listing process
+ * - 2025-07-05: Added additional debugging and event capturing for maximum reliability
  */
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,25 @@ interface ContinueButtonProps {
 
 export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
+  
+  // Enhanced click handler with debugging
+  const handleButtonClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('ContinueButton - handleButtonClick triggered', {
+      type: e.type,
+      target: e.target,
+      currentTarget: e.currentTarget,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Call the provided onClick handler
+    onClick(e);
+    
+    // Log after click for debugging
+    console.log('ContinueButton - handleButtonClick completed');
+  }, [onClick]);
   
   // Debug function to check if button is visible and properly rendered
   const debugButtonState = useCallback(() => {
@@ -50,7 +71,7 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
   return (
     <Button 
       ref={buttonRef}
-      onClick={onClick}
+      onClick={handleButtonClick}
       className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
       type="button"
       id="list-car-button"

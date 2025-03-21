@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-07-04: Created dedicated component for dialog footer buttons
+ * - 2025-07-05: Fixed event handling to ensure proper propagation of click events
  */
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,13 @@ export const ValuationDialogFooter = ({
   onClose, 
   onContinue 
 }: FooterProps) => {
+  // Enhanced click handler to ensure proper event handling
+  const handleContinueClick = (e: React.MouseEvent) => {
+    console.log('ValuationDialogFooter - handleContinueClick triggered');
+    // Ensure the event propagates correctly
+    onContinue(e);
+  };
+  
   return (
     <UIDialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
       <Button 
@@ -30,7 +38,7 @@ export const ValuationDialogFooter = ({
       </Button>
       <ContinueButton 
         isLoggedIn={isLoggedIn}
-        onClick={onContinue}
+        onClick={handleContinueClick}
       />
     </UIDialogFooter>
   );
