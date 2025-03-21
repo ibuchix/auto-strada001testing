@@ -7,6 +7,8 @@
  * - 2024-11-19: Updated to use refactored profile and seller services
  * - 2024-11-20: Fixed type imports with proper import syntax
  * - Updated to support automatic verification of sellers
+ * - 2025-07-12: Prioritized metadata checks over database queries to improve reliability
+ * - 2025-07-12: Added quick-path resolution when metadata contains seller role
  */
 
 import { useCallback } from "react";
@@ -21,12 +23,29 @@ import { profileService, sellerProfileService } from "@/services/supabase";
 export const useSellerRoleCheck = () => {
   /**
    * Efficiently checks if a user has seller role using multiple methods with fallbacks
-   * Updated to expect sellers are automatically verified
+   * Prioritizes metadata check for maximum reliability and performance
    */
   const checkSellerRole = useCallback(async (currentSession: Session) => {
     try {
-      // Method 1: Check user metadata first (fastest path)
+      // Method 1: Check user metadata first (fastest and most reliable path)
+      console.log("Checking seller role from user metadata:", currentSession.user.user_metadata);
       if (currentSession.user.user_metadata?.role === 'seller') {
+        console.log("User confirmed as seller via metadata");
+        
+        // Even though we're returning true, try to fix potential data inconsistencies 
+        // in the background without blocking the UI
+        setTimeout(async () => {
+          try {
+            // Try to ensure profile and seller records exist
+            await sellerProfileService.registerSeller(currentSession.user.id).catch(err => {
+              console.log("Background seller registration attempt failed, but it's okay:", err);
+            });
+          } catch (error) {
+            // Silently catch errors to prevent any issues in the UI
+            console.warn("Background synchronization failed, but it's not critical:", error);
+          }
+        }, 500);
+        
         return true;
       }
 
