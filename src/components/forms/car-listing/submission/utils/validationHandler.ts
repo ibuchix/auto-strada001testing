@@ -2,19 +2,68 @@
 /**
  * Changes made:
  * - 2024-06-12: Created dedicated utility for validation handling
+ * - 2024-07-24: Enhanced validation with fallback mechanisms and improved error messages
+ * - 2024-07-24: Added retrieval of valuation data from multiple possible sources
  */
 
 import { SubmissionErrorType } from "../types";
+import { CACHE_KEYS, getFromCache } from "@/services/offlineCacheService";
 
 /**
- * Process and validate vehicle valuation data
- * @returns Validated valuation data from localStorage
+ * Process and validate vehicle valuation data with fallback mechanisms
+ * @returns Validated valuation data
  * @throws SubmissionErrorType if validation fails
  */
 export const validateValuationData = (): any => {
-  const valuationData = localStorage.getItem('valuationData');
+  console.log('Validating valuation data...');
+  
+  // First try the primary storage location
+  let valuationData = localStorage.getItem('valuationData');
+  
+  // If not found, try alternative locations
+  if (!valuationData) {
+    console.log('Primary valuation data not found, trying alternatives...');
+    
+    // Try from the cache service
+    const cachedData = getFromCache(CACHE_KEYS.VALUATION_DATA);
+    if (cachedData) {
+      console.log('Found valuation data in cache service');
+      valuationData = typeof cachedData === 'string' ? cachedData : JSON.stringify(cachedData);
+    }
+    
+    // If still not found, try to rebuild from individual components
+    if (!valuationData) {
+      console.log('Attempting to reconstruct valuation data from components...');
+      const tempVIN = localStorage.getItem('tempVIN');
+      const tempMileage = localStorage.getItem('tempMileage');
+      const tempGearbox = localStorage.getItem('tempGearbox');
+      
+      if (tempVIN && tempMileage) {
+        console.log('Found VIN and mileage, reconstructing basic valuation data');
+        const reconstructedData = {
+          vin: tempVIN,
+          mileage: parseInt(tempMileage),
+          transmission: tempGearbox || 'manual',
+          // Include any route state data if navigated from valuation result
+          ...(window.history.state?.usr?.valuationData || {})
+        };
+        
+        // Check if we have enough data for a valid reconstruction
+        if (reconstructedData.make && reconstructedData.model && reconstructedData.year) {
+          console.log('Successfully reconstructed valuation data');
+          valuationData = JSON.stringify(reconstructedData);
+          
+          // Save the reconstructed data for future use
+          localStorage.setItem('valuationData', valuationData);
+        }
+      }
+    }
+  } else {
+    console.log('Found primary valuation data');
+  }
   
   if (!valuationData) {
+    console.error('No valuation data found after all recovery attempts');
     throw {
       message: "Vehicle valuation data not found",
       description: "Please complete the valuation process first. You'll be redirected to start over.",
@@ -25,17 +74,55 @@ export const validateValuationData = (): any => {
     } as SubmissionErrorType;
   }
 
-  return JSON.parse(valuationData);
+  let parsedData;
+  try {
+    parsedData = JSON.parse(valuationData);
+    console.log('Successfully parsed valuation data:', parsedData);
+  } catch (error) {
+    console.error('Error parsing valuation data:', error);
+    throw {
+      message: "Invalid valuation data format",
+      description: "The stored valuation data is corrupted. Please complete the valuation process again.",
+      action: {
+        label: "Start Over",
+        onClick: () => window.location.href = '/sellers'
+      }
+    } as SubmissionErrorType;
+  }
+
+  return parsedData;
 };
 
 /**
- * Validates mileage data from localStorage
+ * Validates mileage data from localStorage with improved fallback
  * @throws SubmissionErrorType if validation fails
  */
 export const validateMileageData = (): void => {
+  console.log('Validating mileage data...');
+  
+  // Try to get mileage from various sources
   const storedMileage = localStorage.getItem('tempMileage');
   
   if (!storedMileage) {
+    console.log('Mileage not found in tempMileage, checking valuationData...');
+    
+    // Try to extract from valuation data
+    try {
+      const valuationData = localStorage.getItem('valuationData');
+      if (valuationData) {
+        const parsedData = JSON.parse(valuationData);
+        if (parsedData.mileage) {
+          console.log('Found mileage in valuationData:', parsedData.mileage);
+          // Save it for future use
+          localStorage.setItem('tempMileage', String(parsedData.mileage));
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error extracting mileage from valuation data:', error);
+    }
+    
+    console.error('No mileage information found after recovery attempts');
     throw {
       message: "Missing vehicle mileage information",
       description: "Please complete the vehicle valuation first. You'll be redirected to start the process.",
@@ -44,5 +131,7 @@ export const validateMileageData = (): void => {
         onClick: () => window.location.href = '/sellers'
       }
     } as SubmissionErrorType;
+  } else {
+    console.log('Mileage validation successful:', storedMileage);
   }
 };

@@ -1,9 +1,11 @@
+
 /**
  * Changes made:
  * - 2024-06-12: Created dedicated utility for preparing submission data
  * - 2024-06-19: Updated to handle async reserve price calculation
  * - 2024-06-20: Fixed function declaration to properly mark as async
  * - 2024-06-21: Added proper error handling for reserve price calculation
+ * - 2024-07-24: Enhanced validation and fallback mechanisms for valuation data
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -19,25 +21,53 @@ export const prepareCarDataForSubmission = async (
   userId: string | undefined,
   valuationData: any
 ) => {
-  if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation || !valuationData.year) {
-    throw new Error("Please complete the vehicle valuation first");
+  console.log('Preparing car data for submission with valuation data:', valuationData);
+  
+  if (!valuationData) {
+    throw new Error("Valuation data is required for submission");
+  }
+  
+  // More thorough validation with specific error messages
+  const requiredFields = ['make', 'model', 'vin', 'year'];
+  const missingFields = requiredFields.filter(field => !valuationData[field]);
+  
+  if (missingFields.length > 0) {
+    throw new Error(`Missing required valuation fields: ${missingFields.join(', ')}`);
+  }
+  
+  // Ensure we have a valid mileage
+  const mileage = typeof valuationData.mileage === 'number' ? valuationData.mileage : 
+                 parseInt(localStorage.getItem('tempMileage') || '0');
+  
+  if (!mileage && mileage !== 0) {
+    throw new Error("Vehicle mileage is required");
   }
 
-  // Calculate base price (average of min and med prices)
-  const priceMin = valuationData.priceRanges?.minPrice || valuationData.valuation || 0;
-  const priceMed = valuationData.priceRanges?.medPrice || valuationData.valuation || 0;
-  const priceX = (priceMin + priceMed) / 2;
+  // Calculate base price (average of min and med prices if available, or fall back to valuation/averagePrice)
+  let priceX;
+  if (valuationData.priceRanges?.minPrice !== undefined && valuationData.priceRanges?.medPrice !== undefined) {
+    const priceMin = valuationData.priceRanges.minPrice;
+    const priceMed = valuationData.priceRanges.medPrice;
+    priceX = (priceMin + priceMed) / 2;
+    console.log(`Calculated priceX from price ranges: ${priceX}`);
+  } else {
+    const price = valuationData.valuation || valuationData.averagePrice || 0;
+    priceX = price;
+    console.log(`Using direct valuation as priceX: ${priceX}`);
+  }
   
   // Calculate reserve price using the server function with client fallback
   let reservePrice;
   try {
     reservePrice = await calculateReservePrice(priceX);
+    console.log(`Calculated reserve price: ${reservePrice}`);
   } catch (error) {
     console.error('Failed to calculate reserve price:', error);
     throw new Error('Failed to calculate reserve price. Please try again.');
   }
 
-  return {
+  // Build the car data object
+  const carData = {
     id: carId,
     seller_id: userId,
     title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
@@ -45,8 +75,8 @@ export const prepareCarDataForSubmission = async (
     model: valuationData.model,
     year: valuationData.year,
     vin: valuationData.vin,
-    mileage: valuationData.mileage,
-    price: valuationData.valuation,
+    mileage: mileage,
+    price: valuationData.valuation || valuationData.averagePrice || 0,
     reserve_price: reservePrice,
     transmission: valuationData.transmission,
     valuation_data: valuationData,
@@ -68,4 +98,7 @@ export const prepareCarDataForSubmission = async (
     number_of_keys: parseInt(data.numberOfKeys),
     additional_photos: data.uploadedPhotos
   };
+
+  console.log('Car data prepared successfully');
+  return carData;
 };

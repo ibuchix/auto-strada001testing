@@ -4,6 +4,7 @@
  * - 2024-03-20: Fixed type references to match database schema
  * - 2024-03-20: Updated property names to match database schema
  * - 2024-03-25: Updated car preparation to include seller_id field
+ * - 2024-07-24: Enhanced valuation data validation with more helpful error messages
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -13,14 +14,43 @@ export const prepareCarData = (
   valuationData: any,
   userId: string
 ): any => {
-  if (!valuationData.make || !valuationData.model || !valuationData.vin || !valuationData.mileage || !valuationData.valuation || !valuationData.year) {
-    throw new Error("Please complete the vehicle valuation first");
+  // More thorough validation of valuationData
+  if (!valuationData) {
+    throw new Error("Valuation data is missing. Please complete the vehicle valuation first.");
+  }
+  
+  // Check for required valuation fields with specific error messages
+  if (!valuationData.make) {
+    throw new Error("Vehicle make information missing. Please complete the valuation process again.");
+  }
+  
+  if (!valuationData.model) {
+    throw new Error("Vehicle model information missing. Please complete the valuation process again.");
+  }
+  
+  if (!valuationData.vin) {
+    throw new Error("Vehicle VIN information missing. Please complete the valuation process again.");
+  }
+  
+  if (!valuationData.mileage && !valuationData.mileage === 0) {
+    throw new Error("Vehicle mileage information missing. Please complete the valuation process again.");
+  }
+  
+  if (!valuationData.valuation && !valuationData.averagePrice) {
+    throw new Error("Vehicle price valuation missing. Please complete the valuation process again.");
+  }
+  
+  if (!valuationData.year) {
+    throw new Error("Vehicle year information missing. Please complete the valuation process again.");
   }
 
   const title = `${valuationData.make} ${valuationData.model} ${valuationData.year}`.trim();
   if (!title) {
     throw new Error("Unable to generate listing title");
   }
+
+  // Use either valuation or averagePrice, whichever is available
+  const price = valuationData.valuation || valuationData.averagePrice || 0;
 
   return {
     seller_id: userId,
@@ -45,7 +75,7 @@ export const prepareCarData = (
     year: valuationData.year,
     vin: valuationData.vin,
     mileage: valuationData.mileage,
-    price: valuationData.valuation,
+    price: price,
     transmission: valuationData.transmission || null,
     valuation_data: valuationData,
     is_draft: true,

@@ -8,20 +8,21 @@
  * - 2024-10-23: Corrected issues with JSX in toast.custom and code structure
  * - 2024-10-24: Fixed transaction system type errors
  * - 2024-10-25: Removed JSX in .ts file and fixed transaction options
+ * - 2024-07-24: Enhanced valuation data validation and error handling
  */
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { CarListingFormData } from "@/types/forms";
-import { validateMileageData } from "./utils/validationHandler";
+import { validateMileageData, validateValuationData } from "./utils/validationHandler";
 import { cleanupFormStorage } from "./utils/storageCleanup";
 import { submitCarListing } from "./services/submissionService";
 import { validateFormData } from "../utils/validation";
 import { SubmissionErrorType } from "./types";
 import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
 import { useCreateTransaction } from "@/hooks/useTransaction";
-import { TransactionStatus, TransactionType, TransactionOptions } from "@/services/supabase/transactionService";
+import { TransactionOptions } from "@/services/supabase/transactionService";
 
 export const useFormSubmission = (userId?: string) => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -45,6 +46,8 @@ export const useFormSubmission = (userId?: string) => {
   });
 
   const handleSubmit = async (data: CarListingFormData, carId?: string) => {
+    console.log('Form submission handler triggered');
+    
     if (!userId) {
       toast.error("Please sign in to submit a listing", {
         description: "You'll be redirected to the login page.",
@@ -61,8 +64,41 @@ export const useFormSubmission = (userId?: string) => {
     setError(null);
 
     try {
-      // Validate mileage data first
-      validateMileageData();
+      // Try to validate valuation data first to check if it exists
+      try {
+        console.log('Pre-validating valuation data');
+        const valuationData = validateValuationData();
+        console.log('Valuation data pre-validation successful:', valuationData);
+      } catch (validationError: any) {
+        console.error('Valuation data pre-validation failed:', validationError);
+        toast.error(validationError.message || "Missing valuation data", {
+          description: validationError.description || "Please complete the vehicle valuation first",
+          duration: 5000,
+          action: validationError.action || {
+            label: "Start Valuation",
+            onClick: () => navigate("/sellers")
+          }
+        });
+        return;
+      }
+      
+      // Validate mileage data
+      try {
+        console.log('Validating mileage data');
+        validateMileageData();
+        console.log('Mileage validation successful');
+      } catch (mileageError: any) {
+        console.error('Mileage validation failed:', mileageError);
+        toast.error(mileageError.message || "Missing mileage data", {
+          description: mileageError.description || "Please complete the vehicle valuation first",
+          duration: 5000,
+          action: mileageError.action || {
+            label: "Start Valuation",
+            onClick: () => navigate("/sellers")
+          }
+        });
+        return;
+      }
       
       // Validate form data
       const errors = validateFormData(data);
