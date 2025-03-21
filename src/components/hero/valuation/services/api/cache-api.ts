@@ -6,6 +6,7 @@
  * - 2024-12-31: Updated to use security definer function for reliable caching
  * - 2025-03-21: Fixed TypeScript error with onConflict method
  * - 2025-04-22: Enhanced error handling and added anonymous access for caching
+ * - 2025-04-23: Improved security definer function interaction with detailed logging
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -66,91 +67,130 @@ export async function getCachedValuation(
 }
 
 /**
- * Store valuation data in the cache
- * Enhanced with additional error handling and a more reliable approach
+ * Store valuation data in the cache using enhanced security definer function
+ * with improved error handling and detailed logging
  */
 export async function storeValuationCache(
   vin: string,
   mileage: number,
   valuationData: ValuationData
-): Promise<void> {
-  console.log('Storing valuation in cache for VIN:', vin);
+): Promise<boolean> {
+  console.log('Attempting to store valuation in cache for VIN:', vin);
   
   try {
-    // Try using the security definer function first
-    const { error: rpcError } = await supabase.rpc(
+    // Check if user is authenticated first - this will affect which approach we use
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAuthenticated = !!sessionData?.session?.user;
+    
+    if (isAuthenticated) {
+      console.log('User is authenticated, using primary caching approach');
+    } else {
+      console.log('User is not authenticated, will try security definer function');
+    }
+    
+    // Try using the enhanced security definer function with improved error handling
+    const { data: rpcData, error: rpcError } = await supabase.rpc(
       'store_vin_valuation_cache',
       {
         p_vin: vin,
         p_mileage: mileage,
-        p_valuation_data: valuationData
+        p_valuation_data: valuationData,
+        p_log_id: `cache_${Date.now()}_${Math.floor(Math.random() * 1000)}`
       }
     );
     
     if (rpcError) {
-      console.warn('Security definer function failed, falling back to direct insert:', rpcError);
+      console.error('Security definer function failed with error:', rpcError);
       
-      // First, check if user is authenticated
-      const { data: sessionData } = await supabase.auth.getSession();
-      const isAuthenticated = !!sessionData?.session?.user;
+      // Log detailed information about the error for debugging
+      console.error('Error details:', {
+        message: rpcError.message,
+        details: rpcError.details,
+        hint: rpcError.hint,
+        code: rpcError.code
+      });
       
-      // If not authenticated, we'll skip caching since it will fail due to RLS
-      if (!isAuthenticated) {
-        console.log('Skipping cache storage - user not authenticated');
-        return;
-      }
-      
-      // Try to find existing entry first
-      const { data: existingData, error: selectError } = await supabase
-        .from('vin_valuation_cache')
-        .select('id')
-        .eq('vin', vin)
-        .maybeSingle();
-        
-      if (selectError) {
-        console.error('Error checking existing cache entry:', selectError);
-        return;
-      }
-      
-      if (existingData) {
-        // Update existing record
-        const { error } = await supabase
-          .from('vin_valuation_cache')
-          .update({
-            mileage,
-            valuation_data: valuationData,
-            created_at: new Date().toISOString()
-          })
-          .eq('vin', vin);
-          
-        if (error) {
-          console.error('Error updating valuation cache:', error);
-        } else {
-          console.log('Successfully updated existing cache entry');
-        }
+      // If authenticated, attempt direct database insert as fallback
+      if (isAuthenticated) {
+        console.log('Attempting direct insert as authenticated user fallback');
+        return await attemptDirectInsert(vin, mileage, valuationData);
       } else {
-        // Insert new record
-        const { error } = await supabase
-          .from('vin_valuation_cache')
-          .insert([
-            {
-              vin,
-              mileage,
-              valuation_data: valuationData
-            }
-          ]);
-          
-        if (error) {
-          console.error('Error inserting valuation cache:', error);
-        } else {
-          console.log('Successfully inserted new cache entry');
-        }
+        console.log('Skipping cache storage - user not authenticated and security definer failed');
+        return false;
+      }
+    }
+    
+    console.log('Successfully stored valuation in cache via security definer function');
+    return true;
+  } catch (error) {
+    console.error('Unexpected error in storeValuationCache:', error);
+    // Don't throw the error, just log it as this is a non-critical operation
+    return false;
+  }
+}
+
+/**
+ * Helper function to attempt direct insert into cache table
+ * Only used as a fallback when the security definer function fails
+ */
+async function attemptDirectInsert(
+  vin: string,
+  mileage: number,
+  valuationData: ValuationData
+): Promise<boolean> {
+  try {
+    // Try to find existing entry first
+    const { data: existingData, error: selectError } = await supabase
+      .from('vin_valuation_cache')
+      .select('id')
+      .eq('vin', vin)
+      .maybeSingle();
+      
+    if (selectError) {
+      console.error('Error checking existing cache entry:', selectError);
+      return false;
+    }
+    
+    if (existingData) {
+      // Update existing record
+      const { error } = await supabase
+        .from('vin_valuation_cache')
+        .update({
+          mileage,
+          valuation_data: valuationData,
+          created_at: new Date().toISOString()
+        })
+        .eq('id', existingData.id);
+        
+      if (error) {
+        console.error('Error updating valuation cache:', error);
+        return false;
+      } else {
+        console.log('Successfully updated existing cache entry via direct update');
+        return true;
       }
     } else {
-      console.log('Successfully stored valuation in cache via security definer function');
+      // Insert new record
+      const { error } = await supabase
+        .from('vin_valuation_cache')
+        .insert([
+          {
+            vin,
+            mileage,
+            valuation_data: valuationData
+          }
+        ]);
+        
+      if (error) {
+        console.error('Error inserting valuation cache:', error);
+        return false;
+      } else {
+        console.log('Successfully inserted new cache entry via direct insert');
+        return true;
+      }
     }
   } catch (error) {
-    console.error('Failed to store valuation in cache:', error);
-    // Don't throw the error, just log it as this is a non-critical operation
+    console.error('Failed to store valuation in cache via direct insert:', error);
+    return false;
   }
 }

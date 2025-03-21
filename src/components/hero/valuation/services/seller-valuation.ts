@@ -5,6 +5,7 @@
  * - 2024-08-01: Added cache support to reduce API calls for identical VINs
  * - 2024-08-02: Fixed type issues when caching valuation data
  * - 2025-04-22: Enhanced error handling and cache interaction
+ * - 2025-04-23: Improved cache function integration with enhanced error handling
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -44,12 +45,15 @@ export async function processSellerValuation(
     let cachedData = null;
     try {
       cachedData = await getCachedValuation(vin, mileage);
+      if (cachedData) {
+        console.log('Using cached valuation data for VIN:', vin);
+      }
     } catch (cacheError) {
       console.warn('Error retrieving from cache, continuing with direct API call:', cacheError);
+      // We're intentionally not returning here - continue with API call if cache fails
     }
     
     if (cachedData) {
-      console.log('Using cached valuation data for VIN:', vin);
       // Even with cached data, we might need to create a reservation
       try {
         // Check if the vehicle already exists in the system
@@ -143,11 +147,16 @@ export async function processSellerValuation(
       transmission: gearbox as TransmissionType
     };
     
-    // Store the result in cache for future use
+    // Store the result in cache for future use, but don't let cache failures affect the main flow
     try {
-      await storeValuationCache(vin, mileage, valuationData);
+      const cacheSuccess = await storeValuationCache(vin, mileage, valuationData);
+      if (cacheSuccess) {
+        console.log('Successfully cached valuation data for future use');
+      } else {
+        console.log('Cache operation did not succeed, but continuing with valuation process');
+      }
     } catch (cacheError) {
-      console.warn('Failed to cache valuation data:', cacheError);
+      console.warn('Failed to cache valuation data, but continuing:', cacheError);
       // Continue anyway since caching is not critical
     }
     
