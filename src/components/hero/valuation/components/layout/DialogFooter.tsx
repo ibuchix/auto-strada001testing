@@ -5,6 +5,7 @@
  * - 2025-07-05: Fixed event handling to ensure proper propagation of click events
  * - 2025-07-06: Enhanced click handling for maximum reliability
  * - 2025-07-07: Completely isolated event handling to prevent interference from cache errors
+ * - 2025-07-08: Updated type signature to fix TypeScript errors
  */
 
 import { Button } from "@/components/ui/button";

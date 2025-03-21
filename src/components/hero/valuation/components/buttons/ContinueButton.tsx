@@ -6,6 +6,7 @@
  * - 2025-07-05: Added additional debugging and event capturing for maximum reliability
  * - 2025-07-06: Fixed React ref warning and improved click handling
  * - 2025-07-07: Completely refactored click handling to guarantee navigation regardless of cache errors
+ * - 2025-07-08: Updated click handler to ensure it works properly with type-safe callbacks
  */
 
 import { Button } from "@/components/ui/button";

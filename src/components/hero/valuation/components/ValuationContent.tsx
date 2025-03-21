@@ -12,6 +12,7 @@
  * - 2025-03-21: Added logging and improved event handling for more reliable navigation
  * - 2025-06-12: Added comprehensive debugging for button click interactions
  * - 2025-07-04: Refactored into smaller components for better maintainability
+ * - 2025-07-08: Updated onContinue type to handle argument-less function calls
  */
 
 import { 

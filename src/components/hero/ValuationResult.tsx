@@ -11,6 +11,7 @@
  * - 2025-03-21: Enhanced navigation logic with improved logging and more reliable state management
  * - 2025-04-21: Refactored into smaller components for better maintainability
  * - 2025-07-07: Simplified navigation flow to ensure clicks always work
+ * - 2025-07-08: Fixed TypeScript error with onContinue handler signature
  */
 
 import { useEffect } from "react";
@@ -79,7 +80,7 @@ export const ValuationResult = ({
   }
 
   // Simplified continue handler that first closes dialog then navigates
-  const handleContinueClick = (e: React.MouseEvent) => {
+  const handleContinueClick = () => {
     console.log('ValuationResult - handleContinueClick triggered');
     
     // First close the dialog to prevent any UI conflicts
