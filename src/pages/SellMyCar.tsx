@@ -12,6 +12,7 @@
  * - 2024-12-05: Completely redesigned data validation and error handling
  * - 2024-12-29: Improved seller verification with enhanced error handling and better feedback
  * - 2025-07-05: Fixed issues with direct navigation from valuation result
+ * - 2025-07-13: Simplified seller verification logic to trust auth metadata
  */
 
 import { Navigation } from "@/components/Navigation";
@@ -53,9 +54,13 @@ const SellMyCar = () => {
           return;
         }
         
-        // Step 2: Check if seller status needs verification
-        if (!isSeller) {
-          console.log('SellMyCar: Verifying seller status');
+        // Step 2: Check seller status
+        // Trust metadata first if available
+        const hasSellerMetadata = !!session.user?.user_metadata?.role && 
+                                 session.user.user_metadata.role === 'seller';
+        
+        if (!isSeller && !hasSellerMetadata) {
+          console.log('SellMyCar: Not recognized as seller, attempting verification');
           setIsVerifying(true);
           
           // Show verifying toast with auto-dismiss
@@ -75,6 +80,8 @@ const SellMyCar = () => {
             console.log('SellMyCar: Successfully verified as seller');
             toast.success("Seller status verified");
           }
+        } else {
+          console.log('SellMyCar: Already verified as seller via metadata or state');
         }
         
         // Step 3: Try to get data from location state first (most reliable)

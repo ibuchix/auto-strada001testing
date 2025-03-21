@@ -13,6 +13,7 @@
  * - 2024-11-18: Refactored into smaller hooks for better maintainability
  * - 2024-12-29: Enhanced refreshSellerStatus with more reliable verification and error recovery
  * - Updated to support automatic verification of all sellers
+ * - 2025-07-13: Improved metadata-based seller detection to avoid unnecessary database queries
  */
 
 import { useEffect, useCallback } from "react";
@@ -22,6 +23,7 @@ import { useSessionInitialization } from "./seller/useSessionInitialization";
 import { useSellerRoleCheck } from "./seller/useSellerRoleCheck";
 import { sellerProfileService } from "@/services/supabase";
 import { CACHE_KEYS, saveToCache } from "@/services/offlineCacheService";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useSellerSession = () => {
   const navigate = useNavigate();
@@ -39,9 +41,19 @@ export const useSellerSession = () => {
   useEffect(() => {
     let mounted = true;
     
-    // Initialize session state
+    const initSession = async () => {
+      // Initialize session state
+      await initializeSession();
+      
+      // If session exists, check for seller status in metadata
+      if (session?.user?.user_metadata?.role === 'seller' && !isSeller) {
+        console.log("Setting isSeller=true from metadata during initialization");
+        setIsSeller(true);
+      }
+    };
+    
     if (mounted) {
-      initializeSession();
+      initSession();
     }
 
     // Set up subscription to auth state changes
@@ -52,7 +64,7 @@ export const useSellerSession = () => {
       mounted = false;
       subscription.data.subscription.unsubscribe();
     };
-  }, [navigate, initializeSession, setupAuthListener]);
+  }, [navigate, initializeSession, setupAuthListener, session, isSeller, setIsSeller]);
 
   /**
    * Force refresh seller status with enhanced error handling and recovery
@@ -69,7 +81,27 @@ export const useSellerSession = () => {
     console.log("refreshSellerStatus: Starting status verification for user:", session.user.id);
     
     try {
-      // Method 1: Use our dedicated role check function first
+      // First check metadata for seller role
+      if (session.user?.user_metadata?.role === 'seller') {
+        console.log("refreshSellerStatus: User is seller based on metadata");
+        setIsSeller(true);
+        setIsLoading(false);
+        
+        // Even with metadata, try background sync to ensure database consistency
+        setTimeout(async () => {
+          try {
+            await sellerProfileService.registerSeller(session.user.id).catch(err => {
+              console.log("Background sync attempted for consistency:", err);
+            });
+          } catch (error) {
+            // Ignore errors, this is just for database consistency
+          }
+        }, 500);
+        
+        return true;
+      }
+      
+      // Method 1: Use our dedicated role check function if metadata doesn't confirm
       const roleCheckResult = await checkSellerRole(session);
       console.log("refreshSellerStatus: Initial role check result:", roleCheckResult);
       
@@ -95,6 +127,15 @@ export const useSellerSession = () => {
           is_verified: true,
           verification_status: 'verified'
         });
+        
+        // Update user metadata to match
+        try {
+          await supabase.auth.updateUser({
+            data: { role: 'seller', is_verified: true }
+          });
+        } catch (e) {
+          console.log("Could not update user metadata, but continuing:", e);
+        }
         
         // Show success notification
         toast.success("Seller account activated");
