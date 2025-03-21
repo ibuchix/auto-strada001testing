@@ -1,250 +1,113 @@
+
 /**
  * Changes made:
- * - 2025-04-21: Created dedicated hook for valuation navigation logic extracted from ValuationResult
+ * - 2024-11-12: Created hook to handle valuation navigation logic
+ * - 2024-11-14: Enhanced session verification and error handling
+ * - 2024-12-05: Improved navigation reliability with more robust checks
+ * - 2025-03-21: Added comprehensive logging for navigation flow
+ * - 2025-06-12: Enhanced navigation debugging with detailed error tracking
  */
 
 import { useAuth } from "@/components/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useCallback } from "react";
-import { sellerRecoveryService } from "@/services/supabase/sellers/sellerRecoveryService";
-
-interface ValuationData {
-  make: string;
-  model: string;
-  year: number;
-  vin: string;
-  transmission: string;
-  valuation?: number | null;
-  averagePrice?: number | null;
-}
+import { valuationService } from "@/services/supabase/valuationService";
 
 export const useValuationNavigation = () => {
-  const { session, isSeller, refreshSellerStatus } = useAuth();
+  const { session, isSeller } = useAuth();
   const navigate = useNavigate();
-  
-  /**
-   * Enhanced continue handler with improved seller verification and navigation reliability
-   */
-  const handleContinue = useCallback(async (valuationResult: ValuationData, mileage: number) => {
-    console.log('handleContinue initiated', { 
+  const isLoggedIn = !!session;
+
+  const handleContinue = async (
+    valuationData: any,
+    mileage?: number
+  ) => {
+    console.log('useValuationNavigation - handleContinue called:', {
       isLoggedIn: !!session,
-      isSeller: isSeller,
+      isSeller,
+      mileage,
+      hasValuationData: !!valuationData,
+      makeModel: valuationData ? `${valuationData.make} ${valuationData.model}` : 'N/A',
       timestamp: new Date().toISOString()
     });
-    
-    // STEP 1: Check authentication first
-    if (!session) {
-      console.log('User not authenticated, redirecting to auth page');
-      toast.info("Please sign in to continue");
-      
-      // Use a more reliable navigation pattern
-      setTimeout(() => {
-        navigate('/auth', { replace: true });
-      }, 100);
-      return;
-    }
 
-    // STEP 2: Store the valuation data in localStorage with better error handling
     try {
-      console.log('Saving valuation data to localStorage');
-      
-      // Create a clean data object without circular references
-      const valuationData = {
-        make: valuationResult.make,
-        model: valuationResult.model,
-        year: valuationResult.year,
-        vin: valuationResult.vin,
-        transmission: valuationResult.transmission,
-        valuation: valuationResult.valuation,
-        averagePrice: valuationResult.averagePrice
-      };
-      
-      // Store all data pieces individually to reduce potential JSON errors
-      localStorage.setItem('valuationData', JSON.stringify(valuationData));
-      localStorage.setItem('tempVIN', valuationResult.vin);
-      localStorage.setItem('tempMileage', mileage.toString());
-      localStorage.setItem('tempGearbox', valuationResult.transmission);
-      localStorage.setItem('listingTimestamp', new Date().toISOString());
-      localStorage.setItem('navigationSource', 'valuation_result');
-      
-      console.log('Successfully saved valuation data');
-    } catch (error) {
-      console.error('Failed to save valuation data:', error);
-      toast.error("Error preparing car data", { 
-        description: "Please try again or contact support."
-      });
-      return;
-    }
+      // Check if user is logged in
+      if (!session?.user) {
+        console.log('User not logged in, redirecting to auth page');
+        localStorage.setItem('redirectAfterAuth', '/sell-my-car');
+        localStorage.setItem('pendingListingAction', 'true');
+        toast.info("Please sign in first", {
+          description: "Create an account or sign in to continue listing your car"
+        });
+        navigate('/auth');
+        return;
+      }
 
-    // STEP 3: Check seller status and handle navigation with retries
-    console.log('Starting seller status verification', { currentStatus: isSeller });
-    
-    let sellerVerified = isSeller;
-    let verificationAttempts = 0;
-    const MAX_VERIFICATION_ATTEMPTS = 2;
-    
-    if (!sellerVerified) {
-      // First attempt: Use refreshSellerStatus with UI feedback
-      const verificationToastId = toast.loading("Verifying seller status...");
+      // If mileage is provided from parameter, otherwise get from localStorage
+      const carMileage = mileage || parseInt(localStorage.getItem('tempMileage') || '0');
       
-      try {
-        console.log('Attempting to refresh seller status');
-        verificationAttempts++;
-        sellerVerified = await refreshSellerStatus();
-        
-        if (sellerVerified) {
-          console.log('Seller status confirmed via refresh');
-          toast.dismiss(verificationToastId);
-          toast.success("Seller status verified");
-        } else {
-          // Second attempt: Try manual registration via RPC
-          console.log('Not currently a seller, attempting registration via RPC');
-          verificationAttempts++;
-          
-          const { error: registerError } = await supabase.rpc('register_seller', {
-            p_user_id: session.user.id
-          });
-          
-          if (!registerError) {
-            console.log('Successfully registered as seller via RPC');
-            toast.dismiss(verificationToastId);
-            toast.success("Seller account activated");
-            sellerVerified = true;
-            
-            // Force refresh the seller status after successful RPC
-            await refreshSellerStatus();
-          } else {
-            console.error('RPC registration failed:', registerError);
-            
-            // One final attempt if we haven't reached max attempts
-            if (verificationAttempts < MAX_VERIFICATION_ATTEMPTS) {
-              console.log(`Attempt ${verificationAttempts+1}: Final seller refresh`);
-              verificationAttempts++;
-              sellerVerified = await refreshSellerStatus();
-            }
-            
-            if (!sellerVerified) {
-              console.log('All verification methods failed, redirecting to seller registration');
-              toast.dismiss(verificationToastId);
-              navigateToSellerRegistration();
-              return;
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error verifying seller status:', error);
-        toast.dismiss(verificationToastId);
-        toast.error("Verification failed");
-        navigateToSellerRegistration();
+      console.log('Creating car listing with valuation data:', {
+        userId: session.user.id,
+        vin: valuationData.vin,
+        mileage: carMileage,
+        transmission: valuationData.transmission || localStorage.getItem('tempGearbox')
+      });
+      
+      // Store reservation ID if present
+      if (valuationData.reservationId) {
+        localStorage.setItem('vinReservationId', valuationData.reservationId);
+        console.log('VIN reservation ID stored:', valuationData.reservationId);
+      }
+
+      // If seller status is already verified, proceed to listing page
+      if (isSeller) {
+        console.log('User is verified seller, navigating to listing page');
+        navigate('/sell-my-car', { 
+          state: { 
+            fromValuation: true,
+            valuationData
+          } 
+        });
         return;
       }
       
-      // New step: Check if there's a partial registration that can be repaired
-      if (!sellerVerified) {
-        try {
-          console.log('Checking for partial registration that can be repaired');
-          const diagnosis = await sellerRecoveryService.diagnoseSellerRegistration(session.user.id);
-          
-          // If any component exists, attempt repair
-          if (diagnosis.metadataHasRole || diagnosis.profileHasRole || diagnosis.sellerRecordExists) {
-            console.log('Detected partial registration, attempting repair');
-            
-            const repairResult = await sellerRecoveryService.repairSellerRegistration(session.user.id);
-            
-            if (repairResult.success && repairResult.repaired) {
-              console.log('Successfully repaired registration');
-              toast.success("Registration repaired successfully");
-              
-              // Refresh seller status after repair
-              sellerVerified = await refreshSellerStatus();
-              
-              if (!sellerVerified) {
-                console.log('Registration repair completed but seller status still not verified');
-                navigateToSellerRegistration();
-                return;
-              }
-            } else {
-              console.log('Registration repair failed or was not needed');
-              navigateToSellerRegistration();
-              return;
-            }
-          } else {
-            console.log('No partial registration detected, redirecting to seller registration');
-            navigateToSellerRegistration();
-            return;
-          }
-        } catch (error) {
-          console.error('Error checking for partial registration:', error);
-          navigateToSellerRegistration();
-          return;
-        }
-      }
-    }
-    
-    // We only get here if seller is verified
-    console.log('Seller status confirmed, proceeding to listing page');
-    navigateToListingPage();
-  }, [session, isSeller, refreshSellerStatus, navigate]);
-  
-  /**
-   * Handles actual navigation to the listing page with fallback
-   */
-  const navigateToListingPage = useCallback(() => {
-    console.log('Executing navigation to sell-my-car page');
-    
-    // Set a navigation flag for debugging
-    localStorage.setItem('navigationAttempt', new Date().toISOString());
-    
-    // Primary navigation - using React Router with history replacement
-    try {
-      navigate('/sell-my-car', { replace: true });
-      console.log('React Router navigation executed');
-    } catch (error) {
-      console.error('React Router navigation failed:', error);
+      // If seller status is unknown, proceed but inform user they'll need to complete registration
+      console.log('User is not verified as seller yet, proceeding to listing page with notification');
+      toast.info("Additional seller info needed", {
+        description: "You'll need to complete your seller profile during the listing process."
+      });
       
-      // Secondary fallback - direct location change after a short delay
-      setTimeout(() => {
-        console.log('Executing fallback direct navigation');
-        try {
-          window.location.href = '/sell-my-car';
-        } catch (error) {
-          console.error('Direct navigation failed:', error);
-          window.location.replace('/sell-my-car');
-        }
-      }, 300);
-    }
-  }, [navigate]);
-  
-  /**
-   * Redirects to seller registration with improved reliability
-   */
-  const navigateToSellerRegistration = useCallback(() => {
-    console.log('Redirecting to seller registration');
-    
-    // Show toast with delay to ensure it appears
-    setTimeout(() => {
-      toast.info("Please complete your seller registration");
-    }, 100);
-    
-    // Use primary navigation
-    try {
-      navigate('/auth', { replace: true });
-    } catch (error) {
-      console.error('Navigation to auth failed:', error);
+      navigate('/sell-my-car', { 
+        state: { 
+          fromValuation: true,
+          valuationData,
+          requiresSellerVerification: true
+        } 
+      });
       
-      // Fallback
-      setTimeout(() => {
-        window.location.href = '/auth';
-      }, 200);
+    } catch (error) {
+      console.error('Navigation error during valuation continue:', error);
+      
+      // Detailed error reporting
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : 'No stack trace';
+      
+      console.error('Error details:', {
+        message: errorMessage,
+        stack: errorStack,
+        session: session ? 'active' : 'none',
+        userData: session?.user ? {
+          id: session.user.id,
+          email: session.user.email
+        } : 'no user'
+      });
+      
+      toast.error("Unable to process request", {
+        description: "There was a problem listing your car. Please try again or contact support."
+      });
     }
-  }, [navigate]);
-  
-  return {
-    handleContinue,
-    navigateToListingPage,
-    navigateToSellerRegistration,
-    isLoggedIn: !!session
   };
+
+  return { handleContinue, isLoggedIn };
 };
