@@ -9,6 +9,7 @@
  * - 2024-11-12: Enhanced button click handler for better cross-device compatibility
  * - 2024-11-14: Further improved button click handler reliability for all devices
  * - 2024-12-05: Completely redesigned button click handler for maximum reliability
+ * - 2025-03-21: Added logging and improved event handling for more reliable navigation
  */
 
 import { 
@@ -20,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ValuationDisplay } from "./ValuationDisplay";
 import { VehicleDetails } from "./VehicleDetails";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 interface ValuationContentProps {
   make: string;
@@ -51,14 +52,43 @@ export const ValuationContent = ({
   onClose,
   onContinue
 }: ValuationContentProps) => {
+  // Track if component is mounted to prevent state updates after unmount
+  const isMounted = useRef(true);
+  
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      console.log('ValuationContent unmounted');
+    };
+  }, []);
+  
+  // Log component mount with key props
+  useEffect(() => {
+    console.log('ValuationContent mounted with data:', {
+      make, model, year, hasValuation, isLoggedIn
+    });
+  }, [make, model, year, hasValuation, isLoggedIn]);
+
   // Stabilized callback to prevent recreation on each render
   const handleContinueClick = useCallback((e: React.MouseEvent) => {
-    console.log('Continue button clicked - preparing to navigate');
+    console.log('Continue button clicked - preparing to navigate', {
+      timestamp: new Date().toISOString(),
+      event: e.type,
+      target: e.currentTarget.tagName,
+      mounted: isMounted.current
+    });
     
     // Prevent default behavior and stop event propagation
     if (e) {
       e.preventDefault();
       e.stopPropagation();
+    }
+    
+    // Prevent execution if component is unmounted
+    if (!isMounted.current) {
+      console.log('Ignoring click - component unmounted');
+      return;
     }
     
     // Store last interaction timestamp as a debug reference
@@ -69,28 +99,17 @@ export const ValuationContent = ({
       console.warn('Error saving click state to localStorage:', err);
     }
     
-    // Close dialog first (if needed) by calling onClose
-    // This prevents the dialog from blocking navigation
-    onClose();
+    // Execute the continue callback
+    console.log('Executing continue action');
+    onContinue();
     
-    // Add a minimal delay to ensure dialog closing doesn't interfere
-    setTimeout(() => {
-      console.log('Executing continue action');
-      
-      try {
-        // Execute the continue callback
-        onContinue();
-        
-        // Update action status
-        localStorage.setItem('listCarAction', 'completed');
-      } catch (error) {
-        console.error('Error in continue action:', error);
-        
-        // Store error for debugging
-        localStorage.setItem('listCarActionError', error instanceof Error ? error.message : String(error));
-      }
-    }, 100);
-  }, [onClose, onContinue]);
+    // Update action status
+    try {
+      localStorage.setItem('listCarAction', 'completed');
+    } catch (err) {
+      console.warn('Error updating action state:', err);
+    }
+  }, [onContinue]);
 
   return (
     <DialogContent className="sm:max-w-md">
@@ -131,6 +150,7 @@ export const ValuationContent = ({
           className="w-full sm:w-auto bg-secondary hover:bg-secondary/90 text-white"
           type="button"
           id="list-car-button"
+          data-testid="list-car-button"
         >
           {!isLoggedIn 
             ? "Sign Up to List Your Car" 
