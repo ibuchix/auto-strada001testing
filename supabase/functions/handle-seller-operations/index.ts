@@ -52,6 +52,32 @@ serve(async (req) => {
         response = await processProxyBids(supabase, carId);
         break;
       }
+      
+      case 'cache_valuation': {
+        // Handle caching valuation data with elevated permissions
+        const { vin, mileage, valuation_data } = requestData;
+        
+        if (!vin || !mileage || !valuation_data) {
+          throw new Error('Missing required parameters for caching valuation');
+        }
+        
+        const { error } = await supabase.rpc(
+          'store_vin_valuation_cache',
+          { 
+            p_vin: vin, 
+            p_mileage: mileage, 
+            p_valuation_data: valuation_data 
+          }
+        );
+        
+        if (error) throw error;
+        
+        response = {
+          success: true,
+          message: 'Valuation data cached successfully'
+        };
+        break;
+      }
 
       default:
         throw new Error('Invalid operation');

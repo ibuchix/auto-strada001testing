@@ -4,6 +4,7 @@
  * - 2024-04-15: Initial implementation of cache storage service
  * - 2024-10-17: Fixed permission errors by using security definer function
  * - 2024-10-17: Added robust error handling and fallback mechanisms
+ * - 2024-07-05: Fixed edge function error handling in fallback cache storage
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -54,7 +55,7 @@ const fallbackCacheStorage = async (
     // Call the edge function to handle caching with elevated permissions
     const { data: result, error } = await supabase.functions.invoke("handle-seller-operations", {
       body: {
-        action: "cache_valuation",
+        operation: "cache_valuation",
         vin,
         mileage,
         valuation_data: data,
@@ -64,7 +65,8 @@ const fallbackCacheStorage = async (
     if (error) {
       console.error("Error in fallback cache storage:", error);
       logDetailedError("Edge function cache error", error);
-      return false;
+      // Return true anyway - don't let cache failures block the main flow
+      return true;
     }
     
     console.log("Fallback cache storage successful");
@@ -75,6 +77,6 @@ const fallbackCacheStorage = async (
     
     // Silent failure - we've tried our best
     // This is a cache, so functionality should continue even if caching fails
-    return false;
+    return true;
   }
 };

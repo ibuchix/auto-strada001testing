@@ -7,6 +7,7 @@
  * - 2025-03-21: Added comprehensive logging for navigation flow
  * - 2025-06-12: Enhanced navigation debugging with detailed error tracking
  * - 2025-07-05: Fixed direct navigation issue preventing listing process
+ * - 2025-07-06: Added forced redirect via window.location.replace for maximum reliability
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -68,12 +69,11 @@ export const useValuationNavigation = () => {
       if (isSeller) {
         console.log('User is verified seller, navigating to listing page');
         
-        // Use window.location for more reliable navigation
-        // This bypasses potential React Router issues
+        // Use forced redirect for maximum reliability
         const sellMyCarUrl = "/sell-my-car";
-        console.log('Navigating to:', sellMyCarUrl);
+        console.log('Forcing navigation to:', sellMyCarUrl);
         
-        // Try both navigation methods for maximum reliability
+        // Attempt normal navigation first, then fallback to forced redirect
         try {
           navigate(sellMyCarUrl, { 
             state: { 
@@ -83,16 +83,16 @@ export const useValuationNavigation = () => {
             replace: true
           });
           
-          // Set a backup navigation after a short delay
+          // Set a failsafe forced navigation after a short delay
           setTimeout(() => {
             if (window.location.pathname !== sellMyCarUrl) {
-              console.log('Fallback navigation with window.location.href');
-              window.location.href = sellMyCarUrl;
+              console.log('Executing failsafe forced navigation');
+              window.location.replace(sellMyCarUrl);
             }
           }, 100);
         } catch (navError) {
           console.error('Navigation error:', navError);
-          window.location.href = sellMyCarUrl;
+          window.location.replace(sellMyCarUrl);
         }
         return;
       }
@@ -103,9 +103,9 @@ export const useValuationNavigation = () => {
         description: "You'll need to complete your seller profile during the listing process."
       });
       
-      // Use window.location for more reliable navigation
+      // Use forced redirect for more reliable navigation
       const sellMyCarUrl = "/sell-my-car";
-      console.log('Navigating to:', sellMyCarUrl);
+      console.log('Forcing navigation to:', sellMyCarUrl);
       
       try {
         navigate(sellMyCarUrl, { 
@@ -117,16 +117,16 @@ export const useValuationNavigation = () => {
           replace: true 
         });
         
-        // Set a backup navigation after a short delay
+        // Set a failsafe forced navigation after a short delay
         setTimeout(() => {
           if (window.location.pathname !== sellMyCarUrl) {
-            console.log('Fallback navigation with window.location.href');
-            window.location.href = sellMyCarUrl;
+            console.log('Executing failsafe forced navigation');
+            window.location.replace(sellMyCarUrl);
           }
         }, 100);
       } catch (navError) {
         console.error('Navigation error:', navError);
-        window.location.href = sellMyCarUrl;
+        window.location.replace(sellMyCarUrl);
       }
     } catch (error) {
       console.error('Navigation error during valuation continue:', error);
@@ -154,7 +154,7 @@ export const useValuationNavigation = () => {
         navigate('/sell-my-car');
       } catch (fallbackError) {
         console.error('Fallback navigation failed:', fallbackError);
-        window.location.href = '/sell-my-car';
+        window.location.replace('/sell-my-car');
       }
     }
   };
