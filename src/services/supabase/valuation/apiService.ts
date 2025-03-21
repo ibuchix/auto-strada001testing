@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-15: Extracted API functionality from valuationService.ts
+ * - 2025-04-28: Fixed TypeScript errors with method calls and return types
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
@@ -14,7 +15,7 @@ export class ValuationApiService extends ValuationServiceBase {
   async getValuation(vin: string, mileage: number, gearbox: string): Promise<ValuationData | null> {
     try {
       // Check cache first for performance
-      const cachedData = await valuationCacheService.getCachedValuation(vin, mileage);
+      const cachedData = await valuationCacheService.getFromCache(vin, mileage);
       if (cachedData) {
         console.log('Using cached valuation data for VIN:', vin);
         return cachedData;
@@ -30,7 +31,7 @@ export class ValuationApiService extends ValuationServiceBase {
       
       // Cache the data for future requests
       if (data) {
-        valuationCacheService.storeValuationCache(vin, mileage, data);
+        await valuationCacheService.storeInCache(vin, mileage, data);
       }
       
       return data;

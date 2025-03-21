@@ -4,6 +4,7 @@
  * - 2024-10-15: Created valuation cache service module
  * - 2024-10-17: Fixed permission errors with vin_valuation_cache access
  * - 2024-10-17: Added security definer function approach for robust cache access
+ * - 2025-04-28: Fixed TypeScript errors by ensuring proper method names and parameter types
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -19,20 +20,16 @@ export class ValuationCacheService extends ValuationServiceBase {
     try {
       console.log("ValuationCacheService: Attempting to store in cache using security definer function");
       
-      // Generate a unique log ID for tracking this operation
-      const logId = crypto.randomUUID();
-      
       // Use the security definer function to bypass RLS
       const { data, error } = await supabase.rpc('store_vin_valuation_cache', {
         p_vin: vin,
         p_mileage: mileage,
-        p_valuation_data: valuationData,
-        p_log_id: logId
+        p_valuation_data: valuationData
       });
       
       if (error) {
         console.error("ValuationCacheService: Error storing in cache via security definer function:", error);
-        logDetailedError("Error in security definer function call", error);
+        logDetailedError("Error in security definer function call", error.message);
         
         // Fall back to direct insert as a last resort
         return await this.fallbackDirectCacheInsert(vin, mileage, valuationData);
@@ -40,9 +37,9 @@ export class ValuationCacheService extends ValuationServiceBase {
       
       console.log("ValuationCacheService: Successfully stored in cache using security definer function");
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("ValuationCacheService: Exception storing in cache:", error);
-      logDetailedError("Exception in cache storage", error);
+      logDetailedError("Exception in cache storage", error.message || String(error));
       
       // Fall back to direct insert as a last resort
       return await this.fallbackDirectCacheInsert(vin, mileage, valuationData);
@@ -66,7 +63,7 @@ export class ValuationCacheService extends ValuationServiceBase {
       
       if (checkError) {
         console.error("ValuationCacheService: Error checking existing cache entry:", checkError);
-        logDetailedError("Error in checking existing cache entry", checkError);
+        logDetailedError("Error in checking existing cache entry", checkError.message);
         return false;
       }
       
@@ -83,7 +80,7 @@ export class ValuationCacheService extends ValuationServiceBase {
         
         if (updateError) {
           console.error("ValuationCacheService: Error updating cache:", updateError);
-          logDetailedError("Error in updating cache", updateError);
+          logDetailedError("Error in updating cache", updateError.message);
           return false;
         }
       } else {
@@ -98,18 +95,34 @@ export class ValuationCacheService extends ValuationServiceBase {
         
         if (insertError) {
           console.error("ValuationCacheService: Error inserting into cache:", insertError);
-          logDetailedError("Error in inserting into cache", insertError);
+          logDetailedError("Error in inserting into cache", insertError.message);
           return false;
         }
       }
       
       console.log("ValuationCacheService: Fallback direct cache insert successful");
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error("ValuationCacheService: Exception in fallback direct cache insert:", error);
-      logDetailedError("Exception in fallback direct cache insert", error);
+      logDetailedError("Exception in fallback direct cache insert", error.message || String(error));
       return false;
     }
+  }
+  
+  /**
+   * Get cached valuation with the provided VIN and mileage
+   * Renamed from getFromCache to match API expectations
+   */
+  async getCachedValuation(vin: string, mileage: number): Promise<any | null> {
+    return this.getFromCache(vin, mileage);
+  }
+  
+  /**
+   * Store valuation in cache with the provided VIN and mileage
+   * Renamed to match API expectations
+   */
+  async storeValuationCache(vin: string, mileage: number, valuationData: any): Promise<boolean> {
+    return this.storeInCache(vin, mileage, valuationData);
   }
   
   /**
@@ -128,7 +141,7 @@ export class ValuationCacheService extends ValuationServiceBase {
       
       if (error) {
         console.error("ValuationCacheService: Error getting from cache:", error);
-        logDetailedError("Error in retrieving from cache", error);
+        logDetailedError("Error in retrieving from cache", error.message);
         
         // Silent failure, will fall back to API call
         return null;
@@ -142,9 +155,9 @@ export class ValuationCacheService extends ValuationServiceBase {
       
       console.log("ValuationCacheService: Found cached valuation data for VIN:", vin);
       return data.valuation_data;
-    } catch (error) {
+    } catch (error: any) {
       console.error("ValuationCacheService: Exception getting from cache:", error);
-      logDetailedError("Exception in retrieving from cache", error);
+      logDetailedError("Exception in retrieving from cache", error.message || String(error));
       
       // Silent failure, will fall back to API call
       return null;

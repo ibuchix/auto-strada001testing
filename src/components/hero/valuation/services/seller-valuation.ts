@@ -7,6 +7,7 @@
  * - 2025-04-22: Enhanced error handling and cache interaction
  * - 2025-04-23: Improved cache function integration with enhanced error handling
  * - 2025-04-27: Updated imports for refactored cache-api module
+ * - 2025-04-28: Fixed method name mismatches for TypeScript compatibility
  * - 2025-05-15: Refined implementation with improved separation of concerns
  */
 
@@ -151,12 +152,8 @@ export async function processSellerValuation(
     
     // Store the result in cache for future use, but don't let cache failures affect the main flow
     try {
-      const cacheSuccess = await storeValuationCache(vin, mileage, valuationData);
-      if (cacheSuccess) {
-        console.log('Successfully cached valuation data for future use');
-      } else {
-        console.log('Cache operation did not succeed, but continuing with valuation process');
-      }
+      await storeValuationCache(vin, mileage, valuationData);
+      console.log('Successfully cached valuation data for future use');
     } catch (cacheError) {
       console.warn('Failed to cache valuation data, but continuing:', cacheError);
       // Continue anyway since caching is not critical

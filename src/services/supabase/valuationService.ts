@@ -5,6 +5,7 @@
  * - 2024-09-19: Optimized queries and improved caching for better performance
  * - 2024-09-20: Fixed issue with function invoke options
  * - 2024-10-15: Refactored into smaller modules for better maintainability
+ * - 2025-04-28: Fixed TypeScript errors with method names and interfaces
  */
 
 import { ValuationApiService, valuationApiService } from "./valuation/apiService";
@@ -31,14 +32,17 @@ class ValuationService {
    * Get cached valuation for a VIN
    */
   async getCachedValuation(vin: string, mileage: number): Promise<ValuationData | null> {
-    return this.cacheService.getCachedValuation(vin, mileage);
+    return this.cacheService.getFromCache(vin, mileage);
   }
   
   /**
    * Store valuation in cache
    */
   async storeValuationCache(vin: string, mileage: number, valuationData: ValuationData): Promise<void> {
-    return this.cacheService.storeValuationCache(vin, mileage, valuationData);
+    const success = await this.cacheService.storeInCache(vin, mileage, valuationData);
+    if (!success) {
+      console.warn('Failed to store valuation in cache, but continuing operation');
+    }
   }
   
   /**

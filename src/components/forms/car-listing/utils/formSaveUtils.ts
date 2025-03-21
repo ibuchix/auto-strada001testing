@@ -6,6 +6,7 @@
  * - 2024-03-19: Implemented error handling for save operations
  * - 2024-09-02: Enhanced error handling and added retry mechanism
  * - 2024-10-17: Added security definer function approach for reliable saving
+ * - 2025-04-28: Fixed TypeScript errors with RPC types and return values
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -35,13 +36,15 @@ export const saveFormData = async (
       // Try using the security definer function first (most reliable method)
       try {
         console.log('Attempting save via security definer function');
+        
+        // Cast the return type appropriately to handle the response
         const { data: rpcResult, error: rpcError } = await supabase.rpc(
           'create_car_listing',
           { p_car_data: dataToUpsert }
         );
         
-        if (!rpcError && rpcResult?.success) {
-          console.log('Auto-save successful via security definer function');
+        if (!rpcError && rpcResult && typeof rpcResult === 'object' && 'success' in rpcResult) {
+          console.log('Auto-save successful via security definer function', rpcResult);
           return { 
             success: true, 
             carId: rpcResult.car_id || carId 

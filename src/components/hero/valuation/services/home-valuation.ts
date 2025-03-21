@@ -5,6 +5,7 @@
  * - 2024-08-01: Added cache support to reduce API calls for identical VINs
  * - 2024-08-02: Fixed type issues when caching valuation data
  * - 2025-04-27: Updated imports for refactored cache-api module
+ * - 2025-04-28: Fixed method name mismatches for TypeScript compatibility
  * - 2025-05-15: Refined implementation with improved error handling
  */
 
@@ -88,7 +89,7 @@ export async function processHomeValuation(
     };
     
     // Store the result in cache for future use
-    storeValuationCache(vin, mileage, valuationData);
+    await storeValuationCache(vin, mileage, valuationData);
 
     console.log('Returning complete valuation data for home context');
     return {
