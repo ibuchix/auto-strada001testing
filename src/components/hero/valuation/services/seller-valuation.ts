@@ -9,12 +9,13 @@
  * - 2025-04-27: Updated imports for refactored cache-api module
  * - 2025-04-28: Fixed method name mismatches for TypeScript compatibility
  * - 2025-05-15: Refined implementation with improved separation of concerns
+ * - 2025-05-16: Fixed import function name to match exported name
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { ValuationResult, TransmissionType } from "../types";
 import { hasEssentialData, handleApiError, storeReservationId } from "./utils/validation-helpers";
-import { getCachedValuation, storeValuationCache } from "./api/cache-api";
+import { getCachedValuation, storeValuationInCache } from "./api/cache-api";
 import { fetchSellerValuation } from "./api/valuation-api";
 
 /**
@@ -152,7 +153,7 @@ export async function processSellerValuation(
     
     // Store the result in cache for future use, but don't let cache failures affect the main flow
     try {
-      await storeValuationCache(vin, mileage, valuationData);
+      await storeValuationInCache(vin, mileage, valuationData);
       console.log('Successfully cached valuation data for future use');
     } catch (cacheError) {
       console.warn('Failed to cache valuation data, but continuing:', cacheError);

@@ -7,6 +7,7 @@
  * - 2024-10-15: Extracted from main valuation service
  * - 2025-04-28: Fixed TypeScript errors with method calls
  * - 2025-05-01: Fixed PostgrestError handling in error methods
+ * - 2025-05-16: Fixed RPC function type errors using "as any" casting
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
@@ -24,7 +25,7 @@ export class ValuationCacheService extends ValuationServiceBase {
       // Try to use the security definer function first (most reliable)
       try {
         const { data: rpcData, error: rpcError } = await this.supabase.rpc(
-          'store_vin_valuation_cache',
+          'store_vin_valuation_cache' as any,
           { 
             p_vin: vin,
             p_mileage: mileage,
@@ -74,7 +75,7 @@ export class ValuationCacheService extends ValuationServiceBase {
       // Try to use the security definer function first (most reliable)
       try {
         const { data: rpcData, error: rpcError } = await this.supabase.rpc(
-          'get_vin_valuation_cache',
+          'get_vin_valuation_cache' as any,
           { 
             p_vin: vin,
             p_mileage: mileage

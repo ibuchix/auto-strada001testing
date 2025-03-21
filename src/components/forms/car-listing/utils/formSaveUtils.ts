@@ -8,6 +8,7 @@
  * - 2024-10-17: Added security definer function approach for reliable saving
  * - 2025-04-28: Fixed TypeScript errors with RPC types and return values
  * - 2025-05-01: Fixed TypeScript errors with RPC function name and return type casting
+ * - 2025-05-16: Fixed TypeScript type errors for RPC function using "as any" casting
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -38,8 +39,7 @@ export const saveFormData = async (
       try {
         console.log('Attempting save via security definer function');
         
-        // Cast the function name as any to bypass TypeScript's strict checking
-        // since the function exists in the database but isn't in the TypeScript definitions
+        // Cast the function name and result as any to bypass TypeScript's strict checking
         const { data: rpcResult, error: rpcError } = await supabase.rpc(
           'create_car_listing' as any,
           { p_car_data: dataToUpsert }
@@ -49,11 +49,11 @@ export const saveFormData = async (
           console.log('Auto-save successful via security definer function', rpcResult);
           
           // Extract the car_id from the result with proper type safety
-          const resultObj = rpcResult as { success: boolean; car_id?: string };
+          const resultObj = rpcResult as any;
           
           return { 
             success: true, 
-            carId: resultObj.car_id || carId 
+            carId: resultObj.car_id ? String(resultObj.car_id) : carId
           };
         }
         

@@ -7,13 +7,14 @@
  * - 2025-04-27: Updated imports for refactored cache-api module
  * - 2025-04-28: Fixed method name mismatches for TypeScript compatibility
  * - 2025-05-15: Refined implementation with improved error handling
+ * - 2025-05-16: Fixed import function name to match exported name
  */
 
 import { toast } from "sonner";
 import { ValuationResult, TransmissionType } from "../types";
 import { fetchHomeValuation } from "./api/valuation-api";
 import { hasEssentialData, handleApiError } from "./utils/validation-helpers";
-import { getCachedValuation, storeValuationCache } from "./api/cache-api";
+import { getCachedValuation, storeValuationInCache } from "./api/cache-api";
 
 /**
  * Process valuation for the home page context
@@ -89,7 +90,7 @@ export async function processHomeValuation(
     };
     
     // Store the result in cache for future use
-    await storeValuationCache(vin, mileage, valuationData);
+    await storeValuationInCache(vin, mileage, valuationData);
 
     console.log('Returning complete valuation data for home context');
     return {
