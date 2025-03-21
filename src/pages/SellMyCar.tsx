@@ -10,6 +10,7 @@
  * - 2024-11-11: Improved error handling for inconsistent localStorage data
  * - 2024-11-12: Enhanced page load handling for direct navigation cases
  * - 2024-12-05: Completely redesigned data validation and error handling
+ * - 2024-12-29: Improved seller verification with enhanced error handling and better feedback
  */
 
 import { Navigation } from "@/components/Navigation";
@@ -27,6 +28,7 @@ const SellMyCar = () => {
   const navigate = useNavigate();
   const [isValid, setIsValid] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<'auth' | 'data' | 'seller' | null>(null);
 
@@ -50,7 +52,14 @@ const SellMyCar = () => {
         // Step 2: Check if seller status needs verification
         if (!isSeller) {
           console.log('SellMyCar: Verifying seller status');
+          setIsVerifying(true);
+          
+          // Show verifying toast with auto-dismiss
+          const toastId = toast.loading("Verifying seller status...");
+          setTimeout(() => toast.dismiss(toastId), 3000);
+          
           const sellerStatus = await refreshSellerStatus();
+          setIsVerifying(false);
           
           if (!sellerStatus) {
             console.log('SellMyCar: Not a seller');
@@ -58,6 +67,9 @@ const SellMyCar = () => {
             setErrorType('seller');
             setIsLoading(false);
             return;
+          } else {
+            console.log('SellMyCar: Successfully verified as seller');
+            toast.success("Seller status verified");
           }
         }
         
@@ -108,6 +120,30 @@ const SellMyCar = () => {
     validateAndLoadData();
   }, [session, isSeller, navigate, refreshSellerStatus]);
 
+  // Retry seller verification manually
+  const handleRetrySellerVerification = async () => {
+    setIsVerifying(true);
+    toast.loading("Retrying seller verification...");
+    
+    try {
+      const result = await refreshSellerStatus();
+      setIsVerifying(false);
+      
+      if (result) {
+        toast.success("Seller verification successful!");
+        setError(null);
+        setErrorType(null);
+        setIsValid(true);
+      } else {
+        toast.error("Still unable to verify seller status");
+      }
+    } catch (error) {
+      console.error("Error during retry:", error);
+      toast.error("Verification failed");
+      setIsVerifying(false);
+    }
+  };
+
   // Handle various error states with appropriate UI and actions
   if (error) {
     return (
@@ -117,7 +153,7 @@ const SellMyCar = () => {
           <Card className="max-w-md mx-auto p-8 text-center">
             <h2 className="text-2xl font-bold mb-4">Unable to Create Listing</h2>
             <p className="text-gray-600 mb-6">{error}</p>
-            <div className="flex justify-center">
+            <div className="flex justify-center gap-4">
               {errorType === 'auth' && (
                 <Button onClick={() => navigate('/auth')}>
                   Sign In
@@ -129,9 +165,17 @@ const SellMyCar = () => {
                 </Button>
               )}
               {errorType === 'seller' && (
-                <Button onClick={() => navigate('/auth')}>
-                  Register as Seller
-                </Button>
+                <>
+                  <Button 
+                    onClick={handleRetrySellerVerification}
+                    disabled={isVerifying}
+                  >
+                    {isVerifying ? "Verifying..." : "Retry Verification"}
+                  </Button>
+                  <Button onClick={() => navigate('/auth')}>
+                    Register as Seller
+                  </Button>
+                </>
               )}
               {!errorType && (
                 <Button onClick={() => navigate('/')}>

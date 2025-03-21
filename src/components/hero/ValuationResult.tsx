@@ -8,6 +8,7 @@
  * - 2024-11-14: Enhanced seller status handling to prevent 403 Forbidden errors
  * - 2024-11-14: Added fallback mechanism when permission errors occur
  * - 2024-12-05: Completely redesigned navigation flow for maximum reliability with detailed logging
+ * - 2024-12-29: Fixed seller verification issues with enhanced error handling and more reliable status checks
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -55,7 +56,7 @@ export const ValuationResult = ({
   console.log('ValuationResult - Display price:', averagePrice);
 
   /**
-   * Enhanced continue handler with better logging and error handling
+   * Enhanced continue handler with improved seller verification
    */
   const handleContinue = async () => {
     console.log('handleContinue initiated', { isLoggedIn: !!session });
@@ -63,6 +64,7 @@ export const ValuationResult = ({
     // STEP 1: Check authentication first
     if (!session) {
       console.log('User not authenticated, redirecting to auth page');
+      toast.info("Please sign in to continue");
       navigate('/auth');
       return;
     }
@@ -98,43 +100,61 @@ export const ValuationResult = ({
       return;
     }
 
-    // STEP 3: Check seller status and handle navigation
+    // STEP 3: Check seller status and handle navigation with retries
     console.log('Starting seller status verification', { currentStatus: isSeller });
     
-    if (isSeller) {
-      // Already verified as seller, proceed to listing page
-      console.log('User already verified as seller, proceeding to listing page');
-      navigateToListingPage();
-    } else {
-      // Need to verify or register as seller
+    let sellerVerified = isSeller;
+    
+    if (!sellerVerified) {
+      // First attempt: Use refreshSellerStatus with UI feedback
+      toast.loading("Verifying seller status...");
+      
       try {
         console.log('Attempting to refresh seller status');
-        const isSellerConfirmed = await refreshSellerStatus();
+        sellerVerified = await refreshSellerStatus();
         
-        if (isSellerConfirmed) {
-          console.log('Seller status confirmed, proceeding to listing page');
-          navigateToListingPage();
+        if (sellerVerified) {
+          console.log('Seller status confirmed via refresh');
+          toast.dismiss();
+          toast.success("Seller status verified");
         } else {
-          // Try to register as seller automatically
-          console.log('Not currently a seller, attempting registration');
+          // Second attempt: Try manual registration via RPC
+          console.log('Not currently a seller, attempting registration via RPC');
           const { error: registerError } = await supabase.rpc('register_seller', {
             p_user_id: session.user.id
           });
           
           if (!registerError) {
-            console.log('Successfully registered as seller, proceeding to listing page');
+            console.log('Successfully registered as seller via RPC');
+            toast.dismiss();
             toast.success("Seller account activated");
-            navigateToListingPage();
+            sellerVerified = true;
           } else {
-            console.error('Failed to register as seller:', registerError);
-            navigateToSellerRegistration();
+            console.error('RPC registration failed:', registerError);
+            
+            // Last resort: Try one more seller refresh
+            sellerVerified = await refreshSellerStatus();
+            
+            if (!sellerVerified) {
+              console.log('All verification methods failed, redirecting to seller registration');
+              toast.dismiss();
+              navigateToSellerRegistration();
+              return;
+            }
           }
         }
       } catch (error) {
         console.error('Error verifying seller status:', error);
+        toast.dismiss();
+        toast.error("Verification failed");
         navigateToSellerRegistration();
+        return;
       }
     }
+    
+    // We only get here if seller is verified
+    console.log('Seller status confirmed, proceeding to listing page');
+    navigateToListingPage();
   };
   
   /**
