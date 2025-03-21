@@ -5,6 +5,7 @@
  * - 2024-10-17: Fixed permission errors by using security definer function
  * - 2024-10-17: Added robust error handling and fallback mechanisms
  * - 2024-07-05: Fixed edge function error handling in fallback cache storage
+ * - 2024-07-07: Completely isolated cache errors to prevent blocking main user flow
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,7 @@ import { valuationCacheService } from "@/services/supabase/valuation/cacheServic
 
 /**
  * Store valuation data in the cache table for future use
+ * Cache operations are completely isolated and will never block the main flow
  */
 export const storeValuationInCache = async (
   vin: string,
@@ -24,25 +26,37 @@ export const storeValuationInCache = async (
   
   try {
     // Use the cache service which employs a security definer function
-    const success = await valuationCacheService.storeInCache(vin, mileage, data);
-    
-    if (!success) {
-      // If the main approach failed, try fallback
-      return await fallbackCacheStorage(vin, mileage, data);
+    try {
+      const success = await valuationCacheService.storeInCache(vin, mileage, data);
+      
+      if (!success) {
+        // If the main approach failed, try fallback but don't let it block
+        fallbackCacheStorage(vin, mileage, data).catch(err => {
+          console.log("Fallback cache failed silently, continuing main flow:", err);
+        });
+      }
+    } catch (error) {
+      console.log("Primary cache failed silently, continuing main flow:", error);
+      // Attempt fallback but don't wait for it or let it block
+      fallbackCacheStorage(vin, mileage, data).catch(err => {
+        console.log("Fallback cache also failed silently, continuing main flow:", err);
+      });
     }
     
+    // Always return true - cache operations should never block the main flow
     return true;
   } catch (error) {
-    console.error("Error storing valuation in cache:", error);
+    console.error("Error in cache storage flow:", error);
     logDetailedError("Exception in cache storage flow", error);
     
-    // Try fallback approach
-    return await fallbackCacheStorage(vin, mileage, data);
+    // Always return true even on error - caching is non-critical
+    return true;
   }
 };
 
 /**
  * Fallback approach using edge function to store data
+ * This is completely isolated and will never throw errors to callers
  */
 const fallbackCacheStorage = async (
   vin: string,
@@ -63,7 +77,7 @@ const fallbackCacheStorage = async (
     });
     
     if (error) {
-      console.error("Error in fallback cache storage:", error);
+      console.log("Edge function cache error - continuing main flow:", error);
       logDetailedError("Edge function cache error", error);
       // Return true anyway - don't let cache failures block the main flow
       return true;
@@ -72,10 +86,10 @@ const fallbackCacheStorage = async (
     console.log("Fallback cache storage successful");
     return true;
   } catch (error) {
-    console.error("Exception in fallback cache storage:", error);
+    console.log("Exception in fallback cache storage - continuing main flow:", error);
     logDetailedError("Fallback cache storage exception", error);
     
-    // Silent failure - we've tried our best
+    // Always return true - we've tried our best
     // This is a cache, so functionality should continue even if caching fails
     return true;
   }

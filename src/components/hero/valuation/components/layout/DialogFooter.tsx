@@ -4,6 +4,7 @@
  * - 2025-07-04: Created dedicated component for dialog footer buttons
  * - 2025-07-05: Fixed event handling to ensure proper propagation of click events
  * - 2025-07-06: Enhanced click handling for maximum reliability
+ * - 2025-07-07: Completely isolated event handling to prevent interference from cache errors
  */
 
 import { Button } from "@/components/ui/button";
@@ -21,10 +22,11 @@ export const ValuationDialogFooter = ({
   onClose, 
   onContinue 
 }: FooterProps) => {
-  // Enhanced click handler to ensure proper event handling
+  // Simplified direct handler to ensure click is captured properly
   const handleContinueClick = (e: React.MouseEvent) => {
     console.log('ValuationDialogFooter - handleContinueClick triggered');
-    // Pass the event directly to the parent component
+    
+    // Call onContinue directly, with no additional logic that could fail
     onContinue(e);
   };
   

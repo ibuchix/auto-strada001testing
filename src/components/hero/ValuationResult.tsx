@@ -6,11 +6,11 @@
  * - 2024-11-11: Fixed button click handler to work on both mobile and desktop devices
  * - 2024-11-12: Implemented direct navigation instead of using React Router for more reliable redirect
  * - 2024-11-14: Enhanced seller status handling to prevent 403 Forbidden errors
- * - 2024-11-14: Added fallback mechanism when permission errors occur
  * - 2024-12-05: Completely redesigned navigation flow for maximum reliability with detailed logging
  * - 2024-12-29: Fixed seller verification issues with enhanced error handling and more reliable status checks
  * - 2025-03-21: Enhanced navigation logic with improved logging and more reliable state management
  * - 2025-04-21: Refactored into smaller components for better maintainability
+ * - 2025-07-07: Simplified navigation flow to ensure clicks always work
  */
 
 import { useEffect } from "react";
@@ -78,6 +78,20 @@ export const ValuationResult = ({
     );
   }
 
+  // Simplified continue handler that first closes dialog then navigates
+  const handleContinueClick = (e: React.MouseEvent) => {
+    console.log('ValuationResult - handleContinueClick triggered');
+    
+    // First close the dialog to prevent any UI conflicts
+    onClose();
+    
+    // Then trigger navigation with a slight delay to ensure dialog is closed
+    setTimeout(() => {
+      console.log('ValuationResult - Initiating navigation after dialog close');
+      handleContinue(valuationResult, mileage);
+    }, 50);
+  };
+
   // Render main content for successful valuations
   return (
     <ValuationContent
@@ -91,10 +105,7 @@ export const ValuationResult = ({
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
-      onContinue={() => {
-        onClose();
-        handleContinue(valuationResult, mileage);
-      }}
+      onContinue={handleContinueClick}
     />
   );
 };

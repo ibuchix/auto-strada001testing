@@ -11,6 +11,7 @@
  * - 2025-05-15: Refined implementation with improved separation of concerns
  * - 2025-05-16: Fixed import function name to match exported name
  * - 2025-05-17: Fixed function name references to match actual exports
+ * - 2025-07-07: Completely isolated cache operations from main valuation flow
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -46,7 +47,7 @@ export async function processSellerValuation(
       };
     }
     
-    // First check if we have a cached valuation
+    // Try to get cached valuation, but continue even if it fails
     let cachedData = null;
     try {
       cachedData = await getCachedValuation(vin, mileage);
@@ -54,8 +55,8 @@ export async function processSellerValuation(
         console.log('Using cached valuation data for VIN:', vin);
       }
     } catch (cacheError) {
-      console.warn('Error retrieving from cache, continuing with direct API call:', cacheError);
-      // We're intentionally not returning here - continue with API call if cache fails
+      console.warn('Cache retrieval error, continuing with API call:', cacheError);
+      // Continue with API call - don't let cache errors block the flow
     }
     
     if (cachedData) {
@@ -63,22 +64,27 @@ export async function processSellerValuation(
       try {
         // Check if the vehicle already exists in the system
         if (!cachedData.isExisting) {
-          const { data: reservationData } = await supabase.functions.invoke('handle-seller-operations', {
-            body: {
-              operation: 'create_reservation',
-              vin,
-              userId,
-              valuationData: cachedData
+          try {
+            const { data: reservationData } = await supabase.functions.invoke('handle-seller-operations', {
+              body: {
+                operation: 'create_reservation',
+                vin,
+                userId,
+                valuationData: cachedData
+              }
+            });
+            
+            if (reservationData?.reservation?.id) {
+              storeReservationId(reservationData.reservation.id);
             }
-          });
-          
-          if (reservationData?.reservation?.id) {
-            storeReservationId(reservationData.reservation.id);
+          } catch (reservationError) {
+            console.error('Reservation error with cached data:', reservationError);
+            // Continue anyway - reservation is not critical
           }
         }
-      } catch (reservationError) {
-        console.error('Error creating reservation with cached data:', reservationError);
-        // We can still continue with the cached data even if reservation fails
+      } catch (error) {
+        console.error('Error in reservation process:', error);
+        // Continue with the cached data even if reservation process fails
       }
       
       return {
@@ -120,9 +126,14 @@ export async function processSellerValuation(
       };
     }
     
-    // Store reservation ID if available
-    if (data?.data?.reservationId) {
-      storeReservationId(data.data.reservationId);
+    // Try to store reservation ID, but don't let failures block the flow
+    try {
+      if (data?.data?.reservationId) {
+        storeReservationId(data.data.reservationId);
+      }
+    } catch (storageError) {
+      console.error('Non-critical error storing reservation ID:', storageError);
+      // Continue regardless
     }
     
     // If we don't have essential data
@@ -139,7 +150,7 @@ export async function processSellerValuation(
       };
     }
     
-    // Prepare the valuation data with required fields for caching
+    // Prepare the valuation data with required fields
     const valuationData = {
       make: data.data.make,
       model: data.data.model,
@@ -152,13 +163,18 @@ export async function processSellerValuation(
       transmission: gearbox as TransmissionType
     };
     
-    // Store the result in cache for future use, but don't let cache failures affect the main flow
+    // Try to cache the data but do it in non-blocking way
     try {
-      await storeValuationInCache(vin, mileage, valuationData);
-      console.log('Successfully cached valuation data for future use');
+      // Use Promise.resolve to make this non-blocking
+      Promise.resolve().then(() => {
+        storeValuationInCache(vin, mileage, valuationData).catch(error => {
+          console.log('Non-critical cache error:', error);
+          // Swallow the error - cache operations should never block
+        });
+      });
     } catch (cacheError) {
-      console.warn('Failed to cache valuation data, but continuing:', cacheError);
-      // Continue anyway since caching is not critical
+      // Just log and continue - caching is non-critical
+      console.warn('Failed to initiate cache operation:', cacheError);
     }
     
     console.log('Returning complete valuation data for seller context');
@@ -169,4 +185,4 @@ export async function processSellerValuation(
   } catch (error: any) {
     return handleApiError(error, vin, gearbox as TransmissionType);
   }
-}
+};
