@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-07-04: Created validation service for VIN data validation
+ * - 2025-07-06: Fixed syntax error in logOperation call
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
@@ -151,7 +152,8 @@ export async function validateReservation(
     logOperation('validateReservation_success', { requestId, reservationId: reservation.id });
     return { valid: true, reservation };
   } catch (error) {
-    logOperation('validateReservation_exception', { requestId, vin, error.message }, 'error');
+    // Fixed this line - using proper object literal syntax
+    logOperation('validateReservation_exception', { requestId, vin, errorMessage: error.message }, 'error');
     return { valid: false, error: 'Error validating reservation' };
   }
 }
