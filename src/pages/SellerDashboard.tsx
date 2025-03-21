@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-26: Fixed TypeScript errors
@@ -17,6 +18,7 @@
  * - 2024-10-16: Updated to handle the new data format from useOptimizedQuery hooks
  * - 2024-11-11: Improved mobile layout by reducing excessive spacing
  * - 2024-11-21: Added RLS error handling with helpful user guidance
+ * - 2025-06-12: Fixed TypeScript error with DashboardHeader props
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -96,7 +98,7 @@ const SellerDashboard = () => {
     <div className="min-h-screen bg-white">
       <Navigation />
       <div className={containerClasses}>
-        <DashboardHeader title="Seller Dashboard" isLoading={isLoading} />
+        <DashboardHeader title="Seller Dashboard" />
         
         {/* Add the registration status check */}
         <RegistrationStatusCheck />

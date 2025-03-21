@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-06-12: Created component for detecting and offering to repair broken registrations
+ * - 2025-06-12: Fixed TypeScript error with Alert variant
  */
 
 import { useState, useEffect } from "react";
