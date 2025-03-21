@@ -1,44 +1,127 @@
 
 /**
  * Changes made:
- * - 2024-11-18: Created dedicated service for seller-specific operations
- * - 2024-11-18: Extracted from userService.ts to improve maintainability
- * - 2024-11-20: Updated UserProfile import to fix TypeScript error
- * - 2024-12-18: Enhanced registerSeller with better error handling and fallbacks
- * - 2024-12-22: Added comprehensive error handling and multi-stage verification
- * - 2024-12-31: Refactored into smaller files for better maintainability
+ * - Updated to support automatic verification of sellers
  */
 
 import { BaseService } from "../baseService";
 import { SellerProfile } from "./types";
 import { sellerRegistrationService } from "./sellerRegistrationService";
+import { sellerVerificationService } from "./sellerVerificationService";
 
+/**
+ * Service for seller profile-related operations
+ */
 export class SellerProfileService extends BaseService {
   /**
    * Get seller profile with optimized column selection
    */
-  async getSellerProfile(userId: string, select: string = '*'): Promise<SellerProfile> {
-    return await this.handleDatabaseResponse(async () => {
-      return await this.supabase
+  async getSellerProfile(userId: string): Promise<SellerProfile | null> {
+    try {
+      // Try security definer function first (bypasses RLS)
+      const { data: sdData, error: sdError } = await this.supabase
+        .rpc('get_seller_profile', { p_user_id: userId });
+        
+      if (!sdError && sdData && sdData.length > 0) {
+        console.log("Retrieved seller profile via security definer function");
+        return sdData[0] as SellerProfile;
+      }
+      
+      if (sdError) {
+        console.warn("Security definer function failed, falling back to direct query:", sdError);
+      }
+      
+      // Fall back to direct query
+      const { data, error } = await this.supabase
         .from('sellers')
-        .select(select)
+        .select(`
+          id, user_id, full_name, company_name, 
+          tax_id, verification_status, is_verified
+        `)
         .eq('user_id', userId)
-        .single();
-    });
+        .maybeSingle();
+
+      if (error) {
+        if (error.code !== 'PGRST116') { // Not found is not a real error
+          throw error;
+        }
+        return null;
+      }
+      
+      return data as SellerProfile;
+    } catch (error: any) {
+      this.handleError(error, "Failed to fetch seller profile");
+      return null;
+    }
   }
   
   /**
-   * Register as a seller with enhanced error handling and retry logic
-   * Designed to work with RLS policies
+   * Update seller profile with error handling
+   */
+  async updateSellerProfile(userId: string, profile: Partial<SellerProfile>): Promise<SellerProfile | null> {
+    try {
+      // Ensure verification status is maintained
+      const safeProfile: Partial<SellerProfile> = {
+        ...profile,
+        verification_status: 'verified', // Always keep as verified
+        is_verified: true                // Always keep as verified
+      };
+      
+      const { data, error } = await this.supabase
+        .from('sellers')
+        .update(safeProfile)
+        .eq('user_id', userId)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      return data as SellerProfile;
+    } catch (error: any) {
+      this.handleError(error, "Failed to update seller profile");
+      return null;
+    }
+  }
+  
+  /**
+   * Register as a seller with automatic verification
    */
   async registerSeller(userId: string): Promise<boolean> {
-    // Delegate to specialized registration service
     return await sellerRegistrationService.registerSeller(userId);
+  }
+  
+  /**
+   * Verify if a user is registered as a seller
+   */
+  async verifySellerRegistration(userId: string): Promise<boolean> {
+    try {
+      const sellerProfile = await this.getSellerProfile(userId);
+      
+      if (sellerProfile) {
+        console.log("User is registered as seller with verification status:", sellerProfile.verification_status);
+        // With the new approach, all sellers should be verified
+        return true;
+      }
+      
+      // Attempt repair if profile exists but seller record doesn't
+      const { data: profile } = await this.supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+        
+      if (profile?.role === 'seller') {
+        console.log("User has seller role in profile but no seller record. Attempting to repair...");
+        return await this.registerSeller(userId);
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Error verifying seller registration:", error);
+      return false;
+    }
   }
 }
 
 // Export a singleton instance
 export const sellerProfileService = new SellerProfileService();
-
-// Re-export types for backward compatibility
-export type { SellerProfile } from "./types";

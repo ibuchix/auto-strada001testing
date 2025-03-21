@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-12-31: Extracted registration logic from sellerProfileService.ts
+ * - Updated to support automatic verification
  */
 
 import { BaseService } from "../baseService";
@@ -13,7 +14,7 @@ import { SellerRegistrationResult } from "./types";
  */
 export class SellerRegistrationService extends BaseService {
   /**
-   * Register as a seller with enhanced error handling and retry logic
+   * Register as a seller with automatic verification
    * Designed to work with RLS policies
    */
   async registerSeller(userId: string): Promise<boolean> {
@@ -23,7 +24,10 @@ export class SellerRegistrationService extends BaseService {
       // Stage 1: Update user metadata first
       try {
         const { error: metadataError } = await this.supabase.auth.updateUser({
-          data: { role: 'seller' }
+          data: { 
+            role: 'seller',
+            is_verified: true
+          }
         });
         
         if (metadataError) {
@@ -108,7 +112,8 @@ export class SellerRegistrationService extends BaseService {
                 user_id: userId,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
-                verification_status: 'pending'
+                verification_status: 'verified', // Set as verified
+                is_verified: true                // Set as verified
               });
               
             if (sellerCreateError) {
@@ -117,6 +122,20 @@ export class SellerRegistrationService extends BaseService {
             }
           } else {
             console.log("SellerRegistrationService: Seller record already exists:", sellerExists);
+            
+            // Ensure seller is marked as verified
+            const { error: sellerUpdateError } = await this.supabase
+              .from('sellers')
+              .update({
+                verification_status: 'verified',
+                is_verified: true,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', userId);
+              
+            if (sellerUpdateError) {
+              console.error("SellerRegistrationService: Failed to update seller verification:", sellerUpdateError);
+            }
           }
           
           // Verify the manual registration was successful

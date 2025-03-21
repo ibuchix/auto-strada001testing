@@ -13,6 +13,7 @@ export const useRegistrationVerification = () => {
 
   /**
    * Checks if user is already registered as seller by examining metadata and database
+   * Now considers all sellers as verified by default
    */
   const verifyRegistration = useCallback(async (userId: string): Promise<AuthRegisterResult> => {
     try {
@@ -35,7 +36,9 @@ export const useRegistrationVerification = () => {
         saveToCache(CACHE_KEYS.USER_PROFILE, {
           id: user.user.id,
           role: 'seller',
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          is_verified: true,
+          verification_status: 'verified'
         });
         
         // Check if seller record exists

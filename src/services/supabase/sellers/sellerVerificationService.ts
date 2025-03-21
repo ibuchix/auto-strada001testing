@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-12-31: Extracted verification logic from sellerProfileService.ts
+ * - Updated to reflect automatic verification of sellers
  */
 
 import { BaseService } from "../baseService";
@@ -12,6 +13,7 @@ import { BaseService } from "../baseService";
 export class SellerVerificationService extends BaseService {
   /**
    * Verify seller registration was successful by checking for profile and seller records
+   * Updated to expect sellers to be automatically verified
    */
   async verifySellerRegistration(userId: string): Promise<void> {
     try {
@@ -34,10 +36,10 @@ export class SellerVerificationService extends BaseService {
         console.log("SellerVerificationService: Profile verified with seller role");
       }
       
-      // Check if seller record exists
+      // Check if seller record exists and is verified
       const { data: seller, error: sellerError } = await this.supabase
         .from('sellers')
-        .select('id, user_id')
+        .select('id, user_id, verification_status, is_verified')
         .eq('user_id', userId)
         .maybeSingle();
         
@@ -47,8 +49,27 @@ export class SellerVerificationService extends BaseService {
       
       if (!seller) {
         console.warn("SellerVerificationService: Seller record not found after registration");
+      } else if (seller.verification_status !== 'verified' || !seller.is_verified) {
+        console.warn("SellerVerificationService: Seller exists but not marked as verified:", 
+          {status: seller.verification_status, verified: seller.is_verified});
+          
+        // Auto-fix: Update the seller to verified status if needed
+        const { error: updateError } = await this.supabase
+          .from('sellers')
+          .update({
+            verification_status: 'verified',
+            is_verified: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId);
+          
+        if (updateError) {
+          console.error("SellerVerificationService: Failed to update seller to verified status:", updateError);
+        } else {
+          console.log("SellerVerificationService: Successfully updated seller to verified status");
+        }
       } else {
-        console.log("SellerVerificationService: Seller record verified");
+        console.log("SellerVerificationService: Seller record verified and properly marked as verified");
       }
       
       // Verify user metadata has seller role
@@ -60,6 +81,20 @@ export class SellerVerificationService extends BaseService {
       
       if (!userData?.user?.user_metadata?.role || userData.user.user_metadata.role !== 'seller') {
         console.warn("SellerVerificationService: User metadata does not have seller role:", userData?.user?.user_metadata);
+        
+        // Auto-fix: Update user metadata if needed
+        const { error: metadataError } = await this.supabase.auth.updateUser({
+          data: { 
+            role: 'seller',
+            is_verified: true
+          }
+        });
+        
+        if (metadataError) {
+          console.error("SellerVerificationService: Failed to update user metadata:", metadataError);
+        } else {
+          console.log("SellerVerificationService: Successfully updated user metadata with seller role");
+        }
       } else {
         console.log("SellerVerificationService: User metadata verified with seller role");
       }

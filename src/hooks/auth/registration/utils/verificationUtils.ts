@@ -8,6 +8,7 @@ import { AuthRegisterResult } from "../../types";
 
 /**
  * Verifies if the fallback registration was successful
+ * Updated to check for verified status as well
  */
 export const verifyFallbackRegistration = async (
   supabaseClient: SupabaseClient,
@@ -29,10 +30,14 @@ export const verifyFallbackRegistration = async (
     // Verify seller record exists
     const { data: verifySeller } = await supabaseClient
       .from('sellers')
-      .select('id')
+      .select('id, verification_status, is_verified')
       .eq('user_id', userId)
       .maybeSingle();
     const sellerOk = !!verifySeller;
+    
+    // Verify seller is marked as verified (new check)
+    const verificationOk = verifySeller && 
+      (verifySeller.verification_status === 'verified' && verifySeller.is_verified === true);
     
     const registrationSuccess = metadataOk || (profileOk && sellerOk);
     
@@ -40,6 +45,7 @@ export const verifyFallbackRegistration = async (
       metadataOk,
       profileOk,
       sellerOk,
+      verificationOk,
       success: registrationSuccess
     });
     

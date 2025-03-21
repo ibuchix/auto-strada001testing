@@ -6,6 +6,7 @@
  * - 2024-11-18: Enhanced fallback mechanisms for seller role detection
  * - 2024-11-19: Updated to use refactored profile and seller services
  * - 2024-11-20: Fixed type imports with proper import syntax
+ * - Updated to support automatic verification of sellers
  */
 
 import { useCallback } from "react";
@@ -20,6 +21,7 @@ import { profileService, sellerProfileService } from "@/services/supabase";
 export const useSellerRoleCheck = () => {
   /**
    * Efficiently checks if a user has seller role using multiple methods with fallbacks
+   * Updated to expect sellers are automatically verified
    */
   const checkSellerRole = useCallback(async (currentSession: Session) => {
     try {
@@ -35,7 +37,10 @@ export const useSellerRoleCheck = () => {
         if (profile?.role === 'seller') {
           // Update user metadata to match profile role for future reference
           await supabase.auth.updateUser({
-            data: { role: 'seller' }
+            data: { 
+              role: 'seller',
+              is_verified: true 
+            }
           });
           
           return true;
@@ -52,7 +57,10 @@ export const useSellerRoleCheck = () => {
         if (seller) {
           // Found in sellers table - update user metadata
           await supabase.auth.updateUser({
-            data: { role: 'seller' }
+            data: { 
+              role: 'seller',
+              is_verified: true
+            }
           });
           
           // Also ensure profile table is synced

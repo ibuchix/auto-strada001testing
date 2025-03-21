@@ -12,6 +12,7 @@
  * - 2024-11-16: Added support for row level security policies and improved authentication flow
  * - 2024-11-18: Refactored into smaller hooks for better maintainability
  * - 2024-12-29: Enhanced refreshSellerStatus with more reliable verification and error recovery
+ * - Updated to support automatic verification of all sellers
  */
 
 import { useEffect, useCallback } from "react";
@@ -56,6 +57,7 @@ export const useSellerSession = () => {
   /**
    * Force refresh seller status with enhanced error handling and recovery
    * Useful after registration or role changes
+   * Updated to acknowledge automatic verification of sellers
    */
   const refreshSellerStatus = useCallback(async () => {
     if (!session) {
@@ -89,7 +91,9 @@ export const useSellerSession = () => {
         saveToCache(CACHE_KEYS.USER_PROFILE, {
           id: session.user.id,
           role: 'seller',
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          is_verified: true,
+          verification_status: 'verified'
         });
         
         // Show success notification
