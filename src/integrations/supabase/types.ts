@@ -1695,6 +1695,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      store_vin_valuation_cache: {
+        Args: {
+          p_vin: string
+          p_mileage: number
+          p_valuation_data: Json
+        }
+        Returns: undefined
+      }
       update_auction_status: {
         Args: Record<PropertyKey, never>
         Returns: Json

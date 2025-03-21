@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-08-01: Created caching API for valuation results
  * - 2024-08-02: Fixed type issues with ValuationData
+ * - 2024-12-31: Updated to use security definer function for reliable caching
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +60,7 @@ export async function getCachedValuation(
 
 /**
  * Store valuation data in the cache
+ * Updated to use the security definer function for reliable storage
  */
 export async function storeValuationCache(
   vin: string,
@@ -68,18 +70,37 @@ export async function storeValuationCache(
   console.log('Storing valuation in cache for VIN:', vin);
   
   try {
-    const { error } = await supabase
-      .from('vin_valuation_cache')
-      .insert([
-        {
-          vin,
-          mileage,
-          valuation_data: valuationData
-        }
-      ]);
+    // Try using the security definer function first
+    const { error: rpcError } = await supabase.rpc(
+      'store_vin_valuation_cache',
+      {
+        p_vin: vin,
+        p_mileage: mileage,
+        p_valuation_data: valuationData
+      }
+    );
+    
+    if (rpcError) {
+      console.warn('Security definer function failed, falling back to direct insert:', rpcError);
       
-    if (error) {
-      console.error('Error storing valuation cache:', error);
+      // Fallback to direct insert as a backup
+      const { error } = await supabase
+        .from('vin_valuation_cache')
+        .insert([
+          {
+            vin,
+            mileage,
+            valuation_data: valuationData
+          }
+        ])
+        .onConflict('vin')
+        .merge();
+        
+      if (error) {
+        console.error('Error storing valuation cache:', error);
+      }
+    } else {
+      console.log('Successfully stored valuation in cache via security definer function');
     }
   } catch (error) {
     console.error('Failed to store valuation in cache:', error);
