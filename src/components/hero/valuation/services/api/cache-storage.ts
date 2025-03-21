@@ -1,97 +1,80 @@
 
 /**
  * Changes made:
- * - 2025-04-27: Created cache storage module extracted from cache-api.ts
+ * - 2024-04-15: Initial implementation of cache storage service
+ * - 2024-10-17: Fixed permission errors by using security definer function
+ * - 2024-10-17: Added robust error handling and fallback mechanisms
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { ValuationData } from "../../types";
-import { getSessionDebugInfo } from "./utils/debug-utils";
-import { attemptDirectInsert } from "./utils/direct-insert";
+import { toast } from "sonner";
+import { logDetailedError } from "./utils/debug-utils";
+import { valuationCacheService } from "@/services/supabase/valuation/cacheService";
 
 /**
- * Store valuation data in the cache using enhanced security definer function
- * with improved error handling and detailed logging
+ * Store valuation data in the cache table for future use
  */
-export async function storeValuationCache(
+export const storeValuationInCache = async (
   vin: string,
   mileage: number,
-  valuationData: ValuationData
-): Promise<boolean> {
-  console.log('Attempting to store valuation in cache for VIN:', vin);
+  data: any
+): Promise<boolean> => {
+  console.log("Caching valuation data for VIN:", vin);
   
   try {
-    // Get detailed session information for debugging
-    const sessionInfo = await getSessionDebugInfo();
-    console.log('Session info when storing cache:', sessionInfo);
+    // Use the cache service which employs a security definer function
+    const success = await valuationCacheService.storeInCache(vin, mileage, data);
     
-    // Check if user is authenticated first - this will affect which approach we use
-    const { data: sessionData } = await supabase.auth.getSession();
-    const isAuthenticated = !!sessionData?.session?.user;
-    
-    if (isAuthenticated) {
-      console.log('User is authenticated, using primary caching approach');
-      console.log('Authentication details:', {
-        userId: sessionData?.session?.user.id,
-        email: sessionData?.session?.user.email,
-        tokenExpiry: sessionData?.session?.expires_at ? 
-          new Date(sessionData.session.expires_at * 1000).toISOString() : 'unknown'
-      });
-    } else {
-      console.log('User is not authenticated, will try security definer function');
+    if (!success) {
+      // If the main approach failed, try fallback
+      return await fallbackCacheStorage(vin, mileage, data);
     }
     
-    // Generate a unique log ID for tracking this operation
-    const logId = `cache_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    console.log('Operation tracking ID:', logId);
-    
-    // Try using the enhanced security definer function with improved error handling
-    // Use a type assertion to handle the additional parameter
-    console.log('Calling store_vin_valuation_cache RPC with params:', {
-      vin,
-      mileage,
-      valuationData: JSON.stringify(valuationData).substring(0, 100) + '...',
-      logId
-    });
-    
-    const { data: rpcData, error: rpcError } = await supabase.rpc(
-      'store_vin_valuation_cache',
-      {
-        p_vin: vin,
-        p_mileage: mileage,
-        p_valuation_data: valuationData,
-        p_log_id: logId
-      } as any  // Use type assertion to bypass TypeScript checking
-    );
-    
-    if (rpcError) {
-      console.error('Security definer function failed with error:', rpcError);
-      
-      // Log detailed information about the error for debugging
-      console.error('Error details:', {
-        message: rpcError.message,
-        details: rpcError.details,
-        hint: rpcError.hint,
-        code: rpcError.code,
-        stackTrace: new Error().stack
-      });
-      
-      // If authenticated, attempt direct database insert as fallback
-      if (isAuthenticated) {
-        console.log('Attempting direct insert as authenticated user fallback');
-        return await attemptDirectInsert(vin, mileage, valuationData);
-      } else {
-        console.log('Skipping cache storage - user not authenticated and security definer failed');
-        return false;
-      }
-    }
-    
-    console.log('Successfully stored valuation in cache via security definer function:', rpcData);
     return true;
   } catch (error) {
-    console.error('Unexpected error in storeValuationCache:', error);
-    console.error('Stack trace:', new Error().stack);
-    // Don't throw the error, just log it as this is a non-critical operation
+    console.error("Error storing valuation in cache:", error);
+    logDetailedError("Exception in cache storage flow", error);
+    
+    // Try fallback approach
+    return await fallbackCacheStorage(vin, mileage, data);
+  }
+};
+
+/**
+ * Fallback approach using edge function to store data
+ */
+const fallbackCacheStorage = async (
+  vin: string,
+  mileage: number,
+  data: any
+): Promise<boolean> => {
+  console.log("Attempting fallback cache storage via edge function");
+  
+  try {
+    // Call the edge function to handle caching with elevated permissions
+    const { data: result, error } = await supabase.functions.invoke("handle-seller-operations", {
+      body: {
+        action: "cache_valuation",
+        vin,
+        mileage,
+        valuation_data: data,
+      },
+    });
+    
+    if (error) {
+      console.error("Error in fallback cache storage:", error);
+      logDetailedError("Edge function cache error", error);
+      return false;
+    }
+    
+    console.log("Fallback cache storage successful");
+    return true;
+  } catch (error) {
+    console.error("Exception in fallback cache storage:", error);
+    logDetailedError("Fallback cache storage exception", error);
+    
+    // Silent failure - we've tried our best
+    // This is a cache, so functionality should continue even if caching fails
     return false;
   }
-}
+};

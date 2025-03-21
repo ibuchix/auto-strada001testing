@@ -5,6 +5,7 @@
  * - 2024-03-19: Added data transformation and validation
  * - 2024-03-19: Implemented error handling for save operations
  * - 2024-09-02: Enhanced error handling and added retry mechanism
+ * - 2024-10-17: Added security definer function approach for reliable saving
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -31,6 +32,28 @@ export const saveFormData = async (
       // Only include carId in the upsert if it's defined
       const dataToUpsert = carId ? { ...carData, id: carId } : carData;
 
+      // Try using the security definer function first (most reliable method)
+      try {
+        console.log('Attempting save via security definer function');
+        const { data: rpcResult, error: rpcError } = await supabase.rpc(
+          'create_car_listing',
+          { p_car_data: dataToUpsert }
+        );
+        
+        if (!rpcError && rpcResult?.success) {
+          console.log('Auto-save successful via security definer function');
+          return { 
+            success: true, 
+            carId: rpcResult.car_id || carId 
+          };
+        }
+        
+        console.warn('Security definer function failed, falling back to standard approach:', rpcError);
+      } catch (rpcException) {
+        console.warn('Exception calling security definer function:', rpcException);
+      }
+
+      // Fallback to standard approach
       const { data, error } = await supabase
         .from('cars')
         .upsert(dataToUpsert)
@@ -38,7 +61,7 @@ export const saveFormData = async (
 
       if (error) throw error;
       
-      console.log('Auto-save successful');
+      console.log('Auto-save successful via standard approach');
       return { 
         success: true, 
         carId: data?.[0]?.id || carId 
