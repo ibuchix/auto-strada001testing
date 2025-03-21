@@ -2,11 +2,13 @@
 /**
  * Changes made:
  * - 2025-07-14: Created dedicated error display component for seller flows
+ * - 2025-07-21: Enhanced with better debugging and improved visual feedback
  */
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 interface ErrorDisplayProps {
   error: string;
@@ -22,6 +24,11 @@ export const ErrorDisplay = ({
   isVerifying = false 
 }: ErrorDisplayProps) => {
   const navigate = useNavigate();
+
+  // Log when the error display component renders
+  useEffect(() => {
+    console.log('ErrorDisplay rendering with:', { error, errorType, isVerifying });
+  }, [error, errorType, isVerifying]);
 
   return (
     <Card className="max-w-md mx-auto p-8 text-center">

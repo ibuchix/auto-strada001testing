@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-07-14: Created hook to validate seller car listing access
+ * - 2025-07-21: Fixed error state management to ensure proper clearing of errors
  */
 
 import { useState, useEffect } from "react";
@@ -22,6 +23,10 @@ export const useSellerCarListingValidation = () => {
   useEffect(() => {
     const validateAndLoadData = async () => {
       try {
+        // Start with clean state for each validation attempt
+        setError(null);
+        setErrorType(null);
+        
         console.log('SellMyCar: Starting validation', { 
           isLoggedIn: !!session, 
           isSeller,
@@ -85,6 +90,9 @@ export const useSellerCarListingValidation = () => {
             console.log('SellMyCar: Valid navigation from valuation');
             setIsValid(true);
             setIsLoading(false);
+            // Explicitly reset error state to ensure it's cleared
+            setError(null);
+            setErrorType(null);
             return;
           }
         }
@@ -124,7 +132,10 @@ export const useSellerCarListingValidation = () => {
         
         // All checks passed - allow the form to display
         console.log('SellMyCar: All validation passed');
+        // Explicitly set valid state and clear any errors
         setIsValid(true);
+        setError(null);
+        setErrorType(null);
         setIsLoading(false);
       } catch (error) {
         console.error('SellMyCar: Unexpected error during validation:', error);
@@ -147,6 +158,7 @@ export const useSellerCarListingValidation = () => {
       
       if (result) {
         toast.success("Seller verification successful!");
+        // Explicitly reset error state on success
         setError(null);
         setErrorType(null);
         setIsValid(true);
