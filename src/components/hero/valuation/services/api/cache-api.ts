@@ -7,6 +7,7 @@
  * - 2025-03-21: Fixed TypeScript error with onConflict method
  * - 2025-04-22: Enhanced error handling and added anonymous access for caching
  * - 2025-04-23: Improved security definer function interaction with detailed logging
+ * - 2025-04-24: Fixed TypeScript type error with p_log_id parameter
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -88,6 +89,9 @@ export async function storeValuationCache(
       console.log('User is not authenticated, will try security definer function');
     }
     
+    // Generate a unique log ID for tracking this operation
+    const logId = `cache_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    
     // Try using the enhanced security definer function with improved error handling
     const { data: rpcData, error: rpcError } = await supabase.rpc(
       'store_vin_valuation_cache',
@@ -95,7 +99,7 @@ export async function storeValuationCache(
         p_vin: vin,
         p_mileage: mileage,
         p_valuation_data: valuationData,
-        p_log_id: `cache_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+        p_log_id: logId
       }
     );
     
