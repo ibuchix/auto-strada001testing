@@ -4,5 +4,5 @@
  */
 
 export * from "./useAuth";
-export * from "./useSellerRegistration";
+export * from "./registration";
 export * from "./types";
