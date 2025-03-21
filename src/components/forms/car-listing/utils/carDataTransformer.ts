@@ -5,6 +5,7 @@
  * - 2024-03-20: Updated property names to match database schema
  * - 2024-03-25: Updated car preparation to include seller_id field
  * - 2024-07-24: Enhanced valuation data validation with more helpful error messages
+ * - 2024-07-27: Fixed type comparison error when checking mileage value
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -32,7 +33,8 @@ export const prepareCarData = (
     throw new Error("Vehicle VIN information missing. Please complete the valuation process again.");
   }
   
-  if (!valuationData.mileage && !valuationData.mileage === 0) {
+  // Fixed type comparison error - checking if mileage is defined rather than comparing with 0
+  if (valuationData.mileage === undefined || valuationData.mileage === null) {
     throw new Error("Vehicle mileage information missing. Please complete the valuation process again.");
   }
   
