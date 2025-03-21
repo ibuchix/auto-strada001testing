@@ -7,6 +7,7 @@
  * - 2024-08-25: Added refreshSellerStatus to context for re-checking seller status
  * - 2024-10-15: Added offline mode awareness
  * - 2024-11-16: Updated to work with Row Level Security policies
+ * - 2025-07-14: Enhanced metadata-based seller detection without verification
  */
 
 import { createContext, useContext } from "react";
@@ -40,10 +41,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   // Cache the session when it changes (for offline use)
   if (session && !isOffline) {
+    // Always indicate seller role in cache if metadata says so
+    const role = session.user?.user_metadata?.role === 'seller' || isSeller ? 'seller' : 'buyer';
+    
     saveToCache('userSession', {
       userId: session.user.id,
       email: session.user.email,
-      role: isSeller ? 'seller' : 'buyer'
+      role: role
     });
   }
 
