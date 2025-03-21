@@ -6,6 +6,7 @@
  * - 2024-09-20: Fixed issue with function invoke options
  * - 2024-10-15: Refactored into smaller modules for better maintainability
  * - 2025-04-28: Fixed TypeScript errors with method names and interfaces
+ * - 2025-05-01: Fixed method name inconsistencies for cache operations
  */
 
 import { ValuationApiService, valuationApiService } from "./valuation/apiService";

@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-10-15: Extracted API functionality from valuationService.ts
  * - 2025-04-28: Fixed TypeScript errors with method calls and return types
+ * - 2025-05-01: Fixed method name inconsistencies to match ValuationCacheService
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";

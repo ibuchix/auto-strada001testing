@@ -12,8 +12,9 @@
  * - 2025-04-26: Added comprehensive debug logging for authentication and error tracking
  * - 2025-04-27: Refactored into smaller modules for better maintainability
  * - 2025-04-28: Fixed export method name mismatches to ensure proper type compatibility
+ * - 2025-05-01: Fixed import/export name inconsistencies
  */
 
 // Re-export the functionality from the specialized modules
 export { getCachedValuation } from './cache-retrieval';
-export { storeValuationInCache as storeValuationCache } from './cache-storage';
+export { storeValuationInCache } from './cache-storage';
