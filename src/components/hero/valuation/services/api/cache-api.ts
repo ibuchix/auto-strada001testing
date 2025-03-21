@@ -4,6 +4,7 @@
  * - 2024-08-01: Created caching API for valuation results
  * - 2024-08-02: Fixed type issues with ValuationData
  * - 2024-12-31: Updated to use security definer function for reliable caching
+ * - 2025-03-21: Fixed TypeScript error with onConflict method
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -84,20 +85,42 @@ export async function storeValuationCache(
       console.warn('Security definer function failed, falling back to direct insert:', rpcError);
       
       // Fallback to direct insert as a backup
-      const { error } = await supabase
+      // Use upsert pattern with separate insert() and update() calls instead of onConflict()
+      const { data: existingData } = await supabase
         .from('vin_valuation_cache')
-        .insert([
-          {
-            vin,
-            mileage,
-            valuation_data: valuationData
-          }
-        ])
-        .onConflict('vin')
-        .merge();
+        .select('id')
+        .eq('vin', vin)
+        .maybeSingle();
         
-      if (error) {
-        console.error('Error storing valuation cache:', error);
+      if (existingData) {
+        // Update existing record
+        const { error } = await supabase
+          .from('vin_valuation_cache')
+          .update({
+            mileage,
+            valuation_data: valuationData,
+            created_at: new Date().toISOString()
+          })
+          .eq('vin', vin);
+          
+        if (error) {
+          console.error('Error updating valuation cache:', error);
+        }
+      } else {
+        // Insert new record
+        const { error } = await supabase
+          .from('vin_valuation_cache')
+          .insert([
+            {
+              vin,
+              mileage,
+              valuation_data: valuationData
+            }
+          ]);
+          
+        if (error) {
+          console.error('Error inserting valuation cache:', error);
+        }
       }
     } else {
       console.log('Successfully stored valuation in cache via security definer function');
