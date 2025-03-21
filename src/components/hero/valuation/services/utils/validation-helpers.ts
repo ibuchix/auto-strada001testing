@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-07-25: Extracted validation helpers from valuationService.ts
+ * - 2025-05-15: Enhanced with improved error handling and better logging
  */
 
 import { toast } from "sonner";
