@@ -2,7 +2,7 @@
 /**
  * Changes made:
  * - 2024-03-20: Fixed type references to match database schema
- * - 2024-03-20: Updated property names to match database fields
+ * - 2024-03-20: Updated property names to match database schema
  * - 2024-03-19: Added support for converting between form and database formats
  * - 2024-03-19: Added handling for default values and nullable fields
  * - 2024-03-25: Added support for additional_photos field
@@ -10,6 +10,7 @@
  * - 2024-08-09: Fixed type handling for form_metadata field
  * - 2024-12-05: Added error handling for localStorage data access
  * - 2024-12-06: Fixed type errors with valuationData properties
+ * - 2024-08-04: Fixed "name" column issue by using seller_name instead
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
@@ -53,7 +54,8 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
 
   return {
     seller_id: userId,
-    name: formData.name,
+    // Use seller_name instead of name to match the database schema
+    seller_name: formData.name,
     address: formData.address,
     mobile_number: formData.mobileNumber,
     features: formData.features as unknown as Json,
@@ -95,7 +97,8 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
   }
   
   return {
-    name: dbData.name || "",
+    // Map seller_name to name for form data
+    name: dbData.seller_name || "",
     address: dbData.address || "",
     mobileNumber: dbData.mobile_number || "",
     features: dbData.features ? { ...defaultCarFeatures, ...dbData.features as Record<string, boolean> } : defaultCarFeatures,
