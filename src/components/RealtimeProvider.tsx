@@ -7,6 +7,7 @@
  * - 2024-12-13: Enhanced WebSocket connection stability with better lifecycle management
  * - 2024-12-13: Fixed premature disconnection causing "WebSocket closed before connection established" errors
  * - 2024-12-13: Added connection debouncing to prevent rapid connect/disconnect cycles
+ * - 2024-08-03: Fixed WebSocket lifecycle issues by adding proper connection state tracking and safer cleanup
  */
 
 import { ReactNode, createContext, useContext, useEffect, useState, useRef } from 'react';
