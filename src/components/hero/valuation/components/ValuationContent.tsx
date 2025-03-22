@@ -14,6 +14,7 @@
  * - 2025-07-04: Refactored into smaller components for better maintainability
  * - 2025-07-08: Updated onContinue type to handle argument-less function calls
  * - 2025-07-09: Removed component unmount check that was blocking navigation
+ * - 2024-08-02: Removed average price from ValuationDisplay to prevent sellers from seeing it
  */
 
 import { 
@@ -34,7 +35,7 @@ interface ValuationContentProps {
   transmission: string;
   mileage: number;
   reservePrice?: number;
-  averagePrice?: number;
+  averagePrice?: number; // Still accept this prop but don't display it
   hasValuation: boolean;
   isLoggedIn: boolean;
   onClose: () => void;
@@ -49,7 +50,7 @@ export const ValuationContent = ({
   transmission,
   mileage,
   reservePrice,
-  averagePrice,
+  averagePrice, // Keep receiving this but don't pass it to ValuationDisplay
   hasValuation,
   isLoggedIn,
   onClose,
@@ -130,7 +131,7 @@ export const ValuationContent = ({
         {hasValuation && (
           <ValuationDisplay 
             reservePrice={reservePrice || 0}
-            averagePrice={averagePrice}
+            // Removed averagePrice prop to prevent displaying it
           />
         )}
       </div>

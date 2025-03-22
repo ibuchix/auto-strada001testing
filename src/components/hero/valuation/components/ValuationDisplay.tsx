@@ -5,6 +5,7 @@
  * - 2024-03-19: Improved loading and error states
  * - 2024-03-19: Added proper type checking for price values
  * - 2024-07-20: Enhanced error display with clearer messages and retry option
+ * - 2024-08-02: Removed average price display to prevent sellers from seeing it
  */
 
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { RefreshCw } from "lucide-react";
 
 interface ValuationDisplayProps {
   reservePrice: number;
-  averagePrice?: number;
+  averagePrice?: number; // Still accept this prop but don't display it
   isLoading?: boolean;
   error?: string;
   onRetry?: () => void;
@@ -20,7 +21,7 @@ interface ValuationDisplayProps {
 
 export const ValuationDisplay = ({ 
   reservePrice,
-  averagePrice,
+  averagePrice, // Keep this in props but don't display it
   isLoading,
   error,
   onRetry
@@ -54,8 +55,8 @@ export const ValuationDisplay = ({
     );
   }
 
-  // Only show "No valuation available" if both prices are 0 or undefined
-  if (!reservePrice && !averagePrice) {
+  // Only show "No valuation available" if reserve price is 0 or undefined
+  if (!reservePrice) {
     return (
       <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
         <p className="text-sm text-subtitle mb-2">Valuation</p>
@@ -72,11 +73,7 @@ export const ValuationDisplay = ({
       <p className="text-4xl font-bold text-primary">
         PLN {Math.max(0, reservePrice).toLocaleString()}
       </p>
-      {averagePrice ? (
-        <p className="text-xs text-subtitle mt-2">
-          Average Market Value: PLN {Math.max(0, averagePrice).toLocaleString()}
-        </p>
-      ) : null}
+      {/* Removed the averagePrice display */}
     </div>
   );
 };

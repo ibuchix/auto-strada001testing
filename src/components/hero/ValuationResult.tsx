@@ -13,6 +13,7 @@
  * - 2025-07-07: Simplified navigation flow to ensure clicks always work
  * - 2025-07-08: Fixed TypeScript error with onContinue handler signature
  * - 2025-07-09: Fixed race condition by preparing navigation before closing dialog
+ * - 2024-08-02: Removed average price from UI to prevent sellers from seeing it
  */
 
 import { useEffect } from "react";
@@ -28,7 +29,7 @@ interface ValuationResultProps {
     vin: string;
     transmission: string;
     valuation?: number | null;
-    averagePrice?: number | null;
+    averagePrice?: number | null; // Keep this in the type but don't display it
     isExisting?: boolean;
     error?: string;
     rawResponse?: any;
@@ -62,10 +63,9 @@ export const ValuationResult = ({
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = Boolean(valuationResult.error || valuationResult.noData);
-  const hasValuation = !hasError && Boolean(valuationResult.averagePrice ?? valuationResult.valuation);
+  const hasValuation = !hasError && Boolean(valuationResult.valuation);
   
-  const averagePrice = valuationResult.averagePrice || 0;
-  console.log('ValuationResult - Display price:', averagePrice);
+  console.log('ValuationResult - Display price:', valuationResult.valuation);
 
   // Handle error cases with the dedicated component
   if (hasError) {
@@ -124,7 +124,9 @@ export const ValuationResult = ({
       vin={valuationResult.vin}
       transmission={valuationResult.transmission}
       mileage={mileage}
-      averagePrice={averagePrice}
+      reservePrice={valuationResult.valuation}
+      // Still pass averagePrice in props but it won't be displayed
+      averagePrice={valuationResult.averagePrice}
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
