@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-05: Extracted from CarListingForm.tsx to separate component
  * - 2024-07-30: Added reset transaction functionality and improved button handling
+ * - 2024-08-01: Fixed TypeScript error with TransactionStatus enum comparison
  */
 
 import { Form } from "@/components/ui/form";
@@ -23,6 +24,7 @@ import { ProgressPreservation } from "./submission/ProgressPreservation";
 import { useFormSubmissionContext } from "./submission/FormSubmissionProvider";
 import { validateFormData, getFormProgress } from "./utils/validation";
 import { formSteps } from "./constants/formSteps";
+import { TransactionStatus } from "@/services/supabase/transactions/types";
 
 interface FormContentProps {
   session: any;
@@ -155,7 +157,7 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
 
   // The force enable condition uses both submit attempts and a manual check
   // to ensure the button becomes clickable again if the transaction system gets stuck
-  const forceEnable = submitAttempts > 0 && transactionStatus === 'PENDING';
+  const forceEnable = submitAttempts > 0 && transactionStatus === TransactionStatus.PENDING;
 
   return (
     <Form {...form}>

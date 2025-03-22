@@ -5,6 +5,7 @@
  * - 2024-07-24: Enhanced handling of valuation data with improved validation
  * - 2024-07-28: Improved mileage validation with better fallback mechanisms
  * - 2024-07-30: Added timeout handling and better error recovery
+ * - 2024-08-01: Fixed TypeScript error with car_id property access
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +13,7 @@ import { CarListingFormData } from "@/types/forms";
 import { prepareCarDataForSubmission } from "../utils/dataPreparation";
 import { validateValuationData, validateMileageData } from "../utils/validationHandler";
 import { SubmissionErrorType } from "../types";
+import { Json } from "@/integrations/supabase/types";
 
 export const submitCarListing = async (
   formData: CarListingFormData, 
@@ -81,7 +83,11 @@ export const submitCarListing = async (
           clearTimeout(submissionTimeout);
           
           console.log('Submission via RPC function successful:', rpcResult);
-          return rpcResult.car_id;
+          // Safely access car_id with proper type checking
+          if (typeof rpcResult === 'object' && rpcResult !== null && 'car_id' in rpcResult) {
+            return rpcResult.car_id as string;
+          }
+          return carId; // Fallback to existing carId if car_id not found in result
         }
         
         console.log('RPC function failed, falling back to direct upsert', rpcError);
