@@ -6,6 +6,7 @@
  * - 2024-03-25: Fixed table references and field names
  * - 2024-03-26: Fixed TypeScript errors by using proper table references
  * - 2024-08-05: Added admin notification functionality when a manual valuation is submitted
+ * - 2024-08-05: Updated to use seller_name instead of name to match database schema
  */
 
 import { useForm } from "react-hook-form";
@@ -86,7 +87,7 @@ export const useManualValuationForm = () => {
           finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
           service_history_type: data.serviceHistoryType,
           seller_notes: data.sellerNotes,
-          name: data.name,
+          seller_name: data.name, // Use seller_name instead of name
           address: data.address,
           mobile_number: data.mobileNumber,
           valuation_data: {

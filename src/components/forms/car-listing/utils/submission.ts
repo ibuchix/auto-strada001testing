@@ -1,7 +1,9 @@
+
 /**
  * Changes made:
  * - 2024-03-20: Fixed infinite type instantiation error
  * - 2024-03-20: Updated property names to match database schema
+ * - 2024-08-04: Updated name field to use seller_name to match database schema
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +29,7 @@ export const saveFormAsDraft = async (
       .from('cars')
       .update({
         seller_id: userId,
-        name: data.name,
+        seller_name: data.name, // Use seller_name instead of name
         address: data.address,
         mobile_number: data.mobileNumber,
         features: data.features,
@@ -63,7 +65,7 @@ export const saveFormAsDraft = async (
       transmission: parsedValuationData.transmission as string,
       valuation_data: parsedValuationData,
       is_draft: true,
-      name: data.name,
+      seller_name: data.name, // Use seller_name instead of name
       address: data.address,
       mobile_number: data.mobileNumber,
       features: data.features,
