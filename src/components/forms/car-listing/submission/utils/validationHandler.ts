@@ -5,6 +5,7 @@
  * - 2024-07-24: Enhanced validation with fallback mechanisms and improved error messages
  * - 2024-07-24: Added retrieval of valuation data from multiple possible sources
  * - 2024-07-28: Improved mileage validation with better fallbacks and error handling
+ * - 2024-07-30: Enhanced error handling to prevent silent failures and transaction stalling
  */
 
 import { SubmissionErrorType } from "../types";
@@ -79,6 +80,13 @@ export const validateValuationData = (): any => {
   try {
     parsedData = JSON.parse(valuationData);
     console.log('Successfully parsed valuation data:', parsedData);
+    
+    // Validate minimum required fields to ensure usable data
+    if (!parsedData.vin || !parsedData.make || !parsedData.model || !parsedData.year) {
+      console.error('Valuation data missing critical fields');
+      throw new Error('Incomplete valuation data');
+    }
+    
   } catch (error) {
     console.error('Error parsing valuation data:', error);
     throw {
@@ -109,9 +117,14 @@ export const validateMileageData = (): number => {
   // First, try direct localStorage access
   const storedMileage = localStorage.getItem('tempMileage');
   if (storedMileage) {
-    mileage = Number(storedMileage);
-    mileageSource = 'localStorage';
-    console.log('Found mileage in localStorage:', mileage);
+    const parsedMileage = Number(storedMileage);
+    if (!isNaN(parsedMileage)) {
+      mileage = parsedMileage;
+      mileageSource = 'localStorage';
+      console.log('Found mileage in localStorage:', mileage);
+    } else {
+      console.warn('Mileage from localStorage is not a valid number:', storedMileage);
+    }
   } 
   // Then try from valuation data
   else {
@@ -120,12 +133,17 @@ export const validateMileageData = (): number => {
       if (valuationData) {
         const parsedData = JSON.parse(valuationData);
         if (parsedData.mileage !== undefined && parsedData.mileage !== null) {
-          mileage = Number(parsedData.mileage);
-          mileageSource = 'valuationData';
-          console.log('Found mileage in valuationData:', mileage);
-          
-          // Save it for future use
-          localStorage.setItem('tempMileage', String(mileage));
+          const parsedMileage = Number(parsedData.mileage);
+          if (!isNaN(parsedMileage)) {
+            mileage = parsedMileage;
+            mileageSource = 'valuationData';
+            console.log('Found mileage in valuationData:', mileage);
+            
+            // Save it for future use
+            localStorage.setItem('tempMileage', String(mileage));
+          } else {
+            console.warn('Mileage from valuationData is not a valid number:', parsedData.mileage);
+          }
         }
       }
     } catch (error) {
@@ -137,12 +155,17 @@ export const validateMileageData = (): number => {
   if ((mileage === null || isNaN(mileage)) && mileage !== 0) {
     const formData = getFromCache(CACHE_KEYS.FORM_PROGRESS);
     if (formData && typeof formData === 'object' && 'mileage' in formData) {
-      mileage = Number(formData.mileage);
-      mileageSource = 'formCache';
-      console.log('Found mileage in form cache:', mileage);
-      
-      // Save it for future use
-      localStorage.setItem('tempMileage', String(mileage));
+      const parsedMileage = Number(formData.mileage);
+      if (!isNaN(parsedMileage)) {
+        mileage = parsedMileage;
+        mileageSource = 'formCache';
+        console.log('Found mileage in form cache:', mileage);
+        
+        // Save it for future use
+        localStorage.setItem('tempMileage', String(mileage));
+      } else {
+        console.warn('Mileage from form cache is not a valid number:', formData.mileage);
+      }
     }
   }
   

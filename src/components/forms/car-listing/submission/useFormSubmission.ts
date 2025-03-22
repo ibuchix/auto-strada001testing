@@ -10,9 +10,10 @@
  * - 2024-10-25: Removed JSX in .ts file and fixed transaction options
  * - 2024-07-24: Enhanced valuation data validation and error handling
  * - 2024-07-28: Added debug utilities to help diagnose mileage issues
+ * - 2024-07-30: Added transaction reset and improved error handling
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { CarListingFormData } from "@/types/forms";
@@ -23,7 +24,7 @@ import { validateFormData } from "../utils/validation";
 import { SubmissionErrorType } from "./types";
 import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
 import { useCreateTransaction } from "@/hooks/useTransaction";
-import { TransactionOptions } from "@/services/supabase/transactionService";
+import { TransactionOptions, TransactionStatus } from "@/services/supabase/transactionService";
 import { debugMileageData, logAllLocalStorage } from "../utils/debugUtils";
 
 export const useFormSubmission = (userId?: string) => {
@@ -40,15 +41,26 @@ export const useFormSubmission = (userId?: string) => {
   const { 
     execute: executeSubmission, 
     isLoading: submitting, 
-    transactionStatus
+    transactionStatus,
+    reset: resetTransaction
   } = useCreateTransaction({
     showToast: false, // We'll handle custom notifications
     retryCount: 1,
     logToDb: true
   });
 
+  // Reset transaction state when component mounts
+  useEffect(() => {
+    resetTransaction();
+    console.log('Transaction state reset on component mount');
+  }, [resetTransaction]);
+
   const handleSubmit = async (data: CarListingFormData, carId?: string) => {
     console.log('Form submission handler triggered');
+    
+    // Reset transaction state before new submission attempt
+    resetTransaction();
+    
     console.log('Debugging mileage data before submission:');
     debugMileageData();
     console.log('All localStorage items:');
@@ -71,9 +83,10 @@ export const useFormSubmission = (userId?: string) => {
 
     try {
       // Try to validate valuation data first to check if it exists
+      let valuationData;
       try {
         console.log('Pre-validating valuation data');
-        const valuationData = validateValuationData();
+        valuationData = validateValuationData();
         console.log('Valuation data pre-validation successful:', valuationData);
       } catch (validationError: any) {
         console.error('Valuation data pre-validation failed:', validationError);
@@ -85,6 +98,8 @@ export const useFormSubmission = (userId?: string) => {
             onClick: () => navigate("/sellers")
           }
         });
+        // Ensure transaction state is reset after error
+        resetTransaction();
         return;
       }
       
@@ -103,6 +118,8 @@ export const useFormSubmission = (userId?: string) => {
             onClick: () => navigate("/sellers")
           }
         });
+        // Ensure transaction state is reset after error
+        resetTransaction();
         return;
       }
       
@@ -112,31 +129,37 @@ export const useFormSubmission = (userId?: string) => {
         toast.error("Please complete all required fields", {
           description: "Some information is missing or incomplete."
         });
+        // Ensure transaction state is reset after error
+        resetTransaction();
         return;
       }
 
       const uploadingToast = toast.loading("Uploading your listing...", {
-        duration: Infinity
+        duration: 5000 // Don't make it infinite, enforce a timeout
       });
 
-      // Execute the submission within a transaction
-      const result = await executeSubmission(
+      console.log('Starting transaction execution');
+      
+      // Execute the submission within a transaction with timeout handling
+      const submissionPromise = executeSubmission(
         "Submit Car Listing",
         async () => {
-          return await submitCarListing(data, userId, carId);
+          console.log('Executing submission callback');
+          const result = await submitCarListing(data, userId, carId);
+          console.log('Submission completed successfully with result:', result);
+          return result;
         },
         {
-          description: `Submitting listing for ${data.make} ${data.model}`,
+          description: `Submitting listing for ${data?.make || ''} ${data?.model || ''}`,
           metadata: {
             carId,
             make: data.make,
             model: data.model
           },
-          onSuccess: () => {
+          onSuccess: (result) => {
+            console.log('Submission success callback triggered');
             toast.dismiss(uploadingToast);
             
-            // Using a function to render component for toast
-            // Instead of JSX, we'll use a more compatible approach in .ts file
             toast.success("Listing submitted successfully!", {
               description: "Your listing will be reviewed by our team."
             });
@@ -148,24 +171,49 @@ export const useFormSubmission = (userId?: string) => {
             setShowSuccessDialog(true);
           },
           onError: (error) => {
+            console.log('Submission error callback triggered', error);
             toast.dismiss(uploadingToast);
             
             if ('message' in error && 'description' in error) {
               const submissionError = error as SubmissionErrorType;
               setError(submissionError.message);
               
-              // Using error toast instead of custom component
               toast.error(submissionError.message, {
                 description: submissionError.description
               });
             } else {
               handleSupabaseError(error, "Failed to submit listing");
             }
+            
+            // Ensure transaction state is reset after error
+            resetTransaction();
           }
         } as TransactionOptions
       );
       
-      return result;
+      // Add a timeout to prevent the transaction from hanging indefinitely
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error("Submission timed out after 30 seconds"));
+        }, 30000);
+      });
+      
+      try {
+        // Race between the submission and the timeout
+        const result = await Promise.race([submissionPromise, timeoutPromise]);
+        return result;
+      } catch (timeoutError: any) {
+        console.error('Submission timed out:', timeoutError);
+        toast.dismiss(uploadingToast);
+        toast.error("Submission timed out", {
+          description: "Please try again. If the problem persists, contact support."
+        });
+        
+        // Force reset of transaction state
+        resetTransaction();
+        return null;
+      }
+      
     } catch (error: any) {
       console.error('Submission error:', error);
       
@@ -183,6 +231,9 @@ export const useFormSubmission = (userId?: string) => {
         handleSupabaseError(error, "Failed to submit listing");
       }
       
+      // Ensure transaction state is reset after error
+      resetTransaction();
+      
       throw error;
     }
   };
@@ -193,6 +244,7 @@ export const useFormSubmission = (userId?: string) => {
     transactionStatus,
     showSuccessDialog,
     setShowSuccessDialog,
-    handleSubmit
+    handleSubmit,
+    resetTransaction  // Expose the reset function to allow explicit resets
   };
 };

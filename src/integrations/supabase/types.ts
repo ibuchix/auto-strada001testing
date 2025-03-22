@@ -459,11 +459,13 @@ export type Database = {
       cars: {
         Row: {
           additional_photos: Json | null
+          address: string | null
           auction_end_time: string | null
           auction_status: string | null
           created_at: string
           current_bid: number | null
           features: Json | null
+          finance_amount: number | null
           form_metadata: Json | null
           id: string
           images: string[] | null
@@ -491,11 +493,13 @@ export type Database = {
         }
         Insert: {
           additional_photos?: Json | null
+          address?: string | null
           auction_end_time?: string | null
           auction_status?: string | null
           created_at?: string
           current_bid?: number | null
           features?: Json | null
+          finance_amount?: number | null
           form_metadata?: Json | null
           id?: string
           images?: string[] | null
@@ -523,11 +527,13 @@ export type Database = {
         }
         Update: {
           additional_photos?: Json | null
+          address?: string | null
           auction_end_time?: string | null
           auction_status?: string | null
           created_at?: string
           current_bid?: number | null
           features?: Json | null
+          finance_amount?: number | null
           form_metadata?: Json | null
           id?: string
           images?: string[] | null
@@ -1309,6 +1315,36 @@ export type Database = {
         }
         Relationships: []
       }
+      system_logs: {
+        Row: {
+          correlation_id: string | null
+          created_at: string
+          details: Json | null
+          error_message: string | null
+          id: string
+          log_type: string
+          message: string
+        }
+        Insert: {
+          correlation_id?: string | null
+          created_at?: string
+          details?: Json | null
+          error_message?: string | null
+          id?: string
+          log_type: string
+          message: string
+        }
+        Update: {
+          correlation_id?: string | null
+          created_at?: string
+          details?: Json | null
+          error_message?: string | null
+          id?: string
+          log_type?: string
+          message?: string
+        }
+        Relationships: []
+      }
       vin_reservations: {
         Row: {
           created_at: string | null
@@ -1465,6 +1501,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      create_car_listing: {
+        Args: {
+          p_car_data: Json
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       create_dealer_with_profile: {
         Args: {
           p_email: string
@@ -1543,11 +1586,13 @@ export type Database = {
         }
         Returns: {
           additional_photos: Json | null
+          address: string | null
           auction_end_time: string | null
           auction_status: string | null
           created_at: string
           current_bid: number | null
           features: Json | null
+          finance_amount: number | null
           form_metadata: Json | null
           id: string
           images: string[] | null

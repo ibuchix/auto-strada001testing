@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Save, SendIcon, WifiOff } from "lucide-react";
+import { FormSubmitButton } from "./FormSubmitButton";
+import { TransactionStatus } from "@/services/supabase/transactionService";
 
 interface MultiStepFormControlsProps {
   currentStep: number;
@@ -11,6 +12,8 @@ interface MultiStepFormControlsProps {
   isLastStep: boolean;
   onSubmit: () => void;
   isOffline?: boolean;
+  transactionStatus?: TransactionStatus;
+  forceEnable?: boolean;
 }
 
 export const MultiStepFormControls = ({
@@ -21,46 +24,38 @@ export const MultiStepFormControls = ({
   isSubmitting,
   isLastStep,
   onSubmit,
-  isOffline = false
+  isOffline,
+  transactionStatus,
+  forceEnable = false
 }: MultiStepFormControlsProps) => {
+  if (isLastStep) {
+    return (
+      <FormSubmitButton 
+        isSubmitting={isSubmitting} 
+        transactionStatus={transactionStatus}
+        forceEnable={forceEnable}
+      />
+    );
+  }
+
   return (
-    <div className="flex justify-between items-center mt-8">
+    <div className="flex justify-between pt-4 sticky bottom-0 bg-white dark:bg-gray-900 p-4 shadow-lg rounded-t-lg border-t z-40">
       <Button
         type="button"
         variant="outline"
         onClick={onPrevious}
-        disabled={currentStep === 0 || isSubmitting}
-        className="flex items-center gap-2"
+        disabled={currentStep === 0}
       >
-        <ChevronLeft size={16} />
         Previous
       </Button>
 
-      <div className="text-sm text-gray-500">
-        Step {currentStep + 1} of {totalSteps}
-      </div>
-
-      {isLastStep ? (
-        <Button
-          type="button"
-          onClick={onSubmit}
-          disabled={isSubmitting || isOffline}
-          className="flex items-center gap-2 bg-primary"
-        >
-          {isSubmitting ? "Submitting..." : "Submit Listing"}
-          {isOffline ? <WifiOff size={16} /> : <SendIcon size={16} />}
-        </Button>
-      ) : (
-        <Button
-          type="button"
-          onClick={onNext}
-          disabled={isSubmitting}
-          className="flex items-center gap-2"
-        >
-          Next
-          <ChevronRight size={16} />
-        </Button>
-      )}
+      <Button
+        type="button"
+        onClick={onNext}
+        disabled={isSubmitting || isOffline}
+      >
+        Next Step
+      </Button>
     </div>
   );
 };

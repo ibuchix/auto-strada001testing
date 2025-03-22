@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-09-05: Extracted from CarListingForm.tsx to separate component
+ * - 2024-07-30: Added reset transaction functionality and improved button handling
  */
 
 import { Form } from "@/components/ui/form";
@@ -39,8 +40,22 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isOffline, setIsOffline] = useState(false);
   const [formLastSaved, setFormLastSaved] = useState<Date | null>(lastSaved);
-  const { submitting, showSuccessDialog, setShowSuccessDialog, handleSubmit } = useFormSubmissionContext();
+  const [submitAttempts, setSubmitAttempts] = useState(0);
+  const { 
+    submitting, 
+    showSuccessDialog, 
+    setShowSuccessDialog, 
+    handleSubmit, 
+    resetTransaction, 
+    transactionStatus
+  } = useFormSubmissionContext();
   const navigate = useNavigate();
+
+  // Reset transaction status when component mounts
+  useEffect(() => {
+    console.log('FormContent mounted, resetting transaction state');
+    resetTransaction?.();
+  }, [resetTransaction]);
 
   // Update progress and validation on form changes
   useEffect(() => {
@@ -61,6 +76,11 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
       }
     }
   }, []);
+  
+  // Log transaction status changes for debugging
+  useEffect(() => {
+    console.log('Transaction status changed:', transactionStatus);
+  }, [transactionStatus]);
 
   const nextStep = () => {
     if (currentStep < formSteps.length - 1) {
@@ -84,6 +104,17 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
   };
 
   const onSubmit = async (data: any) => {
+    // Increment submit attempts counter
+    setSubmitAttempts(prev => prev + 1);
+    
+    // Log debug information
+    console.log('Form submission triggered, attempt #', submitAttempts + 1);
+    console.log('Current form data:', data);
+    console.log('Current transaction status:', transactionStatus);
+    
+    // Force reset transaction state on new submission attempt
+    resetTransaction?.();
+    
     const storedMileage = localStorage.getItem('tempMileage');
     if (!storedMileage) {
       toast.error("Missing vehicle information", {
@@ -113,8 +144,18 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
       return;
     }
 
-    await handleSubmit(data, carId);
+    try {
+      await handleSubmit(data, carId);
+    } catch (error) {
+      console.error('Form submission error caught in FormContent:', error);
+      // Ensure transaction state is reset after error
+      resetTransaction?.();
+    }
   };
+
+  // The force enable condition uses both submit attempts and a manual check
+  // to ensure the button becomes clickable again if the transaction system gets stuck
+  const forceEnable = submitAttempts > 0 && transactionStatus === 'PENDING';
 
   return (
     <Form {...form}>
@@ -173,6 +214,7 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
           isLastStep={currentStep === formSteps.length - 1}
           onSubmit={form.handleSubmit(onSubmit)}
           isOffline={isOffline}
+          forceEnable={forceEnable}
         />
         
         <ProgressPreservation 
