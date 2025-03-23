@@ -8,6 +8,8 @@
  * - 2024-07-24: Enhanced validation and fallback mechanisms for valuation data
  * - 2024-07-28: Improved mileage retrieval and validation with better error handling
  * - 2024-08-04: Fixed "name" column issue by mapping seller_name field correctly to database schema
+ * - 2025-05-30: Enhanced field mapping to include both name and seller_name fields
+ *   for backward compatibility with the security definer function
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -65,8 +67,8 @@ export const prepareCarDataForSubmission = async (
     throw new Error('Failed to calculate reserve price. Please try again.');
   }
 
-  // Build the car data object - IMPORTANT: We're now using seller_name instead of name
-  // to match the database schema (cars table doesn't have a "name" column)
+  // Build the car data object - Include both name and seller_name fields
+  // for maximum compatibility with the database function
   const carData = {
     id: carId,
     seller_id: userId,
@@ -81,8 +83,9 @@ export const prepareCarDataForSubmission = async (
     transmission: valuationData.transmission,
     valuation_data: valuationData,
     is_draft: false,
-    // Store seller contact info in appropriate fields
-    seller_name: data.name, // This will be stored properly in a different field
+    // Store seller contact info in appropriate fields with both mappings
+    name: data.name, // For compatibility with old function version
+    seller_name: data.name, // For compatibility with database schema
     address: data.address,
     mobile_number: data.mobileNumber,
     features: data.features,

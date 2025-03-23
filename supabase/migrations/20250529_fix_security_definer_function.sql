@@ -1,5 +1,12 @@
 
--- Update the create_car_listing function to properly handle all columns
+/**
+ * Changes made:
+ * - 2025-05-29: Created security definer function for car listings
+ * - 2025-05-30: Fixed function to accept both "name" and "seller_name" fields
+ *   to handle different client implementations consistently
+ */
+
+-- Update the create_car_listing function to properly handle the seller_name field
 CREATE OR REPLACE FUNCTION public.create_car_listing(
   p_car_data jsonb,
   p_user_id uuid DEFAULT auth.uid()
@@ -75,7 +82,8 @@ BEGIN
     UPDATE public.cars
     SET 
       seller_id = v_updated_data->>'seller_id',
-      seller_name = v_updated_data->>'seller_name',
+      -- FIX: Accept either name or seller_name to support both field mappings
+      seller_name = COALESCE(v_updated_data->>'seller_name', v_updated_data->>'name'),
       address = v_updated_data->>'address',
       mobile_number = v_updated_data->>'mobile_number',
       features = v_updated_data->'features',
@@ -139,7 +147,8 @@ BEGIN
       valuation_data
     ) VALUES (
       (v_updated_data->>'seller_id')::uuid,
-      v_updated_data->>'seller_name',
+      -- FIX: Accept either name or seller_name to support both field mappings
+      COALESCE(v_updated_data->>'seller_name', v_updated_data->>'name'),
       v_updated_data->>'address',
       v_updated_data->>'mobile_number',
       v_updated_data->'features',

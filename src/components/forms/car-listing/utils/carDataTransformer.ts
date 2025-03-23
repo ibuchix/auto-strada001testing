@@ -8,6 +8,8 @@
  * - 2024-07-27: Fixed type comparison error when checking mileage value
  * - 2024-07-28: Added robust mileage retrieval with fallbacks from localStorage
  * - 2024-08-04: Fixed "name" column issue by using seller_name field instead
+ * - 2025-05-30: Enhanced field mapping to include both name and seller_name fields
+ *   for backward compatibility with the security definer function
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -79,8 +81,9 @@ export const prepareCarData = (
   return {
     seller_id: userId,
     title,
-    // Use seller_name instead of name to match the database schema
-    seller_name: data.name,
+    // Send both name and seller_name for maximum compatibility with both fields
+    name: data.name, // For compatibility with old function version
+    seller_name: data.name, // For compatibility with new database schema
     address: data.address,
     mobile_number: data.mobileNumber,
     is_damaged: data.isDamaged,

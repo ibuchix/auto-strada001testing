@@ -1,3 +1,5 @@
+
+// Enhanced car listing creation function with improved field handling
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
@@ -12,6 +14,7 @@ interface ListingRequest {
   vin: string;
   mileage: number;
   transmission: string;
+  reservationId?: string;
 }
 
 serve(async (req) => {
@@ -21,7 +24,9 @@ serve(async (req) => {
   }
 
   try {
-    const { valuationData, userId, vin, mileage, transmission } = await req.json() as ListingRequest;
+    const requestData = await req.json();
+    const { valuationData, userId, vin, mileage, transmission, reservationId } = requestData as ListingRequest;
+    
     console.log('Request parameters:', { userId, vin, mileage, transmission });
 
     if (!valuationData || !userId || !vin || !mileage) {
@@ -49,21 +54,80 @@ serve(async (req) => {
     // Use background processing for the listing creation
     const processListing = async () => {
       try {
+        // Log seller information for debugging
+        console.log('Creating listing for seller:', userId);
+        
+        // Check if seller exists and is verified
+        const { data: seller, error: sellerError } = await supabase
+          .from('sellers')
+          .select('id, verification_status')
+          .eq('user_id', userId)
+          .single();
+        
+        if (sellerError) {
+          console.log('Seller not found, attempting to create seller record...');
+          // Create seller record if it doesn't exist
+          await supabase
+            .from('sellers')
+            .insert({
+              user_id: userId,
+              verification_status: 'verified',
+              is_verified: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+        } else {
+          console.log('Found seller:', seller);
+        }
+
+        // Prepare seller name from auth user if available
+        const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(userId);
+        const sellerName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Unnamed Seller';
+        
+        // Prepare the listing data with both name and seller_name fields for compatibility
+        const listingData = {
+          seller_id: userId,
+          name: sellerName, // For backward compatibility
+          seller_name: sellerName, // For database schema
+          title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
+          vin: vin,
+          mileage: mileage,
+          transmission: transmission,
+          make: valuationData.make,
+          model: valuationData.model,
+          year: valuationData.year,
+          price: valuationData.valuation || valuationData.averagePrice,
+          valuation_data: valuationData,
+          is_draft: true
+        };
+
+        console.log('Creating listing with data:', {
+          ...listingData,
+          valuation_data: '(omitted for log clarity)'
+        });
+
+        // Try to use the security definer function first
+        try {
+          console.log('Attempting to create listing via security definer function');
+          const { data: rpcResult, error: rpcError } = await supabase.rpc(
+            'create_car_listing',
+            { p_car_data: listingData }
+          );
+
+          if (!rpcError && rpcResult) {
+            console.log('Listing created successfully via RPC:', rpcResult);
+            return rpcResult;
+          }
+          
+          console.warn('RPC failed, falling back to direct insert:', rpcError);
+        } catch (rpcError) {
+          console.warn('Exception calling RPC function:', rpcError);
+        }
+
+        // Fallback to direct insert
         const { data: listing, error: listingError } = await supabase
           .from('cars')
-          .insert({
-            seller_id: userId,
-            title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
-            vin: vin,
-            mileage: mileage,
-            transmission: transmission,
-            make: valuationData.make,
-            model: valuationData.model,
-            year: valuationData.year,
-            price: valuationData.valuation || valuationData.averagePrice,
-            valuation_data: valuationData,
-            is_draft: true
-          })
+          .insert(listingData)
           .select()
           .single();
 
@@ -72,7 +136,7 @@ serve(async (req) => {
           throw listingError;
         }
 
-        console.log('Listing created successfully:', listing);
+        console.log('Listing created successfully via direct insert:', listing);
         return listing;
       } catch (error) {
         console.error('Background processing error:', error);

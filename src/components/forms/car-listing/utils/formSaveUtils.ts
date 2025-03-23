@@ -10,6 +10,8 @@
  * - 2025-05-01: Fixed TypeScript errors with RPC function name and return type casting
  * - 2025-05-16: Fixed TypeScript type errors for RPC function using "as any" casting
  * - 2025-08-04: Updated to use seller_name field instead of name
+ * - 2025-05-30: Enhanced field handling to include both name and seller_name fields
+ *   for maximum compatibility with the security definer function
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -35,6 +37,13 @@ export const saveFormData = async (
       
       // Only include carId in the upsert if it's defined
       const dataToUpsert = carId ? { ...carData, id: carId } : carData;
+
+      // Enhanced logging for debugging
+      console.log('Attempting to save car data with fields:', 
+        Object.keys(dataToUpsert).filter(key => 
+          key === 'name' || key === 'seller_name'
+        ).reduce((obj, key) => ({...obj, [key]: dataToUpsert[key]}), {})
+      );
 
       // Try using the security definer function first (most reliable method)
       try {
