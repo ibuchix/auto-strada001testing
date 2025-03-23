@@ -10,6 +10,7 @@
  * - 2024-08-04: Fixed "name" column issue by mapping seller_name field correctly to database schema
  * - 2025-05-30: Enhanced field mapping to include both name and seller_name fields
  *   for backward compatibility with the security definer function
+ * - 2025-05-31: Standardized field mapping approach across all data transformations
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -68,7 +69,7 @@ export const prepareCarDataForSubmission = async (
   }
 
   // Build the car data object - Include both name and seller_name fields
-  // for maximum compatibility with the database function
+  // for maximum compatibility with all database function versions
   const carData = {
     id: carId,
     seller_id: userId,
@@ -84,7 +85,7 @@ export const prepareCarDataForSubmission = async (
     valuation_data: valuationData,
     is_draft: false,
     // Store seller contact info in appropriate fields with both mappings
-    name: data.name, // For compatibility with old function version
+    name: data.name, // For compatibility with older code
     seller_name: data.name, // For compatibility with database schema
     address: data.address,
     mobile_number: data.mobileNumber,

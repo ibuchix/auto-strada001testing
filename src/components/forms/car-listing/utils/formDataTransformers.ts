@@ -11,6 +11,7 @@
  * - 2024-12-05: Added error handling for localStorage data access
  * - 2024-12-06: Fixed type errors with valuationData properties
  * - 2024-08-04: Fixed "name" column issue by using seller_name instead
+ * - 2025-05-31: Standardized field naming approach by providing both name and seller_name
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
@@ -54,8 +55,9 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
 
   return {
     seller_id: userId,
-    // Use seller_name instead of name to match the database schema
-    seller_name: formData.name,
+    // Include both name and seller_name fields for maximum compatibility
+    name: formData.name, // For compatibility with code expecting name field
+    seller_name: formData.name, // For consistency with database schema
     address: formData.address,
     mobile_number: formData.mobileNumber,
     features: formData.features as unknown as Json,
@@ -97,8 +99,8 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
   }
   
   return {
-    // Map seller_name to name for form data
-    name: dbData.seller_name || "",
+    // Map seller_name to name for form data, with fallback to name field
+    name: dbData.seller_name || dbData.name || "",
     address: dbData.address || "",
     mobileNumber: dbData.mobile_number || "",
     features: dbData.features ? { ...defaultCarFeatures, ...dbData.features as Record<string, boolean> } : defaultCarFeatures,

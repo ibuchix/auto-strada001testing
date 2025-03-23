@@ -12,6 +12,7 @@
  * - 2025-08-04: Updated to use seller_name field instead of name
  * - 2025-05-30: Enhanced field handling to include both name and seller_name fields
  *   for maximum compatibility with the security definer function
+ * - 2025-05-31: Applied consistent field mapping strategy across all transformations
  */
 
 import { CarListingFormData } from "@/types/forms";
