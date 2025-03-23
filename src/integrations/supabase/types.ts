@@ -473,6 +473,7 @@ export type Database = {
           is_damaged: boolean | null
           is_draft: boolean
           is_manually_controlled: boolean | null
+          is_registered_in_poland: boolean | null
           make: string | null
           mileage: number | null
           minimum_bid_increment: number | null
@@ -508,6 +509,7 @@ export type Database = {
           is_damaged?: boolean | null
           is_draft?: boolean
           is_manually_controlled?: boolean | null
+          is_registered_in_poland?: boolean | null
           make?: string | null
           mileage?: number | null
           minimum_bid_increment?: number | null
@@ -543,6 +545,7 @@ export type Database = {
           is_damaged?: boolean | null
           is_draft?: boolean
           is_manually_controlled?: boolean | null
+          is_registered_in_poland?: boolean | null
           make?: string | null
           mileage?: number | null
           minimum_bid_increment?: number | null
@@ -1603,6 +1606,7 @@ export type Database = {
           is_damaged: boolean | null
           is_draft: boolean
           is_manually_controlled: boolean | null
+          is_registered_in_poland: boolean | null
           make: string | null
           mileage: number | null
           minimum_bid_increment: number | null

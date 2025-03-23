@@ -1,9 +1,9 @@
-
 /**
  * Changes made:
  * - 2024-03-20: Fixed infinite type instantiation error
  * - 2024-03-20: Updated property names to match database schema
  * - 2024-08-04: Updated name field to use seller_name to match database schema
+ * - 2025-06-01: Removed references to non-existent field has_tool_pack
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +35,6 @@ export const saveFormAsDraft = async (
         features: data.features,
         is_damaged: data.isDamaged,
         is_registered_in_poland: data.isRegisteredInPoland,
-        has_tool_pack: data.hasToolPack,
         has_documentation: data.hasDocumentation,
         is_selling_on_behalf: data.isSellingOnBehalf,
         has_private_plate: data.hasPrivatePlate,
@@ -71,7 +70,6 @@ export const saveFormAsDraft = async (
       features: data.features,
       is_damaged: data.isDamaged,
       is_registered_in_poland: data.isRegisteredInPoland,
-      has_tool_pack: data.hasToolPack,
       has_documentation: data.hasDocumentation,
       is_selling_on_behalf: data.isSellingOnBehalf,
       has_private_plate: data.hasPrivatePlate,

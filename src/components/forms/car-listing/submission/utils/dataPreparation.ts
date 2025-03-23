@@ -11,6 +11,7 @@
  * - 2025-05-30: Enhanced field mapping to include both name and seller_name fields
  *   for backward compatibility with the security definer function
  * - 2025-05-31: Standardized field mapping approach across all data transformations
+ * - 2025-06-01: Removed references to non-existent field has_tool_pack
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -92,7 +93,6 @@ export const prepareCarDataForSubmission = async (
     features: data.features,
     is_damaged: data.isDamaged,
     is_registered_in_poland: data.isRegisteredInPoland,
-    has_tool_pack: data.hasToolPack,
     has_documentation: data.hasDocumentation,
     is_selling_on_behalf: data.isSellingOnBehalf,
     has_private_plate: data.hasPrivatePlate,
