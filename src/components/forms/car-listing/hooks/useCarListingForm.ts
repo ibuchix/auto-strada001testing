@@ -5,6 +5,7 @@
  * - 2024-03-19: Added auto-save integration
  * - 2024-03-19: Added draft loading functionality
  * - 2024-08-20: Integrated standardized error handling
+ * - 2024-08-04: Updated to use seller_name field instead of name
  */
 
 import { useState, useEffect } from "react";
@@ -89,7 +90,7 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
         .upsert({
           id: carId,
           seller_id: userId,
-          name: formData.name,
+          seller_name: formData.name, // Use seller_name instead of name
           address: formData.address,
           mobile_number: formData.mobileNumber,
           features: formData.features,

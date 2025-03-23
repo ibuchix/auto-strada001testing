@@ -1,6 +1,7 @@
 
 -- Migration to update the cars table to handle seller name correctly
--- This adds a seller_name column to the cars table and updates the create_car_listing function
+-- This adds a seller_name column to the cars table if it doesn't exist
+-- and updates the create_car_listing function
 
 -- First, add the seller_name column to the cars table if it doesn't exist
 DO $$
@@ -127,6 +128,7 @@ BEGIN
       seat_material = v_updated_data->>'seat_material',
       number_of_keys = NULLIF(v_updated_data->>'number_of_keys', '')::integer,
       is_draft = (v_updated_data->>'is_draft')::boolean,
+      updated_at = now(),
       last_saved = now(),
       mileage = NULLIF(v_updated_data->>'mileage', '')::integer,
       price = NULLIF(v_updated_data->>'price', '')::numeric,

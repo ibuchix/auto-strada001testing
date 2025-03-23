@@ -9,6 +9,7 @@
  * - 2025-04-28: Fixed TypeScript errors with RPC types and return values
  * - 2025-05-01: Fixed TypeScript errors with RPC function name and return type casting
  * - 2025-05-16: Fixed TypeScript type errors for RPC function using "as any" casting
+ * - 2025-08-04: Updated to use seller_name field instead of name
  */
 
 import { CarListingFormData } from "@/types/forms";

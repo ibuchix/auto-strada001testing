@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-07-30: Added force enable option and improved state handling
+ * - 2024-08-05: Enhanced error handling and re-enabled submission after timeout
  */
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export const FormSubmitButton = ({
   // Determine the button state based on transaction status or legacy props
   const isPending = transactionStatus === TransactionStatus.PENDING || isSubmitting;
   const isCompleted = transactionStatus === TransactionStatus.SUCCESS || isSuccess;
+  const hasError = transactionStatus === TransactionStatus.ERROR;
 
   // Reset pending duration when not pending
   useEffect(() => {
@@ -72,7 +74,7 @@ export const FormSubmitButton = ({
     <div className="sticky bottom-0 bg-white dark:bg-gray-900 p-4 shadow-lg rounded-t-lg border-t z-50">
       <Button
         type="submit"
-        className={`w-full ${isCompleted ? 'bg-[#21CA6F]' : 'bg-[#DC143C]'} hover:${isCompleted ? 'bg-[#21CA6F]/90' : 'bg-[#DC143C]/90'} text-white font-semibold py-4 text-lg rounded-md transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]`}
+        className={`w-full ${isCompleted ? 'bg-[#21CA6F]' : hasError ? 'bg-amber-600' : 'bg-[#DC143C]'} hover:${isCompleted ? 'bg-[#21CA6F]/90' : hasError ? 'bg-amber-700' : 'bg-[#DC143C]/90'} text-white font-semibold py-4 text-lg rounded-md transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]`}
         disabled={isDisabled}
         onClick={() => {
           // Log when button is clicked
@@ -90,6 +92,10 @@ export const FormSubmitButton = ({
             <CheckCircle2 className="h-5 w-5" />
             <span>Listing Submitted Successfully</span>
           </div>
+        ) : hasError ? (
+          <span className="flex items-center justify-center gap-2">
+            Try Submitting Again
+          </span>
         ) : (
           <span className="flex items-center justify-center gap-2">
             Submit Listing
@@ -100,6 +106,12 @@ export const FormSubmitButton = ({
       {showTimeoutWarning && (
         <div className="mt-2 text-amber-500 text-sm text-center">
           Submission is taking longer than expected. You can try again if needed.
+        </div>
+      )}
+      
+      {hasError && (
+        <div className="mt-2 text-amber-500 text-sm text-center">
+          There was an error with your submission. Please try again.
         </div>
       )}
       
