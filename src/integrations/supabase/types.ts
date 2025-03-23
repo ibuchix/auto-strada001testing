@@ -483,6 +483,7 @@ export type Database = {
           required_photos: Json | null
           reserve_price: number | null
           seller_id: string | null
+          seller_name: string | null
           seller_notes: string | null
           status: string | null
           title: string | null
@@ -517,6 +518,7 @@ export type Database = {
           required_photos?: Json | null
           reserve_price?: number | null
           seller_id?: string | null
+          seller_name?: string | null
           seller_notes?: string | null
           status?: string | null
           title?: string | null
@@ -551,6 +553,7 @@ export type Database = {
           required_photos?: Json | null
           reserve_price?: number | null
           seller_id?: string | null
+          seller_name?: string | null
           seller_notes?: string | null
           status?: string | null
           title?: string | null
@@ -1610,6 +1613,7 @@ export type Database = {
           required_photos: Json | null
           reserve_price: number | null
           seller_id: string | null
+          seller_name: string | null
           seller_notes: string | null
           status: string | null
           title: string | null
