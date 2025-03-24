@@ -9,6 +9,7 @@
 import { validateFormAgainstSchema } from '../../utils/validation/schemaValidation';
 import { prepareCarData } from '../../components/forms/car-listing/utils/carDataTransformer';
 import { CarListingFormData, defaultCarFeatures } from '../../types/forms';
+import { jest, describe, test, expect } from '@jest/globals';
 
 describe('Form Submission Integration Tests', () => {
   // Sample test data
