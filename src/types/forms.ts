@@ -24,7 +24,6 @@ export interface CarListingFormData {
   features?: CarFeatures;
   isDamaged?: boolean;
   isRegisteredInPoland?: boolean;
-  hasToolPack?: boolean;
   hasDocumentation?: boolean;
   isSellingOnBehalf?: boolean;
   hasPrivatePlate?: boolean;

@@ -4,6 +4,7 @@
  * - 2025-05-29: Created security definer function for car listings
  * - 2025-05-30: Fixed function to accept both "name" and "seller_name" fields
  *   to handle different client implementations consistently
+ * - 2025-06-01: Removed references to non-existent field has_tool_pack
  */
 
 -- Update the create_car_listing function to properly handle the seller_name field
@@ -89,7 +90,6 @@ BEGIN
       features = v_updated_data->'features',
       is_damaged = (v_updated_data->>'is_damaged')::boolean,
       is_registered_in_poland = (v_updated_data->>'is_registered_in_poland')::boolean,
-      has_tool_pack = (v_updated_data->>'has_tool_pack')::boolean,
       has_documentation = (v_updated_data->>'has_documentation')::boolean,
       is_selling_on_behalf = (v_updated_data->>'is_selling_on_behalf')::boolean,
       has_private_plate = (v_updated_data->>'has_private_plate')::boolean,
@@ -123,7 +123,6 @@ BEGIN
       features,
       is_damaged,
       is_registered_in_poland,
-      has_tool_pack,
       has_documentation,
       is_selling_on_behalf,
       has_private_plate,
@@ -154,7 +153,6 @@ BEGIN
       v_updated_data->'features',
       (v_updated_data->>'is_damaged')::boolean,
       (v_updated_data->>'is_registered_in_poland')::boolean,
-      (v_updated_data->>'has_tool_pack')::boolean,
       (v_updated_data->>'has_documentation')::boolean,
       (v_updated_data->>'is_selling_on_behalf')::boolean,
       (v_updated_data->>'has_private_plate')::boolean,
