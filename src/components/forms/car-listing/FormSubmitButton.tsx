@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-07-30: Added force enable option and improved state handling
  * - 2024-08-05: Enhanced error handling and re-enabled submission after timeout
+ * - 2025-07-21: Added better error recovery for blank screen issues
  */
 
 import { Button } from "@/components/ui/button";
@@ -27,11 +28,12 @@ export const FormSubmitButton = ({
   // Track how long the button has been in a pending state
   const [pendingDuration, setPendingDuration] = useState<number>(0);
   const [buttonEnabled, setButtonEnabled] = useState<boolean>(true);
+  const [errorOccurred, setErrorOccurred] = useState<boolean>(false);
   
   // Determine the button state based on transaction status or legacy props
   const isPending = transactionStatus === TransactionStatus.PENDING || isSubmitting;
   const isCompleted = transactionStatus === TransactionStatus.SUCCESS || isSuccess;
-  const hasError = transactionStatus === TransactionStatus.ERROR;
+  const hasError = transactionStatus === TransactionStatus.ERROR || errorOccurred;
 
   // Reset pending duration when not pending
   useEffect(() => {
@@ -49,9 +51,10 @@ export const FormSubmitButton = ({
       interval = setInterval(() => {
         setPendingDuration(prev => {
           const newDuration = prev + 1;
-          // After 15 seconds in pending state, force enable the button
-          if (newDuration > 15) {
+          // After 10 seconds in pending state, force enable the button
+          if (newDuration > 10) {
             setButtonEnabled(true);
+            setErrorOccurred(true);
             clearInterval(interval);
           }
           return newDuration;
@@ -65,10 +68,23 @@ export const FormSubmitButton = ({
   }, [isPending]);
   
   // Allow forcing button to be enabled
-  const isDisabled = !forceEnable && isPending && pendingDuration <= 15 && !buttonEnabled;
+  const isDisabled = !forceEnable && isPending && pendingDuration <= 10 && !buttonEnabled;
   
   // Show warning if button was force-enabled
-  const showTimeoutWarning = isPending && pendingDuration > 15;
+  const showTimeoutWarning = isPending && pendingDuration > 10;
+  
+  // Recovery function if the app seems stuck
+  const recoverFromStuckState = () => {
+    console.log('Attempting to recover from stuck state');
+    setErrorOccurred(true);
+    setButtonEnabled(true);
+    setPendingDuration(0);
+    
+    // Force window refresh if things seem truly stuck
+    if (transactionStatus === TransactionStatus.PENDING && pendingDuration > 20) {
+      window.location.href = '/dashboard/seller';
+    }
+  };
   
   return (
     <div className="sticky bottom-0 bg-white dark:bg-gray-900 p-4 shadow-lg rounded-t-lg border-t z-50">
@@ -80,6 +96,11 @@ export const FormSubmitButton = ({
           // Log when button is clicked
           console.log('Submit button clicked, disabled state:', isDisabled);
           console.log('Current transaction status:', transactionStatus);
+          
+          // If the button has been pending for too long, try to recover
+          if (pendingDuration > 15) {
+            recoverFromStuckState();
+          }
         }}
       >
         {isPending ? (
@@ -105,7 +126,7 @@ export const FormSubmitButton = ({
       
       {showTimeoutWarning && (
         <div className="mt-2 text-amber-500 text-sm text-center">
-          Submission is taking longer than expected. You can try again if needed.
+          Submission is taking longer than expected. You can try again or check your dashboard to see if your listing was created.
         </div>
       )}
       
@@ -123,6 +144,20 @@ export const FormSubmitButton = ({
             successText="Submission successful!"
             errorText="Submission failed"
           />
+        </div>
+      )}
+      
+      {pendingDuration > 15 && (
+        <div className="mt-2 flex justify-center">
+          <Button 
+            variant="outline" 
+            className="mt-2 text-sm"
+            onClick={() => {
+              window.location.href = '/dashboard/seller';
+            }}
+          >
+            Go to Dashboard
+          </Button>
         </div>
       )}
     </div>

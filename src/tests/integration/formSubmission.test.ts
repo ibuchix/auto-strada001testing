@@ -59,7 +59,7 @@ describe('Form Submission Integration Tests', () => {
     }));
     
     // Expect the validation to pass with no issues
-    // Use a simple object as the third parameter instead of expect.anything()
+    // Use a simple empty object as the third parameter
     expect(mockValidation).toHaveBeenCalledWith(transformedData, 'cars', {});
   });
   

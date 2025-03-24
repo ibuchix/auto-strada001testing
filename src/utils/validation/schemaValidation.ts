@@ -4,6 +4,7 @@
  * - 2025-06-10: Created schema validation utility to compare form fields with database columns
  * - 2025-06-12: Fixed issue with RPC function type checking
  * - 2025-06-15: Added proper type assertion for RPC function call
+ * - 2025-07-21: Fixed TypeScript error with RPC function name casting
  */
 
 import { supabase } from "@/integrations/supabase/client";
