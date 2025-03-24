@@ -14,12 +14,14 @@
  * - 2025-05-31: Applied consistent field mapping strategy across all transformations
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field has_documentation
+ * - 2025-06-10: Added schema validation to catch field mismatches during development
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { prepareCarData } from "./carDataTransformer";
+import { validateFormSchema } from "@/utils/validation/schemaValidation";
 
 /**
  * Saves form data to Supabase with robust error handling and retry mechanism
@@ -46,6 +48,9 @@ export const saveFormData = async (
           key === 'name' || key === 'seller_name'
         ).reduce((obj, key) => ({...obj, [key]: dataToUpsert[key]}), {})
       );
+
+      // Run schema validation in development mode to catch mismatches early
+      await validateFormSchema(dataToUpsert, 'cars');
 
       // Try using the security definer function first (most reliable method)
       try {

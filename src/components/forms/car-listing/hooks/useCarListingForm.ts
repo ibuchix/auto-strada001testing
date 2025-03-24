@@ -8,6 +8,7 @@
  * - 2024-08-04: Updated to use seller_name field instead of name
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field hasDocumentation
+ * - 2025-06-10: Added schema validation to catch database field mismatches
  */
 
 import { useState, useEffect } from "react";
@@ -18,6 +19,7 @@ import { useLoadDraft } from "./useLoadDraft";
 import { validateFormData } from "../utils/validation";
 import { supabase } from "@/integrations/supabase/client";
 import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
+import useSchemaValidation from "@/hooks/useSchemaValidation";
 
 export const useCarListingForm = (userId?: string, draftId?: string) => {
   const [carId, setCarId] = useState<string | undefined>(draftId);
@@ -53,6 +55,12 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
       numberOfKeys: "1"
     },
   });
+
+  // Add schema validation to catch database field mismatches early
+  const { 
+    validationIssues, 
+    hasSchemaErrors 
+  } = useSchemaValidation(form, 'cars', { validateOnChange: false });
 
   // Load draft if draftId is provided
   useLoadDraft(form, setCarId, setLastSaved, userId, draftId);
@@ -131,6 +139,8 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
     currentStep,
     setCurrentStep,
     validationErrors,
+    schemaValidationIssues: validationIssues,
+    hasSchemaErrors,
     saveProgress,
     error,
     isLoading

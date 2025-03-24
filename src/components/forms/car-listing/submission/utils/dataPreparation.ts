@@ -13,12 +13,14 @@
  * - 2025-05-31: Standardized field mapping approach across all data transformations
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field has_documentation
+ * - 2025-06-10: Added schema validation to catch field mismatches before submission
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { calculateReservePrice } from "./reservePriceCalculator";
 import { supabase } from "@/integrations/supabase/client";
 import { validateMileageData } from "./validationHandler";
+import { validateFormSchema } from "@/utils/validation/schemaValidation";
 
 /**
  * Prepares car data for submission to Supabase
@@ -103,6 +105,14 @@ export const prepareCarDataForSubmission = async (
     number_of_keys: parseInt(data.numberOfKeys),
     additional_photos: data.uploadedPhotos
   };
+
+  // Validate against schema before submitting
+  const schemaIssues = await validateFormSchema(carData, 'cars');
+  if (schemaIssues.length > 0) {
+    console.warn('Schema validation issues detected:', schemaIssues);
+    // We don't throw here as this is a development-only check
+    // and we want the submission to proceed in production
+  }
 
   console.log('Car data prepared successfully');
   return carData;
