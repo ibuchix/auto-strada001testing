@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2025-06-02: Removed references to non-existent field has_documentation 
+ */
+
 import { Json } from "@/integrations/supabase/types";
 
 export interface CarFeatures {
