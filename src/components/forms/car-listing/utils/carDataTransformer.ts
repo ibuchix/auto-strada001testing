@@ -10,7 +10,7 @@
  * - 2024-08-04: Fixed "name" column issue by using seller_name field instead
  * - 2025-05-30: Enhanced field mapping to include both name and seller_name fields
  *   for backward compatibility with the security definer function
- * - 2025-05-31: Standardized field mapping approach across all transforms
+ * - 2025-05-31: Standardized field mapping approach across all transformations
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  */
 
