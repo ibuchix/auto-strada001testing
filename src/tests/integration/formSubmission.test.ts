@@ -59,7 +59,8 @@ describe('Form Submission Integration Tests', () => {
     }));
     
     // Expect the validation to pass with no issues
-    expect(mockValidation).toHaveBeenCalledWith(transformedData, 'cars', expect.anything());
+    // Use a simple object as the third parameter instead of expect.anything()
+    expect(mockValidation).toHaveBeenCalledWith(transformedData, 'cars', {});
   });
   
   test('Form submission should handle database field mapping correctly', () => {

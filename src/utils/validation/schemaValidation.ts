@@ -33,8 +33,8 @@ export const getTableSchema = async (tableName: string): Promise<ColumnDefinitio
     // Use type assertion with any to bypass TypeScript's strict checking of RPC function names
     // This is necessary because the RPC function was added in a migration but TypeScript
     // doesn't know about it yet
-    const { data, error } = await (supabase
-      .rpc('get_table_columns', { table_name: tableName }) as any)
+    const { data, error } = await supabase
+      .rpc('get_table_columns' as any, { table_name: tableName })
       .select('column_name, data_type, is_nullable');
 
     if (error) {
