@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-08-20: Enhanced form validation with standardized approach
  * - 2024-08-22: Added ValidationError type export to fix type errors in RequirementsDisplay.tsx
+ * - 2025-06-02: Removed validation for non-existent has_documentation field
  */
 
 import { CarListingFormData } from "@/types/forms";

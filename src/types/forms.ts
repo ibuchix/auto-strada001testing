@@ -1,3 +1,4 @@
+
 import { Json } from "@/integrations/supabase/types";
 
 export interface CarFeatures {
@@ -24,7 +25,6 @@ export interface CarListingFormData {
   features?: CarFeatures;
   isDamaged?: boolean;
   isRegisteredInPoland?: boolean;
-  hasDocumentation?: boolean;
   isSellingOnBehalf?: boolean;
   hasPrivatePlate?: boolean;
   financeAmount?: string;

@@ -13,6 +13,7 @@
  * - 2024-08-04: Fixed "name" column issue by using seller_name instead
  * - 2025-05-31: Standardized field naming approach by providing both name and seller_name
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
+ * - 2025-06-02: Removed references to non-existent field has_documentation
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
@@ -64,7 +65,6 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     features: formData.features as unknown as Json,
     is_damaged: formData.isDamaged,
     is_registered_in_poland: formData.isRegisteredInPoland,
-    has_documentation: formData.hasDocumentation,
     is_selling_on_behalf: formData.isSellingOnBehalf,
     has_private_plate: formData.hasPrivatePlate,
     finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
@@ -106,7 +106,6 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
     features: dbData.features ? { ...defaultCarFeatures, ...dbData.features as Record<string, boolean> } : defaultCarFeatures,
     isDamaged: dbData.is_damaged || false,
     isRegisteredInPoland: dbData.is_registered_in_poland || false,
-    hasDocumentation: dbData.has_documentation || false,
     isSellingOnBehalf: dbData.is_selling_on_behalf || false,
     hasPrivatePlate: dbData.has_private_plate || false,
     financeAmount: dbData.finance_amount?.toString() || "",

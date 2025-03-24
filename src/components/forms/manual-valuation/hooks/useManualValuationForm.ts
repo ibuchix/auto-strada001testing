@@ -8,6 +8,7 @@
  * - 2024-08-05: Added admin notification functionality when a manual valuation is submitted
  * - 2024-08-05: Updated to use seller_name instead of name to match database schema
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
+ * - 2025-06-02: Removed references to non-existent field has_documentation
  */
 
 import { useForm } from "react-hook-form";
@@ -37,7 +38,6 @@ export const useManualValuationForm = () => {
       },
       isDamaged: false,
       isRegisteredInPoland: false,
-      hasDocumentation: false,
       isSellingOnBehalf: false,
       hasPrivatePlate: false,
       financeAmount: "",
@@ -80,7 +80,6 @@ export const useManualValuationForm = () => {
           is_registered_in_poland: data.isRegisteredInPoland,
           seat_material: data.seatMaterial,
           number_of_keys: parseInt(data.numberOfKeys),
-          has_documentation: data.hasDocumentation,
           is_selling_on_behalf: data.isSellingOnBehalf,
           has_private_plate: data.hasPrivatePlate,
           finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,

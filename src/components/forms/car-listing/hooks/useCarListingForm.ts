@@ -7,6 +7,7 @@
  * - 2024-08-20: Integrated standardized error handling
  * - 2024-08-04: Updated to use seller_name field instead of name
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
+ * - 2025-06-02: Removed references to non-existent field hasDocumentation
  */
 
 import { useState, useEffect } from "react";
@@ -41,7 +42,6 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
       isDamaged: false,
       damageReports: [],
       isRegisteredInPoland: false,
-      hasDocumentation: false,
       isSellingOnBehalf: false,
       hasPrivatePlate: false,
       financeAmount: "",
@@ -96,7 +96,6 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
           features: formData.features,
           is_damaged: formData.isDamaged,
           is_registered_in_poland: formData.isRegisteredInPoland,
-          has_documentation: formData.hasDocumentation,
           is_selling_on_behalf: formData.isSellingOnBehalf,
           has_private_plate: formData.hasPrivatePlate,
           finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,

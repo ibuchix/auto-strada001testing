@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
+ * - 2025-06-02: Removed references to non-existent field hasDocumentation
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
@@ -13,7 +14,6 @@ export const getFormDefaults = (): Partial<CarListingFormData> => ({
   features: defaultCarFeatures,
   isDamaged: false,
   isRegisteredInPoland: false,
-  hasDocumentation: false,
   isSellingOnBehalf: false,
   hasPrivatePlate: false,
   financeDocument: null,

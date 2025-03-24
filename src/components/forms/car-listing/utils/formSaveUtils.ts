@@ -14,6 +14,7 @@
  *   for maximum compatibility with the security definer function
  * - 2025-05-31: Applied consistent field mapping strategy across all transformations
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
+ * - 2025-06-02: Removed references to non-existent field has_documentation
  */
 
 import { CarListingFormData } from "@/types/forms";
