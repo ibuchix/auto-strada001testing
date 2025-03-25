@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2027-07-25: Updated props to match expected usage in FormContent.tsx
+ */
+
 import { Button } from "@/components/ui/button";
 import { FormSubmitButton } from "./FormSubmitButton";
 import { TransactionStatus } from "@/services/supabase/transactionService";

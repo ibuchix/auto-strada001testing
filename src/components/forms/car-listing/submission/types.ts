@@ -1,28 +1,33 @@
 
+/**
+ * Changes made:
+ * - 2027-07-25: Updated FormSubmissionContextType to match implementation
+ */
+
+import { Dispatch, ReactNode, SetStateAction } from "react";
 import { CarListingFormData } from "@/types/forms";
 import { TransactionStatus } from "@/services/supabase/transactionService";
-import { ReactNode } from "react";
-
-export type SubmissionErrorType = {
-  message: string;
-  description: string;
-  action?: {
-    label: string;
-    onClick: () => void;
-  };
-};
 
 export interface FormSubmissionContextType {
   submitting: boolean;
-  error: any;
+  error: string | null;
   transactionStatus: TransactionStatus | null;
   showSuccessDialog: boolean;
-  setShowSuccessDialog: (show: boolean) => void;
+  setShowSuccessDialog: Dispatch<SetStateAction<boolean>>;
   handleSubmit: (data: CarListingFormData, carId?: string) => Promise<any>;
-  resetTransaction?: () => void;  // Added reset functionality
+  resetTransaction: () => void;
 }
 
 export interface FormSubmissionProviderProps {
   children: ReactNode;
   userId?: string;
 }
+
+export type SubmissionErrorType = {
+  message: string;
+  description?: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+};

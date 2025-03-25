@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-08-08: Updated FormProgress to show multi-step indicators
+ * - 2027-07-25: Updated props to match expected usage in FormContent.tsx
  */
 
 import { Progress } from "@/components/ui/progress";
@@ -12,6 +13,7 @@ interface FormProgressProps {
   steps?: Array<{
     id: string;
     title: string;
+    sections: string[];
   }>;
   currentStep?: number;
   onStepClick?: (step: number) => void;

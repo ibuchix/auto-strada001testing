@@ -2,12 +2,13 @@
 /**
  * Changes made:
  * - 2027-07-24: Added support for diagnosticId prop for improved debugging
+ * - 2027-07-25: Fixed TypeScript errors with property names and component props
  */
 
 import { Session } from "@supabase/supabase-js";
 import { useState } from "react";
 import { SuccessDialog } from "./SuccessDialog";
-import { useFormSubmission } from "./submission/useFormSubmission";
+import { useFormSubmissionContext } from "./submission/FormSubmissionProvider";
 import { FormSections } from "./FormSections";
 import { FormProgress } from "./FormProgress";
 import { LastSaved } from "./LastSaved";
@@ -39,12 +40,14 @@ export const FormContent = ({
   } = useCarListingForm(session.user.id, draftId);
 
   const { 
-    isSubmitting, 
-    handleSubmitForm,
-    isSuccess,
-    submissionError,
-    resetSubmissionState
-  } = useFormSubmission();
+    submitting, 
+    handleSubmit,
+    showSuccessDialog,
+    setShowSuccessDialog,
+    error: submissionError,
+    transactionStatus,
+    resetTransaction
+  } = useFormSubmissionContext();
 
   const [isSubmitRequested, setIsSubmitRequested] = useState(false);
 
@@ -76,26 +79,29 @@ export const FormContent = ({
       return;
     }
     
-    await handleSubmitForm(carId, form);
+    await handleSubmit(form.getValues(), carId);
   };
+
+  // Calculate progress percentage based on current step
+  const progressPercentage = Math.round((currentStep + 1) / formSteps.length * 100);
 
   return (
     <div className="form-container">
       <FormProgress 
-        currentStep={currentStep} 
-        totalSteps={formSteps.length} 
+        progress={progressPercentage} 
+        steps={formSteps}
+        currentStep={currentStep}
+        onStepClick={setCurrentStep}
       />
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold">
           {formSteps[currentStep]?.title}
         </h2>
-        <LastSaved lastSaved={lastSaved} />
+        <LastSaved timestamp={lastSaved} />
       </div>
       
       <RequirementsDisplay 
-        currentStep={currentStep}
-        isSubmitRequested={isSubmitRequested}
-        validationErrors={validationErrors}
+        errors={validationErrors}
       />
       
       <FormSections
@@ -111,16 +117,17 @@ export const FormContent = ({
         totalSteps={formSteps.length}
         onPrevious={() => setCurrentStep(Math.max(0, currentStep - 1))}
         onNext={() => setCurrentStep(Math.min(formSteps.length - 1, currentStep + 1))}
-        onSave={saveProgress}
         onSubmit={handleSubmitClick}
-        isSubmitting={isSubmitting}
+        isSubmitting={submitting}
         isLastStep={currentStep === formSteps.length - 1}
+        transactionStatus={transactionStatus}
+        forceEnable={false}
       />
       
-      {isSuccess && (
+      {showSuccessDialog && (
         <SuccessDialog 
-          onClose={resetSubmissionState} 
-          error={submissionError} 
+          open={showSuccessDialog}
+          onOpenChange={setShowSuccessDialog}
         />
       )}
     </div>

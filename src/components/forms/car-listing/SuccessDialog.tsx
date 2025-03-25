@@ -1,3 +1,9 @@
+
+/**
+ * Changes made:
+ * - 2027-07-25: Updated props to match expected usage in FormContent.tsx
+ */
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";

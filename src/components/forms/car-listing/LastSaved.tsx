@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2027-07-25: Updated props to use timestamp instead of lastSaved to fix TypeScript errors
+ */
+
 import { formatDistanceToNow } from 'date-fns';
 
 interface LastSavedProps {

@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2027-07-25: Updated component props to fix TypeScript errors
+ */
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { ValidationError } from "./utils/validation";
