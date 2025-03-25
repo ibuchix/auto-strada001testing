@@ -6,6 +6,7 @@
  * - 2027-06-22: Added fallback navigation with timeout for maximum reliability
  * - 2027-06-22: Fixed issues with navigation being blocked by WebSocket disconnection
  * - 2027-07-15: Added guaranteed navigation with improved error handling
+ * - 2027-07-20: Fixed immediate loading feedback and direct URL navigation support
  */
 
 import { useState } from "react";
@@ -38,7 +39,7 @@ export const useValuationResultNavigation = () => {
       connectionStatus: isConnected ? 'connected' : 'disconnected'
     });
     
-    // Pre-store data in localStorage as a safety measure
+    // Store data in localStorage as a safety measure
     try {
       localStorage.setItem("valuationData", JSON.stringify(navigationData));
       localStorage.setItem("navigationRecentAttempt", new Date().toISOString());
@@ -61,54 +62,32 @@ export const useValuationResultNavigation = () => {
     }
   };
   
-  // Enhanced continue handler with multiple fallback mechanisms and detailed logging
+  // Enhanced continue handler - now with immediate loading state
   const handleContinueClick = (normalizedResult: ValuationData) => {
     console.log('ValuationResult - handleContinueClick triggered');
-    setNavigationAttempts(prev => prev + 1);
+    
+    // Immediately set loading state for UI feedback
     setIsLoading(true);
+    setNavigationAttempts(prev => prev + 1);
     
     const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
     
     // Store all necessary navigation data
     const navigationData = prepareNavigationData(normalizedResult, mileage);
     
-    // IMPORTANT: Setup guaranteed fallback navigation that will execute if normal navigation fails
-    const fallbackTimeoutId = setTimeout(() => {
-      console.log('ValuationResult - Fallback navigation triggered after timeout');
-      try {
-        // Verify if we're still on the same page before forcing navigation
-        if (document.querySelector('#list-car-button')) {
-          // Force direct navigation as last resort
-          console.log('ValuationResult - Using direct URL navigation fallback');
-          window.location.href = isLoggedIn 
-            ? '/sell-my-car?fallback=emergency' 
-            : '/auth?from=valuation&fallback=emergency';
-        } else {
-          console.log('ValuationResult - Page already changed, canceling fallback');
-        }
-      } catch (e) {
-        console.error('ValuationResult - Fallback navigation failed:', e);
-      }
-    }, 1000); // Give the normal navigation 1 second to work
+    // IMPORTANT: The ContinueButton component now handles direct URL navigation
+    // This function primarily prepares the data needed for navigation
+    try {
+      // Call the navigation handler from useValuationNavigation
+      // Note: Button component will provide a direct URL fallback
+      handleContinue(navigationData, navigationData.mileage);
+      console.log('ValuationResult - handleContinue called successfully');
+    } catch (navError) {
+      console.error('ValuationResult - Error during handleContinue:', navError);
+      // Error will be handled by the ContinueButton's direct URL navigation
+    }
     
-    // Pre-create the navigation function to execute
-    const executeNavigation = () => {
-      console.log('ValuationResult - Executing navigation with stored data');
-      try {
-        // Attempt to use the handleContinue function from useValuationNavigation
-        handleContinue(navigationData, navigationData.mileage);
-        console.log('ValuationResult - handleContinue called successfully');
-      } catch (navError) {
-        console.error('ValuationResult - Error during handleContinue:', navError);
-        // Error will be handled by the fallback timeout
-      }
-    };
-    
-    // Don't wait for WebSocket operations - execute navigation immediately
-    executeNavigation();
-    
-    // Return the fallback timeout ID so it can be cleared if needed
-    return fallbackTimeoutId;
+    // No need to return anything since ContinueButton handles navigation
   };
 
   // Handle retry attempts for valuation
@@ -116,13 +95,11 @@ export const useValuationResultNavigation = () => {
     console.log('ValuationResult - handleRetry triggered');
     setIsLoading(true);
     
-    // Show toast to inform user
     toast.info("Retrying valuation...", {
       id: "valuation-retry",
       duration: 2000
     });
     
-    // Call the onRetry prop if provided
     if (onRetry) {
       try {
         onRetry();
@@ -132,7 +109,6 @@ export const useValuationResultNavigation = () => {
         toast.error('Failed to retry valuation');
       }
     } else {
-      // If no retry function provided, just reset loading state
       setTimeout(() => setIsLoading(false), 500);
     }
   };
