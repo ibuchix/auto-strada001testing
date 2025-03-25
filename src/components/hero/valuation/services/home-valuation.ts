@@ -4,6 +4,7 @@
  * - 2024-07-25: Extracted home valuation from valuationService.ts
  * - 2025-09-18: Added additional error handling and recovery mechanisms
  * - 2025-10-18: Fixed TypeScript type safety with TransmissionType
+ * - 2025-10-20: Fixed reserve price calculation and display
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +60,7 @@ export async function processHomeValuation(
     const endTime = Date.now();
     
     console.log(`API response time: ${endTime - startTime}ms`);
+    console.log('Raw API response:', data);
     
     if (error) {
       console.error('Valuation API error:', error);
@@ -78,7 +80,15 @@ export async function processHomeValuation(
     }
     
     // Successfully retrieved valuation data
-    console.log('Valuation data successfully retrieved');
+    console.log('Valuation data successfully retrieved:', data.data);
+    
+    // Ensure valuation/reserve price is available
+    if (data.data && !data.data.valuation && data.data.reservePrice) {
+      data.data.valuation = data.data.reservePrice;
+    } else if (data.data && !data.data.valuation && data.data.basePrice) {
+      // Calculate reserve price from base price if available
+      data.data.valuation = calculateReservePrice(data.data.basePrice);
+    }
     
     // Store in cache for future use
     try {
@@ -119,4 +129,49 @@ export async function processHomeValuation(
       }
     };
   }
+}
+
+/**
+ * Calculate reserve price based on the pricing tiers
+ */
+function calculateReservePrice(basePrice: number): number {
+  let percentage = 0;
+  
+  // Determine percentage based on base price tiers
+  if (basePrice <= 15000) {
+    percentage = 0.65;
+  } else if (basePrice <= 20000) {
+    percentage = 0.46;
+  } else if (basePrice <= 30000) {
+    percentage = 0.37;
+  } else if (basePrice <= 50000) {
+    percentage = 0.27;
+  } else if (basePrice <= 60000) {
+    percentage = 0.27;
+  } else if (basePrice <= 70000) {
+    percentage = 0.22;
+  } else if (basePrice <= 80000) {
+    percentage = 0.23;
+  } else if (basePrice <= 100000) {
+    percentage = 0.24;
+  } else if (basePrice <= 130000) {
+    percentage = 0.20;
+  } else if (basePrice <= 160000) {
+    percentage = 0.185;
+  } else if (basePrice <= 200000) {
+    percentage = 0.22;
+  } else if (basePrice <= 250000) {
+    percentage = 0.17;
+  } else if (basePrice <= 300000) {
+    percentage = 0.18;
+  } else if (basePrice <= 400000) {
+    percentage = 0.18;
+  } else if (basePrice <= 500000) {
+    percentage = 0.16;
+  } else {
+    percentage = 0.145; // 500,001+ PLN
+  }
+  
+  // Calculate reserve price using the formula: basePrice - (basePrice * percentage)
+  return Math.round(basePrice - (basePrice * percentage));
 }

@@ -15,6 +15,7 @@
  * - 2025-07-08: Updated onContinue type to handle argument-less function calls
  * - 2025-07-09: Removed component unmount check that was blocking navigation
  * - 2024-08-02: Removed average price from ValuationDisplay to prevent sellers from seeing it
+ * - 2025-10-20: Fixed reserve price handling and added more debugging
  */
 
 import { 
@@ -59,13 +60,14 @@ export const ValuationContent = ({
   // Log component mount with key props
   useEffect(() => {
     console.log('ValuationContent mounted with data:', {
-      make, model, year, hasValuation, isLoggedIn
+      make, model, year, hasValuation, isLoggedIn,
+      reservePrice, averagePrice
     });
     
     return () => {
       console.log('ValuationContent unmounted');
     };
-  }, [make, model, year, hasValuation, isLoggedIn]);
+  }, [make, model, year, hasValuation, isLoggedIn, reservePrice, averagePrice]);
 
   // Stabilized callback to prevent recreation on each render
   const handleContinueClick = useCallback(() => {
@@ -131,7 +133,8 @@ export const ValuationContent = ({
         {hasValuation && (
           <ValuationDisplay 
             reservePrice={reservePrice || 0}
-            // Removed averagePrice prop to prevent displaying it
+            // We still pass averagePrice for debugging but the component won't display it
+            averagePrice={averagePrice}
           />
         )}
       </div>

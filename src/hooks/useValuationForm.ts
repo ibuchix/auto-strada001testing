@@ -6,6 +6,7 @@
  * - 2024-03-19: Integrated with valuation service
  * - 2024-07-20: Enhanced error handling and user feedback
  * - 2024-09-18: Added request timeout and improved error recovery
+ * - 2025-10-20: Fixed form submission and improved debugging
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -62,6 +63,12 @@ export const useValuationForm = () => {
     }, 20000); // 20 second timeout
     
     try {
+      console.log('Calling getValuation with parameters:', {
+        vin: data.vin,
+        mileage: parseInt(data.mileage),
+        gearbox: data.gearbox
+      });
+      
       const result = await getValuation(
         data.vin,
         parseInt(data.mileage),
@@ -82,6 +89,16 @@ export const useValuationForm = () => {
         localStorage.setItem("tempMileage", data.mileage);
         localStorage.setItem("tempVIN", data.vin);
         localStorage.setItem("tempGearbox", data.gearbox);
+
+        // Log the data with price information for debugging
+        console.log('Setting valuation result with data:', {
+          make: result.data.make,
+          model: result.data.model,
+          year: result.data.year,
+          valuation: result.data.valuation,
+          reservePrice: result.data.reservePrice,
+          averagePrice: result.data.averagePrice
+        });
 
         setValuationResult(result.data);
         setShowDialog(true);
@@ -104,6 +121,7 @@ export const useValuationForm = () => {
             description: "Please try again or contact support if the issue persists."
           });
         }
+        setIsLoading(false);
       }
     } catch (error: any) {
       console.error("Valuation error:", error);
@@ -134,7 +152,10 @@ export const useValuationForm = () => {
           description: "Please check your connection and try again."
         });
       }
+      setIsLoading(false);
     } finally {
+      // Make sure isLoading is set to false in all cases
+      // This might be redundant with the above setIsLoading calls but ensures it's always reset
       setIsLoading(false);
     }
   };

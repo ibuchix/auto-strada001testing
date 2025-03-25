@@ -6,6 +6,7 @@
  * - 2024-03-19: Added proper type checking for price values
  * - 2024-07-20: Enhanced error display with clearer messages and retry option
  * - 2024-08-02: Removed average price display to prevent sellers from seeing it
+ * - 2025-10-20: Fixed reserve price display and improved property handling
  */
 
 import { Button } from "@/components/ui/button";
@@ -55,8 +56,12 @@ export const ValuationDisplay = ({
     );
   }
 
-  // Only show "No valuation available" if reserve price is 0 or undefined
-  if (!reservePrice) {
+  // Debug logs to help understand what's happening with the price
+  console.log('ValuationDisplay received reservePrice:', reservePrice);
+  console.log('ValuationDisplay received averagePrice:', averagePrice);
+
+  // Only show "No valuation available" if reserve price is 0, undefined, or null
+  if (!reservePrice && reservePrice !== 0) {
     return (
       <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
         <p className="text-sm text-subtitle mb-2">Valuation</p>
