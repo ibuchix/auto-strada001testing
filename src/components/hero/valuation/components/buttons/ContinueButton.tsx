@@ -1,25 +1,14 @@
 
 /**
  * Changes made:
- * - 2025-07-04: Created dedicated component for the continue button with enhanced click handling
- * - 2025-07-05: Fixed button click propagation issues that prevented listing process
- * - 2025-07-05: Added additional debugging and event capturing for maximum reliability
- * - 2025-07-06: Fixed React ref warning and improved click handling
- * - 2025-07-07: Completely refactored click handling to guarantee navigation regardless of cache errors
- * - 2025-07-08: Updated click handler to ensure it works properly with type-safe callbacks
- * - 2025-07-09: Simplified click handling to avoid complex event handling that might be blocking navigation
- * - 2025-07-10: Added WebSocket error resilience to ensure button always works
- * - 2027-06-08: Added comprehensive debugging with multiple fallbacks and visual feedback
- * - 2027-06-15: Enhanced debugging with more detailed click tracking and performance metrics
- * - 2027-07-01: Fixed TypeScript error by properly declaring the window.navigationPerformance property
- * - 2027-07-15: Enhanced loading state with improved visual feedback and guaranteed navigation
- * - 2027-07-20: Fixed immediate navigation issues and added guaranteed loading spinner
+ * - 2027-07-23: Added diagnostic logging to help troubleshoot navigation issues
  */
 
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { generateDiagnosticId, logDiagnostic, logStorageState } from "@/diagnostics/listingButtonDiagnostics";
 
 // Declare the additional property on Window to fix the TypeScript error
 declare global {
@@ -36,15 +25,23 @@ interface ContinueButtonProps {
 export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => {
   const [isNavigating, setIsNavigating] = useState(false);
   const [clickTimes, setClickTimes] = useState<{start?: number, processing?: number, end?: number}>({});
+  const [diagnosticId, setDiagnosticId] = useState('');
   
   // Reset navigation state when component mounts
   useEffect(() => {
     const buttonId = Math.random().toString(36).substring(2, 8);
-    console.log(`BUTTON DEBUG - ContinueButton mounted with ID: ${buttonId}`, {
+    const newDiagnosticId = generateDiagnosticId();
+    setDiagnosticId(newDiagnosticId);
+    
+    logDiagnostic('BUTTON_MOUNT', 'ContinueButton mounted', {
+      buttonId,
       timestamp: new Date().toISOString(),
       url: window.location.href,
       referrer: document.referrer,
-    });
+      isLoggedIn
+    }, newDiagnosticId);
+    
+    logStorageState(newDiagnosticId, 'button_mount');
     
     localStorage.setItem('buttonMountTime', new Date().toISOString());
     localStorage.setItem('buttonId', buttonId);
@@ -53,14 +50,21 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
     const lastAttempt = localStorage.getItem('lastButtonClickTime');
     if (lastAttempt) {
       const timeSinceLastAttempt = Date.now() - new Date(lastAttempt).getTime();
-      console.log(`BUTTON DEBUG - Previous click attempt detected ${timeSinceLastAttempt}ms ago`);
+      logDiagnostic('BUTTON_MOUNT', 'Previous click attempt detected', {
+        lastAttempt,
+        timeSinceLastAttempt: `${timeSinceLastAttempt}ms`
+      }, newDiagnosticId);
     }
     
     return () => {
-      console.log(`BUTTON DEBUG - ContinueButton with ID ${buttonId} unmounted at ${new Date().toISOString()}`);
+      logDiagnostic('BUTTON_UNMOUNT', `ContinueButton unmounted`, {
+        buttonId,
+        diagnosticId: newDiagnosticId,
+        isNavigating
+      }, newDiagnosticId);
       localStorage.setItem('buttonUnmountTime', new Date().toISOString());
     };
-  }, []);
+  }, [isLoggedIn]);
   
   // Advanced click handler with forced loading state and direct URL navigation
   const handleButtonClick = useCallback(() => {
@@ -70,10 +74,14 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
     const clickStartTime = performance.now();
     const clickId = Math.random().toString(36).substring(2, 10);
     
-    console.log(`BUTTON DEBUG - Button clicked at ${new Date().toISOString()}`, {
+    logDiagnostic('BUTTON_CLICK', 'Button clicked', {
       clickId,
-      elapsedSincePageLoad: performance.now()
-    });
+      isLoggedIn,
+      elapsedSincePageLoad: performance.now(),
+      isNavigating: true
+    }, diagnosticId);
+    
+    logStorageState(diagnosticId, 'button_click');
     
     setClickTimes({start: clickStartTime});
     
@@ -87,38 +95,47 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
       duration: 3000
     });
     
+    // Capture onClick attempt
+    try {
+      logDiagnostic('ONCLICK_ATTEMPT', 'Calling original onClick handler', { clickId }, diagnosticId);
+      onClick();
+      logDiagnostic('ONCLICK_SUCCESS', 'Original onClick handler completed', { clickId }, diagnosticId);
+    } catch (err) {
+      logDiagnostic('ONCLICK_ERROR', 'Error in original onClick handler', { 
+        clickId, 
+        error: err instanceof Error ? err.message : String(err) 
+      }, diagnosticId);
+    }
+    
     // CRITICAL: Use DIRECT URL NAVIGATION instead of React Router
     // This bypasses any potential React Router or state management issues
     setTimeout(() => {
+      logDiagnostic('URL_NAVIGATION', 'Starting direct URL navigation', { 
+        clickId,
+        destination: isLoggedIn ? '/sell-my-car' : '/auth'
+      }, diagnosticId);
+      
       if (isLoggedIn) {
-        window.location.href = "/sell-my-car?from=valuation&clickId=" + clickId;
+        window.location.href = `/sell-my-car?from=valuation&clickId=${clickId}&diagnostic=${diagnosticId}`;
       } else {
-        window.location.href = "/auth?from=valuation&clickId=" + clickId; 
+        window.location.href = `/auth?from=valuation&clickId=${clickId}&diagnostic=${diagnosticId}`; 
       }
-    }, 50); // Small delay to ensure the loading state is shown first
+    }, 100); // Increased timeout to ensure onClick completes first
     
-    // Secondary fallback (500ms) - if the primary navigation somehow fails
+    // Secondary fallback (700ms) - if the primary navigation somehow fails
     setTimeout(() => {
       if (document.querySelector('#list-car-button')) {
-        console.log(`BUTTON DEBUG - Button still visible 500ms after click ${clickId}, using emergency navigation`);
+        logDiagnostic('EMERGENCY_NAVIGATION', 'Button still visible after timeout', { clickId }, diagnosticId);
         
         // Force navigation with special flag
         if (isLoggedIn) {
-          window.location.href = "/sell-my-car?emergency=true&clickId=" + clickId;
+          window.location.href = `/sell-my-car?emergency=true&clickId=${clickId}&diagnostic=${diagnosticId}`;
         } else {
-          window.location.href = "/auth?emergency=true&clickId=" + clickId;
+          window.location.href = `/auth?emergency=true&clickId=${clickId}&diagnostic=${diagnosticId}`;
         }
       }
-    }, 500);
-    
-    // Call the original onClick handler
-    try {
-      onClick();
-    } catch (err) {
-      console.error(`BUTTON DEBUG - Original callback error for click ${clickId}:`, err);
-      // Error in the callback shouldn't prevent navigation since we're using direct URL
-    }
-  }, [onClick, isLoggedIn]);
+    }, 700); // Increased timeout for more reliable fallback
+  }, [onClick, isLoggedIn, diagnosticId]);
 
   return (
     <Button 
@@ -127,6 +144,7 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
       type="button"
       id="list-car-button"
       data-testid="list-car-button"
+      data-diagnostic-id={diagnosticId}
       disabled={isNavigating} // Prevent double clicks
     >
       {isNavigating ? (

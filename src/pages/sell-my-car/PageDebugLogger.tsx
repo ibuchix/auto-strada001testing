@@ -1,12 +1,15 @@
+
 /**
  * Changes made:
  * - 2027-07-22: Extracted from SellMyCar.tsx as part of component refactoring
  * - 2027-07-22: Enhanced with better logging organization
  * - 2027-07-23: Fixed TypeScript error with errorType union type
+ * - 2027-07-23: Integrated with diagnostic system for better troubleshooting
  */
 
 import { useEffect } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
+import { logDiagnostic } from "@/diagnostics/listingButtonDiagnostics";
 
 interface PageDebugLoggerProps {
   isValid: boolean;
@@ -20,6 +23,7 @@ interface PageDebugLoggerProps {
     renderCount: number;
   };
   setPageLoadState: (state: any) => void;
+  diagnosticId?: string;
 }
 
 export const PageDebugLogger = ({
@@ -28,10 +32,12 @@ export const PageDebugLogger = ({
   error,
   errorType,
   pageLoadState,
-  setPageLoadState
+  setPageLoadState,
+  diagnosticId
 }: PageDebugLoggerProps) => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const sessionDiagnosticId = diagnosticId || searchParams.get('diagnostic') || pageLoadState.pageId;
 
   useEffect(() => {
     setPageLoadState(prev => ({
@@ -48,46 +54,51 @@ export const PageDebugLogger = ({
     const emergencyUsed = searchParams.get('emergency') === 'true';
     const fromSource = searchParams.get('from') || (location.state?.fromValuation ? 'valuation_state' : 'unknown');
     
-    console.log(`SellMyCar[${pageId}] - ${isInitialLoad ? 'Initial load' : 'Re-render'} #${pageLoadState.renderCount}`, { 
-      timestamp: new Date().toISOString(),
-      isValid, 
-      isLoading, 
-      hasError: !!error,
-      errorType,
-      
-      // Navigation tracking
-      navId,
-      fallbackUsed,
-      emergencyUsed,
-      fromSource,
-      
-      // Navigation sources
-      hasLocationState: !!location.state,
-      locationStateKeys: location.state ? Object.keys(location.state) : [],
-      fromValuation: !!location.state?.fromValuation,
-      hasNavigationInProgress: localStorage.getItem('navigationInProgress') === 'true',
-      navigationStartTime: localStorage.getItem('navigationStartTime'),
-      
-      // Performance data
-      performanceNavigation: performance.navigation ? {
-        type: performance.navigation.type,
-        redirectCount: performance.navigation.redirectCount
-      } : 'Not available',
-      performanceNow: performance.now(),
-      
-      // LocalStorage data tracking
-      hasValuationData: !!localStorage.getItem('valuationData'),
-      valuationDataType: localStorage.getItem('valuationData') ? typeof localStorage.getItem('valuationData') : 'null',
-      hasTempVIN: !!localStorage.getItem('tempVIN'),
-      tempVINValue: localStorage.getItem('tempVIN'),
-      hasMileage: !!localStorage.getItem('tempMileage'),
-      tempMileageValue: localStorage.getItem('tempMileage'),
-      
-      // Recent navigation attempts
-      lastNavigationAttempt: localStorage.getItem('lastNavigationAttempt'),
-      navigationAttemptCount: localStorage.getItem('navigationAttemptCount'),
-      navigationAttemptId: localStorage.getItem('navigationAttemptId')
-    });
+    logDiagnostic(
+      'DEBUG_LOGGER', 
+      `${isInitialLoad ? 'Initial load' : 'Re-render'} #${pageLoadState.renderCount}`,
+      { 
+        timestamp: new Date().toISOString(),
+        isValid, 
+        isLoading, 
+        hasError: !!error,
+        errorType,
+        
+        // Navigation tracking
+        navId,
+        fallbackUsed,
+        emergencyUsed,
+        fromSource,
+        
+        // Navigation sources
+        hasLocationState: !!location.state,
+        locationStateKeys: location.state ? Object.keys(location.state) : [],
+        fromValuation: !!location.state?.fromValuation,
+        hasNavigationInProgress: localStorage.getItem('navigationInProgress') === 'true',
+        navigationStartTime: localStorage.getItem('navigationStartTime'),
+        
+        // Performance data
+        performanceNavigation: performance.navigation ? {
+          type: performance.navigation.type,
+          redirectCount: performance.navigation.redirectCount
+        } : 'Not available',
+        performanceNow: performance.now(),
+        
+        // LocalStorage data tracking
+        hasValuationData: !!localStorage.getItem('valuationData'),
+        valuationDataType: localStorage.getItem('valuationData') ? typeof localStorage.getItem('valuationData') : 'null',
+        hasTempVIN: !!localStorage.getItem('tempVIN'),
+        tempVINValue: localStorage.getItem('tempVIN'),
+        hasMileage: !!localStorage.getItem('tempMileage'),
+        tempMileageValue: localStorage.getItem('tempMileage'),
+        
+        // Recent navigation attempts
+        lastNavigationAttempt: localStorage.getItem('lastNavigationAttempt'),
+        navigationAttemptCount: localStorage.getItem('navigationAttemptCount'),
+        navigationAttemptId: localStorage.getItem('navigationAttemptId')
+      },
+      sessionDiagnosticId
+    );
     
     // Record detailed page info in localStorage
     try {
@@ -119,13 +130,13 @@ export const PageDebugLogger = ({
           const endTime = new Date();
           const duration = endTime.getTime() - startTime.getTime();
           
-          console.log(`SellMyCar[${pageId}] - Navigation process completed in ${duration}ms`, {
+          logDiagnostic('NAVIGATION_COMPLETE', `Navigation process completed in ${duration}ms`, {
             startTime: startTime.toISOString(),
             endTime: endTime.toISOString(),
             duration,
             navId,
             source: fromSource
-          });
+          }, sessionDiagnosticId);
           
           localStorage.setItem('navigationCompletionTime', endTime.toISOString());
           localStorage.setItem('navigationDuration', duration.toString());
@@ -138,7 +149,7 @@ export const PageDebugLogger = ({
         }));
       }
     } catch (storageError) {
-      console.error(`SellMyCar[${pageId}] - LocalStorage error:`, storageError);
+      logDiagnostic('STORAGE_ERROR', 'LocalStorage error', storageError, sessionDiagnosticId);
     }
     
     // If this is a direct URL navigation but we have valuation data, show confirmation
@@ -157,12 +168,14 @@ export const PageDebugLogger = ({
     }
     
     return () => {
-      console.log(`SellMyCar[${pageId}] - Page unmounting after ${pageLoadState.renderCount} renders`);
+      logDiagnostic('PAGE_UNMOUNT', `Page unmounting after ${pageLoadState.renderCount} renders`, {
+        diagnosticId: sessionDiagnosticId
+      }, sessionDiagnosticId);
       localStorage.setItem('sellMyCarPageUnloaded', 'true');
       localStorage.setItem('sellMyCarUnloadTime', new Date().toISOString());
       localStorage.setItem('sellMyCarFinalRenderCount', pageLoadState.renderCount.toString());
     };
-  }, [isValid, isLoading, error, errorType, location.state, searchParams, pageLoadState.renderCount, pageLoadState.pageId, pageLoadState.initialLoadComplete, setPageLoadState]);
+  }, [isValid, isLoading, error, errorType, location.state, searchParams, pageLoadState.renderCount, pageLoadState.pageId, pageLoadState.initialLoadComplete, setPageLoadState, sessionDiagnosticId]);
   
   return null; // This is a purely functional component with no UI
 };
