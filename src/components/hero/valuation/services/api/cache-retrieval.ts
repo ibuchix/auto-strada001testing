@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-04-27: Created cache retrieval module extracted from cache-api.ts
+ * - 2026-04-10: Fixed type handling and data normalization
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -58,8 +59,46 @@ export async function getCachedValuation(
     }
 
     console.log('Found valid cache for VIN:', vin, 'created on:', cachedEntry.created_at);
-    // Ensure we return a proper ValuationData object
-    return cachedEntry.valuation_data as ValuationData;
+    
+    // Normalize the cached data to ensure it matches ValuationData interface
+    const cachedData = cachedEntry.valuation_data;
+    if (!cachedData) return null;
+    
+    const normalizedData: Record<string, any> = {};
+    
+    // Handle different data types
+    if (typeof cachedData === 'object' && cachedData !== null) {
+      // Copy all properties
+      Object.keys(cachedData).forEach(key => {
+        normalizedData[key] = cachedData[key];
+      });
+    } else {
+      // Handle primitive values
+      normalizedData.valuation = cachedData;
+    }
+    
+    // Ensure both valuation and reservePrice exist
+    if ('valuation' in normalizedData && !('reservePrice' in normalizedData)) {
+      normalizedData.reservePrice = normalizedData.valuation;
+    } else if ('reservePrice' in normalizedData && !('valuation' in normalizedData)) {
+      normalizedData.valuation = normalizedData.reservePrice;
+    }
+    
+    // Convert numeric string values to actual numbers
+    if (typeof normalizedData.valuation === 'string') {
+      normalizedData.valuation = Number(normalizedData.valuation);
+    }
+    if (typeof normalizedData.reservePrice === 'string') {
+      normalizedData.reservePrice = Number(normalizedData.reservePrice);
+    }
+    if (typeof normalizedData.averagePrice === 'string') {
+      normalizedData.averagePrice = Number(normalizedData.averagePrice);
+    }
+    if (typeof normalizedData.basePrice === 'string') {
+      normalizedData.basePrice = Number(normalizedData.basePrice);
+    }
+    
+    return normalizedData as ValuationData;
   } catch (error) {
     console.error('Unexpected error in getCachedValuation:', error);
     return null;

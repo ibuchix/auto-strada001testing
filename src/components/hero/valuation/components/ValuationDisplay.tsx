@@ -8,6 +8,7 @@
  * - 2024-08-02: Removed average price display to prevent sellers from seeing it
  * - 2025-10-20: Fixed reserve price display and improved property handling
  * - 2024-12-14: Fixed price rendering and added better debugging for valuation issues
+ * - 2026-04-10: Added strict type checking and proper null/undefined handling
  */
 
 import { Button } from "@/components/ui/button";
@@ -32,8 +33,9 @@ export const ValuationDisplay = ({
   // Debug log props on mount
   useEffect(() => {
     console.log('ValuationDisplay mounted with props:', {
-      reservePrice,
-      averagePrice,
+      reservePrice: reservePrice !== undefined ? reservePrice : 'undefined',
+      reservePriceType: reservePrice !== undefined ? typeof reservePrice : 'undefined',
+      averagePrice: averagePrice !== undefined ? averagePrice : 'undefined',
       isLoading,
       hasError: !!error
     });
@@ -69,10 +71,16 @@ export const ValuationDisplay = ({
   }
 
   // Log value for debugging
-  console.log('ValuationDisplay rendering with price:', reservePrice);
+  console.log('ValuationDisplay rendering with price:', 
+    reservePrice !== undefined && reservePrice !== null ? reservePrice : 'undefined/null');
 
   // Show "No valuation available" if reserve price is undefined, null, NaN, or negative
-  if (reservePrice === undefined || reservePrice === null || isNaN(Number(reservePrice)) || Number(reservePrice) < 0) {
+  const hasValidPrice = reservePrice !== undefined && 
+                       reservePrice !== null && 
+                       !isNaN(Number(reservePrice)) && 
+                       Number(reservePrice) >= 0;
+                       
+  if (!hasValidPrice) {
     console.warn('ValuationDisplay received invalid reserve price:', reservePrice);
     return (
       <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">

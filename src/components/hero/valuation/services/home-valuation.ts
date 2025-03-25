@@ -8,10 +8,11 @@
  * - 2024-12-14: Added error resilience, fixed calculateReservePrice, and improved response handling
  * - 2025-12-22: Fixed property naming consistency and improved data handling
  * - 2025-12-23: Fixed TypeScript type issues with property access on dynamic objects
+ * - 2026-04-10: Added strict type checking and proper data normalization
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { ValuationResult, TransmissionType } from "../types";
+import { ValuationResult, TransmissionType, ValuationData } from "../types";
 import { getCachedValuation, storeValuationInCache } from "./api/cache-api";
 
 /**
@@ -137,16 +138,23 @@ export async function processHomeValuation(
         console.log('Direct valuation API response:', directData);
         
         // Prepare the response with normalized fields
-        const responseData: Record<string, any> = { 
-          ...directData.data,
-          vin, 
-          transmission: gearbox 
-        };
+        const responseData: Record<string, any> = {}; 
+        
+        // Copy all properties from API response
+        if (directData.data && typeof directData.data === 'object') {
+          Object.keys(directData.data).forEach(key => {
+            responseData[key] = directData.data[key];
+          });
+        }
+        
+        // Add required fields
+        responseData.vin = vin;
+        responseData.transmission = gearbox;
         
         // Ensure reservePrice is set for consistent property access
-        if (!responseData.reservePrice && responseData.valuation) {
+        if (!('reservePrice' in responseData) && 'valuation' in responseData) {
           responseData.reservePrice = responseData.valuation;
-        } else if (!responseData.valuation && responseData.reservePrice) {
+        } else if (!('valuation' in responseData) && 'reservePrice' in responseData) {
           responseData.valuation = responseData.reservePrice;
         }
         
@@ -218,12 +226,19 @@ export async function processHomeValuation(
     console.log('Valuation data successfully retrieved:', data.data);
     
     // Prepare the response with normalized fields
-    const responseData = { ...data.data, vin, transmission: gearbox };
+    const responseData: Record<string, any> = { vin, transmission: gearbox };
+    
+    // Copy all properties from API response
+    if (data.data && typeof data.data === 'object') {
+      Object.keys(data.data).forEach(key => {
+        responseData[key] = data.data[key];
+      });
+    }
     
     // Ensure consistent property names
-    if (!responseData.reservePrice && responseData.valuation) {
+    if (!('reservePrice' in responseData) && 'valuation' in responseData) {
       responseData.reservePrice = responseData.valuation;
-    } else if (!responseData.valuation && responseData.reservePrice) {
+    } else if (!('valuation' in responseData) && 'reservePrice' in responseData) {
       responseData.valuation = responseData.reservePrice;
     }
     
@@ -233,14 +248,14 @@ export async function processHomeValuation(
       if (responseData.basePrice || responseData.price_min) {
         // If we have basePrice, use it directly
         if (responseData.basePrice) {
-          const calculatedPrice = calculateReservePrice(responseData.basePrice);
+          const calculatedPrice = calculateReservePrice(Number(responseData.basePrice));
           responseData.valuation = calculatedPrice;
           responseData.reservePrice = calculatedPrice;
           console.log('Calculated valuation from basePrice:', calculatedPrice);
         } 
         // Otherwise calculate basePrice from price_min and price_med
         else if (responseData.price_min && responseData.price_med) {
-          const basePrice = (parseFloat(responseData.price_min) + parseFloat(responseData.price_med)) / 2;
+          const basePrice = (parseFloat(String(responseData.price_min)) + parseFloat(String(responseData.price_med))) / 2;
           responseData.basePrice = basePrice;
           const calculatedPrice = calculateReservePrice(basePrice);
           responseData.valuation = calculatedPrice;
@@ -269,7 +284,14 @@ export async function processHomeValuation(
     
     return {
       success: true,
-      data: responseData
+      data: {
+        ...responseData,
+        // Ensure numeric type for numeric values
+        valuation: responseData.valuation ? Number(responseData.valuation) : undefined,
+        reservePrice: responseData.reservePrice ? Number(responseData.reservePrice) : undefined,
+        averagePrice: responseData.averagePrice ? Number(responseData.averagePrice) : undefined,
+        basePrice: responseData.basePrice ? Number(responseData.basePrice) : undefined
+      }
     };
     
   } catch (error: any) {

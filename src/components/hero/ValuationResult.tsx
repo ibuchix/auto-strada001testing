@@ -16,6 +16,7 @@
  * - 2024-08-02: Removed average price from UI to prevent sellers from seeing it
  * - 2025-09-18: Added error recovery for missing or invalid valuation data
  * - 2024-12-14: Fixed handling of valuation result properties and improved resilience
+ * - 2026-04-10: Added proper null/undefined handling and type checking
  */
 
 import { useEffect, useState } from "react";
@@ -63,6 +64,8 @@ export const ValuationResult = ({
       model: valuationResult?.model,
       valuation: valuationResult?.valuation,
       reservePrice: valuationResult?.reservePrice,
+      valuationType: valuationResult?.valuation !== undefined ? typeof valuationResult.valuation : 'undefined',
+      reservePriceType: valuationResult?.reservePrice !== undefined ? typeof valuationResult.reservePrice : 'undefined',
       hasError: !!valuationResult?.error,
       authStatus: isLoggedIn ? 'authenticated' : 'unauthenticated',
       realtimeStatus: isConnected ? 'connected' : 'disconnected'
@@ -94,6 +97,17 @@ export const ValuationResult = ({
       normalized.valuation = normalized.reservePrice;
     }
     
+    // Convert string values to numbers if needed
+    if (typeof normalized.valuation === 'string') {
+      normalized.valuation = Number(normalized.valuation);
+    }
+    if (typeof normalized.reservePrice === 'string') {
+      normalized.reservePrice = Number(normalized.reservePrice);
+    }
+    if (typeof normalized.averagePrice === 'string') {
+      normalized.averagePrice = Number(normalized.averagePrice);
+    }
+    
     return normalized;
   };
   
@@ -123,7 +137,10 @@ export const ValuationResult = ({
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = Boolean(normalizedResult.error || normalizedResult.noData);
-  const hasValuation = !hasError && Boolean(normalizedResult.valuation || normalizedResult.reservePrice);
+  const hasValuation = !hasError && (
+    normalizedResult.valuation !== undefined && normalizedResult.valuation !== null ||
+    normalizedResult.reservePrice !== undefined && normalizedResult.reservePrice !== null
+  );
   
   console.log('ValuationResult - Display values:', {
     valuation: normalizedResult.valuation,

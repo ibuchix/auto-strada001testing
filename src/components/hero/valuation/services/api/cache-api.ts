@@ -5,14 +5,16 @@
  * - 2025-12-22: Fixed data normalization and improved error handling
  * - 2025-12-23: Fixed TypeScript errors with spread operator on non-object types
  * - 2025-12-23: Fixed TypeScript errors with property access on dynamic objects
+ * - 2026-04-10: Added strict type checking and proper data normalization
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { ValuationData } from "../../types";
 
 /**
  * Get cached valuation for VIN
  */
-export async function getCachedValuation(vin: string, mileage: number) {
+export async function getCachedValuation(vin: string, mileage: number): Promise<ValuationData | null> {
   console.log('Checking cache for VIN:', vin);
   
   try {
@@ -27,24 +29,27 @@ export async function getCachedValuation(vin: string, mileage: number) {
       console.log('Cache hit using DB function for VIN:', vin);
       
       // Create a properly typed normalized data object
-      let normalizedData: Record<string, any> = {};
+      const normalizedData: Record<string, any> = {};
       
       // Handle different data types properly
       if (typeof funcData === 'object' && funcData !== null) {
-        normalizedData = { ...funcData };
+        // Copy all properties
+        Object.keys(funcData).forEach(key => {
+          normalizedData[key] = funcData[key];
+        });
       } else {
         // Handle primitive values
-        normalizedData = { valuation: funcData };
+        normalizedData.valuation = funcData;
       }
       
       // Ensure both valuation and reservePrice exist
-      if (normalizedData.valuation !== undefined && normalizedData.reservePrice === undefined) {
+      if ('valuation' in normalizedData && !('reservePrice' in normalizedData)) {
         normalizedData.reservePrice = normalizedData.valuation;
-      } else if (normalizedData.reservePrice !== undefined && normalizedData.valuation === undefined) {
+      } else if ('reservePrice' in normalizedData && !('valuation' in normalizedData)) {
         normalizedData.valuation = normalizedData.reservePrice;
       }
       
-      return normalizedData;
+      return normalizedData as ValuationData;
     }
     
     // Fallback to direct query if function approach failed
@@ -74,25 +79,28 @@ export async function getCachedValuation(vin: string, mileage: number) {
       
       if (daysDifference <= 30) {
         // Create a properly typed normalized data object
-        let normalizedData: Record<string, any> = {};
+        const normalizedData: Record<string, any> = {};
         const valData = data[0].valuation_data;
         
         // Handle different data types properly
         if (typeof valData === 'object' && valData !== null) {
-          normalizedData = { ...valData };
+          // Copy all properties
+          Object.keys(valData).forEach(key => {
+            normalizedData[key] = valData[key];
+          });
         } else {
           // Handle primitive values
-          normalizedData = { valuation: valData };
+          normalizedData.valuation = valData;
         }
         
         // Ensure both valuation and reservePrice exist
-        if (normalizedData.valuation !== undefined && normalizedData.reservePrice === undefined) {
+        if ('valuation' in normalizedData && !('reservePrice' in normalizedData)) {
           normalizedData.reservePrice = normalizedData.valuation;
-        } else if (normalizedData.reservePrice !== undefined && normalizedData.valuation === undefined) {
+        } else if ('reservePrice' in normalizedData && !('valuation' in normalizedData)) {
           normalizedData.valuation = normalizedData.reservePrice;
         }
         
-        return normalizedData;
+        return normalizedData as ValuationData;
       }
       
       console.log('Cache expired for VIN:', vin);
@@ -118,11 +126,15 @@ export async function storeValuationInCache(
   console.log('Attempting to cache valuation data for VIN:', vin);
   
   try {
+    // Ensure we're storing a proper object
+    const normalizedData = typeof data === 'object' && data !== null ? 
+      { ...data } : { valuation: data };
+    
     // First try using the security definer function
     const { error: funcError } = await supabase.rpc('store_vin_valuation_cache', {
       p_vin: vin,
       p_mileage: mileage,
-      p_valuation_data: data
+      p_valuation_data: normalizedData
     });
     
     if (!funcError) {
@@ -138,7 +150,7 @@ export async function storeValuationInCache(
         operation: 'cache_valuation',
         vin,
         mileage,
-        valuation_data: data
+        valuation_data: normalizedData
       }
     });
     

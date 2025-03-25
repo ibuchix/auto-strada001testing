@@ -8,17 +8,18 @@
  * - 2024-03-27: Added explicit string type to ensure compatibility with database
  * - 2024-08-01: Made vin and transmission properties optional for caching purposes
  * - 2025-12-23: Updated ValuationData to include additional properties for better type safety
+ * - 2026-04-10: Fixed property type definitions to support various data formats
  */
 
 // Match the PostgreSQL enum 'car_transmission_type'
 export type TransmissionType = 'manual' | 'automatic';
 
 export interface ValuationData {
-  valuation?: number;
-  reservePrice?: number;
-  price?: number;
-  averagePrice?: number;
-  basePrice?: number;
+  valuation?: number | null;
+  reservePrice?: number | null;
+  price?: number | null;
+  averagePrice?: number | null;
+  basePrice?: number | null;
   make?: string;
   model?: string;
   year?: number;
@@ -28,7 +29,7 @@ export interface ValuationData {
   noData?: boolean;
   vin?: string;  // Made optional for caching purposes
   transmission?: TransmissionType;  // Made optional for caching purposes
-  [key: string]: any;
+  [key: string]: any;  // Allow for additional dynamic properties
 }
 
 export interface ValuationResult {
