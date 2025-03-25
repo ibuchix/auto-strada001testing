@@ -5,9 +5,10 @@
  * - 2024-03-19: Added error handling and success dialog management
  * - 2024-03-19: Integrated with valuation service
  * - 2024-07-20: Enhanced error handling and user feedback
+ * - 2024-09-18: Added request timeout and improved error recovery
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ValuationFormData, valuationFormSchema } from "@/types/validation";
@@ -19,6 +20,7 @@ export const useValuationForm = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [valuationResult, setValuationResult] = useState<any>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const form = useForm<ValuationFormData>({
     resolver: zodResolver(valuationFormSchema),
@@ -29,9 +31,35 @@ export const useValuationForm = () => {
     },
   });
 
+  // Clear any pending timeouts when component unmounts
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   const onSubmit = async (data: ValuationFormData) => {
     console.log('Starting valuation form submission:', data);
+    
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
     setIsLoading(true);
+    
+    // Set a timeout to cancel the operation if it takes too long
+    timeoutRef.current = setTimeout(() => {
+      if (isLoading) {
+        console.log('Valuation request timed out');
+        setIsLoading(false);
+        toast.error("Request timed out", {
+          description: "The valuation request is taking longer than expected. Please try again.",
+        });
+      }
+    }, 20000); // 20 second timeout
     
     try {
       const result = await getValuation(
@@ -41,6 +69,12 @@ export const useValuationForm = () => {
       );
 
       console.log('Valuation result:', result);
+
+      // Clear timeout since we got a response
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
 
       if (result.success) {
         // Store the valuation data in localStorage
@@ -55,24 +89,30 @@ export const useValuationForm = () => {
         // Reset retry count on success
         setRetryCount(0);
       } else {
-        console.error('Valuation failed:', result.data.error);
+        console.error('Valuation failed:', result.data?.error);
         
         // Handle specific error scenarios
-        if (result.data.error?.includes('rate limit') || 
-            result.data.error?.includes('too many requests')) {
+        if (result.data?.error?.includes('rate limit') || 
+            result.data?.error?.includes('too many requests')) {
           toast.error("Too many requests", {
             description: "Please wait a moment before trying again.",
           });
-        } else if (result.data.error === 'Request timed out') {
+        } else if (result.data?.error === 'Request timed out') {
           // Timeout was already handled by the service
         } else {
-          toast.error(result.data.error || "Failed to get vehicle valuation", {
+          toast.error(result.data?.error || "Failed to get vehicle valuation", {
             description: "Please try again or contact support if the issue persists."
           });
         }
       }
     } catch (error: any) {
       console.error("Valuation error:", error);
+      
+      // Clear timeout since we got a response
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
       
       // Increment retry count
       setRetryCount(prev => prev + 1);

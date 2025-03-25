@@ -2,19 +2,11 @@
 /**
  * Changes made:
  * - 2024-07-25: Extracted home valuation from valuationService.ts
- * - 2024-08-01: Added cache support to reduce API calls for identical VINs
- * - 2024-08-02: Fixed type issues when caching valuation data
- * - 2025-04-27: Updated imports for refactored cache-api module
- * - 2025-04-28: Fixed method name mismatches for TypeScript compatibility
- * - 2025-05-15: Refined implementation with improved error handling
- * - 2025-05-16: Fixed import function name to match exported name
- * - 2025-05-17: Fixed function name references to match actual exports
+ * - 2025-09-18: Added additional error handling and recovery mechanisms
  */
 
-import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { ValuationResult, TransmissionType } from "../types";
-import { fetchHomeValuation } from "./api/valuation-api";
-import { hasEssentialData, handleApiError } from "./utils/validation-helpers";
 import { getCachedValuation, storeValuationInCache } from "./api/cache-api";
 
 /**
@@ -28,77 +20,102 @@ export async function processHomeValuation(
   console.log('Processing home page valuation for VIN:', vin);
   
   try {
-    // First check if we have a cached valuation
-    const cachedData = await getCachedValuation(vin, mileage);
+    // Try to get cached valuation first for performance
+    try {
+      const cachedData = await getCachedValuation(vin, mileage);
+      if (cachedData) {
+        console.log('Using cached valuation data for VIN:', vin);
+        return {
+          success: true,
+          data: {
+            ...cachedData,
+            vin,
+            transmission: gearbox as TransmissionType
+          }
+        };
+      }
+    } catch (cacheError) {
+      console.warn('Cache error, continuing with API call:', cacheError);
+      // Continue with API call - don't let cache errors block the flow
+    }
     
-    if (cachedData) {
-      console.log('Using cached valuation data for VIN:', vin);
+    // Get valuation from API
+    console.log('Calling valuation API for VIN:', vin);
+    
+    const startTime = Date.now();
+    const { data, error } = await supabase.functions.invoke('handle-seller-operations', {
+      body: {
+        operation: 'validate_vin',
+        vin,
+        mileage,
+        gearbox,
+        userId: 'anonymous' // For home page context, we use anonymous
+      },
+      headers: {
+        'X-Request-Timeout': '10000' // 10 second timeout on the edge function side
+      }
+    });
+    const endTime = Date.now();
+    
+    console.log(`API response time: ${endTime - startTime}ms`);
+    
+    if (error) {
+      console.error('Valuation API error:', error);
+      throw error;
+    }
+    
+    if (!data.success) {
+      console.error('Validation failed:', data.data?.error);
       return {
-        success: true,
+        success: false,
         data: {
-          ...cachedData,
+          error: data.data?.error || 'Failed to validate VIN',
           vin,
           transmission: gearbox as TransmissionType
         }
       };
     }
     
-    // No cache found, proceed with API call
-    console.log('No cache found, fetching valuation from API for VIN:', vin);
-    const { data, error } = await fetchHomeValuation(vin, mileage, gearbox);
-
-    if (error) {
-      console.error('Valuation error:', error);
-      
-      if (error.message?.includes('rate limit')) {
-        throw new Error('Too many requests. Please wait a moment before trying again.');
+    // Successfully retrieved valuation data
+    console.log('Valuation data successfully retrieved');
+    
+    // Store in cache for future use
+    try {
+      if (data.data && !data.data.isExisting) {
+        await storeValuationInCache(vin, mileage, data.data);
       }
-      
-      throw error;
+    } catch (cacheError) {
+      console.warn('Failed to cache valuation data:', cacheError);
+      // Non-critical, continue with operation
     }
-
-    console.log('Home page valuation raw response:', data);
     
-    // If the API returned an error
-    if (!data.success) {
-      throw new Error(data.error || 'Failed to get vehicle valuation');
-    }
-
-    // Check for essential data
-    if (!hasEssentialData(data?.data)) {
-      console.log('No essential data found for VIN in home context');
-      return {
-        success: true,
-        data: {
-          vin,
-          transmission: gearbox as TransmissionType,
-          noData: true,
-          error: 'No data found for this VIN'
-        }
-      };
-    }
-
-    // Prepare the valuation data with required fields for caching
-    const valuationData = {
-      make: data.data.make,
-      model: data.data.model,
-      year: data.data.year,
-      valuation: data.data.valuation,
-      averagePrice: data.data.averagePrice,
-      isExisting: false,
-      vin,
-      transmission: gearbox as TransmissionType
-    };
-    
-    // Store the result in cache for future use
-    await storeValuationInCache(vin, mileage, valuationData);
-
-    console.log('Returning complete valuation data for home context');
     return {
       success: true,
-      data: valuationData
+      data: {
+        ...data.data,
+        vin,
+        transmission: gearbox as TransmissionType
+      }
     };
+    
   } catch (error: any) {
-    return handleApiError(error, vin, gearbox as TransmissionType);
+    console.error('Home valuation processing error:', error);
+    
+    // Check if this is a timeout or network error
+    const isTimeoutError = error.message?.includes('timeout') || 
+                          error.message?.includes('network') ||
+                          error.code === 'ECONNABORTED' ||
+                          error.code === 'ETIMEDOUT';
+    
+    return {
+      success: false,
+      data: {
+        error: isTimeoutError 
+          ? 'Connection timed out. Please try again later.' 
+          : error.message || 'Failed to get valuation',
+        vin,
+        transmission: gearbox as TransmissionType
+      }
+    };
   }
 }
