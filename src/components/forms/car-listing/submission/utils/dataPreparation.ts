@@ -15,6 +15,7 @@
  * - 2025-06-02: Removed references to non-existent field has_documentation
  * - 2025-06-10: Added schema validation to catch field mismatches before submission
  * - 2025-07-22: Improved error handling and added safeguards for field type mismatches
+ * - 2025-07-24: Enhanced boolean field handling to ensure proper type conversion
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -30,9 +31,10 @@ const safeTypeConversion = (field: string, value: any): any => {
   // Return null for undefined/null values
   if (value === undefined || value === null) return null;
   
-  // Handle special case for boolean fields
+  // Handle special case for boolean fields - ensure proper boolean conversion
   if (field.startsWith('is_') || field.startsWith('has_')) {
-    return Boolean(value);
+    // Convert explicitly to boolean to avoid string/number conversion issues
+    return value === true || value === 'true' || value === 1;
   }
   
   // Handle numeric fields
@@ -108,8 +110,7 @@ export const prepareCarDataForSubmission = async (
     throw new Error('Failed to calculate reserve price. Please try again.');
   }
 
-  // Build the car data object - Include both name and seller_name fields
-  // for maximum compatibility with all database function versions
+  // Build the car data object with explicit type conversion for all fields
   const carData = {
     id: carId,
     seller_id: userId,
@@ -148,7 +149,7 @@ export const prepareCarDataForSubmission = async (
     valuation_data: '[omitted for log clarity]'
   });
 
-  // Validate against schema before submitting
+  // Validate against schema before submitting - only in development
   try {
     const schemaIssues = await validateFormSchema(carData, 'cars');
     if (schemaIssues.length > 0) {

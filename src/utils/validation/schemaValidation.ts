@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2025-06-10: Created schema validation utility to compare form fields with database columns
@@ -6,6 +7,8 @@
  * - 2025-07-21: Fixed TypeScript error with RPC function name casting
  * - 2025-07-22: Updated getTableSchema to handle missing RPC function gracefully
  * - 2025-07-23: Fixed error with status property on PostgrestError type
+ * - 2025-07-24: Implemented RPC function availability caching to prevent repeated failed calls
+ * - 2025-07-24: Added environment-specific validation to avoid validation in production
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -27,34 +30,49 @@ export const typeMapping: Record<string, string[]> = {
   Date: ['timestamp', 'timestamptz', 'date', 'time', 'timetz'],
 };
 
+// Cache for RPC function availability to prevent repeated failed calls
+let rpcFunctionAvailableCache: Record<string, boolean> = {};
+
 /**
  * Get column definitions for a specific table
- * Now with fallback mechanism when the RPC function doesn't exist
+ * With caching of RPC function availability to prevent repeated failed calls
  */
 export const getTableSchema = async (tableName: string): Promise<ColumnDefinition[] | null> => {
+  // Check if we already know the RPC function is unavailable
+  if (rpcFunctionAvailableCache[tableName] === false) {
+    console.log(`Skipping schema validation for "${tableName}" - RPC function previously found unavailable`);
+    return null;
+  }
+
+  // Skip validation in production completely
+  if (!isDevelopment()) {
+    return null;
+  }
+
   try {
     // Use type assertion with any to bypass TypeScript's strict checking of RPC function names
-    // This is necessary because the RPC function was added in a migration but TypeScript
-    // doesn't know about it yet
     const { data, error } = await supabase
       .rpc('get_table_columns' as any, { table_name: tableName })
       .select('column_name, data_type, is_nullable');
 
     if (error) {
       // Check if error is due to missing function (message check instead of status code)
-      // PostgrestError doesn't have a status property, so we need to check the message
       if (error.code === 'PGRST116' || 
           error.message?.includes('function') || 
           error.code === '404') {
         
         console.warn(`The get_table_columns RPC function is not available. Schema validation will be skipped.`);
-        // Return null but don't block the form submission
+        // Cache this result to avoid future calls
+        rpcFunctionAvailableCache[tableName] = false;
         return null;
       }
       
       console.error(`Error fetching schema for ${tableName}:`, error);
       return null;
     }
+
+    // If we got here, the RPC function is available - update cache
+    rpcFunctionAvailableCache[tableName] = true;
 
     return data?.map(col => ({
       name: col.column_name,
@@ -95,6 +113,12 @@ export const validateFormAgainstSchema = async (
   } = {}
 ): Promise<string[]> => {
   const { throwOnError = false, showWarnings = true } = options;
+  
+  // Skip validation in production
+  if (!isDevelopment()) {
+    return [];
+  }
+  
   const schema = await getTableSchema(tableName);
   const issues: string[] = [];
   
@@ -164,7 +188,7 @@ export const isDevelopment = (): boolean => {
 
 /**
  * Safe form validator - only runs in development, returns empty array in production
- * Now more resilient to missing RPC function
+ * Now more resilient to missing RPC function and caches availability
  */
 export const validateFormSchema = async (
   formData: Record<string, any>,
