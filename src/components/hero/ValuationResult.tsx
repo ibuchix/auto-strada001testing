@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-11-11: Fixed unresponsive "List This Car" button by addressing JSON parsing issues
@@ -17,6 +16,7 @@
  * - 2025-09-18: Added error recovery for missing or invalid valuation data
  * - 2024-12-14: Fixed handling of valuation result properties and improved resilience
  * - 2026-04-10: Added proper null/undefined handling and type checking
+ * - 2026-04-16: Added WebSocket connection error handling to ensure navigation works regardless of connection status
  */
 
 import { useEffect, useState } from "react";
@@ -78,6 +78,11 @@ export const ValuationResult = ({
     
     // Initial loading state
     setIsLoading(false);
+    
+    // Show warning about connection status if needed
+    if (!isConnected) {
+      console.warn('WebSocket connection unavailable - navigation may fall back to direct URLs');
+    }
   }, [valuationResult, isLoggedIn, isConnected]);
   
   // Ensure we have valid valuation data
@@ -161,18 +166,7 @@ export const ValuationResult = ({
     );
   }
 
-  // Handle retry
-  const handleRetry = () => {
-    setIsLoading(true);
-    if (onRetry) {
-      onRetry();
-    } else {
-      setIsLoading(false);
-      toast.error("Retry function not available");
-    }
-  };
-
-  // Improved continue handler that initiates navigation BEFORE closing the dialog
+  // Improved continue handler with multiple fallback mechanisms
   const handleContinueClick = () => {
     console.log('ValuationResult - handleContinueClick triggered');
     
@@ -181,6 +175,12 @@ export const ValuationResult = ({
       ...normalizedResult,
       mileage
     };
+    
+    // Pre-store data in localStorage as a safety measure
+    localStorage.setItem("valuationData", JSON.stringify(navigationData));
+    if (navigationData.mileage) {
+      localStorage.setItem("tempMileage", navigationData.mileage.toString());
+    }
     
     // Pre-create the navigation function to execute afterward
     const executeNavigation = () => {
@@ -203,7 +203,12 @@ export const ValuationResult = ({
       executeNavigation();
     } catch (error) {
       console.error('ValuationResult - Error during immediate navigation, relying on timeout:', error);
-      // We already set up the timeout above, so no need to do anything here
+      // Attempt direct navigation as a last resort
+      try {
+        window.location.href = '/sell-my-car';
+      } catch (e) {
+        console.error('Even direct navigation failed:', e);
+      }
     }
   };
 

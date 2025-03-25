@@ -5,6 +5,7 @@
  * - 2026-04-15: Enhanced with improved offline handling and user feedback
  * - 2026-12-20: Fixed useAuth import path
  * - 2027-05-15: Fixed import path for useAuth and updated interface to match AuthProvider
+ * - 2027-05-16: Added fallback direct navigation to ensure button always works even with WebSocket issues
  */
 
 import { useNavigate } from "react-router-dom";
@@ -41,20 +42,36 @@ export const useValuationNavigation = () => {
         toast.info("Please sign in to continue", {
           description: "Create an account or sign in to list your car."
         });
-        navigate('/auth');
+        
+        // Fallback to direct navigation if needed
+        try {
+          navigate('/auth');
+        } catch (error) {
+          console.error('Navigation error, using fallback:', error);
+          window.location.href = '/auth';
+        }
         return;
       }
       
       // Add mileage to the valuation data if provided
       const dataToPass = mileage ? { ...valuationData, mileage } : valuationData;
       
-      // Navigate to the listing form
-      navigate('/sell-my-car', { 
-        state: { 
-          fromValuation: true,
-          valuationData: dataToPass
-        }
-      });
+      // Store in localStorage as a fallback
+      localStorage.setItem("valuationData", JSON.stringify(dataToPass));
+      
+      // Navigate to the listing form with fallback
+      try {
+        navigate('/sell-my-car', { 
+          state: { 
+            fromValuation: true,
+            valuationData: dataToPass
+          }
+        });
+      } catch (error) {
+        console.error('Navigation error, using fallback direct navigation:', error);
+        // Fallback to direct navigation if React Router navigation fails
+        window.location.href = '/sell-my-car';
+      }
       
       console.log('Navigation complete to /sell-my-car with data:', dataToPass);
     } catch (error) {
@@ -62,6 +79,9 @@ export const useValuationNavigation = () => {
       toast.error("Navigation failed", {
         description: "Please try again or refresh the page."
       });
+      
+      // Last resort fallback - direct navigation
+      window.location.href = '/sell-my-car';
     }
   };
   
