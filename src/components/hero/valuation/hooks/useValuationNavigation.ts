@@ -3,10 +3,11 @@
  * Changes made:
  * - 2025-07-07: Created hook for navigation handling extracted from ValuationResult
  * - 2026-04-15: Enhanced with improved offline handling and user feedback
+ * - 2026-12-20: Fixed useAuth import path
  */
 
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/components/AuthProvider";
 import { toast } from "sonner";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 

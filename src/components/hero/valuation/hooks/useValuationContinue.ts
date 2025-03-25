@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-03-19: Created useValuationContinue hook extracted from ValuationResult
+ * - 2026-12-20: Fixed ValuationResultData type definition
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -9,10 +10,12 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
+// Updated type definition to make vin and transmission optional
 interface ValuationResultData {
+  vin?: string;
+  transmission?: string;
   noData?: boolean;
-  vin: string;
-  transmission: string;
+  [key: string]: any;
 }
 
 export const useValuationContinue = () => {
@@ -59,9 +62,17 @@ export const useValuationContinue = () => {
     } else {
       navigate('/sell-my-car');
       localStorage.setItem('valuationData', JSON.stringify(valuationResult));
-      localStorage.setItem('tempVIN', valuationResult.vin);
+      
+      // Store VIN and transmission if available
+      if (valuationResult.vin) {
+        localStorage.setItem('tempVIN', valuationResult.vin);
+      }
+      
       localStorage.setItem('tempMileage', mileage.toString());
-      localStorage.setItem('tempGearbox', valuationResult.transmission);
+      
+      if (valuationResult.transmission) {
+        localStorage.setItem('tempGearbox', valuationResult.transmission);
+      }
     }
   };
 
