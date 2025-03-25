@@ -7,6 +7,7 @@
  * - 2024-07-18: Enhanced VIN reservation handling for more reliability
  * - 2024-07-22: Refactored into smaller modules for better maintainability
  * - 2025-07-04: Further refactored into dedicated service modules
+ * - 2025-12-22: Fixed valuation data processing and property name consistency
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
@@ -49,6 +50,12 @@ export const validateVin = async (
     // Check for existing reservation or vehicle
     const existingCheck = await checkExistingEntities(supabase, vin, userId, mileage, requestId);
     if (existingCheck.isExistingReservation || existingCheck.isExistingVehicle) {
+      logOperation('found_existing_entity', { 
+        requestId, 
+        vin,
+        isReservation: existingCheck.isExistingReservation,
+        isVehicle: existingCheck.isExistingVehicle
+      });
       return {
         success: true,
         data: existingCheck.data
@@ -73,17 +80,56 @@ export const validateVin = async (
       
       // If we have a valid cached valuation, process the result
       if (cachedData.make && cachedData.model && cachedData.year) {
+        // Ensure consistent property names for valuation/reservePrice
+        if (cachedData.valuation !== undefined && cachedData.reservePrice === undefined) {
+          cachedData.reservePrice = cachedData.valuation;
+        } else if (cachedData.reservePrice !== undefined && cachedData.valuation === undefined) {
+          cachedData.valuation = cachedData.reservePrice;
+        }
+        
         return await processValidationResult(supabase, vin, userId, cachedData, mileage, requestId);
       }
     }
 
     // Get valuation from external API
     const data = await fetchExternalValuation(vin, mileage, requestId);
+    logOperation('external_valuation_received', { 
+      requestId, 
+      vin,
+      hasData: !!data,
+      hasPricing: !!(data.price_min || data.price_med || data.price)
+    });
 
     // Calculate base price (average of min and median prices from API)
-    const priceMin = data.price_min || data.price;
-    const priceMed = data.price_med || data.price;
+    const priceMin = data.price_min || data.price || 0;
+    const priceMed = data.price_med || data.price || 0;
+    
+    if (priceMin <= 0 || priceMed <= 0) {
+      logOperation('invalid_pricing_data', { 
+        requestId, 
+        vin,
+        priceMin,
+        priceMed
+      }, 'error');
+      
+      return {
+        success: false,
+        data: {
+          error: 'Could not retrieve valid pricing data for this vehicle',
+          vin,
+          transmission: gearbox
+        }
+      };
+    }
+    
     const basePrice = (priceMin + priceMed) / 2;
+    logOperation('base_price_calculated', { 
+      requestId, 
+      vin,
+      priceMin,
+      priceMed,
+      basePrice
+    });
     
     // Get reserve price
     const reservePrice = await calculateReservePrice(supabase, basePrice, requestId);
@@ -92,8 +138,20 @@ export const validateVin = async (
     const valuationData = {
       ...data,
       reservePrice,
-      basePrice
+      valuation: reservePrice, // Add both property names for consistency
+      basePrice,
+      averagePrice: basePrice
     };
+    
+    logOperation('valuation_data_prepared', { 
+      requestId, 
+      vin,
+      make: data.make,
+      model: data.model,
+      year: data.year,
+      reservePrice,
+      basePrice
+    });
     
     // Process the validation result
     return await processValidationResult(supabase, vin, userId, valuationData, mileage, requestId);

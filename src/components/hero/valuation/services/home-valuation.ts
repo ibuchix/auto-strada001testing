@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-07-25: Extracted home valuation from valuationService.ts
@@ -5,6 +6,7 @@
  * - 2025-10-18: Fixed TypeScript type safety with TransmissionType
  * - 2025-10-20: Fixed reserve price calculation and display
  * - 2024-12-14: Added error resilience, fixed calculateReservePrice, and improved response handling
+ * - 2025-12-22: Fixed property naming consistency and improved data handling
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -72,19 +74,26 @@ export async function processHomeValuation(
     try {
       const cachedData = await getCachedValuation(vin, mileage);
       if (cachedData) {
-        console.log('Using cached valuation data for VIN:', vin);
+        console.log('Using cached valuation data for VIN:', vin, cachedData);
         
         // Ensure valuation/reserve price is available in cached data
-        if (!cachedData.valuation && cachedData.basePrice) {
-          cachedData.valuation = calculateReservePrice(cachedData.basePrice);
-          console.log('Calculated reserve price from cached base price:', cachedData.valuation);
+        const normalizedData = { ...cachedData };
+        
+        if (!normalizedData.valuation && !normalizedData.reservePrice && normalizedData.basePrice) {
+          const calculatedPrice = calculateReservePrice(normalizedData.basePrice);
+          normalizedData.valuation = calculatedPrice;
+          normalizedData.reservePrice = calculatedPrice;
+          console.log('Calculated reserve price from cached base price:', calculatedPrice);
+        } else if (normalizedData.valuation && !normalizedData.reservePrice) {
+          normalizedData.reservePrice = normalizedData.valuation;
+        } else if (!normalizedData.valuation && normalizedData.reservePrice) {
+          normalizedData.valuation = normalizedData.reservePrice;
         }
         
         return {
           success: true,
           data: {
-            ...cachedData,
-            reservePrice: cachedData.valuation, // Ensure reservePrice is set
+            ...normalizedData,
             vin,
             transmission: gearbox
           }
@@ -99,6 +108,62 @@ export async function processHomeValuation(
     console.log('Calling valuation API for VIN:', vin);
     
     const startTime = Date.now();
+    
+    // First try the direct get-vehicle-valuation edge function
+    try {
+      const { data: directData, error: directError } = await supabase.functions.invoke('get-vehicle-valuation', {
+        body: { 
+          vin, 
+          mileage, 
+          gearbox 
+        },
+        headers: {
+          'X-Request-Timeout': '15000' // 15 second timeout on the edge function side
+        }
+      });
+      
+      const endTime = Date.now();
+      console.log(`Direct API response time: ${endTime - startTime}ms`);
+      
+      if (!directError && directData?.success) {
+        console.log('Direct valuation API response:', directData);
+        
+        // Prepare the response with normalized fields
+        const responseData = { 
+          ...directData.data,
+          vin, 
+          transmission: gearbox 
+        };
+        
+        // Ensure reservePrice is set for consistent property access
+        if (!responseData.reservePrice && responseData.valuation) {
+          responseData.reservePrice = responseData.valuation;
+        } else if (!responseData.valuation && responseData.reservePrice) {
+          responseData.valuation = responseData.reservePrice;
+        }
+        
+        // Store in cache for future use
+        try {
+          await storeValuationInCache(vin, mileage, responseData);
+        } catch (cacheError) {
+          console.warn('Failed to cache valuation data:', cacheError);
+          // Non-critical, continue with operation
+        }
+        
+        return {
+          success: true,
+          data: responseData
+        };
+      }
+      
+      // If direct call failed, we'll try the fallback below
+      console.log('Direct API call did not return valid data, trying fallback...');
+    } catch (directError) {
+      console.warn('Direct API call failed:', directError);
+      // Continue with fallback approach
+    }
+    
+    // Fallback to handle-seller-operations edge function
     const { data, error } = await supabase.functions.invoke('handle-seller-operations', {
       body: {
         operation: 'validate_vin',
@@ -108,13 +173,13 @@ export async function processHomeValuation(
         userId: 'anonymous' // For home page context, we use anonymous
       },
       headers: {
-        'X-Request-Timeout': '10000' // 10 second timeout on the edge function side
+        'X-Request-Timeout': '15000' // 15 second timeout on the edge function side
       }
     });
     const endTime = Date.now();
     
-    console.log(`API response time: ${endTime - startTime}ms`);
-    console.log('Raw API response:', data);
+    console.log(`Fallback API response time: ${endTime - startTime}ms`);
+    console.log('Fallback API response:', data);
     
     if (error) {
       console.error('Valuation API error:', error);
@@ -139,33 +204,34 @@ export async function processHomeValuation(
     // Prepare the response with normalized fields
     const responseData = { ...data.data, vin, transmission: gearbox };
     
+    // Ensure consistent property names
+    if (!responseData.reservePrice && responseData.valuation) {
+      responseData.reservePrice = responseData.valuation;
+    } else if (!responseData.valuation && responseData.reservePrice) {
+      responseData.valuation = responseData.reservePrice;
+    }
+    
     // Calculate reserve price if needed
-    if (!responseData.valuation) {
-      // First try using reservePrice if available
-      if (responseData.reservePrice) {
-        responseData.valuation = responseData.reservePrice;
-        console.log('Using reservePrice as valuation:', responseData.valuation);
-      } 
-      // Then try using basePrice
-      else if (responseData.basePrice || responseData.price_min) {
+    if (!responseData.valuation && !responseData.reservePrice) {
+      // Try using basePrice
+      if (responseData.basePrice || responseData.price_min) {
         // If we have basePrice, use it directly
         if (responseData.basePrice) {
-          responseData.valuation = calculateReservePrice(responseData.basePrice);
-          console.log('Calculated valuation from basePrice:', responseData.valuation);
+          const calculatedPrice = calculateReservePrice(responseData.basePrice);
+          responseData.valuation = calculatedPrice;
+          responseData.reservePrice = calculatedPrice;
+          console.log('Calculated valuation from basePrice:', calculatedPrice);
         } 
         // Otherwise calculate basePrice from price_min and price_med
         else if (responseData.price_min && responseData.price_med) {
           const basePrice = (parseFloat(responseData.price_min) + parseFloat(responseData.price_med)) / 2;
           responseData.basePrice = basePrice;
-          responseData.valuation = calculateReservePrice(basePrice);
-          console.log('Calculated basePrice and valuation:', responseData.basePrice, responseData.valuation);
+          const calculatedPrice = calculateReservePrice(basePrice);
+          responseData.valuation = calculatedPrice;
+          responseData.reservePrice = calculatedPrice;
+          console.log('Calculated basePrice and valuation:', basePrice, calculatedPrice);
         }
       }
-    }
-    
-    // Ensure reservePrice is set for consistent property access
-    if (!responseData.reservePrice && responseData.valuation) {
-      responseData.reservePrice = responseData.valuation;
     }
     
     // Log the final response data
