@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-07-25: Extracted home valuation from valuationService.ts
  * - 2025-09-18: Added additional error handling and recovery mechanisms
+ * - 2025-10-18: Fixed TypeScript type safety with TransmissionType
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +16,7 @@ import { getCachedValuation, storeValuationInCache } from "./api/cache-api";
 export async function processHomeValuation(
   vin: string,
   mileage: number,
-  gearbox: string
+  gearbox: TransmissionType
 ): Promise<ValuationResult> {
   console.log('Processing home page valuation for VIN:', vin);
   
@@ -30,7 +31,7 @@ export async function processHomeValuation(
           data: {
             ...cachedData,
             vin,
-            transmission: gearbox as TransmissionType
+            transmission: gearbox
           }
         };
       }
@@ -71,7 +72,7 @@ export async function processHomeValuation(
         data: {
           error: data.data?.error || 'Failed to validate VIN',
           vin,
-          transmission: gearbox as TransmissionType
+          transmission: gearbox
         }
       };
     }
@@ -94,7 +95,7 @@ export async function processHomeValuation(
       data: {
         ...data.data,
         vin,
-        transmission: gearbox as TransmissionType
+        transmission: gearbox
       }
     };
     
@@ -114,7 +115,7 @@ export async function processHomeValuation(
           ? 'Connection timed out. Please try again later.' 
           : error.message || 'Failed to get valuation',
         vin,
-        transmission: gearbox as TransmissionType
+        transmission: gearbox
       }
     };
   }

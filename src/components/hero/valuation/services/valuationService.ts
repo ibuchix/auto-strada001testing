@@ -9,9 +9,10 @@
  * - 2024-07-25: Refactored into smaller modules for better maintainability
  * - 2025-05-15: Further refactored into context-specific modules for improved separation of concerns
  * - 2025-09-18: Added request timeout handling and additional error recovery
+ * - 2025-10-18: Fixed TypeScript type errors related to TransmissionType casting
  */
 
-import { ValuationResult } from "../types";
+import { ValuationResult, TransmissionType } from "../types";
 import { processHomeValuation } from "./home-valuation";
 import { processSellerValuation } from "./seller-valuation";
 
@@ -60,9 +61,12 @@ export const getValuation = async (
       }, 15000); // 15 second timeout
     });
     
+    // Cast the gearbox string to TransmissionType for type safety
+    const transmissionType = gearbox as TransmissionType;
+    
     const valuationPromise = context === 'seller' 
-      ? processSellerValuation(vin, mileage, gearbox)
-      : processHomeValuation(vin, mileage, gearbox);
+      ? processSellerValuation(vin, mileage, transmissionType)
+      : processHomeValuation(vin, mileage, transmissionType);
     
     // Race between the valuation and the timeout
     return await Promise.race([valuationPromise, timeoutPromise]);
@@ -76,7 +80,7 @@ export const getValuation = async (
         data: {
           error: 'Request timed out. Please try again.',
           vin,
-          transmission: gearbox
+          transmission: gearbox as TransmissionType
         }
       };
     }
@@ -86,11 +90,10 @@ export const getValuation = async (
       data: {
         error: error.message || 'An unexpected error occurred',
         vin,
-        transmission: gearbox
+        transmission: gearbox as TransmissionType
       }
     };
   }
 };
 
-// Re-export cleanupValuationData
-export { cleanupValuationData };
+// No need to re-export cleanupValuationData since it's already exported above
