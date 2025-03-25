@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-06-10: Created schema validation utility to compare form fields with database columns
@@ -6,6 +5,7 @@
  * - 2025-06-15: Added proper type assertion for RPC function call
  * - 2025-07-21: Fixed TypeScript error with RPC function name casting
  * - 2025-07-22: Updated getTableSchema to handle missing RPC function gracefully
+ * - 2025-07-23: Fixed error with status property on PostgrestError type
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -41,8 +41,12 @@ export const getTableSchema = async (tableName: string): Promise<ColumnDefinitio
       .select('column_name, data_type, is_nullable');
 
     if (error) {
-      // Check if error is due to missing function (404 error)
-      if (error.code === 'PGRST116' || error.message?.includes('function') || error.status === 404) {
+      // Check if error is due to missing function (message check instead of status code)
+      // PostgrestError doesn't have a status property, so we need to check the message
+      if (error.code === 'PGRST116' || 
+          error.message?.includes('function') || 
+          error.code === '404') {
+        
         console.warn(`The get_table_columns RPC function is not available. Schema validation will be skipped.`);
         // Return null but don't block the form submission
         return null;
