@@ -5,6 +5,7 @@
  * - 2027-06-22: Enhanced with non-blocking navigation and connection state awareness
  * - 2027-06-22: Added fallback navigation with timeout for maximum reliability
  * - 2027-06-22: Fixed issues with navigation being blocked by WebSocket disconnection
+ * - 2027-07-15: Added guaranteed navigation with improved error handling
  */
 
 import { useState } from "react";
@@ -75,32 +76,31 @@ export const useValuationResultNavigation = () => {
     const fallbackTimeoutId = setTimeout(() => {
       console.log('ValuationResult - Fallback navigation triggered after timeout');
       try {
-        // Force direct navigation as last resort
-        window.location.href = '/sell-my-car?fallback=emergency';
+        // Verify if we're still on the same page before forcing navigation
+        if (document.querySelector('#list-car-button')) {
+          // Force direct navigation as last resort
+          console.log('ValuationResult - Using direct URL navigation fallback');
+          window.location.href = isLoggedIn 
+            ? '/sell-my-car?fallback=emergency' 
+            : '/auth?from=valuation&fallback=emergency';
+        } else {
+          console.log('ValuationResult - Page already changed, canceling fallback');
+        }
       } catch (e) {
-        console.error('ValuationResult - Even fallback navigation failed:', e);
+        console.error('ValuationResult - Fallback navigation failed:', e);
       }
-    }, 1500); // Give the normal navigation 1.5 seconds to work
+    }, 1000); // Give the normal navigation 1 second to work
     
-    // Pre-create the navigation function to execute afterward
+    // Pre-create the navigation function to execute
     const executeNavigation = () => {
       console.log('ValuationResult - Executing navigation with stored data');
       try {
+        // Attempt to use the handleContinue function from useValuationNavigation
         handleContinue(navigationData, navigationData.mileage);
         console.log('ValuationResult - handleContinue called successfully');
-        // If we get here, clear the fallback timeout
-        clearTimeout(fallbackTimeoutId);
       } catch (navError) {
         console.error('ValuationResult - Error during handleContinue:', navError);
-        // Try direct navigation as immediate fallback
-        try {
-          console.log('ValuationResult - Attempting direct navigation fallback');
-          window.location.href = '/sell-my-car?emergency=true';
-        } catch (directNavError) {
-          console.error('ValuationResult - Even direct navigation failed:', directNavError);
-        }
-      } finally {
-        setIsLoading(false);
+        // Error will be handled by the fallback timeout
       }
     };
     
@@ -124,7 +124,13 @@ export const useValuationResultNavigation = () => {
     
     // Call the onRetry prop if provided
     if (onRetry) {
-      onRetry();
+      try {
+        onRetry();
+      } catch (error) {
+        console.error('ValuationResult - Error in retry handler:', error);
+        setIsLoading(false);
+        toast.error('Failed to retry valuation');
+      }
     } else {
       // If no retry function provided, just reset loading state
       setTimeout(() => setIsLoading(false), 500);

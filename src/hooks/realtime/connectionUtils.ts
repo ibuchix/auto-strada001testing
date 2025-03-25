@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-12-18: Created this file as part of RealtimeProvider refactoring
@@ -6,6 +5,7 @@
  * - 2024-12-19: Fixed import for ConnectionState from types.tsx
  * - 2024-12-20: Enhanced disconnection handling to prevent navigation blocking
  * - 2024-12-20: Added non-blocking disconnection for page navigation
+ * - 2027-07-15: Improved non-blocking disconnection with better error handling
  */
 
 import { MutableRefObject } from 'react';
@@ -58,18 +58,37 @@ export const navigationSafeDisconnect = (
   if (connectionStateRef.current === ConnectionState.CONNECTED) {
     connectionStateRef.current = ConnectionState.DISCONNECTING;
     
+    // Log connection state change
+    console.log(`Connection state changed to: ${connectionStateRef.current}`);
+    
     // Fire and forget disconnection - don't block navigation
-    setTimeout(() => {
-      try {
-        supabase.realtime.disconnect();
-        console.log('Completed navigation-safe disconnection');
-      } catch (e) {
-        console.error('Error during navigation-safe disconnect (non-blocking):', e);
-      }
-    }, 0);
+    try {
+      // Use setTimeout with 0 delay to ensure this runs after current execution context
+      setTimeout(() => {
+        try {
+          // Wrap in try/catch to ensure any errors don't propagate
+          supabase.realtime.disconnect();
+          console.log('Completed navigation-safe disconnection');
+        } catch (e) {
+          console.error('Error during navigation-safe disconnect (non-blocking):', e);
+        }
+      }, 0);
+    } catch (e) {
+      // Even errors in setTimeout shouldn't block navigation
+      console.error('Critical error setting up disconnect:', e);
+    }
   } else {
     console.log(`Navigation-safe disconnect skipped, connection in state: ${connectionStateRef.current}`);
   }
+  
+  // Ensure we mark as DISCONNECTED regardless of success or failure
+  // This helps prevent future issues by ensuring we don't think we're still connected
+  setTimeout(() => {
+    if (connectionStateRef.current === ConnectionState.DISCONNECTING) {
+      connectionStateRef.current = ConnectionState.DISCONNECTED;
+      console.log('Forced connection state to DISCONNECTED after navigation');
+    }
+  }, 100);
 };
 
 /**

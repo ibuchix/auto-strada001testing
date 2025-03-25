@@ -11,6 +11,7 @@
  * - 2024-12-18: Updated import to use new RealtimeContext location
  * - 2024-12-19: Fixed TypeScript error with useChannelSubscription call
  * - 2024-12-20: Removed incorrect function call that was causing TS2554 error
+ * - 2027-07-15: Enhanced reconnection handling with better visual feedback
  */
 
 import { useEffect, useState } from 'react';

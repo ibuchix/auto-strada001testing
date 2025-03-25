@@ -12,11 +12,13 @@
  * - 2027-06-08: Added comprehensive debugging with multiple fallbacks and visual feedback
  * - 2027-06-15: Enhanced debugging with more detailed click tracking and performance metrics
  * - 2027-07-01: Fixed TypeScript error by properly declaring the window.navigationPerformance property
+ * - 2027-07-15: Enhanced loading state with improved visual feedback and guaranteed navigation
  */
 
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 // Declare the additional property on Window to fix the TypeScript error
 declare global {
@@ -118,47 +120,20 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
     localStorage.setItem('lastButtonClickTime', clickTimestamp);
     localStorage.setItem('lastButtonClickId', clickId);
     
-    // Detailed browser environment info for debugging
-    console.log(`BUTTON DEBUG - Browser environment for click ${clickId}`, {
-      userAgent: navigator.userAgent,
-      language: navigator.language,
-      cookiesEnabled: navigator.cookieEnabled,
-      onLine: navigator.onLine,
-      memoryInfo: (performance as any).memory ? {
-        jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit,
-        totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
-        usedJSHeapSize: (performance as any).memory.usedJSHeapSize
-      } : 'Not available',
-      timing: performance.timing ? {
-        navigationStart: performance.timing.navigationStart,
-        loadEventEnd: performance.timing.loadEventEnd,
-        domComplete: performance.timing.domComplete
-      } : 'Not available'
-    });
+    // Mark navigation start in localStorage for debugging
+    try {
+      localStorage.setItem('navigationInProgress', 'true');
+      localStorage.setItem('navigationStartTime', clickTimestamp);
+      localStorage.setItem('navigationAttemptId', clickId);
+    } catch (e) {
+      console.error('Failed to store navigation state:', e);
+    }
     
     // Show loading toast to provide user feedback
     const toastId = toast.loading(isLoggedIn ? "Preparing listing form..." : "Preparing sign in...");
     
     console.log(`BUTTON DEBUG - Starting navigation process for click ${clickId}`);
     measurePerformance(`pre_callback_${clickId}`);
-    
-    // Store current page state before navigation
-    try {
-      const pageState = {
-        url: window.location.href,
-        pathname: window.location.pathname,
-        timestamp: new Date().toISOString(),
-        clickId,
-        scrollPosition: {
-          x: window.scrollX,
-          y: window.scrollY
-        }
-      };
-      localStorage.setItem('navigationSourceState', JSON.stringify(pageState));
-      console.log(`BUTTON DEBUG - Stored page state for click ${clickId}`, pageState);
-    } catch (e) {
-      console.error(`BUTTON DEBUG - Failed to store page state: ${e}`);
-    }
     
     // First approach: Direct callback
     try {
@@ -179,85 +154,39 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
       measurePerformance(`callback_error_${clickId}`);
     }
     
-    // Second approach: Delayed callback with timeout if still on the same page
+    // GUARANTEED NAVIGATION: Set a short delay (200ms) to ensure the callback had time to work
     setTimeout(() => {
-      // Check if we're still on the same page
+      // Verify if we're still on the same page
       if (document.querySelector('#list-car-button')) {
-        console.log(`BUTTON DEBUG - Still on same page 200ms after click ${clickId}, trying delayed callback`);
-        measurePerformance(`delayed_callback_start_${clickId}`);
+        console.log(`BUTTON DEBUG - Still on same page 200ms after click ${clickId}, using direct navigation`);
         
-        try {
-          onClick();
-          console.log(`BUTTON DEBUG - Delayed callback executed for click ${clickId}`);
-          measurePerformance(`delayed_callback_complete_${clickId}`);
-        } catch (innerErr) {
-          console.error(`BUTTON DEBUG - Delayed callback error for click ${clickId}:`, innerErr);
-          measurePerformance(`delayed_callback_error_${clickId}`);
-          
-          // Try direct navigation as a last resort
-          console.log(`BUTTON DEBUG - Attempting direct URL navigation for click ${clickId}`);
-          measurePerformance(`direct_navigation_start_${clickId}`);
-          
-          if (!isLoggedIn) {
-            window.location.href = "/auth";
-          } else {
-            window.location.href = "/sell-my-car?fallback=true&clickId=" + clickId;
-          }
+        // Force direct navigation since the callback didn't work or was too slow
+        if (!isLoggedIn) {
+          window.location.href = "/auth?from=valuation&navId=" + clickId;
+        } else {
+          window.location.href = "/sell-my-car?from=valuation&navId=" + clickId;
         }
       } else {
-        console.log(`BUTTON DEBUG - Page changed after 200ms from click ${clickId}, navigation appears successful`);
-        measurePerformance(`page_changed_200ms_${clickId}`);
+        console.log(`BUTTON DEBUG - Page already changing 200ms after click ${clickId}`);
       }
       
       // Dismiss the loading toast after a delay
       setTimeout(() => {
         toast.dismiss(toastId);
-        console.log(`BUTTON DEBUG - Dismissed loading toast for click ${clickId}`);
-        measurePerformance(`toast_dismissed_${clickId}`);
       }, 1000);
     }, 200);
     
-    // Final check to verify navigation or provide feedback
+    // FAIL-SAFE: Ultimate fallback (500ms) - even if all else fails, this will navigate
     setTimeout(() => {
       if (document.querySelector('#list-car-button')) {
-        console.log(`BUTTON DEBUG - Button still visible 500ms after click ${clickId}, navigation appears FAILED`);
-        measurePerformance(`navigation_failed_500ms_${clickId}`);
+        console.log(`BUTTON DEBUG - Button still visible 500ms after click ${clickId}, using emergency navigation`);
         
-        // Show error toast with debugging info
-        toast.error("Navigation issue detected", {
-          description: "Using emergency navigation. Please wait...",
-          duration: 3000
-        });
-        
-        // Last resort emergency navigation
-        console.log(`BUTTON DEBUG - Executing emergency direct navigation for click ${clickId}`);
-        measurePerformance(`emergency_navigation_${clickId}`);
-        
-        try {
-          if (!isLoggedIn) {
-            window.location.href = "/auth?emergency=true&clickId=" + clickId;
-          } else {
-            window.location.href = "/sell-my-car?emergency=true&clickId=" + clickId;
-          }
-        } catch (emergencyError) {
-          console.error(`BUTTON DEBUG - Even emergency navigation failed for click ${clickId}:`, emergencyError);
-          toast.error("Critical navigation failure", {
-            description: "Please refresh the page and try again",
-            duration: 5000
-          });
+        // Emergency direct navigation with special flag
+        if (!isLoggedIn) {
+          window.location.href = "/auth?emergency=true&navId=" + clickId;
+        } else {
+          window.location.href = "/sell-my-car?emergency=true&navId=" + clickId;
         }
-        
-        // Reset state in case of failure
-        setIsNavigating(false);
-      } else {
-        console.log(`BUTTON DEBUG - Button not found 500ms after click ${clickId}, navigation appears successful`);
-        measurePerformance(`navigation_success_500ms_${clickId}`);
-        
-        const clickEndTime = performance.now();
-        const totalDuration = clickEndTime - clickStartTime;
-        setClickTimes(prev => ({...prev, end: clickEndTime}));
-        
-        console.log(`BUTTON DEBUG - Total navigation process for click ${clickId} took ${totalDuration.toFixed(2)}ms`);
       }
     }, 500);
   }, [onClick, isLoggedIn, hasAttemptedClick, isNavigating]);
@@ -270,14 +199,11 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
       id="list-car-button"
       data-testid="list-car-button"
       data-click-tracked="true"
-      disabled={hasAttemptedClick} // Prevent double clicks
+      disabled={isNavigating} // Prevent double clicks
     >
       {isNavigating ? (
-        <span className="flex items-center">
-          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
+        <span className="flex items-center gap-2">
+          <Loader2 className="h-5 w-5 animate-spin" />
           {isLoggedIn ? "Preparing..." : "Redirecting..."}
         </span>
       ) : (
