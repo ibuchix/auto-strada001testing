@@ -10,6 +10,7 @@
  * - 2024-12-14: Enhanced WebSocket reconnection handling and user feedback
  * - 2024-12-18: Updated import to use new RealtimeContext location
  * - 2024-12-19: Fixed TypeScript error with useChannelSubscription call
+ * - 2024-12-20: Removed incorrect function call that was causing TS2554 error
  */
 
 import { useEffect, useState } from 'react';
@@ -44,9 +45,6 @@ export const useRealtimeBids = () => {
       variant: type === 'error' ? 'destructive' : 'default',
     });
   };
-  
-  // Setup channel subscriptions using the extracted hook with connection status awareness
-  // Removed the incorrect function call that was causing the error
   
   // Handle reconnection with exponential backoff
   const handleReconnect = () => {

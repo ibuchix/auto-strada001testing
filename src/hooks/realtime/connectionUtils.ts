@@ -4,6 +4,8 @@
  * - 2024-12-18: Created this file as part of RealtimeProvider refactoring
  * - 2024-12-18: Extracted connection utilities from RealtimeProvider.tsx
  * - 2024-12-19: Fixed import for ConnectionState from types.tsx
+ * - 2024-12-20: Enhanced disconnection handling to prevent navigation blocking
+ * - 2024-12-20: Added non-blocking disconnection for page navigation
  */
 
 import { MutableRefObject } from 'react';
@@ -40,6 +42,33 @@ export const safeDisconnect = (
     }
   } else {
     console.log(`Not disconnecting connection in state: ${connectionStateRef.current}`);
+  }
+};
+
+/**
+ * Non-blocking disconnect for navigation events
+ * This version doesn't wait for the disconnect to complete
+ */
+export const navigationSafeDisconnect = (
+  connectionStateRef: MutableRefObject<ConnectionState>
+) => {
+  console.log('Navigation-safe disconnection initiated');
+  
+  // Mark as disconnecting but don't block navigation
+  if (connectionStateRef.current === ConnectionState.CONNECTED) {
+    connectionStateRef.current = ConnectionState.DISCONNECTING;
+    
+    // Fire and forget disconnection - don't block navigation
+    setTimeout(() => {
+      try {
+        supabase.realtime.disconnect();
+        console.log('Completed navigation-safe disconnection');
+      } catch (e) {
+        console.error('Error during navigation-safe disconnect (non-blocking):', e);
+      }
+    }, 0);
+  } else {
+    console.log(`Navigation-safe disconnect skipped, connection in state: ${connectionStateRef.current}`);
   }
 };
 

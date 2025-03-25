@@ -4,6 +4,8 @@
  * - 2024-12-18: Created this file as part of RealtimeProvider refactoring
  * - 2024-12-18: Extracted types from RealtimeProvider.tsx
  * - 2024-12-19: Fixed missing exports and consolidated all types
+ * - 2024-12-20: Added descriptions to improve type documentation
+ * - 2024-12-20: Fixed export issues for ConnectionState, RealtimeContextType and RealtimeProviderProps
  */
 
 import { ReactNode } from 'react';

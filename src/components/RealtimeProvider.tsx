@@ -6,6 +6,8 @@
  * - 2024-12-18: Improved WebSocket connection lifecycle management
  * - 2024-12-18: Maintained all functionality while reducing file size
  * - 2024-12-19: Fixed import for RealtimeProviderProps from types.tsx
+ * - 2024-12-20: Enhanced page navigation detection with connection state reference
+ * - 2024-12-20: Fixed navigation blocking issues with improved disconnection handling
  */
 
 import { useAuth } from './AuthProvider';
@@ -20,7 +22,6 @@ export { useRealtime } from '@/hooks/realtime/RealtimeContext';
 
 export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
   const { session } = useAuth();
-  const pageNavigatingRef = usePageNavigation();
   
   // Set up connection lifecycle management
   const {
@@ -29,6 +30,9 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
     connectionStateRef,
     unmountingRef
   } = useConnectionLifecycle(session);
+  
+  // Pass connectionStateRef to page navigation to enable non-blocking disconnection
+  const pageNavigatingRef = usePageNavigation(connectionStateRef);
   
   // Set up channel subscription management
   const { channels, subscribe, unsubscribe } = useChannelSubscription();

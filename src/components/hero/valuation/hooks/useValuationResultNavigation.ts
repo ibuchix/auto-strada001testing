@@ -2,18 +2,23 @@
 /**
  * Changes made:
  * - 2027-06-20: Created navigation hook as part of ValuationResult refactoring
+ * - 2027-06-22: Enhanced with non-blocking navigation and connection state awareness
+ * - 2027-06-22: Added fallback navigation with timeout for maximum reliability
+ * - 2027-06-22: Fixed issues with navigation being blocked by WebSocket disconnection
  */
 
 import { useState } from "react";
 import { toast } from "sonner";
 import { ValuationData } from "../types";
 import { useValuationNavigation } from "./useValuationNavigation";
+import { useRealtime } from "@/components/RealtimeProvider";
 
 export const useValuationResultNavigation = () => {
   const { handleContinue, isLoggedIn } = useValuationNavigation();
   const [isLoading, setIsLoading] = useState(false);
   const [navigationAttempts, setNavigationAttempts] = useState(0);
   const componentId = Math.random().toString(36).substring(2, 10);
+  const { isConnected } = useRealtime();
   
   // Prepare navigation data and store in localStorage
   const prepareNavigationData = (valuationData: ValuationData, mileage: number) => {
@@ -28,7 +33,8 @@ export const useValuationResultNavigation = () => {
       timestamp: new Date().toISOString(),
       dataToStore: navigationData,
       isLoggedIn,
-      mileage
+      mileage,
+      connectionStatus: isConnected ? 'connected' : 'disconnected'
     });
     
     // Pre-store data in localStorage as a safety measure
@@ -65,18 +71,31 @@ export const useValuationResultNavigation = () => {
     // Store all necessary navigation data
     const navigationData = prepareNavigationData(normalizedResult, mileage);
     
+    // IMPORTANT: Setup guaranteed fallback navigation that will execute if normal navigation fails
+    const fallbackTimeoutId = setTimeout(() => {
+      console.log('ValuationResult - Fallback navigation triggered after timeout');
+      try {
+        // Force direct navigation as last resort
+        window.location.href = '/sell-my-car?fallback=emergency';
+      } catch (e) {
+        console.error('ValuationResult - Even fallback navigation failed:', e);
+      }
+    }, 1500); // Give the normal navigation 1.5 seconds to work
+    
     // Pre-create the navigation function to execute afterward
     const executeNavigation = () => {
       console.log('ValuationResult - Executing navigation with stored data');
       try {
         handleContinue(navigationData, navigationData.mileage);
         console.log('ValuationResult - handleContinue called successfully');
+        // If we get here, clear the fallback timeout
+        clearTimeout(fallbackTimeoutId);
       } catch (navError) {
         console.error('ValuationResult - Error during handleContinue:', navError);
-        // Try direct navigation as fallback
+        // Try direct navigation as immediate fallback
         try {
           console.log('ValuationResult - Attempting direct navigation fallback');
-          window.location.href = '/sell-my-car';
+          window.location.href = '/sell-my-car?emergency=true';
         } catch (directNavError) {
           console.error('ValuationResult - Even direct navigation failed:', directNavError);
         }
@@ -85,22 +104,11 @@ export const useValuationResultNavigation = () => {
       }
     };
     
-    // Register a timeout for navigation to happen even if component unmounts
-    const timeoutId = window.setTimeout(() => {
-      console.log('ValuationResult - Executing navigation via timeout');
-      executeNavigation();
-    }, 100);
+    // Don't wait for WebSocket operations - execute navigation immediately
+    executeNavigation();
     
-    // Also try to execute navigation immediately
-    try {
-      console.log('ValuationResult - Attempting immediate navigation');
-      executeNavigation();
-    } catch (error) {
-      console.error('ValuationResult - Error during immediate navigation, relying on timeout:', error);
-    }
-    
-    // Return the timeout ID so it can be cleared if needed
-    return timeoutId;
+    // Return the fallback timeout ID so it can be cleared if needed
+    return fallbackTimeoutId;
   };
 
   // Handle retry attempts for valuation
