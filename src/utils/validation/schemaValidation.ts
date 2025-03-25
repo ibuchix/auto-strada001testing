@@ -5,6 +5,7 @@
  * - 2025-06-12: Fixed issue with RPC function type checking
  * - 2025-06-15: Added proper type assertion for RPC function call
  * - 2025-07-21: Fixed TypeScript error with RPC function name casting
+ * - 2025-07-22: Updated getTableSchema to handle missing RPC function gracefully
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +29,7 @@ export const typeMapping: Record<string, string[]> = {
 
 /**
  * Get column definitions for a specific table
+ * Now with fallback mechanism when the RPC function doesn't exist
  */
 export const getTableSchema = async (tableName: string): Promise<ColumnDefinition[] | null> => {
   try {
@@ -39,6 +41,13 @@ export const getTableSchema = async (tableName: string): Promise<ColumnDefinitio
       .select('column_name, data_type, is_nullable');
 
     if (error) {
+      // Check if error is due to missing function (404 error)
+      if (error.code === 'PGRST116' || error.message?.includes('function') || error.status === 404) {
+        console.warn(`The get_table_columns RPC function is not available. Schema validation will be skipped.`);
+        // Return null but don't block the form submission
+        return null;
+      }
+      
       console.error(`Error fetching schema for ${tableName}:`, error);
       return null;
     }
@@ -85,15 +94,11 @@ export const validateFormAgainstSchema = async (
   const schema = await getTableSchema(tableName);
   const issues: string[] = [];
   
+  // If schema is null, it means the RPC function is not available
+  // In this case, we'll skip validation but not block form submission
   if (!schema) {
-    const message = `Could not fetch schema for table "${tableName}"`;
-    issues.push(message);
-    
-    if (throwOnError) {
-      throw new Error(message);
-    }
-    
-    return issues;
+    console.warn(`Schema validation skipped for table "${tableName}" - Schema information not available`);
+    return [];
   }
   
   // Create a map for quick lookups
@@ -155,6 +160,7 @@ export const isDevelopment = (): boolean => {
 
 /**
  * Safe form validator - only runs in development, returns empty array in production
+ * Now more resilient to missing RPC function
  */
 export const validateFormSchema = async (
   formData: Record<string, any>,
@@ -164,8 +170,14 @@ export const validateFormSchema = async (
     return []; // Skip validation in production
   }
   
-  return validateFormAgainstSchema(formData, tableName, {
-    throwOnError: false,
-    showWarnings: true
-  });
+  try {
+    return validateFormAgainstSchema(formData, tableName, {
+      throwOnError: false,
+      showWarnings: true
+    });
+  } catch (error) {
+    console.warn('Schema validation error:', error);
+    // Return empty array to prevent blocking form submission
+    return [];
+  }
 };

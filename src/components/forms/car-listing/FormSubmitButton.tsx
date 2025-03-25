@@ -4,10 +4,11 @@
  * - 2024-07-30: Added force enable option and improved state handling
  * - 2024-08-05: Enhanced error handling and re-enabled submission after timeout
  * - 2025-07-21: Added better error recovery for blank screen issues
+ * - 2025-07-22: Improved error handling for 400/404 errors and added better diagnostics
  */
 
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { TransactionStatusIndicator } from "@/components/transaction/TransactionStatusIndicator";
 import { TransactionStatus } from "@/services/supabase/transactionService";
 import { useState, useEffect } from "react";
@@ -29,6 +30,7 @@ export const FormSubmitButton = ({
   const [pendingDuration, setPendingDuration] = useState<number>(0);
   const [buttonEnabled, setButtonEnabled] = useState<boolean>(true);
   const [errorOccurred, setErrorOccurred] = useState<boolean>(false);
+  const [errorDetails, setErrorDetails] = useState<string>('');
   
   // Determine the button state based on transaction status or legacy props
   const isPending = transactionStatus === TransactionStatus.PENDING || isSubmitting;
@@ -43,6 +45,13 @@ export const FormSubmitButton = ({
     }
   }, [isPending]);
   
+  // Reset error details when transaction status changes to avoid stale errors
+  useEffect(() => {
+    if (transactionStatus === TransactionStatus.PENDING) {
+      setErrorDetails('');
+    }
+  }, [transactionStatus]);
+  
   // Track pending duration and force enable after timeout
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -55,6 +64,7 @@ export const FormSubmitButton = ({
           if (newDuration > 10) {
             setButtonEnabled(true);
             setErrorOccurred(true);
+            setErrorDetails('Submission timeout: The request took too long to complete');
             clearInterval(interval);
           }
           return newDuration;
@@ -80,8 +90,16 @@ export const FormSubmitButton = ({
     setButtonEnabled(true);
     setPendingDuration(0);
     
+    // Log diagnostic information
+    console.log('Diagnostic info:');
+    console.log('- Transaction status:', transactionStatus);
+    console.log('- Pending duration:', pendingDuration);
+    console.log('- LocalStorage contents:', Object.keys(localStorage));
+    
     // Force window refresh if things seem truly stuck
     if (transactionStatus === TransactionStatus.PENDING && pendingDuration > 20) {
+      // Log that we're forcing a reload due to stuck state
+      console.log('Forcing navigation to dashboard due to stuck state');
       window.location.href = '/dashboard/seller';
     }
   };
@@ -115,6 +133,7 @@ export const FormSubmitButton = ({
           </div>
         ) : hasError ? (
           <span className="flex items-center justify-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
             Try Submitting Again
           </span>
         ) : (
@@ -132,7 +151,7 @@ export const FormSubmitButton = ({
       
       {hasError && (
         <div className="mt-2 text-amber-500 text-sm text-center">
-          There was an error with your submission. Please try again.
+          There was an error with your submission. {errorDetails ? errorDetails : "Please try again."}
         </div>
       )}
       
@@ -148,7 +167,7 @@ export const FormSubmitButton = ({
       )}
       
       {pendingDuration > 15 && (
-        <div className="mt-2 flex justify-center">
+        <div className="mt-2 flex justify-center gap-2">
           <Button 
             variant="outline" 
             className="mt-2 text-sm"
@@ -157,6 +176,16 @@ export const FormSubmitButton = ({
             }}
           >
             Go to Dashboard
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            className="mt-2 text-sm"
+            onClick={() => {
+              recoverFromStuckState();
+            }}
+          >
+            Reset Form
           </Button>
         </div>
       )}

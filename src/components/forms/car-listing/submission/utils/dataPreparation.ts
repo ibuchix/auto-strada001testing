@@ -14,6 +14,7 @@
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field has_documentation
  * - 2025-06-10: Added schema validation to catch field mismatches before submission
+ * - 2025-07-22: Improved error handling and added safeguards for field type mismatches
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -21,6 +22,41 @@ import { calculateReservePrice } from "./reservePriceCalculator";
 import { supabase } from "@/integrations/supabase/client";
 import { validateMileageData } from "./validationHandler";
 import { validateFormSchema } from "@/utils/validation/schemaValidation";
+
+/**
+ * Safely converts values to appropriate types to avoid database casting errors
+ */
+const safeTypeConversion = (field: string, value: any): any => {
+  // Return null for undefined/null values
+  if (value === undefined || value === null) return null;
+  
+  // Handle special case for boolean fields
+  if (field.startsWith('is_') || field.startsWith('has_')) {
+    return Boolean(value);
+  }
+  
+  // Handle numeric fields
+  if (field === 'mileage' || field === 'price' || field === 'reserve_price' || 
+      field === 'finance_amount' || field === 'number_of_keys') {
+    // If it's already a number, return it
+    if (typeof value === 'number') return value;
+    
+    // If it's a string that can be converted to a number
+    if (typeof value === 'string' && !isNaN(Number(value))) {
+      return Number(value);
+    }
+    
+    // For empty strings or invalid numbers
+    if (value === '') return null;
+    
+    // For other values, convert as best as possible or return null
+    const num = Number(value);
+    return isNaN(num) ? null : num;
+  }
+  
+  // Default: return the value as is
+  return value;
+};
 
 /**
  * Prepares car data for submission to Supabase
@@ -80,36 +116,46 @@ export const prepareCarDataForSubmission = async (
     title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
     make: valuationData.make,
     model: valuationData.model,
-    year: valuationData.year,
+    year: safeTypeConversion('year', valuationData.year),
     vin: valuationData.vin,
-    mileage: mileage,
-    price: valuationData.valuation || valuationData.averagePrice || 0,
-    reserve_price: reservePrice,
+    mileage: safeTypeConversion('mileage', mileage),
+    price: safeTypeConversion('price', valuationData.valuation || valuationData.averagePrice || 0),
+    reserve_price: safeTypeConversion('reserve_price', reservePrice),
     transmission: valuationData.transmission,
     valuation_data: valuationData,
-    is_draft: false,
+    is_draft: safeTypeConversion('is_draft', false),
     // Store seller contact info in appropriate fields with both mappings
     name: data.name, // For compatibility with older code
     seller_name: data.name, // For compatibility with database schema
     address: data.address,
     mobile_number: data.mobileNumber,
     features: data.features,
-    is_damaged: data.isDamaged,
-    is_registered_in_poland: data.isRegisteredInPoland,
-    is_selling_on_behalf: data.isSellingOnBehalf,
-    has_private_plate: data.hasPrivatePlate,
-    finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
+    is_damaged: safeTypeConversion('is_damaged', data.isDamaged),
+    is_registered_in_poland: safeTypeConversion('is_registered_in_poland', data.isRegisteredInPoland),
+    is_selling_on_behalf: safeTypeConversion('is_selling_on_behalf', data.isSellingOnBehalf), 
+    has_private_plate: safeTypeConversion('has_private_plate', data.hasPrivatePlate),
+    finance_amount: safeTypeConversion('finance_amount', data.financeAmount),
     service_history_type: data.serviceHistoryType,
     seller_notes: data.sellerNotes,
     seat_material: data.seatMaterial,
-    number_of_keys: parseInt(data.numberOfKeys),
+    number_of_keys: safeTypeConversion('number_of_keys', data.numberOfKeys),
     additional_photos: data.uploadedPhotos
   };
 
+  // Debug information to help track down issues
+  console.log('Prepared car data:', {
+    ...carData,
+    valuation_data: '[omitted for log clarity]'
+  });
+
   // Validate against schema before submitting
-  const schemaIssues = await validateFormSchema(carData, 'cars');
-  if (schemaIssues.length > 0) {
-    console.warn('Schema validation issues detected:', schemaIssues);
+  try {
+    const schemaIssues = await validateFormSchema(carData, 'cars');
+    if (schemaIssues.length > 0) {
+      console.warn('Schema validation issues detected:', schemaIssues);
+    }
+  } catch (error) {
+    console.warn('Schema validation failed but continuing with submission:', error);
     // We don't throw here as this is a development-only check
     // and we want the submission to proceed in production
   }
