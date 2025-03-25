@@ -10,6 +10,7 @@
  * - 2024-08-03: Fixed WebSocket lifecycle issues by adding proper connection state tracking and safer cleanup
  * - 2024-12-14: Fixed race condition in WebSocket connection leading to premature disconnections
  * - 2024-12-15: Added additional safeguards to prevent disconnection of unestablished connections
+ * - 2024-12-16: Fixed WebSocket cleanup on unmount to prevent "closed before established" errors
  */
 
 import { ReactNode, createContext, useContext, useEffect, useState, useRef } from 'react';
@@ -40,18 +41,25 @@ export const useRealtime = () => {
   return context;
 };
 
+// Connection states
+enum ConnectionState {
+  DISCONNECTED = 'disconnected',
+  CONNECTING = 'connecting',
+  CONNECTED = 'connected',
+  DISCONNECTING = 'disconnecting'
+}
+
 export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
   const { session } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [channels, setChannels] = useState<Record<string, RealtimeChannel>>({});
   
-  // Enhanced connection state tracking with useRef
-  const connectionEstablishedRef = useRef(false);
-  const connectionAttemptingRef = useRef(false);
-  const reconnectTimeoutRef = useRef<number | null>(null);
+  // Enhanced connection state tracking 
+  const connectionStateRef = useRef<ConnectionState>(ConnectionState.DISCONNECTED);
   const connectionDebounceRef = useRef<number | null>(null);
-  const unmountingRef = useRef(false);
+  const reconnectTimeoutRef = useRef<number | null>(null);
   const connectionTimeoutRef = useRef<number | null>(null);
+  const unmountingRef = useRef(false);
   const pageNavigatingRef = useRef(false);
 
   // Listen for beforeunload to detect page navigation
@@ -68,78 +76,94 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
     };
   }, []);
   
-  // Initialize realtime connection with better lifecycle management
+  // Initialize realtime connection with improved lifecycle management
   useEffect(() => {
-    // Clear flag on mount and set up cleanup
+    // Reset unmounting flag on mount
     unmountingRef.current = false;
     
     const setupRealtime = async () => {
-      // Prevent multiple concurrent connection attempts
-      if (connectionAttemptingRef.current) {
+      // Prevent connection attempts if already connecting
+      if (connectionStateRef.current === ConnectionState.CONNECTING) {
         console.log('Connection attempt already in progress, skipping');
         return;
       }
       
-      // Don't attempt to connect if we're unmounting
-      if (unmountingRef.current) {
-        console.log('Component is unmounting, skipping connection attempt');
+      // Don't attempt to connect if we're unmounting or already connected
+      if (unmountingRef.current || connectionStateRef.current === ConnectionState.CONNECTED) {
+        console.log('Component is unmounting or already connected, skipping connection attempt');
         return;
       }
       
-      connectionAttemptingRef.current = true;
+      // Update connection state
+      connectionStateRef.current = ConnectionState.CONNECTING;
       
       try {
         // Set authentication token if available
-        supabase.realtime.setAuth(session?.access_token || null);
+        if (session?.access_token) {
+          supabase.realtime.setAuth(session.access_token);
+        } else {
+          supabase.realtime.setAuth(null);
+        }
         
-        // Only attempt to connect if not already connected
-        if (!connectionEstablishedRef.current) {
-          console.log('Attempting to connect to Supabase Realtime...');
-          
-          // Use a timeout to track connection success/failure
-          if (connectionTimeoutRef.current) {
-            window.clearTimeout(connectionTimeoutRef.current);
-          }
-          
-          connectionTimeoutRef.current = window.setTimeout(() => {
+        console.log('Attempting to connect to Supabase Realtime...');
+        
+        // Set up a timeout to detect connection failures
+        if (connectionTimeoutRef.current) {
+          window.clearTimeout(connectionTimeoutRef.current);
+        }
+        
+        connectionTimeoutRef.current = window.setTimeout(() => {
+          // Only handle timeout if still in connecting state
+          if (connectionStateRef.current === ConnectionState.CONNECTING) {
             console.log('Connection attempt timed out');
-            connectionAttemptingRef.current = false;
+            connectionStateRef.current = ConnectionState.DISCONNECTED;
             connectionTimeoutRef.current = null;
             
-            // Schedule reconnection
-            if (reconnectTimeoutRef.current) {
-              window.clearTimeout(reconnectTimeoutRef.current);
-            }
-            
+            // Schedule reconnection if not unmounting
             if (!unmountingRef.current) {
+              if (reconnectTimeoutRef.current) {
+                window.clearTimeout(reconnectTimeoutRef.current);
+              }
+              
               reconnectTimeoutRef.current = window.setTimeout(() => {
                 if (!unmountingRef.current) {
                   setupRealtime();
                 }
               }, 5000);
             }
-          }, 10000); // 10 second timeout
-          
-          await supabase.realtime.connect();
-          
-          // Cancel timeout since connection succeeded
-          if (connectionTimeoutRef.current) {
-            clearTimeout(connectionTimeoutRef.current);
-            connectionTimeoutRef.current = null;
           }
-          
+        }, 10000); // 10 second timeout
+        
+        // Attempt to connect
+        await supabase.realtime.connect();
+        
+        // Cancel timeout since connection succeeded
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
+        
+        // Update connection state and UI state
+        if (!unmountingRef.current) {
           console.log('Successfully connected to Supabase Realtime');
-          
-          // Mark connection as established
-          if (!unmountingRef.current) {
-            connectionEstablishedRef.current = true;
-            setIsConnected(true);
+          connectionStateRef.current = ConnectionState.CONNECTED;
+          setIsConnected(true);
+        } else {
+          // If we connected but component unmounted during the process,
+          // we need to clean up the connection
+          console.log('Connected but component unmounted, cleaning up');
+          try {
+            supabase.realtime.disconnect();
+          } catch (e) {
+            console.error('Error during cleanup of successful connection after unmount:', e);
           }
         }
       } catch (error) {
         console.error('Error connecting to realtime:', error);
+        
+        // Reset connection state
+        connectionStateRef.current = ConnectionState.DISCONNECTED;
         setIsConnected(false);
-        connectionEstablishedRef.current = false;
         
         // Schedule reconnection attempt with exponential backoff
         if (reconnectTimeoutRef.current) {
@@ -153,25 +177,26 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
             }
           }, 5000); // 5 second delay before retry
         }
-      } finally {
-        connectionAttemptingRef.current = false;
       }
     };
 
-    // Debounce connection attempt to prevent rapid connect/disconnect cycles
+    // Debounce connection attempt
     if (connectionDebounceRef.current) {
       clearTimeout(connectionDebounceRef.current);
     }
     
-    connectionDebounceRef.current = window.setTimeout(() => {
-      if (!unmountingRef.current) {
-        setupRealtime();
-      }
-    }, 300);
+    // Only attempt connection if we're in a disconnected state
+    if (connectionStateRef.current === ConnectionState.DISCONNECTED) {
+      connectionDebounceRef.current = window.setTimeout(() => {
+        if (!unmountingRef.current) {
+          setupRealtime();
+        }
+      }, 300);
+    }
 
     // Cleanup function with improved lifecycle management
     return () => {
-      // Signal that we're unmounting - THIS IS CRITICAL
+      // Signal that we're unmounting
       unmountingRef.current = true;
       
       // Clear all timeouts
@@ -190,39 +215,38 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
         connectionTimeoutRef.current = null;
       }
       
-      // Only attempt to disconnect if we actually have an established connection
+      // Only attempt to disconnect if we're in CONNECTED state
       // This prevents the "WebSocket closed before connection established" error
-      if (connectionEstablishedRef.current && !pageNavigatingRef.current) {
-        console.log('Disconnecting from Supabase Realtime (cleanup)');
+      if (connectionStateRef.current === ConnectionState.CONNECTED && !pageNavigatingRef.current) {
+        console.log('Disconnecting from established Supabase Realtime connection (cleanup)');
         
         try {
-          // IMPORTANT: First update our refs, then attempt to disconnect
-          connectionEstablishedRef.current = false;
+          // Update state before disconnecting
+          connectionStateRef.current = ConnectionState.DISCONNECTING;
           
-          // Safely disconnect - wrap in a try/catch
-          try {
-            // Clean disconnect attempt - delay slightly to avoid race conditions
-            setTimeout(() => {
+          // Use setTimeout to avoid race conditions during unmount
+          setTimeout(() => {
+            try {
               supabase.realtime.disconnect();
-            }, 0);
-          } catch (e) {
-            console.error('Error during delayed disconnect:', e);
-          }
+            } catch (e) {
+              console.error('Error during delayed disconnect:', e);
+            }
+          }, 0);
           
-          // Update state last (though this may not execute if component unmounting)
           setIsConnected(false);
         } catch (error) {
           console.error('Error disconnecting from realtime:', error);
         }
       } else {
-        console.log('No established connection to disconnect');
+        console.log(`Not disconnecting connection in state: ${connectionStateRef.current}`);
       }
     };
   }, [session]);
 
-  // Define a reconnection function with improved error handling
+  // Enhanced reconnect function
   const reconnect = async () => {
-    if (connectionAttemptingRef.current) {
+    // Only allow reconnection if we're not already connecting
+    if (connectionStateRef.current === ConnectionState.CONNECTING) {
       console.log('Connection attempt already in progress');
       return;
     }
@@ -230,32 +254,48 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
     console.log('Manual reconnection initiated');
     
     // Force disconnect only if we have an established connection
-    if (connectionEstablishedRef.current) {
+    if (connectionStateRef.current === ConnectionState.CONNECTED) {
       try {
         console.log('Disconnecting before reconnection');
+        connectionStateRef.current = ConnectionState.DISCONNECTING;
         supabase.realtime.disconnect();
+        connectionStateRef.current = ConnectionState.DISCONNECTED;
       } catch (error) {
         console.error('Error during forced disconnect:', error);
+        // Continue with reconnection regardless of disconnect error
+        connectionStateRef.current = ConnectionState.DISCONNECTED;
       }
-      connectionEstablishedRef.current = false;
     }
     
+    // Update UI state
     setIsConnected(false);
     
     // Small delay before attempting reconnection
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     try {
-      connectionAttemptingRef.current = true;
+      connectionStateRef.current = ConnectionState.CONNECTING;
       console.log('Reconnecting to Supabase Realtime...');
-      supabase.realtime.setAuth(session?.access_token || null);
+      
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token);
+      } else {
+        supabase.realtime.setAuth(null);
+      }
+      
       await supabase.realtime.connect();
-      connectionEstablishedRef.current = true;
+      
+      // Update state
+      connectionStateRef.current = ConnectionState.CONNECTED;
       setIsConnected(true);
+      
       console.log('Reconnection successful');
       toast.success('Realtime connection restored');
     } catch (error) {
+      // Reset connection state on error
+      connectionStateRef.current = ConnectionState.DISCONNECTED;
       console.error('Error reconnecting to realtime:', error);
+      
       toast.error('Failed to reconnect to realtime service', {
         description: 'Some real-time features may be unavailable',
         action: {
@@ -263,12 +303,10 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
           onClick: reconnect
         }
       });
-    } finally {
-      connectionAttemptingRef.current = false;
     }
   };
 
-  // Subscribe to a channel with better error handling
+  // Enhanced subscribe function with better error handling
   const subscribe = (channelName: string, tableName: string, callback: (payload: any) => void): RealtimeChannel => {
     // If channel already exists, return it
     if (channels[channelName]) {
