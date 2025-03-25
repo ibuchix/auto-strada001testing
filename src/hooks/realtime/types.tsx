@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-12-18: Created this file as part of RealtimeProvider refactoring
  * - 2024-12-18: Extracted types from RealtimeProvider.tsx
+ * - 2024-12-19: Fixed missing exports and consolidated all types
  */
 
 import { ReactNode } from 'react';
@@ -27,3 +28,21 @@ export interface RealtimeContextType {
 export interface RealtimeProviderProps {
   children: ReactNode;
 }
+
+export type EnhancedToast = (
+  type: 'success' | 'error' | 'info' | 'warning',
+  title: string,
+  description?: string,
+  duration?: number
+) => void;
+
+// A union type that can handle all Supabase realtime payload types
+export type RealtimePayload = {
+  schema: string;
+  table: string;
+  commit_timestamp: string;
+  eventType: string;
+  new: Record<string, any>;
+  old: Record<string, any>;
+  errors: any;
+};

@@ -3,11 +3,12 @@
  * Changes made:
  * - 2024-12-18: Created this file as part of RealtimeProvider refactoring
  * - 2024-12-18: Extracted connection lifecycle management from RealtimeProvider.tsx
+ * - 2024-12-19: Fixed import for ConnectionState from types.tsx
  */
 
 import { useEffect, useRef, useState } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { ConnectionState } from './types';
+import { ConnectionState } from './types.tsx';
 import { connectToRealtime, safeDisconnect } from './connectionUtils';
 
 /**

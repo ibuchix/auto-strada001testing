@@ -1,15 +1,15 @@
-
 /**
  * Changes made:
  * - 2024-12-18: Created this file as part of RealtimeProvider refactoring
  * - 2024-12-18: Extracted reconnection logic from RealtimeProvider.tsx
+ * - 2024-12-19: Fixed import for ConnectionState from types.tsx
  */
 
 import { useState, MutableRefObject } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { connectToRealtime } from './connectionUtils';
-import { ConnectionState } from './types';
+import { ConnectionState } from './types.tsx';
 
 /**
  * Hook to handle reconnection logic

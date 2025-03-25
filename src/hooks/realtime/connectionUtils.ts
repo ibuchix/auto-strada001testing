@@ -3,11 +3,12 @@
  * Changes made:
  * - 2024-12-18: Created this file as part of RealtimeProvider refactoring
  * - 2024-12-18: Extracted connection utilities from RealtimeProvider.tsx
+ * - 2024-12-19: Fixed import for ConnectionState from types.tsx
  */
 
 import { MutableRefObject } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ConnectionState } from './types';
+import { ConnectionState } from './types.tsx';
 import { toast } from 'sonner';
 
 /**
