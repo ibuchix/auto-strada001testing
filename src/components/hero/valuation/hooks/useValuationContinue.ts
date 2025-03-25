@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-03-19: Created useValuationContinue hook extracted from ValuationResult
  * - 2026-12-20: Fixed ValuationResultData type definition
+ * - 2027-05-15: Updated ValuationResultData interface to make vin and transmission optional
  */
 
 import { useAuth } from "@/components/AuthProvider";

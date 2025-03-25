@@ -4,6 +4,7 @@
  * - 2025-07-07: Created hook for navigation handling extracted from ValuationResult
  * - 2026-04-15: Enhanced with improved offline handling and user feedback
  * - 2026-12-20: Fixed useAuth import path
+ * - 2027-05-15: Fixed import path for useAuth and updated interface to match AuthProvider
  */
 
 import { useNavigate } from "react-router-dom";
@@ -13,10 +14,10 @@ import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 
 export const useValuationNavigation = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { session } = useAuth();
   const { isOffline } = useOfflineStatus();
   
-  const isLoggedIn = !!user;
+  const isLoggedIn = !!session;
   
   const handleContinue = (valuationData: any, mileage?: number) => {
     try {
