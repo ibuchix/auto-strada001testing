@@ -17,6 +17,7 @@
  * - 2024-08-02: Removed average price from ValuationDisplay to prevent sellers from seeing it
  * - 2025-10-20: Fixed reserve price handling and added more debugging
  * - 2024-12-14: Added missing error and retry props to ValuationDisplay
+ * - 2026-04-15: Enhanced error handling and improved loading state visualization
  */
 
 import { 
@@ -27,7 +28,9 @@ import {
 import { ValuationDisplay } from "./ValuationDisplay";
 import { VehicleDetails } from "./VehicleDetails";
 import { ValuationDialogFooter } from "./layout/DialogFooter";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface ValuationContentProps {
   make: string;
@@ -64,6 +67,9 @@ export const ValuationContent = ({
   onClose,
   onContinue
 }: ValuationContentProps) => {
+  const [retryAttempts, setRetryAttempts] = useState(0);
+  const [showVehicleInfo, setShowVehicleInfo] = useState(true);
+  
   // Log component mount with key props
   useEffect(() => {
     console.log('ValuationContent mounted with data:', {
@@ -75,6 +81,17 @@ export const ValuationContent = ({
       console.log('ValuationContent unmounted');
     };
   }, [make, model, year, hasValuation, isLoggedIn, reservePrice, averagePrice, isLoading, error]);
+
+  // Handle retry with attempt counting
+  const handleRetry = useCallback(() => {
+    setRetryAttempts(prev => prev + 1);
+    if (onRetry) {
+      onRetry();
+    }
+  }, [onRetry]);
+
+  // Determine if we should show an additional warning based on retry attempts
+  const showRetryWarning = retryAttempts >= 2;
 
   // Stabilized callback to prevent recreation on each render
   const handleContinueClick = useCallback(() => {
@@ -128,14 +145,26 @@ export const ValuationContent = ({
       </DialogHeader>
 
       <div className="space-y-6">
-        <VehicleDetails
-          make={make}
-          model={model}
-          year={year}
-          vin={vin}
-          transmission={transmission}
-          mileage={mileage}
-        />
+        {showVehicleInfo && (
+          <VehicleDetails
+            make={make}
+            model={model}
+            year={year}
+            vin={vin}
+            transmission={transmission}
+            mileage={mileage}
+          />
+        )}
+        
+        {showRetryWarning && (
+          <Alert variant="warning" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              We're experiencing some difficulty with the valuation service. If this persists, 
+              you can proceed to manual valuation.
+            </AlertDescription>
+          </Alert>
+        )}
         
         {hasValuation && (
           <ValuationDisplay 
@@ -143,7 +172,7 @@ export const ValuationContent = ({
             averagePrice={averagePrice}
             isLoading={isLoading}
             error={error}
-            onRetry={onRetry}
+            onRetry={handleRetry}
           />
         )}
       </div>

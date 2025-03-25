@@ -9,11 +9,15 @@
  * - 2025-10-20: Fixed reserve price display and improved property handling
  * - 2024-12-14: Fixed price rendering and added better debugging for valuation issues
  * - 2026-04-10: Added strict type checking and proper null/undefined handling
+ * - 2026-04-15: Enhanced error resilience and improved visual feedback
  */
 
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, AlertCircle, Info } from "lucide-react";
 import { useEffect } from "react";
+import { GeneralErrorHandler } from "@/components/error-handling/GeneralErrorHandler";
+import { ErrorCategory } from "@/utils/errorHandlers";
+import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 
 interface ValuationDisplayProps {
   reservePrice: number | undefined | null;
@@ -45,27 +49,27 @@ export const ValuationDisplay = ({
     return (
       <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
         <p className="text-sm text-subtitle mb-2">Calculating...</p>
-        <div className="animate-pulse h-10 bg-primary/10 rounded" />
+        <div className="flex items-center justify-center">
+          <LoadingIndicator message="" />
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
-        <p className="text-sm text-subtitle mb-2">Valuation</p>
-        <p className="text-sm text-red-600 mb-3">{error}</p>
-        {onRetry && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onRetry}
-            className="flex items-center gap-1"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Try Again
-          </Button>
-        )}
+      <div className="bg-primary/5 border border-primary/20 rounded-lg p-6">
+        <GeneralErrorHandler 
+          error={error} 
+          category={ErrorCategory.GENERAL}
+          title="Valuation Error" 
+          description="We encountered an issue while calculating the valuation."
+          onRetry={onRetry}
+          primaryAction={onRetry ? {
+            label: "Try Again",
+            onClick: onRetry
+          } : undefined}
+        />
       </div>
     );
   }
@@ -85,9 +89,23 @@ export const ValuationDisplay = ({
     return (
       <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
         <p className="text-sm text-subtitle mb-2">Valuation</p>
-        <p className="text-4xl font-bold text-primary">
-          No valuation available
-        </p>
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Info size={16} className="text-primary" />
+          <p className="text-lg font-medium">
+            No valuation available
+          </p>
+        </div>
+        {onRetry && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onRetry}
+            className="flex items-center gap-1 mt-2"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Try Again
+          </Button>
+        )}
       </div>
     );
   }
