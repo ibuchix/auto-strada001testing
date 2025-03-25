@@ -7,6 +7,7 @@
  * - 2024-03-26: Fixed TransmissionType to match PostgreSQL enum values
  * - 2024-03-27: Added explicit string type to ensure compatibility with database
  * - 2024-08-01: Made vin and transmission properties optional for caching purposes
+ * - 2025-12-23: Updated ValuationData to include additional properties for better type safety
  */
 
 // Match the PostgreSQL enum 'car_transmission_type'
@@ -14,8 +15,10 @@ export type TransmissionType = 'manual' | 'automatic';
 
 export interface ValuationData {
   valuation?: number;
+  reservePrice?: number;
   price?: number;
   averagePrice?: number;
+  basePrice?: number;
   make?: string;
   model?: string;
   year?: number;

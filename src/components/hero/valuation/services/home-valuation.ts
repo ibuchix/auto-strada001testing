@@ -7,6 +7,7 @@
  * - 2025-10-20: Fixed reserve price calculation and display
  * - 2024-12-14: Added error resilience, fixed calculateReservePrice, and improved response handling
  * - 2025-12-22: Fixed property naming consistency and improved data handling
+ * - 2025-12-23: Fixed TypeScript type issues with property access on dynamic objects
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -76,11 +77,12 @@ export async function processHomeValuation(
       if (cachedData) {
         console.log('Using cached valuation data for VIN:', vin, cachedData);
         
-        // Ensure valuation/reserve price is available in cached data
-        const normalizedData = { ...cachedData };
+        // Create a properly typed normalized data object
+        const normalizedData: Record<string, any> = { ...cachedData };
         
+        // Ensure valuation/reserve price is available in cached data
         if (!normalizedData.valuation && !normalizedData.reservePrice && normalizedData.basePrice) {
-          const calculatedPrice = calculateReservePrice(normalizedData.basePrice);
+          const calculatedPrice = calculateReservePrice(Number(normalizedData.basePrice));
           normalizedData.valuation = calculatedPrice;
           normalizedData.reservePrice = calculatedPrice;
           console.log('Calculated reserve price from cached base price:', calculatedPrice);
@@ -90,12 +92,18 @@ export async function processHomeValuation(
           normalizedData.valuation = normalizedData.reservePrice;
         }
         
+        // Create a ValuationData compatible result
         return {
           success: true,
           data: {
             ...normalizedData,
             vin,
-            transmission: gearbox
+            transmission: gearbox,
+            // Ensure numeric type for valuation
+            valuation: normalizedData.valuation ? Number(normalizedData.valuation) : undefined,
+            reservePrice: normalizedData.reservePrice ? Number(normalizedData.reservePrice) : undefined,
+            averagePrice: normalizedData.averagePrice ? Number(normalizedData.averagePrice) : undefined,
+            basePrice: normalizedData.basePrice ? Number(normalizedData.basePrice) : undefined
           }
         };
       }
@@ -129,7 +137,7 @@ export async function processHomeValuation(
         console.log('Direct valuation API response:', directData);
         
         // Prepare the response with normalized fields
-        const responseData = { 
+        const responseData: Record<string, any> = { 
           ...directData.data,
           vin, 
           transmission: gearbox 
@@ -150,9 +158,17 @@ export async function processHomeValuation(
           // Non-critical, continue with operation
         }
         
+        // Create a ValuationData compatible result
         return {
           success: true,
-          data: responseData
+          data: {
+            ...responseData,
+            // Ensure numeric type for valuation
+            valuation: responseData.valuation ? Number(responseData.valuation) : undefined,
+            reservePrice: responseData.reservePrice ? Number(responseData.reservePrice) : undefined,
+            averagePrice: responseData.averagePrice ? Number(responseData.averagePrice) : undefined,
+            basePrice: responseData.basePrice ? Number(responseData.basePrice) : undefined
+          }
         };
       }
       
