@@ -10,6 +10,7 @@
  * - 2025-05-15: Further refactored into context-specific modules for improved separation of concerns
  * - 2025-09-18: Added request timeout handling and additional error recovery
  * - 2025-10-18: Fixed TypeScript type errors related to TransmissionType casting
+ * - 2025-10-19: Fixed duplicate export issues causing SyntaxError
  */
 
 import { ValuationResult, TransmissionType } from "../types";
@@ -96,4 +97,4 @@ export const getValuation = async (
   }
 };
 
-// No need to re-export cleanupValuationData since it's already exported above
+// No duplicate export here - cleanupValuationData is already exported above
