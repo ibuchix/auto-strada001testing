@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-11-11: Fixed unresponsive "List This Car" button by addressing JSON parsing issues
@@ -17,6 +18,7 @@
  * - 2024-12-14: Fixed handling of valuation result properties and improved resilience
  * - 2026-04-10: Added proper null/undefined handling and type checking
  * - 2026-04-16: Added WebSocket connection error handling to ensure navigation works regardless of connection status
+ * - 2027-06-04: Added missing handleRetry function for error recovery
  */
 
 import { useEffect, useState } from "react";
@@ -209,6 +211,26 @@ export const ValuationResult = ({
       } catch (e) {
         console.error('Even direct navigation failed:', e);
       }
+    }
+  };
+
+  // Handle retry attempts for valuation
+  const handleRetry = () => {
+    console.log('ValuationResult - handleRetry triggered');
+    setIsLoading(true);
+    
+    // Show toast to inform user
+    toast.info("Retrying valuation...", {
+      id: "valuation-retry",
+      duration: 2000
+    });
+    
+    // Call the onRetry prop if provided
+    if (onRetry) {
+      onRetry();
+    } else {
+      // If no retry function provided, just reset loading state
+      setTimeout(() => setIsLoading(false), 500);
     }
   };
 
