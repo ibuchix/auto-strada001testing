@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-05-15: Extracted API calls from valuationService.ts
  * - 2025-12-22: Fixed data normalization and improved error handling
+ * - 2025-12-23: Fixed TypeScript errors with spread operator on non-object types
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -24,8 +25,10 @@ export async function getCachedValuation(vin: string, mileage: number) {
     if (!funcError && funcData) {
       console.log('Cache hit using DB function for VIN:', vin);
       
-      // Normalize the data to ensure consistent property names
-      const normalizedData = { ...funcData };
+      // Ensure funcData is an object before spreading
+      const normalizedData = typeof funcData === 'object' && funcData !== null 
+        ? { ...funcData } 
+        : { valuation: funcData }; // Handle primitive values
       
       // Ensure both valuation and reservePrice exist
       if (normalizedData.valuation !== undefined && normalizedData.reservePrice === undefined) {
@@ -63,7 +66,11 @@ export async function getCachedValuation(vin: string, mileage: number) {
       const daysDifference = (now.getTime() - cacheDate.getTime()) / (1000 * 3600 * 24);
       
       if (daysDifference <= 30) {
-        const normalizedData = { ...data[0].valuation_data };
+        // Ensure valuation_data is an object before spreading
+        const valData = data[0].valuation_data;
+        const normalizedData = typeof valData === 'object' && valData !== null 
+          ? { ...valData }
+          : { valuation: valData }; // Handle primitive values
         
         // Ensure both valuation and reservePrice exist
         if (normalizedData.valuation !== undefined && normalizedData.reservePrice === undefined) {
