@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-04-21: Created component for handling valuation errors extracted from ValuationResult
  * - 2026-04-15: Enhanced error feedback and added resilience for network issues
+ * - 2027-06-20: Extracted from ValuationResult component as part of code refactoring
  */
 
 import { useNavigate } from "react-router-dom";
