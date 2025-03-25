@@ -34,38 +34,42 @@ import { UpdatePassword } from "@/components/auth/UpdatePassword";
 import { RealtimeProvider } from "@/components/RealtimeProvider";
 import { TransactionProvider } from "./components/transaction/TransactionProvider";
 import SellerRegistrationRepairPage from "./pages/SellerRegistrationRepair";
+import { NavigationDiagnostics } from './components/debug/NavigationDiagnostics';
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <TransactionProvider>
-          <RealtimeProvider>
-            <Routes>
-              <Route path="/" element={<IndexPage />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/sellers" element={<Sellers />} />
-              <Route path="/dealers" element={<Dealers />} />
-              <Route path="/dashboard/seller" element={<SellerDashboard />} />
-              <Route path="/dashboard/dealer" element={<DealerDashboard />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/sell-my-car" element={<SellMyCar />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/dealer-signup" element={<DealerSignup />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/manual-valuation" element={<ManualValuation />} />
-              <Route path="/auth/reset-password" element={<ResetPassword />} />
-              <Route path="/auth/update-password" element={<UpdatePassword />} />
-              <Route path="/seller-registration-repair" element={<SellerRegistrationRepairPage />} />
-            </Routes>
-            <Toaster />
-          </RealtimeProvider>
-        </TransactionProvider>
-      </AuthProvider>
-    </Router>
+    <>
+      <Router>
+        <AuthProvider>
+          <TransactionProvider>
+            <RealtimeProvider>
+              <Routes>
+                <Route path="/" element={<IndexPage />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/sellers" element={<Sellers />} />
+                <Route path="/dealers" element={<Dealers />} />
+                <Route path="/dashboard/seller" element={<SellerDashboard />} />
+                <Route path="/dashboard/dealer" element={<DealerDashboard />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/sell-my-car" element={<SellMyCar />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/dealer-signup" element={<DealerSignup />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/manual-valuation" element={<ManualValuation />} />
+                <Route path="/auth/reset-password" element={<ResetPassword />} />
+                <Route path="/auth/update-password" element={<UpdatePassword />} />
+                <Route path="/seller-registration-repair" element={<SellerRegistrationRepairPage />} />
+              </Routes>
+              <Toaster />
+            </RealtimeProvider>
+          </TransactionProvider>
+        </AuthProvider>
+      </Router>
+      <NavigationDiagnostics />
+    </>
   );
 }
 
