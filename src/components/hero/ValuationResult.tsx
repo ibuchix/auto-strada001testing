@@ -21,6 +21,7 @@
  * - 2027-06-04: Added missing handleRetry function for error recovery
  * - 2027-06-08: Added comprehensive diagnostics logging for navigation troubleshooting
  * - 2027-06-20: Refactored component into smaller, more manageable components
+ * - 2027-07-01: Fixed TypeScript transmission type error by ensuring proper type casting
  */
 
 import { useState } from "react";
@@ -31,6 +32,7 @@ import { useRealtime } from "@/components/RealtimeProvider";
 import { useValuationResultNavigation } from "./valuation/hooks/useValuationResultNavigation";
 import { normalizeValuationData, validateValuationData } from "./valuation/utils/valuationDataNormalizer";
 import { toast } from "sonner";
+import { TransmissionType } from "./valuation/types";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -94,8 +96,17 @@ export const ValuationResult = ({
     });
   }
   
+  // Convert transmission string to TransmissionType before normalizing
+  const preparedResult = {
+    ...valuationResult,
+    // Cast to TransmissionType if valid, or use 'manual' as fallback
+    transmission: (valuationResult.transmission === 'manual' || valuationResult.transmission === 'automatic')
+      ? valuationResult.transmission as TransmissionType
+      : 'manual' as TransmissionType
+  };
+  
   // Normalize and validate data
-  const normalizedResult = normalizeValuationData(valuationResult);
+  const normalizedResult = normalizeValuationData(preparedResult);
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = Boolean(normalizedResult.error || normalizedResult.noData);
   const isValidData = validateValuationData(normalizedResult);
@@ -186,7 +197,7 @@ export const ValuationResult = ({
         model={normalizedResult.model || 'Vehicle'}
         year={normalizedResult.year || new Date().getFullYear()}
         vin={normalizedResult.vin || ''}
-        transmission={normalizedResult.transmission || 'unknown'}
+        transmission={normalizedResult.transmission || 'manual'}
         mileage={mileage}
         reservePrice={normalizedResult.reservePrice || normalizedResult.valuation}
         // Still pass averagePrice in props but it won't be displayed

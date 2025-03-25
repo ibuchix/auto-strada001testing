@@ -11,11 +11,19 @@
  * - 2025-07-10: Added WebSocket error resilience to ensure button always works
  * - 2027-06-08: Added comprehensive debugging with multiple fallbacks and visual feedback
  * - 2027-06-15: Enhanced debugging with more detailed click tracking and performance metrics
+ * - 2027-07-01: Fixed TypeScript error by properly declaring the window.navigationPerformance property
  */
 
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+
+// Declare the additional property on Window to fix the TypeScript error
+declare global {
+  interface Window {
+    navigationPerformance?: Record<string, number>;
+  }
+}
 
 interface ContinueButtonProps {
   isLoggedIn: boolean;
@@ -70,9 +78,9 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
     
     // Record in window for debugging
     if (!window.navigationPerformance) {
-      (window as any).navigationPerformance = {};
+      window.navigationPerformance = {};
     }
-    (window as any).navigationPerformance[marker] = timestamp;
+    window.navigationPerformance[marker] = timestamp;
     
     // Also attempt to store in localStorage
     try {
