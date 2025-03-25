@@ -19,6 +19,7 @@
  * - 2026-04-10: Added proper null/undefined handling and type checking
  * - 2026-04-16: Added WebSocket connection error handling to ensure navigation works regardless of connection status
  * - 2027-06-04: Added missing handleRetry function for error recovery
+ * - 2027-06-08: Added comprehensive diagnostics logging for navigation troubleshooting
  */
 
 import { useEffect, useState } from "react";
@@ -57,10 +58,13 @@ export const ValuationResult = ({
   const { handleContinue, isLoggedIn } = useValuationNavigation();
   const { isConnected } = useRealtime();
   const [isLoading, setIsLoading] = useState(false);
+  const [navigationAttempts, setNavigationAttempts] = useState(0);
   
-  // Debug log valuation result on component mount
+  // Debug log valuation result on component mount with unique IDs to trace in console
   useEffect(() => {
-    console.log('ValuationResult mounted with data:', {
+    const componentId = Math.random().toString(36).substring(2, 10);
+    
+    console.log(`ValuationResult[${componentId}] - Component mounted with data:`, {
       hasData: !!valuationResult,
       make: valuationResult?.make,
       model: valuationResult?.model,
@@ -70,12 +74,24 @@ export const ValuationResult = ({
       reservePriceType: valuationResult?.reservePrice !== undefined ? typeof valuationResult.reservePrice : 'undefined',
       hasError: !!valuationResult?.error,
       authStatus: isLoggedIn ? 'authenticated' : 'unauthenticated',
-      realtimeStatus: isConnected ? 'connected' : 'disconnected'
+      realtimeStatus: isConnected ? 'connected' : 'disconnected',
+      timestamp: new Date().toISOString(),
+      componentId
     });
+    
+    // Store debug info in localStorage
+    localStorage.setItem('valuationResultDebug', JSON.stringify({
+      mounted: true,
+      timestamp: new Date().toISOString(),
+      componentId,
+      hasData: !!valuationResult,
+      hasAuth: isLoggedIn,
+      hasRealtime: isConnected
+    }));
     
     // Check if we have incomplete valuation data
     if (valuationResult && !valuationResult.error && !valuationResult.make) {
-      console.warn('Incomplete valuation data detected:', valuationResult);
+      console.warn(`ValuationResult[${componentId}] - Incomplete valuation data detected:`, valuationResult);
     }
     
     // Initial loading state
@@ -83,9 +99,28 @@ export const ValuationResult = ({
     
     // Show warning about connection status if needed
     if (!isConnected) {
-      console.warn('WebSocket connection unavailable - navigation may fall back to direct URLs');
+      console.warn(`ValuationResult[${componentId}] - WebSocket connection unavailable - using fallback navigation methods`);
+      // Toast to inform user about offline mode
+      toast.warning("Connection issue detected", {
+        description: "Navigation may be affected. Please be patient.",
+        duration: 3000
+      });
     }
-  }, [valuationResult, isLoggedIn, isConnected]);
+    
+    // Cleanup and log on unmount
+    return () => {
+      console.log(`ValuationResult[${componentId}] - Component unmounting`, {
+        navigationAttempts,
+        timestamp: new Date().toISOString()
+      });
+      localStorage.setItem('valuationResultDebugUnmount', JSON.stringify({
+        unmounted: true,
+        timestamp: new Date().toISOString(),
+        componentId,
+        navigationAttempts
+      }));
+    };
+  }, [valuationResult, isLoggedIn, isConnected, navigationAttempts]);
   
   // Ensure we have valid valuation data
   if (!valuationResult) {
@@ -95,24 +130,30 @@ export const ValuationResult = ({
 
   // Normalization function to handle property name variations
   const normalizeResult = () => {
+    console.log('ValuationResult - Normalizing data');
     const normalized = { ...valuationResult };
     
     // Ensure either reservePrice or valuation is available (if one exists without the other)
     if (normalized.valuation !== undefined && normalized.reservePrice === undefined) {
       normalized.reservePrice = normalized.valuation;
+      console.log('ValuationResult - Using valuation as reservePrice:', normalized.valuation);
     } else if (normalized.reservePrice !== undefined && normalized.valuation === undefined) {
       normalized.valuation = normalized.reservePrice;
+      console.log('ValuationResult - Using reservePrice as valuation:', normalized.reservePrice);
     }
     
     // Convert string values to numbers if needed
     if (typeof normalized.valuation === 'string') {
       normalized.valuation = Number(normalized.valuation);
+      console.log('ValuationResult - Converted valuation string to number:', normalized.valuation);
     }
     if (typeof normalized.reservePrice === 'string') {
       normalized.reservePrice = Number(normalized.reservePrice);
+      console.log('ValuationResult - Converted reservePrice string to number:', normalized.reservePrice);
     }
     if (typeof normalized.averagePrice === 'string') {
       normalized.averagePrice = Number(normalized.averagePrice);
+      console.log('ValuationResult - Converted averagePrice string to number:', normalized.averagePrice);
     }
     
     return normalized;
@@ -152,7 +193,8 @@ export const ValuationResult = ({
   console.log('ValuationResult - Display values:', {
     valuation: normalizedResult.valuation,
     reservePrice: normalizedResult.reservePrice,
-    hasValuation
+    hasValuation,
+    navigationAttempts
   });
 
   // Handle error cases with the dedicated component
@@ -168,9 +210,10 @@ export const ValuationResult = ({
     );
   }
 
-  // Improved continue handler with multiple fallback mechanisms
+  // Enhanced continue handler with multiple fallback mechanisms and detailed logging
   const handleContinueClick = () => {
     console.log('ValuationResult - handleContinueClick triggered');
+    setNavigationAttempts(prev => prev + 1);
     
     // Store all necessary navigation data in variables first
     const navigationData = {
@@ -178,39 +221,78 @@ export const ValuationResult = ({
       mileage
     };
     
+    // Log detailed debug info for the navigation attempt
+    console.log('ValuationResult - Navigation attempt details:', {
+      attemptNumber: navigationAttempts + 1,
+      timestamp: new Date().toISOString(),
+      dataToStore: navigationData,
+      isLoggedIn,
+      mileage,
+      hasValuation
+    });
+    
     // Pre-store data in localStorage as a safety measure
-    localStorage.setItem("valuationData", JSON.stringify(navigationData));
-    if (navigationData.mileage) {
-      localStorage.setItem("tempMileage", navigationData.mileage.toString());
+    try {
+      localStorage.setItem("valuationData", JSON.stringify(navigationData));
+      localStorage.setItem("navigationRecentAttempt", new Date().toISOString());
+      localStorage.setItem("navigationAttemptCount", (navigationAttempts + 1).toString());
+      
+      // Store individual fields for maximum resilience
+      if (navigationData.make) localStorage.setItem("tempMake", navigationData.make);
+      if (navigationData.model) localStorage.setItem("tempModel", navigationData.model);
+      if (navigationData.year) localStorage.setItem("tempYear", navigationData.year.toString());
+      if (navigationData.vin) localStorage.setItem("tempVIN", navigationData.vin);
+      if (navigationData.mileage) localStorage.setItem("tempMileage", navigationData.mileage.toString());
+      if (navigationData.transmission) localStorage.setItem("tempGearbox", navigationData.transmission);
+      
+      console.log('ValuationResult - Successfully stored navigation data in localStorage');
+    } catch (storageError) {
+      console.error('ValuationResult - Error storing data in localStorage:', storageError);
+      // Continue anyway - this is just a fallback
     }
     
     // Pre-create the navigation function to execute afterward
     const executeNavigation = () => {
       console.log('ValuationResult - Executing navigation with stored data');
-      handleContinue(navigationData, navigationData.mileage);
+      try {
+        handleContinue(navigationData, navigationData.mileage);
+        console.log('ValuationResult - handleContinue called successfully');
+      } catch (navError) {
+        console.error('ValuationResult - Error during handleContinue:', navError);
+        // Try direct navigation as fallback
+        try {
+          console.log('ValuationResult - Attempting direct navigation fallback');
+          window.location.href = '/sell-my-car';
+        } catch (directNavError) {
+          console.error('ValuationResult - Even direct navigation failed:', directNavError);
+        }
+      }
     };
     
     // First register a timeout for navigation to happen even if component unmounts
-    // This is our safety net
-    window.setTimeout(executeNavigation, 100);
+    const timeoutId = window.setTimeout(() => {
+      console.log('ValuationResult - Executing navigation via timeout');
+      executeNavigation();
+    }, 100);
     
     // Then close the dialog
     console.log('ValuationResult - Closing dialog');
-    onClose();
+    try {
+      onClose();
+      console.log('ValuationResult - Dialog closed successfully');
+    } catch (closeError) {
+      console.error('ValuationResult - Error closing dialog:', closeError);
+      // If dialog closing fails, still try to navigate
+      clearTimeout(timeoutId); // Clear the timeout since we'll navigate now
+      executeNavigation();
+    }
     
     // Also try to execute navigation immediately
-    // One of these approaches should succeed
     try {
       console.log('ValuationResult - Attempting immediate navigation');
       executeNavigation();
     } catch (error) {
       console.error('ValuationResult - Error during immediate navigation, relying on timeout:', error);
-      // Attempt direct navigation as a last resort
-      try {
-        window.location.href = '/sell-my-car';
-      } catch (e) {
-        console.error('Even direct navigation failed:', e);
-      }
     }
   };
 
