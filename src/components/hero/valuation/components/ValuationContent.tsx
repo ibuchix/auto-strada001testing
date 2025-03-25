@@ -16,6 +16,7 @@
  * - 2025-07-09: Removed component unmount check that was blocking navigation
  * - 2024-08-02: Removed average price from ValuationDisplay to prevent sellers from seeing it
  * - 2025-10-20: Fixed reserve price handling and added more debugging
+ * - 2024-12-14: Added missing error and retry props to ValuationDisplay
  */
 
 import { 
@@ -39,6 +40,9 @@ interface ValuationContentProps {
   averagePrice?: number; // Still accept this prop but don't display it
   hasValuation: boolean;
   isLoggedIn: boolean;
+  isLoading?: boolean;
+  error?: string;
+  onRetry?: () => void;
   onClose: () => void;
   onContinue: () => void;
 }
@@ -54,6 +58,9 @@ export const ValuationContent = ({
   averagePrice, // Keep receiving this but don't pass it to ValuationDisplay
   hasValuation,
   isLoggedIn,
+  isLoading,
+  error,
+  onRetry,
   onClose,
   onContinue
 }: ValuationContentProps) => {
@@ -61,13 +68,13 @@ export const ValuationContent = ({
   useEffect(() => {
     console.log('ValuationContent mounted with data:', {
       make, model, year, hasValuation, isLoggedIn,
-      reservePrice, averagePrice
+      reservePrice, averagePrice, isLoading, error
     });
     
     return () => {
       console.log('ValuationContent unmounted');
     };
-  }, [make, model, year, hasValuation, isLoggedIn, reservePrice, averagePrice]);
+  }, [make, model, year, hasValuation, isLoggedIn, reservePrice, averagePrice, isLoading, error]);
 
   // Stabilized callback to prevent recreation on each render
   const handleContinueClick = useCallback(() => {
@@ -132,9 +139,11 @@ export const ValuationContent = ({
         
         {hasValuation && (
           <ValuationDisplay 
-            reservePrice={reservePrice || 0}
-            // We still pass averagePrice for debugging but the component won't display it
+            reservePrice={reservePrice}
             averagePrice={averagePrice}
+            isLoading={isLoading}
+            error={error}
+            onRetry={onRetry}
           />
         )}
       </div>

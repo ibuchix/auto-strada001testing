@@ -7,13 +7,15 @@
  * - 2024-07-20: Enhanced error display with clearer messages and retry option
  * - 2024-08-02: Removed average price display to prevent sellers from seeing it
  * - 2025-10-20: Fixed reserve price display and improved property handling
+ * - 2024-12-14: Fixed price rendering and added better debugging for valuation issues
  */
 
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { useEffect } from "react";
 
 interface ValuationDisplayProps {
-  reservePrice: number;
+  reservePrice: number | undefined | null;
   averagePrice?: number; // Still accept this prop but don't display it
   isLoading?: boolean;
   error?: string;
@@ -27,6 +29,16 @@ export const ValuationDisplay = ({
   error,
   onRetry
 }: ValuationDisplayProps) => {
+  // Debug log props on mount
+  useEffect(() => {
+    console.log('ValuationDisplay mounted with props:', {
+      reservePrice,
+      averagePrice,
+      isLoading,
+      hasError: !!error
+    });
+  }, [reservePrice, averagePrice, isLoading, error]);
+
   if (isLoading) {
     return (
       <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
@@ -56,12 +68,12 @@ export const ValuationDisplay = ({
     );
   }
 
-  // Debug logs to help understand what's happening with the price
-  console.log('ValuationDisplay received reservePrice:', reservePrice);
-  console.log('ValuationDisplay received averagePrice:', averagePrice);
+  // Log value for debugging
+  console.log('ValuationDisplay rendering with price:', reservePrice);
 
-  // Only show "No valuation available" if reserve price is 0, undefined, or null
-  if (!reservePrice && reservePrice !== 0) {
+  // Show "No valuation available" if reserve price is undefined, null, NaN, or negative
+  if (reservePrice === undefined || reservePrice === null || isNaN(Number(reservePrice)) || Number(reservePrice) < 0) {
+    console.warn('ValuationDisplay received invalid reserve price:', reservePrice);
     return (
       <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
         <p className="text-sm text-subtitle mb-2">Valuation</p>
@@ -72,11 +84,14 @@ export const ValuationDisplay = ({
     );
   }
 
+  // Convert to number and format
+  const formattedPrice = Math.max(0, Number(reservePrice)).toLocaleString();
+  
   return (
     <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
       <p className="text-sm text-subtitle mb-2">Reserve Price</p>
       <p className="text-4xl font-bold text-primary">
-        PLN {Math.max(0, reservePrice).toLocaleString()}
+        PLN {formattedPrice}
       </p>
       {/* Removed the averagePrice display */}
     </div>

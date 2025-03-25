@@ -7,6 +7,7 @@
  * - 2024-12-09: Refactored into smaller files for better code organization
  * - 2024-12-13: Added graceful degradation when real-time connection fails
  * - 2024-12-13: Improved error handling and user feedback for connection issues
+ * - 2024-12-14: Enhanced WebSocket reconnection handling and user feedback
  */
 
 import { useEffect, useState } from 'react';
@@ -20,6 +21,7 @@ export const useRealtimeBids = () => {
   const { toast: uiToast } = useToast();
   const { reconnect, isConnected } = useRealtime();
   const [hasShownConnectionError, setHasShownConnectionError] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   
   // Enhanced toast wrapper that uses our custom BidNotification component
   const enhancedToast = (
@@ -45,6 +47,36 @@ export const useRealtimeBids = () => {
   // Setup channel subscriptions using the extracted hook with connection status awareness
   useChannelSubscription(enhancedToast, isConnected);
   
+  // Handle reconnection with exponential backoff
+  const handleReconnect = () => {
+    const maxReconnectAttempts = 5;
+    if (reconnectAttempts < maxReconnectAttempts) {
+      // Calculate backoff time: 1s, 2s, 4s, 8s, 16s
+      const backoffTime = Math.pow(2, reconnectAttempts) * 1000;
+      
+      toast.loading(`Attempting to reconnect in ${backoffTime/1000}s...`, {
+        id: 'reconnect-toast'
+      });
+      
+      setTimeout(() => {
+        toast.dismiss('reconnect-toast');
+        toast.loading('Reconnecting...');
+        reconnect().then(() => {
+          toast.success('Connection restored');
+          setReconnectAttempts(0);
+        }).catch(() => {
+          toast.error('Reconnection failed');
+          setReconnectAttempts(prev => prev + 1);
+        });
+      }, backoffTime);
+    } else {
+      toast.error('Maximum reconnection attempts reached', {
+        description: 'Please refresh the page to try again.',
+        duration: 10000
+      });
+    }
+  };
+  
   // Show a warning when realtime is disconnected (but only once)
   useEffect(() => {
     if (!isConnected && !hasShownConnectionError) {
@@ -53,10 +85,7 @@ export const useRealtimeBids = () => {
         duration: 5000,
         action: {
           label: 'Reconnect',
-          onClick: () => {
-            toast.loading('Attempting to reconnect...');
-            reconnect();
-          }
+          onClick: handleReconnect
         }
       });
       setHasShownConnectionError(true);
@@ -65,8 +94,9 @@ export const useRealtimeBids = () => {
         duration: 3000
       });
       setHasShownConnectionError(false);
+      setReconnectAttempts(0);
     }
-  }, [isConnected, hasShownConnectionError, reconnect]);
+  }, [isConnected, hasShownConnectionError]);
   
-  return { reconnect, isConnected };
+  return { reconnect, isConnected, handleReconnect };
 };

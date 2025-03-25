@@ -7,6 +7,7 @@
  * - 2024-07-20: Enhanced error handling and user feedback
  * - 2024-09-18: Added request timeout and improved error recovery
  * - 2025-10-20: Fixed form submission and improved debugging
+ * - 2024-12-14: Added WebSocket connection awareness and offline resilience
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -15,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ValuationFormData, valuationFormSchema } from "@/types/validation";
 import { toast } from "sonner";
 import { getValuation, cleanupValuationData } from "@/components/hero/valuation/services/valuationService";
+import { useRealtime } from "@/components/RealtimeProvider";
 
 export const useValuationForm = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,6 +24,7 @@ export const useValuationForm = () => {
   const [valuationResult, setValuationResult] = useState<any>(null);
   const [retryCount, setRetryCount] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { isConnected } = useRealtime();
 
   const form = useForm<ValuationFormData>({
     resolver: zodResolver(valuationFormSchema),
@@ -31,6 +34,11 @@ export const useValuationForm = () => {
       gearbox: "manual",
     },
   });
+
+  // Log WebSocket connection status for debugging
+  useEffect(() => {
+    console.log('ValuationForm - WebSocket connection status:', isConnected ? 'connected' : 'disconnected');
+  }, [isConnected]);
 
   // Clear any pending timeouts when component unmounts
   useEffect(() => {
@@ -50,6 +58,15 @@ export const useValuationForm = () => {
     }
     
     setIsLoading(true);
+    
+    // Warn user about WebSocket disconnection but proceed anyway
+    if (!isConnected) {
+      console.warn('WebSocket not connected during valuation request');
+      toast.warning("Limited connectivity detected", {
+        description: "We'll still try to get your valuation, but you may need to refresh if there are issues.",
+        duration: 3000
+      });
+    }
     
     // Set a timeout to cancel the operation if it takes too long
     timeoutRef.current = setTimeout(() => {
@@ -100,7 +117,14 @@ export const useValuationForm = () => {
           averagePrice: result.data.averagePrice
         });
 
-        setValuationResult(result.data);
+        // Set the result with normalized property names - ensure both valuation and reservePrice exist
+        const normalizedResult = {
+          ...result.data,
+          reservePrice: result.data.reservePrice || result.data.valuation, 
+          valuation: result.data.valuation || result.data.reservePrice
+        };
+        
+        setValuationResult(normalizedResult);
         setShowDialog(true);
         
         // Reset retry count on success
@@ -116,6 +140,15 @@ export const useValuationForm = () => {
           });
         } else if (result.data?.error === 'Request timed out') {
           // Timeout was already handled by the service
+        } else if (result.data?.error?.includes('WebSocket') || 
+                  result.data?.error?.includes('connection')) {
+          toast.error("Connection issue detected", {
+            description: "Please check your internet connection and try again.",
+            action: {
+              label: "Retry",
+              onClick: () => form.handleSubmit(onSubmit)()
+            }
+          });
         } else {
           toast.error(result.data?.error || "Failed to get vehicle valuation", {
             description: "Please try again or contact support if the issue persists."
@@ -148,9 +181,22 @@ export const useValuationForm = () => {
           }
         });
       } else {
-        toast.error(error.message || "Failed to get vehicle valuation", {
-          description: "Please check your connection and try again."
-        });
+        // Check for WebSocket or network errors
+        const errorMessage = error.message || "Failed to get vehicle valuation";
+        if (errorMessage.includes('WebSocket') || errorMessage.includes('network') || 
+            errorMessage.includes('connection') || !isConnected) {
+          toast.error("Connection issue detected", {
+            description: "Please check your internet connection and try again.",
+            action: {
+              label: "Retry",
+              onClick: () => form.handleSubmit(onSubmit)()
+            }
+          });
+        } else {
+          toast.error(errorMessage, {
+            description: "Please check your connection and try again."
+          });
+        }
       }
       setIsLoading(false);
     } finally {

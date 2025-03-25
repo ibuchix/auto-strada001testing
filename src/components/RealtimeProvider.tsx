@@ -8,6 +8,7 @@
  * - 2024-12-13: Fixed premature disconnection causing "WebSocket closed before connection established" errors
  * - 2024-12-13: Added connection debouncing to prevent rapid connect/disconnect cycles
  * - 2024-08-03: Fixed WebSocket lifecycle issues by adding proper connection state tracking and safer cleanup
+ * - 2024-12-14: Fixed race condition in WebSocket connection leading to premature disconnections
  */
 
 import { ReactNode, createContext, useContext, useEffect, useState, useRef } from 'react';
@@ -49,10 +50,11 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
   const reconnectTimeoutRef = useRef<number | null>(null);
   const connectionDebounceRef = useRef<number | null>(null);
   const unmountingRef = useRef(false);
+  const connectionTimeoutRef = useRef<number | null>(null);
 
   // Initialize realtime connection with better lifecycle management
   useEffect(() => {
-    // Clear flag on mount
+    // Clear flag on mount and set up cleanup
     unmountingRef.current = false;
     
     const setupRealtime = async () => {
@@ -79,9 +81,14 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
           console.log('Attempting to connect to Supabase Realtime...');
           
           // Use a timeout to track connection success/failure
-          const connectionTimeout = setTimeout(() => {
+          if (connectionTimeoutRef.current) {
+            window.clearTimeout(connectionTimeoutRef.current);
+          }
+          
+          connectionTimeoutRef.current = window.setTimeout(() => {
             console.log('Connection attempt timed out');
             connectionAttemptingRef.current = false;
+            connectionTimeoutRef.current = null;
             
             // Schedule reconnection
             if (reconnectTimeoutRef.current) {
@@ -100,13 +107,18 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
           await supabase.realtime.connect();
           
           // Cancel timeout since connection succeeded
-          clearTimeout(connectionTimeout);
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
           
           console.log('Successfully connected to Supabase Realtime');
           
           // Mark connection as established
-          connectionEstablishedRef.current = true;
-          setIsConnected(true);
+          if (!unmountingRef.current) {
+            connectionEstablishedRef.current = true;
+            setIsConnected(true);
+          }
         }
       } catch (error) {
         console.error('Error connecting to realtime:', error);
@@ -143,7 +155,7 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
 
     // Cleanup function with improved lifecycle management
     return () => {
-      // Signal that we're unmounting
+      // Signal that we're unmounting - THIS IS CRITICAL
       unmountingRef.current = true;
       
       // Clear all timeouts
@@ -157,21 +169,25 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
         reconnectTimeoutRef.current = null;
       }
       
+      if (connectionTimeoutRef.current) {
+        window.clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
+      
       // Only attempt to disconnect if we actually have an established connection
       // This prevents the "WebSocket closed before connection established" error
       if (connectionEstablishedRef.current) {
         console.log('Disconnecting from Supabase Realtime (cleanup)');
+        
         try {
-          // Use a small delay to ensure any pending operations complete
-          setTimeout(() => {
-            try {
-              supabase.realtime.disconnect();
-            } catch (e) {
-              console.error('Error during delayed disconnect:', e);
-            }
-          }, 100);
-          
+          // IMPORTANT: Don't use setTimeout here as it can cause issues during page navigation
+          // Simply update our refs first, then attempt to disconnect
           connectionEstablishedRef.current = false;
+          
+          // Clean disconnect attempt
+          supabase.realtime.disconnect();
+          
+          // Update state last (though this may not execute if component unmounting)
           setIsConnected(false);
         } catch (error) {
           console.error('Error disconnecting from realtime:', error);

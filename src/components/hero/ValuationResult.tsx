@@ -15,13 +15,15 @@
  * - 2025-07-09: Fixed race condition by preparing navigation before closing dialog
  * - 2024-08-02: Removed average price from UI to prevent sellers from seeing it
  * - 2025-09-18: Added error recovery for missing or invalid valuation data
+ * - 2024-12-14: Fixed handling of valuation result properties and improved resilience
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ValuationContent } from "./valuation/components/ValuationContent";
 import { ValuationErrorHandler } from "./valuation/components/ValuationErrorHandler";
 import { useValuationNavigation } from "./valuation/hooks/useValuationNavigation";
 import { toast } from "sonner";
+import { useRealtime } from "@/components/RealtimeProvider";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -31,6 +33,7 @@ interface ValuationResultProps {
     vin?: string;
     transmission?: string;
     valuation?: number | null;
+    reservePrice?: number | null; // Added reservePrice as alternative property name
     averagePrice?: number | null; // Keep this in the type but don't display it
     isExisting?: boolean;
     error?: string;
@@ -49,6 +52,8 @@ export const ValuationResult = ({
   onRetry 
 }: ValuationResultProps) => {
   const { handleContinue, isLoggedIn } = useValuationNavigation();
+  const { isConnected } = useRealtime();
+  const [isLoading, setIsLoading] = useState(false);
   
   // Debug log valuation result on component mount
   useEffect(() => {
@@ -56,15 +61,21 @@ export const ValuationResult = ({
       hasData: !!valuationResult,
       make: valuationResult?.make,
       model: valuationResult?.model,
+      valuation: valuationResult?.valuation,
+      reservePrice: valuationResult?.reservePrice,
       hasError: !!valuationResult?.error,
-      authStatus: isLoggedIn ? 'authenticated' : 'unauthenticated'
+      authStatus: isLoggedIn ? 'authenticated' : 'unauthenticated',
+      realtimeStatus: isConnected ? 'connected' : 'disconnected'
     });
     
     // Check if we have incomplete valuation data
     if (valuationResult && !valuationResult.error && !valuationResult.make) {
       console.warn('Incomplete valuation data detected:', valuationResult);
     }
-  }, [valuationResult, isLoggedIn]);
+    
+    // Initial loading state
+    setIsLoading(false);
+  }, [valuationResult, isLoggedIn, isConnected]);
   
   // Ensure we have valid valuation data
   if (!valuationResult) {
@@ -72,13 +83,29 @@ export const ValuationResult = ({
     return null;
   }
 
+  // Normalization function to handle property name variations
+  const normalizeResult = () => {
+    const normalized = { ...valuationResult };
+    
+    // Ensure either reservePrice or valuation is available (if one exists without the other)
+    if (normalized.valuation !== undefined && normalized.reservePrice === undefined) {
+      normalized.reservePrice = normalized.valuation;
+    } else if (normalized.reservePrice !== undefined && normalized.valuation === undefined) {
+      normalized.valuation = normalized.reservePrice;
+    }
+    
+    return normalized;
+  };
+  
+  const normalizedResult = normalizeResult();
+
   // Validation to prevent rendering with invalid data
-  if (!valuationResult.error && (!valuationResult.make || !valuationResult.model)) {
-    console.error('Invalid valuation data detected:', valuationResult);
+  if (!normalizedResult.error && (!normalizedResult.make || !normalizedResult.model)) {
+    console.error('Invalid valuation data detected:', normalizedResult);
     
     // Create an error result for the error handler to display
     const errorResult = {
-      ...valuationResult,
+      ...normalizedResult,
       error: 'Incomplete valuation data received. Please try again.',
       noData: true
     };
@@ -95,16 +122,20 @@ export const ValuationResult = ({
   }
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-  const hasError = Boolean(valuationResult.error || valuationResult.noData);
-  const hasValuation = !hasError && Boolean(valuationResult.valuation);
+  const hasError = Boolean(normalizedResult.error || normalizedResult.noData);
+  const hasValuation = !hasError && Boolean(normalizedResult.valuation || normalizedResult.reservePrice);
   
-  console.log('ValuationResult - Display price:', valuationResult.valuation);
+  console.log('ValuationResult - Display values:', {
+    valuation: normalizedResult.valuation,
+    reservePrice: normalizedResult.reservePrice,
+    hasValuation
+  });
 
   // Handle error cases with the dedicated component
   if (hasError) {
     return (
       <ValuationErrorHandler
-        valuationResult={valuationResult}
+        valuationResult={normalizedResult}
         mileage={mileage}
         isLoggedIn={isLoggedIn}
         onClose={onClose}
@@ -113,13 +144,24 @@ export const ValuationResult = ({
     );
   }
 
+  // Handle retry
+  const handleRetry = () => {
+    setIsLoading(true);
+    if (onRetry) {
+      onRetry();
+    } else {
+      setIsLoading(false);
+      toast.error("Retry function not available");
+    }
+  };
+
   // Improved continue handler that initiates navigation BEFORE closing the dialog
   const handleContinueClick = () => {
     console.log('ValuationResult - handleContinueClick triggered');
     
     // Store all necessary navigation data in variables first
     const navigationData = {
-      ...valuationResult,
+      ...normalizedResult,
       mileage
     };
     
@@ -151,17 +193,20 @@ export const ValuationResult = ({
   // Render main content for successful valuations
   return (
     <ValuationContent
-      make={valuationResult.make || 'Unknown'}
-      model={valuationResult.model || 'Vehicle'}
-      year={valuationResult.year || new Date().getFullYear()}
-      vin={valuationResult.vin || ''}
-      transmission={valuationResult.transmission || 'unknown'}
+      make={normalizedResult.make || 'Unknown'}
+      model={normalizedResult.model || 'Vehicle'}
+      year={normalizedResult.year || new Date().getFullYear()}
+      vin={normalizedResult.vin || ''}
+      transmission={normalizedResult.transmission || 'unknown'}
       mileage={mileage}
-      reservePrice={valuationResult.valuation}
+      reservePrice={normalizedResult.reservePrice || normalizedResult.valuation}
       // Still pass averagePrice in props but it won't be displayed
-      averagePrice={valuationResult.averagePrice}
+      averagePrice={normalizedResult.averagePrice}
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
+      isLoading={isLoading}
+      error={normalizedResult.error}
+      onRetry={handleRetry}
       onClose={onClose}
       onContinue={handleContinueClick}
     />
