@@ -3,6 +3,7 @@
  * Changes made:
  * - 2027-07-22: Created as part of SellMyCar.tsx refactoring
  * - 2027-07-22: Handles page state management and loading logic
+ * - 2027-07-23: Fixed TypeScript error with errorType union type
  */
 
 import { useState } from "react";
@@ -17,7 +18,7 @@ interface PageStateManagerProps {
   isValid: boolean;
   isLoading: boolean;
   error: string | null;
-  errorType: string | null;
+  errorType: 'auth' | 'data' | 'seller' | null;
   isVerifying: boolean;
   handleRetrySellerVerification: () => void;
 }

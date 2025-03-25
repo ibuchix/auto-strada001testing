@@ -1,8 +1,8 @@
-
 /**
  * Changes made:
  * - 2027-07-22: Extracted from SellMyCar.tsx as part of component refactoring
  * - 2027-07-22: Enhanced with better logging organization
+ * - 2027-07-23: Fixed TypeScript error with errorType union type
  */
 
 import { useEffect } from "react";
@@ -12,7 +12,7 @@ interface PageDebugLoggerProps {
   isValid: boolean;
   isLoading: boolean;
   error: string | null;
-  errorType: string | null;
+  errorType: 'auth' | 'data' | 'seller' | null;
   pageLoadState: {
     initialLoadComplete: boolean;
     loadTime: Date;
