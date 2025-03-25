@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of app routing
@@ -9,6 +10,7 @@
  * - 2024-10-20: Fixed React Query import to use @tanstack/react-query instead of react-query
  * - 2024-10-20: Fixed RealtimeProvider import path
  * - 2024-10-21: Removed redundant QueryClientProvider since it's already in main.tsx
+ * - 2024-12-15: Fixed NavigationDiagnostics placement to be inside Router component 
  */
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
@@ -64,11 +66,12 @@ function App() {
                 <Route path="/seller-registration-repair" element={<SellerRegistrationRepairPage />} />
               </Routes>
               <Toaster />
+              {/* Place NavigationDiagnostics inside Router */}
+              <NavigationDiagnostics />
             </RealtimeProvider>
           </TransactionProvider>
         </AuthProvider>
       </Router>
-      <NavigationDiagnostics />
     </>
   );
 }

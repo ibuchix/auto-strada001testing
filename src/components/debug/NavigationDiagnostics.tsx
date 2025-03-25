@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2027-06-15: Created navigation diagnostics component for monitoring and debugging navigation issues
+ * - 2027-12-15: Fixed conditional rendering to prevent errors when running in production
  */
 
 import { useEffect, useState } from "react";
@@ -16,7 +17,10 @@ export const NavigationDiagnostics = () => {
   // Only show in development mode and when activated
   useEffect(() => {
     // Check if we should enable the diagnostics
-    const shouldEnable = import.meta.env.DEV && 
+    const shouldEnable = 
+      // Check if we're in development mode
+      (import.meta.env.DEV === true) && 
+      // And either localStorage flag is set or URL param is present
       (localStorage.getItem('enableNavDiagnostics') === 'true' || 
        new URLSearchParams(window.location.search).get('debug') === 'true');
     
