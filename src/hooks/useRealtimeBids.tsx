@@ -8,6 +8,7 @@
  * - 2024-12-13: Added graceful degradation when real-time connection fails
  * - 2024-12-13: Improved error handling and user feedback for connection issues
  * - 2024-12-14: Enhanced WebSocket reconnection handling and user feedback
+ * - 2024-12-18: Updated import to use new RealtimeContext location
  */
 
 import { useEffect, useState } from 'react';
