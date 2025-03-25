@@ -7,6 +7,7 @@
  * - 2027-06-22: Fixed issues with navigation being blocked by WebSocket disconnection
  * - 2027-07-15: Added guaranteed navigation with improved error handling
  * - 2027-07-20: Fixed immediate loading feedback and direct URL navigation support
+ * - 2027-07-22: Fixed TypeScript error by ensuring no return value used in conditionals
  */
 
 import { useState } from "react";
@@ -87,7 +88,7 @@ export const useValuationResultNavigation = () => {
       // Error will be handled by the ContinueButton's direct URL navigation
     }
     
-    // No need to return anything since ContinueButton handles navigation
+    // No return value - we no longer need to return anything since the ContinueButton handles navigation
   };
 
   // Handle retry attempts for valuation

@@ -22,6 +22,7 @@
  * - 2027-06-08: Added comprehensive diagnostics logging for navigation troubleshooting
  * - 2027-06-20: Refactored component into smaller, more manageable components
  * - 2027-07-01: Fixed TypeScript transmission type error by ensuring proper type casting
+ * - 2027-07-22: Fixed TypeScript error with timeoutId return value
  */
 
 import { useState } from "react";
@@ -164,7 +165,7 @@ export const ValuationResult = ({
     console.log('ValuationResult - handleContinueWrapper triggered');
     
     // Execute the navigation logic first
-    const timeoutId = handleContinueClick(normalizedResult);
+    handleContinueClick(normalizedResult);
     
     // Then close the dialog
     console.log('ValuationResult - Closing dialog');
@@ -176,11 +177,6 @@ export const ValuationResult = ({
       // If dialog closing fails, still make sure navigation happens via timeout
       console.log('ValuationResult - Relying on timeout for navigation');
     }
-    
-    return () => {
-      // Clear the timeout if the component unmounts before it fires
-      if (timeoutId) clearTimeout(timeoutId);
-    };
   };
 
   // Wrapper for retry handling
