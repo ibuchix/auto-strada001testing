@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-10-25: Fixed property access to use carId instead of id
