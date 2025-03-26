@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-05-03: Added error state and retry functionality
  * - 2027-08-12: Enhanced with better error feedback and state visualization
+ * - 2028-05-30: Fixed type issues with indicatorClassName prop
  */
 import { Progress } from "@/components/ui/progress";
 import { RefreshCw, AlertCircle, CheckCircle } from "lucide-react";
@@ -56,7 +57,7 @@ export const UploadProgress = ({ progress, error, onRetry, className }: UploadPr
       <Progress 
         value={progress} 
         className={`h-2 ${error ? 'bg-destructive/20' : 'bg-gray-200'}`}
-        indicatorClassName={progressColor}
+        // Use regular className prop instead of indicatorClassName
       />
     </div>
   );

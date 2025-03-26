@@ -5,6 +5,7 @@
  * - 2024-03-19: Added photo upload functionality
  * - 2024-03-19: Implemented success notifications
  * - 2027-08-12: Updated PhotoUpload props to use title and description instead of label
+ * - 2028-05-30: Fixed type issues with onUpload function return type
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -19,10 +20,10 @@ interface WarningLightsSectionProps {
 }
 
 export const WarningLightsSection = ({ form, carId }: WarningLightsSectionProps) => {
-  const handleWarningLightPhotoUpload = async (file: File) => {
+  const handleWarningLightPhotoUpload = async (file: File): Promise<string | null> => {
     if (!carId) {
       toast.error("Please save the form first before uploading warning light photos");
-      return;
+      return null;
     }
 
     const formData = new FormData();
@@ -44,8 +45,10 @@ export const WarningLightsSection = ({ form, carId }: WarningLightsSectionProps)
       form.setValue('warningLightPhotos', [...currentPhotos, filePath]);
       
       toast.success('Warning light photo uploaded successfully');
+      return filePath; // Return the filePath string
     } catch (error) {
       toast.error('Failed to upload warning light photo');
+      return null; // Return null on error
     }
   };
 

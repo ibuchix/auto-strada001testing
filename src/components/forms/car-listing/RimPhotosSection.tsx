@@ -5,6 +5,7 @@
  * - 2024-09-15: Added state tracking for uploaded rims
  * - 2027-08-03: Improved error handling when carId is not available
  * - 2027-08-12: Updated PhotoUpload props to use title and description instead of label
+ * - 2028-05-30: Fixed type issues with onUpload function return type
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -36,13 +37,13 @@ export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
     setMissingCarId(!carId);
   }, [carId]);
 
-  const handleRimPhotoUpload = async (file: File, position: keyof typeof uploadedRims) => {
+  const handleRimPhotoUpload = async (file: File, position: keyof typeof uploadedRims): Promise<string | null> => {
     if (!carId) {
       setMissingCarId(true);
       toast.error("Unable to upload photos", {
         description: "Please save the form first before uploading rim photos"
       });
-      return;
+      return null;
     }
 
     const formData = new FormData();
@@ -75,9 +76,12 @@ export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
       setUploadedRims(prev => ({ ...prev, [position]: true }));
       
       toast.success(`${position.replace('_', ' ')} rim photo uploaded successfully`);
+      
+      return filePath; // Return the filePath string
     } catch (error) {
       toast.error('Failed to upload rim photo');
       console.error('Rim photo upload error:', error);
+      return null; // Return null on error
     }
   };
 
