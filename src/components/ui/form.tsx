@@ -4,6 +4,7 @@
  * - Fixed issue with form field error handling
  * - Added proper TypeScript typing for form field state
  * - Improved null checks and default values
+ * - Fixed TypeScript errors by properly typing the fieldState object
  */
 
 import * as React from "react"
@@ -16,6 +17,7 @@ import {
   FieldValues,
   FormProvider,
   useFormContext,
+  FieldError
 } from "react-hook-form"
 
 import { cn } from "@/lib/utils"
@@ -47,7 +49,17 @@ const FormField = <
   )
 }
 
-const useFormField = () => {
+// Type for the return of useFormField to include the error property
+type FormFieldState = {
+  id?: string
+  name: string
+  formItemId?: string
+  formDescriptionId?: string
+  formMessageId?: string
+  error?: FieldError
+}
+
+const useFormField = (): FormFieldState => {
   const fieldContext = React.useContext(FormFieldContext)
   const itemContext = React.useContext(FormItemContext)
   
