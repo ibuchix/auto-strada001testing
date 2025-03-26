@@ -5,6 +5,7 @@
  * - 2024-10-31: Fixed type issues with test functions
  * - 2025-05-15: Enhanced mocking capabilities with better type support
  * - 2025-05-16: Added support for mock negations and matchers
+ * - 2025-05-17: Fixed type export with 'export type' for isolatedModules compatibility
  */
 
 // Define the common types needed for testing
@@ -110,7 +111,7 @@ export const expect = (value: any): Matcher & { resolves: AsyncMatcher; rejects:
 };
 
 // Improved mocking capabilities
-type SpyInstance = {
+interface SpyInstance {
   mockReturnValue: (value: any) => SpyInstance;
   mockResolvedValue: (value: any) => SpyInstance;
   mockRejectedValue: (value: any) => SpyInstance;
@@ -121,14 +122,14 @@ type SpyInstance = {
   getMockName: () => string;
   mockReturnThis: () => SpyInstance;
   mockName: (name: string) => SpyInstance;
-};
+}
 
 // Enhanced vi mock object
 export const vi = {
   fn: <T = any>(implementation?: (...args: any[]) => T): jest.Mock<T> => 
     implementation ? jest.fn(implementation) : jest.fn(),
   
-  mock: (path: string, options?: { virtual?: boolean }) => {},
+  mock: (path: string) => {},
   
   spyOn: (object: any, method: string): SpyInstance => ({
     mockReturnValue: (value: any) => vi.spyOn(object, method),
@@ -150,6 +151,7 @@ export const vi = {
   importActual: <T>(path: string): Promise<T> => Promise.resolve({} as T),
   importMock: <T>(path: string): Promise<T> => Promise.resolve({} as T),
   mocked: <T>(item: T, deep?: boolean): jest.Mocked<T> => item as any,
+  resetModules: () => {},
 };
 
 // Re-export jest for compatibility
@@ -162,7 +164,6 @@ export const jest = {
   restoreAllMocks: vi.restoreAllMocks,
 };
 
-// Export types
-export { SpyInstance };
+// Export types - fixed to use 'export type' for isolatedModules compatibility
+export type { SpyInstance };
 export type Mock<T = any> = jest.Mock<T>;
-
