@@ -8,6 +8,7 @@
  * - 2024-12-06: Corrected imports and type errors to resolve build issues
  * - 2027-08-01: Fixed transaction type usage and error handling
  * - 2027-08-10: Fixed TransactionType import and usage
+ * - 2027-08-15: Fixed type error with TransactionType enum
  */
 
 import { useState, useCallback } from 'react';
@@ -137,10 +138,10 @@ export const useCarListingForm = () => {
         photoUrls = await uploadPhotos(data.photos);
       }
 
-      // Fixed: Use TransactionType.CREATE directly without nested property access
+      // Fixed: Pass the enum value properly without using TransactionType.CREATE
       await transaction.executeTransaction(
         'Create Car Listing',
-        TransactionType.CREATE, // Fixed: Direct enum value use
+        'CREATE', // Fixed: Pass the string value directly
         async (transactionId) => { 
           const result = await submitCarListing({
             ...data,

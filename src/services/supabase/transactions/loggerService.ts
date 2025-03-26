@@ -10,6 +10,7 @@
  * - 2025-05-17: Fixed Json type incompatibility with Record<string, any>
  * - 2027-08-01: Further improved type safety to prevent excessive type instantiation
  * - 2027-08-01: Fixed excessive type instantiation with explicit typing
+ * - 2027-08-15: Fixed infinite type instantiation issue with improved interface types
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -87,12 +88,12 @@ export const transactionLoggerService = {
         return [];
       }
 
-      // Use explicit typecasting to avoid deep instantiation
-      return (data || []).map((log: any) => {
+      // Use explicit type casting to avoid deep instantiation
+      return (data || []).map((log: SystemLogRecord) => {
         const details = log.details || {};
         
         // Create a new transaction details object with explicit types
-        const transaction: TransactionDetails = {
+        return {
           id: log.correlation_id || '',
           operation: details.operation || '',
           type: details.type || 'OTHER',
@@ -104,9 +105,7 @@ export const transactionLoggerService = {
           errorDetails: details.error_details || null,
           metadata: details.metadata || {},
           userId: details.user_id || null
-        };
-        
-        return transaction;
+        } as TransactionDetails;
       });
     } catch (e) {
       console.error('Error fetching transaction history:', e);
