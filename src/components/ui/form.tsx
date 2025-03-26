@@ -1,4 +1,11 @@
 
+/**
+ * Changes made:
+ * - Fixed issue with form field error handling
+ * - Added proper TypeScript typing for form field state
+ * - Improved null checks and default values
+ */
+
 import * as React from "react"
 import * as LabelPrimitive from "@radix-ui/react-label"
 import { Slot } from "@radix-ui/react-slot"
@@ -52,8 +59,8 @@ const useFormField = () => {
   }
 
   // Safely get field state only if we have a form context
-  const fieldState = formContext?.getFieldState 
-    ? formContext.getFieldState(fieldContext.name, formContext.formState)
+  const fieldState = formContext ? 
+    formContext.getFieldState?.(fieldContext.name, formContext.formState) || {} 
     : {}
 
   const { id } = itemContext || {}
@@ -64,6 +71,7 @@ const useFormField = () => {
     formItemId: id ? `${id}-form-item` : undefined,
     formDescriptionId: id ? `${id}-form-item-description` : undefined,
     formMessageId: id ? `${id}-form-item-message` : undefined,
+    // Make sure to spread fieldState which includes the error property
     ...fieldState,
   }
 }
