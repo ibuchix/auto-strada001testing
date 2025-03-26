@@ -6,7 +6,7 @@ import './index.css';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './components/AuthProvider';
 import { ThemeProvider } from "./components/ui/theme-provider";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "./components/ui/toaster";
 import { RealtimeProvider } from './components/RealtimeProvider';
 import { DiagnosticsManager } from './diagnostics/DiagnosticsManager';
 

@@ -1,16 +1,30 @@
 
 /**
  * Changes made:
- * - 2024-10-16: Created transaction service for reliable Supabase operations tracking and confirmation
- * - 2024-10-24: Fixed type issues with audit log entries and Date objects
- * - 2024-10-25: Fixed Date object serialization for database inserts
- * - 2024-10-27: Fixed type mismatch with audit_logs action field and user_id property
- * - 2024-10-28: Refactored into smaller files, this file now re-exports from new location
+ * - 2028-07-14: Created TransactionService with types and enums
  */
 
-// Re-export everything from the new location for backward compatibility
-export * from './transactions';
+export enum TransactionStatus {
+  INACTIVE = 'inactive',
+  PENDING = 'pending',
+  SUCCESS = 'success',
+  ERROR = 'error'
+}
 
-// Provide the main service as default export
-import { transactionService } from './transactions';
-export default transactionService;
+export interface TransactionOptions {
+  description?: string;
+  showToast?: boolean;
+  metadata?: Record<string, any>;
+  onSuccess?: (result: any) => void;
+  onError?: (error: any) => void;
+}
+
+export interface Transaction {
+  id: string;
+  name: string;
+  status: TransactionStatus;
+  error?: string;
+  startTime: Date;
+  endTime?: Date;
+  metadata?: Record<string, any>;
+}
