@@ -1,8 +1,7 @@
 
 /**
  * Changes made:
- * - 2028-06-01: Added diagnostic panel and enhanced transaction tracking
- * - 2028-06-03: Fixed import errors and type issues
+ * - Removed diagnostic panel and diagnostic tracking functionality
  */
 
 import { useRef, useState, useEffect } from "react";
@@ -18,45 +17,30 @@ import { useFormPersistence } from "./hooks/useFormPersistence";
 import { FormDataProvider } from "./context/FormDataContext";
 import { useSectionsVisibility } from "./hooks/useSectionsVisibility";
 import { FormStepIndicator } from "./FormStepIndicator";
-import { TransactionDebugPanel } from "@/components/transaction/TransactionDebugPanel";
-import { logDiagnostic } from "@/diagnostics/listingButtonDiagnostics";
-import { CarListingFormData } from "@/types/forms";
 
-export const FormContent = ({ 
-  session, 
-  draftId, 
-  diagnosticId 
-}: FormContentProps) => {
+export const FormContent = ({ session, draftId }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const submissionErrorRef = useRef<string | null>(null);
-  const transactionIdRef = useRef<string | null>(null);
+  const submissionErrorRef = useRef(null);
+  const transactionIdRef = useRef(null);
   
   // Generate a unique ID for this form session
   useEffect(() => {
     if (!transactionIdRef.current) {
       transactionIdRef.current = crypto.randomUUID();
-      
-      // Log form initialization
-      if (diagnosticId) {
-        logDiagnostic('FORM_INIT', 'Form content initialized', {
-          transactionId: transactionIdRef.current,
-          draftId
-        }, diagnosticId);
-      }
     }
-  }, [diagnosticId, draftId]);
-  
+  }, [draftId]);
+
   // Form state
-  const form = useForm<CarListingFormData>({
+  const form = useForm({
     defaultValues: {
       vin: "",
       make: "",
       model: "",
       year: new Date().getFullYear(),
       registrationNumber: "",
-      mileage: 0, // Changed from string to number
+      mileage: "",
       engineCapacity: "",
       transmission: "manual",
       bodyType: "sedan",
@@ -65,7 +49,7 @@ export const FormContent = ({
       numberOfDoors: "4",
       seatMaterial: "cloth",
       numberOfKeys: "1",
-      price: 0, // Changed from string to number
+      price: "",
       location: "",
       description: "",
       name: "",
@@ -88,7 +72,7 @@ export const FormContent = ({
         panoramicRoof: false,
         reverseCamera: false,
         heatedSeats: false,
-        upgradedSound: false,
+        upgradedSound: false
       },
       uploadedPhotos: [],
       additionalPhotos: [],
@@ -96,87 +80,61 @@ export const FormContent = ({
         front: null,
         rear: null,
         interior: null,
-        engine: null,
+        engine: null
       },
       rimPhotos: {
         front_left: null,
         front_right: null,
         rear_left: null,
-        rear_right: null,
+        rear_right: null
       },
       warningLightPhotos: [],
       rimPhotosComplete: false,
       financeDocument: null,
-      serviceHistoryFiles: [],
+      serviceHistoryFiles: []
     }
   });
-  
+
   // Use form submission context
-  const {
-    submitting,
-    error,
-    transactionStatus,
-    showSuccessDialog,
-    setShowSuccessDialog,
-    handleSubmit,
-    resetTransaction
+  const { 
+    submitting, 
+    error, 
+    transactionStatus, 
+    showSuccessDialog, 
+    setShowSuccessDialog, 
+    handleSubmit, 
+    resetTransaction 
   } = useFormSubmissionContext();
-  
+
   // Update component submitting state from context
   useEffect(() => {
     setIsSubmitting(submitting);
-    
-    // Log transaction status changes
-    if (diagnosticId && transactionStatus) {
-      logDiagnostic('TRANSACTION_STATUS', `Transaction status changed to ${transactionStatus}`, {
-        transactionId: transactionIdRef.current,
-        isSubmitting: submitting
-      }, diagnosticId);
-    }
-  }, [submitting, transactionStatus, diagnosticId]);
-  
+  }, [submitting, transactionStatus]);
+
   // Track submission errors
   useEffect(() => {
     if (error && error !== submissionErrorRef.current) {
       submissionErrorRef.current = error;
-      
-      // Log errors
-      if (diagnosticId) {
-        logDiagnostic('SUBMISSION_ERROR', 'Submission encountered an error', {
-          error,
-          transactionId: transactionIdRef.current
-        }, diagnosticId, 'ERROR');
-      }
     }
-  }, [error, diagnosticId]);
-  
+  }, [error]);
+
   // Form persistence with autosave
   const { lastSaved, isOffline, saveProgress, carId } = useFormPersistence(
-    form,
-    session?.user?.id,
-    currentStep,
-    {
-      diagnosticId,
-      enableBackup: true
-    }
+    form, 
+    session?.user?.id, 
+    currentStep, 
+    { enableBackup: true }
   );
-  
+
   // Sections visibility handling
   const { visibleSections } = useSectionsVisibility(form, carId);
-  
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  
+
   // Handle manual form submission
-  const onSubmit = async (data: CarListingFormData) => {
-    if (diagnosticId) {
-      logDiagnostic('SUBMIT_ATTEMPT', 'Form submission started', {
-        transactionId: transactionIdRef.current,
-        carId
-      }, diagnosticId);
-    }
-    
+  const onSubmit = async (data) => {
     try {
       // Reset any previous errors
       submissionErrorRef.current = null;
@@ -186,16 +144,7 @@ export const FormContent = ({
       
       // Handle submission
       await handleSubmit(data, carId);
-    } catch (error: any) {
-      // Log submission errors
-      if (diagnosticId) {
-        logDiagnostic('SUBMIT_ERROR', 'Error during form submission', {
-          error: error.message,
-          transactionId: transactionIdRef.current,
-          carId
-        }, diagnosticId, 'ERROR');
-      }
-      
+    } catch (error) {
       console.error('Form submission error:', error);
       toast.error('Form submission failed', {
         description: error.message || 'Please try again later',
@@ -206,32 +155,33 @@ export const FormContent = ({
       });
     }
   };
-  
+
   if (!isMounted) {
     return <div className="p-8 text-center">Loading form...</div>;
   }
-  
+
   return (
     <FormDataProvider form={form}>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-24 relative">
-          {/* Form error display */}
-          {error && <FormTransactionError error={error} onRetry={resetTransaction} />}
+          {error && (
+            <FormTransactionError 
+              error={error} 
+              onRetry={resetTransaction} 
+            />
+          )}
           
-          {/* Success dialog */}
-          <FormSuccessDialog
-            open={showSuccessDialog}
-            onClose={() => setShowSuccessDialog(false)}
+          <FormSuccessDialog 
+            open={showSuccessDialog} 
+            onClose={() => setShowSuccessDialog(false)} 
           />
           
-          {/* Step indicator */}
           <FormStepIndicator 
             currentStep={currentStep} 
-            onStepClick={setCurrentStep}
-            visibleSections={visibleSections}
+            onStepClick={setCurrentStep} 
+            visibleSections={visibleSections} 
           />
           
-          {/* Multi-step form */}
           <div>
             <StepForm
               form={form}
@@ -243,23 +193,13 @@ export const FormContent = ({
               saveProgress={saveProgress}
               formErrors={form.formState.errors}
               visibleSections={visibleSections}
-              diagnosticId={diagnosticId}
             />
           </div>
           
-          {/* Submit button */}
           <FormSubmitButton
             isSubmitting={isSubmitting}
             transactionStatus={transactionStatus}
             onRetry={resetTransaction}
-            diagnosticId={diagnosticId}
-            formData={form.getValues()}
-          />
-          
-          {/* Debug panel */}
-          <TransactionDebugPanel 
-            transactionId={transactionIdRef.current || undefined}
-            transactionStatus={transactionStatus}
             formData={form.getValues()}
           />
         </form>
@@ -267,9 +207,3 @@ export const FormContent = ({
     </FormDataProvider>
   );
 };
-
-interface FormContentProps {
-  session: any;
-  draftId?: string;
-  diagnosticId?: string;
-}

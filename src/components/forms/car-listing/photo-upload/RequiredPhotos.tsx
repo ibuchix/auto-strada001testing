@@ -1,12 +1,10 @@
 
 /**
- * Component for required photo uploads with correct type definitions
- * - 2024-08-27: Updated onFileSelect prop type to accept Promise<string | null>
- * - 2024-12-27: Fixed type incompatibility with PhotoUpload component
- * - 2025-05-03: Updated onFileSelect and onUpload to use consistent Promise<string | null> return type
- * - 2025-05-07: Added diagnosticId prop for improved debugging
- * - 2027-08-12: Enhanced with recovery mechanisms and better validation feedback
+ * Changes made:
+ * - Removed diagnostic-related code
+ * - Fixed type issues
  */
+
 import { useState, useEffect } from "react";
 import { PhotoUpload } from "./PhotoUpload";
 import { FormValidationSummary } from "../validation/FormValidationSummary";
@@ -17,7 +15,6 @@ interface RequiredPhotosProps {
   isUploading: boolean;
   progress?: number;
   onFileSelect: (file: File, type: string) => Promise<string | null>;
-  diagnosticId?: string;
   onValidationChange?: (isValid: boolean) => void;
 }
 
@@ -25,7 +22,6 @@ export const RequiredPhotos = ({
   isUploading, 
   progress, 
   onFileSelect,
-  diagnosticId,
   onValidationChange
 }: RequiredPhotosProps) => {
   const [uploadedPhotos, setUploadedPhotos] = useState<Record<string, boolean>>({
@@ -42,13 +38,6 @@ export const RequiredPhotos = ({
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
   const [recoveryAttempted, setRecoveryAttempted] = useState(false);
 
-  // Log for debugging purposes
-  const logUploadEvent = (event: string, data: any) => {
-    if (diagnosticId) {
-      console.log(`[${diagnosticId}] [RequiredPhotos] ${event}:`, data);
-    }
-  };
-
   // Check for any previously uploaded photos in localStorage
   useEffect(() => {
     if (!recoveryAttempted) {
@@ -56,7 +45,6 @@ export const RequiredPhotos = ({
         const savedPhotos = localStorage.getItem('uploadedRequiredPhotos');
         if (savedPhotos) {
           const parsedPhotos = JSON.parse(savedPhotos);
-          logUploadEvent('Recovered photos from localStorage', { savedPhotos: parsedPhotos });
           setUploadedPhotos(prev => ({
             ...prev,
             ...parsedPhotos
@@ -64,19 +52,18 @@ export const RequiredPhotos = ({
           setRecoveryAttempted(true);
         }
       } catch (error) {
-        logUploadEvent('Failed to recover photos', { error });
+        console.error('Failed to recover photos', error);
       }
     }
-  }, [recoveryAttempted, diagnosticId]);
+  }, [recoveryAttempted]);
 
   // Save upload state to localStorage
   useEffect(() => {
     // Only save if we have at least one uploaded photo
     if (Object.values(uploadedPhotos).some(Boolean)) {
       localStorage.setItem('uploadedRequiredPhotos', JSON.stringify(uploadedPhotos));
-      logUploadEvent('Saved photos to localStorage', { uploadedPhotos });
     }
-  }, [uploadedPhotos, diagnosticId]);
+  }, [uploadedPhotos]);
 
   // Validate and notify parent
   useEffect(() => {
@@ -88,9 +75,7 @@ export const RequiredPhotos = ({
 
   const handlePhotoUploaded = (type: string) => {
     setUploadedPhotos((prev) => {
-      const newState = { ...prev, [type]: true };
-      logUploadEvent('Photo uploaded', { type, uploadedPhotos: newState });
-      return newState;
+      return { ...prev, [type]: true };
     });
     
     // Clear any errors for this photo
@@ -108,7 +93,6 @@ export const RequiredPhotos = ({
       ...prev,
       [type]: error
     }));
-    logUploadEvent('Upload error', { type, error });
   };
 
   const requiredPhotos = [
@@ -190,21 +174,16 @@ export const RequiredPhotos = ({
             isUploaded={uploadedPhotos[photo.id]}
             progress={progress}
             isRequired={true}
-            diagnosticId={diagnosticId}
             onUpload={async (file) => {
-              logUploadEvent('Upload started', { photoId: photo.id });
               try {
                 const url = await onFileSelect(file, photo.id);
                 if (url) {
                   handlePhotoUploaded(photo.id);
-                  logUploadEvent('Upload succeeded', { photoId: photo.id, url });
                 } else {
-                  logUploadEvent('Upload returned null', { photoId: photo.id });
                   handleUploadError(photo.id, "Upload failed");
                 }
                 return url;
               } catch (error: any) {
-                logUploadEvent('Upload failed', { photoId: photo.id, error });
                 handleUploadError(photo.id, error.message || "Upload failed");
                 return null;
               }

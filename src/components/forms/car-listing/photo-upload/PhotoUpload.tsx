@@ -1,7 +1,8 @@
 
 /**
  * Changes made:
- * - 2028-06-01: Enhanced with upload diagnostics and retry functionality
+ * - Fixed type issues
+ * - Removed diagnostic-related code
  */
 
 import { useState } from "react";
@@ -9,8 +10,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, ImageIcon, AlertTriangle, RefreshCw } from "lucide-react";
 import { UploadProgress } from "../UploadProgress";
-import { usePhotoUpload } from "./usePhotoUpload";
-import { logUploadAttempt, updateUploadAttempt } from "./services/uploadDiagnostics";
 
 export interface PhotoUploadProps {
   id: string;
@@ -19,8 +18,9 @@ export interface PhotoUploadProps {
   label?: string; // For backward compatibility
   isUploading: boolean;
   isRequired?: boolean;
+  isUploaded?: boolean; // Made optional to fix type error
   disabled?: boolean;
-  diagnosticId?: string;
+  progress?: number;
   onFileSelect?: (file: File) => Promise<void>;
   onUpload?: (file: File) => Promise<string | null>;
 }
@@ -32,14 +32,14 @@ export const PhotoUpload = ({
   label, // For backward compatibility
   isUploading: externalIsUploading,
   isRequired = false,
+  isUploaded = false,
   disabled = false,
-  diagnosticId,
+  progress,
   onFileSelect,
   onUpload
 }: PhotoUploadProps) => {
   const [localUploadProgress, setLocalUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [attemptId, setAttemptId] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   
   // For backward compatibility
@@ -54,38 +54,20 @@ export const PhotoUpload = ({
     setError(null);
     setLocalUploadProgress(0);
     setUploadedFile(file);
-    
-    // Log the attempt
-    const newAttemptId = logUploadAttempt({
-      filename: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      success: false, // Will update when complete
-      uploadPath: id
-    });
-    
-    setAttemptId(newAttemptId);
 
     try {
       // Use onUpload if provided, otherwise onFileSelect
       if (onUpload) {
         const result = await onUpload(file);
         
-        // Log success
+        // Reset file input
         if (result) {
-          updateUploadAttempt(newAttemptId!, {
-            success: true,
-            responseData: { filePath: result }
-          });
-          
-          // Reset file input
           e.target.value = '';
         } else {
           throw new Error("Upload failed - no file path returned");
         }
       } else if (onFileSelect) {
         await onFileSelect(file);
-        updateUploadAttempt(newAttemptId!, { success: true });
         
         // Reset file input
         e.target.value = '';
@@ -93,24 +75,11 @@ export const PhotoUpload = ({
     } catch (error: any) {
       console.error(`Error uploading file "${id}":`, error);
       setError(error.message || "Failed to upload file");
-      
-      // Log the error
-      updateUploadAttempt(newAttemptId!, {
-        success: false,
-        error: error.message || "Unknown error"
-      });
     }
   };
 
   const handleProgressUpdate = (progress: number) => {
     setLocalUploadProgress(progress);
-    
-    // Log progress updates
-    if (attemptId) {
-      updateUploadAttempt(attemptId, {
-        responseData: { progress }
-      });
-    }
   };
 
   const handleRetry = () => {
@@ -122,53 +91,18 @@ export const PhotoUpload = ({
     if (uploadedFile) {
       const file = uploadedFile;
       
-      // Log the retry attempt
-      const newAttemptId = logUploadAttempt({
-        filename: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        success: false,
-        uploadPath: id,
-        error: "Retry after failure"
-      });
-      
-      setAttemptId(newAttemptId);
-      
       // Attempt the upload again
       if (onUpload) {
         onUpload(file)
-          .then(result => {
-            if (result) {
-              updateUploadAttempt(newAttemptId!, {
-                success: true,
-                responseData: { filePath: result }
-              });
-            } else {
-              throw new Error("Upload failed - no file path returned");
-            }
-          })
           .catch(error => {
             console.error(`Error retrying upload "${id}":`, error);
             setError(error.message || "Failed to upload file");
-            
-            updateUploadAttempt(newAttemptId!, {
-              success: false,
-              error: error.message || "Unknown error during retry"
-            });
           });
       } else if (onFileSelect) {
         onFileSelect(file)
-          .then(() => {
-            updateUploadAttempt(newAttemptId!, { success: true });
-          })
           .catch(error => {
             console.error(`Error retrying upload "${id}":`, error);
             setError(error.message || "Failed to upload file");
-            
-            updateUploadAttempt(newAttemptId!, {
-              success: false,
-              error: error.message || "Unknown error during retry"
-            });
           });
       }
     }
@@ -218,7 +152,7 @@ export const PhotoUpload = ({
           </div>
           
           <UploadProgress
-            progress={localUploadProgress}
+            progress={localUploadProgress || progress || 0}
             error={!!error}
             onRetry={handleRetry}
           />

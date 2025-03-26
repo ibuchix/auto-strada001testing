@@ -1,8 +1,11 @@
 
+/**
+ * Changes made:
+ * - Removed diagnostic-related code
+ */
+
 import { Button } from "@/components/ui/button";
-import { FormSubmitButton } from "./FormSubmitButton";
-import { TransactionStatus } from "@/services/supabase/transactionService";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 interface MultiStepFormControlsProps {
   currentStep: number;
@@ -12,10 +15,6 @@ interface MultiStepFormControlsProps {
   onSubmit: () => void;
   isSubmitting: boolean;
   isLastStep: boolean;
-  transactionStatus?: TransactionStatus | null;
-  forceEnable?: boolean;
-  onRetry?: () => void;
-  diagnosticId?: string;
 }
 
 export const MultiStepFormControls = ({
@@ -25,43 +24,40 @@ export const MultiStepFormControls = ({
   onNext,
   onSubmit,
   isSubmitting,
-  isLastStep,
-  transactionStatus,
-  forceEnable,
-  onRetry,
-  diagnosticId
+  isLastStep
 }: MultiStepFormControlsProps) => {
   return (
-    <div className="w-full mt-8">
+    <div className="flex justify-between mt-8">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onPrevious}
+        disabled={currentStep === 0 || isSubmitting}
+        className="flex items-center"
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Previous
+      </Button>
+
       {isLastStep ? (
-        <FormSubmitButton 
-          isSubmitting={isSubmitting} 
-          transactionStatus={transactionStatus}
-          forceEnable={forceEnable}
-          onRetry={onRetry}
-          diagnosticId={diagnosticId}
-        />
+        <Button
+          type="button"
+          onClick={onSubmit}
+          disabled={isSubmitting}
+          className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
+        >
+          Submit
+        </Button>
       ) : (
-        <div className="flex justify-between mt-8">
-          <Button
-            type="button"
-            onClick={onPrevious}
-            variant="outline"
-            disabled={currentStep === 0}
-            className="flex items-center"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Previous
-          </Button>
-          <Button
-            type="button"
-            onClick={onNext}
-            className="flex items-center bg-[#DC143C] hover:bg-[#DC143C]/90"
-          >
-            Next
-            <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
+        <Button
+          type="button"
+          onClick={onNext}
+          disabled={isSubmitting}
+          className="flex items-center"
+        >
+          Next
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
       )}
     </div>
   );

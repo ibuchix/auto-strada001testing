@@ -8,7 +8,6 @@ import { AuthProvider } from './components/AuthProvider';
 import { ThemeProvider } from "./components/ui/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { RealtimeProvider } from './components/RealtimeProvider';
-import { DiagnosticsManager } from './diagnostics/DiagnosticsManager';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -17,7 +16,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <ThemeProvider defaultTheme="light" storageKey="autostrada-theme">
           <RealtimeProvider>
             <Toaster />
-            <DiagnosticsManager />
             <App />
           </RealtimeProvider>
         </ThemeProvider>

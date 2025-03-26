@@ -2,26 +2,23 @@
 /**
  * Changes made:
  * - 2024-06-03: Created FormSubmitButton to handle form submission with transaction status
+ * - Removed diagnostic-related code
  */
 
 import { Button } from "@/components/ui/button";
-import { TransactionStatus } from "@/services/supabase/transactionService";
-import { CarListingFormData } from "@/types/forms";
 import { ArrowRight, Loader2 } from "lucide-react";
 
 interface FormSubmitButtonProps {
   isSubmitting: boolean;
-  transactionStatus: TransactionStatus | null;
+  transactionStatus: string | null;
   onRetry: () => void;
-  diagnosticId?: string;
-  formData: CarListingFormData;
+  formData: any;
 }
 
 export const FormSubmitButton = ({
   isSubmitting,
   transactionStatus,
   onRetry,
-  diagnosticId,
   formData
 }: FormSubmitButtonProps) => {
   const isPending = isSubmitting || transactionStatus === 'PENDING';

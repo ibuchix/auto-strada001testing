@@ -1,8 +1,7 @@
 
 /**
  * Changes made:
- * - 2028-06-02: Created StepForm component to handle multi-step form navigation
- * - 2028-06-03: Fixed TypeScript errors and userId reference
+ * - Removed diagnostic-related code
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -24,7 +23,6 @@ interface StepFormProps {
   saveProgress: () => Promise<void>;
   formErrors: FieldErrors<CarListingFormData>;
   visibleSections: string[];
-  diagnosticId?: string;
 }
 
 export const StepForm = ({
@@ -36,8 +34,7 @@ export const StepForm = ({
   isOffline,
   saveProgress,
   formErrors,
-  visibleSections,
-  diagnosticId
+  visibleSections
 }: StepFormProps) => {
   // Calculate the current percentage of completion
   const progress = Math.min(
@@ -61,15 +58,6 @@ export const StepForm = ({
     if (currentStep < formSteps.length - 1) {
       await saveProgress();
       setCurrentStep(currentStep + 1);
-      
-      // Log step navigation if diagnostics are enabled
-      if (diagnosticId) {
-        console.log(`Navigated to step ${currentStep + 1}`, {
-          from: currentStep,
-          to: currentStep + 1,
-          diagnosticId
-        });
-      }
     }
   };
 
@@ -107,7 +95,6 @@ export const StepForm = ({
         currentStep={currentStep} 
         carId={carId}
         userId={userId}
-        diagnosticId={diagnosticId}
       />
       
       {/* Navigation controls */}
@@ -119,7 +106,6 @@ export const StepForm = ({
         onSubmit={handleSubmit}
         isSubmitting={false}
         isLastStep={isLastStep}
-        diagnosticId={diagnosticId}
       />
     </div>
   );

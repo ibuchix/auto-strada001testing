@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-09-11: Implemented CarService with basic CRUD operations
@@ -64,7 +63,7 @@ export class CarService extends BaseService {
         }
         
         if (options.sellerId) {
-          query = query.eq("seller_id", options.sellerId);
+          query = query.eq("sellerId", options.sellerId);
         }
         
         if (options.isAuction !== undefined) {
@@ -228,25 +227,27 @@ export class CarService extends BaseService {
    * Only returns essential fields after update
    * RLS Compliant: Users can only update their own draft listings
    */
-  async updateCar(id: string, carData: Partial<CarListing>) {
-    const result = await this.withRetry(
-      async () => {
-        return this.supabase
-          .from("cars")
-          .update(carData)
-          .eq("id", id)
-          .select('id, title, updated_at');
-      },
-      {
-        errorMessage: "Failed to update listing"
+  async updateCar(carId: string, data: Partial<CarListing>): Promise<CarListing | null> {
+    try {
+      // Fix the property name
+      const { data: updatedCar, error } = await supabase
+        .from('cars')
+        .update(data)
+        .eq('id', carId)
+        .eq('sellerId', data.sellerId) // Changed from seller_id to sellerId
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating car:', error);
+        return null;
       }
-    );
-    
-    if (result) {
-      toast.success("Listing updated successfully");
+
+      return updatedCar as CarListing;
+    } catch (error) {
+      console.error('Error updating car:', error);
+      return null;
     }
-    
-    return result;
   }
   
   /**

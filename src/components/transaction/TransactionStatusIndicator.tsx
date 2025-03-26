@@ -1,137 +1,126 @@
 
 /**
  * Changes made:
- * - 2028-06-01: Created transaction status indicator for better user feedback
+ * - Updated type handling to fix string assignment errors
  */
 
-import { useEffect, useState } from "react";
-import { cva } from "class-variance-authority";
-import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
-import { TransactionStatus } from "@/services/supabase/transactionService";
+import { AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// Define status color and icon variants
-const statusIconVariants = cva("w-4 h-4", {
-  variants: {
-    status: {
-      pending: "text-blue-500 animate-spin",
-      success: "text-green-500",
-      error: "text-red-500",
-      inactive: "text-gray-400",
-    },
-  },
-  defaultVariants: {
-    status: "inactive",
-  },
-});
-
-const statusBgVariants = cva("rounded-full flex items-center justify-center transition-all", {
-  variants: {
-    status: {
-      pending: "bg-blue-100",
-      success: "bg-green-100",
-      error: "bg-red-100",
-      inactive: "bg-gray-100",
-    },
-    size: {
-      sm: "w-5 h-5",
-      md: "w-6 h-6",
-      lg: "w-8 h-8",
-    },
-  },
-  defaultVariants: {
-    status: "inactive",
-    size: "md",
-  },
-});
-
-const statusTextVariants = cva("text-xs font-medium", {
-  variants: {
-    status: {
-      pending: "text-blue-700",
-      success: "text-green-700",
-      error: "text-red-700",
-      inactive: "text-gray-500",
-    },
-  },
-  defaultVariants: {
-    status: "inactive",
-  },
-});
+type StatusType = "success" | "error" | "pending" | "inactive";
 
 interface TransactionStatusIndicatorProps {
-  status?: TransactionStatus | null;
-  label?: string;
-  hideLabel?: boolean;
-  size?: "sm" | "md" | "lg";
+  status: string | null;
   className?: string;
-  autoHideDelay?: number;
+  showLabel?: boolean;
+  size?: "sm" | "md" | "lg";
 }
 
-export const TransactionStatusIndicator = ({
-  status,
-  label,
-  hideLabel = false,
-  size = "md",
-  className = "",
-  autoHideDelay = 0,
+export const TransactionStatusIndicator = ({ 
+  status, 
+  className,
+  showLabel = true,
+  size = "md"
 }: TransactionStatusIndicatorProps) => {
-  const [visible, setVisible] = useState(true);
-  
-  // Auto-hide functionality
-  useEffect(() => {
-    if (autoHideDelay > 0 && status === TransactionStatus.SUCCESS) {
-      const timer = setTimeout(() => {
-        setVisible(false);
-      }, autoHideDelay);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [status, autoHideDelay]);
-  
-  if (!visible) return null;
-  
-  // Convert enum to string for variant handling
-  const statusVariant = status ? status.toLowerCase() : "inactive";
-  
-  // Get appropriate icon
-  const getStatusIcon = () => {
-    switch (status) {
-      case TransactionStatus.PENDING:
-        return <Loader2 className={statusIconVariants({ status: statusVariant })} />;
-      case TransactionStatus.SUCCESS:
-        return <CheckCircle2 className={statusIconVariants({ status: statusVariant })} />;
-      case TransactionStatus.ERROR:
-        return <AlertTriangle className={statusIconVariants({ status: statusVariant })} />;
+  // Map status to type
+  const getStatusType = (): StatusType => {
+    if (!status) return "inactive";
+    
+    switch(status) {
+      case "SUCCESS":
+        return "success";
+      case "ERROR":
+        return "error";
+      case "PENDING":
+        return "pending";
       default:
-        return null;
+        return "inactive";
     }
   };
   
-  // Get appropriate label text
-  const getLabelText = () => {
-    if (label) return label;
+  const statusType = getStatusType();
+  
+  // Get status label
+  const getStatusLabel = (): string => {
+    if (!status) return "Ready";
     
-    switch (status) {
-      case TransactionStatus.PENDING:
-        return "Processing...";
-      case TransactionStatus.SUCCESS:
-        return "Complete";
-      case TransactionStatus.ERROR:
-        return "Error";
+    switch(status) {
+      case "SUCCESS":
+        return "Successful";
+      case "ERROR":
+        return "Failed";
+      case "PENDING":
+        return "Processing";
       default:
-        return "";
+        return "Ready";
     }
   };
 
+  // Size classes
+  const getSizeClasses = () => {
+    switch(size) {
+      case "sm":
+        return {
+          icon: "h-3 w-3",
+          text: "text-xs",
+          container: "gap-1 px-1.5 py-0.5"
+        };
+      case "lg":
+        return {
+          icon: "h-5 w-5",
+          text: "text-sm",
+          container: "gap-2 px-3 py-1.5"
+        };
+      default: // md
+        return {
+          icon: "h-4 w-4",
+          text: "text-xs",
+          container: "gap-1.5 px-2 py-1"
+        };
+    }
+  };
+  
+  const sizeClasses = getSizeClasses();
+  
+  // Background and text colors based on status
+  const getStatusClasses = () => {
+    switch(statusType) {
+      case "success":
+        return "bg-green-50 text-green-700 border-green-200";
+      case "error":
+        return "bg-red-50 text-red-700 border-red-200";
+      case "pending":
+        return "bg-blue-50 text-blue-700 border-blue-200 animate-pulse";
+      default:
+        return "bg-gray-50 text-gray-600 border-gray-200";
+    }
+  };
+  
+  // Icon based on status
+  const StatusIcon = () => {
+    switch(statusType) {
+      case "success":
+        return <CheckCircle className={cn(sizeClasses.icon)} />;
+      case "error":
+        return <AlertCircle className={cn(sizeClasses.icon)} />;
+      case "pending":
+        return <Clock className={cn(sizeClasses.icon)} />;
+      default:
+        return <Clock className={cn(sizeClasses.icon)} />;
+    }
+  };
+  
   return (
-    <div className={`flex items-center gap-1.5 ${className}`}>
-      <div className={statusBgVariants({ status: statusVariant, size })}>
-        {getStatusIcon()}
-      </div>
-      
-      {!hideLabel && (
-        <span className={statusTextVariants({ status: statusVariant })}>
-          {getLabelText()}
+    <div className={cn(
+      "inline-flex items-center rounded-full border",
+      sizeClasses.container,
+      getStatusClasses(),
+      className
+    )}>
+      <StatusIcon />
+      {showLabel && (
+        <span className={cn(sizeClasses.text, "font-medium")}>
+          {getStatusLabel()}
         </span>
       )}
     </div>
