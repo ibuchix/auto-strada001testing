@@ -2,6 +2,7 @@
 /**
  * Component for required photo uploads with correct type definitions
  * - 2024-08-27: Updated onFileSelect prop type to accept Promise<string | null>
+ * - 2024-12-27: Fixed type incompatibility with PhotoUpload component
  */
 import { useState } from "react";
 import { PhotoUpload } from "./PhotoUpload";
@@ -84,14 +85,14 @@ export const RequiredPhotos = ({ isUploading, progress, onFileSelect }: Required
             id={photo.id}
             title={photo.title}
             description={photo.description}
+            isUploading={isUploading}
+            isUploaded={uploadedPhotos[photo.id]}
+            progress={progress}
             onUpload={async (file) => {
               const url = await onFileSelect(file, photo.id);
               if (url) handlePhotoUploaded(photo.id);
               return url;
             }}
-            isUploaded={uploadedPhotos[photo.id]}
-            isUploading={isUploading}
-            progress={progress}
           />
         ))}
       </div>

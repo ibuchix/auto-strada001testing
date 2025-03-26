@@ -13,10 +13,15 @@ export interface CarPhotoData {
 
 export interface PhotoUploadProps {
   id: string;
-  label: string;
+  label?: string;
+  title?: string;
+  description?: string;
   isUploading: boolean;
-  onFileSelect: (file: File) => void;
-  disabled?: boolean; // Add optional disabled prop
+  isUploaded?: boolean;
+  progress?: number;
+  onFileSelect?: (file: File) => void;
+  onUpload?: (file: File) => Promise<string | null>;
+  disabled?: boolean;
 }
 
 export const requiredPhotos = [

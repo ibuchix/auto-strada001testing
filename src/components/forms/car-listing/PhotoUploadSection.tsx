@@ -4,6 +4,7 @@
  * - 2024-08-09: Enhanced to use categorized Supabase Storage
  * - 2024-08-09: Added upload progress tracking
  * - 2024-08-17: Updated imports to use refactored photo upload hook
+ * - 2024-12-27: Fixed handleFileUpload to return a Promise<string | null>
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -47,9 +48,11 @@ export const PhotoUploadSection = ({ form, carId, onProgressUpdate }: ExtendedPh
     }
   }, [uploadProgress, onProgressUpdate]);
 
-  const handleFileUpload = (file: File, type: string) => {
+  const handleFileUpload = async (file: File, type: string): Promise<string | null> => {
     // This is just a placeholder since we're using the hook's functionality directly
     setUploadProgress(prev => Math.min(prev + 10, 100));
+    // Return null as we're not actually uploading in this function - the hook does that
+    return null;
   };
 
   return (
@@ -74,7 +77,9 @@ export const PhotoUploadSection = ({ form, carId, onProgressUpdate }: ExtendedPh
       <AdditionalPhotos
         isUploading={isUploading}
         onFilesSelect={(files) => {
-          files.forEach((file) => handleFileUpload(file, 'additional'));
+          files.forEach(async (file) => {
+            await handleFileUpload(file, 'additional');
+          });
         }}
       />
     </Card>
