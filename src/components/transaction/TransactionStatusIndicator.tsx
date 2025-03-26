@@ -1,76 +1,139 @@
 
 /**
  * Changes made:
- * - 2024-10-16: Created TransactionStatusIndicator component for visual transaction status feedback
+ * - 2028-06-01: Created transaction status indicator for better user feedback
  */
 
-import { CheckCircle, AlertCircle, Clock, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { cva } from "class-variance-authority";
+import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { TransactionStatus } from "@/services/supabase/transactionService";
 
+// Define status color and icon variants
+const statusIconVariants = cva("w-4 h-4", {
+  variants: {
+    status: {
+      pending: "text-blue-500 animate-spin",
+      success: "text-green-500",
+      error: "text-red-500",
+      inactive: "text-gray-400",
+    },
+  },
+  defaultVariants: {
+    status: "inactive",
+  },
+});
+
+const statusBgVariants = cva("rounded-full flex items-center justify-center transition-all", {
+  variants: {
+    status: {
+      pending: "bg-blue-100",
+      success: "bg-green-100",
+      error: "bg-red-100",
+      inactive: "bg-gray-100",
+    },
+    size: {
+      sm: "w-5 h-5",
+      md: "w-6 h-6",
+      lg: "w-8 h-8",
+    },
+  },
+  defaultVariants: {
+    status: "inactive",
+    size: "md",
+  },
+});
+
+const statusTextVariants = cva("text-xs font-medium", {
+  variants: {
+    status: {
+      pending: "text-blue-700",
+      success: "text-green-700",
+      error: "text-red-700",
+      inactive: "text-gray-500",
+    },
+  },
+  defaultVariants: {
+    status: "inactive",
+  },
+});
+
 interface TransactionStatusIndicatorProps {
-  status: TransactionStatus | null;
-  showLabel?: boolean;
-  showIcon?: boolean;
+  status?: TransactionStatus | null;
+  label?: string;
+  hideLabel?: boolean;
+  size?: "sm" | "md" | "lg";
   className?: string;
-  pendingText?: string;
-  successText?: string;
-  errorText?: string;
-  warningText?: string;
+  autoHideDelay?: number;
 }
 
 export const TransactionStatusIndicator = ({
   status,
-  showLabel = true,
-  showIcon = true,
+  label,
+  hideLabel = false,
+  size = "md",
   className = "",
-  pendingText = "Processing...",
-  successText = "Completed",
-  errorText = "Failed",
-  warningText = "Warning"
+  autoHideDelay = 0,
 }: TransactionStatusIndicatorProps) => {
-  if (!status) return null;
-
-  const getStatusConfig = () => {
+  const [visible, setVisible] = useState(true);
+  
+  // Auto-hide functionality
+  useEffect(() => {
+    if (autoHideDelay > 0 && status === TransactionStatus.SUCCESS) {
+      const timer = setTimeout(() => {
+        setVisible(false);
+      }, autoHideDelay);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [status, autoHideDelay]);
+  
+  if (!visible) return null;
+  
+  // Convert enum to string for variant handling
+  const statusVariant = status ? status.toLowerCase() : "inactive";
+  
+  // Get appropriate icon
+  const getStatusIcon = () => {
     switch (status) {
       case TransactionStatus.PENDING:
-        return {
-          icon: <Clock className="h-4 w-4 animate-pulse" />,
-          text: pendingText,
-          className: "text-amber-500"
-        };
+        return <Loader2 className={statusIconVariants({ status: statusVariant })} />;
       case TransactionStatus.SUCCESS:
-        return {
-          icon: <CheckCircle className="h-4 w-4" />,
-          text: successText,
-          className: "text-[#21CA6F]"
-        };
+        return <CheckCircle2 className={statusIconVariants({ status: statusVariant })} />;
       case TransactionStatus.ERROR:
-        return {
-          icon: <XCircle className="h-4 w-4" />,
-          text: errorText,
-          className: "text-[#DC143C]"
-        };
-      case TransactionStatus.WARNING:
-        return {
-          icon: <AlertCircle className="h-4 w-4" />,
-          text: warningText,
-          className: "text-amber-500"
-        };
+        return <AlertTriangle className={statusIconVariants({ status: statusVariant })} />;
       default:
-        return {
-          icon: <Clock className="h-4 w-4" />,
-          text: "Unknown",
-          className: "text-gray-500"
-        };
+        return null;
+    }
+  };
+  
+  // Get appropriate label text
+  const getLabelText = () => {
+    if (label) return label;
+    
+    switch (status) {
+      case TransactionStatus.PENDING:
+        return "Processing...";
+      case TransactionStatus.SUCCESS:
+        return "Complete";
+      case TransactionStatus.ERROR:
+        return "Error";
+      default:
+        return "";
     }
   };
 
-  const { icon, text, className: statusClassName } = getStatusConfig();
-
   return (
-    <div className={`flex items-center gap-1.5 ${className} ${statusClassName}`}>
-      {showIcon && icon}
-      {showLabel && <span className="text-sm">{text}</span>}
+    <div className={`flex items-center gap-1.5 ${className}`}>
+      <div className={statusBgVariants({ status: statusVariant, size })}>
+        {getStatusIcon()}
+      </div>
+      
+      {!hideLabel && (
+        <span className={statusTextVariants({ status: statusVariant })}>
+          {getLabelText()}
+        </span>
+      )}
     </div>
   );
 };

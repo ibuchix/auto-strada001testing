@@ -1,182 +1,236 @@
 
 /**
- * Component for handling individual photo uploads
- * - 2027-08-12: Enhanced with better validation feedback and error handling
- * - 2027-08-12: Added support for both title/description and label prop styles for backward compatibility
+ * Changes made:
+ * - 2028-06-01: Enhanced with upload diagnostics and retry functionality
  */
+
 import { useState } from "react";
-import { Camera, Upload, AlertCircle, CheckCircle } from "lucide-react";
-import { UploadProgress } from "@/components/forms/car-listing/UploadProgress";
-import { PhotoValidationIndicator } from "@/components/forms/car-listing/validation/PhotoValidationIndicator";
-import { PhotoUploadProps } from "./types";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Upload, ImageIcon, AlertTriangle, RefreshCw } from "lucide-react";
+import { UploadProgress } from "../UploadProgress";
+import { usePhotoUpload } from "./usePhotoUpload";
+import { logUploadAttempt, updateUploadAttempt } from "./services/uploadDiagnostics";
+
+export interface PhotoUploadProps {
+  id: string;
+  title?: string;
+  description?: string;
+  label?: string; // For backward compatibility
+  isUploading: boolean;
+  isRequired?: boolean;
+  disabled?: boolean;
+  diagnosticId?: string;
+  onFileSelect?: (file: File) => Promise<void>;
+  onUpload?: (file: File) => Promise<string | null>;
+}
 
 export const PhotoUpload = ({
   id,
   title,
   description,
-  label, // Support legacy prop
-  onUpload,
-  onFileSelect, // Support legacy callback
-  isUploaded = false,
-  isUploading = false,
-  progress = 0,
-  isRequired = true,
+  label, // For backward compatibility
+  isUploading: externalIsUploading,
+  isRequired = false,
+  disabled = false,
   diagnosticId,
-  disabled = false
+  onFileSelect,
+  onUpload
 }: PhotoUploadProps) => {
+  const [localUploadProgress, setLocalUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [file, setFile] = useState<File | null>(null);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  
+  // For backward compatibility
+  const displayTitle = title || label || 'Upload Photo';
+  const displayDescription = description || 'Upload a clear photo';
 
-  // Handle both new and legacy prop styles
-  const displayTitle = title || label || "Upload Photo";
-  const displayDescription = description || "Upload a clear photo";
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Reset state
+    setError(null);
+    setLocalUploadProgress(0);
+    setUploadedFile(file);
+    
+    // Log the attempt
+    const newAttemptId = logUploadAttempt({
+      filename: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      success: false, // Will update when complete
+      uploadPath: id
+    });
+    
+    setAttemptId(newAttemptId);
 
-  // Log for diagnostic purposes
-  const logUploadEvent = (event: string, data: any = {}) => {
-    if (diagnosticId) {
-      console.log(`[${diagnosticId}] [PhotoUpload:${id}] ${event}:`, {
-        ...data,
-        timestamp: new Date().toISOString()
+    try {
+      // Use onUpload if provided, otherwise onFileSelect
+      if (onUpload) {
+        const result = await onUpload(file);
+        
+        // Log success
+        if (result) {
+          updateUploadAttempt(newAttemptId!, {
+            success: true,
+            responseData: { filePath: result }
+          });
+          
+          // Reset file input
+          e.target.value = '';
+        } else {
+          throw new Error("Upload failed - no file path returned");
+        }
+      } else if (onFileSelect) {
+        await onFileSelect(file);
+        updateUploadAttempt(newAttemptId!, { success: true });
+        
+        // Reset file input
+        e.target.value = '';
+      }
+    } catch (error: any) {
+      console.error(`Error uploading file "${id}":`, error);
+      setError(error.message || "Failed to upload file");
+      
+      // Log the error
+      updateUploadAttempt(newAttemptId!, {
+        success: false,
+        error: error.message || "Unknown error"
       });
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    setFile(selectedFile);
-    setError(null);
+  const handleProgressUpdate = (progress: number) => {
+    setLocalUploadProgress(progress);
     
-    logUploadEvent('File selected', { 
-      fileName: selectedFile.name, 
-      fileSize: selectedFile.size 
-    });
-    
-    // Support both callback styles
-    if (onFileSelect) {
-      onFileSelect(selectedFile);
-      return;
-    }
-    
-    if (!onUpload) {
-      console.error("Neither onUpload nor onFileSelect provided to PhotoUpload component");
-      setError("Upload configuration error");
-      return;
-    }
-    
-    try {
-      const result = await onUpload(selectedFile);
-      
-      if (!result) {
-        setError("Upload failed. Please try again.");
-        logUploadEvent('Upload failed', { error: 'No result returned' });
-      } else {
-        logUploadEvent('Upload completed', { result });
-      }
-    } catch (err: any) {
-      setError(err.message || "Upload failed. Please try again.");
-      logUploadEvent('Upload error', { error: err.message });
+    // Log progress updates
+    if (attemptId) {
+      updateUploadAttempt(attemptId, {
+        responseData: { progress }
+      });
     }
   };
 
-  const handleRetry = async () => {
-    setRetryCount(prev => prev + 1);
+  const handleRetry = () => {
+    // Reset error state
     setError(null);
+    setLocalUploadProgress(0);
     
-    if (!file) {
-      setError("No file to retry. Please select a file first.");
-      return;
-    }
-    
-    logUploadEvent('Retry attempt', { 
-      retryCount: retryCount + 1,
-      fileName: file.name
-    });
-    
-    // Support both callback styles on retry
-    if (onFileSelect) {
-      onFileSelect(file);
-      return;
-    }
-    
-    if (!onUpload) {
-      return;
-    }
-    
-    try {
-      const result = await onUpload(file);
+    // Reuse the same file if available
+    if (uploadedFile) {
+      const file = uploadedFile;
       
-      if (!result) {
-        setError("Retry failed. Please try again or select a different file.");
-        logUploadEvent('Retry failed', { error: 'No result returned' });
-      } else {
-        logUploadEvent('Retry completed', { result });
+      // Log the retry attempt
+      const newAttemptId = logUploadAttempt({
+        filename: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        success: false,
+        uploadPath: id,
+        error: "Retry after failure"
+      });
+      
+      setAttemptId(newAttemptId);
+      
+      // Attempt the upload again
+      if (onUpload) {
+        onUpload(file)
+          .then(result => {
+            if (result) {
+              updateUploadAttempt(newAttemptId!, {
+                success: true,
+                responseData: { filePath: result }
+              });
+            } else {
+              throw new Error("Upload failed - no file path returned");
+            }
+          })
+          .catch(error => {
+            console.error(`Error retrying upload "${id}":`, error);
+            setError(error.message || "Failed to upload file");
+            
+            updateUploadAttempt(newAttemptId!, {
+              success: false,
+              error: error.message || "Unknown error during retry"
+            });
+          });
+      } else if (onFileSelect) {
+        onFileSelect(file)
+          .then(() => {
+            updateUploadAttempt(newAttemptId!, { success: true });
+          })
+          .catch(error => {
+            console.error(`Error retrying upload "${id}":`, error);
+            setError(error.message || "Failed to upload file");
+            
+            updateUploadAttempt(newAttemptId!, {
+              success: false,
+              error: error.message || "Unknown error during retry"
+            });
+          });
       }
-    } catch (err: any) {
-      setError(err.message || "Retry failed. Please try again.");
-      logUploadEvent('Retry error', { error: err.message });
     }
   };
 
   return (
-    <div className="flex flex-col relative">
-      <div className={`relative ${isUploaded ? 'border-green-500' : error ? 'border-red-300' : 'border-gray-300'} border-2 rounded-md p-4 h-40 flex flex-col items-center justify-center text-center transition-colors ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
-        {isUploaded ? (
-          <div className="flex flex-col items-center justify-center h-full space-y-2">
-            <CheckCircle className="h-8 w-8 text-green-500" />
-            <p className="text-sm font-medium text-green-800">{displayTitle} uploaded</p>
+    <Card className="overflow-hidden">
+      <CardContent className="p-3">
+        <div className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
+          <div className="mb-4">
+            <ImageIcon className="h-12 w-12 text-gray-400" />
           </div>
-        ) : (
-          <>
-            <input
-              type="file"
-              id={id}
-              accept="image/*"
-              onChange={handleFileChange}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-              disabled={isUploading || disabled}
-            />
-            <div className="flex flex-col items-center justify-center h-full space-y-2">
-              {error ? (
-                <AlertCircle className="h-8 w-8 text-red-500" />
-              ) : isUploading ? (
-                <Upload className="h-8 w-8 text-blue-500 animate-pulse" />
-              ) : (
-                <Camera className="h-8 w-8 text-gray-500" />
-              )}
-              <div>
-                <p className="text-sm font-medium">{displayTitle}</p>
-                <p className="text-xs text-gray-500">{displayDescription}</p>
-                {error && (
-                  <p className="text-xs text-red-500 mt-1">{error}</p>
-                )}
-              </div>
+          
+          <div className="space-y-1">
+            <h3 className="text-sm font-medium">
+              {displayTitle}
+              {isRequired && <span className="text-red-500 ml-1">*</span>}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {displayDescription}
+            </p>
+          </div>
+          
+          <div className="mt-4 w-full">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={externalIsUploading || disabled}
+            >
+              <label
+                htmlFor={`file-upload-${id}`}
+                className="flex items-center justify-center w-full cursor-pointer"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                <span>Upload</span>
+                <input
+                  id={`file-upload-${id}`}
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  disabled={externalIsUploading || disabled}
+                />
+              </label>
+            </Button>
+          </div>
+          
+          <UploadProgress
+            progress={localUploadProgress}
+            error={!!error}
+            onRetry={handleRetry}
+          />
+          
+          {error && (
+            <div className="mt-2 flex items-start gap-1.5 text-xs text-red-500">
+              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>{error}</span>
             </div>
-          </>
-        )}
-      </div>
-      
-      {/* Progress indicator */}
-      {isUploading && (
-        <UploadProgress 
-          progress={progress || 0} 
-          error={!!error}
-          onRetry={handleRetry}
-          className="mt-2"
-        />
-      )}
-      
-      {/* Validation indicator */}
-      <div className="absolute -top-2 -right-2">
-        <PhotoValidationIndicator
-          isUploaded={isUploaded}
-          isRequired={isRequired}
-          photoType={displayTitle}
-          onRetry={!isUploaded ? handleRetry : undefined}
-        />
-      </div>
-    </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 };

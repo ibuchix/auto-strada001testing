@@ -1,35 +1,26 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './components/AuthProvider';
+import { ThemeProvider } from "@/components/ui/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
+import { RealtimeProvider } from './components/RealtimeProvider';
+import { DiagnosticsManager } from './diagnostics/DiagnosticsManager';
 
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { OfflineIndicator } from './components/OfflineIndicator.tsx'
-
-const rootElement = document.getElementById('root')
-
-if (!rootElement) {
-  throw new Error('Failed to find the root element')
-}
-
-// Create queryClient and export it so it can be imported by other files
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 60, // 1 hour
-      retry: 1,
-    },
-  },
-})
-
-const root = createRoot(rootElement)
-
-root.render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-      <OfflineIndicator />
-    </QueryClientProvider>
-  </StrictMode>
-)
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <AuthProvider>
+        <ThemeProvider defaultTheme="light" storageKey="autostrada-theme">
+          <RealtimeProvider>
+            <Toaster position="top-center" />
+            <DiagnosticsManager />
+            <App />
+          </RealtimeProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  </React.StrictMode>,
+);

@@ -7,57 +7,96 @@
  * - 2024-08-09: Enhanced to use organized Supabase Storage with categorized structure
  * - 2024-08-17: Refactored into smaller files for better maintainability
  * - 2025-05-07: Added diagnosticId prop and exposed uploadFile and resetUploadState
+ * - 2028-06-01: Enhanced with error tracking, retry functionality, and diagnostic logging
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { uploadPhoto } from './services/photoStorageService';
+import { logUploadAttempt, updateUploadAttempt } from './services/uploadDiagnostics';
+import { logDiagnostic } from '@/diagnostics/listingButtonDiagnostics';
 
 export interface UsePhotoUploadProps {
   carId?: string;
   category?: string;
   onProgressUpdate?: (progress: number) => void;
-  diagnosticId?: string; // Added diagnosticId
+  diagnosticId?: string;
+  maxRetries?: number;
 }
 
 export const usePhotoUpload = ({ 
   carId, 
   category = 'general', 
   onProgressUpdate,
-  diagnosticId 
+  diagnosticId,
+  maxRetries = 2
 }: UsePhotoUploadProps = {}) => {
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const attemptIdRef = useRef<string | null>(null);
+  const retryCountRef = useRef<number>(0);
 
   // Log diagnostic information
-  const logDiagnostic = (event: string, data: any = {}) => {
+  const logEvent = (event: string, data: any = {}) => {
     if (diagnosticId) {
-      console.log(`[${diagnosticId}] [usePhotoUpload] ${event}:`, {
+      logDiagnostic(event, data.message || event, {
+        ...data,
+        carId,
+        category,
+        retryCount: retryCountRef.current
+      }, diagnosticId);
+    } else {
+      console.log(`[usePhotoUpload] ${event}:`, {
         ...data,
         timestamp: new Date().toISOString(),
-        carId
+        carId,
+        category,
+        retryCount: retryCountRef.current
       });
     }
   };
 
   const resetUploadState = () => {
-    logDiagnostic('resetUploadState called');
+    logEvent('resetUploadState', { message: 'Reset upload state' });
     setUploadProgress(0);
     setIsUploading(false);
+    setUploadError(null);
+    retryCountRef.current = 0;
+    attemptIdRef.current = null;
+    setCurrentFile(null);
   };
 
   const uploadFile = async (file: File, uploadPath: string): Promise<string | null> => {
     if (!file) {
-      logDiagnostic('uploadFile called with null file', { uploadPath });
+      logEvent('uploadFile-error', { 
+        message: 'Attempted to upload null file',
+        uploadPath 
+      });
       return null;
     }
 
-    logDiagnostic('uploadFile started', { 
+    // Store the current file for potential retries
+    setCurrentFile(file);
+    setUploadError(null);
+    
+    logEvent('uploadFile-started', { 
+      message: 'Starting file upload',
       fileName: file.name, 
       fileSize: file.size, 
       uploadPath 
+    });
+    
+    // Log the upload attempt
+    attemptIdRef.current = logUploadAttempt({
+      filename: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      success: false,
+      uploadPath
     });
     
     setIsUploading(true);
@@ -73,16 +112,93 @@ export const usePhotoUpload = ({
         onProgressUpdate(100);
       }
       
-      logDiagnostic('uploadFile completed', { result });
+      // Update upload tracking
+      if (attemptIdRef.current) {
+        updateUploadAttempt(attemptIdRef.current, {
+          success: true,
+          responseData: { filePath: result }
+        });
+      }
+      
+      logEvent('uploadFile-completed', { 
+        message: 'File upload completed successfully',
+        result 
+      });
+      
+      // Reset retry counter on success
+      retryCountRef.current = 0;
+      
       return result;
     } catch (error: any) {
-      logDiagnostic('uploadFile error', { error: error.message });
-      console.error("Error uploading file:", error);
-      toast.error(error.message || "Failed to upload file");
+      const errorMessage = error.message || "Failed to upload file";
+      setUploadError(errorMessage);
+      
+      // Update upload tracking
+      if (attemptIdRef.current) {
+        updateUploadAttempt(attemptIdRef.current, {
+          success: false,
+          error: errorMessage
+        });
+      }
+      
+      logEvent('uploadFile-error', { 
+        message: 'File upload failed',
+        error: errorMessage
+      });
+      
+      // Handle retry logic
+      if (retryCountRef.current < maxRetries) {
+        retryCountRef.current++;
+        
+        logEvent('uploadFile-retry', { 
+          message: `Automatic retry attempt ${retryCountRef.current} of ${maxRetries}`,
+          fileName: file.name
+        });
+        
+        toast.error(`Upload failed: ${errorMessage}`, {
+          description: `Retrying... (Attempt ${retryCountRef.current} of ${maxRetries})`,
+          duration: 3000
+        });
+        
+        // Retry after a short delay
+        return new Promise(resolve => {
+          setTimeout(async () => {
+            const result = await uploadFile(file, uploadPath);
+            resolve(result);
+          }, 1000);
+        });
+      }
+      
+      toast.error(errorMessage, {
+        description: "Failed to upload file after multiple attempts",
+        action: {
+          label: "Retry",
+          onClick: () => {
+            retryCountRef.current = 0;
+            uploadFile(file, uploadPath);
+          }
+        }
+      });
+      
       return null;
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const retryUpload = async () => {
+    if (!currentFile) {
+      logEvent('retryUpload-error', { message: 'No file available to retry' });
+      return null;
+    }
+    
+    retryCountRef.current = 0;
+    logEvent('retryUpload-manual', { 
+      message: 'Manual retry initiated',
+      fileName: currentFile.name
+    });
+    
+    return uploadFile(currentFile, carId || 'temp');
   };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -98,8 +214,13 @@ export const usePhotoUpload = ({
       const totalFiles = acceptedFiles.length;
       let completedFiles = 0;
       
+      logEvent('onDrop-start', { 
+        message: `Starting batch upload of ${totalFiles} files`,
+        totalFiles
+      });
+      
       const uploadPromises = acceptedFiles.map(async (file) => {
-        const result = await uploadPhoto(file, carId, category);
+        const result = await uploadFile(file, carId);
         
         // Update progress
         completedFiles++;
@@ -113,9 +234,23 @@ export const usePhotoUpload = ({
       });
 
       const results = await Promise.all(uploadPromises);
-      setUploadedPhotos(prevPhotos => [...prevPhotos, ...results.filter(Boolean) as string[]]);
-      toast.success("Photos uploaded successfully!");
+      const successfulUploads = results.filter(Boolean) as string[];
+      
+      setUploadedPhotos(prevPhotos => [...prevPhotos, ...successfulUploads]);
+      
+      logEvent('onDrop-complete', { 
+        message: `Batch upload completed: ${successfulUploads.length} of ${totalFiles} files successful`,
+        totalFiles,
+        successfulCount: successfulUploads.length
+      });
+      
+      toast.success(`${successfulUploads.length} of ${totalFiles} photos uploaded successfully!`);
     } catch (error: any) {
+      logEvent('onDrop-error', { 
+        message: 'Batch upload encountered an error',
+        error: error.message 
+      });
+      
       console.error("Error uploading photos:", error);
       toast.error(error.message || "Failed to upload photos");
     } finally {
@@ -140,7 +275,9 @@ export const usePhotoUpload = ({
     uploadProgress,
     uploadedPhotos,
     setUploadedPhotos,
-    uploadFile,    // Expose the uploadFile function
-    resetUploadState  // Expose the resetUploadState function
+    uploadFile,
+    resetUploadState,
+    retryUpload,
+    uploadError
   };
 };

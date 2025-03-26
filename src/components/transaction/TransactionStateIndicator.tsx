@@ -1,158 +1,69 @@
 
 /**
- * Component to display current transaction state with visual feedback
- * - 2027-08-12: Created component for better transaction state visualization
+ * Changes made:
+ * - 2028-06-01: Created a transaction state indicator component for better user feedback
  */
-import { useState, useEffect } from "react";
-import { Loader2, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import { TransactionStatus } from "@/services/supabase/transactionService";
+
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+import { TransactionStatus } from "@/services/supabase/transactionService";
 
 interface TransactionStateIndicatorProps {
   status: TransactionStatus;
-  label?: string;
   pendingText?: string;
   successText?: string;
   errorText?: string;
   onRetry?: () => void;
-  showProgress?: boolean;
-  autoReset?: boolean;
-  resetTime?: number;
 }
 
 export const TransactionStateIndicator = ({
   status,
-  label,
   pendingText = "Processing...",
-  successText = "Completed successfully",
-  errorText = "Failed to complete",
-  onRetry,
-  showProgress = true,
-  autoReset = true,
-  resetTime = 5000
+  successText = "Success",
+  errorText = "Error",
+  onRetry
 }: TransactionStateIndicatorProps) => {
-  const [progress, setProgress] = useState(0);
-  const [pendingTime, setPendingTime] = useState(0);
-  
-  // Auto-reset success state after some time
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    
-    if (status === TransactionStatus.SUCCESS && autoReset) {
-      timer = setTimeout(() => {
-        // Just hide the component - don't actually reset the status
-        setProgress(0);
-      }, resetTime);
-    }
-    
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [status, autoReset, resetTime]);
-  
-  // Progress animation when pending
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    
-    if (status === TransactionStatus.PENDING && showProgress) {
-      timer = setInterval(() => {
-        setProgress(prev => {
-          // Cap progress at 90% until we get confirmation
-          return prev < 90 ? prev + 1 : 90;
-        });
-        
-        setPendingTime(prev => prev + 100);
-      }, 100);
-    } else if (status === TransactionStatus.SUCCESS) {
-      setProgress(100);
-    } else if (status === TransactionStatus.ERROR) {
-      setProgress(0);
-    } else {
-      setProgress(0);
-    }
-    
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [status, showProgress]);
-  
-  if (!status || (status === TransactionStatus.SUCCESS && progress === 0)) {
-    return null;
+  if (status === TransactionStatus.PENDING) {
+    return (
+      <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 flex items-center gap-1.5">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        <span>{pendingText}</span>
+      </Badge>
+    );
   }
   
-  const getStatusColor = () => {
-    switch (status) {
-      case TransactionStatus.PENDING:
-        return "text-blue-500";
-      case TransactionStatus.SUCCESS:
-        return "text-green-500";
-      case TransactionStatus.ERROR:
-        return "text-red-500";
-      default:
-        return "text-gray-500";
-    }
-  };
+  if (status === TransactionStatus.SUCCESS) {
+    return (
+      <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 flex items-center gap-1.5">
+        <CheckCircle className="h-3 w-3" />
+        <span>{successText}</span>
+      </Badge>
+    );
+  }
   
-  const getStatusIcon = () => {
-    switch (status) {
-      case TransactionStatus.PENDING:
-        return <Loader2 className="h-4 w-4 animate-spin" />;
-      case TransactionStatus.SUCCESS:
-        return <CheckCircle className="h-4 w-4" />;
-      case TransactionStatus.ERROR:
-        return <AlertTriangle className="h-4 w-4" />;
-      default:
-        return null;
-    }
-  };
-  
-  const getText = () => {
-    switch (status) {
-      case TransactionStatus.PENDING:
-        return pendingText;
-      case TransactionStatus.SUCCESS:
-        return successText;
-      case TransactionStatus.ERROR:
-        return errorText;
-      default:
-        return "";
-    }
-  };
-  
-  return (
-    <div className="space-y-2">
-      {label && <div className="text-sm font-medium">{label}</div>}
+  if (status === TransactionStatus.ERROR) {
+    return (
       <div className="flex items-center gap-2">
-        <span className={getStatusColor()}>{getStatusIcon()}</span>
-        <span className="text-sm">{getText()}</span>
+        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300 flex items-center gap-1.5">
+          <AlertTriangle className="h-3 w-3" />
+          <span>{errorText}</span>
+        </Badge>
         
-        {status === TransactionStatus.ERROR && onRetry && (
+        {onRetry && (
           <Button 
-            variant="outline" 
-            size="sm" 
-            className="ml-auto"
+            variant="ghost" 
+            size="sm"
+            className="h-5 px-2 text-xs" 
             onClick={onRetry}
           >
             <RefreshCw className="h-3 w-3 mr-1" />
             Retry
           </Button>
         )}
-        
-        {status === TransactionStatus.PENDING && pendingTime > 10000 && (
-          <span className="text-xs text-amber-500 ml-auto">
-            Taking longer than expected...
-          </span>
-        )}
       </div>
-      
-      {showProgress && (status === TransactionStatus.PENDING || status === TransactionStatus.SUCCESS) && (
-        <Progress 
-          value={progress} 
-          className="h-1" 
-          indicatorClassName={status === TransactionStatus.SUCCESS ? "bg-green-500" : "bg-blue-500"} 
-        />
-      )}
-    </div>
-  );
+    );
+  }
+  
+  return null;
 };
