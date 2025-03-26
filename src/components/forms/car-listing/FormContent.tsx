@@ -5,6 +5,7 @@
  * - 2027-07-25: Fixed TypeScript errors with property names and component props
  * - 2027-07-26: Fixed component props type issue by using conditional prop passing
  * - 2027-07-30: Added reset transaction handling for submission retries
+ * - 2027-08-01: Fixed type errors related to formSteps array and components
  */
 
 import { Session } from "@supabase/supabase-js";

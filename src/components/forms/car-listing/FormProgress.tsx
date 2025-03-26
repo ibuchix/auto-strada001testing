@@ -3,18 +3,24 @@
  * Changes made:
  * - 2024-08-08: Updated FormProgress to show multi-step indicators
  * - 2027-07-25: Updated props to match expected usage in FormContent.tsx
+ * - 2027-08-01: Updated type definition to make description optional and handle component property
  */
 
 import { Progress } from "@/components/ui/progress";
 import { Check, Clock } from "lucide-react";
 
+// Update the interface to reflect the actual structure of steps
+interface FormStep {
+  id: string;
+  title: string;
+  sections: string[];
+  component?: React.ComponentType<any>;
+  description?: string;
+}
+
 interface FormProgressProps {
   progress: number;
-  steps?: Array<{
-    id: string;
-    title: string;
-    sections: string[];
-  }>;
+  steps?: FormStep[];
   currentStep?: number;
   onStepClick?: (step: number) => void;
 }
