@@ -6,6 +6,7 @@
  * - 2024-10-25: Standardized error property to use errorDetails instead of error
  * - 2024-12-05: Fixed type instantiation issue in log entries
  * - 2024-12-12: Resolved deep type instantiation with explicit interface typing
+ * - 2025-05-16: Enhanced type safety with dedicated interfaces for DB records
  */
 
 import { supabase } from "@/integrations/supabase/client";

@@ -4,6 +4,7 @@
  * - Improved type safety for RPC response
  * - Ensured proper export of placeBid function
  * - Added more robust type checking for bid responses
+ * - Fixed type conversion issues for RPC responses
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -24,9 +25,16 @@ export interface BidData {
   maxProxyAmount?: number;
 }
 
+// Define the RPC response structure to help with type conversion
+interface PlaceBidRpcResponse {
+  bid_id?: string | null;
+  amount?: number | null;
+  error?: string | null;
+}
+
 /**
  * Place a bid on a car auction
- * @param auctionId ID of the car being bid on
+ * @param carId ID of the car being bid on
  * @param amount Bid amount in currency units
  * @param userId ID of the user placing the bid
  * @returns Promise with bid result information
@@ -41,12 +49,15 @@ export const placeBid = async (carId: string, amount: number, userId: string): P
     
     if (error) throw error;
     
-    // Validate and convert the response to BidResponse
+    // Validate and convert the response to BidResponse with proper type handling
+    const rpcResponse = data as PlaceBidRpcResponse | null;
+    
     const bidResponse: BidResponse = {
-      success: data && typeof data === 'object' ? true : false,
-      bid_id: typeof data === 'object' && 'bid_id' in data ? data.bid_id : undefined,
-      amount: typeof data === 'object' && 'amount' in data ? data.amount : undefined,
-      error: typeof data === 'object' && 'error' in data ? data.error : undefined
+      success: !!rpcResponse && typeof rpcResponse === 'object',
+      bid_id: rpcResponse && 'bid_id' in rpcResponse ? String(rpcResponse.bid_id || '') : undefined,
+      amount: rpcResponse && 'amount' in rpcResponse && typeof rpcResponse.amount === 'number' ? 
+        rpcResponse.amount : undefined,
+      error: rpcResponse && 'error' in rpcResponse ? String(rpcResponse.error || '') : undefined
     };
     
     return bidResponse;
