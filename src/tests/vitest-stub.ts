@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-25: Added missing vitest exports for test files
+ * - 2024-10-31: Fixed type issues with test functions
  */
 
 // Vitest stub file to provide test function exports

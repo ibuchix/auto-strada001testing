@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2023-07-15: Enhanced transaction service with more detailed transaction types and status
+ * - 2024-10-31: Updated TransactionType enum to replace GENERAL with OTHER
  */
 
 export enum TransactionStatus {
@@ -17,7 +18,8 @@ export enum TransactionType {
   UPDATE = 'update',
   DELETE = 'delete',
   AUCTION = 'auction',
-  CUSTOM = 'custom'
+  CUSTOM = 'custom',
+  OTHER = 'other'  // Added OTHER instead of GENERAL
 }
 
 export interface TransactionOptions {
@@ -50,7 +52,7 @@ export interface TransactionDetails {
   startTime: string;
   endTime?: string;
   duration?: number;
-  error?: string;
+  errorDetails?: string;  // Changed from error to errorDetails for consistency
   metadata?: Record<string, any>;
 }
 

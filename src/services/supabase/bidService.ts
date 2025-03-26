@@ -1,6 +1,8 @@
+
 /**
  * Changes made:
  * - 2024-10-25: Added missing placeBid export
+ * - 2024-10-31: Fixed parameter names to match RPC function definition
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -9,9 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 export const placeBid = async (auctionId: string, amount: number, userId: string) => {
   try {
     const { data, error } = await supabase.rpc('place_bid', {
-      p_auction_id: auctionId,
-      p_bid_amount: amount,
-      p_bidder_id: userId
+      p_car_id: auctionId,
+      p_amount: amount,
+      p_dealer_id: userId
     });
     
     if (error) throw error;
