@@ -1,6 +1,7 @@
 
 /**
- * Fixed database type compatibility issues
+ * Changes made:
+ * - 2025-08-10: Fixed import path for validateValuationData function
  */
 
 import { CarListingFormData, carFeaturesToJson } from "@/types/forms";

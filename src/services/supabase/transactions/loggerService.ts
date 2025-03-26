@@ -9,6 +9,7 @@
  * - 2025-05-16: Enhanced type safety with dedicated interfaces for DB records
  * - 2025-05-17: Fixed Json type incompatibility with Record<string, any>
  * - 2027-08-01: Further improved type safety to prevent excessive type instantiation
+ * - 2027-08-01: Fixed excessive type instantiation with explicit typing
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -26,7 +27,7 @@ interface SystemLogEntry {
 interface SystemLogRecord {
   correlation_id: string;
   created_at: string;
-  details: Record<string, any>;
+  details: Record<string, any>; // Changed from Json to Record<string, any>
   id: string;
   log_type: string;
   message: string;
@@ -90,7 +91,8 @@ export const transactionLoggerService = {
       return (data || []).map((log: any) => {
         const details = log.details || {};
         
-        return {
+        // Create a new transaction details object with explicit types
+        const transaction: TransactionDetails = {
           id: log.correlation_id || '',
           operation: details.operation || '',
           type: details.type || 'OTHER',
@@ -100,9 +102,11 @@ export const transactionLoggerService = {
           startTime: details.start_time || log.created_at,
           endTime: details.end_time || null,
           errorDetails: details.error_details || null,
-          metadata: details.metadata || null,
+          metadata: details.metadata || {},
           userId: details.user_id || null
         };
+        
+        return transaction;
       });
     } catch (e) {
       console.error('Error fetching transaction history:', e);

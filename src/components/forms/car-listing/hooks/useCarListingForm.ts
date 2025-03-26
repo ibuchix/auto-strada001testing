@@ -7,6 +7,7 @@
  * - 2024-12-05: Fixed type instantiation issue in form submission
  * - 2024-12-06: Corrected imports and type errors to resolve build issues
  * - 2027-08-01: Fixed transaction type usage and error handling
+ * - 2027-08-10: Fixed TransactionType import and usage
  */
 
 import { useState, useCallback } from 'react';
@@ -37,8 +38,8 @@ const carListingSchema = z.object({
 
 // Import from ComponentProvider instead of missing useAuth
 import { useAuth } from "@/components/AuthProvider";
-import { TransactionType } from '@/services/supabase/transactions/types';
 import { useTransaction } from '@/hooks/useTransaction';
+import { TransactionType } from '@/services/supabase/transactions/types';
 
 // Define the form data type based on the zod schema
 export type CarListingFormData = z.infer<typeof carListingSchema>;
@@ -136,10 +137,10 @@ export const useCarListingForm = () => {
         photoUrls = await uploadPhotos(data.photos);
       }
 
-      // Fixed: Use the proper TransactionType enum
+      // Fixed: Use TransactionType.CREATE directly without nested property access
       await transaction.executeTransaction(
         'Create Car Listing',
-        TransactionType.CREATE, // Use the enum value
+        TransactionType.CREATE, // Fixed: Direct enum value use
         async (transactionId) => { 
           const result = await submitCarListing({
             ...data,
