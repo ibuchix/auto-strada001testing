@@ -5,26 +5,32 @@
  * - 2024-08-05: Enhanced error handling and re-enabled submission after timeout
  * - 2025-07-21: Added better error recovery for blank screen issues
  * - 2025-07-22: Improved error handling for 400/404 errors and added better diagnostics
+ * - 2027-07-30: Enhanced button loading states and added recovery mechanisms
  */
 
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
 import { TransactionStatusIndicator } from "@/components/transaction/TransactionStatusIndicator";
 import { TransactionStatus } from "@/services/supabase/transactionService";
 import { useState, useEffect } from "react";
+import { logDiagnostic } from "@/diagnostics/listingButtonDiagnostics";
 
 interface FormSubmitButtonProps {
   isSubmitting: boolean;
   isSuccess?: boolean;
   transactionStatus?: TransactionStatus | null;
   forceEnable?: boolean;
+  onRetry?: () => void;
+  diagnosticId?: string;
 }
 
 export const FormSubmitButton = ({ 
   isSubmitting, 
   isSuccess, 
   transactionStatus,
-  forceEnable = false
+  forceEnable = false,
+  onRetry,
+  diagnosticId
 }: FormSubmitButtonProps) => {
   // Track how long the button has been in a pending state
   const [pendingDuration, setPendingDuration] = useState<number>(0);
@@ -45,10 +51,24 @@ export const FormSubmitButton = ({
     }
   }, [isPending]);
   
+  // Add diagnostic logging when transaction status changes
+  useEffect(() => {
+    if (diagnosticId && transactionStatus) {
+      logDiagnostic('SUBMIT_BUTTON', `Transaction status changed to ${transactionStatus}`, {
+        pendingDuration,
+        errorOccurred,
+        errorDetails
+      }, diagnosticId);
+    }
+  }, [transactionStatus, diagnosticId, pendingDuration, errorOccurred, errorDetails]);
+  
   // Reset error details when transaction status changes to avoid stale errors
   useEffect(() => {
     if (transactionStatus === TransactionStatus.PENDING) {
       setErrorDetails('');
+    } else if (transactionStatus === TransactionStatus.ERROR) {
+      setErrorOccurred(true);
+      setErrorDetails('Submission failed. Please try again.');
     }
   }, [transactionStatus]);
   
@@ -65,6 +85,9 @@ export const FormSubmitButton = ({
             setButtonEnabled(true);
             setErrorOccurred(true);
             setErrorDetails('Submission timeout: The request took too long to complete');
+            if (diagnosticId) {
+              logDiagnostic('SUBMIT_TIMEOUT', 'Submission timed out after 10 seconds', null, diagnosticId);
+            }
             clearInterval(interval);
           }
           return newDuration;
@@ -75,7 +98,7 @@ export const FormSubmitButton = ({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPending]);
+  }, [isPending, diagnosticId]);
   
   // Allow forcing button to be enabled
   const isDisabled = !forceEnable && isPending && pendingDuration <= 10 && !buttonEnabled;
@@ -86,6 +109,13 @@ export const FormSubmitButton = ({
   // Recovery function if the app seems stuck
   const recoverFromStuckState = () => {
     console.log('Attempting to recover from stuck state');
+    if (diagnosticId) {
+      logDiagnostic('RECOVERY_ATTEMPT', 'User-initiated recovery from stuck submission', {
+        transactionStatus,
+        pendingDuration
+      }, diagnosticId);
+    }
+    
     setErrorOccurred(true);
     setButtonEnabled(true);
     setPendingDuration(0);
@@ -95,6 +125,11 @@ export const FormSubmitButton = ({
     console.log('- Transaction status:', transactionStatus);
     console.log('- Pending duration:', pendingDuration);
     console.log('- LocalStorage contents:', Object.keys(localStorage));
+    
+    // Call the onRetry handler if provided
+    if (onRetry) {
+      onRetry();
+    }
     
     // Force window refresh if things seem truly stuck
     if (transactionStatus === TransactionStatus.PENDING && pendingDuration > 20) {
@@ -114,6 +149,14 @@ export const FormSubmitButton = ({
           // Log when button is clicked
           console.log('Submit button clicked, disabled state:', isDisabled);
           console.log('Current transaction status:', transactionStatus);
+          
+          if (diagnosticId) {
+            logDiagnostic('SUBMIT_CLICKED', 'Submit button clicked', {
+              isDisabled,
+              transactionStatus,
+              pendingDuration
+            }, diagnosticId);
+          }
           
           // If the button has been pending for too long, try to recover
           if (pendingDuration > 15) {
@@ -181,10 +224,9 @@ export const FormSubmitButton = ({
           <Button 
             variant="outline" 
             className="mt-2 text-sm"
-            onClick={() => {
-              recoverFromStuckState();
-            }}
+            onClick={recoverFromStuckState}
           >
+            <RefreshCw className="h-4 w-4 mr-2" />
             Reset Form
           </Button>
         </div>

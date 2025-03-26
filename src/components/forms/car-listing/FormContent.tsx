@@ -3,6 +3,8 @@
  * Changes made:
  * - 2027-07-24: Added support for diagnosticId prop for improved debugging
  * - 2027-07-25: Fixed TypeScript errors with property names and component props
+ * - 2027-07-26: Fixed component props type issue by using conditional prop passing
+ * - 2027-07-30: Added reset transaction handling for submission retries
  */
 
 import { Session } from "@supabase/supabase-js";
@@ -79,7 +81,38 @@ export const FormContent = ({
       return;
     }
     
-    await handleSubmit(form.getValues(), carId);
+    try {
+      await handleSubmit(form.getValues(), carId);
+    } catch (error) {
+      console.error('Form submission error:', error);
+      if (diagnosticId) {
+        logDiagnostic(
+          'SUBMISSION_ERROR', 
+          'Form submission error caught', 
+          { error }, 
+          diagnosticId
+        );
+      }
+    }
+  };
+  
+  const handleRetrySubmission = () => {
+    if (diagnosticId) {
+      logDiagnostic(
+        'SUBMISSION_RETRY', 
+        'User requested submission retry', 
+        { transactionStatus }, 
+        diagnosticId
+      );
+    }
+    
+    // Reset the transaction state
+    resetTransaction();
+    
+    // After a small delay, try submitting again
+    setTimeout(() => {
+      handleSubmitClick();
+    }, 500);
   };
 
   // Calculate progress percentage based on current step
@@ -122,6 +155,8 @@ export const FormContent = ({
         isLastStep={currentStep === formSteps.length - 1}
         transactionStatus={transactionStatus}
         forceEnable={false}
+        onRetry={handleRetrySubmission}
+        diagnosticId={diagnosticId}
       />
       
       {showSuccessDialog && (

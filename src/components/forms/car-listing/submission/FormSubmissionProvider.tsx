@@ -5,6 +5,7 @@
  * - 2024-10-22: Fixed missing TransactionStatus import and type issues
  * - 2024-10-23: Removed redundant FormSubmissionContextType interface
  * - 2024-07-30: Added transaction reset functionality exposure
+ * - 2027-07-30: Enhanced error handling and reset functionality
  */
 
 import { createContext, useContext } from "react";
@@ -29,7 +30,7 @@ export const FormSubmissionProvider = ({ children, userId }: FormSubmissionProvi
     showSuccessDialog,
     setShowSuccessDialog,
     handleSubmit,
-    resetTransaction  // Make sure this is included
+    resetTransaction
   } = useFormSubmission(userId);
 
   return (
@@ -41,7 +42,7 @@ export const FormSubmissionProvider = ({ children, userId }: FormSubmissionProvi
         showSuccessDialog,
         setShowSuccessDialog,
         handleSubmit,
-        resetTransaction  // Expose the reset function
+        resetTransaction  // Ensure this is exposed to child components
       }}
     >
       {children}

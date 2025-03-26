@@ -1,66 +1,68 @@
 
-/**
- * Changes made:
- * - 2027-07-25: Updated props to match expected usage in FormContent.tsx
- */
-
 import { Button } from "@/components/ui/button";
 import { FormSubmitButton } from "./FormSubmitButton";
 import { TransactionStatus } from "@/services/supabase/transactionService";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 
 interface MultiStepFormControlsProps {
   currentStep: number;
   totalSteps: number;
-  onNext: () => void;
   onPrevious: () => void;
+  onNext: () => void;
+  onSubmit: () => void;
   isSubmitting: boolean;
   isLastStep: boolean;
-  onSubmit: () => void;
-  isOffline?: boolean;
-  transactionStatus?: TransactionStatus;
+  transactionStatus?: TransactionStatus | null;
   forceEnable?: boolean;
+  onRetry?: () => void;
+  diagnosticId?: string;
 }
 
 export const MultiStepFormControls = ({
   currentStep,
   totalSteps,
-  onNext,
   onPrevious,
+  onNext,
+  onSubmit,
   isSubmitting,
   isLastStep,
-  onSubmit,
-  isOffline,
   transactionStatus,
-  forceEnable = false
+  forceEnable,
+  onRetry,
+  diagnosticId
 }: MultiStepFormControlsProps) => {
-  if (isLastStep) {
-    return (
-      <FormSubmitButton 
-        isSubmitting={isSubmitting} 
-        transactionStatus={transactionStatus}
-        forceEnable={forceEnable}
-      />
-    );
-  }
-
   return (
-    <div className="flex justify-between pt-4 sticky bottom-0 bg-white dark:bg-gray-900 p-4 shadow-lg rounded-t-lg border-t z-40">
-      <Button
-        type="button"
-        variant="outline"
-        onClick={onPrevious}
-        disabled={currentStep === 0}
-      >
-        Previous
-      </Button>
-
-      <Button
-        type="button"
-        onClick={onNext}
-        disabled={isSubmitting || isOffline}
-      >
-        Next Step
-      </Button>
+    <div className="w-full mt-8">
+      {isLastStep ? (
+        <FormSubmitButton 
+          isSubmitting={isSubmitting} 
+          transactionStatus={transactionStatus}
+          forceEnable={forceEnable}
+          onRetry={onRetry}
+          diagnosticId={diagnosticId}
+        />
+      ) : (
+        <div className="flex justify-between mt-8">
+          <Button
+            type="button"
+            onClick={onPrevious}
+            variant="outline"
+            disabled={currentStep === 0}
+            className="flex items-center"
+          >
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Previous
+          </Button>
+          <Button
+            type="button"
+            onClick={onNext}
+            className="flex items-center bg-[#DC143C] hover:bg-[#DC143C]/90"
+          >
+            Next
+            <ChevronRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-08-08: Created form steps configuration for multi-step form
@@ -52,5 +51,17 @@ export const formSteps = [
     title: 'Seller Notes',
     sections: ['seller-notes'],
     component: SellerNotesSection
+  },
+  {
+    id: 'rims',
+    title: 'Rim Condition',
+    component: RimPhotosSection,
+    description: 'Upload photos of all four rims'
+  },
+  {
+    id: 'service-history',
+    title: 'Service History',
+    component: ServiceHistorySection,
+    description: 'Provide service history details and documents'
   }
 ];
