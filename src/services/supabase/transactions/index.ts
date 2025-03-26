@@ -10,7 +10,6 @@ export * from './types';
 
 // Export compatibility types from the transactionService
 export {
-  TRANSACTION_STATUS,
   TransactionType,
   // Use type-only exports for types when isolatedModules is enabled
   type TransactionStatus,

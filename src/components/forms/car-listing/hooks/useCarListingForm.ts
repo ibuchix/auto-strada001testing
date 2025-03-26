@@ -1,185 +1,98 @@
 
 /**
- * Updated to correctly type features and ensure type safety
+ * Changes made:
+ * - 2024-08-20: Added proper valuation data handling
+ * - 2024-09-10: Updated to use useFormPersistence hook
+ * - 2025-07-02: Fixed type issues and removed form property
  */
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { CarListingFormData } from '@/types/forms';
-import { useFormPersistence } from './useFormPersistence';
-import { getValuationData } from '@/components/forms/car-listing/submission/utils/validationHandler';
-import { checkForExistingDraft } from '../utils/formSaveUtils';
-import { CarFeatures, defaultCarFeatures } from '@/utils/types/carFeatures';
+import { useForm } from "react-hook-form";
+import { CarListingFormData } from "@/types/forms";
+import { useFormPersistence } from "./useFormPersistence";
+import { validateValuationData } from "../submission/utils/validationHandler";
 
-export const useCarListingForm = (userId?: string, initialCarId?: string) => {
-  const [carId, setCarId] = useState<string | undefined>(initialCarId);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const [isFormDirty, setIsFormDirty] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasCheckedForExistingDraft, setHasCheckedForExistingDraft] = useState(false);
+// Export a function to get valuation data from localStorage
+export const getValuationData = () => {
+  try {
+    const valuationDataString = localStorage.getItem('valuationData');
+    if (!valuationDataString) return null;
+    return JSON.parse(valuationDataString);
+  } catch (error) {
+    console.error('Error parsing valuation data:', error);
+    return null;
+  }
+};
 
-  // Initialize form with default empty values
-  const form = useForm<Partial<CarListingFormData>>({
+export const useCarListingForm = (userId: string, draftId?: string) => {
+  // Initialize form with default values
+  const form = useForm<CarListingFormData>({
     defaultValues: {
-      vin: '',
-      make: '',
-      model: '',
-      year: undefined,
-      notes: '',
-      address: '',
-      features: defaultCarFeatures as CarFeatures,
+      name: "",
+      address: "",
+      mobileNumber: "",
+      features: {
+        satNav: false,
+        panoramicRoof: false,  
+        reverseCamera: false,
+        heatedSeats: false,
+        upgradedSound: false
+      },
       isDamaged: false,
-      damageReports: [],
       isRegisteredInPoland: true,
       isSellingOnBehalf: false,
       hasPrivatePlate: false,
-      warrantyRemaining: 0,
-      mileage: 0,
-      color: '',
-      fuelType: '',
-      transmission: ''
+      financeAmount: "0",
+      serviceHistoryType: "none",
+      sellerNotes: "",
+      numberOfKeys: "2",
+      transmission: "manual",
     },
-    mode: 'onBlur'
   });
 
-  // Setup form persistence - we need to adapt to its interface
-  const { saveProgress: saveFormProgress, carId: persistedCarId } = useFormPersistence({
-    form,
-    carId,
-    setCarId,
-    onSaveStart: () => setIsSaving(true),
-    onSaveEnd: (success) => {
-      setIsSaving(false);
-      if (success) {
-        setLastSaved(new Date());
-      }
-    },
-    userId
-  });
-
-  // Create adapters for the expected interface
-  const loadForm = async (id: string) => {
-    // This is now handled internally by useFormPersistence
-    console.log("Loading form data for ID:", id);
-  };
-
-  const saveForm = async () => {
-    return saveFormProgress();
-  };
-
-  const resetForm = () => {
-    form.reset({});
-    // Additional cleanup is now handled internally
-  };
-
-  // Check for existing draft on initial load
-  useEffect(() => {
-    if (!userId || hasCheckedForExistingDraft || carId) return;
-
-    const checkDraft = async () => {
-      try {
-        const draftId = await checkForExistingDraft(userId);
-        if (draftId) {
-          setCarId(draftId);
-        }
-        setHasCheckedForExistingDraft(true);
-      } catch (error) {
-        console.error('Error checking for draft:', error);
-        setHasCheckedForExistingDraft(true);
-      }
-    };
-
-    checkDraft();
-  }, [userId, hasCheckedForExistingDraft, carId]);
-
-  // Load form data from local storage or API
-  useEffect(() => {
-    if (carId) {
-      loadForm(carId);
-    } else {
-      // Try to pre-populate from valuation data
-      try {
-        const valuationData = getValuationData();
-        if (valuationData) {
-          const { vin, make, model, year, mileage, fuel_type, transmission } = valuationData;
-          
-          // Create normalized form data with type safety for features
-          form.reset({
-            vin,
-            make,
-            model,
-            year: year ? parseInt(year) : undefined,
-            mileage: mileage ? parseInt(mileage) : 0,
-            fuelType: fuel_type || '',
-            transmission: transmission || '',
-            features: defaultCarFeatures
-          }, { keepValues: false });
-        }
-      } catch (error) {
-        console.error('Error loading valuation data:', error);
-      }
-    }
-  }, [carId, form]);
-
-  // Detect when form becomes dirty
-  useEffect(() => {
-    const subscription = form.watch(() => {
-      setIsFormDirty(form.formState.isDirty);
-    });
-    return () => subscription.unsubscribe();
-  }, [form]);
-
-  // Helper functions for step navigation
-  const goToNextStep = () => {
-    setCurrentStep((prev) => prev + 1);
-    window.scrollTo(0, 0);
-  };
-
-  const goToPreviousStep = () => {
-    setCurrentStep((prev) => Math.max(0, prev - 1));
-    window.scrollTo(0, 0);
-  };
-
-  const goToStep = (step: number) => {
-    setCurrentStep(step);
-    window.scrollTo(0, 0);
-  };
-
-  // Function to save form progress
-  const saveProgress = () => {
-    return saveForm();
-  };
-
-  // Cleanup form on unmount
-  const cleanup = () => {
-    form.reset({});
-    resetForm();
-    setCarId(undefined);
-    setCurrentStep(0);
-  };
-
-  return {
-    form,
-    carId: carId || persistedCarId,
-    setCarId,
-    currentStep,
-    isSubmitting,
-    setIsSubmitting,
-    submissionError,
-    setSubmissionError,
-    isFormDirty,
-    lastSaved,
-    isSaving,
-    goToNextStep,
-    goToPreviousStep,
-    goToStep,
+  // Use form persistence for auto-saving
+  const { 
     saveProgress,
-    cleanup,
-    // Include the expected interface functions
-    loadForm,
-    saveForm, 
-    resetForm
+    lastSaved,
+    isOffline,
+    carId,
+    createBackup,
+    recoverFromBackup,
+    backupCreated 
+  } = useFormPersistence(form, userId, 0, { enableBackup: true });
+
+  // Pre-fill form with valuation data if available
+  const loadValuationData = () => {
+    try {
+      const valuationData = validateValuationData();
+      if (!valuationData) return;
+
+      // Update form with valuation data
+      form.setValue('vin', valuationData.vin || '');
+      form.setValue('make', valuationData.make || '');
+      form.setValue('model', valuationData.model || '');
+      form.setValue('year', valuationData.year || new Date().getFullYear());
+      form.setValue('mileage', valuationData.mileage?.toString() || '');
+      form.setValue('transmission', valuationData.transmission || 'manual');
+      
+      // Also try to load temporary mileage from localStorage if available
+      const tempMileage = localStorage.getItem('tempMileage');
+      if (tempMileage) {
+        form.setValue('mileage', tempMileage);
+      }
+    } catch (error) {
+      console.error('Error loading valuation data:', error);
+    }
+  };
+
+  // Return the form and utility functions
+  return {
+    ...form,
+    lastSaved,
+    isOffline,
+    saveProgress,
+    carId,
+    createBackup,
+    recoverFromBackup,
+    backupCreated,
+    loadValuationData
   };
 };

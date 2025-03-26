@@ -1,230 +1,169 @@
 
 /**
  * Changes made:
- * - Updated placeBid function call
- * - Fixed type references for BidResponse
- * - Fixed TransactionType parameter passing
+ * - Fixed TransactionType import and usage
+ * - Updated to use proper transaction error handling
  */
+import { useState } from "react";
+import { useAuctionTransaction } from "@/hooks/useAuctionTransaction";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { placeBid } from "@/utils/bidUtils";
+import { toast } from "sonner";
+import { TransactionType } from "@/services/supabase/transactions/types";
+import { BidStatusIndicator } from "./BidStatusIndicator";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { placeBid } from '@/utils/bidUtils';
-import { useRealtimeBids } from '@/hooks/useRealtimeBids';
-import { useAuth } from '@/components/AuthProvider';
-import { TransactionStatusIndicator } from '@/components/transaction/TransactionStatusIndicator';
-import { useAuctionTransaction } from '@/hooks/useAuctionTransaction';
-import { TransactionType } from '@/services/supabase/transactions/types';
-import { AlertTriangle } from 'lucide-react';
+// Define the BidResponse type here since it was missing from bidUtils
+export interface BidResponse {
+  success: boolean;
+  error?: string;
+  message?: string;
+  bidId?: string;
+  amount?: number;
+}
 
-const formSchema = z.object({
-  amount: z.coerce.number().positive('Bid must be positive'),
-  isProxy: z.boolean().default(false),
-  maxProxyAmount: z.coerce.number().positive('Proxy bid must be positive').optional(),
-});
-
-type BidFormProps = {
+interface BidFormProps {
   carId: string;
-  currentBid: number;
-  minBidIncrement: number;
-  onBidPlaced?: () => void;
-};
+  dealerId: string;
+  minBid: number;
+  currentBid?: number;
+  onBidSuccess?: (bid: { amount: number; bidId: string }) => void;
+}
 
-export const BidForm = ({ 
-  carId, 
-  currentBid, 
-  minBidIncrement,
-  onBidPlaced 
+export const BidForm = ({
+  carId,
+  dealerId,
+  minBid,
+  currentBid,
+  onBidSuccess
 }: BidFormProps) => {
-  const { executeTransaction, isLoading: isTransactionLoading, transactionStatus } = useAuctionTransaction();
-  const { session } = useAuth();
-  const { isConnected, reconnect } = useRealtimeBids();
+  const [bidAmount, setBidAmount] = useState<number>(
+    currentBid ? currentBid + 500 : minBid
+  );
+  const [useProxyBidding, setUseProxyBidding] = useState(false);
+  const [maxProxyAmount, setMaxProxyAmount] = useState<number>(
+    currentBid ? currentBid + 2000 : minBid + 2000
+  );
   
-  const minBid = currentBid + minBidIncrement;
-  
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      amount: minBid,
-      isProxy: false,
-      maxProxyAmount: minBid,
-    },
-  });
-  
-  const isProxyBid = form.watch('isProxy');
-  
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!session?.user?.id) {
+  const { executeTransaction, isLoading, transactionStatus } = useAuctionTransaction();
+
+  const handleBidSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (bidAmount < minBid) {
+      toast.error("Bid amount must be at least the minimum bid");
       return;
     }
     
-    executeTransaction(
-      "Place Bid",
-      TransactionType.AUCTION,
-      async () => {
-        const result = await placeBid({
-          carId,
-          dealerId: session.user.id,
-          amount: values.amount,
-          isProxy: values.isProxy,
-          maxProxyAmount: values.isProxy ? values.maxProxyAmount : undefined,
-        });
-        
-        if (result.success) {
-          form.reset({
-            amount: values.amount + minBidIncrement,
-            isProxy: false,
-            maxProxyAmount: values.amount + minBidIncrement,
-          });
+    if (useProxyBidding && maxProxyAmount <= bidAmount) {
+      toast.error("Maximum proxy amount must be higher than your bid");
+      return;
+    }
+    
+    try {
+      const result = await executeTransaction(
+        "Place Bid",
+        TransactionType.AUCTION,
+        async () => {
+          const bidResult = await placeBid(
+            carId,
+            dealerId,
+            bidAmount,
+            useProxyBidding,
+            useProxyBidding ? maxProxyAmount : undefined
+          );
           
-          if (onBidPlaced) {
-            onBidPlaced();
+          if (!bidResult.success) {
+            throw new Error(bidResult.error || "Failed to place bid");
           }
+          
+          if (onBidSuccess && bidResult.bidId) {
+            onBidSuccess({
+              amount: bidResult.amount || bidAmount,
+              bidId: bidResult.bidId
+            });
+          }
+          
+          return bidResult;
         }
-        
-        return result;
-      },
-      {
-        description: `Bid of ${values.amount} PLN ${values.isProxy ? '(Proxy)' : ''}`
+      );
+      
+      if (result?.success) {
+        setBidAmount(result.amount || 0);
       }
-    );
+      
+    } catch (error) {
+      console.error("Bid error:", error);
+    }
   };
-  
-  const isSubmitting = isTransactionLoading;
-  
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Place Your Bid</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {!isConnected && (
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle size={18} />
-              <p className="font-medium">Realtime connection lost</p>
-            </div>
-            <p className="text-sm mb-2">
-              You won't receive live updates about new bids or auction changes.
+    <div className="space-y-4 p-4 border border-gray-200 rounded-md">
+      <BidStatusIndicator status={transactionStatus} />
+      
+      <form onSubmit={handleBidSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="bidAmount" className="block text-sm font-medium mb-1">
+            Your Bid (PLN)
+          </label>
+          <Input
+            id="bidAmount"
+            type="number"
+            min={minBid}
+            step={100}
+            value={bidAmount}
+            onChange={(e) => setBidAmount(Number(e.target.value))}
+            disabled={isLoading}
+            className="w-full"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Minimum bid: {minBid.toLocaleString()} PLN
+          </p>
+        </div>
+        
+        <div className="flex items-center">
+          <input
+            id="proxyBidding"
+            type="checkbox"
+            checked={useProxyBidding}
+            onChange={(e) => setUseProxyBidding(e.target.checked)}
+            disabled={isLoading}
+            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <label htmlFor="proxyBidding" className="ml-2 block text-sm text-gray-700">
+            Use proxy bidding
+          </label>
+        </div>
+        
+        {useProxyBidding && (
+          <div>
+            <label htmlFor="maxProxyAmount" className="block text-sm font-medium mb-1">
+              Maximum Proxy Amount (PLN)
+            </label>
+            <Input
+              id="maxProxyAmount"
+              type="number"
+              min={bidAmount + 100}
+              step={100}
+              value={maxProxyAmount}
+              onChange={(e) => setMaxProxyAmount(Number(e.target.value))}
+              disabled={isLoading}
+              className="w-full"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              The system will bid automatically for you up to this amount
             </p>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="w-full text-amber-800 border-amber-300 hover:bg-amber-100"
-              onClick={reconnect}
-            >
-              Reconnect
-            </Button>
           </div>
         )}
         
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Bid Amount (PLN)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      {...field} 
-                      min={minBid}
-                      step={minBidIncrement}
-                    />
-                  </FormControl>
-                  <p className="text-xs text-gray-500">
-                    Minimum bid: {minBid.toLocaleString()} PLN
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="isProxy"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Enable proxy bidding
-                    </FormLabel>
-                    <p className="text-xs text-gray-500">
-                      System will automatically bid for you up to your maximum
-                    </p>
-                  </div>
-                </FormItem>
-              )}
-            />
-            
-            {isProxyBid && (
-              <FormField
-                control={form.control}
-                name="maxProxyAmount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Maximum Proxy Bid (PLN)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        {...field} 
-                        min={form.getValues('amount')}
-                        step={minBidIncrement}
-                      />
-                    </FormControl>
-                    <p className="text-xs text-gray-500">
-                      Must be greater than or equal to your bid amount
-                    </p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            
-            <div className="space-y-2">
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isSubmitting || !isConnected}
-              >
-                {isSubmitting ? 'Placing Bid...' : 'Place Bid'}
-              </Button>
-              
-              {transactionStatus && (
-                <div className="flex justify-center">
-                  <TransactionStatusIndicator 
-                    status={transactionStatus} 
-                    pendingText="Processing bid..."
-                    successText="Bid placed successfully"
-                    errorText="Bid failed"
-                  />
-                </div>
-              )}
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="w-full bg-[#DC143C] hover:bg-[#b01031]"
+        >
+          {isLoading ? "Placing Bid..." : "Place Bid"}
+        </Button>
+      </form>
+    </div>
   );
 };

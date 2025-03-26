@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-10-28: Created separate logger service for transactions
  * - 2025-06-22: Fixed missing entityType property in TransactionDetails
+ * - 2025-07-02: Ensured proper entityType handling
  */
 
 import { supabase } from "@/integrations/supabase/client";

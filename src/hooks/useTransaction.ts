@@ -1,209 +1,155 @@
 
 /**
- * Simplified transaction hook for handling operations with consistent error handling
- * - Removed diagnostic dependencies
- * - Streamlined transaction logging
- * - Fixed system_logs table usage
- * - Fixed TypeScript type compatibility issues
+ * Changes made:
+ * - Fixed imports for TransactionStatus instead of TRANSACTION_STATUS
+ * - Ensured consistent type usage for transaction status
  */
-import { useState, useCallback } from "react";
-import { v4 as uuidv4 } from "uuid";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+
+import { useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { 
-  TRANSACTION_STATUS, 
-  TransactionStatus, 
-  TransactionOptions,
-  TransactionType
-} from "@/services/supabase/transactions/types";
+  TransactionType, 
+  TransactionStatus,
+  TransactionOptions
+} from '@/services/supabase/transactions/types';
+import { transactionService } from '@/services/supabase/transactions';
 
-interface UseTransactionOptions {
-  showToast?: boolean;
-  retryCount?: number;
-  logToDb?: boolean;
-}
+// Use enum values directly from the TransactionStatus enum
+const TRANSACTION_STATUS = {
+  IDLE: 'idle' as const,
+  PENDING: 'pending' as const,
+  SUCCESS: 'success' as const,
+  ERROR: 'error' as const
+};
 
-interface TransactionState<T = any> {
-  isLoading: boolean;
-  error: Error | null;
+export interface TransactionResult<T = any> {
   data: T | null;
-  transactionId: string | null;
-  transactionStatus: TransactionStatus;
+  error: Error | null;
 }
 
-export const useCreateTransaction = (options: UseTransactionOptions = {}) => {
-  const { 
-    showToast = true, 
-    retryCount = 0,
-    logToDb = false
-  } = options;
-  
-  const [state, setState] = useState<TransactionState>({
-    isLoading: false,
-    error: null,
-    data: null,
-    transactionId: null,
-    transactionStatus: TRANSACTION_STATUS.IDLE as unknown as TransactionStatus // Type assertion to match expected type
-  });
-  
+export interface TransactionHookOptions {
+  showToast?: boolean;
+  toastDuration?: number;
+  logToDb?: boolean;
+  retryCount?: number;
+  retryDelay?: number;
+}
+
+export function useCreateTransaction(options: TransactionHookOptions = {}) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | 'idle'>(
+    TRANSACTION_STATUS.IDLE
+  );
+
+  /**
+   * Reset the transaction state
+   */
   const reset = useCallback(() => {
-    setState({
-      isLoading: false,
-      error: null,
-      data: null,
-      transactionId: null,
-      transactionStatus: TRANSACTION_STATUS.IDLE as unknown as TransactionStatus // Type assertion to match expected type
-    });
+    setIsLoading(false);
+    setTransactionId(null);
+    setTransactionStatus(TRANSACTION_STATUS.IDLE);
   }, []);
-  
-  const logTransaction = async <T>(
-    transactionId: string,
-    transactionName: string,
-    status: TransactionStatus,
-    result: T | null,
-    error: any = null,
-    options: TransactionOptions = {}
-  ) => {
-    if (!logToDb) return;
-    
-    try {
-      // Safely prepare the details object
-      const details: Record<string, any> = {
-        transaction_id: transactionId,
-        transaction_name: transactionName,
-        status,
-        description: options.description
+
+  /**
+   * Execute a transaction with error handling
+   */
+  const execute = useCallback(
+    async <T>(
+      operation: string,
+      callback: () => Promise<T>,
+      customOptions: Partial<TransactionOptions> = {}
+    ): Promise<T | null> => {
+      // Configure transaction options by merging defaults with custom options
+      const transactionOptions: TransactionOptions = {
+        showToast: options.showToast ?? true,
+        toastDuration: options.toastDuration ?? 5000,
+        logToDb: options.logToDb ?? true,
+        retryCount: options.retryCount ?? 0,
+        retryDelay: options.retryDelay ?? 1000,
+        ...customOptions
       };
-      
-      // Only include result if it exists and can be converted to string
-      if (result) {
-        try {
-          details.result = typeof result === 'object' 
-            ? JSON.stringify(result) 
-            : String(result);
-        } catch (e) {
-          details.result = '[Complex object]';
-        }
+
+      // Generate a unique transaction ID if we don't have one yet
+      if (!transactionId) {
+        setTransactionId(crypto.randomUUID());
       }
-      
-      // Only include error if it exists
-      if (error) {
-        details.error = error.message || String(error);
-      }
-      
-      // Only include metadata if it exists
-      if (options.metadata) {
-        try {
-          details.metadata = typeof options.metadata === 'object'
-            ? JSON.stringify(options.metadata)
-            : String(options.metadata);
-        } catch (e) {
-          details.metadata = '[Complex metadata]';
-        }
-      }
-      
-      // Log to system_logs table
-      await supabase.from('system_logs').insert({
-        id: uuidv4(),
-        log_type: 'transaction',
-        message: `Transaction ${transactionName} (${status})`,
-        details,
-        correlation_id: transactionId
-      });
-    } catch (err) {
-      console.error('Failed to log transaction:', err);
-    }
-  };
-  
-  const execute = async <T>(
-    name: string,
-    operation: () => Promise<T>,
-    options: TransactionOptions = {}
-  ): Promise<T | null> => {
-    const transactionId = uuidv4();
-    let retries = 0;
-    const maxRetries = retryCount;
-    
-    setState({
-      isLoading: true,
-      error: null,
-      data: null,
-      transactionId,
-      transactionStatus: TRANSACTION_STATUS.PENDING as unknown as TransactionStatus // Type assertion to match expected type
-    });
-    
-    const executeWithRetry = async (): Promise<T | null> => {
+
+      // Start the loading state and set status to pending
+      setIsLoading(true);
+      setTransactionStatus(TRANSACTION_STATUS.PENDING as TransactionStatus);
+
       try {
-        const result = await operation();
-        
-        setState({
-          isLoading: false,
-          error: null,
-          data: result,
-          transactionId,
-          transactionStatus: TRANSACTION_STATUS.SUCCESS as unknown as TransactionStatus // Type assertion to match expected type
-        });
-        
-        if (showToast) {
-          toast.success(`${name} completed successfully`);
-        }
-        
-        if (options.onSuccess) {
-          options.onSuccess(result);
-        }
-        
-        await logTransaction(
-          transactionId, 
-          name, 
-          TRANSACTION_STATUS.SUCCESS as unknown as TransactionStatus, // Type assertion to match expected type
-          result, 
-          null, 
-          options
+        // Call the service layer to execute the operation with tracking
+        const result = await transactionService.executeTransaction<T>(
+          operation,
+          TransactionType.OTHER, // Default to OTHER type if not specified
+          callback,
+          {
+            ...transactionOptions,
+            onSuccess: (data) => {
+              // Update UI state on success
+              setTransactionStatus(TRANSACTION_STATUS.SUCCESS as TransactionStatus);
+              setIsLoading(false);
+
+              // Call custom onSuccess if provided
+              if (customOptions.onSuccess) {
+                customOptions.onSuccess(data);
+              }
+            },
+            onError: (error) => {
+              // Update UI state on error
+              setTransactionStatus(TRANSACTION_STATUS.ERROR as TransactionStatus);
+              setIsLoading(false);
+
+              // Call custom onError if provided
+              if (customOptions.onError) {
+                customOptions.onError(error);
+              }
+            }
+          }
         );
-        
+
         return result;
-      } catch (error: any) {
-        if (retries < maxRetries) {
-          retries++;
-          console.log(`Retrying transaction (${retries}/${maxRetries})...`);
-          return executeWithRetry();
-        }
-        
-        setState({
-          isLoading: false,
-          error: error instanceof Error ? error : new Error(error?.message || 'Unknown error'),
-          data: null,
-          transactionId,
-          transactionStatus: TRANSACTION_STATUS.ERROR as unknown as TransactionStatus // Type assertion to match expected type
-        });
-        
-        if (showToast) {
-          toast.error(`${name} failed: ${error?.message || 'Unknown error'}`);
-        }
-        
-        if (options.onError) {
-          options.onError(error);
-        }
-        
-        await logTransaction(
-          transactionId, 
-          name, 
-          TRANSACTION_STATUS.ERROR as unknown as TransactionStatus, // Type assertion to match expected type
-          null, 
-          error, 
-          options
-        );
-        
+      } catch (error) {
+        // Ensure the UI state is updated even if the transaction service throws
+        setTransactionStatus(TRANSACTION_STATUS.ERROR as TransactionStatus);
+        setIsLoading(false);
         return null;
       }
-    };
-    
-    return executeWithRetry();
-  };
-  
+    },
+    [options, transactionId]
+  );
+
   return {
-    ...state,
     execute,
+    isLoading,
+    transactionId,
+    transactionStatus,
     reset
   };
-};
+}
+
+/**
+ * Simplified hook for creating and executing transactions
+ */
+export function useTransaction<T = any>() {
+  const { execute, isLoading, transactionStatus, reset } = useCreateTransaction();
+
+  const executeTransaction = async (
+    operation: string,
+    type: TransactionType,
+    callback: () => Promise<T>,
+    options?: Partial<TransactionOptions>
+  ): Promise<T | null> => {
+    return execute(operation, callback, options);
+  };
+
+  return {
+    executeTransaction,
+    isLoading,
+    transactionStatus,
+    reset
+  };
+}
