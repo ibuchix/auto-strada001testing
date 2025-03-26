@@ -1,6 +1,8 @@
+
 /**
  * Changes made:
  * - 2028-06-01: Added diagnostic panel and enhanced transaction tracking
+ * - 2023-07-15: Fixed type errors with mileage, previousOwners, and accidentHistory
  */
 
 import { useRef, useState, useEffect } from "react";
@@ -61,8 +63,8 @@ export const FormContent = ({
       model: "",
       year: new Date().getFullYear(),
       registrationNumber: "",
-      mileage: "",
-      engineCapacity: "",
+      mileage: 0,
+      engineCapacity: 0,
       transmission: "manual",
       bodyType: "sedan",
       exteriorColor: "",
@@ -78,7 +80,7 @@ export const FormContent = ({
       mobileNumber: "",
       contactEmail: "",
       notes: "",
-      previousOwners: "1",
+      previousOwners: 1,
       accidentHistory: "none",
       isDamaged: false,
       isRegisteredInPoland: true,
@@ -113,6 +115,7 @@ export const FormContent = ({
       rimPhotosComplete: false,
       financeDocument: null,
       serviceHistoryFiles: [],
+      userId: session?.user?.id,
     }
   });
   

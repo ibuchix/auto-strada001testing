@@ -1,73 +1,94 @@
 
 /**
  * Changes made:
- * - 2028-07-14: Created diagnostics utilities for tracking form interactions and errors
+ * - 2023-07-15: Created diagnostic utilities for listing process
  */
 
-// Log a diagnostic event to the console and optionally to a storage service
-export const logDiagnostic = (
-  eventType: string,
+type LogLevel = 'INFO' | 'WARNING' | 'ERROR' | 'DEBUG';
+
+interface DiagnosticLog {
+  id: string;
+  category: string;
+  message: string;
+  data?: any;
+  timestamp: string;
+  level: LogLevel;
+}
+
+// In-memory storage for diagnostic logs
+const diagnosticLogs: Record<string, DiagnosticLog[]> = {};
+
+/**
+ * Log a diagnostic message
+ */
+export function logDiagnostic(
+  category: string,
   message: string,
-  data?: Record<string, any> | null,
-  diagnosticId?: string,
-  level: 'INFO' | 'WARNING' | 'ERROR' = 'INFO'
-) => {
-  // Only log if we have a diagnostic ID
-  if (!diagnosticId) return;
+  data?: any,
+  diagnosticId?: string, 
+  level: LogLevel = 'INFO'
+): void {
+  if (!diagnosticId) {
+    console.log(`[${category}] ${message}`, data);
+    return;
+  }
   
-  const timestamp = new Date().toISOString();
-  const logEntry = {
-    diagnosticId,
-    eventType,
+  const log: DiagnosticLog = {
+    id: crypto.randomUUID(),
+    category,
     message,
     data,
-    timestamp,
+    timestamp: new Date().toISOString(),
     level
   };
   
-  // Log to console with appropriate level
-  switch (level) {
-    case 'ERROR':
-      console.error(`[DIAGNOSTIC] ${eventType}:`, logEntry);
-      break;
-    case 'WARNING':
-      console.warn(`[DIAGNOSTIC] ${eventType}:`, logEntry);
-      break;
-    default:
-      console.log(`[DIAGNOSTIC] ${eventType}:`, logEntry);
+  // Initialize array if it doesn't exist
+  if (!diagnosticLogs[diagnosticId]) {
+    diagnosticLogs[diagnosticId] = [];
   }
   
-  // Store diagnostics in localStorage for debugging
-  try {
-    const storageKey = `diagnostics_${diagnosticId}`;
-    const existingLogs = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    existingLogs.push(logEntry);
-    localStorage.setItem(storageKey, JSON.stringify(existingLogs));
-  } catch (error) {
-    console.error('Failed to store diagnostic data:', error);
-  }
+  // Add the log
+  diagnosticLogs[diagnosticId].push(log);
   
-  // In a real implementation, you might want to send this to a server
-  // or analytics service for tracking issues
-};
+  // Also log to console for debugging
+  console.log(`[${diagnosticId}][${category}] ${message}`, data);
+}
 
-// Get all diagnostics for a given ID
-export const getDiagnostics = (diagnosticId: string) => {
-  try {
-    const storageKey = `diagnostics_${diagnosticId}`;
-    return JSON.parse(localStorage.getItem(storageKey) || '[]');
-  } catch (error) {
-    console.error('Failed to retrieve diagnostic data:', error);
-    return [];
-  }
-};
+/**
+ * Get all diagnostic logs for a specific ID
+ */
+export function getDiagnostics(diagnosticId: string): DiagnosticLog[] {
+  return diagnosticLogs[diagnosticId] || [];
+}
 
-// Clear diagnostics for a given ID
-export const clearDiagnostics = (diagnosticId: string) => {
+/**
+ * Clear diagnostic logs for a specific ID
+ */
+export function clearDiagnostics(diagnosticId: string): void {
+  delete diagnosticLogs[diagnosticId];
+}
+
+/**
+ * Log the current state of localStorage
+ */
+export function logStorageState(diagnosticId: string, marker: string): void {
   try {
-    const storageKey = `diagnostics_${diagnosticId}`;
-    localStorage.removeItem(storageKey);
+    const storageKeys = Object.keys(localStorage);
+    const storageSizes = storageKeys.map(key => {
+      const value = localStorage.getItem(key);
+      return { 
+        key, 
+        size: value ? value.length : 0, 
+        sizeKb: value ? Math.round(value.length / 1024 * 100) / 100 : 0 
+      };
+    });
+    
+    logDiagnostic('STORAGE_STATE', `Storage state at ${marker}`, {
+      totalKeys: storageKeys.length,
+      keys: storageSizes,
+      timestamp: new Date().toISOString()
+    }, diagnosticId);
   } catch (error) {
-    console.error('Failed to clear diagnostic data:', error);
+    logDiagnostic('STORAGE_ERROR', 'Failed to log storage state', { error }, diagnosticId, 'ERROR');
   }
-};
+}

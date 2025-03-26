@@ -1,14 +1,12 @@
 
 /**
  * Changes made:
- * - 2028-07-14: Created FormTransactionError component for displaying transaction errors
+ * - 2023-07-15: Created FormTransactionError component for displaying transaction errors
  */
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TransactionStateIndicator } from "@/components/transaction/TransactionStateIndicator";
-import { TransactionStatus } from "@/services/supabase/transactionService";
 
 interface FormTransactionErrorProps {
   error: string;
@@ -17,26 +15,18 @@ interface FormTransactionErrorProps {
 
 export const FormTransactionError = ({ error, onRetry }: FormTransactionErrorProps) => {
   return (
-    <Alert variant="destructive" className="mb-6">
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle className="ml-2">Submission Error</AlertTitle>
-      <AlertDescription className="mt-2 flex items-center justify-between">
-        <div className="space-y-2">
-          <p>{error}</p>
-          <TransactionStateIndicator 
-            status={TransactionStatus.ERROR} 
-            errorText="Submission failed"
-            onRetry={onRetry}
-          />
-        </div>
+    <Alert variant="destructive" className="border-red-500 bg-red-50">
+      <AlertCircle className="h-4 w-4 text-red-600" />
+      <AlertTitle className="text-red-800">Error submitting form</AlertTitle>
+      <AlertDescription className="text-red-700">
+        <p className="mb-2">{error}</p>
         {onRetry && (
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={onRetry} 
-            className="ml-4"
+            className="bg-white border-red-300 text-red-600 hover:bg-red-50"
+            onClick={onRetry}
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
             Try Again
           </Button>
         )}

@@ -1,23 +1,28 @@
 
 /**
  * Changes made:
- * - 2027-07-25: Updated props to use timestamp instead of lastSaved to fix TypeScript errors
+ * - 2023-07-15: Updated props to use timestamp instead of date for better compatibility
  */
 
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from "date-fns";
 
 interface LastSavedProps {
   timestamp: Date | null;
+  isOffline?: boolean;
 }
 
-export const LastSaved = ({ timestamp }: LastSavedProps) => {
-  if (!timestamp) return null;
+export const LastSaved = ({ timestamp, isOffline }: LastSavedProps) => {
+  if (!timestamp) {
+    return null;
+  }
 
-  const timeDistance = formatDistanceToNow(timestamp, { addSuffix: true });
+  const timeAgo = formatDistanceToNow(timestamp, { addSuffix: true });
 
   return (
-    <p className="text-sm text-subtitle italic">
-      Last saved: {timeDistance}
-    </p>
+    <div className="text-xs text-muted-foreground flex items-center">
+      <span>
+        {isOffline ? "Saved locally" : "Last saved"} {timeAgo}
+      </span>
+    </div>
   );
 };

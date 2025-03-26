@@ -1,7 +1,7 @@
 
 /**
  * Changes made:
- * - 2028-07-14: Created StepForm component for multi-step form navigation
+ * - 2023-07-15: Created StepForm component for handling multi-step form display
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -72,8 +72,8 @@ export const StepForm = ({
     <div className="space-y-8">
       {/* Progress indicator */}
       <FormProgress 
+        progress={Math.round(((currentStep + 1) / (visibleSections.length || 1)) * 100)}
         currentStep={currentStep} 
-        totalSteps={visibleSections.length} 
       />
       
       {/* Offline indicator */}
@@ -89,7 +89,7 @@ export const StepForm = ({
       {/* Last saved indicator */}
       {lastSaved && (
         <div className="flex items-center justify-end text-xs text-muted-foreground">
-          <LastSaved date={lastSaved} isOffline={isOffline} />
+          <LastSaved timestamp={lastSaved} isOffline={isOffline} />
           {!isOffline && (
             <Wifi className="ml-1 h-3 w-3 text-green-500" />
           )}
@@ -101,7 +101,7 @@ export const StepForm = ({
         form={form} 
         currentStep={currentStep} 
         carId={carId}
-        userId={form.getValues('userId') || ''}
+        userId={form.getValues().userId || ''}
         diagnosticId={diagnosticId}
       />
       
@@ -109,10 +109,12 @@ export const StepForm = ({
       <MultiStepFormControls 
         currentStep={currentStep} 
         onNext={handleNextStep} 
-        onPrev={handlePrevStep}
+        onPrevious={handlePrevStep}
+        onSubmit={() => {}}
+        isSubmitting={false}
         isLastStep={currentStep === visibleSections.length - 1}
         isFirstStep={currentStep === 0}
-        saveProgress={saveProgress}
+        totalSteps={visibleSections.length}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 
 /**
  * Changes made:
- * - 2028-07-14: Created FormStepIndicator component for multi-step form navigation
+ * - 2023-07-15: Created FormStepIndicator component for multi-step form navigation
  */
 
 import { formSteps } from "./constants/formSteps";

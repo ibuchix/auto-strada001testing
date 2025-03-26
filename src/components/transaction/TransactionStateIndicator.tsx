@@ -1,61 +1,60 @@
 
 /**
  * Changes made:
- * - 2028-06-01: Created a transaction state indicator component for better user feedback
+ * - 2023-07-15: Created TransactionStateIndicator component
  */
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, RefreshCw } from "lucide-react";
 import { TransactionStatus } from "@/services/supabase/transactionService";
+import { Button } from "@/components/ui/button";
 
 interface TransactionStateIndicatorProps {
   status: TransactionStatus;
-  pendingText?: string;
-  successText?: string;
-  errorText?: string;
+  pendingText: string;
+  successText: string;
+  errorText: string;
   onRetry?: () => void;
 }
 
 export const TransactionStateIndicator = ({
   status,
-  pendingText = "Processing...",
-  successText = "Success",
-  errorText = "Error",
+  pendingText,
+  successText,
+  errorText,
   onRetry
 }: TransactionStateIndicatorProps) => {
   if (status === TransactionStatus.PENDING) {
     return (
-      <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 flex items-center gap-1.5">
-        <Loader2 className="h-3 w-3 animate-spin" />
+      <div className="flex items-center text-yellow-600 gap-1 text-sm">
+        <Clock className="h-4 w-4 animate-pulse" />
         <span>{pendingText}</span>
-      </Badge>
+      </div>
     );
   }
-  
+
   if (status === TransactionStatus.SUCCESS) {
     return (
-      <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 flex items-center gap-1.5">
-        <CheckCircle className="h-3 w-3" />
+      <div className="flex items-center text-green-600 gap-1 text-sm">
+        <CheckCircle className="h-4 w-4" />
         <span>{successText}</span>
-      </Badge>
+      </div>
     );
   }
-  
+
   if (status === TransactionStatus.ERROR) {
     return (
-      <div className="flex items-center gap-2">
-        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300 flex items-center gap-1.5">
-          <AlertTriangle className="h-3 w-3" />
+      <div className="flex flex-col sm:flex-row items-center text-red-600 gap-1 text-sm">
+        <div className="flex items-center">
+          <AlertCircle className="h-4 w-4 mr-1" />
           <span>{errorText}</span>
-        </Badge>
+        </div>
         
         {onRetry && (
           <Button 
             variant="ghost" 
-            size="sm"
-            className="h-5 px-2 text-xs" 
+            size="sm" 
             onClick={onRetry}
+            className="text-xs h-6 px-2 ml-1 text-red-600 hover:bg-red-50"
           >
             <RefreshCw className="h-3 w-3 mr-1" />
             Retry
@@ -64,6 +63,6 @@ export const TransactionStateIndicator = ({
       </div>
     );
   }
-  
+
   return null;
 };
