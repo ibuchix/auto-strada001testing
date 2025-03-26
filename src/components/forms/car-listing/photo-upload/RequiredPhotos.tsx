@@ -1,77 +1,100 @@
 
 /**
- * Changes made:
- * - 2024-03-19: Initial implementation of required photos component
- * - 2024-03-19: Added upload progress tracking
- * - 2024-03-19: Implemented grid layout for photo uploads
- * - 2024-08-09: Enhanced with categories for better organization
+ * Component for required photo uploads with correct type definitions
+ * - 2024-08-27: Updated onFileSelect prop type to accept Promise<string | null>
  */
-
-import { PhotoUpload } from "./PhotoUpload";
-import { requiredPhotos } from "./types";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
+import { PhotoUpload } from "./PhotoUpload";
 
 interface RequiredPhotosProps {
   isUploading: boolean;
-  onFileSelect: (file: File, type: string) => void;
   progress?: number;
+  onFileSelect: (file: File, type: string) => Promise<string | null>;
 }
 
-export const RequiredPhotos = ({ isUploading, onFileSelect, progress }: RequiredPhotosProps) => {
-  const [activeCategory, setActiveCategory] = useState("exterior");
-  const totalPhotos = requiredPhotos.length;
-  const uploadProgress = (progress || 0) * (100 / totalPhotos);
+export const RequiredPhotos = ({ isUploading, progress, onFileSelect }: RequiredPhotosProps) => {
+  const [uploadedPhotos, setUploadedPhotos] = useState<Record<string, boolean>>({
+    exterior_front: false,
+    exterior_rear: false,
+    exterior_driver: false,
+    exterior_passenger: false,
+    interior_front: false,
+    interior_rear: false,
+    dashboard: false,
+    odometer: false,
+  });
 
-  // Group photos by category
-  const photosByCategory = requiredPhotos.reduce((acc, photo) => {
-    if (!acc[photo.category]) {
-      acc[photo.category] = [];
-    }
-    acc[photo.category].push(photo);
-    return acc;
-  }, {} as Record<string, typeof requiredPhotos>);
+  const handlePhotoUploaded = (type: string) => {
+    setUploadedPhotos((prev) => ({
+      ...prev,
+      [type]: true,
+    }));
+  };
+
+  const requiredPhotos = [
+    {
+      id: "exterior_front",
+      title: "Front Exterior",
+      description: "Front view of the car",
+    },
+    {
+      id: "exterior_rear",
+      title: "Rear Exterior",
+      description: "Rear view of the car",
+    },
+    {
+      id: "exterior_driver",
+      title: "Driver Side",
+      description: "Driver side of the car",
+    },
+    {
+      id: "exterior_passenger",
+      title: "Passenger Side",
+      description: "Passenger side of the car",
+    },
+    {
+      id: "interior_front",
+      title: "Front Interior",
+      description: "Front seats and dashboard",
+    },
+    {
+      id: "interior_rear",
+      title: "Rear Interior",
+      description: "Rear seats",
+    },
+    {
+      id: "dashboard",
+      title: "Dashboard",
+      description: "Clear view of the dashboard",
+    },
+    {
+      id: "odometer",
+      title: "Odometer",
+      description: "Current mileage reading",
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium mb-2">Required Photos</h3>
-        <Progress value={uploadProgress} className="mb-4" />
-        <p className="text-sm text-subtitle mb-4">
-          Upload progress: {Math.round(uploadProgress)}%
-        </p>
-      </div>
-
-      <Tabs defaultValue="exterior" value={activeCategory} onValueChange={setActiveCategory}>
-        <TabsList className="w-full mb-4">
-          {Object.keys(photosByCategory).map(category => (
-            <TabsTrigger 
-              key={category} 
-              value={category}
-              className="flex-1 capitalize"
-            >
-              {category}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {Object.entries(photosByCategory).map(([category, photos]) => (
-          <TabsContent key={category} value={category} className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {photos.map(({ id, label }) => (
-                <PhotoUpload
-                  key={id}
-                  id={id}
-                  label={label}
-                  isUploading={isUploading}
-                  onFileSelect={(file) => onFileSelect(file, id)}
-                />
-              ))}
-            </div>
-          </TabsContent>
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium">Required Photos</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {requiredPhotos.map((photo) => (
+          <PhotoUpload
+            key={photo.id}
+            id={photo.id}
+            title={photo.title}
+            description={photo.description}
+            onUpload={async (file) => {
+              const url = await onFileSelect(file, photo.id);
+              if (url) handlePhotoUploaded(photo.id);
+              return url;
+            }}
+            isUploaded={uploadedPhotos[photo.id]}
+            isUploading={isUploading}
+            progress={progress}
+          />
         ))}
-      </Tabs>
+      </div>
     </div>
   );
 };

@@ -5,6 +5,7 @@
  * - 2024-08-15: Improved file selection and preview UI
  * - 2024-08-16: Fixed File constructor usage for document preview
  * - 2024-08-25: Refactored into smaller, more maintainable components
+ * - 2024-08-27: Fixed type mismatch between handleFileUpload and component props
  */
 
 import { UseFormReturn } from "react-hook-form";

@@ -1,6 +1,7 @@
 
 /**
  * Hook for file upload functionality
+ * - 2024-08-27: Updated return type for handleFileUpload to be explicit about returning string | null
  */
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,8 +23,8 @@ export const useFileUpload = ({ form, onProgressUpdate }: UseFileUploadProps) =>
     if (onProgressUpdate) onProgressUpdate(newProgress);
   };
 
-  const handleFileUpload = async (file: File, type: string) => {
-    if (!file) return;
+  const handleFileUpload = async (file: File, type: string): Promise<string | null> => {
+    if (!file) return null;
 
     setIsUploading(true);
     updateProgress(0);

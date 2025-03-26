@@ -1,6 +1,7 @@
 
 /**
  * Component for vehicle photo uploads
+ * - 2024-08-27: Fixed type definition for onFileSelect to accept Promise<string | null>
  */
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Camera } from "lucide-react";
@@ -11,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 interface VehiclePhotoSectionProps {
   isUploading: boolean;
   progress: number;
-  onFileSelect: (file: File, type: string) => Promise<void>;
+  onFileSelect: (file: File, type: string) => Promise<string | null>;
   onAdditionalPhotosSelect: (files: File[]) => void;
 }
 
