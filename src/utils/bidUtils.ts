@@ -2,9 +2,11 @@
  * Utility functions related to bid and auction behavior
  * Changes made:
  * - 2025-12-01: Fixed TransactionType import and usage
+ * - 2025-12-12: Replaced auth-helpers-nextjs with regular supabase client
  */
 
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { supabase } from "@/integrations/supabase/client";
+import { TransactionType } from '@/services/supabase/transactions/types';
 
 // Function to handle placing a bid
 // Export the function to use in different contexts
@@ -13,14 +15,10 @@ export const handleBid = async (
   amount: number,
   onSuccess?: () => void
 ) => {
-  const supabase = createClientComponentClient();
   let errorMessage = 'Failed to place bid';
   
   try {
-    // Import with the correct path to use TransactionType as a value
-    const { TransactionType } = await import('@/services/supabase/transactions/types');
-    
-    // Use the transaction service
+    // Use the correct TransactionType import
     const { data, error } = await supabase
       .from('bids')
       .insert([{ car_id: carId, amount: amount }])

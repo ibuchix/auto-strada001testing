@@ -1,7 +1,7 @@
-
 /**
+ * Service for car-related operations
  * Changes made:
- * - 2024-08-04: Fixed import for CarListing and AuctionStatus types
+ * - 2025-12-12: Fixed type imports from forms.ts
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";

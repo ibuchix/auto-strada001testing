@@ -1,8 +1,8 @@
-
 /**
  * Created: 2024-08-20
  * Changes made:
  * - 2025-12-01: Fixed usage of RegistrationRepairResult interface
+ * - 2025-12-12: Updated Alert variant to use supported variant
  */
 
 import { useEffect, useState } from "react";
@@ -164,7 +164,7 @@ const SellerRegistrationRepair = () => {
               </div>
               
               {repairResult && (
-                <Alert variant={repairResult.success ? "success" : "destructive"} className={repairResult.success ? "bg-green-50 border-green-200" : ""}>
+                <Alert variant={repairResult.success ? "destructive" : "destructive"} className={repairResult.success ? "bg-green-50 border-green-200" : ""}>
                   {repairResult.success ? (
                     <CheckCircle className="h-4 w-4 text-green-500" />
                   ) : (

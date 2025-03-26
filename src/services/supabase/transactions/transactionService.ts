@@ -5,6 +5,7 @@
  * Changes made:
  * - 2024-10-25: Standardized error property to use errorDetails instead of error
  * - 2025-12-01: Fixed typings and method signatures
+ * - 2025-12-12: Added executeTransaction method to match hook usage
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -90,6 +91,52 @@ export class TransactionService {
     await transactionLogger.logTransaction(updatedTransaction);
     
     return updatedTransaction;
+  }
+
+  // Add executeTransaction method to match hook expectations
+  async executeTransaction<T>(
+    operation: string,
+    type: TransactionType,
+    callback: (transactionId: string) => Promise<T>,
+    options?: TransactionOptions
+  ): Promise<T> {
+    const transaction = await this.createTransaction(operation, type, options);
+    
+    try {
+      const result = await callback(transaction.id);
+      
+      await this.updateTransaction(
+        transaction,
+        TransactionStatus.SUCCESS,
+        {
+          completedAt: new Date().toISOString(),
+          result: typeof result === 'object' ? JSON.stringify(result) : String(result)
+        }
+      );
+      
+      if (options?.onSuccess) {
+        options.onSuccess(result);
+      }
+      
+      return result;
+    } catch (error: any) {
+      await this.updateTransaction(
+        transaction,
+        TransactionStatus.ERROR,
+        { failedAt: new Date().toISOString() },
+        error
+      );
+      
+      if (options?.onError) {
+        options.onError(error);
+      }
+      
+      throw error;
+    } finally {
+      if (options?.onComplete) {
+        options.onComplete(transaction);
+      }
+    }
   }
 
   async getTransactionHistory(limit = 20): Promise<TransactionDetails[]> {

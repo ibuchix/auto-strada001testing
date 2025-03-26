@@ -1,49 +1,67 @@
 
 /**
- * Created: 2025-08-15
- * Mock utilities for integration tests
- * Updated: 2025-08-19: Fixed vi.resetAllMocks reference
+ * Utilities for mocking dependencies in tests
+ * Changes made:
+ * - 2025-12-12: Fixed mock function implementations
  */
 
 import { vi } from '../../vitest-stub';
 
-// Setup utilities mocks for all tests
-export const setupUtilityMocks = () => {
-  // Mock the submission utilities
-  vi.mock('@/components/forms/car-listing/submission/utils/dataPreparation', () => ({
-    prepareCarDataForSubmission: vi.fn()
-  }));
-  
-  vi.mock('@/components/forms/car-listing/submission/utils/validationHandler', () => ({
-    validateCarData: vi.fn(),
-    validateVinData: vi.fn(),
-    validateValuationData: vi.fn(),
-    validateMileageData: vi.fn()
-  }));
-  
-  vi.mock('@/components/forms/car-listing/submission/utils/reservePriceCalculator', () => ({
-    calculateReservePrice: vi.fn()
-  }));
-  
-  vi.mock('@/components/forms/car-listing/submission/utils/storageCleanup', () => ({
-    cleanupStorage: vi.fn(),
-    cleanupFormStorage: vi.fn()
-  }));
+// Mock transaction service and related functions
+export const mockTransactionService = () => {
+  // Use single argument method
+  vi.mock('@/services/supabase/transactionService');
   
   return {
-    prepareCarDataForSubmission: vi.fn(),
-    validateCarData: vi.fn(),
-    calculateReservePrice: vi.fn(),
-    cleanupStorage: vi.fn(),
-    validateValuationData: vi.fn(),
-    validateMileageData: vi.fn(),
-    cleanupFormStorage: vi.fn()
+    createTransaction: vi.fn().mockReturnValue({
+      id: 'mock-transaction-id',
+      status: 'pending',
+      startTime: new Date().toISOString()
+    }),
+    updateTransaction: vi.fn(),
+    logTransaction: vi.fn()
   };
 };
 
-// Reset all mocks between tests using our own implementation
-// since vi.resetAllMocks() is not available in the stub
-export const resetAllMocks = () => {
-  // Instead of vi.resetAllMocks(), we'll do nothing in our stub implementation
-  // This is just to satisfy the TypeScript checker
+// Mock form validation utilities
+export const mockFormValidation = () => {
+  // Use single argument method
+  vi.mock('@/components/forms/car-listing/utils/validation');
+  
+  return {
+    validateFormData: vi.fn().mockReturnValue([]),
+    getFormProgress: vi.fn().mockReturnValue(100)
+  };
+};
+
+// Mock Supabase client
+export const mockSupabaseClient = () => {
+  // Use single argument method
+  vi.mock('@/integrations/supabase/client');
+  
+  return {
+    from: vi.fn().mockReturnValue({
+      insert: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'mock-id' },
+            error: null
+          })
+        })
+      }),
+      update: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'mock-id' },
+            error: null
+          })
+        })
+      })
+    }),
+    storage: {
+      from: vi.fn().mockReturnValue({
+        upload: vi.fn().mockResolvedValue({ data: { path: 'mock-path' }, error: null })
+      })
+    }
+  };
 };

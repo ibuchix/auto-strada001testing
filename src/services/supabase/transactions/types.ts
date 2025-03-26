@@ -5,6 +5,7 @@
  * - Expanded optional configuration for more flexible transaction tracking
  * - 2025-08-10: Fixed TransactionType export to resolve type incompatibility
  * - 2025-12-01: Changed exports to use both value and type exports
+ * - 2025-12-12: Fixed enum exports to ensure both type and value exports
  */
 
 // Define transaction types to categorize different operations
@@ -91,4 +92,16 @@ export type AuditLogAction =
   | "manual_retry" 
   | "auction_recovery" 
   | "system_health_check" 
-  | "system_alert";
+  | "system_alert"
+  | "update_user_role";
+
+// System log record interface to match database schema
+export interface SystemLogRecord {
+  id: string;
+  correlation_id: string;
+  created_at: string;
+  details: Record<string, any>;
+  error_message: string;
+  log_type: string;
+  message: string;
+}
