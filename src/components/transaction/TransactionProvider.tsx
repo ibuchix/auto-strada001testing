@@ -1,12 +1,14 @@
+
 /**
  * Changes made:
  * - 2024-10-16: Created Transaction Provider component to track and manage critical operations
  * - 2024-10-24: Fixed type issues with callback functions
  * - 2024-10-25: Aligned callback parameter counts with updated transaction hooks
+ * - 2024-07-24: Fixed Date to string type conversions for transaction timestamps
  */
 
 import { createContext, useContext, ReactNode, useState, useCallback } from "react";
-import { TransactionDetails, TransactionStatus, TransactionType } from "@/services/supabase/transactionService";
+import { TransactionDetails, TransactionStatus, TransactionType } from "@/services/supabase/transactions/types";
 import { useTransaction } from "@/hooks/useTransaction";
 
 interface TransactionContextType {
@@ -67,7 +69,7 @@ export const TransactionProvider = ({
         operation,
         type,
         status: TransactionStatus.PENDING,
-        startTime: new Date()
+        startTime: new Date().toISOString() // Convert Date to string
       };
       
       setCurrentTransaction(placeholderTransaction);
@@ -87,7 +89,7 @@ export const TransactionProvider = ({
             const completedTransaction: TransactionDetails = {
               ...placeholderTransaction,
               status: TransactionStatus.SUCCESS,
-              endTime: new Date()
+              endTime: new Date().toISOString() // Convert Date to string
             };
             addToHistory(completedTransaction);
             setCurrentTransaction(null);
@@ -101,7 +103,7 @@ export const TransactionProvider = ({
             const failedTransaction: TransactionDetails = {
               ...placeholderTransaction,
               status: TransactionStatus.ERROR,
-              endTime: new Date(),
+              endTime: new Date().toISOString(), // Convert Date to string
               errorDetails: error?.message || 'Unknown error'
             };
             addToHistory(failedTransaction);

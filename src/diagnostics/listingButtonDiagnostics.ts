@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2023-07-15: Created diagnostic utilities for listing process
+ * - 2024-07-24: Added generateDiagnosticId function and fixed exports
  */
 
 type LogLevel = 'INFO' | 'WARNING' | 'ERROR' | 'DEBUG';
@@ -17,6 +18,13 @@ interface DiagnosticLog {
 
 // In-memory storage for diagnostic logs
 const diagnosticLogs: Record<string, DiagnosticLog[]> = {};
+
+/**
+ * Generate a unique diagnostic ID
+ */
+export function generateDiagnosticId(): string {
+  return `diag_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
 
 /**
  * Log a diagnostic message
@@ -62,10 +70,24 @@ export function getDiagnostics(diagnosticId: string): DiagnosticLog[] {
 }
 
 /**
+ * Get all diagnostic logs from all sessions
+ */
+export function getDiagnosticLogs(): DiagnosticLog[] {
+  return Object.values(diagnosticLogs).flat();
+}
+
+/**
  * Clear diagnostic logs for a specific ID
  */
-export function clearDiagnostics(diagnosticId: string): void {
-  delete diagnosticLogs[diagnosticId];
+export function clearDiagnostics(diagnosticId?: string): void {
+  if (diagnosticId) {
+    delete diagnosticLogs[diagnosticId];
+  } else {
+    // Clear all diagnostics if no ID provided
+    Object.keys(diagnosticLogs).forEach(key => {
+      delete diagnosticLogs[key];
+    });
+  }
 }
 
 /**

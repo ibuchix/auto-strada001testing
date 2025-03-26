@@ -2,13 +2,14 @@
 /**
  * Changes made:
  * - 2024-10-16: Created TransactionHistory component to display past operations
+ * - 2024-07-24: Fixed transaction type references and property access
  */
 
 import { useState } from "react";
 import { useTransactionContext } from "./TransactionProvider";
 import { TransactionStatusIndicator } from "./TransactionStatusIndicator";
 import { Button } from "@/components/ui/button";
-import { TransactionType } from "@/services/supabase/transactionService";
+import { TransactionType } from "@/services/supabase/transactions/types";
 import { formatDistanceToNow } from "date-fns";
 
 export const TransactionHistory = () => {

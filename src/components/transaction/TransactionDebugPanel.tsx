@@ -2,10 +2,11 @@
 /**
  * Changes made:
  * - 2028-07-14: Created TransactionDebugPanel for debugging form submissions
+ * - 2028-07-24: Fixed TransactionStateIndicator props
  */
 
 import { useState, useEffect } from "react";
-import { TransactionStatus } from "@/services/supabase/transactionService";
+import { TransactionStatus } from "@/services/supabase/transactions/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -84,7 +85,12 @@ export const TransactionDebugPanel = ({
               <div className="font-medium">Status:</div>
               <div>
                 {transactionStatus ? (
-                  <TransactionStateIndicator status={transactionStatus} />
+                  <TransactionStateIndicator 
+                    status={transactionStatus}
+                    pendingText="In Progress" 
+                    successText="Successful" 
+                    errorText="Failed"
+                  />
                 ) : (
                   'No active transaction'
                 )}

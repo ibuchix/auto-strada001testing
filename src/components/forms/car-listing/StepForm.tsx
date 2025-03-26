@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2023-07-15: Created StepForm component for handling multi-step form display
+ * - 2024-07-24: Fixed userId reference from form values
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -68,6 +69,9 @@ export const StepForm = ({
     setCurrentStep(currentStep - 1);
   };
   
+  // Get the user ID from form values or null if not available
+  const userId = form.getValues().userId || '';
+  
   return (
     <div className="space-y-8">
       {/* Progress indicator */}
@@ -101,7 +105,7 @@ export const StepForm = ({
         form={form} 
         currentStep={currentStep} 
         carId={carId}
-        userId={form.getValues().userId || ''}
+        userId={userId}
         diagnosticId={diagnosticId}
       />
       

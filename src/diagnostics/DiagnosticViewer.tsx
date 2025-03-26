@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2027-07-23: Created diagnostic viewer component for troubleshooting
+ * - 2024-07-24: Fixed function call to getDiagnosticLogs
  */
 
 import { useState, useEffect } from "react";
@@ -28,14 +29,14 @@ export const DiagnosticViewer = () => {
   
   const filteredLogs = filter 
     ? logs.filter(log => 
-        log.area.toLowerCase().includes(filter.toLowerCase()) || 
-        log.message.toLowerCase().includes(filter.toLowerCase()) ||
-        (log.data && log.data.toLowerCase().includes(filter.toLowerCase()))
+        log.area?.toLowerCase().includes(filter.toLowerCase()) || 
+        log.message?.toLowerCase().includes(filter.toLowerCase()) ||
+        (log.data && typeof log.data === 'string' && log.data.toLowerCase().includes(filter.toLowerCase()))
       )
     : logs;
   
   const handleClearLogs = () => {
-    clearDiagnostics();
+    clearDiagnostics(); // Now correctly passes no argument to clear all logs
     refreshLogs();
   };
   
@@ -100,33 +101,34 @@ export const DiagnosticViewer = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredLogs.map((log, index) => (
-              <tr key={index} className="border-b">
-                <td className="p-2 text-sm font-mono">{new Date(log.timestamp).toLocaleTimeString()}</td>
-                <td className="p-2 text-sm font-mono">{log.sessionId.substring(0, 6)}</td>
-                <td className="p-2">{log.area}</td>
-                <td className="p-2">{log.message}</td>
-                <td className="p-2">
-                  {log.data && (
-                    <details>
-                      <summary>View details</summary>
-                      <pre className="mt-2 p-2 bg-gray-50 rounded text-xs overflow-auto max-h-40">
-                        {log.data}
-                      </pre>
-                    </details>
-                  )}
+            {filteredLogs.map((log) => (
+              <tr key={log.id} className="border-t border-gray-200">
+                <td className="p-2 text-xs text-gray-500">
+                  {new Date(log.timestamp).toLocaleTimeString()}
+                </td>
+                <td className="p-2 text-xs">
+                  {log.sessionId || '—'}
+                </td>
+                <td className="p-2 text-xs font-mono">
+                  {log.category || log.area || '—'}
+                </td>
+                <td className="p-2 text-xs">
+                  {log.message || '—'}
+                </td>
+                <td className="p-2 text-xs overflow-hidden">
+                  <pre className="whitespace-pre-wrap max-w-xs overflow-hidden text-ellipsis">
+                    {log.data ? 
+                      (typeof log.data === 'object' ? 
+                        JSON.stringify(log.data, null, 2) : 
+                        log.data.toString()
+                      ) : '—'}
+                  </pre>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      
-      {filteredLogs.length === 0 && (
-        <div className="py-8 text-center text-gray-500">
-          No logs found. Try clicking the List This Car button to generate logs.
-        </div>
-      )}
     </div>
   );
 };

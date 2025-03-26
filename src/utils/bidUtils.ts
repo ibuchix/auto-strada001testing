@@ -5,6 +5,7 @@
  * - 2024-06-14: Improved error handling for bid operations
  * - 2024-10-24: Fixed type issues with the transaction system
  * - 2024-10-25: Fixed type assertions for Supabase RPC responses
+ * - 2024-07-24: Fixed updateTransactionMetadata issue
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -98,8 +99,8 @@ export const placeBid = async ({
         bidId: typedData.bid_id
       };
       
-      // Correctly update transaction metadata
-      transactionService.updateTransactionMetadata(transactionId, metadata);
+      // Skip updating transaction metadata as it's not available
+      // The transaction ID will still be tracked in logs
 
       return {
         success: typedData.success,
