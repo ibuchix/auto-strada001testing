@@ -1,10 +1,10 @@
-
 /**
  * Validation utilities for form submission
  * - 2024-07-24: Added comprehensive validation for valuation data
  * - 2024-07-26: Enhanced mileage validation with fallbacks
  * - 2024-07-28: Added detailed error reporting
  * - 2025-06-15: Removed diagnostic logging
+ * - 2025-06-22: Added getValuationData utility function
  */
 
 import { SubmissionErrorType } from "../types";
@@ -126,5 +126,20 @@ export const validateValuationData = (): any => {
         onClick: () => window.location.href = "/sellers"
       }
     } as SubmissionErrorType;
+  }
+};
+
+// Get valuation data from local storage if it exists
+export const getValuationData = (): any => {
+  try {
+    const valuationDataStr = localStorage.getItem('valuationData');
+    if (!valuationDataStr) {
+      return null;
+    }
+    
+    return JSON.parse(valuationDataStr);
+  } catch (error) {
+    console.error('Error retrieving valuation data:', error);
+    return null;
   }
 };

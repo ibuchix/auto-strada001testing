@@ -1,7 +1,9 @@
+
 /**
  * Changes made:
  * - Updated placeBid function call
  * - Fixed type references for BidResponse
+ * - Fixed TransactionType parameter passing
  */
 
 import { useState } from 'react';
@@ -25,7 +27,7 @@ import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 import { useAuth } from '@/components/AuthProvider';
 import { TransactionStatusIndicator } from '@/components/transaction/TransactionStatusIndicator';
 import { useAuctionTransaction } from '@/hooks/useAuctionTransaction';
-import { TransactionType } from '@/services/supabase/transactionService';
+import { TransactionType } from '@/services/supabase/transactions/types';
 import { AlertTriangle } from 'lucide-react';
 
 const formSchema = z.object({

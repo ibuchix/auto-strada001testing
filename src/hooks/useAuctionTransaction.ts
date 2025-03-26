@@ -3,6 +3,7 @@
  * Specialized transaction hook for auction operations
  * - Simplified implementation
  * - Removed diagnostic dependencies
+ * - Fixed TypeScript compatibility issues
  */
 import { useCreateTransaction } from "./useTransaction";
 import { TransactionType } from "@/services/supabase/transactions/types";

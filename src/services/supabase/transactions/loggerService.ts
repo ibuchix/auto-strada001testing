@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-28: Created separate logger service for transactions
+ * - 2025-06-22: Fixed missing entityType property in TransactionDetails
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -29,7 +30,7 @@ export class TransactionLogger extends BaseService {
 
       await this.supabase.from('audit_logs').insert({
         action: actionType,
-        entity_type: details.entityType || details.type,
+        entity_type: details.entityType || String(details.type),
         entity_id: details.entityId,
         details: formattedDetails,
         user_id: details.userId

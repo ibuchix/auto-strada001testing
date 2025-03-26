@@ -30,6 +30,7 @@ export interface TransactionDetails {
   operation: string;
   type: TransactionType;
   entityId?: string; 
+  entityType?: string; // Added entityType property
   status: TransactionStatus;
   startTime: Date;
   endTime?: Date;

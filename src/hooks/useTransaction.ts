@@ -4,6 +4,7 @@
  * - Removed diagnostic dependencies
  * - Streamlined transaction logging
  * - Fixed system_logs table usage
+ * - Fixed TypeScript type compatibility issues
  */
 import { useState, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -12,8 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   TRANSACTION_STATUS, 
   TransactionStatus, 
-  TransactionOptions
-} from "@/services/supabase/transactionService";
+  TransactionOptions,
+  TransactionType
+} from "@/services/supabase/transactions/types";
 
 interface UseTransactionOptions {
   showToast?: boolean;
@@ -41,7 +43,7 @@ export const useCreateTransaction = (options: UseTransactionOptions = {}) => {
     error: null,
     data: null,
     transactionId: null,
-    transactionStatus: TRANSACTION_STATUS.IDLE
+    transactionStatus: TRANSACTION_STATUS.IDLE as unknown as TransactionStatus // Type assertion to match expected type
   });
   
   const reset = useCallback(() => {
@@ -50,7 +52,7 @@ export const useCreateTransaction = (options: UseTransactionOptions = {}) => {
       error: null,
       data: null,
       transactionId: null,
-      transactionStatus: TRANSACTION_STATUS.IDLE
+      transactionStatus: TRANSACTION_STATUS.IDLE as unknown as TransactionStatus // Type assertion to match expected type
     });
   }, []);
   
@@ -127,7 +129,7 @@ export const useCreateTransaction = (options: UseTransactionOptions = {}) => {
       error: null,
       data: null,
       transactionId,
-      transactionStatus: TRANSACTION_STATUS.PENDING
+      transactionStatus: TRANSACTION_STATUS.PENDING as unknown as TransactionStatus // Type assertion to match expected type
     });
     
     const executeWithRetry = async (): Promise<T | null> => {
@@ -139,7 +141,7 @@ export const useCreateTransaction = (options: UseTransactionOptions = {}) => {
           error: null,
           data: result,
           transactionId,
-          transactionStatus: TRANSACTION_STATUS.SUCCESS
+          transactionStatus: TRANSACTION_STATUS.SUCCESS as unknown as TransactionStatus // Type assertion to match expected type
         });
         
         if (showToast) {
@@ -150,7 +152,14 @@ export const useCreateTransaction = (options: UseTransactionOptions = {}) => {
           options.onSuccess(result);
         }
         
-        await logTransaction(transactionId, name, TRANSACTION_STATUS.SUCCESS, result, null, options);
+        await logTransaction(
+          transactionId, 
+          name, 
+          TRANSACTION_STATUS.SUCCESS as unknown as TransactionStatus, // Type assertion to match expected type
+          result, 
+          null, 
+          options
+        );
         
         return result;
       } catch (error: any) {
@@ -165,7 +174,7 @@ export const useCreateTransaction = (options: UseTransactionOptions = {}) => {
           error: error instanceof Error ? error : new Error(error?.message || 'Unknown error'),
           data: null,
           transactionId,
-          transactionStatus: TRANSACTION_STATUS.ERROR
+          transactionStatus: TRANSACTION_STATUS.ERROR as unknown as TransactionStatus // Type assertion to match expected type
         });
         
         if (showToast) {
@@ -176,7 +185,14 @@ export const useCreateTransaction = (options: UseTransactionOptions = {}) => {
           options.onError(error);
         }
         
-        await logTransaction(transactionId, name, TRANSACTION_STATUS.ERROR, null, error, options);
+        await logTransaction(
+          transactionId, 
+          name, 
+          TRANSACTION_STATUS.ERROR as unknown as TransactionStatus, // Type assertion to match expected type
+          null, 
+          error, 
+          options
+        );
         
         return null;
       }

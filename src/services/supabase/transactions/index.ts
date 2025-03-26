@@ -12,8 +12,9 @@ export * from './types';
 export {
   TRANSACTION_STATUS,
   TransactionType,
-  TransactionStatus,
-  TransactionOptions,
+  // Use type-only exports for types when isolatedModules is enabled
+  type TransactionStatus,
+  type TransactionOptions,
   safeJsonify
 } from '../transactionService';
 
