@@ -19,6 +19,7 @@
  * - 2024-11-11: Improved mobile layout by reducing excessive spacing
  * - 2024-11-21: Added RLS error handling with helpful user guidance
  * - 2025-06-12: Fixed TypeScript error with DashboardHeader props
+ * - 2025-08-17: Enhanced RLS error handling to prevent dashboard blinking
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -30,7 +31,7 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { useSellerListings } from "@/hooks/useSellerListings";
 import { useAuctionResults } from "@/hooks/useAuctionResults";
 import { useSellerPerformance } from "@/hooks/useSellerPerformance";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRealtimeSubscriptions } from "@/hooks/useRealtimeSubscriptions";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AuthErrorHandler } from "@/components/error-handling/AuthErrorHandler";
@@ -38,10 +39,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { sellerProfileService } from "@/services/supabase";
 import { RegistrationStatusCheck } from "@/components/auth/recovery/RegistrationStatusCheck";
+import { useNavigate } from "react-router-dom";
 
 const SellerDashboard = () => {
-  const { session, refreshSellerStatus } = useAuth();
+  const { session, refreshSellerStatus, isSeller } = useAuth();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const [retryAttempted, setRetryAttempted] = useState(false);
+  
   const { 
     activeListings, 
     draftListings, 
@@ -63,6 +68,13 @@ const SellerDashboard = () => {
     isLoading: isMetricsLoading
   } = useSellerPerformance(session);
 
+  // Auto-redirect to repair page if RLS error is detected and retry was attempted
+  useEffect(() => {
+    if (isRlsError && retryAttempted) {
+      navigate('/seller-registration-repair');
+    }
+  }, [isRlsError, retryAttempted, navigate]);
+
   // Memoize the refresh callback to prevent unnecessary hook recreations
   const handleListingUpdate = useCallback(() => {
     forceRefresh();
@@ -73,6 +85,9 @@ const SellerDashboard = () => {
     if (!session) return;
     
     try {
+      // Mark that we attempted a retry to prevent endless retries
+      setRetryAttempted(true);
+      
       // Try to register as seller (fixes common RLS issues)
       await sellerProfileService.registerSeller(session.user.id);
       
@@ -83,8 +98,12 @@ const SellerDashboard = () => {
       forceRefresh();
     } catch (error) {
       console.error("Failed to recover from RLS error:", error);
+      // Navigate to the repair page after a short delay
+      setTimeout(() => {
+        navigate('/seller-registration-repair');
+      }, 500);
     }
-  }, [session, refreshSellerStatus, forceRefresh]);
+  }, [session, refreshSellerStatus, forceRefresh, navigate]);
 
   // Setup real-time subscriptions for all seller-related events
   useRealtimeSubscriptions(session);

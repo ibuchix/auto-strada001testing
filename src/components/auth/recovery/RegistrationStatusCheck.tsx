@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-06-12: Created component for detecting and offering to repair broken registrations
  * - 2025-06-12: Fixed TypeScript error with Alert variant
+ * - 2025-08-17: Enhanced to better detect RLS-related issues
  */
 
 import { useState, useEffect } from "react";
@@ -31,7 +32,8 @@ export const RegistrationStatusCheck = () => {
         setIsChecking(true);
         
         // Only perform diagnostics if they're not already identified as a seller
-        if (!isSeller) {
+        // or if there was a recent RLS error
+        if (!isSeller || sessionStorage.getItem('rls_error_detected') === 'true') {
           const diagnosis = await sellerRecoveryService.diagnoseSellerRegistration(session.user.id);
           
           // If some components exist but registration isn't complete, we have an issue
@@ -40,6 +42,11 @@ export const RegistrationStatusCheck = () => {
             && !diagnosis.isComplete;
             
           setHasIssue(partialRegistration);
+          
+          // Clear RLS error flag if we've checked
+          if (diagnosis.isComplete) {
+            sessionStorage.removeItem('rls_error_detected');
+          }
         } else {
           setHasIssue(false);
         }
@@ -68,8 +75,8 @@ export const RegistrationStatusCheck = () => {
         <Button 
           size="sm" 
           variant="outline"
-          className="self-start mt-2"
           onClick={() => navigate('/seller-registration-repair')}
+          className="self-start mt-2 text-[#DC143C] border-[#DC143C] hover:bg-[#DC143C]/10"
         >
           Repair Registration
         </Button>

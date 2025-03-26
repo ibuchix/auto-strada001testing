@@ -3,12 +3,14 @@
  * Changes made:
  * - 2024-08-25: Created dedicated component for handling authentication errors
  * - 2024-11-16: Enhanced to handle RLS permission issues
+ * - 2025-08-17: Added session storage tracking for RLS errors
  */
 
 import { useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
+import { useEffect } from "react";
 
 interface AuthErrorHandlerProps {
   error?: string | null;
@@ -27,6 +29,15 @@ export const AuthErrorHandler = ({
   isRlsError = false
 }: AuthErrorHandlerProps) => {
   const navigate = useNavigate();
+  
+  // Track RLS errors in session storage for diagnostics
+  useEffect(() => {
+    if (isRlsError && error) {
+      sessionStorage.setItem('rls_error_detected', 'true');
+      sessionStorage.setItem('rls_error_message', error);
+      sessionStorage.setItem('rls_error_time', new Date().toISOString());
+    }
+  }, [isRlsError, error]);
 
   if (!error) return null;
 
@@ -50,6 +61,17 @@ export const AuthErrorHandler = ({
               className="text-[#DC143C] border-[#DC143C] hover:bg-[#DC143C]/10"
             >
               Try Again
+            </Button>
+          )}
+          
+          {isRlsError && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/seller-registration-repair')}
+              className="text-[#DC143C] border-[#DC143C] hover:bg-[#DC143C]/10"
+            >
+              Repair Registration
             </Button>
           )}
           
