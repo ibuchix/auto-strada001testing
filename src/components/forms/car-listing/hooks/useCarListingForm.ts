@@ -1,207 +1,148 @@
+
 /**
- * Hook for managing car listing form state and submission
- * 
  * Changes made:
- * - 2024-10-25: Fixed form submission handler to use correct parameter count
- * - 2024-12-05: Fixed type instantiation issue in form submission
- * - 2024-12-06: Corrected imports and type errors to resolve build issues
- * - 2027-08-01: Fixed transaction type usage and error handling
- * - 2027-08-10: Fixed TransactionType import and usage
- * - 2027-08-15: Fixed type error with TransactionType enum
- * - 2027-08-16: Fixed TransactionType string literal type usage
- * - 2027-08-19: Fixed transaction type parameter to use string literal instead of enum
- * - 2025-12-12: Fixed transaction type usage to use enum value properly
+ * - 2024-03-19: Initial implementation of form with validation
+ * - 2024-03-19: Added auto-save integration
+ * - 2024-03-19: Added draft loading functionality
+ * - 2024-08-20: Integrated standardized error handling
+ * - 2024-08-04: Updated to use seller_name field instead of name
+ * - 2025-06-01: Removed references to non-existent field has_tool_pack
+ * - 2025-06-02: Removed references to non-existent field hasDocumentation
+ * - 2025-06-10: Added schema validation to catch database field mismatches
  */
 
-import { useState, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { CarListingFormData } from "@/types/forms";
+import { useFormPersistence } from "./useFormPersistence";
+import { useLoadDraft } from "./useLoadDraft";
+import { validateFormData } from "../utils/validation";
+import { supabase } from "@/integrations/supabase/client";
+import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
+import useSchemaValidation from "@/hooks/useSchemaValidation";
 
-// Define a simple schema instead of importing a missing one
-const carListingSchema = z.object({
-  make: z.string().min(1, "Make is required"),
-  model: z.string().min(1, "Model is required"),
-  year: z.number().int().positive(),
-  mileage: z.number().int().nonnegative(),
-  exteriorColor: z.string().optional(),
-  interiorColor: z.string().optional(),
-  transmission: z.enum(["automatic", "manual"]),
-  fuelType: z.enum(["petrol", "diesel", "electric", "hybrid"]),
-  bodyType: z.string(),
-  description: z.string().optional(),
-  features: z.record(z.boolean()).optional(),
-  price: z.number().nonnegative(),
-  location: z.string().optional(),
-  vin: z.string().optional(),
-  photos: z.array(z.any()).optional()
-});
+export const useCarListingForm = (userId?: string, draftId?: string) => {
+  const [carId, setCarId] = useState<string | undefined>(draftId);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [validationErrors, setValidationErrors] = useState<any[]>([]);
+  const { error, isLoading, handleSupabaseError, withErrorHandling } = useSupabaseErrorHandling();
 
-// Import from ComponentProvider instead of missing useAuth
-import { useAuth } from "@/components/AuthProvider";
-import { useTransaction } from '@/hooks/useTransaction';
-import { TransactionType } from '@/services/supabase/transactions/types';
-
-// Define the form data type based on the zod schema
-export type CarListingFormData = z.infer<typeof carListingSchema>;
-
-// Simple mock for the missing useUploadPhotos hook
-const useUploadPhotos = () => {
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-
-  const uploadPhotos = async (photos: any[]) => {
-    setIsUploading(true);
-    try {
-      // Mock implementation
-      setUploadProgress(50);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setUploadProgress(100);
-      return photos.map(p => `https://example.com/photo-${Math.random()}.jpg`);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  return { uploadPhotos, isUploading, uploadProgress };
-};
-
-// Simple mock for the submitCarListing function
-const submitCarListing = async (data: any) => {
-  return { success: true, carId: crypto.randomUUID() };
-};
-
-export const useCarListingForm = () => {
-  const navigate = useNavigate();
-  const { session } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const { uploadPhotos, isUploading, uploadProgress } = useUploadPhotos();
-  
-  const transaction = useTransaction({
-    onSuccess: () => {
-      toast.success('Car listing created successfully!');
-      navigate('/dashboard/listings');
-    },
-    onError: (error) => {
-      toast.error(`Failed to create listing: ${error.message || 'Unknown error'}`);
-      setIsSubmitting(false);
-    }
-  });
-
-  // Initialize form with react-hook-form and zod validation
+  // Initialize form with default values
   const form = useForm<CarListingFormData>({
-    resolver: zodResolver(carListingSchema),
     defaultValues: {
-      make: '',
-      model: '',
-      year: new Date().getFullYear(),
-      mileage: 0,
-      exteriorColor: '',
-      interiorColor: '',
-      transmission: 'automatic',
-      fuelType: 'petrol',
-      bodyType: 'sedan',
-      description: '',
+      name: "",
+      address: "",
+      mobileNumber: "",
       features: {
-        airConditioning: false,
-        leatherSeats: false,
-        sunroof: false,
-        navigation: false,
-        bluetooth: false,
-        cruiseControl: false,
-        parkingSensors: false,
+        satNav: false,
+        panoramicRoof: false,
+        reverseCamera: false,
         heatedSeats: false,
-        backupCamera: false
+        upgradedSound: false
       },
-      price: 0,
-      location: '',
-      vin: '',
-      photos: []
-    }
+      isDamaged: false,
+      damageReports: [],
+      isRegisteredInPoland: false,
+      isSellingOnBehalf: false,
+      hasPrivatePlate: false,
+      financeAmount: "",
+      serviceHistoryType: "none",
+      uploadedPhotos: [],
+      rimPhotosComplete: false,
+      sellerNotes: "",
+      seatMaterial: "cloth",
+      numberOfKeys: "1"
+    },
   });
 
-  // Handle form submission
-  const onSubmit = useCallback(async (data: CarListingFormData) => {
-    if (!session?.user) {
-      toast.error('You must be logged in to create a listing');
-      return;
+  // Add schema validation to catch database field mismatches early
+  const { 
+    validationIssues, 
+    hasSchemaErrors 
+  } = useSchemaValidation(form, 'cars', { validateOnChange: false });
+
+  // Load draft if draftId is provided
+  useLoadDraft(form, setCarId, setLastSaved, userId, draftId);
+
+  // Setup form persistence
+  useFormPersistence(form, userId, currentStep);
+
+  // Update validation errors when form values change
+  useEffect(() => {
+    const subscription = form.watch((data) => {
+      const errors = validateFormData(data);
+      setValidationErrors(errors);
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Load current step from localStorage if available
+  useEffect(() => {
+    const savedStep = localStorage.getItem('formCurrentStep');
+    if (savedStep) {
+      setCurrentStep(parseInt(savedStep, 10));
     }
+  }, []);
 
-    setIsSubmitting(true);
-
-    try {
-      // First upload photos if any
-      let photoUrls: string[] = [];
+  // Function to save progress manually
+  const saveProgress = async () => {
+    if (!userId) return;
+    
+    return await withErrorHandling(async () => {
+      const formData = form.getValues();
       
-      if (data.photos && data.photos.length > 0) {
-        photoUrls = await uploadPhotos(data.photos);
-      }
-
-      // Use the proper TransactionType enum value
-      await transaction.executeTransaction(
-        'Create Car Listing',
-        TransactionType.CREATE,
-        async (transactionId) => { 
-          const result = await submitCarListing({
-            ...data,
-            photos: photoUrls,
-            sellerId: session.user.id
-          });
-
-          if (!result.success) {
-            throw new Error('Failed to create listing');
+      // Check if we're creating a new draft or updating an existing one
+      const { data, error } = await supabase
+        .from('cars')
+        .upsert({
+          id: carId,
+          seller_id: userId,
+          seller_name: formData.name, // Use seller_name instead of name
+          address: formData.address,
+          mobile_number: formData.mobileNumber,
+          features: formData.features,
+          is_damaged: formData.isDamaged,
+          is_registered_in_poland: formData.isRegisteredInPoland,
+          is_selling_on_behalf: formData.isSellingOnBehalf,
+          has_private_plate: formData.hasPrivatePlate,
+          finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
+          service_history_type: formData.serviceHistoryType,
+          seller_notes: formData.sellerNotes,
+          seat_material: formData.seatMaterial,
+          number_of_keys: formData.numberOfKeys ? parseInt(formData.numberOfKeys) : 1,
+          additional_photos: formData.uploadedPhotos || [],
+          is_draft: true,
+          form_metadata: {
+            current_step: currentStep
           }
-
-          return result;
-        }
-      );
-    } catch (error: any) {
-      console.error('Error submitting car listing:', error);
-      toast.error(`Error: ${error.message || 'Unknown error occurred'}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [session, uploadPhotos, transaction]);
-
-  // Handle form errors
-  const onError = useCallback((errors: any) => {
-    console.error('Form validation errors:', errors);
-    toast.error('Please fix the errors in the form before submitting');
-  }, []);
-
-  // Navigate between form steps
-  const nextStep = useCallback(() => {
-    setCurrentStep((prev) => Math.min(prev + 1, 3));
-  }, []);
-
-  const prevStep = useCallback(() => {
-    setCurrentStep((prev) => Math.max(prev - 1, 0));
-  }, []);
-
-  const goToStep = useCallback((step: number) => {
-    setCurrentStep(Math.max(0, Math.min(step, 3)));
-  }, []);
-
-  // Handle form submission
-  const handleSubmit = useCallback(() => {
-    form.handleSubmit(onSubmit)();
-  }, [form, onSubmit]);
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Update carId if this was a new draft
+      if (!carId && data) {
+        setCarId(data.id);
+      }
+      
+      setLastSaved(new Date());
+      return data;
+    }, "Failed to save form progress");
+  };
 
   return {
     form,
-    isSubmitting,
-    isUploading,
-    uploadProgress,
+    carId,
+    lastSaved,
     currentStep,
-    nextStep,
-    prevStep,
-    goToStep,
-    handleSubmit,
-    transaction
+    setCurrentStep,
+    validationErrors,
+    schemaValidationIssues: validationIssues,
+    hasSchemaErrors,
+    saveProgress,
+    error,
+    isLoading
   };
 };
-
-export default useCarListingForm;

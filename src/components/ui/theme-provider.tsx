@@ -1,15 +1,22 @@
 
 /**
  * Changes made:
- * - 2023-07-15: Created ThemeProvider component for theme handling
+ * - 2028-07-02: Created theme provider component for consistent theme handling
  */
 
-"use client";
+"use client"
 
-import * as React from "react";
-import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { type ThemeProviderProps } from "next-themes";
+import * as React from "react"
+import { ThemeProvider as NextThemesProvider } from "next-themes"
+import { type ThemeProviderProps } from "next-themes/dist/types"
 
-export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>;
+export function ThemeProvider({ 
+  children, 
+  ...props 
+}: ThemeProviderProps) {
+  return (
+    <NextThemesProvider {...props}>
+      {children}
+    </NextThemesProvider>
+  )
 }

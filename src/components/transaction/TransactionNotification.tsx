@@ -2,11 +2,10 @@
 /**
  * Changes made:
  * - 2024-10-16: Created transaction notification component for use with sonner
- * - 2024-07-24: Fixed TransactionStatus reference
  */
 
 import { CheckCircle, XCircle, AlertCircle, Clock } from "lucide-react";
-import { TransactionStatus } from "@/services/supabase/transactions/types";
+import { TransactionStatus } from "@/services/supabase/transactionService";
 
 interface TransactionNotificationProps {
   title: string;

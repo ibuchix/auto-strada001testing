@@ -1,21 +1,16 @@
 
 /**
- * Export transaction services
  * Changes made:
- * - 2025-12-01: Fixed export structure to properly export both types and values
- * - 2025-12-12: Ensured consistent exports between types and implementation
+ * - 2024-10-28: Created index file for transaction system exports
  */
 
-import { TransactionService } from './transactionService';
-import { transactionLogger } from './loggerService';
-import { TransactionType, TransactionStatus } from './types';
-
-export const transactionService = new TransactionService();
-
-export {
-  transactionLogger,
-  TransactionType,
-  TransactionStatus
-};
-
+// Export types
 export * from './types';
+
+// Export services
+export { transactionService } from './transactionService';
+export { transactionLogger } from './loggerService';
+
+// Main service is also the default export
+import { transactionService } from './transactionService';
+export default transactionService;

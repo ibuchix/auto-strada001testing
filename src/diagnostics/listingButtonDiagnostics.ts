@@ -1,114 +1,118 @@
 /**
- * Diagnostics utilities for tracking listing button interactions
+ * Changes made:
+ * - 2028-06-01: Created dedicated diagnostics module for tracking form submission
  */
 
-interface DiagnosticLog {
+type DiagnosticSeverity = 'INFO' | 'WARNING' | 'ERROR' | 'DEBUG';
+
+interface DiagnosticEntry {
   id: string;
   event: string;
-  message: string;
-  data: Record<string, any>;
   timestamp: string;
-  diagnostic_id: string;
-  level: 'INFO' | 'WARNING' | 'ERROR';
+  severity: DiagnosticSeverity;
+  data?: any;
+  correlationId?: string;
 }
 
-// In-memory storage for diagnostics
-const diagnosticLogs: DiagnosticLog[] = [];
-
+/**
+ * Log diagnostic information for troubleshooting form submissions
+ */
 export const logDiagnostic = (
-  event: string,
-  message: string,
-  data: Record<string, any> = {},
-  diagnosticId: string,
-  level: 'INFO' | 'WARNING' | 'ERROR' = 'INFO'
-): void => {
-  const log: DiagnosticLog = {
+  event: string, 
+  message: string, 
+  data?: any, 
+  correlationId?: string,
+  severity: DiagnosticSeverity = 'INFO'
+) => {
+  const entry: DiagnosticEntry = {
     id: crypto.randomUUID(),
     event,
-    message,
-    data,
     timestamp: new Date().toISOString(),
-    diagnostic_id: diagnosticId,
-    level
+    severity,
+    data: {
+      message,
+      ...data
+    },
+    correlationId
   };
 
-  // Add to in-memory store and localStorage
-  diagnosticLogs.push(log);
+  // Log to console with enhanced visibility
+  console.log(`[DIAGNOSTIC ${severity}][${entry.timestamp}][${event}]: ${message}`, data || '');
   
-  // Also save to localStorage for persistence
+  // Store diagnostics in localStorage for retrieval
   try {
-    const existingLogs = JSON.parse(localStorage.getItem('diagnosticLogs') || '[]');
-    const updatedLogs = [...existingLogs, log];
+    const existingLogs = localStorage.getItem('formDiagnostics') || '[]';
+    const parsedLogs = JSON.parse(existingLogs) as DiagnosticEntry[];
     
-    // Keep only the last 100 logs to prevent excessive storage
-    if (updatedLogs.length > 100) {
-      updatedLogs.splice(0, updatedLogs.length - 100);
+    // Keep only the most recent 100 entries to avoid localStorage overflow
+    if (parsedLogs.length > 100) {
+      parsedLogs.shift(); // Remove oldest entry
     }
     
-    localStorage.setItem('diagnosticLogs', JSON.stringify(updatedLogs));
-  } catch (e) {
-    console.error('Failed to save diagnostic log to localStorage:', e);
+    parsedLogs.push(entry);
+    localStorage.setItem('formDiagnostics', JSON.stringify(parsedLogs));
+  } catch (error) {
+    console.error('Failed to store diagnostic data:', error);
   }
-
-  // Log to console for immediate visibility
-  console.log(`[${log.level}] ${event}: ${message}`, data);
+  
+  return entry.id;
 };
 
-export const getDiagnostics = (): DiagnosticLog[] => {
-  // Combine in-memory logs with those from localStorage
+/**
+ * Retrieve diagnostic entries for analysis
+ */
+export const getDiagnostics = (correlationId?: string): DiagnosticEntry[] => {
   try {
-    const localStorageLogs = JSON.parse(localStorage.getItem('diagnosticLogs') || '[]');
+    const existingLogs = localStorage.getItem('formDiagnostics') || '[]';
+    const parsedLogs = JSON.parse(existingLogs) as DiagnosticEntry[];
     
-    // Merge and deduplicate logs based on id
-    const allLogs = [...diagnosticLogs, ...localStorageLogs];
-    const uniqueLogs = allLogs.filter((log, index, self) => 
-      index === self.findIndex(l => l.id === log.id)
-    );
+    if (correlationId) {
+      return parsedLogs.filter(log => log.correlationId === correlationId);
+    }
     
-    // Sort by timestamp, newest first
-    return uniqueLogs.sort((a, b) => 
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-  } catch (e) {
-    console.error('Failed to retrieve diagnostic logs:', e);
-    return diagnosticLogs;
+    return parsedLogs;
+  } catch (error) {
+    console.error('Failed to retrieve diagnostic data:', error);
+    return [];
   }
 };
 
-export const clearDiagnostics = (): void => {
-  // Clear both in-memory and localStorage logs
-  diagnosticLogs.length = 0;
-  localStorage.removeItem('diagnosticLogs');
+/**
+ * Clear all diagnostic entries
+ */
+export const clearDiagnostics = () => {
+  localStorage.removeItem('formDiagnostics');
 };
 
-// Helper to log the state of relevant localStorage items
-export const logStorageState = (diagnosticId: string): void => {
+/**
+ * Format diagnostic entries for export or display
+ */
+export const formatDiagnosticReport = (entries: DiagnosticEntry[]): string => {
+  return entries.map(entry => {
+    return `[${entry.timestamp}][${entry.severity}][${entry.event}]: ${entry.data?.message || ''}\n${
+      entry.data ? JSON.stringify(entry.data, null, 2) : ''
+    }\n-------------------------------------------`;
+  }).join('\n');
+};
+
+/**
+ * Get all diagnostic logs for display in the diagnostic viewer
+ */
+export const getDiagnosticLogs = (): any[] => {
   try {
-    const storageKeys = [
-      'valuationData',
-      'tempVIN',
-      'tempMileage',
-      'tempGearbox',
-      'vinReservationId',
-      'formData'
-    ];
+    const existingLogs = localStorage.getItem('formDiagnostics') || '[]';
+    const parsedLogs = JSON.parse(existingLogs) as DiagnosticEntry[];
     
-    const storageState: Record<string, any> = {};
-    
-    storageKeys.forEach(key => {
-      const value = localStorage.getItem(key);
-      storageState[key] = value ? 
-        (key === 'valuationData' || key === 'formData' ? 'present (JSON)' : value) : 
-        'not present';
-    });
-    
-    logDiagnostic(
-      'STORAGE_STATE',
-      'Current localStorage state',
-      storageState,
-      diagnosticId
-    );
-  } catch (e) {
-    console.error('Failed to log storage state:', e);
+    return parsedLogs.map(log => ({
+      area: log.event,
+      message: log.data?.message || '',
+      data: JSON.stringify(log.data || {}, null, 2),
+      timestamp: log.timestamp,
+      severity: log.severity,
+      sessionId: log.correlationId || 'unknown'
+    }));
+  } catch (error) {
+    console.error('Failed to retrieve diagnostic logs:', error);
+    return [];
   }
 };

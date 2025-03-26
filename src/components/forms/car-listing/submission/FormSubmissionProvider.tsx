@@ -6,13 +6,11 @@
  * - 2024-10-23: Removed redundant FormSubmissionContextType interface
  * - 2024-07-30: Added transaction reset functionality exposure
  * - 2027-07-30: Enhanced error handling and reset functionality
- * - 2025-12-12: Fixed transaction status type to use consistent import
  */
 
 import { createContext, useContext } from "react";
 import { FormSubmissionContextType, FormSubmissionProviderProps } from "./types";
 import { useFormSubmission } from "./useFormSubmission";
-import { TransactionStatus } from "@/services/supabase/transactions/types";
 
 const FormSubmissionContext = createContext<FormSubmissionContextType | null>(null);
 

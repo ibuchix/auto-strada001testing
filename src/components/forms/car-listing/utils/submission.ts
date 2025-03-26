@@ -6,11 +6,10 @@
  * - 2024-08-04: Updated name field to use seller_name to match database schema
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field has_documentation
- * - 2024-08-05: Fixed JSON compatibility for CarFeatures
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { CarListingFormData, carFeaturesToJson } from "@/types/forms";
+import { CarListingFormData } from "@/types/forms";
 
 export const saveFormAsDraft = async (
   data: Partial<CarListingFormData>,
@@ -26,9 +25,6 @@ export const saveFormAsDraft = async (
   const parsedValuationData = JSON.parse(valuationData);
   const timestamp = new Date().toISOString();
   
-  // Convert CarFeatures to plain JSON object for database compatibility
-  const featuresJson = data.features ? carFeaturesToJson(data.features) : undefined;
-  
   // If we have an existing car ID, update it
   if (carId) {
     return await supabase
@@ -38,7 +34,7 @@ export const saveFormAsDraft = async (
         seller_name: data.name, // Use seller_name instead of name
         address: data.address,
         mobile_number: data.mobileNumber,
-        features: featuresJson,
+        features: data.features,
         is_damaged: data.isDamaged,
         is_registered_in_poland: data.isRegisteredInPoland,
         is_selling_on_behalf: data.isSellingOnBehalf,
@@ -72,7 +68,7 @@ export const saveFormAsDraft = async (
       seller_name: data.name, // Use seller_name instead of name
       address: data.address,
       mobile_number: data.mobileNumber,
-      features: featuresJson,
+      features: data.features,
       is_damaged: data.isDamaged,
       is_registered_in_poland: data.isRegisteredInPoland,
       is_selling_on_behalf: data.isSellingOnBehalf,

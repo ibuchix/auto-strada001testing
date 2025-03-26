@@ -2,14 +2,12 @@
 /**
  * Changes made:
  * - 2028-06-01: Created transaction status indicator for better user feedback
- * - 2028-07-24: Added pendingText, successText, errorText props for customization
- * - 2024-08-04: Fixed string to enum conversion for status variant
  */
 
 import { useEffect, useState } from "react";
 import { cva } from "class-variance-authority";
 import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
-import { TransactionStatus } from "@/services/supabase/transactions/types";
+import { TransactionStatus } from "@/services/supabase/transactionService";
 
 // Define status color and icon variants
 const statusIconVariants = cva("w-4 h-4", {
@@ -60,17 +58,13 @@ const statusTextVariants = cva("text-xs font-medium", {
   },
 });
 
-export interface TransactionStatusIndicatorProps {
+interface TransactionStatusIndicatorProps {
   status?: TransactionStatus | null;
   label?: string;
   hideLabel?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
   autoHideDelay?: number;
-  pendingText?: string;
-  successText?: string;
-  errorText?: string;
-  onRetry?: () => void;
 }
 
 export const TransactionStatusIndicator = ({
@@ -80,10 +74,6 @@ export const TransactionStatusIndicator = ({
   size = "md",
   className = "",
   autoHideDelay = 0,
-  pendingText,
-  successText,
-  errorText,
-  onRetry
 }: TransactionStatusIndicatorProps) => {
   const [visible, setVisible] = useState(true);
   
@@ -100,11 +90,8 @@ export const TransactionStatusIndicator = ({
   
   if (!visible) return null;
   
-  // Map the enum values to string for variant handling
-  let statusVariant: "inactive" | "pending" | "success" | "error" = "inactive";
-  if (status === TransactionStatus.PENDING) statusVariant = "pending";
-  else if (status === TransactionStatus.SUCCESS) statusVariant = "success";
-  else if (status === TransactionStatus.ERROR) statusVariant = "error";
+  // Convert enum to string for variant handling
+  const statusVariant = status ? status.toLowerCase() : "inactive";
   
   // Get appropriate icon
   const getStatusIcon = () => {
@@ -126,11 +113,11 @@ export const TransactionStatusIndicator = ({
     
     switch (status) {
       case TransactionStatus.PENDING:
-        return pendingText || "Processing...";
+        return "Processing...";
       case TransactionStatus.SUCCESS:
-        return successText || "Complete";
+        return "Complete";
       case TransactionStatus.ERROR:
-        return errorText || "Error";
+        return "Error";
       default:
         return "";
     }
@@ -146,15 +133,6 @@ export const TransactionStatusIndicator = ({
         <span className={statusTextVariants({ status: statusVariant })}>
           {getLabelText()}
         </span>
-      )}
-      
-      {status === TransactionStatus.ERROR && onRetry && (
-        <button 
-          onClick={onRetry}
-          className="text-xs underline text-red-700 ml-2 hover:text-red-800"
-        >
-          Retry
-        </button>
       )}
     </div>
   );

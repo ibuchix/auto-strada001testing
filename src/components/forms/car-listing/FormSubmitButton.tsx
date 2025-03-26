@@ -7,14 +7,13 @@
  * - 2025-07-22: Improved error handling for 400/404 errors and added better diagnostics
  * - 2027-07-30: Enhanced button loading states and added recovery mechanisms
  * - 2027-08-12: Improved error states and added recovery options
- * - 2025-12-01: Fixed TransactionStatus import and usage
  */
 
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, AlertTriangle, RefreshCw, HelpCircle } from "lucide-react";
 import { TransactionStatusIndicator } from "@/components/transaction/TransactionStatusIndicator";
 import { TransactionStateIndicator } from "@/components/transaction/TransactionStateIndicator";
-import { TransactionStatus } from "@/services/supabase/transactions/types";
+import { TransactionStatus } from "@/services/supabase/transactionService";
 import { useState, useEffect } from "react";
 import { logDiagnostic } from "@/diagnostics/listingButtonDiagnostics";
 import { 

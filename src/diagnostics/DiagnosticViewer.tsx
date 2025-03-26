@@ -1,132 +1,132 @@
 
 /**
- * Diagnostic viewer component for debugging
+ * Changes made:
+ * - 2027-07-23: Created diagnostic viewer component for troubleshooting
  */
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, RefreshCw, Trash2 } from 'lucide-react';
-import { getDiagnostics, clearDiagnostics } from './listingButtonDiagnostics';
+import { useState, useEffect } from "react";
+import { getDiagnosticLogs, clearDiagnostics } from "./listingButtonDiagnostics";
 
-const DiagnosticViewer = () => {
+export const DiagnosticViewer = () => {
   const [logs, setLogs] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const loadDiagnostics = async () => {
-    setIsLoading(true);
-    try {
-      const diagnostics = await getDiagnostics();
-      setLogs(diagnostics);
-    } catch (error) {
-      console.error('Failed to load diagnostics:', error);
-    } finally {
-      setIsLoading(false);
-    }
+  const [filter, setFilter] = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  
+  const refreshLogs = () => {
+    const allLogs = getDiagnosticLogs();
+    setLogs(allLogs);
   };
-
-  const clearAllDiagnostics = async () => {
-    if (window.confirm('Are you sure you want to clear all diagnostic logs?')) {
-      try {
-        await clearDiagnostics();
-        setLogs([]);
-      } catch (error) {
-        console.error('Failed to clear diagnostics:', error);
-      }
-    }
-  };
-
+  
   useEffect(() => {
-    loadDiagnostics();
-  }, []);
-
-  // Helper function to determine badge variant
-  const getBadgeVariant = (level: string) => {
-    switch (level) {
-      case 'ERROR':
-        return 'destructive';
-      case 'WARNING':
-        return 'default'; // Custom warning
-      default:
-        return 'outline';
+    refreshLogs();
+    
+    if (autoRefresh) {
+      const interval = setInterval(refreshLogs, 1000);
+      return () => clearInterval(interval);
     }
+  }, [autoRefresh]);
+  
+  const filteredLogs = filter 
+    ? logs.filter(log => 
+        log.area.toLowerCase().includes(filter.toLowerCase()) || 
+        log.message.toLowerCase().includes(filter.toLowerCase()) ||
+        (log.data && log.data.toLowerCase().includes(filter.toLowerCase()))
+      )
+    : logs;
+  
+  const handleClearLogs = () => {
+    clearDiagnostics();
+    refreshLogs();
   };
-
+  
+  // Group logs by session ID
+  const sessionIds = [...new Set(logs.map(log => log.sessionId))];
+  
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Navigation Diagnostic Logs</CardTitle>
+    <div className="p-4 bg-white rounded-lg shadow max-w-6xl mx-auto my-8">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Diagnostic Logs</h2>
         <div className="flex gap-2">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={loadDiagnostics}
-            disabled={isLoading}
+          <input
+            type="text"
+            placeholder="Filter logs..."
+            className="px-3 py-2 border rounded"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={() => setAutoRefresh(!autoRefresh)}
+            />
+            Auto-refresh
+          </label>
+          <button 
+            onClick={refreshLogs}
+            className="px-3 py-2 bg-blue-500 text-white rounded"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
-          </Button>
-          <Button 
-            size="sm" 
-            variant="destructive" 
-            onClick={clearAllDiagnostics}
-            disabled={isLoading}
+          </button>
+          <button 
+            onClick={handleClearLogs}
+            className="px-3 py-2 bg-red-500 text-white rounded"
           >
-            <Trash2 className="h-4 w-4 mr-2" />
             Clear
-          </Button>
+          </button>
         </div>
-      </CardHeader>
-      <CardContent className="max-h-[70vh] overflow-auto">
-        {logs.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <CheckCircle className="mx-auto h-12 w-12 mb-4 text-gray-300" />
-            <p>No diagnostic logs found</p>
-            <p className="text-sm mt-1">
-              Diagnostic logging will appear here when users interact with the listing button.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {logs.map((log) => (
-              <Card key={log.id} className="shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{log.event}</h3>
-                      <Badge variant={getBadgeVariant(log.level)}>
-                        {log.level}
-                      </Badge>
-                    </div>
-                    <span className="text-xs text-gray-500">
-                      {new Date(log.timestamp).toLocaleString()}
-                    </span>
-                  </div>
-                  
-                  <p className="text-sm mb-3">{log.message}</p>
-                  
+      </div>
+      
+      <div className="mb-4">
+        <h3 className="font-bold">Sessions: {sessionIds.length}</h3>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {sessionIds.map(id => (
+            <div key={id} className="px-3 py-1 bg-gray-100 rounded text-sm">
+              {id} ({logs.filter(log => log.sessionId === id).length} logs)
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="p-2 text-left">Time</th>
+              <th className="p-2 text-left">Session</th>
+              <th className="p-2 text-left">Area</th>
+              <th className="p-2 text-left">Message</th>
+              <th className="p-2 text-left">Data</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredLogs.map((log, index) => (
+              <tr key={index} className="border-b">
+                <td className="p-2 text-sm font-mono">{new Date(log.timestamp).toLocaleTimeString()}</td>
+                <td className="p-2 text-sm font-mono">{log.sessionId.substring(0, 6)}</td>
+                <td className="p-2">{log.area}</td>
+                <td className="p-2">{log.message}</td>
+                <td className="p-2">
                   {log.data && (
-                    <div className="mt-2 bg-gray-50 p-2 rounded text-xs overflow-x-auto">
-                      <pre className="whitespace-pre-wrap">
-                        {JSON.stringify(log.data, null, 2)}
+                    <details>
+                      <summary>View details</summary>
+                      <pre className="mt-2 p-2 bg-gray-50 rounded text-xs overflow-auto max-h-40">
+                        {log.data}
                       </pre>
-                    </div>
+                    </details>
                   )}
-                  
-                  {log.diagnostic_id && (
-                    <div className="mt-2 text-xs text-gray-500">
-                      Diagnostic ID: {log.diagnostic_id}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                </td>
+              </tr>
             ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          </tbody>
+        </table>
+      </div>
+      
+      {filteredLogs.length === 0 && (
+        <div className="py-8 text-center text-gray-500">
+          No logs found. Try clicking the List This Car button to generate logs.
+        </div>
+      )}
+    </div>
   );
 };
-
-export default DiagnosticViewer;

@@ -1,9 +1,3 @@
-
-/**
- * Changes made:
- * - 2025-12-10: Updated component to properly handle required CarFeatures properties
- */
-
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,7 +9,6 @@ interface FeaturesSectionProps {
 }
 
 export const FeaturesSection = ({ form }: FeaturesSectionProps) => {
-  // Define features with their display labels
   const features = {
     satNav: "Satellite Navigation",
     panoramicRoof: "Panoramic Roof",

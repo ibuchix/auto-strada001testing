@@ -1,14 +1,8 @@
-
-/**
- * Changes made:
- * - 2024-08-04: Fixed types to properly handle damageReports property
- * - 2024-08-05: Fixed damage type compatibility issues
- */
-
 import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData, DamageType, DamageReport } from "@/types/forms";
+import { CarListingFormData } from "@/types/forms";
 import { Card } from "@/components/ui/card";
 import { useState } from "react";
+import { DamageType } from "./types/damages";
 import { DamageTypeSelect } from "./damage/DamageTypeSelect";
 import { DamageDescription } from "./damage/DamageDescription";
 import { DamagePhotoUpload } from "./damage/DamagePhotoUpload";
@@ -23,22 +17,13 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
   const [description, setDescription] = useState('');
 
   const handlePhotoUploaded = (filePath: string) => {
-    // Initialize damageReports if it doesn't exist
-    if (!form.getValues().damageReports) {
-      form.setValue('damageReports', []);
-    }
-
-    // Add the new damage report
-    const currentDamages = form.getValues().damageReports || [];
-    const newDamage: DamageReport = {
+    const currentDamages = form.getValues('damageReports') || [];
+    form.setValue('damageReports', [...currentDamages, {
       type: selectedDamageType as DamageType,
       description,
       photoPath: filePath
-    };
-    
-    form.setValue('damageReports', [...currentDamages, newDamage]);
+    }]);
 
-    // Reset form
     setSelectedDamageType(null);
     setDescription('');
   };
@@ -52,7 +37,7 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <DamageTypeSelect 
             value={selectedDamageType} 
-            onValueChange={(value: DamageType) => setSelectedDamageType(value)}
+            onValueChange={setSelectedDamageType}
           />
           <DamageDescription 
             value={description}

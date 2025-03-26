@@ -11,7 +11,6 @@
  * - 2024-07-24: Enhanced valuation data validation and error handling
  * - 2024-07-28: Added debug utilities to help diagnose mileage issues
  * - 2024-07-30: Added transaction reset and improved error handling
- * - 2025-08-10: Fixed import paths for validation and cleanup functions
  */
 
 import { useState, useEffect } from "react";

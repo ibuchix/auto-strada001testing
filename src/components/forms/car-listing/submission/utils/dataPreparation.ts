@@ -16,7 +16,6 @@
  * - 2025-06-10: Added schema validation to catch field mismatches before submission
  * - 2025-07-22: Improved error handling and added safeguards for field type mismatches
  * - 2025-07-24: Enhanced boolean field handling to ensure proper type conversion
- * - 2025-08-10: Fixed import path for validateMileageData function
  */
 
 import { CarListingFormData } from "@/types/forms";

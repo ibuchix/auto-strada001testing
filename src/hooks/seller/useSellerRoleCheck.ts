@@ -9,8 +9,6 @@
  * - Updated to support automatic verification of sellers
  * - 2025-07-12: Prioritized metadata checks over database queries to improve reliability
  * - 2025-07-12: Added quick-path resolution when metadata contains seller role
- * - 2025-08-17: Enhanced debounce mechanism to prevent rendering cycles
- * - 2025-08-17: Improved logging for better diagnostic visibility
  */
 
 import { useCallback } from "react";
@@ -29,25 +27,10 @@ export const useSellerRoleCheck = () => {
    */
   const checkSellerRole = useCallback(async (currentSession: Session) => {
     try {
-      // Prevent rapid consecutive calls
-      const now = Date.now();
-      const lastCheck = parseInt(localStorage.getItem('lastSellerRoleCheck') || '0');
-      
-      if (now - lastCheck < 2000) { // 2 second debounce
-        console.log("Debouncing seller role check - too frequent");
-        // Return the last check result from local storage to prevent flickering
-        return localStorage.getItem('lastSellerStatus') === 'true';
-      }
-      
-      localStorage.setItem('lastSellerRoleCheck', now.toString());
-      
       // Method 1: Check user metadata first (fastest and most reliable path)
       console.log("Checking seller role from user metadata:", currentSession.user.user_metadata);
       if (currentSession.user.user_metadata?.role === 'seller') {
         console.log("User confirmed as seller via metadata");
-        
-        // Store result to prevent flickering on future checks
-        localStorage.setItem('lastSellerStatus', 'true');
         
         // Even though we're returning true, try to fix potential data inconsistencies 
         // in the background without blocking the UI
@@ -79,7 +62,6 @@ export const useSellerRoleCheck = () => {
             }
           });
           
-          localStorage.setItem('lastSellerStatus', 'true');
           return true;
         }
       } catch (profileError) {
@@ -112,16 +94,24 @@ export const useSellerRoleCheck = () => {
               ignoreDuplicates: false 
             });
           
-          localStorage.setItem('lastSellerStatus', 'true');
           return true;
         }
       } catch (sellerError) {
         console.warn("Seller table check failed:", sellerError);
       }
 
+      // Method 4: Use register_seller RPC if all else fails
+      try {
+        const result = await sellerProfileService.registerSeller(currentSession.user.id);
+        if (result) {
+          console.log("Successfully registered as seller via RPC");
+          return true;
+        }
+      } catch (registerError) {
+        console.warn("Register seller RPC failed:", registerError);
+      }
+      
       // No seller status found after trying all methods
-      localStorage.setItem('lastSellerStatus', 'false');
-      console.log("User is not a seller after checking all methods");
       return false;
     } catch (error) {
       console.error('Error checking seller role:', error);

@@ -1,3 +1,4 @@
+
 /**
  * Component for required photo uploads with correct type definitions
  * - 2024-08-27: Updated onFileSelect prop type to accept Promise<string | null>
@@ -5,10 +6,9 @@
  * - 2025-05-03: Updated onFileSelect and onUpload to use consistent Promise<string | null> return type
  * - 2025-05-07: Added diagnosticId prop for improved debugging
  * - 2027-08-12: Enhanced with recovery mechanisms and better validation feedback
- * - 2024-08-05: Fixed PhotoUpload props compatibility
  */
 import { useState, useEffect } from "react";
-import { PhotoUpload } from "@/components/PhotoUpload";
+import { PhotoUpload } from "./PhotoUpload";
 import { FormValidationSummary } from "../validation/FormValidationSummary";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";

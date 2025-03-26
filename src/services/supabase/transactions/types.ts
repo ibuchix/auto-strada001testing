@@ -1,11 +1,7 @@
 
 /**
  * Changes made:
- * - 2024-08-15: Added entityId and entityType to TransactionOptions interface
- * - Expanded optional configuration for more flexible transaction tracking
- * - 2025-08-10: Fixed TransactionType export to resolve type incompatibility
- * - 2025-12-01: Changed exports to use both value and type exports
- * - 2025-12-12: Fixed enum exports to ensure both type and value exports
+ * - 2024-10-28: Created separate types file for transaction system
  */
 
 // Define transaction types to categorize different operations
@@ -25,17 +21,7 @@ export enum TransactionStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
   ERROR = 'error',
-  WARNING = 'warning',
-  INACTIVE = 'inactive'
-}
-
-// Define the TransactionMetadata type for structured metadata handling
-export interface TransactionMetadata {
-  [key: string]: any;
-  description?: string;
-  entityName?: string;
-  timestamp?: string;
-  source?: string;
+  WARNING = 'warning'
 }
 
 // Interface for transaction details
@@ -46,14 +32,14 @@ export interface TransactionDetails {
   entityId?: string; 
   entityType?: string;
   status: TransactionStatus;
-  startTime: string;
-  endTime?: string;
+  startTime: Date;
+  endTime?: Date;
   metadata?: Record<string, any>;
   errorDetails?: string;
   userId?: string;
 }
 
-// Updated TransactionOptions interface with entityId and entityType
+// Configuration options for transaction
 export interface TransactionOptions {
   showToast?: boolean;
   toastDuration?: number;
@@ -65,8 +51,6 @@ export interface TransactionOptions {
   onSuccess?: (result: any) => void;
   onError?: (error: any) => void;
   onComplete?: (details: TransactionDetails) => void;
-  entityId?: string;
-  entityType?: string;
 }
 
 // Type for audit log action
@@ -92,16 +76,4 @@ export type AuditLogAction =
   | "manual_retry" 
   | "auction_recovery" 
   | "system_health_check" 
-  | "system_alert"
-  | "update_user_role";
-
-// System log record interface to match database schema
-export interface SystemLogRecord {
-  id: string;
-  correlation_id: string;
-  created_at: string;
-  details: Record<string, any>;
-  error_message: string;
-  log_type: string;
-  message: string;
-}
+  | "system_alert";

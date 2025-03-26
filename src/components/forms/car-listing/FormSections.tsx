@@ -1,7 +1,10 @@
 
 /**
  * Changes made:
- * - 2023-07-15: Created FormSections component to handle rendering current form section
+ * - 2027-07-24: Added support for diagnosticId prop for improved debugging
+ * - 2027-07-25: Fixed issue with formSteps component access
+ * - 2027-07-26: Fixed component props type issue by using conditional prop passing
+ * - 2027-08-01: Updated component detection to handle more component types and improved diagnostics
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -42,7 +45,12 @@ export const FormSections = ({
     additionalProps.carId = carId;
   }
   
-  // Pass diagnosticId if needed
+  // Components that need userId (if any)
+  if (CurrentStepComponent.name === 'SomeComponentThatNeedsUserId') {
+    additionalProps.userId = userId;
+  }
+  
+  // Components that need diagnosticId (if needed)
   if (diagnosticId) {
     additionalProps.diagnosticId = diagnosticId;
   }

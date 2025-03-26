@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-20: Modified to use cars table instead of non-existent manual_valuations
@@ -60,15 +61,6 @@ export const useManualValuationForm = () => {
         throw new Error("You must be logged in to submit a valuation request");
       }
       
-      // Convert features to JSON-compatible object
-      const featuresJson = data.features ? {
-        satNav: data.features.satNav,
-        panoramicRoof: data.features.panoramicRoof,
-        reverseCamera: data.features.reverseCamera,
-        heatedSeats: data.features.heatedSeats,
-        upgradedSound: data.features.upgradedSound
-      } : {};
-      
       // Insert car record as draft with valuation data
       const { error, data: carData } = await supabase
         .from("cars")
@@ -83,7 +75,7 @@ export const useManualValuationForm = () => {
           transmission: data.transmission,
           price: 0, // Will be updated after valuation
           mileage: parseInt(String(data.mileage), 10),
-          features: featuresJson,
+          features: data.features,
           is_damaged: data.isDamaged,
           is_registered_in_poland: data.isRegisteredInPoland,
           seat_material: data.seatMaterial,
@@ -106,7 +98,7 @@ export const useManualValuationForm = () => {
             accidentHistory: data.accidentHistory,
             engineCapacity: data.engineCapacity
           }
-        } as any)
+        })
         .select()
         .single();
 

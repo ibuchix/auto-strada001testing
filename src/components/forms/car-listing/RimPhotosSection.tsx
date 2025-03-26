@@ -1,17 +1,21 @@
 
 /**
- * Fix for photo upload property compatibility issue
+ * Changes made:
+ * - 2024-08-09: Created RimPhotosSection component for rim photo uploads
+ * - 2024-09-15: Added state tracking for uploaded rims
+ * - 2027-08-03: Improved error handling when carId is not available
+ * - 2027-08-12: Updated PhotoUpload props to use title and description instead of label
+ * - 2028-05-30: Fixed type issues with onUpload function return type
  */
 
-import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
-import { PhotoUpload } from "@/components/PhotoUpload";
-import { supabase } from "@/integrations/supabase/client";
-import { v4 as uuidv4 } from "uuid";
+import { PhotoUpload } from "./photo-upload/PhotoUpload";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface RimPhotosSectionProps {
   form: UseFormReturn<CarListingFormData>;
@@ -19,142 +23,125 @@ interface RimPhotosSectionProps {
 }
 
 export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
-  const [isComplete, setIsComplete] = useState(form.getValues().rimPhotosComplete || false);
+  const [uploadedRims, setUploadedRims] = useState({
+    front_left: false,
+    front_right: false,
+    rear_left: false,
+    rear_right: false
+  });
+  
+  const [missingCarId, setMissingCarId] = useState(false);
 
-  const handlePhotoUpload = async (file: File, position: string): Promise<string> => {
-    if (!file || !carId) return "";
+  // Check if carId is available on mount and when it changes
+  useEffect(() => {
+    setMissingCarId(!carId);
+  }, [carId]);
 
-    // Create unique file path
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${carId}/rims/${position}_${uuidv4()}.${fileExt}`;
-
-    // Upload to Supabase
-    const { error: uploadError } = await supabase.storage
-      .from('car-images')
-      .upload(fileName, file);
-
-    if (uploadError) {
-      console.error("Error uploading rim photo:", uploadError);
-      throw new Error(uploadError.message);
-    }
-
-    // Get the public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('car-images')
-      .getPublicUrl(fileName);
-
-    // Update the form
-    const rimPhotos = form.getValues().rimPhotos || {
-      front_left: null,
-      front_right: null,
-      rear_left: null,
-      rear_right: null
-    };
-
-    const updatedRimPhotos = {
-      ...rimPhotos,
-      [position]: publicUrl
-    };
-
-    form.setValue('rimPhotos', updatedRimPhotos, {
-      shouldDirty: true,
-      shouldValidate: true
-    });
-
-    // Check if all photos are uploaded
-    const allUploaded = Object.values(updatedRimPhotos).every(val => val !== null);
-    
-    if (allUploaded && !isComplete) {
-      setIsComplete(true);
-      form.setValue('rimPhotosComplete', true, {
-        shouldDirty: true
+  const handleRimPhotoUpload = async (file: File, position: keyof typeof uploadedRims): Promise<string | null> => {
+    if (!carId) {
+      setMissingCarId(true);
+      toast.error("Unable to upload photos", {
+        description: "Please save the form first before uploading rim photos"
       });
+      return null;
     }
 
-    return publicUrl;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', `rim_${position}`);
+    formData.append('carId', carId);
+
+    try {
+      const response = await fetch('/api/upload-photo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Failed to upload photo');
+
+      const { filePath } = await response.json();
+      
+      const currentRimPhotos = form.getValues('rimPhotos') || {
+        front_left: null,
+        front_right: null,
+        rear_left: null,
+        rear_right: null
+      };
+
+      form.setValue('rimPhotos', {
+        ...currentRimPhotos,
+        [position]: filePath
+      });
+      
+      setUploadedRims(prev => ({ ...prev, [position]: true }));
+      
+      toast.success(`${position.replace('_', ' ')} rim photo uploaded successfully`);
+      
+      return filePath; // Return the filePath string
+    } catch (error) {
+      toast.error('Failed to upload rim photo');
+      console.error('Rim photo upload error:', error);
+      return null; // Return null on error
+    }
   };
 
-  const markComplete = () => {
-    setIsComplete(true);
-    form.setValue('rimPhotosComplete', true, {
-      shouldDirty: true
-    });
-  };
-
-  const rimPhotos = form.getValues().rimPhotos || {
-    front_left: null,
-    front_right: null,
-    rear_left: null,
-    rear_right: null
-  };
+  useEffect(() => {
+    const allRimsUploaded = Object.values(uploadedRims).every(Boolean);
+    if (allRimsUploaded) {
+      form.setValue('rimPhotosComplete', true);
+    }
+  }, [uploadedRims, form]);
 
   return (
     <Card className="p-4 md:p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl md:text-2xl font-oswald font-bold text-dark">
-          Wheel/Rim Photos
-        </h2>
-        {isComplete && (
-          <div className="flex items-center text-green-600">
-            <Check className="mr-1 h-5 w-5" />
-            <span>Complete</span>
-          </div>
-        )}
-      </div>
-
-      <p className="text-muted-foreground mb-6">
-        Please upload photos of all four rims to show their condition. If you don't have rim photos,
-        you can mark this section as complete.
-      </p>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <PhotoUpload
-          id="front_left"
-          title="Front Left"
-          description="Front left wheel"
-          isUploading={false}
-          isUploaded={!!rimPhotos.front_left}
-          onUpload={(file) => handlePhotoUpload(file, "front_left")}
-        />
-        
-        <PhotoUpload
-          id="front_right"
-          title="Front Right"
-          description="Front right wheel"
-          isUploading={false}
-          isUploaded={!!rimPhotos.front_right}
-          onUpload={(file) => handlePhotoUpload(file, "front_right")}
-        />
-        
-        <PhotoUpload
-          id="rear_left"
-          title="Rear Left"
-          description="Rear left wheel"
-          isUploading={false}
-          isUploaded={!!rimPhotos.rear_left}
-          onUpload={(file) => handlePhotoUpload(file, "rear_left")}
-        />
-        
-        <PhotoUpload
-          id="rear_right"
-          title="Rear Right"
-          description="Rear right wheel"
-          isUploading={false}
-          isUploaded={!!rimPhotos.rear_right}
-          onUpload={(file) => handlePhotoUpload(file, "rear_right")}
-        />
-      </div>
-
-      {!isComplete && (
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={markComplete}
-          className="mt-4"
-        >
-          Skip Rim Photos
-        </Button>
+      <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">
+        Rim Photos
+      </h2>
+      
+      {missingCarId && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Please save your form progress before uploading rim photos. 
+            Navigate to another section and back if this message persists.
+          </AlertDescription>
+        </Alert>
       )}
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <PhotoUpload
+          id="rim_front_left"
+          title="Front Left Rim"
+          description="Clear photo of front left wheel"
+          isUploading={false}
+          disabled={missingCarId}
+          onUpload={(file) => handleRimPhotoUpload(file, 'front_left')}
+        />
+        <PhotoUpload
+          id="rim_front_right"
+          title="Front Right Rim"
+          description="Clear photo of front right wheel"
+          isUploading={false}
+          disabled={missingCarId}
+          onUpload={(file) => handleRimPhotoUpload(file, 'front_right')}
+        />
+        <PhotoUpload
+          id="rim_rear_left"
+          title="Rear Left Rim"
+          description="Clear photo of rear left wheel"
+          isUploading={false}
+          disabled={missingCarId}
+          onUpload={(file) => handleRimPhotoUpload(file, 'rear_left')}
+        />
+        <PhotoUpload
+          id="rim_rear_right"
+          title="Rear Right Rim"
+          description="Clear photo of rear right wheel"
+          isUploading={false}
+          disabled={missingCarId}
+          onUpload={(file) => handleRimPhotoUpload(file, 'rear_right')}
+        />
+      </div>
     </Card>
   );
 };

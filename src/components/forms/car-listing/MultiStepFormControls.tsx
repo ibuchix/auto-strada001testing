@@ -1,9 +1,4 @@
 
-/**
- * Changes made:
- * - 2023-07-15: Updated props and fixed parameter names for consistency
- */
-
 import { Button } from "@/components/ui/button";
 import { FormSubmitButton } from "./FormSubmitButton";
 import { TransactionStatus } from "@/services/supabase/transactionService";
@@ -17,7 +12,6 @@ interface MultiStepFormControlsProps {
   onSubmit: () => void;
   isSubmitting: boolean;
   isLastStep: boolean;
-  isFirstStep: boolean;
   transactionStatus?: TransactionStatus | null;
   forceEnable?: boolean;
   onRetry?: () => void;
@@ -32,7 +26,6 @@ export const MultiStepFormControls = ({
   onSubmit,
   isSubmitting,
   isLastStep,
-  isFirstStep,
   transactionStatus,
   forceEnable,
   onRetry,
@@ -54,7 +47,7 @@ export const MultiStepFormControls = ({
             type="button"
             onClick={onPrevious}
             variant="outline"
-            disabled={isFirstStep}
+            disabled={currentStep === 0}
             className="flex items-center"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />

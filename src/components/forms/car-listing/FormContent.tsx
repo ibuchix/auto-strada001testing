@@ -1,8 +1,6 @@
 /**
  * Changes made:
  * - 2028-06-01: Added diagnostic panel and enhanced transaction tracking
- * - 2023-07-15: Fixed type errors with mileage, previousOwners, and accidentHistory
- * - 2024-07-24: Fixed string to boolean conversion for isDamaged
  */
 
 import { useRef, useState, useEffect } from "react";
@@ -40,10 +38,12 @@ export const FormContent = ({
   const submissionErrorRef = useRef<string | null>(null);
   const transactionIdRef = useRef<string | null>(null);
   
+  // Generate a unique ID for this form session
   useEffect(() => {
     if (!transactionIdRef.current) {
       transactionIdRef.current = crypto.randomUUID();
       
+      // Log form initialization
       if (diagnosticId) {
         logDiagnostic('FORM_INIT', 'Form content initialized', {
           transactionId: transactionIdRef.current,
@@ -53,6 +53,7 @@ export const FormContent = ({
     }
   }, [diagnosticId, draftId]);
   
+  // Form state
   const form = useForm<CarListingFormData>({
     defaultValues: {
       vin: "",
@@ -60,8 +61,8 @@ export const FormContent = ({
       model: "",
       year: new Date().getFullYear(),
       registrationNumber: "",
-      mileage: 0,
-      engineCapacity: 0,
+      mileage: "",
+      engineCapacity: "",
       transmission: "manual",
       bodyType: "sedan",
       exteriorColor: "",
@@ -77,7 +78,7 @@ export const FormContent = ({
       mobileNumber: "",
       contactEmail: "",
       notes: "",
-      previousOwners: 1,
+      previousOwners: "1",
       accidentHistory: "none",
       isDamaged: false,
       isRegisteredInPoland: true,
@@ -112,10 +113,10 @@ export const FormContent = ({
       rimPhotosComplete: false,
       financeDocument: null,
       serviceHistoryFiles: [],
-      userId: session?.user?.id,
     }
   });
   
+  // Use form submission context
   const {
     submitting,
     error,
@@ -126,9 +127,11 @@ export const FormContent = ({
     resetTransaction
   } = useFormSubmissionContext();
   
+  // Update component submitting state from context
   useEffect(() => {
     setIsSubmitting(submitting);
     
+    // Log transaction status changes
     if (diagnosticId && transactionStatus) {
       logDiagnostic('TRANSACTION_STATUS', `Transaction status changed to ${transactionStatus}`, {
         transactionId: transactionIdRef.current,
@@ -137,10 +140,12 @@ export const FormContent = ({
     }
   }, [submitting, transactionStatus, diagnosticId]);
   
+  // Track submission errors
   useEffect(() => {
     if (error && error !== submissionErrorRef.current) {
       submissionErrorRef.current = error;
       
+      // Log errors
       if (diagnosticId) {
         logDiagnostic('SUBMISSION_ERROR', 'Submission encountered an error', {
           error,
@@ -150,6 +155,7 @@ export const FormContent = ({
     }
   }, [error, diagnosticId]);
   
+  // Form persistence with autosave
   const { lastSaved, isOffline, saveProgress, carId } = useFormPersistence(
     form,
     session?.user?.id,
@@ -160,12 +166,14 @@ export const FormContent = ({
     }
   );
   
+  // Sections visibility handling
   const { visibleSections } = useSectionsVisibility(form, carId);
   
   useEffect(() => {
     setIsMounted(true);
   }, []);
   
+  // Handle manual form submission
   const onSubmit = async (data: CarListingFormData) => {
     if (diagnosticId) {
       logDiagnostic('SUBMIT_ATTEMPT', 'Form submission started', {
@@ -175,12 +183,16 @@ export const FormContent = ({
     }
     
     try {
+      // Reset any previous errors
       submissionErrorRef.current = null;
       
+      // Save progress one last time before submitting
       await saveProgress();
       
+      // Handle submission
       await handleSubmit(data, carId);
     } catch (error: any) {
+      // Log submission errors
       if (diagnosticId) {
         logDiagnostic('SUBMIT_ERROR', 'Error during form submission', {
           error: error.message,
@@ -208,19 +220,23 @@ export const FormContent = ({
     <FormDataProvider form={form}>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-24 relative">
+          {/* Form error display */}
           {error && <FormTransactionError error={error} onRetry={resetTransaction} />}
           
+          {/* Success dialog */}
           <FormSuccessDialog
             open={showSuccessDialog}
             onClose={() => setShowSuccessDialog(false)}
           />
           
+          {/* Step indicator */}
           <FormStepIndicator 
             currentStep={currentStep} 
             onStepClick={setCurrentStep}
             visibleSections={visibleSections}
           />
           
+          {/* Multi-step form */}
           <div>
             <StepForm
               form={form}
@@ -236,6 +252,7 @@ export const FormContent = ({
             />
           </div>
           
+          {/* Submit button */}
           <FormSubmitButton
             isSubmitting={isSubmitting}
             transactionStatus={transactionStatus}
@@ -244,6 +261,7 @@ export const FormContent = ({
             formData={form.getValues()}
           />
           
+          {/* Debug panel */}
           <TransactionDebugPanel 
             transactionId={transactionIdRef.current || undefined}
             transactionStatus={transactionStatus}

@@ -3,8 +3,6 @@
  * Changes made:
  * - 2024-10-16: Created hook for transaction confirmation and tracking
  * - 2024-10-25: Fixed type issues with callback functions and parameter counts
- * - 2024-10-31: Updated to use TransactionType.OTHER instead of GENERAL
- * - 2025-12-01: Fixed import and usage of TransactionStatus and TransactionType
  */
 
 import { useState, useCallback } from "react";
@@ -14,7 +12,7 @@ import {
   TransactionStatus,
   TransactionDetails,
   TransactionOptions
-} from "@/services/supabase/transactions";
+} from "@/services/supabase/transactionService";
 
 interface UseTransactionOptions extends Omit<TransactionOptions, 'onSuccess' | 'onError' | 'onComplete'> {
   onSuccess?: (result: any) => void;
