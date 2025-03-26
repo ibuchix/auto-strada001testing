@@ -1,10 +1,9 @@
 
 /**
  * Changes made:
- * - 2024-10-25: Added missing placeBid export
- * - 2024-10-31: Fixed parameter names to match RPC function definition
- * - 2024-12-05: Improved type safety for bid response
- * - 2024-12-12: Fixed type conversion for RPC response data
+ * - Improved type safety for RPC response
+ * - Ensured proper export of placeBid function
+ * - Added more robust type checking for bid responses
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -32,27 +31,25 @@ export interface BidData {
  * @param userId ID of the user placing the bid
  * @returns Promise with bid result information
  */
-export const placeBid = async (auctionId: string, amount: number, userId: string): Promise<BidResponse> => {
+export const placeBid = async (carId: string, amount: number, userId: string): Promise<BidResponse> => {
   try {
     const { data, error } = await supabase.rpc('place_bid', {
-      p_car_id: auctionId,
+      p_car_id: carId,
       p_amount: amount,
       p_dealer_id: userId
     });
     
     if (error) throw error;
     
-    // Properly cast and validate the response
-    if (data && typeof data === 'object') {
-      // Type assertion after validation
-      return data as BidResponse;
-    }
-    
-    // Handle unexpected response format
-    return {
-      success: false,
-      error: 'Invalid response format from server'
+    // Validate and convert the response to BidResponse
+    const bidResponse: BidResponse = {
+      success: data && typeof data === 'object' ? true : false,
+      bid_id: typeof data === 'object' && 'bid_id' in data ? data.bid_id : undefined,
+      amount: typeof data === 'object' && 'amount' in data ? data.amount : undefined,
+      error: typeof data === 'object' && 'error' in data ? data.error : undefined
     };
+    
+    return bidResponse;
   } catch (error: any) {
     console.error('Error placing bid:', error);
     return {
@@ -62,11 +59,7 @@ export const placeBid = async (auctionId: string, amount: number, userId: string
   }
 };
 
-/**
- * Place a bid using bid data object
- * @param bidData Object containing bid details
- * @returns Promise with bid result
- */
+// Optional helper function for structured bid submission
 export const placeStructuredBid = async (bidData: BidData): Promise<BidResponse> => {
   try {
     const session = await supabase.auth.getSession();
@@ -88,3 +81,6 @@ export const placeStructuredBid = async (bidData: BidData): Promise<BidResponse>
     };
   }
 };
+
+// Ensure the placeBid function is the default export as well
+export default placeBid;
