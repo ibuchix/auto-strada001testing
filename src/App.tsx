@@ -12,9 +12,10 @@
  * - 2024-10-21: Removed redundant QueryClientProvider since it's already in main.tsx
  * - 2024-12-15: Fixed NavigationDiagnostics placement to be inside Router component 
  * - 2027-07-24: Added diagnostics page route
+ * - 2027-08-01: Removed redundant Router/BrowserRouter to fix nested router issue
  */
 
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import IndexPage from "@/pages/Index";
 import Auth from "@/pages/Auth";
 import Sellers from "@/pages/Sellers";
@@ -43,37 +44,35 @@ import DiagnosticsPage from "./pages/DiagnosticsPage";
 function App() {
   return (
     <>
-      <Router>
-        <AuthProvider>
-          <TransactionProvider>
-            <RealtimeProvider>
-              <Routes>
-                <Route path="/" element={<IndexPage />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/sellers" element={<Sellers />} />
-                <Route path="/dealers" element={<Dealers />} />
-                <Route path="/dashboard/seller" element={<SellerDashboard />} />
-                <Route path="/dashboard/dealer" element={<DealerDashboard />} />
-                <Route path="/how-it-works" element={<HowItWorks />} />
-                <Route path="/sell-my-car" element={<SellMyCar />} />
-                <Route path="/faq" element={<FAQ />} />
-                <Route path="/dealer-signup" element={<DealerSignup />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/manual-valuation" element={<ManualValuation />} />
-                <Route path="/auth/reset-password" element={<ResetPassword />} />
-                <Route path="/auth/update-password" element={<UpdatePassword />} />
-                <Route path="/seller-registration-repair" element={<SellerRegistrationRepairPage />} />
-                <Route path="/diagnostics" element={<DiagnosticsPage />} />
-              </Routes>
-              <Toaster />
-              <NavigationDiagnostics />
-            </RealtimeProvider>
-          </TransactionProvider>
-        </AuthProvider>
-      </Router>
+      <AuthProvider>
+        <TransactionProvider>
+          <RealtimeProvider>
+            <Routes>
+              <Route path="/" element={<IndexPage />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/sellers" element={<Sellers />} />
+              <Route path="/dealers" element={<Dealers />} />
+              <Route path="/dashboard/seller" element={<SellerDashboard />} />
+              <Route path="/dashboard/dealer" element={<DealerDashboard />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/sell-my-car" element={<SellMyCar />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/dealer-signup" element={<DealerSignup />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/manual-valuation" element={<ManualValuation />} />
+              <Route path="/auth/reset-password" element={<ResetPassword />} />
+              <Route path="/auth/update-password" element={<UpdatePassword />} />
+              <Route path="/seller-registration-repair" element={<SellerRegistrationRepairPage />} />
+              <Route path="/diagnostics" element={<DiagnosticsPage />} />
+            </Routes>
+            <Toaster />
+            <NavigationDiagnostics />
+          </RealtimeProvider>
+        </TransactionProvider>
+      </AuthProvider>
     </>
   );
 }

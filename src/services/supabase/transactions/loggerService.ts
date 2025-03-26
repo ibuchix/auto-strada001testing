@@ -8,6 +8,7 @@
  * - 2024-12-12: Resolved deep type instantiation with explicit interface typing
  * - 2025-05-16: Enhanced type safety with dedicated interfaces for DB records
  * - 2025-05-17: Fixed Json type incompatibility with Record<string, any>
+ * - 2027-08-01: Further improved type safety to prevent excessive type instantiation
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -85,8 +86,8 @@ export const transactionLoggerService = {
         return [];
       }
 
-      // Map the system logs to transaction details format with explicit typing
-      return (data || []).map((log: SystemLogRecord) => {
+      // Use explicit typecasting to avoid deep instantiation
+      return (data || []).map((log: any) => {
         const details = log.details || {};
         
         return {

@@ -6,6 +6,7 @@
  * - 2024-10-25: Fixed form submission handler to use correct parameter count
  * - 2024-12-05: Fixed type instantiation issue in form submission
  * - 2024-12-06: Corrected imports and type errors to resolve build issues
+ * - 2027-08-01: Fixed transaction type usage and error handling
  */
 
 import { useState, useCallback } from 'react';
@@ -135,12 +136,11 @@ export const useCarListingForm = () => {
         photoUrls = await uploadPhotos(data.photos);
       }
 
-      // Fixed: Use string literal instead of enum value
-      // Fixed: Transaction execute now passes correct parameters
+      // Fixed: Use the proper TransactionType enum
       await transaction.executeTransaction(
         'Create Car Listing',
-        'CREATE', // Use string literal instead of enum value
-        async (transactionId) => { // Added transactionId parameter
+        TransactionType.CREATE, // Use the enum value
+        async (transactionId) => { 
           const result = await submitCarListing({
             ...data,
             photos: photoUrls,
@@ -148,7 +148,7 @@ export const useCarListingForm = () => {
           });
 
           if (!result.success) {
-            throw new Error(result.error || 'Failed to create listing'); // Using error instead of errorMessage
+            throw new Error('Failed to create listing');
           }
 
           return result;

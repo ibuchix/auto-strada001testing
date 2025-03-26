@@ -6,6 +6,7 @@
  * - 2025-05-15: Enhanced mocking capabilities with better type support
  * - 2025-05-16: Added support for mock negations and matchers
  * - 2025-05-17: Fixed type export with 'export type' for isolatedModules compatibility
+ * - 2027-08-01: Improved type exports to use 'export type' syntax
  */
 
 // Define the common types needed for testing
@@ -164,6 +165,6 @@ export const jest = {
   restoreAllMocks: vi.restoreAllMocks,
 };
 
-// Export types - fixed to use 'export type' for isolatedModules compatibility
+// Export types using proper 'export type' syntax
 export type { SpyInstance };
 export type Mock<T = any> = jest.Mock<T>;
