@@ -1,12 +1,13 @@
 
 /**
- * Updated: 2025-08-28
+ * Updated: 2024-09-08
  * Aligned TransactionStatus and TransactionType with the types in transactions/types.ts
+ * Exported TransactionOptions interface
  */
 
-import { TransactionStatus, TransactionType, TransactionOptions } from '@/services/supabase/transactions/types';
+import { TransactionStatus, TransactionType, TransactionOptions, TransactionMetadata } from '@/services/supabase/transactions/types';
 
-export { TransactionStatus, TransactionType } from '@/services/supabase/transactions/types';
+export { TransactionStatus, TransactionType, TransactionOptions } from '@/services/supabase/transactions/types';
 
 export interface Transaction {
   id: string;

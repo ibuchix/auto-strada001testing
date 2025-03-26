@@ -1,186 +1,157 @@
 
 /**
- * Updated: 2025-08-28
- * Fixed RPC method call and extended SellerDiagnosisResult interface
+ * Updated: 2024-09-08
+ * Fixed SellerRecoveryService implementation
  */
 
-import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
+import { supabaseClient } from '@/integrations/supabase/client';
+
+export interface SellerDiagnosisDetails {
+  hasProfileRecord: boolean;
+  hasSellerRecord: boolean;
+  hasSellerRole: boolean;
+  isVerified: boolean;
+  hasMetadata: boolean;
+  metadataRole?: string;
+  profileRole?: string;
+}
 
 export interface SellerDiagnosisResult {
   success: boolean;
-  repaired: boolean;
   message: string;
-  error?: string; // Added error property
-  userId: string;
-  diagnosisDetails: {
-    hasProfileRecord: boolean;
-    hasSellerRecord: boolean;
-    hasSellerRole: boolean;
-    isVerified: boolean;
-    hasMetadata?: boolean; // Added metadata-related properties
-    metadataRole?: string;
-    profileRole?: string;
-  };
+  error?: string;
+  diagnosisDetails: SellerDiagnosisDetails;
+  userId?: string;
 }
 
 export class SellerRecoveryService {
   async diagnoseSellerStatus(session: Session): Promise<SellerDiagnosisResult> {
+    const userId = session.user.id;
+    
     try {
-      if (!session?.user?.id) {
-        throw new Error("User not authenticated");
-      }
-
-      const userId = session.user.id;
-      
-      // Check user metadata first (fastest)
-      const hasSellerRole = session.user.user_metadata?.role === 'seller';
-      const metadataRole = session.user.user_metadata?.role;
-      const hasMetadata = !!session.user.user_metadata?.role;
-      
-      // Check for profile record
-      const { data: profileData, error: profileError } = await supabase
+      // Check profile record
+      const { data: profileData, error: profileError } = await supabaseClient
         .from('profiles')
-        .select('id, role')
+        .select('*')
         .eq('id', userId)
-        .maybeSingle();
-        
-      if (profileError) {
-        console.error("Error checking profile:", profileError);
-      }
+        .single();
       
-      const hasProfileRecord = !!profileData;
-      const profileRole = profileData?.role;
-      const hasProfileSellerRole = profileData?.role === 'seller';
-      
-      // Check for seller record
-      const { data: sellerData, error: sellerError } = await supabase
+      // Check seller record
+      const { data: sellerData, error: sellerError } = await supabaseClient
         .from('sellers')
-        .select('id, is_verified')
+        .select('*')
         .eq('user_id', userId)
-        .maybeSingle();
-        
-      if (sellerError) {
-        console.error("Error checking seller record:", sellerError);
-      }
+        .single();
       
-      const hasSellerRecord = !!sellerData;
-      const isVerified = sellerData?.is_verified === true;
+      // Check user metadata
+      const metadata = session.user.user_metadata || {};
+      const metadataRole = metadata.role;
+      const profileRole = profileData?.role;
       
-      // Determine success state
-      const success = hasProfileRecord && hasSellerRecord && (hasSellerRole || hasProfileSellerRole);
+      const diagnosisDetails: SellerDiagnosisDetails = {
+        hasProfileRecord: !!profileData,
+        hasSellerRecord: !!sellerData,
+        hasSellerRole: profileData?.role === 'seller',
+        isVerified: sellerData?.verified === true,
+        hasMetadata: !!metadataRole,
+        metadataRole,
+        profileRole
+      };
+      
+      const success = 
+        diagnosisDetails.hasProfileRecord && 
+        diagnosisDetails.hasSellerRecord && 
+        diagnosisDetails.hasSellerRole && 
+        diagnosisDetails.hasMetadata && 
+        metadataRole === 'seller';
       
       return {
         success,
-        repaired: false,
-        message: success 
-          ? "Seller registration is complete" 
-          : "Seller registration needs repair",
-        userId,
-        diagnosisDetails: {
-          hasProfileRecord,
-          hasSellerRecord,
-          hasSellerRole: hasSellerRole || hasProfileSellerRole,
-          isVerified,
-          hasMetadata,
-          metadataRole,
-          profileRole
-        }
+        message: success ? 'Seller status is valid' : 'Seller status issues detected',
+        diagnosisDetails,
+        userId
       };
     } catch (error: any) {
-      console.error("Error diagnosing seller status:", error);
       return {
         success: false,
-        repaired: false,
-        message: "Error diagnosing seller status",
-        error: error.message || "Unknown error occurred",
-        userId: session?.user?.id || '',
+        message: 'Failed to diagnose seller status',
+        error: error.message,
         diagnosisDetails: {
           hasProfileRecord: false,
           hasSellerRecord: false,
           hasSellerRole: false,
-          isVerified: false
-        }
+          isVerified: false,
+          hasMetadata: false
+        },
+        userId
       };
     }
   }
-
-  // Renaming to match what the hook expects
+  
   async repairSellerStatus(session: Session): Promise<SellerDiagnosisResult> {
-    try {
-      if (!session?.user?.id) {
-        throw new Error("User not authenticated");
-      }
-
-      const userId = session.user.id;
-      
-      // Instead of calling RPC, use our SQL capabilities directly
-      // First, ensure profile exists
-      const { data: profileExists } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', userId)
-        .maybeSingle();
-        
-      if (!profileExists) {
-        // Create profile if it doesn't exist
-        await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            role: 'seller'
-          });
-      } else {
-        // Update profile role if it exists
-        await supabase
-          .from('profiles')
-          .update({ role: 'seller' })
-          .eq('id', userId);
-      }
-      
-      // Then, ensure seller record exists
-      const { data: sellerExists } = await supabase
-        .from('sellers')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-        
-      if (!sellerExists) {
-        // Create seller record if it doesn't exist
-        await supabase
-          .from('sellers')
-          .insert({
-            user_id: userId
-          });
-      }
-      
-      // Run diagnosis after repair to get updated status
-      const diagnosisResult = await this.diagnoseSellerStatus(session);
-      
-      // Mark as repaired
+    const userId = session.user.id;
+    const diagnosis = await this.diagnoseSellerStatus(session);
+    
+    if (diagnosis.success) {
       return {
-        ...diagnosisResult,
-        repaired: true,
-        message: "Seller registration has been repaired"
+        ...diagnosis,
+        message: 'Seller status is already valid, no repair needed'
+      };
+    }
+    
+    try {
+      const { diagnosisDetails } = diagnosis;
+      
+      // Create or update profile record if needed
+      if (!diagnosisDetails.hasProfileRecord || diagnosisDetails.profileRole !== 'seller') {
+        await supabaseClient
+          .from('profiles')
+          .upsert({
+            id: userId,
+            role: 'seller',
+            updated_at: new Date().toISOString()
+          });
+      }
+      
+      // Create seller record if needed
+      if (!diagnosisDetails.hasSellerRecord) {
+        await supabaseClient
+          .from('sellers')
+          .upsert({
+            user_id: userId,
+            verified: true,
+            created_at: new Date().toISOString()
+          });
+      }
+      
+      // Update user metadata via RPC
+      if (!diagnosisDetails.hasMetadata || diagnosisDetails.metadataRole !== 'seller') {
+        await supabaseClient.rpc('update_user_role', {
+          user_id: userId,
+          new_role: 'seller'
+        });
+      }
+      
+      // Re-run diagnosis to confirm repair
+      const finalDiagnosis = await this.diagnoseSellerStatus(session);
+      
+      return {
+        ...finalDiagnosis,
+        message: finalDiagnosis.success 
+          ? 'Seller registration successfully repaired' 
+          : 'Repair attempt completed but some issues remain'
       };
     } catch (error: any) {
-      console.error("Error repairing seller registration:", error);
       return {
         success: false,
-        repaired: false,
-        message: "Error repairing seller registration",
-        error: error.message || "Unknown error occurred",
-        userId: session?.user?.id || '',
-        diagnosisDetails: {
-          hasProfileRecord: false,
-          hasSellerRecord: false,
-          hasSellerRole: false,
-          isVerified: false
-        }
+        message: 'Failed to repair seller status',
+        error: error.message,
+        diagnosisDetails: diagnosis.diagnosisDetails,
+        userId
       };
     }
   }
 }
 
-// Create an instance for use throughout the application
 export const sellerRecoveryService = new SellerRecoveryService();

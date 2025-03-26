@@ -1,7 +1,7 @@
 
 /**
- * Updated: 2025-08-28
- * Unified TransactionType and TransactionStatus enums format
+ * Updated: 2024-09-08
+ * Fixed TransactionType and TransactionStatus enums and exported all necessary types
  */
 
 export enum TransactionType {

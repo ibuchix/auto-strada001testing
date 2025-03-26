@@ -1,18 +1,8 @@
 
 /**
- * Updated: 2025-08-26
- * Added CarListing type and fixed imports
+ * Updated: 2024-09-08
+ * Added CarListing interface for dashboard components
  */
-
-import { CarFeatures } from "@/types/forms";
-
-export interface DashboardStats {
-  totalListings: number;
-  activeListings: number;
-  pendingListings: number;
-  soldListings: number;
-  totalEarnings: number;
-}
 
 export interface CarListing {
   id: string;
@@ -20,49 +10,44 @@ export interface CarListing {
   make: string;
   model: string;
   year: number;
+  status: string;
   price: number;
-  status: ListingStatus;
-  created_at: string;
-  images: string[];
-  features: CarFeatures;
-  current_bid?: number;
-  auction_end_time?: string;
-  createdAt?: string;
   currentBid?: number;
-  photos?: string[];
-  is_draft?: boolean;
-  seller_id?: string;
-  auction_status?: AuctionStatus | null;
+  createdAt: string;
+  created_at: string;
+  features: string[];
+  photos: string[];
+  images: string[];
+  is_draft: boolean;
+  seller_id: string;
+  auction_status?: string;
 }
 
-export type ListingStatus = 
-  | 'draft'
-  | 'pending_verification'
-  | 'active'
-  | 'sold'
-  | 'cancelled'
-  | 'expired'
-  | 'rejected';
-
-export type AuctionStatus = 
-  | 'scheduled' 
-  | 'active' 
-  | 'ended' 
-  | 'cancelled';
+export interface DashboardStats {
+  activeListings: number;
+  completedAuctions: number;
+  pendingAuctions: number;
+  totalViews: number;
+  averageSalePrice: number;
+  totalSales: number;
+}
 
 export interface ActivityItem {
   id: string;
-  type: ActivityType;
+  type: 'bid' | 'message' | 'auction_end' | 'listing_created' | 'system';
+  title: string;
+  description: string;
   timestamp: string;
-  details: Record<string, any>;
+  relatedEntityId?: string;
+  isRead: boolean;
 }
 
-export type ActivityType = 
-  | 'listing_created'
-  | 'listing_published'
-  | 'listing_sold'
-  | 'listing_expired'
-  | 'listing_cancelled'
-  | 'bid_received'
-  | 'auction_started'
-  | 'auction_ended';
+export interface NotificationSettings {
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  smsNotifications: boolean;
+  bidAlerts: boolean;
+  messageAlerts: boolean;
+  auctionEndAlerts: boolean;
+  systemAlerts: boolean;
+}

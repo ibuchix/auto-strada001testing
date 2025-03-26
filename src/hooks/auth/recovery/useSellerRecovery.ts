@@ -1,7 +1,7 @@
 
 /**
- * Updated: 2025-08-28
- * Fixed method name and error handling in useSellerRecovery hook
+ * Updated: 2024-09-08
+ * Fixed method names and error handling in useSellerRecovery hook
  */
 
 import { useState, useCallback } from 'react';
@@ -28,7 +28,7 @@ export function useSellerRecovery() {
       setDiagnosis(diagnosisResult);
       
       if (!diagnosisResult.success) {
-        setError(diagnosisResult.error || 'Diagnosis failed');
+        setError(diagnosisResult.message || 'Diagnosis failed');
       }
       
       return diagnosisResult;
@@ -55,7 +55,7 @@ export function useSellerRecovery() {
       setDiagnosis(repairResult);
       
       if (!repairResult.success) {
-        setError(repairResult.error || 'Repair failed');
+        setError(repairResult.message || 'Repair failed');
       }
       
       return repairResult;

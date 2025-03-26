@@ -1,8 +1,7 @@
 
 /**
- * Changes made:
- * - 2024-09-07: Added proper component implementation with default export
- * - 2024-09-08: Fixed export syntax to ensure proper module resolution
+ * Updated: 2024-09-08
+ * Fixed Index page to restore the proper home page design
  */
 
 import React from 'react';
@@ -15,12 +14,6 @@ import { VerifiedDealers } from '@/components/VerifiedDealers';
 import { Navigation } from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 import { RealtimeProvider } from '@/components/RealtimeProvider';
-
-// Note: The following SQL needs to be run in Supabase for real-time functionality:
-// -- Enable replication identity for cars table to get old records in change events
-// ALTER TABLE cars REPLICA IDENTITY FULL;
-// -- Make sure the cars table is in the realtime publication
-// ALTER PUBLICATION supabase_realtime ADD TABLE cars;
 
 const IndexPage = () => {
   return (
