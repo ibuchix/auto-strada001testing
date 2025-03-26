@@ -4,6 +4,7 @@
  * - 2024-08-27: Updated onFileSelect prop type to accept Promise<string | null>
  * - 2024-12-27: Fixed type incompatibility with PhotoUpload component
  * - 2025-05-03: Updated onFileSelect and onUpload to use consistent Promise<string | null> return type
+ * - 2025-05-07: Added diagnosticId prop for improved debugging
  */
 import { useState } from "react";
 import { PhotoUpload } from "./PhotoUpload";
@@ -12,7 +13,7 @@ interface RequiredPhotosProps {
   isUploading: boolean;
   progress?: number;
   onFileSelect: (file: File, type: string) => Promise<string | null>;
-  diagnosticId?: string; // Added for tracking uploads
+  diagnosticId?: string; // Added diagnosticId
 }
 
 export const RequiredPhotos = ({ 

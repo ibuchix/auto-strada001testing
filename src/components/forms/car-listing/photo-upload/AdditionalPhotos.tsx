@@ -4,6 +4,7 @@
  * - 2024-03-19: Initial implementation of additional photos component
  * - 2024-03-19: Added file type validation and limits
  * - 2024-08-09: Enhanced UI and added drag-and-drop functionality
+ * - 2025-05-07: Added diagnosticId for debugging
  */
 
 import { useDropzone } from 'react-dropzone';
@@ -15,10 +16,21 @@ import { toast } from 'sonner';
 interface AdditionalPhotosProps {
   isUploading: boolean;
   onFilesSelect: (files: File[]) => void;
+  diagnosticId?: string; // Added diagnosticId
 }
 
-export const AdditionalPhotos = ({ isUploading, onFilesSelect }: AdditionalPhotosProps) => {
+export const AdditionalPhotos = ({ isUploading, onFilesSelect, diagnosticId }: AdditionalPhotosProps) => {
   const [previewFiles, setPreviewFiles] = useState<{file: File, preview: string}[]>([]);
+  
+  // Log diagnostic information if applicable
+  const logDiagnostic = (event: string, data: any = {}) => {
+    if (diagnosticId) {
+      console.log(`[${diagnosticId}] [AdditionalPhotos] ${event}:`, {
+        ...data,
+        timestamp: new Date().toISOString()
+      });
+    }
+  };
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -34,9 +46,15 @@ export const AdditionalPhotos = ({ isUploading, onFilesSelect }: AdditionalPhoto
           description: "Some files were rejected",
           position: "bottom-center"
         });
+        logDiagnostic('Files rejected', { 
+          rejectedCount: rejectedFiles.length,
+          reasons
+        });
       }
       
       if (acceptedFiles.length > 0) {
+        logDiagnostic('Files accepted', { count: acceptedFiles.length });
+        
         // Create previews
         const newPreviews = acceptedFiles.map(file => ({
           file,
@@ -51,6 +69,7 @@ export const AdditionalPhotos = ({ isUploading, onFilesSelect }: AdditionalPhoto
   });
   
   const removeFile = (index: number) => {
+    logDiagnostic('File removed', { index });
     const newFiles = [...previewFiles];
     URL.revokeObjectURL(newFiles[index].preview); // Clean up preview URL
     newFiles.splice(index, 1);

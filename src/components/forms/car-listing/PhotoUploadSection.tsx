@@ -6,6 +6,7 @@
  * - 2024-08-17: Updated imports to use refactored photo upload hook
  * - 2024-12-27: Fixed handleFileUpload to return a Promise<string | null>
  * - 2025-05-03: Added diagnosticId support and recovery mechanisms
+ * - 2025-05-07: Fixed TypeScript errors for uploadFile and resetUploadState
  */
 
 import { UseFormReturn } from "react-hook-form";

@@ -6,6 +6,7 @@
  * - 2024-03-26: Added proper typing for dropzone integration
  * - 2024-08-09: Enhanced to use organized Supabase Storage with categorized structure
  * - 2024-08-17: Refactored into smaller files for better maintainability
+ * - 2025-05-07: Added diagnosticId prop and exposed uploadFile and resetUploadState
  */
 
 import { useState, useCallback } from 'react';
@@ -17,12 +18,72 @@ export interface UsePhotoUploadProps {
   carId?: string;
   category?: string;
   onProgressUpdate?: (progress: number) => void;
+  diagnosticId?: string; // Added diagnosticId
 }
 
-export const usePhotoUpload = ({ carId, category = 'general', onProgressUpdate }: UsePhotoUploadProps = {}) => {
+export const usePhotoUpload = ({ 
+  carId, 
+  category = 'general', 
+  onProgressUpdate,
+  diagnosticId 
+}: UsePhotoUploadProps = {}) => {
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Log diagnostic information
+  const logDiagnostic = (event: string, data: any = {}) => {
+    if (diagnosticId) {
+      console.log(`[${diagnosticId}] [usePhotoUpload] ${event}:`, {
+        ...data,
+        timestamp: new Date().toISOString(),
+        carId
+      });
+    }
+  };
+
+  const resetUploadState = () => {
+    logDiagnostic('resetUploadState called');
+    setUploadProgress(0);
+    setIsUploading(false);
+  };
+
+  const uploadFile = async (file: File, uploadPath: string): Promise<string | null> => {
+    if (!file) {
+      logDiagnostic('uploadFile called with null file', { uploadPath });
+      return null;
+    }
+
+    logDiagnostic('uploadFile started', { 
+      fileName: file.name, 
+      fileSize: file.size, 
+      uploadPath 
+    });
+    
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    try {
+      // Upload the file and get the URL
+      const result = await uploadPhoto(file, carId || 'temp', category);
+      
+      // Update progress
+      setUploadProgress(100);
+      if (onProgressUpdate) {
+        onProgressUpdate(100);
+      }
+      
+      logDiagnostic('uploadFile completed', { result });
+      return result;
+    } catch (error: any) {
+      logDiagnostic('uploadFile error', { error: error.message });
+      console.error("Error uploading file:", error);
+      toast.error(error.message || "Failed to upload file");
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!carId) {
@@ -78,6 +139,8 @@ export const usePhotoUpload = ({ carId, category = 'general', onProgressUpdate }
     isUploading,
     uploadProgress,
     uploadedPhotos,
-    setUploadedPhotos
+    setUploadedPhotos,
+    uploadFile,    // Expose the uploadFile function
+    resetUploadState  // Expose the resetUploadState function
   };
 };
