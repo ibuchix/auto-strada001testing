@@ -1,14 +1,14 @@
+
 /**
  * Changes made:
  * - 2028-06-01: Added diagnostic panel and enhanced transaction tracking
+ * - 2028-06-03: Fixed import errors and type issues
  */
 
 import { useRef, useState, useEffect } from "react";
 import { Form } from "@/components/ui/form";
 import { StepForm } from "./StepForm";
-import { Session } from "@supabase/supabase-js";
 import { useForm } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
 import { useFormSubmissionContext } from "./submission/FormSubmissionProvider";
 import { toast } from "sonner";
 import { FormTransactionError } from "./submission/FormTransactionError";
@@ -20,12 +20,7 @@ import { useSectionsVisibility } from "./hooks/useSectionsVisibility";
 import { FormStepIndicator } from "./FormStepIndicator";
 import { TransactionDebugPanel } from "@/components/transaction/TransactionDebugPanel";
 import { logDiagnostic } from "@/diagnostics/listingButtonDiagnostics";
-
-interface FormContentProps {
-  session: Session;
-  draftId?: string;
-  diagnosticId?: string;
-}
+import { CarListingFormData } from "@/types/forms";
 
 export const FormContent = ({ 
   session, 
@@ -61,7 +56,7 @@ export const FormContent = ({
       model: "",
       year: new Date().getFullYear(),
       registrationNumber: "",
-      mileage: "",
+      mileage: 0, // Changed from string to number
       engineCapacity: "",
       transmission: "manual",
       bodyType: "sedan",
@@ -70,7 +65,7 @@ export const FormContent = ({
       numberOfDoors: "4",
       seatMaterial: "cloth",
       numberOfKeys: "1",
-      price: "",
+      price: 0, // Changed from string to number
       location: "",
       description: "",
       name: "",
@@ -272,3 +267,9 @@ export const FormContent = ({
     </FormDataProvider>
   );
 };
+
+interface FormContentProps {
+  session: any;
+  draftId?: string;
+  diagnosticId?: string;
+}

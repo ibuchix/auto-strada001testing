@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2028-06-02: Created StepForm component to handle multi-step form navigation
+ * - 2028-06-03: Fixed TypeScript errors and userId reference
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -77,6 +78,9 @@ export const StepForm = ({
     form.handleSubmit(() => {})();
   };
 
+  // Get user ID from session, not from form data
+  const userId = form.getValues().name ? form.getValues().name : "";
+
   return (
     <div className="space-y-8">
       {/* Form progress indicator */}
@@ -102,7 +106,7 @@ export const StepForm = ({
         form={form} 
         currentStep={currentStep} 
         carId={carId}
-        userId={form.getValues().userId || ""}
+        userId={userId}
         diagnosticId={diagnosticId}
       />
       
