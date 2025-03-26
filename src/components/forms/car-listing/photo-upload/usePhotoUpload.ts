@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-26: Fixed TypeScript errors
