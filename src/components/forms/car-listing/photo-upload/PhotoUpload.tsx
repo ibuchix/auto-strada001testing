@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,13 @@ import { PhotoUploadProps } from "./types";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-export const PhotoUpload = ({ id, label, isUploading, onFileSelect }: PhotoUploadProps) => {
+export const PhotoUpload = ({ 
+  id, 
+  label, 
+  isUploading, 
+  onFileSelect, 
+  disabled = false 
+}: PhotoUploadProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -55,7 +62,7 @@ export const PhotoUpload = ({ id, label, isUploading, onFileSelect }: PhotoUploa
           id={id}
           type="file"
           accept="image/*"
-          disabled={isUploading}
+          disabled={isUploading || disabled}
           onChange={handleFileChange}
           className="cursor-pointer"
         />

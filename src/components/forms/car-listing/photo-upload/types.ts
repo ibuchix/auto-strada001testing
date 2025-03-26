@@ -1,4 +1,3 @@
-
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 
@@ -17,6 +16,7 @@ export interface PhotoUploadProps {
   label: string;
   isUploading: boolean;
   onFileSelect: (file: File) => void;
+  disabled?: boolean; // Add optional disabled prop
 }
 
 export const requiredPhotos = [
