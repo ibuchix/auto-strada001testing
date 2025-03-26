@@ -154,10 +154,10 @@ export const vi = {
   spyOn: <T, K extends keyof T>(object: T, method: K): MockInstance<T[K] extends (...args: any[]) => any ? T[K] : never> => {
     // Stub implementation - returns a simplified mock object
     return {
-      mockReturnValue: () => {} as any,
-      mockResolvedValue: () => {} as any,
-      mockRejectedValue: () => {} as any,
-      mockImplementation: () => {} as any,
+      mockReturnValue: () => ({}) as any,
+      mockResolvedValue: () => ({}) as any,
+      mockRejectedValue: () => ({}) as any,
+      mockImplementation: () => ({}) as any,
       mockReset: () => {},
       mockClear: () => {},
       mock: {
