@@ -1,6 +1,9 @@
 
 /**
  * Transaction logger service for tracking transaction events
+ * 
+ * Changes made:
+ * - 2024-10-25: Standardized error property to use errorDetails instead of error
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +28,7 @@ export const transactionLoggerService = {
             status: transaction.status,
             start_time: transaction.startTime,
             end_time: transaction.endTime,
-            error_details: transaction.error,
+            error_details: transaction.errorDetails,
             metadata: transaction.metadata,
             user_id: transaction.userId
           },
@@ -63,13 +66,13 @@ export const transactionLoggerService = {
         return {
           id: log.correlation_id || '',
           operation: details.operation || '',
-          type: details.type || 'GENERAL',
+          type: details.type || 'OTHER',
           status: details.status || 'ERROR',
           entityId: details.entity_id || null,
           entityType: details.entity_type || null,
           startTime: details.start_time || log.created_at,
           endTime: details.end_time || null,
-          error: details.error_details || null,
+          errorDetails: details.error_details || null,
           metadata: details.metadata || null,
           userId: details.user_id || null,
           timestamp: log.created_at

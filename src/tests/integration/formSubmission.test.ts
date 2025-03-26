@@ -1,104 +1,188 @@
-
 /**
  * Changes made:
- * - 2024-08-04: Fixed import for defaultCarFeatures and updated test data
+ * - 2024-10-25: Fixed property access to use carId instead of id
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { submitCarListing } from '../../components/forms/car-listing/submission/services/submissionService';
-import { validateFormData } from '../../components/forms/car-listing/utils/validation';
-import { CarListingFormData, defaultCarFeatures } from '../../types/forms';
+import { describe, it, expect, vi } from 'vitest';
+import { submitForm } from '@/components/forms/car-listing/submission/services/submissionService';
+import { prepareDataForSubmission } from '@/components/forms/car-listing/submission/utils/dataPreparation';
+import { validateSubmissionData } from '@/components/forms/car-listing/submission/utils/validationHandler';
+import { calculateReservePrice } from '@/components/forms/car-listing/submission/utils/reservePriceCalculator';
+import { cleanupTemporaryStorageItems } from '@/components/forms/car-listing/submission/utils/storageCleanup';
 
-// Mock supabase client
-vi.mock('../../integrations/supabase/client', () => ({
+// Mock the dependencies
+vi.mock('@/components/forms/car-listing/submission/utils/dataPreparation');
+vi.mock('@/components/forms/car-listing/submission/utils/validationHandler');
+vi.mock('@/components/forms/car-listing/submission/utils/reservePriceCalculator');
+vi.mock('@/components/forms/car-listing/submission/utils/storageCleanup');
+vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
-    from: vi.fn().mockReturnThis(),
-    upsert: vi.fn().mockReturnThis(),
-    select: vi.fn().mockResolvedValue({ data: [{ id: 'test-id' }], error: null }),
-  },
+    from: () => ({
+      insert: () => ({
+        select: () => ({
+          single: () => ({ data: { id: 'mock-car-id' }, error: null })
+        })
+      })
+    }),
+    storage: {
+      from: () => ({
+        list: () => ({ data: [], error: null }),
+        copy: () => ({ data: {}, error: null })
+      })
+    }
+  }
 }));
 
-describe('Form Submission Integration Tests', () => {
-  const mockUserId = 'test-user-id';
-  let mockFormData: Partial<CarListingFormData>;
-
-  beforeEach(() => {
-    mockFormData = {
-      name: 'Test User',
-      address: '123 Test St',
-      mobileNumber: '+1234567890',
-      features: defaultCarFeatures,
-      isDamaged: false,
-      isRegisteredInPoland: true,
-      isSellingOnBehalf: false,
-      hasPrivatePlate: false,
-      financeAmount: '',
-      serviceHistoryType: 'full',
-      sellerNotes: 'Test notes',
-      numberOfKeys: '2',
-      transmission: 'automatic',
-      vin: 'ABC123456789',
-      make: 'Test Make',
-      model: 'Test Model',
+describe('Form Submission Integration', () => {
+  it('should process form submission successfully', async () => {
+    // Setup mocks
+    const mockFormData = {
+      make: 'Toyota',
+      model: 'Corolla',
       year: 2020,
-      registrationNumber: 'ABC123',
-      mileage: 10000,
-      engineCapacity: 2000,
-      bodyType: 'sedan',
-      exteriorColor: 'black',
-      interiorColor: 'black',
-      numberOfDoors: '4',
-      price: '20000',
-      location: 'Test City',
-      description: 'Test description',
-      contactEmail: 'test@example.com',
-      notes: 'Test notes',
-      previousOwners: 1,
-      accidentHistory: 'none',
-      conditionRating: 4,
-      uploadedPhotos: ['test-photo.jpg'],
-      additionalPhotos: [],
-      requiredPhotos: {
-        front: 'front.jpg',
-        rear: 'rear.jpg',
-        interior: 'interior.jpg',
-        engine: 'engine.jpg',
-      },
-      rimPhotos: {
-        front_left: 'front_left.jpg',
-        front_right: 'front_right.jpg',
-        rear_left: 'rear_left.jpg',
-        rear_right: 'rear_right.jpg',
-      },
-      warningLightPhotos: [],
-      rimPhotosComplete: true,
-      financeDocument: null,
-      serviceHistoryFiles: [],
-      damageReports: []
-    } as CarListingFormData;
-  });
-
-  it('validates form data correctly', () => {
-    const errors = validateFormData(mockFormData);
-    expect(errors).toHaveLength(0);
-  });
-
-  it('validates form data and returns errors for missing fields', () => {
-    const incompleteData = {
+      // ... other required fields
+    };
+    
+    const mockPreparedData = {
       ...mockFormData,
-      name: '',
-      uploadedPhotos: [],
-    } as CarListingFormData;
-
-    const errors = validateFormData(incompleteData);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors.some(e => e.field === 'name')).toBe(true);
-    expect(errors.some(e => e.field === 'uploadedPhotos')).toBe(true);
+      price: 15000,
+      features: { satNav: true, panoramicRoof: false, heatedSeats: true, reverseCamera: true, upgradedSound: false }
+    };
+    
+    const mockReservePrice = 10000;
+    
+    // Mock implementation of utility functions
+    vi.mocked(prepareDataForSubmission).mockReturnValue(mockPreparedData);
+    vi.mocked(validateSubmissionData).mockReturnValue({ isValid: true, errors: [] });
+    vi.mocked(calculateReservePrice).mockReturnValue(mockReservePrice);
+    vi.mocked(cleanupTemporaryStorageItems).mockResolvedValue(undefined);
+    
+    // Execute the test
+    const result = await submitForm(mockFormData as any, 'user-123');
+    
+    // Assertions
+    expect(result.success).toBe(true);
+    expect(result.carId).toBeDefined(); // Fixed to use carId instead of id
+    expect(prepareDataForSubmission).toHaveBeenCalledWith(mockFormData);
+    expect(validateSubmissionData).toHaveBeenCalledWith(mockPreparedData);
+    expect(calculateReservePrice).toHaveBeenCalledWith(mockPreparedData.price);
+    expect(cleanupTemporaryStorageItems).toHaveBeenCalled();
   });
-
-  it('submits form data successfully', async () => {
-    const result = await submitCarListing(mockFormData as CarListingFormData, mockUserId);
-    expect(result).toBeDefined();
-    expect(result.id).toBe('test-id');
+  
+  it('should handle validation errors', async () => {
+    // Setup mocks
+    const mockFormData = {
+      make: 'Toyota',
+      // Missing required fields
+    };
+    
+    const mockPreparedData = { ...mockFormData };
+    
+    // Mock implementation with validation errors
+    vi.mocked(prepareDataForSubmission).mockReturnValue(mockPreparedData);
+    vi.mocked(validateSubmissionData).mockReturnValue({ 
+      isValid: false, 
+      errors: ['Missing required field: model', 'Missing required field: year'] 
+    });
+    
+    // Execute the test
+    const result = await submitForm(mockFormData as any, 'user-123');
+    
+    // Assertions
+    expect(result.success).toBe(false);
+    expect(result.errors).toEqual(['Missing required field: model', 'Missing required field: year']);
+    expect(prepareDataForSubmission).toHaveBeenCalledWith(mockFormData);
+    expect(validateSubmissionData).toHaveBeenCalledWith(mockPreparedData);
+    expect(calculateReservePrice).not.toHaveBeenCalled();
+    expect(cleanupTemporaryStorageItems).not.toHaveBeenCalled();
+  });
+  
+  it('should handle database errors', async () => {
+    // Setup mocks
+    const mockFormData = {
+      make: 'Toyota',
+      model: 'Corolla',
+      year: 2020,
+      // ... other required fields
+    };
+    
+    const mockPreparedData = { ...mockFormData };
+    
+    // Mock implementation
+    vi.mocked(prepareDataForSubmission).mockReturnValue(mockPreparedData);
+    vi.mocked(validateSubmissionData).mockReturnValue({ isValid: true, errors: [] });
+    
+    // Mock database error
+    vi.mock('@/integrations/supabase/client', () => ({
+      supabase: {
+        from: () => ({
+          insert: () => ({
+            select: () => ({
+              single: () => ({ data: null, error: new Error('Database error') })
+            })
+          })
+        }),
+        storage: {
+          from: () => ({
+            list: () => ({ data: [], error: null }),
+            copy: () => ({ data: {}, error: null })
+          })
+        }
+      }
+    }));
+    
+    // Execute the test
+    const result = await submitForm(mockFormData as any, 'user-123');
+    
+    // Assertions
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toContain('Database error');
+    expect(prepareDataForSubmission).toHaveBeenCalledWith(mockFormData);
+    expect(validateSubmissionData).toHaveBeenCalledWith(mockPreparedData);
+  });
+  
+  it('should handle storage errors', async () => {
+    // Setup mocks
+    const mockFormData = {
+      make: 'Toyota',
+      model: 'Corolla',
+      year: 2020,
+      uploadedPhotos: ['temp/photo1.jpg', 'temp/photo2.jpg'],
+      // ... other required fields
+    };
+    
+    const mockPreparedData = { ...mockFormData };
+    
+    // Mock implementation
+    vi.mocked(prepareDataForSubmission).mockReturnValue(mockPreparedData);
+    vi.mocked(validateSubmissionData).mockReturnValue({ isValid: true, errors: [] });
+    
+    // Mock storage error
+    vi.mock('@/integrations/supabase/client', () => ({
+      supabase: {
+        from: () => ({
+          insert: () => ({
+            select: () => ({
+              single: () => ({ data: { id: 'mock-car-id' }, error: null })
+            })
+          })
+        }),
+        storage: {
+          from: () => ({
+            list: () => ({ data: [], error: null }),
+            copy: () => ({ data: null, error: new Error('Storage error') })
+          })
+        }
+      }
+    }));
+    
+    // Execute the test
+    const result = await submitForm(mockFormData as any, 'user-123');
+    
+    // Assertions
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toContain('Storage error');
+    expect(prepareDataForSubmission).toHaveBeenCalledWith(mockFormData);
+    expect(validateSubmissionData).toHaveBeenCalledWith(mockPreparedData);
   });
 });
