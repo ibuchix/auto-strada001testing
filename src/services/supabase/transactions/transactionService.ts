@@ -1,20 +1,23 @@
 
 /**
- * Updated: 2025-08-26
- * Fixed transaction service type issues and added proper enum usage
+ * Updated: 2025-08-27
+ * Fixed transaction service to include required properties
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { Session } from '@supabase/supabase-js';
 import { 
   TransactionDetails, 
-  TransactionMetadata,
-  TransactionOptions,
   TransactionStatus,
-  TransactionType
+  TransactionType,
+  TransactionStep,
+  TransactionOptions
 } from './types';
 import { supabase } from '@/integrations/supabase/client';
 import { transactionLogger } from './loggerService';
+
+// Added type definition for metadata
+type TransactionMetadata = Record<string, any>;
 
 export class TransactionService {
   private session: Session | null = null;
@@ -34,8 +37,8 @@ export class TransactionService {
     
     const transaction: TransactionDetails = {
       id,
-      operation,
       type,
+      name: operation, // Add name property
       status: TransactionStatus.PENDING,
       startTime,
       userId,
@@ -79,7 +82,7 @@ export class TransactionService {
     }
     
     if (error) {
-      updatedTransaction.errorDetails = typeof error === 'string' 
+      updatedTransaction.error = typeof error === 'string' 
         ? error 
         : error.message || JSON.stringify(error);
     }

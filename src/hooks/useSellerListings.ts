@@ -1,6 +1,7 @@
 
 /**
- * Fixed CarListing import and enhanced the hook to support different listing types
+ * Updated: 2025-08-27
+ * Fixed transformed data mapping to match CarListing type
  */
 
 import { useState, useEffect } from "react";
@@ -47,8 +48,9 @@ export const useSellerListings = (session: any) => {
         year: car.year || new Date().getFullYear(),
         status: car.status || 'unknown',
         price: car.price || 0,
-        currentBid: car.current_bid,
-        createdAt: car.created_at,
+        current_bid: car.current_bid,
+        created_at: car.created_at,
+        images: car.images || car.additional_photos || [],
         features: car.features || { 
           satNav: false, 
           panoramicRoof: false,
@@ -56,10 +58,13 @@ export const useSellerListings = (session: any) => {
           heatedSeats: false,
           upgradedSound: false
         },
+        // Include both older and newer property names for compatibility
         photos: car.images || car.additional_photos || [],
         is_draft: car.is_draft || false,
         seller_id: car.seller_id,
-        auction_status: car.auction_status || 'draft'
+        auction_status: car.auction_status || null,
+        createdAt: car.created_at,
+        currentBid: car.current_bid
       }));
 
       setListings(transformedData);

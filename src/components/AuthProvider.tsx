@@ -1,7 +1,7 @@
 
 /**
- * Created: 2025-08-26
- * Stub AuthProvider component to fix build errors
+ * Updated: 2025-08-27
+ * Added isSeller and refreshSellerStatus properties to AuthContext
  */
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -21,6 +21,8 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   refreshSession: () => Promise<void>;
+  isSeller: boolean;
+  refreshSellerStatus: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -31,7 +33,9 @@ const AuthContext = createContext<AuthContextType>({
   signup: async () => ({ error: null }),
   loading: true,
   isAuthenticated: false,
-  refreshSession: async () => {}
+  refreshSession: async () => {},
+  isSeller: false,
+  refreshSellerStatus: async () => false
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -44,6 +48,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSeller, setIsSeller] = useState(false);
 
   // Initial session check
   useEffect(() => {
@@ -51,6 +56,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
       setUser(data.session?.user || null);
+      
+      // Check if user is a seller
+      if (data.session?.user) {
+        const isSeller = data.session.user.user_metadata?.role === 'seller';
+        setIsSeller(isSeller);
+      }
+      
       setLoading(false);
     };
 
@@ -61,6 +73,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       (_event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user || null);
+        
+        // Check if user is a seller
+        if (newSession?.user) {
+          const isSeller = newSession.user.user_metadata?.role === 'seller';
+          setIsSeller(isSeller);
+        } else {
+          setIsSeller(false);
+        }
+        
         setLoading(false);
       }
     );
@@ -99,6 +120,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(data.session?.user || null);
   };
 
+  const refreshSellerStatus = async (): Promise<boolean> => {
+    try {
+      // Check if user is already signed in
+      if (!session?.user?.id) return false;
+      
+      // Refresh the session first
+      await refreshSession();
+      
+      // Check metadata first (fastest)
+      if (session?.user?.user_metadata?.role === 'seller') {
+        setIsSeller(true);
+        return true;
+      }
+      
+      // Try to check the database
+      const { data: sellerData, error } = await supabase
+        .from('sellers')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+        
+      if (error) {
+        console.error("Error checking seller status:", error);
+        return false;
+      }
+      
+      const hasSellerRecord = !!sellerData;
+      setIsSeller(hasSellerRecord);
+      
+      // Update user metadata if needed
+      if (hasSellerRecord && !session.user.user_metadata?.role) {
+        await supabase.auth.updateUser({
+          data: { role: 'seller' }
+        });
+      }
+      
+      return hasSellerRecord;
+    } catch (error) {
+      console.error("Error refreshing seller status:", error);
+      return false;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -110,6 +174,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         loading,
         isAuthenticated: !!session,
         refreshSession,
+        isSeller,
+        refreshSellerStatus
       }}
     >
       {children}

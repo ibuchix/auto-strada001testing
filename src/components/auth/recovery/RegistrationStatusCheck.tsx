@@ -1,17 +1,20 @@
 
 /**
- * Created: 2025-08-26
- * Component to check seller registration status
+ * Updated: 2025-08-27
+ * Fixed component props and sellerRecoveryService import
  */
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
-import { sellerRecoveryService } from "@/services/supabase/sellers/sellerRecoveryService";
+import { SellerRecoveryService } from "@/services/supabase/sellers/sellerRecoveryService";
 import { toast } from "sonner";
 
-interface RegistrationStatusCheckProps {
-  children: React.ReactNode;
+// Create an instance of the service
+const sellerRecoveryService = new SellerRecoveryService();
+
+export interface RegistrationStatusCheckProps {
+  children?: React.ReactNode;
 }
 
 export function RegistrationStatusCheck({ children }: RegistrationStatusCheckProps) {

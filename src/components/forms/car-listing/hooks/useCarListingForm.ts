@@ -1,7 +1,7 @@
 
 /**
- * Updated: 2025-08-26
- * Fixed TransactionType usage in useCarListingForm hook
+ * Updated: 2025-08-27
+ * Fixed TransactionType usage in useCarListingForm
  */
 
 import { useState, useCallback } from 'react';
@@ -131,10 +131,9 @@ export const useCarListingForm = () => {
         photoUrls = await uploadPhotos(data.photos);
       }
 
-      // Use the string literal instead of enum value
       await transaction.executeTransaction(
         'Create Car Listing',
-        'CREATE', // Use string literal instead of enum
+        TransactionType.CREATE, // Using enum value instead of string literal
         async (transactionId) => { 
           const result = await submitCarListing({
             ...data,

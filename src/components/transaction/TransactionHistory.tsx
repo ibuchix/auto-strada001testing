@@ -1,6 +1,7 @@
 
 /**
- * Fixed component imports and type references
+ * Updated: 2025-08-27
+ * Fixed TransactionType comparisons
  */
 
 import { useState, useEffect } from "react";
@@ -37,7 +38,8 @@ export const TransactionHistory = () => {
     fetchTransactions();
   }, []);
 
-  const getTypeIcon = (type: TransactionType) => {
+  const getTypeIcon = (type: string) => {
+    // Compare against string values instead of enum
     switch (type) {
       case TransactionType.CREATE:
         return "✏️";
@@ -58,7 +60,8 @@ export const TransactionHistory = () => {
     }
   };
 
-  const getStatusColor = (status: TransactionStatus) => {
+  const getStatusColor = (status: string) => {
+    // Compare against string values instead of enum
     switch (status) {
       case TransactionStatus.SUCCESS:
         return "bg-green-100 text-green-800";

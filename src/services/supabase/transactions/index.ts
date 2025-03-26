@@ -1,16 +1,13 @@
 
 /**
- * Updated: 2025-08-26
+ * Updated: 2025-08-27
  * Fixed exports for transaction services
  */
 
 import { TransactionService } from './transactionService';
-import { transactionLogger } from './loggerService';
+import { TransactionLoggerService } from './loggerService';
 
 export const transactionService = new TransactionService();
-
-export {
-  transactionLogger
-};
+export const transactionLogger = new TransactionLoggerService();
 
 export * from './types';

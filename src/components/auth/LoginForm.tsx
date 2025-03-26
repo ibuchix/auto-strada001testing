@@ -1,151 +1,106 @@
 
 /**
- * Updated: 2025-08-26
- * Fixed auth functions to match AuthProvider interface
+ * Created: 2025-08-27
+ * Basic LoginForm component
  */
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuth } from "../AuthProvider";
+import { useState } from 'react';
+import { useAuth } from '@/components/AuthProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
 
 interface LoginFormProps {
   onRegisterClick: () => void;
 }
 
 export const LoginForm = ({ onRegisterClick }: LoginFormProps) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
-  const auth = useAuth();
-  
+  const [error, setError] = useState<string | null>(null);
+  const { login } = useAuth();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      setError("Please enter both email and password");
-      return;
-    }
-    
     setError(null);
     setIsLoading(true);
-    
+
     try {
-      // Use login instead of signIn to match AuthProvider interface
-      const { error: authError } = await auth.login(email, password);
-      
-      if (authError) {
-        setError(authError.message || "Failed to sign in");
+      const { error } = await login(email, password);
+      if (error) {
+        setError(error.message);
       }
-    } catch (error: any) {
-      setError(error.message || "An error occurred during sign in");
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during sign in');
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   return (
     <Card>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4 pt-6">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          
+      <CardHeader>
+        <CardTitle>Sign In</CardTitle>
+        <CardDescription>
+          Enter your email and password to access your account
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
-              placeholder="email@example.com"
+              placeholder="your.email@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
-          
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
-              <a
-                href="#"
-                className="text-sm text-muted-foreground hover:text-primary"
-                onClick={(e) => {
-                  e.preventDefault();
-                  // Handle forgot password
-                }}
-              >
+              <Button type="button" variant="ghost" size="sm" className="text-xs text-primary">
                 Forgot password?
-              </a>
+              </Button>
             </div>
             <Input
               id="password"
               type="password"
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
-        </CardContent>
-        
-        <CardFooter className="flex flex-col space-y-4">
-          <Button
-            type="submit"
-            className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
-            disabled={isLoading}
-          >
+          
+          {error && (
+            <div className="text-sm text-red-500 p-2 bg-red-50 rounded">
+              {error}
+            </div>
+          )}
+          
+          <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
-              <span className="flex items-center">
-                <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Signing in...
-              </span>
+              </>
             ) : (
-              "Sign In"
+              'Sign In'
             )}
           </Button>
-          
-          <div className="text-center text-sm">
-            <span className="text-muted-foreground">
-              Don't have an account?{" "}
-            </span>
-            <button
-              type="button"
-              className="text-primary hover:underline font-medium"
-              onClick={onRegisterClick}
-            >
-              Register
-            </button>
-          </div>
-        </CardFooter>
-      </form>
+        </form>
+      </CardContent>
+      <CardFooter className="flex justify-center">
+        <Button variant="link" onClick={onRegisterClick}>
+          Don't have an account? Register
+        </Button>
+      </CardFooter>
     </Card>
   );
 };

@@ -1,7 +1,7 @@
 
 /**
- * Updated: 2025-08-26
- * Fixed TransactionType and TransactionStatus to be proper enums instead of string types
+ * Updated: 2025-08-27
+ * Fixed TransactionType and TransactionStatus to be string enums
  */
 
 export enum TransactionType {
@@ -15,13 +15,13 @@ export enum TransactionType {
 }
 
 export enum TransactionStatus {
-  IDLE = 'idle',
-  PENDING = 'pending',
-  SUCCESS = 'success',
-  ERROR = 'error',
-  ROLLBACK = 'rollback',
-  WARNING = 'warning',
-  INACTIVE = 'inactive'
+  IDLE = 'IDLE',
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  ERROR = 'ERROR',
+  ROLLBACK = 'ROLLBACK',
+  WARNING = 'WARNING',
+  INACTIVE = 'INACTIVE'
 }
 
 export interface TransactionDetailsBase {

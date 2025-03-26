@@ -1,7 +1,6 @@
-
 /**
- * Created: 2025-08-26
- * ProtectedRoute component
+ * Updated: 2025-08-27
+ * Fixed default export to named export
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -12,7 +11,7 @@ interface ProtectedRouteProps {
   requiredRole?: 'seller' | 'dealer' | 'admin';
 }
 
-export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const { isAuthenticated, user, loading } = useAuth();
   
   if (loading) {
@@ -31,4 +30,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   }
   
   return <>{children}</>;
-}
+};
+
+// Also keep the default export for backward compatibility
+export default ProtectedRoute;
