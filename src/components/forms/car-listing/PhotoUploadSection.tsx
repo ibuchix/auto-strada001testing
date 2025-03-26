@@ -1,192 +1,125 @@
 
 /**
  * Changes made:
- * - 2024-08-09: Enhanced to use categorized Supabase Storage
- * - 2024-08-09: Added upload progress tracking
- * - 2024-08-17: Updated imports to use refactored photo upload hook
- * - 2024-12-27: Fixed handleFileUpload to return a Promise<string | null>
- * - 2025-05-03: Added diagnosticId support and recovery mechanisms
- * - 2025-05-07: Fixed TypeScript errors for uploadFile and resetUploadState
+ * - 2025-06-15: Removed diagnosticId prop
  */
 
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
-import { RequiredPhotos } from "./photo-upload/RequiredPhotos";
-import { AdditionalPhotos } from "./photo-upload/AdditionalPhotos";
-import { usePhotoUpload } from "./photo-upload/usePhotoUpload";
-import { PhotoUploadSectionProps } from "./photo-upload/types";
-import { useEffect, useState } from "react";
-import { UploadProgress } from "./UploadProgress";
-import { Card } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Camera, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { saveToCache } from "@/services/offlineCacheService";
+import { useState } from 'react';
+import { usePhotoUpload } from './photo-upload/usePhotoUpload';
+import { PhotoUploadSectionProps } from './photo-upload/types';
+import { RequiredPhotos } from './photo-upload/RequiredPhotos';
+import { AdditionalPhotos } from './photo-upload/AdditionalPhotos';
+import { FormSectionHeader } from './FormSectionHeader';
+import { TabsContent, Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FormSection } from './FormSection';
+import { SaveButton } from './SaveButton';
 
-interface ExtendedPhotoUploadSectionProps extends PhotoUploadSectionProps {
-  onProgressUpdate?: (progress: number) => void;
-  diagnosticId?: string;
-}
-
-export const PhotoUploadSection = ({ 
-  form, 
-  carId, 
-  onProgressUpdate,
-  diagnosticId 
-}: ExtendedPhotoUploadSectionProps) => {
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [attemptingRecovery, setAttemptingRecovery] = useState(false);
-  
+export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => {
+  const [progress, setProgress] = useState(0);
   const { 
     isUploading, 
     uploadedPhotos, 
-    setUploadedPhotos, 
-    uploadProgress: hookProgress,
     uploadFile,
-    resetUploadState
+    setUploadedPhotos
   } = usePhotoUpload({ 
-    carId: carId,
-    category: 'exterior', 
-    onProgressUpdate: setUploadProgress,
-    diagnosticId
+    carId, 
+    category: 'required_photos',
+    onProgressUpdate: setProgress
   });
 
-  // Log diagnostic information
-  const logDiagnostic = (event: string, data: any = {}) => {
-    if (diagnosticId) {
-      console.log(`[${diagnosticId}] [PhotoUploadSection] ${event}:`, {
-        ...data,
-        timestamp: new Date().toISOString(),
-        carId,
-        uploadProgress,
-        hookProgress,
-        isUploading
-      });
-    }
-  };
-
-  useEffect(() => {
-    logDiagnostic('Component mounted');
-    return () => {
-      logDiagnostic('Component unmounted');
-    };
-  }, []);
-
-  useEffect(() => {
-    if (uploadedPhotos.length > 0) {
-      logDiagnostic('Saving uploadedPhotos to form', { count: uploadedPhotos.length });
-      form.setValue('uploadedPhotos', uploadedPhotos);
-      
-      // Persist to localStorage as a backup
-      try {
-        saveToCache('uploadedPhotos', uploadedPhotos);
-        logDiagnostic('Saved uploadedPhotos to cache');
-      } catch (error) {
-        logDiagnostic('Failed to save uploadedPhotos to cache', { error });
-      }
-    }
-  }, [uploadedPhotos, form]);
-
-  useEffect(() => {
-    if (onProgressUpdate) {
-      onProgressUpdate(uploadProgress);
-    }
-  }, [uploadProgress, onProgressUpdate]);
-
-  const handleFileUpload = async (file: File, type: string): Promise<string | null> => {
-    logDiagnostic('handleFileUpload called', { type, fileName: file.name });
-    
-    try {
-      setUploadError(null);
-      const uploadPath = `${carId || 'temp'}/${type}/${file.name}`;
-      const url = await uploadFile(file, uploadPath);
-      
-      if (url) {
-        logDiagnostic('File upload success', { type, url });
-        return url;
-      } else {
-        logDiagnostic('File upload returned null', { type });
-        setUploadError(`Upload failed for ${type}`);
-        return null;
-      }
-    } catch (error) {
-      logDiagnostic('File upload error', { type, error });
-      setUploadError(`Error uploading ${type}: ${error}`);
+  const handleFileSelect = async (file: File, type: string) => {
+    if (!carId) {
       return null;
     }
+    
+    // Upload the file
+    const photoUrl = await uploadFile(file, `${carId}/${type}`);
+    
+    if (photoUrl) {
+      // Update the form with the photo URL
+      const updatedRequiredPhotos = {
+        ...form.getValues('requiredPhotos'),
+        [type]: photoUrl
+      };
+      
+      form.setValue('requiredPhotos', updatedRequiredPhotos, {
+        shouldValidate: true,
+        shouldDirty: true
+      });
+    }
+    
+    return photoUrl;
   };
-
-  const handleRetryUploads = () => {
-    logDiagnostic('Retry uploads clicked');
-    setAttemptingRecovery(true);
+  
+  const handleAdditionalPhotos = async (files: File[]) => {
+    if (!carId) return;
     
-    // Reset error state
-    setUploadError(null);
-    
-    // Reset upload progress
-    setUploadProgress(0);
-    resetUploadState();
-    
-    // Give a small delay before allowing new uploads
-    setTimeout(() => {
-      setAttemptingRecovery(false);
-      logDiagnostic('Upload system reset completed');
-    }, 1000);
+    // Process each file
+    for (const file of files) {
+      const photoUrl = await uploadFile(file, `${carId}/additional`);
+      
+      if (photoUrl) {
+        // Update form with additional photo
+        const currentPhotos = form.getValues('uploadedPhotos') || [];
+        form.setValue('uploadedPhotos', [...currentPhotos, photoUrl], {
+          shouldValidate: true,
+          shouldDirty: true
+        });
+        
+        // Also update local state
+        setUploadedPhotos(prev => [...prev, photoUrl]);
+      }
+    }
   };
 
   return (
-    <Card className="p-6 space-y-6">
-      <h2 className="text-2xl font-bold mb-4 text-dark">Vehicle Photos</h2>
-      
-      <Alert className="mb-4 border-secondary/20 bg-secondary/5">
-        <Camera className="h-4 w-4 text-secondary" />
-        <AlertDescription className="ml-2">
-          Please provide clear photos of your vehicle. High-quality images will help attract more potential buyers.
-        </AlertDescription>
-      </Alert>
-      
-      {uploadError && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertDescription className="flex items-center justify-between">
-            <span>{uploadError}</span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRetryUploads}
-              disabled={attemptingRecovery}
-              className="ml-2"
-            >
-              <RefreshCw className={`h-4 w-4 mr-1 ${attemptingRecovery ? 'animate-spin' : ''}`} />
-              Retry Uploads
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      <RequiredPhotos
-        isUploading={isUploading || attemptingRecovery}
-        onFileSelect={handleFileUpload}
-        progress={uploadProgress}
-        diagnosticId={diagnosticId}
+    <FormSection>
+      <FormSectionHeader 
+        title="Vehicle Photos" 
+        description="Upload clear photos of your vehicle to attract potential buyers" 
       />
       
-      <UploadProgress 
-        progress={hookProgress} 
-        error={uploadError !== null}
-        onRetry={handleRetryUploads}
-      />
+      <div className="mt-6">
+        <Tabs defaultValue="required" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="required">Required Photos</TabsTrigger>
+            <TabsTrigger value="additional">Additional Photos</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="required" className="pt-4 pb-2">
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Please upload all required photos of your vehicle. Clear, well-lit photos help your listing attract more interest.
+              </p>
+              
+              <RequiredPhotos
+                isUploading={isUploading}
+                onFileSelect={handleFileSelect}
+                progress={progress}
+              />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="additional" className="pt-4 pb-2">
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Upload additional photos to showcase specific features or details of your vehicle.
+              </p>
+              
+              <AdditionalPhotos
+                form={form}
+                isUploading={isUploading}
+                onPhotosSelected={handleAdditionalPhotos}
+                progress={progress}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
       
-      <AdditionalPhotos
-        isUploading={isUploading || attemptingRecovery}
-        onFilesSelect={(files) => {
-          logDiagnostic('Additional files selected', { count: files.length });
-          files.forEach(async (file, index) => {
-            await handleFileUpload(file, `additional_${index}`);
-          });
-        }}
-        diagnosticId={diagnosticId}
-      />
-    </Card>
+      <div className="mt-4">
+        <SaveButton carId={carId} />
+      </div>
+    </FormSection>
   );
 };

@@ -12,6 +12,7 @@
  * - 2024-10-21: Removed redundant QueryClientProvider since it's already in main.tsx
  * - 2024-12-15: Fixed NavigationDiagnostics placement to be inside Router component 
  * - 2027-07-24: Added diagnostics page route
+ * - 2027-07-28: Removed diagnostic components
  */
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
@@ -37,7 +38,6 @@ import { UpdatePassword } from "@/components/auth/UpdatePassword";
 import { RealtimeProvider } from "@/components/RealtimeProvider";
 import { TransactionProvider } from "./components/transaction/TransactionProvider";
 import SellerRegistrationRepairPage from "./pages/SellerRegistrationRepair";
-import { NavigationDiagnostics } from './components/debug/NavigationDiagnostics';
 import DiagnosticsPage from "./pages/DiagnosticsPage";
 
 function App() {
@@ -69,7 +69,6 @@ function App() {
                 <Route path="/diagnostics" element={<DiagnosticsPage />} />
               </Routes>
               <Toaster />
-              <NavigationDiagnostics />
             </RealtimeProvider>
           </TransactionProvider>
         </AuthProvider>

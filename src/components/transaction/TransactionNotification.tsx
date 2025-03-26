@@ -1,47 +1,73 @@
 
 /**
- * Changes made:
- * - 2024-10-16: Created transaction notification component for use with sonner
+ * Notification component for displaying transaction status
+ * - 2025-06-15: Fixed TransactionStatus reference issues
  */
 
-import { CheckCircle, XCircle, AlertCircle, Clock } from "lucide-react";
-import { TransactionStatus } from "@/services/supabase/transactionService";
+import { AlertCircle, CheckCircle, Loader2, XCircle } from "lucide-react";
+import { TransactionStatus } from "@/types/forms";
+import { TRANSACTION_STATUS } from "@/services/supabase/transactionService";
 
 interface TransactionNotificationProps {
-  title: string;
-  description?: string;
   status: TransactionStatus;
+  message: string;
+  description?: string;
+  onClose?: () => void;
 }
 
-export const TransactionNotification = ({ 
-  title, 
-  description, 
-  status 
+export const TransactionNotification = ({
+  status,
+  message,
+  description,
+  onClose
 }: TransactionNotificationProps) => {
-  const getStatusIcon = () => {
-    switch (status) {
-      case TransactionStatus.SUCCESS:
-        return <CheckCircle className="h-5 w-5 text-[#21CA6F]" />;
-      case TransactionStatus.ERROR:
-        return <XCircle className="h-5 w-5 text-[#DC143C]" />;
-      case TransactionStatus.WARNING:
-        return <AlertCircle className="h-5 w-5 text-amber-500" />;
-      case TransactionStatus.PENDING:
-        return <Clock className="h-5 w-5 text-[#4B4DED]" />;
-      default:
-        return null;
+  // Determine icon and color based on status
+  const getIconAndColor = () => {
+    if (status === TRANSACTION_STATUS.PENDING) {
+      return {
+        icon: <Loader2 className="h-4 w-4 animate-spin" />,
+        color: "bg-blue-50 text-blue-800 border-blue-300"
+      };
     }
+    if (status === TRANSACTION_STATUS.SUCCESS) {
+      return {
+        icon: <CheckCircle className="h-4 w-4" />,
+        color: "bg-green-50 text-green-800 border-green-300"
+      };
+    }
+    if (status === TRANSACTION_STATUS.ERROR) {
+      return {
+        icon: <AlertCircle className="h-4 w-4" />,
+        color: "bg-red-50 text-red-800 border-red-300"
+      };
+    }
+    return {
+      icon: null,
+      color: "bg-gray-50 text-gray-800 border-gray-300"
+    };
   };
 
+  const { icon, color } = getIconAndColor();
+
   return (
-    <div className="flex items-start gap-3">
-      <div className="mt-1">{getStatusIcon()}</div>
-      <div>
-        <h4 className="text-sm font-semibold text-[#222020]">{title}</h4>
-        {description && (
-          <p className="text-xs text-[#6A6A77] mt-1">{description}</p>
-        )}
+    <div 
+      className={`flex items-center gap-x-3 rounded-md border p-3 ${color} mb-4`}
+      role="alert"
+    >
+      {icon && <div className="flex-shrink-0">{icon}</div>}
+      <div className="flex-grow">
+        <p className="font-medium">{message}</p>
+        {description && <p className="text-sm">{description}</p>}
       </div>
+      {onClose && (
+        <button 
+          onClick={onClose} 
+          className="flex-shrink-0 p-1"
+          aria-label="Close notification"
+        >
+          <XCircle className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 };

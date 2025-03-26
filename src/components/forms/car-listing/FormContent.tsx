@@ -1,7 +1,8 @@
 
 /**
  * Changes made:
- * - Removed diagnostic panel and diagnostic tracking functionality
+ * - Removed diagnostic-related code and props
+ * - Fixed type issues with the form
  */
 
 import { useRef, useState, useEffect } from "react";
@@ -17,6 +18,7 @@ import { useFormPersistence } from "./hooks/useFormPersistence";
 import { FormDataProvider } from "./context/FormDataContext";
 import { useSectionsVisibility } from "./hooks/useSectionsVisibility";
 import { FormStepIndicator } from "./FormStepIndicator";
+import { CarListingFormData } from "@/types/forms";
 
 export const FormContent = ({ session, draftId }) => {
   const [isMounted, setIsMounted] = useState(false);
@@ -33,7 +35,7 @@ export const FormContent = ({ session, draftId }) => {
   }, [draftId]);
 
   // Form state
-  const form = useForm({
+  const form = useForm<Partial<CarListingFormData>>({
     defaultValues: {
       vin: "",
       make: "",

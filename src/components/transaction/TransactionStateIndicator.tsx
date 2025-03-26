@@ -1,69 +1,53 @@
 
 /**
- * Changes made:
- * - 2028-06-01: Created a transaction state indicator component for better user feedback
+ * Transaction status indicator component with appropriate status visuals
  */
+import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { TransactionStatus } from "@/types/forms";
+import { TRANSACTION_STATUS } from "@/services/supabase/transactionService";
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
-import { TransactionStatus } from "@/services/supabase/transactionService";
-
-interface TransactionStateIndicatorProps {
+export interface TransactionStatusIndicatorProps {
   status: TransactionStatus;
-  pendingText?: string;
-  successText?: string;
-  errorText?: string;
-  onRetry?: () => void;
+  className?: string;
 }
 
-export const TransactionStateIndicator = ({
-  status,
-  pendingText = "Processing...",
-  successText = "Success",
-  errorText = "Error",
-  onRetry
-}: TransactionStateIndicatorProps) => {
-  if (status === TransactionStatus.PENDING) {
-    return (
-      <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 flex items-center gap-1.5">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        <span>{pendingText}</span>
-      </Badge>
-    );
+export const TransactionStateIndicator = ({ 
+  status, 
+  className = '' 
+}: TransactionStatusIndicatorProps) => {
+  if (!status || status === TRANSACTION_STATUS.IDLE) {
+    return null;
   }
-  
-  if (status === TransactionStatus.SUCCESS) {
+
+  // Pending state
+  if (status === TRANSACTION_STATUS.PENDING) {
     return (
-      <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 flex items-center gap-1.5">
-        <CheckCircle className="h-3 w-3" />
-        <span>{successText}</span>
-      </Badge>
-    );
-  }
-  
-  if (status === TransactionStatus.ERROR) {
-    return (
-      <div className="flex items-center gap-2">
-        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300 flex items-center gap-1.5">
-          <AlertTriangle className="h-3 w-3" />
-          <span>{errorText}</span>
-        </Badge>
-        
-        {onRetry && (
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="h-5 px-2 text-xs" 
-            onClick={onRetry}
-          >
-            <RefreshCw className="h-3 w-3 mr-1" />
-            Retry
-          </Button>
-        )}
+      <div className={`flex items-center text-blue-600 ${className}`}>
+        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+        <span className="text-sm font-medium">Processing...</span>
       </div>
     );
   }
-  
+
+  // Success state
+  if (status === TRANSACTION_STATUS.SUCCESS) {
+    return (
+      <div className={`flex items-center text-green-600 ${className}`}>
+        <CheckCircle className="mr-1 h-4 w-4" />
+        <span className="text-sm font-medium">Complete</span>
+      </div>
+    );
+  }
+
+  // Error state
+  if (status === TRANSACTION_STATUS.ERROR) {
+    return (
+      <div className={`flex items-center text-destructive ${className}`}>
+        <AlertCircle className="mr-1 h-4 w-4" />
+        <span className="text-sm font-medium">Error</span>
+      </div>
+    );
+  }
+
   return null;
 };

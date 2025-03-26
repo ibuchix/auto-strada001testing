@@ -14,10 +14,21 @@
  * - 2025-05-31: Standardized field naming approach by providing both name and seller_name
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field has_documentation
+ * - 2025-06-10: Added schema validation to catch field mismatches
+ * - 2025-06-15: Removed defaultCarFeatures dependency
  */
 
-import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
+import { CarListingFormData } from "@/types/forms";
 import { Json } from "@/integrations/supabase/types";
+
+// Default car features definition
+const defaultCarFeatures = {
+  satNav: false,
+  panoramicRoof: false,
+  reverseCamera: false,
+  heatedSeats: false,
+  upgradedSound: false
+};
 
 export const transformFormToDbData = (formData: CarListingFormData, userId: string): any => {
   // Safely retrieve data from localStorage with fallbacks

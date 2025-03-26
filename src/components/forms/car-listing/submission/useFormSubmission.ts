@@ -11,6 +11,7 @@
  * - 2024-07-24: Enhanced valuation data validation and error handling
  * - 2024-07-28: Added debug utilities to help diagnose mileage issues
  * - 2024-07-30: Added transaction reset and improved error handling
+ * - 2025-06-15: Removed diagnostic code
  */
 
 import { useState, useEffect } from "react";
@@ -24,8 +25,7 @@ import { validateFormData } from "../utils/validation";
 import { SubmissionErrorType } from "./types";
 import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
 import { useCreateTransaction } from "@/hooks/useTransaction";
-import { TransactionOptions, TransactionStatus } from "@/services/supabase/transactionService";
-import { debugMileageData, logAllLocalStorage } from "../utils/debugUtils";
+import { TransactionOptions, TRANSACTION_STATUS } from "@/services/supabase/transactionService";
 
 export const useFormSubmission = (userId?: string) => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -61,10 +61,10 @@ export const useFormSubmission = (userId?: string) => {
     // Reset transaction state before new submission attempt
     resetTransaction();
     
-    console.log('Debugging mileage data before submission:');
-    debugMileageData();
     console.log('All localStorage items:');
-    logAllLocalStorage();
+    Object.keys(localStorage).forEach(key => {
+      console.log(`${key}: ${localStorage.getItem(key)}`);
+    });
     
     if (!userId) {
       toast.error("Please sign in to submit a listing", {

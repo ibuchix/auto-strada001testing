@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-26: Fixed TypeScript errors
@@ -7,7 +6,8 @@
  * - 2024-08-09: Enhanced to use organized Supabase Storage with categorized structure
  * - 2024-08-17: Refactored into smaller files for better maintainability
  * - 2025-05-07: Added diagnosticId prop and exposed uploadFile and resetUploadState
- * - 2028-06-01: Enhanced with error tracking, retry functionality, and diagnostic logging
+ * - 2028-06-01: Enhanced with error tracking, retry functionality
+ * - 2028-06-10: Removed diagnostic logging functionality
  */
 
 import { useState, useCallback, useRef } from 'react';
@@ -15,13 +15,11 @@ import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { uploadPhoto } from './services/photoStorageService';
 import { logUploadAttempt, updateUploadAttempt } from './services/uploadDiagnostics';
-import { logDiagnostic } from '@/diagnostics/listingButtonDiagnostics';
 
 export interface UsePhotoUploadProps {
   carId?: string;
   category?: string;
   onProgressUpdate?: (progress: number) => void;
-  diagnosticId?: string;
   maxRetries?: number;
 }
 
@@ -29,7 +27,6 @@ export const usePhotoUpload = ({
   carId, 
   category = 'general', 
   onProgressUpdate,
-  diagnosticId,
   maxRetries = 2
 }: UsePhotoUploadProps = {}) => {
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
@@ -40,24 +37,15 @@ export const usePhotoUpload = ({
   const attemptIdRef = useRef<string | null>(null);
   const retryCountRef = useRef<number>(0);
 
-  // Log diagnostic information
+  // Log event information
   const logEvent = (event: string, data: any = {}) => {
-    if (diagnosticId) {
-      logDiagnostic(event, data.message || event, {
-        ...data,
-        carId,
-        category,
-        retryCount: retryCountRef.current
-      }, diagnosticId);
-    } else {
-      console.log(`[usePhotoUpload] ${event}:`, {
-        ...data,
-        timestamp: new Date().toISOString(),
-        carId,
-        category,
-        retryCount: retryCountRef.current
-      });
-    }
+    console.log(`[usePhotoUpload] ${event}:`, {
+      ...data,
+      timestamp: new Date().toISOString(),
+      carId,
+      category,
+      retryCount: retryCountRef.current
+    });
   };
 
   const resetUploadState = () => {

@@ -3,9 +3,8 @@ import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 
 export interface PhotoUploadSectionProps {
-  form: UseFormReturn<CarListingFormData>;
+  form: UseFormReturn<any>;
   carId?: string;
-  diagnosticId?: string; // Added for tracking uploads
 }
 
 export interface CarPhotoData {
@@ -26,7 +25,12 @@ export interface PhotoUploadProps {
   onUpload?: (file: File) => Promise<string | null>; // Updated return type
   disabled?: boolean;
   isRequired?: boolean;
-  diagnosticId?: string;
+}
+
+export interface RequiredPhotosProps {
+  isUploading: boolean;
+  onFileSelect: (file: File, type: string) => Promise<string | null>;
+  progress: number;
 }
 
 export const requiredPhotos = [
