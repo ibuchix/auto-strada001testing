@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of form with validation
@@ -40,7 +39,7 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
         reverseCamera: false,
         heatedSeats: false,
         upgradedSound: false
-      },
+      } as CarFeatures,
       isDamaged: false,
       damageReports: [],
       isRegisteredInPoland: false,

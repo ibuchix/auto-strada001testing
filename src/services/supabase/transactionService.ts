@@ -1,39 +1,75 @@
 
 /**
- * Changes made:
- * - 2028-06-20: Fixed TransactionStatus enum references
- * - Simplified transaction service to remove diagnostic dependencies
- * - Added TransactionType enum to categorize transactions
- * - Added missing exports needed by components
+ * Transaction service type definitions
  */
-import { TransactionStatus } from "@/types/forms";
+import { Json } from "@/integrations/supabase/types";
 
-export type { TransactionStatus };
-
-// Add TransactionType enum
-export enum TransactionType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  UPLOAD = 'upload',
-  AUCTION = 'auction',
-  PAYMENT = 'payment',
-  AUTHENTICATION = 'authentication'
+export enum TRANSACTION_STATUS {
+  IDLE = "idle",
+  PENDING = "pending",
+  SUCCESS = "success",
+  ERROR = "error"
 }
+
+export enum TransactionType {
+  AUCTION = "auction",
+  LISTING = "listing",
+  USER = "user",
+  SYSTEM = "system",
+  BID = "bid",
+  PAYMENT = "payment"
+}
+
+export type TransactionStatus = "idle" | "pending" | "success" | "error";
 
 export interface TransactionOptions {
   description?: string;
   metadata?: Record<string, any>;
   onSuccess?: (result: any) => void;
   onError?: (error: any) => void;
-  throwOnError?: boolean;
   retryCount?: number;
-  logToDb?: boolean;
 }
 
-export const TRANSACTION_STATUS = {
-  IDLE: 'idle' as TransactionStatus,
-  PENDING: 'pending' as TransactionStatus,
-  SUCCESS: 'success' as TransactionStatus,
-  ERROR: 'error' as TransactionStatus
+export interface TransactionLogEntry {
+  transaction_id: string;
+  transaction_name: string;
+  status: TransactionStatus;
+  description?: string;
+  metadata?: Record<string, any>;
+  error?: any;
+  result?: any;
+  created_at?: string;
+}
+
+// Safely converts transaction data to JSON-compatible format
+export const safeJsonify = (data: any): Json => {
+  try {
+    // Create a new object with only serializable properties
+    const safeData: Record<string, any> = {};
+    
+    // Process only the first level of properties to avoid circular references
+    Object.entries(data || {}).forEach(([key, value]) => {
+      // Skip functions
+      if (typeof value === 'function') return;
+      
+      // For objects, convert to string representation to avoid deep traversal
+      if (typeof value === 'object' && value !== null) {
+        try {
+          safeData[key] = JSON.stringify(value);
+        } catch (e) {
+          safeData[key] = `[Object: ${typeof value}]`;
+        }
+        return;
+      }
+      
+      // Handle primitive values
+      safeData[key] = value;
+    });
+    
+    return safeData as Json;
+  } catch (e) {
+    console.error('Error converting transaction data to JSON:', e);
+    return { error: 'Data conversion error' } as Json;
+  }
 };
+

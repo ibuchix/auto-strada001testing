@@ -1,74 +1,91 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { TransactionType } from "@/services/supabase/transactionService";
+import { TRANSACTION_STATUS, TransactionType } from "@/services/supabase/transactionService";
 
-export interface BidParams {
-  carId: string;
-  dealerId: string;
-  amount: number;
-  isProxy?: boolean;
-  maxProxyAmount?: number;
-}
+export const placeBid = async (
+  carId: string,
+  amount: number,
+  dealerId: string,
+  executeTransaction: any
+) => {
+  return executeTransaction(
+    "Place Bid",
+    async () => {
+      const { data, error } = await supabase.rpc("place_bid", {
+        car_id: carId,
+        dealer_id: dealerId,
+        bid_amount: amount,
+      });
 
-export interface BidResponse {
-  success: boolean;
-  bidId?: string;
-  error?: string;
-  amount?: number;
-}
+      if (error) throw error;
 
-export const placeBid = async (params: BidParams): Promise<BidResponse> => {
-  try {
-    const { carId, dealerId, amount, isProxy, maxProxyAmount } = params;
+      // Safely check data structure
+      const result = data as any;
+      
+      if (result && (result.success === false || result.error)) {
+        throw new Error(result.message || "Bid could not be placed");
+      }
 
-    // Call the place_bid function in Supabase
-    const { data, error } = await supabase.rpc("place_bid", {
-      p_car_id: carId,
-      p_dealer_id: dealerId,
-      p_amount: amount,
-      p_is_proxy: isProxy || false,
-      p_max_proxy_amount: maxProxyAmount,
-    });
-
-    if (error) {
-      console.error("Error placing bid:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
+      return result;
     }
+  );
+};
 
+export const getLatestBid = async (carId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from("bids")
+      .select("*")
+      .eq("car_id", carId)
+      .order("amount", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) throw error;
+    
+    // Safely handle bid data
     return {
-      success: true,
-      bidId: data.bid_id,
-      amount: data.amount,
+      bid_id: data?.id,
+      amount: data?.amount,
+      timestamp: data?.created_at,
+      dealer_id: data?.dealer_id
     };
-  } catch (error: any) {
-    console.error("Exception placing bid:", error);
-    toast.error("Failed to place bid");
-    return {
-      success: false,
-      error: error.message || "An unknown error occurred",
-    };
+  } catch (error) {
+    console.error("Error fetching latest bid:", error);
+    return null;
   }
 };
 
-export const getBidStatus = async (carId: string, dealerId: string): Promise<any> => {
+export const getUserBids = async (userId: string) => {
   try {
-    const { data, error } = await supabase.rpc("get_bid_status", {
-      p_car_id: carId,
-      p_dealer_id: dealerId,
-    });
+    const { data, error } = await supabase
+      .from("bids")
+      .select(
+        `
+        id,
+        amount,
+        created_at,
+        status,
+        cars (
+          id,
+          title,
+          make,
+          model,
+          year,
+          auction_end_time,
+          auction_status,
+          current_bid
+        )
+      `
+      )
+      .eq("dealer_id", userId)
+      .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Error getting bid status:", error);
-      return { success: false, error: error.message };
-    }
-
+    if (error) throw error;
     return data;
-  } catch (error: any) {
-    console.error("Exception getting bid status:", error);
-    return { success: false, error: error.message || "An unknown error occurred" };
+  } catch (error) {
+    console.error("Error fetching user bids:", error);
+    return [];
   }
 };

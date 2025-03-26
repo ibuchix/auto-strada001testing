@@ -1,186 +1,164 @@
 
 /**
- * Hook for creating and managing transactions
- * - 2025-06-15: Fixed TransactionStatus reference issues
- * - 2025-06-20: Fixed database table references
+ * Hook for transaction management
  */
+import { useState, useCallback } from "react";
+import { v4 as uuidv4 } from "uuid";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { 
+  TRANSACTION_STATUS, 
+  TransactionStatus, 
+  TransactionOptions,
+  safeJsonify
+} from "@/services/supabase/transactionService";
 
-import { useState, useCallback } from 'react';
-import { useTransaction as useTransactionContext } from '@/components/transaction/TransactionProvider';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { TransactionStatus } from '@/types/forms';
-import { TRANSACTION_STATUS, TransactionOptions } from '@/services/supabase/transactionService';
-
-interface UseCreateTransactionOptions {
+interface UseTransactionOptions {
   showToast?: boolean;
   retryCount?: number;
   logToDb?: boolean;
 }
 
-export const useCreateTransaction = (options: UseCreateTransactionOptions = {}) => {
-  const { showToast = true, retryCount = 0, logToDb = true } = options;
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
-  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | null>(null);
-  const [result, setResult] = useState<any>(null);
+interface TransactionState<T = any> {
+  isLoading: boolean;
+  error: Error | null;
+  data: T | null;
+  transactionId: string | null;
+  transactionStatus: TransactionStatus;
+}
+
+export const useCreateTransaction = (options: UseTransactionOptions = {}) => {
+  const { 
+    showToast = true, 
+    retryCount = 0,
+    logToDb = false
+  } = options;
   
-  const { startTransaction, completeTransaction, failTransaction } = useTransactionContext();
+  const [state, setState] = useState<TransactionState>({
+    isLoading: false,
+    error: null,
+    data: null,
+    transactionId: null,
+    transactionStatus: TRANSACTION_STATUS.IDLE
+  });
   
   const reset = useCallback(() => {
-    setIsLoading(false);
-    setError(null);
-    setTransactionStatus(null);
-    setResult(null);
+    setState({
+      isLoading: false,
+      error: null,
+      data: null,
+      transactionId: null,
+      transactionStatus: TRANSACTION_STATUS.IDLE
+    });
   }, []);
   
-  const execute = useCallback(async <T>(
+  const logTransaction = async <T>(
+    transactionId: string,
+    transactionName: string,
+    status: TransactionStatus,
+    result: T,
+    error: any = null,
+    options: TransactionOptions = {}
+  ) => {
+    if (!logToDb) return;
+    
+    try {
+      // Log to system_logs table instead of transaction_logs
+      await supabase.from('system_logs').insert({
+        id: uuidv4(),
+        log_type: 'transaction',
+        message: `Transaction ${transactionName} (${status})`,
+        details: safeJsonify({
+          transaction_id: transactionId,
+          transaction_name: transactionName,
+          status,
+          result,
+          error,
+          description: options.description,
+          metadata: options.metadata
+        }),
+        correlation_id: transactionId
+      });
+    } catch (err) {
+      console.error('Failed to log transaction:', err);
+    }
+  };
+  
+  const execute = async <T>(
     name: string,
     operation: () => Promise<T>,
-    transactionOptions: TransactionOptions = {}
+    options: TransactionOptions = {}
   ): Promise<T | null> => {
-    // Reset state
-    setIsLoading(true);
-    setError(null);
-    setResult(null);
-    setTransactionStatus(TRANSACTION_STATUS.PENDING);
+    const transactionId = uuidv4();
+    let retries = 0;
+    const maxRetries = retryCount;
     
-    const {
-      description,
-      metadata,
-      onSuccess,
-      onError,
-      throwOnError = false
-    } = transactionOptions;
-    
-    // Start the transaction
-    const transaction = startTransaction(name, {
-      description,
-      metadata,
-      showToast
+    setState({
+      isLoading: true,
+      error: null,
+      data: null,
+      transactionId,
+      transactionStatus: TRANSACTION_STATUS.PENDING
     });
     
-    let attempts = 0;
-    const maxAttempts = retryCount + 1;
-    
-    const attemptOperation = async (): Promise<T | null> => {
-      attempts++;
-      
+    const executeWithRetry = async (): Promise<T | null> => {
       try {
-        // Execute the operation
-        const operationResult = await operation();
+        const result = await operation();
         
-        // Update state
-        setResult(operationResult);
-        setTransactionStatus(TRANSACTION_STATUS.SUCCESS);
+        setState({
+          isLoading: false,
+          error: null,
+          data: result,
+          transactionId,
+          transactionStatus: TRANSACTION_STATUS.SUCCESS
+        });
         
-        // Complete the transaction
-        completeTransaction(transaction.id, operationResult);
-        
-        // Log to database if enabled
-        if (logToDb) {
-          try {
-            // Use system_logs table instead of transaction_logs
-            await supabase.from('system_logs').insert({
-              log_type: 'transaction',
-              message: `Transaction completed: ${name}`,
-              details: {
-                transaction_id: transaction.id,
-                transaction_name: name,
-                status: TRANSACTION_STATUS.SUCCESS,
-                result: operationResult,
-                description,
-                metadata
-              }
-            });
-          } catch (logErr) {
-            console.error('Failed to log transaction:', logErr);
-          }
-        }
-        
-        // Show success toast if enabled
         if (showToast) {
-          toast.success(`${name} completed`, {
-            id: `transaction-${transaction.id}`,
-            description: description || 'Operation completed successfully'
-          });
+          toast.success(`${name} completed successfully`);
         }
         
-        // Call success callback if provided
-        if (onSuccess) {
-          onSuccess(operationResult);
+        if (options.onSuccess) {
+          options.onSuccess(result);
         }
         
-        return operationResult;
-      } catch (err) {
-        // If we have retries left, try again
-        if (attempts < maxAttempts) {
-          console.log(`Attempt ${attempts} failed, retrying...`);
-          return attemptOperation();
+        await logTransaction(transactionId, name, TRANSACTION_STATUS.SUCCESS, result, null, options);
+        
+        return result;
+      } catch (error: any) {
+        if (retries < maxRetries) {
+          retries++;
+          console.log(`Retrying transaction (${retries}/${maxRetries})...`);
+          return executeWithRetry();
         }
         
-        // Otherwise handle the error
-        setError(err);
-        setTransactionStatus(TRANSACTION_STATUS.ERROR);
+        setState({
+          isLoading: false,
+          error: error instanceof Error ? error : new Error(error?.message || 'Unknown error'),
+          data: null,
+          transactionId,
+          transactionStatus: TRANSACTION_STATUS.ERROR
+        });
         
-        // Fail the transaction
-        failTransaction(transaction.id, err);
-        
-        // Log to database if enabled
-        if (logToDb) {
-          try {
-            // Use system_logs table instead of transaction_logs
-            await supabase.from('system_logs').insert({
-              log_type: 'transaction_error',
-              message: `Transaction failed: ${name}`,
-              details: {
-                transaction_id: transaction.id,
-                transaction_name: name,
-                status: TRANSACTION_STATUS.ERROR,
-                error: err,
-                description,
-                metadata
-              },
-              error_message: err.message || 'Unknown error'
-            });
-          } catch (logErr) {
-            console.error('Failed to log transaction error:', logErr);
-          }
-        }
-        
-        // Show error toast if enabled
         if (showToast) {
-          toast.error(`${name} failed`, {
-            id: `transaction-${transaction.id}`,
-            description: err.message || 'Operation failed'
-          });
+          toast.error(`${name} failed: ${error?.message || 'Unknown error'}`);
         }
         
-        // Call error callback if provided
-        if (onError) {
-          onError(err);
+        if (options.onError) {
+          options.onError(error);
         }
         
-        // Throw the error if configured to do so
-        if (throwOnError) {
-          throw err;
-        }
+        await logTransaction(transactionId, name, TRANSACTION_STATUS.ERROR, null, error, options);
         
         return null;
-      } finally {
-        setIsLoading(false);
       }
     };
     
-    return attemptOperation();
-  }, [startTransaction, completeTransaction, failTransaction, showToast, retryCount, logToDb]);
+    return executeWithRetry();
+  };
   
   return {
+    ...state,
     execute,
-    isLoading,
-    error,
-    result,
-    transactionStatus,
     reset
   };
 };

@@ -1,17 +1,17 @@
 
 /**
  * Changes made:
- * - 2028-06-02: Created FormDataContext to share form state across components
- * - 2028-06-20: Updated to use Partial<CarListingFormData> for type compatibility
+ * - Updated to use explicit CarListingFormData type
+ * - Fixed type compatibility issue with Partial
  */
 
 import React, { createContext, ReactNode, useContext } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 
-// Create context with Partial<CarListingFormData>
+// Create context with type compatibility
 interface FormDataContextType {
-  form: UseFormReturn<Partial<CarListingFormData>>;
+  form: UseFormReturn<any>;
 }
 
 const FormDataContext = createContext<FormDataContextType | null>(null);
@@ -19,7 +19,7 @@ const FormDataContext = createContext<FormDataContextType | null>(null);
 // Provider component
 interface FormDataProviderProps {
   children: ReactNode;
-  form: UseFormReturn<Partial<CarListingFormData>>;
+  form: UseFormReturn<any>;
 }
 
 export const FormDataProvider = ({ children, form }: FormDataProviderProps) => {

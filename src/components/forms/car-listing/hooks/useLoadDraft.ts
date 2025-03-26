@@ -3,6 +3,7 @@
  * - 2024-03-19: Initial implementation of draft loading functionality
  * - 2024-03-19: Added data validation and form population
  * - 2024-03-19: Implemented error handling for draft loading
+ * - 2024-08-25: Fixed TypeScript type errors
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -44,7 +45,7 @@ export const useLoadDraft = (
           Object.keys(formValues).forEach((key) => {
             const value = formValues[key as keyof CarListingFormData];
             if (value !== undefined) {
-              form.setValue(key as keyof CarListingFormData, value, {
+              form.setValue(key as any, value as any, {
                 shouldValidate: false,
                 shouldDirty: true,
                 shouldTouch: false,

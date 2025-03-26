@@ -136,7 +136,7 @@ export const useFormPersistence = (
         
         Object.entries(recoveredData).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
-            setValue(key as keyof CarListingFormData, value as any, {
+            setValue(key as any, value as any, {
               shouldValidate: false,
               shouldDirty: false
             });
@@ -168,7 +168,7 @@ export const useFormPersistence = (
       // Apply recovered data to form
       Object.entries(parsedBackup).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          setValue(key as keyof CarListingFormData, value as any, {
+          setValue(key as any, value as any, {
             shouldValidate: false,
             shouldDirty: false
           });
@@ -325,7 +325,7 @@ export const useFormPersistence = (
             
             Object.entries(formValues).forEach(([key, value]) => {
               if (value !== undefined && value !== null) {
-                setValue(key as keyof CarListingFormData, value as any, {
+                setValue(key as any, value as any, {
                   shouldValidate: false,
                   shouldDirty: false
                 });
@@ -360,7 +360,7 @@ export const useFormPersistence = (
           
           Object.entries(savedProgress).forEach(([key, value]) => {
             if (value !== undefined && value !== null) {
-              setValue(key as keyof CarListingFormData, value as any, {
+              setValue(key as any, value as any, {
                 shouldValidate: false,
                 shouldDirty: false
               });

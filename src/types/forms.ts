@@ -6,7 +6,7 @@
  * - Added defaultCarFeatures export
  * - Added AuctionStatus type
  * - Added CarListing type
- * - Made all CarListingFormData properties optional for compatibility with form
+ * - Made CarListingFormData use Partial to fix type conflicts
  * - Fixed the transaction status mapping
  */
 
@@ -21,6 +21,16 @@ export interface DamageReport {
   photo?: string; // Optional photo path
 }
 
+// Define car features with all properties required
+export interface CarFeatures {
+  satNav: boolean;
+  panoramicRoof: boolean;
+  reverseCamera: boolean;
+  heatedSeats: boolean;
+  upgradedSound: boolean;
+  [key: string]: boolean;
+}
+
 // Add default car features export
 export const defaultCarFeatures: CarFeatures = {
   satNav: false,
@@ -33,10 +43,10 @@ export const defaultCarFeatures: CarFeatures = {
 // Define transaction status types
 export type TransactionStatus = "pending" | "success" | "error" | "idle";
 
-// Define AuctionStatus type as string for compatibility with database 
+// Define AuctionStatus type as a union of string literals with string fallback
 export type AuctionStatus = "scheduled" | "active" | "ended" | "cancelled" | "sold" | string;
 
-// Define CarListing type with auction_status as string
+// Define CarListing type with auction_status as AuctionStatus
 export interface CarListing {
   id: string;
   title: string;
@@ -74,11 +84,3 @@ export interface CarListingFormData {
   [key: string]: any;
 }
 
-export interface CarFeatures {
-  satNav: boolean;
-  panoramicRoof: boolean;
-  reverseCamera: boolean;
-  heatedSeats: boolean;
-  upgradedSound: boolean;
-  [key: string]: boolean;
-}
