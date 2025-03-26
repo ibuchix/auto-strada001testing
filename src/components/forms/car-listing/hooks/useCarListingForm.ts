@@ -1,149 +1,166 @@
 
 /**
- * Changes made:
- * - 2024-03-19: Initial implementation of form with validation
- * - 2024-03-19: Added auto-save integration
- * - 2024-03-19: Added draft loading functionality
- * - 2024-08-20: Integrated standardized error handling
- * - 2024-08-04: Updated to use seller_name field instead of name
- * - 2025-06-01: Removed references to non-existent field has_tool_pack
- * - 2025-06-02: Removed references to non-existent field hasDocumentation
- * - 2025-06-10: Added schema validation to catch database field mismatches
- * - 2025-06-15: Fixed CarFeatures type import and usage
+ * Updated to correctly type features and ensure type safety
  */
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { CarListingFormData } from '@/types/forms';
+import { useFormPersistence } from './useFormPersistence';
+import { getValuationData } from '@/components/forms/car-listing/submission/utils/validationHandler';
+import { checkForExistingDraft } from '../utils/formSaveUtils';
+import { CarFeatures, defaultCarFeatures } from '@/utils/types/carFeatures';
 
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { CarListingFormData, CarFeatures } from "@/types/forms";
-import { useFormPersistence } from "./useFormPersistence";
-import { useLoadDraft } from "./useLoadDraft";
-import { validateFormData } from "../utils/validation";
-import { supabase } from "@/integrations/supabase/client";
-import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
-import useSchemaValidation from "@/hooks/useSchemaValidation";
-
-export const useCarListingForm = (userId?: string, draftId?: string) => {
-  const [carId, setCarId] = useState<string | undefined>(draftId);
+export const useCarListingForm = (userId?: string, initialCarId?: string) => {
+  const [carId, setCarId] = useState<string | undefined>(initialCarId);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [isFormDirty, setIsFormDirty] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [currentStep, setCurrentStep] = useState<number>(0);
-  const [validationErrors, setValidationErrors] = useState<any[]>([]);
-  const { error, isLoading, handleSupabaseError, withErrorHandling } = useSupabaseErrorHandling();
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasCheckedForExistingDraft, setHasCheckedForExistingDraft] = useState(false);
 
-  // Initialize form with default values
-  const form = useForm<CarListingFormData>({
+  // Initialize form with default empty values
+  const form = useForm<Partial<CarListingFormData>>({
     defaultValues: {
-      name: "",
-      address: "",
-      mobileNumber: "",
-      features: {
-        satNav: false,
-        panoramicRoof: false,
-        reverseCamera: false,
-        heatedSeats: false,
-        upgradedSound: false
-      } as CarFeatures,
+      vin: '',
+      make: '',
+      model: '',
+      year: undefined,
+      notes: '',
+      address: '',
+      features: defaultCarFeatures as CarFeatures,
       isDamaged: false,
       damageReports: [],
-      isRegisteredInPoland: false,
+      isRegisteredInPoland: true,
       isSellingOnBehalf: false,
       hasPrivatePlate: false,
-      financeAmount: "",
-      serviceHistoryType: "none",
-      uploadedPhotos: [],
-      rimPhotosComplete: false,
-      sellerNotes: "",
-      seatMaterial: "cloth",
-      numberOfKeys: "1"
+      warrantyRemaining: 0,
+      mileage: 0,
+      color: '',
+      fuelType: '',
+      transmission: ''
     },
+    mode: 'onBlur'
   });
 
-  // Add schema validation to catch database field mismatches early
-  const { 
-    validationIssues, 
-    hasSchemaErrors 
-  } = useSchemaValidation(form, 'cars', { validateOnChange: false });
-
-  // Load draft if draftId is provided
-  useLoadDraft(form, setCarId, setLastSaved, userId, draftId);
-
   // Setup form persistence
-  useFormPersistence(form, userId, currentStep);
+  const { loadForm, saveForm, resetForm } = useFormPersistence({
+    form,
+    carId,
+    setCarId,
+    onSaveStart: () => setIsSaving(true),
+    onSaveEnd: (success) => {
+      setIsSaving(false);
+      if (success) {
+        setLastSaved(new Date());
+      }
+    },
+    userId
+  });
 
-  // Update validation errors when form values change
+  // Check for existing draft on initial load
   useEffect(() => {
-    const subscription = form.watch((data) => {
-      const errors = validateFormData(data);
-      setValidationErrors(errors);
+    if (!userId || hasCheckedForExistingDraft || carId) return;
+
+    const checkDraft = async () => {
+      try {
+        const draftId = await checkForExistingDraft(userId);
+        if (draftId) {
+          setCarId(draftId);
+        }
+        setHasCheckedForExistingDraft(true);
+      } catch (error) {
+        console.error('Error checking for draft:', error);
+        setHasCheckedForExistingDraft(true);
+      }
+    };
+
+    checkDraft();
+  }, [userId, hasCheckedForExistingDraft, carId]);
+
+  // Load form data from local storage or API
+  useEffect(() => {
+    if (carId) {
+      loadForm(carId);
+    } else {
+      // Try to pre-populate from valuation data
+      try {
+        const valuationData = getValuationData();
+        if (valuationData) {
+          const { vin, make, model, year, mileage, fuel_type, transmission } = valuationData;
+          
+          // Create normalized form data with type safety for features
+          form.reset({
+            vin,
+            make,
+            model,
+            year: year ? parseInt(year) : undefined,
+            mileage: mileage ? parseInt(mileage) : 0,
+            fuelType: fuel_type || '',
+            transmission: transmission || '',
+            features: defaultCarFeatures
+          }, { keepValues: false });
+        }
+      } catch (error) {
+        console.error('Error loading valuation data:', error);
+      }
+    }
+  }, [carId, loadForm, form]);
+
+  // Detect when form becomes dirty
+  useEffect(() => {
+    const subscription = form.watch(() => {
+      setIsFormDirty(form.formState.isDirty);
     });
     return () => subscription.unsubscribe();
   }, [form]);
 
-  // Load current step from localStorage if available
-  useEffect(() => {
-    const savedStep = localStorage.getItem('formCurrentStep');
-    if (savedStep) {
-      setCurrentStep(parseInt(savedStep, 10));
-    }
-  }, []);
+  // Helper functions for step navigation
+  const goToNextStep = () => {
+    setCurrentStep((prev) => prev + 1);
+    window.scrollTo(0, 0);
+  };
 
-  // Function to save progress manually
-  const saveProgress = async () => {
-    if (!userId) return;
-    
-    return await withErrorHandling(async () => {
-      const formData = form.getValues();
-      
-      // Check if we're creating a new draft or updating an existing one
-      const { data, error } = await supabase
-        .from('cars')
-        .upsert({
-          id: carId,
-          seller_id: userId,
-          seller_name: formData.name, // Use seller_name instead of name
-          address: formData.address,
-          mobile_number: formData.mobileNumber,
-          features: formData.features as CarFeatures,
-          is_damaged: formData.isDamaged,
-          is_registered_in_poland: formData.isRegisteredInPoland,
-          is_selling_on_behalf: formData.isSellingOnBehalf,
-          has_private_plate: formData.hasPrivatePlate,
-          finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
-          service_history_type: formData.serviceHistoryType,
-          seller_notes: formData.sellerNotes,
-          seat_material: formData.seatMaterial,
-          number_of_keys: formData.numberOfKeys ? parseInt(formData.numberOfKeys) : 1,
-          additional_photos: formData.uploadedPhotos || [],
-          is_draft: true,
-          form_metadata: {
-            current_step: currentStep
-          }
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Update carId if this was a new draft
-      if (!carId && data) {
-        setCarId(data.id);
-      }
-      
-      setLastSaved(new Date());
-      return data;
-    }, "Failed to save form progress");
+  const goToPreviousStep = () => {
+    setCurrentStep((prev) => Math.max(0, prev - 1));
+    window.scrollTo(0, 0);
+  };
+
+  const goToStep = (step: number) => {
+    setCurrentStep(step);
+    window.scrollTo(0, 0);
+  };
+
+  // Function to save form progress
+  const saveProgress = () => {
+    return saveForm();
+  };
+
+  // Cleanup form on unmount
+  const cleanup = () => {
+    form.reset({});
+    resetForm();
+    setCarId(undefined);
+    setCurrentStep(0);
   };
 
   return {
     form,
     carId,
-    lastSaved,
+    setCarId,
     currentStep,
-    setCurrentStep,
-    validationErrors,
-    schemaValidationIssues: validationIssues,
-    hasSchemaErrors,
+    isSubmitting,
+    setIsSubmitting,
+    submissionError,
+    setSubmissionError,
+    isFormDirty,
+    lastSaved,
+    isSaving,
+    goToNextStep,
+    goToPreviousStep,
+    goToStep,
     saveProgress,
-    error,
-    isLoading
+    cleanup
   };
 };

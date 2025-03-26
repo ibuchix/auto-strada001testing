@@ -1,9 +1,11 @@
 
 /**
  * Specialized transaction hook for auction operations
+ * - Simplified implementation
+ * - Removed diagnostic dependencies
  */
 import { useCreateTransaction } from "./useTransaction";
-import { TransactionType } from "@/services/supabase/transactionService";
+import { TransactionType } from "@/services/supabase/transactions/types";
 
 export const useAuctionTransaction = () => {
   const transaction = useCreateTransaction({
@@ -25,4 +27,3 @@ export const useAuctionTransaction = () => {
     executeTransaction
   };
 };
-

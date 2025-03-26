@@ -1,9 +1,13 @@
 
 /**
- * Transaction service type definitions
+ * Simplified transaction service
+ * - Removed diagnostic dependencies
+ * - Streamlined transaction logging
  */
-import { Json } from "@/integrations/supabase/types";
 
+import { TransactionStatus } from './transactions/types';
+
+// Re-export transaction status enum for backward compatibility
 export enum TRANSACTION_STATUS {
   IDLE = "idle",
   PENDING = "pending",
@@ -11,6 +15,7 @@ export enum TRANSACTION_STATUS {
   ERROR = "error"
 }
 
+// Re-export transaction type enum
 export enum TransactionType {
   AUCTION = "auction",
   LISTING = "listing",
@@ -20,8 +25,10 @@ export enum TransactionType {
   PAYMENT = "payment"
 }
 
-export type TransactionStatus = "idle" | "pending" | "success" | "error";
+// Re-export transaction status type
+export type { TransactionStatus };
 
+// Configuration options for transactions
 export interface TransactionOptions {
   description?: string;
   metadata?: Record<string, any>;
@@ -30,19 +37,8 @@ export interface TransactionOptions {
   retryCount?: number;
 }
 
-export interface TransactionLogEntry {
-  transaction_id: string;
-  transaction_name: string;
-  status: TransactionStatus;
-  description?: string;
-  metadata?: Record<string, any>;
-  error?: any;
-  result?: any;
-  created_at?: string;
-}
-
 // Safely converts transaction data to JSON-compatible format
-export const safeJsonify = (data: any): Json => {
+export const safeJsonify = (data: any): any => {
   try {
     // Create a new object with only serializable properties
     const safeData: Record<string, any> = {};
@@ -66,10 +62,9 @@ export const safeJsonify = (data: any): Json => {
       safeData[key] = value;
     });
     
-    return safeData as Json;
+    return safeData;
   } catch (e) {
     console.error('Error converting transaction data to JSON:', e);
-    return { error: 'Data conversion error' } as Json;
+    return { error: 'Data conversion error' };
   }
 };
-

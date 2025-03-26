@@ -1,28 +1,42 @@
 
 /**
- * A button component for saving form progress
+ * Updated SaveButton component to support isLoading state
  */
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Save } from 'lucide-react';
+import { Save, Loader2 } from 'lucide-react';
 
-interface SaveButtonProps {
+export interface SaveButtonProps {
   onClick: () => void;
   isSaving?: boolean;
+  isLoading?: boolean; // Added isLoading prop
   className?: string;
+  label?: string; // Added label prop
 }
 
-export const SaveButton = ({ onClick, isSaving = false, className = '' }: SaveButtonProps) => {
+export const SaveButton = ({ 
+  onClick, 
+  isSaving = false,
+  isLoading = false, 
+  className = '',
+  label = 'Save Progress'
+}: SaveButtonProps) => {
+  const isProcessing = isSaving || isLoading;
+  
   return (
     <Button 
       type="button" 
       variant="outline" 
       onClick={onClick} 
-      disabled={isSaving}
+      disabled={isProcessing}
       className={`flex items-center gap-2 ${className}`}
     >
-      <Save size={16} />
-      {isSaving ? 'Saving...' : 'Save Progress'}
+      {isProcessing ? (
+        <Loader2 size={16} className="animate-spin" />
+      ) : (
+        <Save size={16} />
+      )}
+      {isProcessing ? 'Saving...' : label}
     </Button>
   );
 };

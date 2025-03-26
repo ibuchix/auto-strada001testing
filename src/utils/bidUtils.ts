@@ -1,6 +1,12 @@
+
+/**
+ * Utility functions for placing and managing bids
+ * - Simplified interface
+ * - Fixed RPC parameter naming
+ */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { TRANSACTION_STATUS, TransactionType } from "@/services/supabase/transactionService";
+import { TRANSACTION_STATUS } from "@/services/supabase/transactionService";
 
 export interface BidResponse {
   success: boolean;

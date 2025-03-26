@@ -1,6 +1,9 @@
 
 /**
- * Hook for transaction management
+ * Simplified transaction hook for handling operations with consistent error handling
+ * - Removed diagnostic dependencies
+ * - Streamlined transaction logging
+ * - Fixed system_logs table usage
  */
 import { useState, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -9,8 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   TRANSACTION_STATUS, 
   TransactionStatus, 
-  TransactionOptions,
-  safeJsonify
+  TransactionOptions
 } from "@/services/supabase/transactionService";
 
 interface UseTransactionOptions {
@@ -56,27 +58,54 @@ export const useCreateTransaction = (options: UseTransactionOptions = {}) => {
     transactionId: string,
     transactionName: string,
     status: TransactionStatus,
-    result: T,
+    result: T | null,
     error: any = null,
     options: TransactionOptions = {}
   ) => {
     if (!logToDb) return;
     
     try {
-      // Log to system_logs table instead of transaction_logs
+      // Safely prepare the details object
+      const details: Record<string, any> = {
+        transaction_id: transactionId,
+        transaction_name: transactionName,
+        status,
+        description: options.description
+      };
+      
+      // Only include result if it exists and can be converted to string
+      if (result) {
+        try {
+          details.result = typeof result === 'object' 
+            ? JSON.stringify(result) 
+            : String(result);
+        } catch (e) {
+          details.result = '[Complex object]';
+        }
+      }
+      
+      // Only include error if it exists
+      if (error) {
+        details.error = error.message || String(error);
+      }
+      
+      // Only include metadata if it exists
+      if (options.metadata) {
+        try {
+          details.metadata = typeof options.metadata === 'object'
+            ? JSON.stringify(options.metadata)
+            : String(options.metadata);
+        } catch (e) {
+          details.metadata = '[Complex metadata]';
+        }
+      }
+      
+      // Log to system_logs table
       await supabase.from('system_logs').insert({
         id: uuidv4(),
         log_type: 'transaction',
         message: `Transaction ${transactionName} (${status})`,
-        details: safeJsonify({
-          transaction_id: transactionId,
-          transaction_name: transactionName,
-          status,
-          result,
-          error,
-          description: options.description,
-          metadata: options.metadata
-        }),
+        details,
         correlation_id: transactionId
       });
     } catch (err) {
