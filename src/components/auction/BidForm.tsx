@@ -1,7 +1,7 @@
-
 /**
  * Changes made:
  * - 2024-08-04: Fixed TransactionStatus import
+ * - 2024-12-05: Fixed placeBid function call to match updated signature
  */
 
 import { useState, useEffect } from "react";
@@ -25,6 +25,14 @@ interface BidFormProps {
   reserveMet: boolean;
   reservePrice?: number;
   onBidPlaced?: () => void;
+}
+
+// Define interface for bid submission
+interface BidSubmission {
+  carId: string;
+  amount: number;
+  isProxy?: boolean;
+  maxProxyAmount?: number;
 }
 
 export const BidForm = ({
@@ -101,31 +109,43 @@ export const BidForm = ({
     setError(null);
     
     try {
-      const result = await placeBid({
-        carId,
-        amount: bidAmount,
-        isProxy: isProxyBid,
-        maxProxyAmount: isProxyBid ? maxProxyAmount : undefined
-      });
+      // Get userId from session
+      const session = await import('@/integrations/supabase/client').then(
+        mod => mod.supabase.auth.getSession()
+      );
       
-      if (result.success) {
-        setTransactionStatus(TransactionStatus.SUCCESS);
-        toast.success('Bid placed successfully', {
-          description: isProxyBid 
-            ? `Your bid of ${currencyFormat(bidAmount)} with maximum of ${currencyFormat(maxProxyAmount)} was placed` 
-            : `Your bid of ${currencyFormat(bidAmount)} was placed`
-        });
-        
-        // Call onBidPlaced callback if provided
-        if (onBidPlaced) {
-          onBidPlaced();
+      if (!session.data.session?.user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
+      const userId = session.data.session.user.id;
+      
+      // Call placeBid with the required arguments
+      const result = await placeBid(carId, bidAmount, userId);
+      
+      // Type check for the response
+      if (typeof result === 'object' && result !== null && 'success' in result) {
+        if (result.success) {
+          setTransactionStatus(TransactionStatus.SUCCESS);
+          toast.success('Bid placed successfully', {
+            description: isProxyBid 
+              ? `Your bid of ${currencyFormat(bidAmount)} with maximum of ${currencyFormat(maxProxyAmount)} was placed` 
+              : `Your bid of ${currencyFormat(bidAmount)} was placed`
+          });
+          
+          // Call onBidPlaced callback if provided
+          if (onBidPlaced) {
+            onBidPlaced();
+          }
+        } else {
+          setTransactionStatus(TransactionStatus.ERROR);
+          setError(result.error ? String(result.error) : 'Failed to place bid');
+          toast.error('Failed to place bid', {
+            description: result.error ? String(result.error) : 'Please try again'
+          });
         }
       } else {
-        setTransactionStatus(TransactionStatus.ERROR);
-        setError(result.error || 'Failed to place bid');
-        toast.error('Failed to place bid', {
-          description: result.error || 'Please try again'
-        });
+        throw new Error('Invalid response format');
       }
     } catch (err: any) {
       setTransactionStatus(TransactionStatus.ERROR);

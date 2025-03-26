@@ -4,36 +4,48 @@
  * 
  * Changes made:
  * - 2024-10-25: Standardized error property to use errorDetails instead of error
+ * - 2024-12-05: Fixed type instantiation issue in log entries
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { TransactionMetadata, TransactionDetails } from "./types";
 
+// Type for system log entry to prevent deep instantiation
+interface SystemLogEntry {
+  log_type: string;
+  message: string;
+  details: Record<string, any>;
+  correlation_id: string;
+}
+
 // Create a new transaction logger instance
 export const transactionLoggerService = {
   async logTransaction(transaction: TransactionDetails): Promise<void> {
     try {
+      // Create a properly typed system log entry
+      const logEntry: SystemLogEntry = {
+        log_type: 'transaction',
+        message: transaction.operation || 'Unknown operation',
+        details: {
+          transaction_id: transaction.id,
+          operation: transaction.operation,
+          type: transaction.type,
+          entity_id: transaction.entityId,
+          entity_type: transaction.entityType,
+          status: transaction.status,
+          start_time: transaction.startTime,
+          end_time: transaction.endTime,
+          error_details: transaction.errorDetails,
+          metadata: transaction.metadata,
+          user_id: transaction.userId
+        },
+        correlation_id: transaction.id
+      };
+
       // Use system_logs table instead of transaction_logs
       const { error } = await supabase
         .from('system_logs')
-        .insert({
-          log_type: 'transaction',
-          message: transaction.operation || 'Unknown operation',
-          details: {
-            transaction_id: transaction.id,
-            operation: transaction.operation,
-            type: transaction.type,
-            entity_id: transaction.entityId,
-            entity_type: transaction.entityType,
-            status: transaction.status,
-            start_time: transaction.startTime,
-            end_time: transaction.endTime,
-            error_details: transaction.errorDetails,
-            metadata: transaction.metadata,
-            user_id: transaction.userId
-          },
-          correlation_id: transaction.id
-        });
+        .insert(logEntry);
 
       if (error) {
         console.error('Failed to log transaction:', error);
@@ -74,8 +86,7 @@ export const transactionLoggerService = {
           endTime: details.end_time || null,
           errorDetails: details.error_details || null,
           metadata: details.metadata || null,
-          userId: details.user_id || null,
-          timestamp: log.created_at
+          userId: details.user_id || null
         };
       });
     } catch (e) {
