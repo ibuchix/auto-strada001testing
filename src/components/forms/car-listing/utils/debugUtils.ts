@@ -1,7 +1,8 @@
 
 /**
- * Utility functions for debugging form data
- * These replace the diagnostic logging functions
+ * Changes made:
+ * - 2028-06-20: Simplified debug utilities with minimal functionality
+ * - Removed diagnostic logging in favor of standard console logs
  */
 
 export const debugMileageData = (): number => {

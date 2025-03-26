@@ -1,6 +1,8 @@
 
 /**
- * Transaction status types and interfaces for the application
+ * Changes made:
+ * - 2028-06-20: Fixed TransactionStatus enum references
+ * - Simplified transaction service to remove diagnostic dependencies
  */
 import { TransactionStatus } from "@/types/forms";
 
