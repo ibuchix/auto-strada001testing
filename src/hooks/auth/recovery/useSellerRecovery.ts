@@ -2,12 +2,22 @@
 /**
  * Changes made:
  * - 2025-06-12: Created hook for diagnosing and repairing seller registration issues
+ * - 2025-08-19: Fixed return type issues to match sellerRecoveryService
  */
 
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { sellerRecoveryService } from "@/services/supabase/sellers/sellerRecoveryService";
+
+export interface RegistrationRepairResult {
+  success: boolean;
+  repaired: boolean;
+  diagnosisDetails?: {
+    repairActions: string[];
+    [key: string]: any;
+  };
+}
 
 export const useSellerRecovery = () => {
   const { session, refreshSellerStatus } = useAuth();
@@ -54,36 +64,35 @@ export const useSellerRecovery = () => {
       
       const result = await sellerRecoveryService.repairSellerRegistration(session.user.id);
       
-      if (result.success) {
-        if (result.repaired) {
-          toast.dismiss(toastId);
+      // Check if result is a boolean (old implementation) or a RegistrationRepairResult
+      const isDetailedResult = typeof result === 'object' && result !== null;
+      const wasSuccessful = isDetailedResult ? result.success : !!result;
+      
+      if (wasSuccessful) {
+        toast.dismiss(toastId);
+        
+        if (isDetailedResult && result.repaired) {
           toast.success("Registration repaired successfully", {
-            description: result.diagnosisDetails.repairActions.join(', ')
+            description: result.diagnosisDetails?.repairActions.join(', ') || 'All issues fixed'
           });
-          
-          // Update session state to reflect the repaired status
-          await refreshSellerStatus();
-          
-          // Update diagnosis result after repair
-          setDiagnosisResult({
-            metadataHasRole: true,
-            profileHasRole: true,
-            sellerRecordExists: true,
-            isComplete: true
-          });
-          
-          return true;
         } else {
-          toast.dismiss(toastId);
           toast.info("No repairs needed", {
             description: "Your seller registration is already complete."
           });
-          
-          // Run refresh anyway to ensure all state is updated
-          await refreshSellerStatus();
-          
-          return true;
         }
+        
+        // Update session state to reflect the repaired status
+        await refreshSellerStatus();
+        
+        // Update diagnosis result after repair
+        setDiagnosisResult({
+          metadataHasRole: true,
+          profileHasRole: true,
+          sellerRecordExists: true,
+          isComplete: true
+        });
+        
+        return true;
       } else {
         toast.dismiss(toastId);
         toast.error("Repair failed", {

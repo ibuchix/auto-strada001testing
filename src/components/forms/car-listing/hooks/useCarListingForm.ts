@@ -10,6 +10,7 @@
  * - 2027-08-10: Fixed TransactionType import and usage
  * - 2027-08-15: Fixed type error with TransactionType enum
  * - 2027-08-16: Fixed TransactionType string literal type usage
+ * - 2027-08-19: Fixed transaction type parameter to use string literal instead of enum
  */
 
 import { useState, useCallback } from 'react';
@@ -139,10 +140,10 @@ export const useCarListingForm = () => {
         photoUrls = await uploadPhotos(data.photos);
       }
 
-      // Pass the TransactionType as a valid literal type value
+      // Pass the transaction type as a string literal instead of enum
       await transaction.executeTransaction(
         'Create Car Listing',
-        TransactionType.CREATE, // Use the enum value properly
+        'CREATE', // Use string literal instead of enum
         async (transactionId) => { 
           const result = await submitCarListing({
             ...data,
