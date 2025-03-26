@@ -5,7 +5,7 @@
  */
 
 import { Session } from '@supabase/supabase-js';
-import { supabaseClient } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface SellerDiagnosisDetails {
   hasProfileRecord: boolean;
@@ -23,6 +23,7 @@ export interface SellerDiagnosisResult {
   error?: string;
   diagnosisDetails: SellerDiagnosisDetails;
   userId?: string;
+  repaired?: boolean;
 }
 
 export class SellerRecoveryService {
@@ -31,14 +32,14 @@ export class SellerRecoveryService {
     
     try {
       // Check profile record
-      const { data: profileData, error: profileError } = await supabaseClient
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
       
       // Check seller record
-      const { data: sellerData, error: sellerError } = await supabaseClient
+      const { data: sellerData, error: sellerError } = await supabase
         .from('sellers')
         .select('*')
         .eq('user_id', userId)
@@ -96,7 +97,8 @@ export class SellerRecoveryService {
     if (diagnosis.success) {
       return {
         ...diagnosis,
-        message: 'Seller status is already valid, no repair needed'
+        message: 'Seller status is already valid, no repair needed',
+        repaired: false
       };
     }
     
@@ -105,7 +107,7 @@ export class SellerRecoveryService {
       
       // Create or update profile record if needed
       if (!diagnosisDetails.hasProfileRecord || diagnosisDetails.profileRole !== 'seller') {
-        await supabaseClient
+        await supabase
           .from('profiles')
           .upsert({
             id: userId,
@@ -116,7 +118,7 @@ export class SellerRecoveryService {
       
       // Create seller record if needed
       if (!diagnosisDetails.hasSellerRecord) {
-        await supabaseClient
+        await supabase
           .from('sellers')
           .upsert({
             user_id: userId,
@@ -127,7 +129,7 @@ export class SellerRecoveryService {
       
       // Update user metadata via RPC
       if (!diagnosisDetails.hasMetadata || diagnosisDetails.metadataRole !== 'seller') {
-        await supabaseClient.rpc('update_user_role', {
+        await supabase.rpc('update_user_role', {
           user_id: userId,
           new_role: 'seller'
         });
@@ -140,7 +142,8 @@ export class SellerRecoveryService {
         ...finalDiagnosis,
         message: finalDiagnosis.success 
           ? 'Seller registration successfully repaired' 
-          : 'Repair attempt completed but some issues remain'
+          : 'Repair attempt completed but some issues remain',
+        repaired: true
       };
     } catch (error: any) {
       return {
@@ -148,7 +151,8 @@ export class SellerRecoveryService {
         message: 'Failed to repair seller status',
         error: error.message,
         diagnosisDetails: diagnosis.diagnosisDetails,
-        userId
+        userId,
+        repaired: false
       };
     }
   }

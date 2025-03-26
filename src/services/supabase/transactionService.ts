@@ -7,7 +7,7 @@
 
 import { TransactionStatus, TransactionType, TransactionOptions, TransactionMetadata } from '@/services/supabase/transactions/types';
 
-export { TransactionStatus, TransactionType, TransactionOptions } from '@/services/supabase/transactions/types';
+export type { TransactionStatus, TransactionType, TransactionOptions } from '@/services/supabase/transactions/types';
 
 export interface Transaction {
   id: string;

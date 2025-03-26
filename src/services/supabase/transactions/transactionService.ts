@@ -38,12 +38,12 @@ export class TransactionService {
     const transaction: TransactionDetails = {
       id,
       type,
-      name: operation, // Add name property
+      name: operation, // Required name property
       status: TransactionStatus.PENDING,
       startTime,
       userId,
       metadata: options?.metadata || {},
-      steps: []
+      steps: [] // Initialize with empty array
     };
 
     if (options?.entityId) {

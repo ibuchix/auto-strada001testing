@@ -5,7 +5,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { supabaseClient } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { TransactionStatus, TransactionType, TransactionStep, TransactionDetails } from './types';
 
 export class TransactionLoggerService {
@@ -15,27 +15,28 @@ export class TransactionLoggerService {
     this.enabled = enabled;
   }
 
-  async logTransaction(
-    transactionId: string,
-    transactionType: TransactionType,
-    steps: TransactionStep[],
-    metadata: Record<string, any> = {}
-  ): Promise<void> {
+  async logTransaction(transaction: TransactionDetails): Promise<void> {
     if (!this.enabled) return;
 
     try {
-      const { error } = await supabaseClient
+      const serializedDetails = {
+        transaction_id: transaction.id,
+        transaction_type: transaction.type,
+        name: transaction.name,
+        status: transaction.status,
+        startTime: transaction.startTime,
+        endTime: transaction.endTime,
+        steps: JSON.stringify(transaction.steps || []),
+        metadata: transaction.metadata ? JSON.stringify(transaction.metadata) : null
+      };
+
+      const { error } = await supabase
         .from('transaction_logs')
         .insert({
           id: uuidv4(),
           log_type: 'transaction',
-          message: `Transaction ${transactionId} of type ${transactionType}`,
-          details: JSON.stringify({
-            transaction_id: transactionId,
-            transaction_type: transactionType,
-            steps: steps,
-            metadata: metadata
-          })
+          message: `Transaction ${transaction.id} of type ${transaction.type}`,
+          details: JSON.stringify(serializedDetails)
         });
 
       if (error) {
@@ -46,11 +47,11 @@ export class TransactionLoggerService {
     }
   }
 
-  async getTransactionLogs(limit: number = 50): Promise<TransactionDetails[]> {
+  async getTransactionHistory(userId: string, limit: number = 50): Promise<TransactionDetails[]> {
     if (!this.enabled) return [];
 
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('transaction_logs')
         .select('*')
         .eq('log_type', 'transaction')
@@ -64,16 +65,19 @@ export class TransactionLoggerService {
 
       return data.map(log => {
         try {
-          const details = JSON.parse(log.details);
+          const rawDetails = JSON.parse(log.details);
+          const parsedSteps = rawDetails.steps ? JSON.parse(rawDetails.steps) : [];
+          const parsedMetadata = rawDetails.metadata ? JSON.parse(rawDetails.metadata) : undefined;
+          
           return {
-            id: details.transaction_id || log.id,
-            type: details.transaction_type as TransactionType,
-            name: details.name || 'Unknown Transaction',
-            status: details.status as TransactionStatus,
-            startTime: details.startTime || log.created_at,
-            endTime: details.endTime,
-            steps: details.steps || [],
-            metadata: details.metadata,
+            id: rawDetails.transaction_id || log.id,
+            type: rawDetails.transaction_type as TransactionType,
+            name: rawDetails.name || 'Unknown Transaction',
+            status: rawDetails.status as TransactionStatus,
+            startTime: rawDetails.startTime || log.created_at,
+            endTime: rawDetails.endTime,
+            steps: parsedSteps,
+            metadata: parsedMetadata,
             error: log.error_message
           };
         } catch (err) {
@@ -99,7 +103,7 @@ export class TransactionLoggerService {
     if (!this.enabled) return;
 
     try {
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('transaction_logs')
         .delete()
         .eq('log_type', 'transaction');

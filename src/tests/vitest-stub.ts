@@ -91,6 +91,13 @@ vi.fn = function<T extends (...args: any[]) => any>(implementation?: T): MockedF
   return createMockedFunction<T>(implementation);
 };
 
+// Add missing 'mock' property to vi
+vi.mock = (moduleName: string, factory?: () => any, options?: any) => {
+  // This is just a stub implementation that does nothing
+  console.log(`Mock: ${moduleName}`);
+  return vi;
+};
+
 export function describe(name: string, fn: () => void) {
   console.log(`Describe: ${name}`);
   fn();
@@ -112,10 +119,10 @@ export function expect<T>(actual: T) {
     toBeFalsy: () => !actual,
     toContain: (expected: any) => {
       if (typeof actual === 'string') {
-        return actual.includes(expected);
+        return (actual as string).includes(expected);
       }
       if (Array.isArray(actual)) {
-        return actual.includes(expected);
+        return (actual as any[]).includes(expected);
       }
       return false;
     },
@@ -131,10 +138,10 @@ export function expect<T>(actual: T) {
       toBeFalsy: () => !!actual,
       toContain: (expected: any) => {
         if (typeof actual === 'string') {
-          return !actual.includes(expected);
+          return !(actual as string).includes(expected);
         }
         if (Array.isArray(actual)) {
-          return !actual.includes(expected);
+          return !(actual as any[]).includes(expected);
         }
         return true;
       },
@@ -142,4 +149,4 @@ export function expect<T>(actual: T) {
   };
 }
 
-export default { fn: vi.fn, describe, it, expect };
+export default { fn: vi.fn, mock: vi.mock, describe, it, expect };
