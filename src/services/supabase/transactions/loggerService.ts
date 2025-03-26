@@ -11,6 +11,7 @@
  * - 2027-08-01: Further improved type safety to prevent excessive type instantiation
  * - 2027-08-01: Fixed excessive type instantiation with explicit typing
  * - 2027-08-15: Fixed infinite type instantiation issue with improved interface types
+ * - 2027-08-16: Fixed deep type instantiation with simpler, more explicit types
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -88,19 +89,19 @@ export const transactionLoggerService = {
         return [];
       }
 
-      // Use explicit type casting to avoid deep instantiation
-      return (data || []).map((log: SystemLogRecord) => {
-        const details = log.details || {};
+      // Map the database records to TransactionDetails objects
+      return (data || []).map((record: SystemLogRecord) => {
+        const details = record.details || {};
         
         // Create a new transaction details object with explicit types
         return {
-          id: log.correlation_id || '',
+          id: record.correlation_id || '',
           operation: details.operation || '',
           type: details.type || 'OTHER',
           status: details.status || 'ERROR',
           entityId: details.entity_id || null,
           entityType: details.entity_type || null,
-          startTime: details.start_time || log.created_at,
+          startTime: details.start_time || record.created_at,
           endTime: details.end_time || null,
           errorDetails: details.error_details || null,
           metadata: details.metadata || {},

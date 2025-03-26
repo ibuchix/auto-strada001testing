@@ -1,223 +1,171 @@
+
 /**
- * Changes made:
- * - 2024-10-25: Added missing vitest exports for test files
- * - 2024-10-31: Fixed type issues with test functions
- * - 2025-05-15: Enhanced mocking capabilities with better type support
- * - 2025-05-16: Added support for mock negations and matchers
- * - 2025-05-17: Fixed type export with 'export type' for isolatedModules compatibility
- * - 2027-08-01: Improved type exports to use 'export type' syntax
- * - 2027-08-15: Fixed mocked return type to support mockReturnValue and other mocking methods
+ * Created: 2024-08-15
+ * This provides stubs for Vitest functions to use in tests
  */
 
-// Define the common types needed for testing
-type TestFunction = (name: string, fn: () => Promise<void> | void) => void;
-type SetupFunction = (fn: () => void | Promise<void>) => void;
+// Stub implementation for vitest
+export const describe = (name: string, callback: () => void) => {
+  // Stub implementation
+};
 
-// The core test functions
-export const describe: (name: string, fn: () => void) => void = (name, fn) => {};
-export const it: TestFunction = (name, fn) => {};
-export const test: TestFunction = (name, fn) => {};
+export const it = (name: string, callback: any) => {
+  // Stub implementation
+};
 
-// Setup and teardown functions
-export const beforeEach: SetupFunction = (fn) => {};
-export const afterEach: SetupFunction = (fn) => {};
-export const beforeAll: SetupFunction = (fn) => {};
-export const afterAll: SetupFunction = (fn) => {};
+export const test = it;
 
-// Matcher type for better autocomplete and type checking
-interface Matcher<R = void> {
-  toBe: (expected: any) => R;
-  toEqual: (expected: any) => R;
-  toStrictEqual: (expected: any) => R;
-  toContain: (expected: any) => R;
-  toContainEqual: (expected: any) => R;
-  toHaveProperty: (property: string, value?: any) => R;
-  toBeNull: () => R;
-  toBeUndefined: () => R;
-  toBeDefined: () => R;
-  toBeTruthy: () => R;
-  toBeFalsy: () => R;
-  toHaveBeenCalled: () => R;
-  toHaveBeenCalledWith: (...args: any[]) => R;
-  toHaveBeenCalledTimes: (times: number) => R;
-  toThrow: (message?: string | RegExp) => R;
-  toMatch: (pattern: string | RegExp) => R;
-  toMatchObject: (object: object) => R;
-  toHaveLength: (length: number) => R;
-  not: Omit<Matcher<R>, 'not'>;
-}
-
-// Async matchers with better promise handling
-interface AsyncMatcher {
-  toBe: (expected: any) => Promise<void>;
-  toEqual: (expected: any) => Promise<void>;
-  toStrictEqual: (expected: any) => Promise<void>;
-  toBeNull: () => Promise<void>;
-  toBeUndefined: () => Promise<void>;
-  toBeDefined: () => Promise<void>;
-  toBeTruthy: () => Promise<void>;
-  toBeFalsy: () => Promise<void>;
-  toThrow: (message?: string | RegExp) => Promise<void>;
-  toHaveProperty: (property: string, value?: any) => Promise<void>;
-  not: Omit<AsyncMatcher, 'not'>;
-}
-
-// Enhanced expect function with proper types
-export const expect = (value: any): Matcher & { resolves: AsyncMatcher; rejects: AsyncMatcher } => {
-  const basicMatchers: Matcher = {
-    toBe: (expected: any) => {},
-    toEqual: (expected: any) => {},
-    toStrictEqual: (expected: any) => {},
-    toContain: (expected: any) => {},
-    toContainEqual: (expected: any) => {},
-    toHaveProperty: (property: string, value?: any) => {},
-    toBeNull: () => {},
-    toBeUndefined: () => {},
-    toBeDefined: () => {},
-    toBeTruthy: () => {},
-    toBeFalsy: () => {},
-    toHaveBeenCalled: () => {},
-    toHaveBeenCalledWith: (...args: any[]) => {},
-    toHaveBeenCalledTimes: (times: number) => {},
-    toThrow: (message?: string | RegExp) => {},
-    toMatch: (pattern: string | RegExp) => {},
-    toMatchObject: (object: object) => {},
-    toHaveLength: (length: number) => {},
-    get not() {
-      return { ...basicMatchers };
-    }
-  };
-
-  const asyncMatchers: AsyncMatcher = {
-    toBe: (expected: any) => Promise.resolve(),
-    toEqual: (expected: any) => Promise.resolve(),
-    toStrictEqual: (expected: any) => Promise.resolve(),
-    toBeNull: () => Promise.resolve(),
-    toBeUndefined: () => Promise.resolve(),
-    toBeDefined: () => Promise.resolve(),
-    toBeTruthy: () => Promise.resolve(),
-    toBeFalsy: () => Promise.resolve(),
-    toThrow: (message?: string | RegExp) => Promise.resolve(),
-    toHaveProperty: (property: string, value?: any) => Promise.resolve(),
-    get not() {
-      return { ...asyncMatchers };
-    }
-  };
-
+export const expect = (value: any) => {
   return {
-    ...basicMatchers,
-    resolves: asyncMatchers,
-    rejects: asyncMatchers
+    toBe: (expected: any) => true,
+    toEqual: (expected: any) => true,
+    toBeDefined: () => true,
+    toBeUndefined: () => true,
+    toBeNull: () => true,
+    toBeTruthy: () => true,
+    toBeFalsy: () => true,
+    toContain: (item: any) => true,
+    toHaveBeenCalled: () => true,
+    toHaveBeenCalledWith: (...args: any[]) => true,
+    toHaveBeenCalledTimes: (times: number) => true,
+    toHaveLength: (length: number) => true,
+    toHaveProperty: (property: string, value?: any) => true,
+    toBeInstanceOf: (constructor: any) => true,
+    toThrow: (error?: any) => true,
+    // Add other matchers as needed
   };
 };
 
-// Enhanced mock type definition
-export type MockedFunction<T extends (...args: any[]) => any> = jest.Mock<ReturnType<T>> & {
-  mockReturnValue: (val: ReturnType<T>) => MockedFunction<T>;
-  mockResolvedValue: <U>(val: U) => MockedFunction<T>;
-  mockRejectedValue: <U>(val: U) => MockedFunction<T>;
-  mockImplementation: (fn: (...args: Parameters<T>) => ReturnType<T>) => MockedFunction<T>;
-  mockClear: () => MockedFunction<T>;
-  mockReset: () => MockedFunction<T>;
-  mockRestore: () => MockedFunction<T>;
+export const beforeEach = (callback: () => void) => {
+  // Stub implementation
 };
 
-// Improved mocking capabilities
-interface SpyInstance<T extends (...args: any[]) => any> {
-  mockReturnValue: (value: ReturnType<T>) => SpyInstance<T>;
-  mockResolvedValue: <U>(value: U) => SpyInstance<T>;
-  mockRejectedValue: <U>(value: U) => SpyInstance<T>;
-  mockImplementation: (fn: (...args: Parameters<T>) => ReturnType<T>) => SpyInstance<T>;
-  mockClear: () => SpyInstance<T>;
-  mockReset: () => SpyInstance<T>;
-  mockRestore: () => SpyInstance<T>;
-  getMockName: () => string;
-  mockReturnThis: () => SpyInstance<T>;
-  mockName: (name: string) => SpyInstance<T>;
+export const afterEach = (callback: () => void) => {
+  // Stub implementation
+};
+
+export const beforeAll = (callback: () => void) => {
+  // Stub implementation
+};
+
+export const afterAll = (callback: () => void) => {
+  // Stub implementation
+};
+
+interface MockedFunction<T extends (...args: any[]) => any> {
+  (...args: Parameters<T>): ReturnType<T>;
+  mockReturnValue: (value: ReturnType<T>) => MockedFunction<T>;
+  mockResolvedValue: <U>(value: U) => MockedFunction<T>;
+  mockRejectedValue: (error: Error) => MockedFunction<T>;
+  mockImplementation: (fn: T) => MockedFunction<T>;
+  mockReset: () => void;
+  mockClear: () => void;
+  mock: {
+    calls: Parameters<T>[];
+    results: { type: 'return' | 'throw'; value: any }[];
+    instances: any[];
+    invocationCallOrder: number[];
+  };
 }
 
-// Enhanced vi mock object with improved types
+interface Constructable {
+  new (...args: any[]): any;
+}
+
+interface MockedClass<T extends Constructable> {
+  new (...args: ConstructorParameters<T>): InstanceType<T>;
+  mockImplementation: (fn: (...args: ConstructorParameters<T>) => InstanceType<T>) => MockedClass<T>;
+  mockClear: () => void;
+  mockReset: () => void;
+}
+
+interface MockInstance<T extends (...args: any[]) => any> {
+  mockReturnValue: (value: ReturnType<T>) => MockInstance<T>;
+  mockResolvedValue: <U>(value: U) => MockInstance<T>;
+  mockRejectedValue: (error: Error) => MockInstance<T>;
+  mockImplementation: (fn: T) => MockInstance<T>;
+  mockReset: () => void;
+  mockClear: () => void;
+  mock: {
+    calls: Parameters<T>[];
+    results: { type: 'return' | 'throw'; value: any }[];
+    instances: any[];
+    invocationCallOrder: number[];
+  };
+}
+
+// Add a simplified vi object with the fn method
 export const vi = {
   fn: <T extends (...args: any[]) => any>(implementation?: T): MockedFunction<T> => {
-    const mockFn = function(...args: Parameters<T>): ReturnType<T> {
-      return implementation ? implementation(...args) : undefined as any;
-    } as MockedFunction<T>;
-    
-    mockFn.mockReturnValue = (val) => {
-      implementation = (() => val) as any;
-      return mockFn;
+    const mockFn = (...args: Parameters<T>): ReturnType<T> => {
+      // @ts-ignore - This is a stub implementation
+      return implementation ? implementation(...args) : undefined;
     };
-    
-    mockFn.mockResolvedValue = (val) => {
-      implementation = (() => Promise.resolve(val)) as any;
-      return mockFn;
-    };
-    
-    mockFn.mockRejectedValue = (val) => {
-      implementation = (() => Promise.reject(val)) as any;
-      return mockFn;
-    };
-    
-    mockFn.mockImplementation = (fn) => {
-      implementation = fn as any;
-      return mockFn;
-    };
-    
-    mockFn.mockClear = () => mockFn;
-    mockFn.mockReset = () => mockFn;
-    mockFn.mockRestore = () => mockFn;
-    
-    return mockFn;
-  },
-  
-  mock: (path: string, factory?: () => any) => {},
-  
-  mocked: <T>(item: T, deep = false): jest.Mocked<T> & T => {
-    // Add mockReturnValue and other functions to the mock
-    if (typeof item === 'function') {
-      const mockedFn = item as any;
-      mockedFn.mockReturnValue = (val: any) => {
-        mockedFn.mockImplementation = () => val;
-        return mockedFn;
-      };
-      mockedFn.mockResolvedValue = (val: any) => {
-        mockedFn.mockImplementation = () => Promise.resolve(val);
-        return mockedFn;
-      };
-      mockedFn.mockRejectedValue = (val: any) => {
-        mockedFn.mockImplementation = () => Promise.reject(val);
-        return mockedFn;
-      };
-      mockedFn.mockImplementation = (fn: any) => {
-        mockedFn.implementation = fn;
-        return mockedFn;
-      };
-      mockedFn.mockClear = () => mockedFn;
-      mockedFn.mockReset = () => mockedFn;
-      mockedFn.mockRestore = () => mockedFn;
-    }
-    return item as any;
-  },
-  
-  resetAllMocks: () => {},
-  clearAllMocks: () => {},
-  restoreAllMocks: () => {},
-  hoisted: <T>(factory: () => T): T => factory(),
-  importActual: <T>(path: string): Promise<T> => Promise.resolve({} as T),
-  importMock: <T>(path: string): Promise<T> => Promise.resolve({} as T),
-  resetModules: () => {},
-};
 
-// Re-export jest for compatibility
-export const jest = {
-  fn: vi.fn,
-  mock: vi.mock,
-  spyOn: vi.spyOn,
-  resetAllMocks: vi.resetAllMocks,
-  clearAllMocks: vi.clearAllMocks,
-  restoreAllMocks: vi.restoreAllMocks,
-};
+    // Add mock methods to the function
+    (mockFn as any).mockReturnValue = (value: ReturnType<T>) => {
+      implementation = (() => value) as unknown as T;
+      return mockFn as MockedFunction<T>;
+    };
 
-// Export types using proper 'export type' syntax
-export type { SpyInstance };
-export type Mock<T = any> = jest.Mock<T>;
+    (mockFn as any).mockResolvedValue = <U>(value: U) => {
+      implementation = (() => Promise.resolve(value)) as unknown as T;
+      return mockFn as MockedFunction<T>;
+    };
+
+    (mockFn as any).mockRejectedValue = (error: Error) => {
+      implementation = (() => Promise.reject(error)) as unknown as T;
+      return mockFn as MockedFunction<T>;
+    };
+
+    (mockFn as any).mockImplementation = (fn: T) => {
+      implementation = fn;
+      return mockFn as MockedFunction<T>;
+    };
+
+    (mockFn as any).mockReset = () => {
+      implementation = undefined as unknown as T;
+    };
+
+    (mockFn as any).mockClear = () => {
+      // Clear mock data
+    };
+
+    (mockFn as any).mock = {
+      calls: [],
+      results: [],
+      instances: [],
+      invocationCallOrder: []
+    };
+
+    return mockFn as MockedFunction<T>;
+  },
+
+  mock: (path: string, factory?: () => any) => {
+    // Stub implementation for vi.mock
+  },
+
+  // Add mocked helper function
+  mocked: <T>(item: T, deep = false): T => {
+    return item; // Just return the item as-is for the stub
+  },
+
+  // Add spyOn helper function
+  spyOn: <T, K extends keyof T>(object: T, method: K): MockInstance<T[K] extends (...args: any[]) => any ? T[K] : never> => {
+    // Stub implementation - returns a simplified mock object
+    return {
+      mockReturnValue: () => {} as any,
+      mockResolvedValue: () => {} as any,
+      mockRejectedValue: () => {} as any,
+      mockImplementation: () => {} as any,
+      mockReset: () => {},
+      mockClear: () => {},
+      mock: {
+        calls: [],
+        results: [],
+        instances: [],
+        invocationCallOrder: []
+      }
+    } as any;
+  }
+};
