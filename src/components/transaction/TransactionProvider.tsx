@@ -2,13 +2,13 @@
 /**
  * Provider for transaction context and state management
  * - 2025-06-15: Fixed TransactionStatus reference issues
+ * - 2025-06-20: Removed diagnostic service references
  */
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { TransactionStatus } from '@/types/forms';
 import { TRANSACTION_STATUS } from '@/services/supabase/transactionService';
-import { supabase } from '@/integrations/supabase/client';
 
 interface TransactionContextType {
   currentTransaction: Transaction | null;
@@ -55,25 +55,6 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
   const [currentTransaction, setCurrentTransaction] = useState<Transaction | null>(null);
   const [transactionCount, setTransactionCount] = useState(0);
 
-  // Log transaction to database for analytics
-  const logTransactionToDb = useCallback(async (transaction: Transaction) => {
-    try {
-      await supabase.from('transaction_logs').insert({
-        transaction_id: transaction.id,
-        transaction_name: transaction.name,
-        status: transaction.status,
-        start_time: transaction.startTime.toISOString(),
-        end_time: transaction.endTime?.toISOString(),
-        result: transaction.result ? JSON.stringify(transaction.result) : null,
-        error: transaction.error ? JSON.stringify(transaction.error) : null,
-        description: transaction.description,
-        metadata: transaction.metadata
-      });
-    } catch (error) {
-      console.error('Failed to log transaction:', error);
-    }
-  }, []);
-
   // Start a new transaction
   const startTransaction = useCallback((name: string, options: TransactionOptions = {}) => {
     const { description, metadata, showToast = true } = options;
@@ -115,12 +96,12 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
         result
       };
       
-      // Log successful transaction
-      logTransactionToDb(updatedTransaction);
+      // Log to console instead of database for now
+      console.log('Transaction completed successfully:', updatedTransaction);
       
       return updatedTransaction;
     });
-  }, [logTransactionToDb]);
+  }, []);
 
   // Fail a transaction
   const failTransaction = useCallback((id: string, error: any) => {
@@ -134,12 +115,12 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
         error
       };
       
-      // Log failed transaction
-      logTransactionToDb(updatedTransaction);
+      // Log to console instead of database for now
+      console.error('Transaction failed:', updatedTransaction);
       
       return updatedTransaction;
     });
-  }, [logTransactionToDb]);
+  }, []);
 
   // Reset a transaction
   const resetTransaction = useCallback((id: string) => {

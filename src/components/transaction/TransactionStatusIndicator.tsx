@@ -14,13 +14,19 @@ interface TransactionStatusIndicatorProps {
   className?: string;
   showLabel?: boolean;
   size?: "sm" | "md" | "lg";
+  pendingText?: string;
+  successText?: string;
+  errorText?: string;
 }
 
 export const TransactionStatusIndicator = ({ 
   status, 
   className,
   showLabel = true,
-  size = "md"
+  size = "md",
+  pendingText = "Processing",
+  successText = "Successful",
+  errorText = "Failed"
 }: TransactionStatusIndicatorProps) => {
   // Map status to type
   const getStatusType = (): StatusType => {
@@ -28,10 +34,13 @@ export const TransactionStatusIndicator = ({
     
     switch(status) {
       case "SUCCESS":
+      case "success":
         return "success";
       case "ERROR":
+      case "error":
         return "error";
       case "PENDING":
+      case "pending":
         return "pending";
       default:
         return "inactive";
@@ -44,13 +53,13 @@ export const TransactionStatusIndicator = ({
   const getStatusLabel = (): string => {
     if (!status) return "Ready";
     
-    switch(status) {
-      case "SUCCESS":
-        return "Successful";
-      case "ERROR":
-        return "Failed";
-      case "PENDING":
-        return "Processing";
+    switch(statusType) {
+      case "success":
+        return successText;
+      case "error":
+        return errorText;
+      case "pending":
+        return pendingText;
       default:
         return "Ready";
     }

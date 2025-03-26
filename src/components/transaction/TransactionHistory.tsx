@@ -5,14 +5,16 @@
  */
 
 import { useState } from "react";
-import { useTransactionContext } from "./TransactionProvider";
+import { useTransaction } from "./TransactionProvider";
 import { TransactionStatusIndicator } from "./TransactionStatusIndicator";
 import { Button } from "@/components/ui/button";
-import { TransactionType } from "@/services/supabase/transactionService";
+import { TransactionType } from "@/services/supabase/transactions/types";
 import { formatDistanceToNow } from "date-fns";
 
 export const TransactionHistory = () => {
-  const { transactionHistory, clearHistory } = useTransactionContext();
+  // For now, we're using empty transaction history until we fix the transaction system
+  const transactionHistory: any[] = [];
+  const clearHistory = () => {};
   const [expanded, setExpanded] = useState(false);
 
   if (transactionHistory.length === 0) {
