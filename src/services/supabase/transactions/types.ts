@@ -1,11 +1,7 @@
-
 /**
  * Changes made:
- * - 2024-10-28: Created separate types file for transaction system
- * - 2024-07-24: Added WARNING status and additional transaction types
- * - 2024-08-04: Added INACTIVE status to match TransactionStatusIndicator usage
- * - 2024-08-04: Synchronized TransactionType with transactionService
- * - 2024-08-05: Added TransactionMetadata type for better metadata handling
+ * - 2024-08-15: Added entityId and entityType to TransactionOptions interface
+ * - Expanded optional configuration for more flexible transaction tracking
  */
 
 // Define transaction types to categorize different operations
@@ -53,7 +49,7 @@ export interface TransactionDetails {
   userId?: string;
 }
 
-// Configuration options for transaction
+// Updated TransactionOptions interface with entityId and entityType
 export interface TransactionOptions {
   showToast?: boolean;
   toastDuration?: number;
