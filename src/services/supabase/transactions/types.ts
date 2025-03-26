@@ -1,17 +1,28 @@
 
 /**
- * Created: 2025-08-25
- * Types for transaction service
+ * Updated: 2025-08-26
+ * Fixed TransactionType and TransactionStatus to be proper enums instead of string types
  */
 
 export enum TransactionType {
   CREATE = 'CREATE',
   UPDATE = 'UPDATE',
   DELETE = 'DELETE',
-  READ = 'READ'
+  READ = 'READ',
+  AUCTION = 'AUCTION',
+  CUSTOM = 'CUSTOM',
+  OTHER = 'OTHER'
 }
 
-export type TransactionStatus = 'idle' | 'pending' | 'success' | 'error' | 'rollback';
+export enum TransactionStatus {
+  IDLE = 'idle',
+  PENDING = 'pending',
+  SUCCESS = 'success',
+  ERROR = 'error',
+  ROLLBACK = 'rollback',
+  WARNING = 'warning',
+  INACTIVE = 'inactive'
+}
 
 export interface TransactionDetailsBase {
   id: string;
@@ -22,6 +33,11 @@ export interface TransactionDetailsBase {
   endTime?: string;
   duration?: number;
   error?: any;
+  operation?: string;
+  entityId?: string;
+  entityType?: string;
+  errorDetails?: any;
+  userId?: string;
 }
 
 export interface TransactionDetails extends TransactionDetailsBase {
@@ -46,4 +62,12 @@ export interface TransactionOptions {
   onSuccess?: (result: any) => void;
   onError?: (error: any) => void;
   metadata?: Record<string, any>;
+  description?: string;
+  showToast?: boolean;
+  entityId?: string;
+  entityType?: string;
+  retryCount?: number;
+  logToDb?: boolean;
 }
+
+export type TransactionMetadata = Record<string, any>;

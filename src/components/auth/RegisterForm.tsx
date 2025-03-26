@@ -1,7 +1,7 @@
 
 /**
- * Created: 2025-08-25
- * Registration form component for user authentication
+ * Updated: 2025-08-26
+ * Fixed auth functions to match AuthProvider interface
  */
 
 import { useState } from "react";
@@ -25,7 +25,7 @@ export const RegisterForm = ({ onLoginClick }: RegisterFormProps) => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  const { register } = useAuth();
+  const auth = useAuth();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,10 +49,11 @@ export const RegisterForm = ({ onLoginClick }: RegisterFormProps) => {
     setIsLoading(true);
     
     try {
-      const result = await register({ email, password, name });
+      // Use signup instead of register to match AuthProvider interface
+      const { error: authError } = await auth.signup(email, password, { name });
       
-      if (!result.success) {
-        setError(result.error || "Failed to register");
+      if (authError) {
+        setError(authError.message || "Failed to register");
       }
     } catch (error: any) {
       setError(error.message || "An error occurred during registration");

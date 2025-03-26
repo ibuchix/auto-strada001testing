@@ -1,6 +1,7 @@
 
 /**
- * Export transaction services
+ * Updated: 2025-08-26
+ * Fixed exports for transaction services
  */
 
 import { TransactionService } from './transactionService';

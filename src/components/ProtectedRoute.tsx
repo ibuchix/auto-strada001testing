@@ -1,37 +1,34 @@
 
 /**
- * Created: 2024-08-20
- * A route component that protects content behind authentication
+ * Created: 2025-08-26
+ * ProtectedRoute component
  */
 
-import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from './AuthProvider';
-import { LoadingPage } from '../pages/LoadingPage';
+import { useAuth } from "@/components/AuthProvider";
+import { Navigate } from "react-router-dom";
 
 interface ProtectedRouteProps {
-  children: ReactNode;
-  requireSeller?: boolean;
+  children: React.ReactNode;
+  requiredRole?: 'seller' | 'dealer' | 'admin';
 }
 
-export const ProtectedRoute = ({ children, requireSeller = false }: ProtectedRouteProps) => {
-  const { session, isSeller, isLoading } = useAuth();
+export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+  const { isAuthenticated, user, loading } = useAuth();
   
-  // Show loading state while authentication status is being determined
-  if (isLoading) {
-    return <LoadingPage />;
+  if (loading) {
+    return <div>Loading...</div>;
   }
   
-  // If not logged in, redirect to auth page
-  if (!session) {
+  if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
   }
   
-  // If seller access is required but user is not a seller
-  if (requireSeller && !isSeller) {
-    return <Navigate to="/auth" replace />;
+  if (requiredRole) {
+    const userRole = user?.app_metadata?.role;
+    if (userRole !== requiredRole) {
+      return <Navigate to="/unauthorized" replace />;
+    }
   }
   
-  // User is authenticated (and is a seller if required)
   return <>{children}</>;
-};
+}

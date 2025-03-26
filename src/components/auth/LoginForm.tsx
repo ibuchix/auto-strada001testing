@@ -1,7 +1,7 @@
 
 /**
- * Created: 2025-08-25
- * Login form component for user authentication
+ * Updated: 2025-08-26
+ * Fixed auth functions to match AuthProvider interface
  */
 
 import { useState } from "react";
@@ -23,7 +23,7 @@ export const LoginForm = ({ onRegisterClick }: LoginFormProps) => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  const { signIn } = useAuth();
+  const auth = useAuth();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,10 +37,11 @@ export const LoginForm = ({ onRegisterClick }: LoginFormProps) => {
     setIsLoading(true);
     
     try {
-      const result = await signIn({ email, password });
+      // Use login instead of signIn to match AuthProvider interface
+      const { error: authError } = await auth.login(email, password);
       
-      if (!result.success) {
-        setError(result.error || "Failed to sign in");
+      if (authError) {
+        setError(authError.message || "Failed to sign in");
       }
     } catch (error: any) {
       setError(error.message || "An error occurred during sign in");

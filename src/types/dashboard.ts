@@ -1,7 +1,7 @@
 
 /**
- * Created: 2025-08-25
- * Types for dashboard components and data
+ * Updated: 2025-08-26
+ * Added CarListing type and fixed imports
  */
 
 import { CarFeatures } from "@/types/forms";
@@ -14,7 +14,7 @@ export interface DashboardStats {
   totalEarnings: number;
 }
 
-export interface DashboardListing {
+export interface CarListing {
   id: string;
   title: string;
   make: string;
@@ -27,6 +27,12 @@ export interface DashboardListing {
   features: CarFeatures;
   current_bid?: number;
   auction_end_time?: string;
+  createdAt?: string;
+  currentBid?: number;
+  photos?: string[];
+  is_draft?: boolean;
+  seller_id?: string;
+  auction_status?: AuctionStatus | null;
 }
 
 export type ListingStatus = 
@@ -37,6 +43,12 @@ export type ListingStatus =
   | 'cancelled'
   | 'expired'
   | 'rejected';
+
+export type AuctionStatus = 
+  | 'scheduled' 
+  | 'active' 
+  | 'ended' 
+  | 'cancelled';
 
 export interface ActivityItem {
   id: string;

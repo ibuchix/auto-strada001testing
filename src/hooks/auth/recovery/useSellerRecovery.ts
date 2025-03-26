@@ -1,20 +1,18 @@
 
 /**
- * Created: 2025-08-25
- * Hook for diagnosing and repairing seller registration issues
+ * Updated: 2025-08-26
+ * Fixed naming and response handling in useSellerRecovery hook
  */
 
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { SellerRecoveryService, SellerDiagnosisResult } from '@/services/supabase/sellers/sellerRecoveryService';
+import { SellerRecoveryService, SellerDiagnosisResult, sellerRecoveryService } from '@/services/supabase/sellers/sellerRecoveryService';
 
 export function useSellerRecovery() {
   const { session } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<SellerDiagnosisResult | null>(null);
+  const [diagnosis, setDiagnosis] = useState<SellerDiagnosisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  const recoveryService = new SellerRecoveryService();
   
   const runDiagnosis = useCallback(async () => {
     if (!session) {
@@ -26,8 +24,8 @@ export function useSellerRecovery() {
     setError(null);
     
     try {
-      const diagnosisResult = await recoveryService.diagnoseSellerStatus(session);
-      setResult(diagnosisResult);
+      const diagnosisResult = await sellerRecoveryService.diagnoseSellerStatus(session);
+      setDiagnosis(diagnosisResult);
       
       if (!diagnosisResult.success) {
         setError(diagnosisResult.error || 'Diagnosis failed');
@@ -41,7 +39,7 @@ export function useSellerRecovery() {
     } finally {
       setIsLoading(false);
     }
-  }, [session, recoveryService]);
+  }, [session]);
   
   const repairRegistration = useCallback(async () => {
     if (!session) {
@@ -53,8 +51,8 @@ export function useSellerRecovery() {
     setError(null);
     
     try {
-      const repairResult = await recoveryService.repairSellerStatus(session);
-      setResult(repairResult);
+      const repairResult = await sellerRecoveryService.repairSellerStatus(session);
+      setDiagnosis(repairResult);
       
       if (!repairResult.success) {
         setError(repairResult.error || 'Repair failed');
@@ -68,12 +66,12 @@ export function useSellerRecovery() {
     } finally {
       setIsLoading(false);
     }
-  }, [session, recoveryService]);
+  }, [session]);
   
   return {
     isLoading,
     error,
-    diagnosis: result,
+    diagnosis,
     runDiagnosis,
     repairRegistration
   };

@@ -1,23 +1,16 @@
 
 /**
- * Created: 2024-08-20
- * Loading page shown during authentication checks or data loading
+ * Created: 2025-08-26
+ * LoadingPage component
  */
 
-import { Loader2 } from "lucide-react";
-
-interface LoadingPageProps {
-  message?: string;
-}
-
-export const LoadingPage = ({ message = "Loading application..." }: LoadingPageProps) => {
+export default function LoadingPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
-      <Loader2 className="h-16 w-16 text-primary animate-spin mb-4" />
-      <h1 className="text-xl font-semibold text-foreground">{message}</h1>
-      <p className="text-muted-foreground mt-2">Please wait while we set things up for you.</p>
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <p className="mt-4 text-lg font-medium">Loading...</p>
+      </div>
     </div>
   );
-};
-
-export default LoadingPage;
+}

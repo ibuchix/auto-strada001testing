@@ -1,9 +1,7 @@
 
 /**
- * Transaction service for tracking application transactions
- * 
- * Changes made:
- * - 2024-10-25: Standardized error property to use errorDetails instead of error
+ * Updated: 2025-08-26
+ * Fixed transaction service type issues and added proper enum usage
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -41,7 +39,8 @@ export class TransactionService {
       status: TransactionStatus.PENDING,
       startTime,
       userId,
-      metadata: options?.metadata || {}
+      metadata: options?.metadata || {},
+      steps: []
     };
 
     if (options?.entityId) {

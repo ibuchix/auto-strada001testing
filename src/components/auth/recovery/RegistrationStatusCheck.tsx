@@ -1,86 +1,71 @@
 
 /**
- * Changes made:
- * - 2025-06-12: Created component for detecting and offering to repair broken registrations
- * - 2025-06-12: Fixed TypeScript error with Alert variant
- * - 2025-08-17: Enhanced to better detect RLS-related issues
+ * Created: 2025-08-26
+ * Component to check seller registration status
  */
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { sellerRecoveryService } from "@/services/supabase/sellers/sellerRecoveryService";
 import { useAuth } from "@/components/AuthProvider";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { AlertTriangle } from "lucide-react";
+import { sellerRecoveryService } from "@/services/supabase/sellers/sellerRecoveryService";
+import { toast } from "sonner";
 
-/**
- * Component that checks for incomplete seller registrations and offers repair
- * Can be shown on dashboard or seller areas when problems are detected
- */
-export const RegistrationStatusCheck = () => {
-  const { session, isSeller } = useAuth();
-  const [hasIssue, setHasIssue] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
+interface RegistrationStatusCheckProps {
+  children: React.ReactNode;
+}
+
+export function RegistrationStatusCheck({ children }: RegistrationStatusCheckProps) {
+  const { session } = useAuth();
   const navigate = useNavigate();
+  const [isChecking, setIsChecking] = useState(true);
+  const [isValid, setIsValid] = useState(false);
   
   useEffect(() => {
+    if (!session) {
+      setIsChecking(false);
+      return;
+    }
+    
     const checkRegistration = async () => {
-      if (!session?.user?.id) return;
-      
       try {
-        setIsChecking(true);
+        const diagnosisResult = await sellerRecoveryService.diagnoseSellerStatus(session);
         
-        // Only perform diagnostics if they're not already identified as a seller
-        // or if there was a recent RLS error
-        if (!isSeller || sessionStorage.getItem('rls_error_detected') === 'true') {
-          const diagnosis = await sellerRecoveryService.diagnoseSellerRegistration(session.user.id);
+        if (!diagnosisResult.success || 
+            !diagnosisResult.diagnosisDetails.hasProfileRecord || 
+            !diagnosisResult.diagnosisDetails.hasSellerRecord) {
           
-          // If some components exist but registration isn't complete, we have an issue
-          const partialRegistration = 
-            (diagnosis.metadataHasRole || diagnosis.profileHasRole || diagnosis.sellerRecordExists) 
-            && !diagnosis.isComplete;
-            
-          setHasIssue(partialRegistration);
+          toast.error("Seller registration issues detected", {
+            description: "Your account needs to be repaired to access seller features",
+            action: {
+              label: "Repair Now",
+              onClick: () => navigate("/seller/repair")
+            },
+            duration: 8000
+          });
           
-          // Clear RLS error flag if we've checked
-          if (diagnosis.isComplete) {
-            sessionStorage.removeItem('rls_error_detected');
-          }
+          setIsValid(false);
         } else {
-          setHasIssue(false);
+          setIsValid(true);
         }
       } catch (error) {
-        console.error("Error checking registration status:", error);
+        console.error("Error checking registration:", error);
+        setIsValid(false);
       } finally {
         setIsChecking(false);
       }
     };
     
     checkRegistration();
-  }, [session, isSeller]);
+  }, [session, navigate]);
   
-  if (isChecking || !hasIssue || !session) {
+  if (isChecking) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+  
+  if (!isValid && session) {
+    navigate("/seller/repair");
     return null;
   }
   
-  return (
-    <Alert variant="warning" className="mb-4">
-      <AlertTriangle className="h-4 w-4" />
-      <AlertTitle>Seller Registration Issue Detected</AlertTitle>
-      <AlertDescription className="flex flex-col gap-2">
-        <p>
-          We detected an incomplete seller registration that may cause problems with selling features.
-        </p>
-        <Button 
-          size="sm" 
-          variant="outline"
-          onClick={() => navigate('/seller-registration-repair')}
-          className="self-start mt-2 text-[#DC143C] border-[#DC143C] hover:bg-[#DC143C]/10"
-        >
-          Repair Registration
-        </Button>
-      </AlertDescription>
-    </Alert>
-  );
-};
+  return <>{children}</>;
+}
