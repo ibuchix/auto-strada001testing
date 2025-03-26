@@ -4,6 +4,7 @@
  * 
  * Changes made:
  * - 2024-10-25: Standardized error property to use errorDetails instead of error
+ * - 2025-12-01: Fixed typings and method signatures
  */
 
 import { v4 as uuidv4 } from 'uuid';

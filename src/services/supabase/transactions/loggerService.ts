@@ -12,6 +12,7 @@
  * - 2027-08-01: Fixed excessive type instantiation with explicit typing
  * - 2027-08-15: Fixed infinite type instantiation issue with improved interface types
  * - 2027-08-16: Fixed deep type instantiation with simpler, more explicit types
+ * - 2025-12-01: Updated to use system_logs table instead of non-existent transaction_logs
  */
 
 import { supabase } from "@/integrations/supabase/client";

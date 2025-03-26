@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-05-16: Created service for diagnosing and repairing seller registration issues
  * - 2024-08-19: Updated repairSellerRegistration to return a detailed result object
+ * - 2025-12-01: Fixed supabase client import and RPC function call
  */
 
 import { BaseService } from "../baseService";
@@ -24,7 +25,7 @@ interface SellerRegistrationDiagnosis {
 /**
  * Interface for the repair result
  */
-interface RegistrationRepairResult {
+export interface RegistrationRepairResult {
   success: boolean;
   repaired: boolean;
   diagnosisDetails: {

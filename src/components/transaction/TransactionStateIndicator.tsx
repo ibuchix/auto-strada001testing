@@ -3,6 +3,7 @@
  * Changes made:
  * - 2028-07-24: Created TransactionStateIndicator component
  * - 2024-10-31: Updated to use standard TransactionStatus import
+ * - 2025-12-01: Fixed import for TransactionStatus
  */
 
 import { TransactionStatus } from "@/services/supabase/transactions/types";

@@ -4,6 +4,7 @@
  * - 2024-08-15: Added entityId and entityType to TransactionOptions interface
  * - Expanded optional configuration for more flexible transaction tracking
  * - 2025-08-10: Fixed TransactionType export to resolve type incompatibility
+ * - 2025-12-01: Changed exports to use both value and type exports
  */
 
 // Define transaction types to categorize different operations
