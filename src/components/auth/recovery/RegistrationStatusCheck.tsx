@@ -1,17 +1,14 @@
 
 /**
- * Updated: 2025-08-27
- * Fixed component props and sellerRecoveryService import
+ * Updated: 2025-08-28
+ * Fixed sellerRecoveryService import in RegistrationStatusCheck
  */
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
-import { SellerRecoveryService } from "@/services/supabase/sellers/sellerRecoveryService";
+import { sellerRecoveryService } from "@/services/supabase/sellers/sellerRecoveryService";
 import { toast } from "sonner";
-
-// Create an instance of the service
-const sellerRecoveryService = new SellerRecoveryService();
 
 export interface RegistrationStatusCheckProps {
   children?: React.ReactNode;

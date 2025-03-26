@@ -1,6 +1,6 @@
 
 /**
- * Updated: 2025-08-27
+ * Updated: 2025-08-28
  * Fixed TransactionType usage in useCarListingForm
  */
 
@@ -133,8 +133,8 @@ export const useCarListingForm = () => {
 
       await transaction.executeTransaction(
         'Create Car Listing',
-        TransactionType.CREATE, // Using enum value instead of string literal
-        async (transactionId) => { 
+        TransactionType.CREATE, // Using the proper enum from our types
+        async () => { 
           const result = await submitCarListing({
             ...data,
             photos: photoUrls,

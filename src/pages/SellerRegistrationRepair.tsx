@@ -1,7 +1,7 @@
 
 /**
- * Created: 2025-08-25
- * Page for diagnosing and repairing seller registration issues
+ * Updated: 2025-08-28
+ * Fixed property references in SellerRegistrationRepair component
  */
 
 import { useEffect, useState } from "react";
@@ -103,7 +103,7 @@ const SellerRegistrationRepair = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <DiagnosisItem 
                     title="User Metadata"
-                    status={diagnosis.diagnosisDetails.hasMetadata}
+                    status={diagnosis.diagnosisDetails.hasMetadata || false}
                     description={diagnosis.diagnosisDetails.hasMetadata 
                       ? `Role: ${diagnosis.diagnosisDetails.metadataRole}`
                       : "Seller role not set in metadata"}
@@ -127,15 +127,13 @@ const SellerRegistrationRepair = () => {
                   
                   <DiagnosisItem 
                     title="Overall Status"
-                    status={diagnosis.diagnosisDetails.hasMetadata && 
-                            diagnosis.diagnosisDetails.hasProfileRecord && 
-                            diagnosis.diagnosisDetails.hasSellerRecord}
+                    status={diagnosis.diagnosisDetails.hasSellerRole}
                     description="All required records and permissions"
                   />
                 </div>
               </div>
               
-              {(!diagnosis.diagnosisDetails.hasMetadata || 
+              {(!diagnosis.diagnosisDetails.hasSellerRole ||
                 !diagnosis.diagnosisDetails.hasProfileRecord || 
                 !diagnosis.diagnosisDetails.hasSellerRecord) && !diagnosis.repaired && (
                 <Alert variant={repairAttempted ? "destructive" : "warning"}>
@@ -166,7 +164,7 @@ const SellerRegistrationRepair = () => {
             Run Diagnosis Again
           </Button>
           
-          {diagnosis && (!diagnosis.diagnosisDetails.hasMetadata || 
+          {diagnosis && (!diagnosis.diagnosisDetails.hasSellerRole || 
             !diagnosis.diagnosisDetails.hasProfileRecord || 
             !diagnosis.diagnosisDetails.hasSellerRecord) && !diagnosis.repaired ? (
             <Button 

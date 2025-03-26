@@ -1,7 +1,7 @@
 
 /**
- * Updated: 2025-08-26
- * Fixed naming and response handling in useSellerRecovery hook
+ * Updated: 2025-08-28
+ * Fixed method name and error handling in useSellerRecovery hook
  */
 
 import { useState, useCallback } from 'react';

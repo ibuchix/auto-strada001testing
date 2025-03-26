@@ -1,7 +1,7 @@
 
 /**
- * Updated: 2025-08-27
- * Fixed TransactionType and TransactionStatus to be string enums
+ * Updated: 2025-08-28
+ * Unified TransactionType and TransactionStatus enums format
  */
 
 export enum TransactionType {

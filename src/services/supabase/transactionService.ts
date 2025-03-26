@@ -1,36 +1,12 @@
 
 /**
- * Changes made:
- * - 2023-07-15: Enhanced transaction service with more detailed transaction types and status
- * - 2024-10-31: Updated TransactionType enum to replace GENERAL with OTHER
+ * Updated: 2025-08-28
+ * Aligned TransactionStatus and TransactionType with the types in transactions/types.ts
  */
 
-export enum TransactionStatus {
-  INACTIVE = 'inactive',
-  PENDING = 'pending',
-  SUCCESS = 'success',
-  ERROR = 'error'
-}
+import { TransactionStatus, TransactionType, TransactionOptions } from '@/services/supabase/transactions/types';
 
-export enum TransactionType {
-  CREATE = 'create',
-  READ = 'read',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  AUCTION = 'auction',
-  CUSTOM = 'custom',
-  OTHER = 'other'  // Added OTHER instead of GENERAL
-}
-
-export interface TransactionOptions {
-  description?: string;
-  showToast?: boolean;
-  metadata?: Record<string, any>;
-  onSuccess?: (result: any) => void;
-  onError?: (error: any) => void;
-  retryCount?: number;
-  logToDb?: boolean;
-}
+export { TransactionStatus, TransactionType } from '@/services/supabase/transactions/types';
 
 export interface Transaction {
   id: string;
@@ -52,7 +28,7 @@ export interface TransactionDetails {
   startTime: string;
   endTime?: string;
   duration?: number;
-  errorDetails?: string;  // Changed from error to errorDetails for consistency
+  errorDetails?: string;
   metadata?: Record<string, any>;
 }
 
