@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2028-07-02: Updated component to correctly handle position prop and follow brand styling
+ */
+
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
@@ -9,7 +14,11 @@ import {
   ToastViewport,
 } from "@/components/ui/toast"
 
-export function Toaster() {
+export interface ToasterProps {
+  position?: "top-left" | "top-right" | "top-center" | "bottom-left" | "bottom-right" | "bottom-center";
+}
+
+export function Toaster({ position = "top-right" }: ToasterProps) {
   const { toasts } = useToast()
 
   return (
@@ -33,7 +42,10 @@ export function Toaster() {
           </Toast>
         )
       })}
-      <ToastViewport />
+      <ToastViewport className={`fixed z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:flex-col md:max-w-[420px]
+        ${position?.includes('top-') ? 'top-0' : 'bottom-0'}
+        ${position?.includes('-left') ? 'left-0' : position?.includes('-right') ? 'right-0' : 'left-1/2 -translate-x-1/2'}`} 
+      />
     </ToastProvider>
   )
 }
