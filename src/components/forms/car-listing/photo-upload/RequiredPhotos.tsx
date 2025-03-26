@@ -3,6 +3,7 @@
  * Component for required photo uploads with correct type definitions
  * - 2024-08-27: Updated onFileSelect prop type to accept Promise<string | null>
  * - 2024-12-27: Fixed type incompatibility with PhotoUpload component
+ * - 2025-05-03: Updated onFileSelect and onUpload to use consistent Promise<string | null> return type
  */
 import { useState } from "react";
 import { PhotoUpload } from "./PhotoUpload";
@@ -11,9 +12,15 @@ interface RequiredPhotosProps {
   isUploading: boolean;
   progress?: number;
   onFileSelect: (file: File, type: string) => Promise<string | null>;
+  diagnosticId?: string; // Added for tracking uploads
 }
 
-export const RequiredPhotos = ({ isUploading, progress, onFileSelect }: RequiredPhotosProps) => {
+export const RequiredPhotos = ({ 
+  isUploading, 
+  progress, 
+  onFileSelect,
+  diagnosticId 
+}: RequiredPhotosProps) => {
   const [uploadedPhotos, setUploadedPhotos] = useState<Record<string, boolean>>({
     exterior_front: false,
     exterior_rear: false,
@@ -25,11 +32,19 @@ export const RequiredPhotos = ({ isUploading, progress, onFileSelect }: Required
     odometer: false,
   });
 
+  // Log for debugging purposes
+  const logUploadEvent = (event: string, data: any) => {
+    if (diagnosticId) {
+      console.log(`[${diagnosticId}] [RequiredPhotos] ${event}:`, data);
+    }
+  };
+
   const handlePhotoUploaded = (type: string) => {
-    setUploadedPhotos((prev) => ({
-      ...prev,
-      [type]: true,
-    }));
+    setUploadedPhotos((prev) => {
+      const newState = { ...prev, [type]: true };
+      logUploadEvent('Photo uploaded', { type, uploadedPhotos: newState });
+      return newState;
+    });
   };
 
   const requiredPhotos = [
@@ -89,9 +104,20 @@ export const RequiredPhotos = ({ isUploading, progress, onFileSelect }: Required
             isUploaded={uploadedPhotos[photo.id]}
             progress={progress}
             onUpload={async (file) => {
-              const url = await onFileSelect(file, photo.id);
-              if (url) handlePhotoUploaded(photo.id);
-              return url;
+              logUploadEvent('Upload started', { photoId: photo.id });
+              try {
+                const url = await onFileSelect(file, photo.id);
+                if (url) {
+                  handlePhotoUploaded(photo.id);
+                  logUploadEvent('Upload succeeded', { photoId: photo.id, url });
+                } else {
+                  logUploadEvent('Upload returned null', { photoId: photo.id });
+                }
+                return url;
+              } catch (error) {
+                logUploadEvent('Upload failed', { photoId: photo.id, error });
+                return null;
+              }
             }}
           />
         ))}
