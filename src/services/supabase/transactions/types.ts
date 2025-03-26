@@ -1,73 +1,93 @@
 
 /**
- * Updated: 2024-09-08
- * Fixed TransactionType and TransactionStatus enums and exported all necessary types
+ * Changes made:
+ * - 2024-08-15: Added entityId and entityType to TransactionOptions interface
+ * - Expanded optional configuration for more flexible transaction tracking
+ * - 2025-08-10: Fixed TransactionType export to resolve type incompatibility
  */
 
+// Define transaction types to categorize different operations
 export enum TransactionType {
-  CREATE = 'CREATE',
-  UPDATE = 'UPDATE',
-  DELETE = 'DELETE',
-  READ = 'READ',
-  AUCTION = 'AUCTION',
-  CUSTOM = 'CUSTOM',
-  OTHER = 'OTHER'
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  UPLOAD = 'upload',
+  AUCTION = 'auction',
+  PAYMENT = 'payment',
+  AUTHENTICATION = 'authentication',
+  OTHER = 'other'
 }
 
+// Status of the transaction
 export enum TransactionStatus {
-  IDLE = 'IDLE',
-  PENDING = 'PENDING',
-  SUCCESS = 'SUCCESS',
-  ERROR = 'ERROR',
-  ROLLBACK = 'ROLLBACK',
-  WARNING = 'WARNING',
-  INACTIVE = 'INACTIVE'
+  PENDING = 'pending',
+  SUCCESS = 'success',
+  ERROR = 'error',
+  WARNING = 'warning',
+  INACTIVE = 'inactive'
 }
 
-export interface TransactionDetailsBase {
+// Define the TransactionMetadata type for structured metadata handling
+export interface TransactionMetadata {
+  [key: string]: any;
+  description?: string;
+  entityName?: string;
+  timestamp?: string;
+  source?: string;
+}
+
+// Interface for transaction details
+export interface TransactionDetails {
   id: string;
+  operation: string;
   type: TransactionType;
-  name: string;
+  entityId?: string; 
+  entityType?: string;
   status: TransactionStatus;
   startTime: string;
   endTime?: string;
-  duration?: number;
-  error?: any;
-  operation?: string;
-  entityId?: string;
-  entityType?: string;
-  errorDetails?: any;
+  metadata?: Record<string, any>;
+  errorDetails?: string;
   userId?: string;
 }
 
-export interface TransactionDetails extends TransactionDetailsBase {
-  steps: TransactionStep[];
-  metadata?: Record<string, any>;
-}
-
-export interface TransactionStep {
-  id: string;
-  name: string;
-  status: TransactionStatus;
-  startTime: string;
-  endTime?: string;
-  duration?: number;
-  error?: any;
-  metadata?: Record<string, any>;
-}
-
+// Updated TransactionOptions interface with entityId and entityType
 export interface TransactionOptions {
-  timeout?: number;
-  retries?: number;
+  showToast?: boolean;
+  toastDuration?: number;
+  logToDb?: boolean;
+  retryCount?: number;
+  retryDelay?: number;
+  description?: string;
+  metadata?: Record<string, any>;
   onSuccess?: (result: any) => void;
   onError?: (error: any) => void;
-  metadata?: Record<string, any>;
-  description?: string;
-  showToast?: boolean;
+  onComplete?: (details: TransactionDetails) => void;
   entityId?: string;
   entityType?: string;
-  retryCount?: number;
-  logToDb?: boolean;
 }
 
-export type TransactionMetadata = Record<string, any>;
+// Type for audit log action
+export type AuditLogAction = 
+  | "login" 
+  | "logout" 
+  | "create" 
+  | "update" 
+  | "delete" 
+  | "suspend" 
+  | "reinstate" 
+  | "verify" 
+  | "reject" 
+  | "approve" 
+  | "process_auctions" 
+  | "auction_closed" 
+  | "auto_proxy_bid" 
+  | "start_auction" 
+  | "auction_close_failed" 
+  | "auction_close_system_error" 
+  | "system_reset_failed" 
+  | "recovery_failed" 
+  | "manual_retry" 
+  | "auction_recovery" 
+  | "system_health_check" 
+  | "system_alert";

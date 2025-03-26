@@ -1,184 +1,101 @@
 
 /**
- * Updated: 2025-08-27
- * Added isSeller and refreshSellerStatus properties to AuthContext
+ * Changes made:
+ * - 2024-07-06: Enhanced session management with seller-specific checks
+ * - 2024-07-06: Fixed supabase client initialization issue
+ * - 2024-08-25: Refactored to properly use the updated useSellerSession hook
+ * - 2024-08-25: Added refreshSellerStatus to context for re-checking seller status
+ * - 2024-10-15: Added offline mode awareness
+ * - 2024-11-16: Updated to work with Row Level Security policies
+ * - 2025-07-14: Enhanced metadata-based seller detection without verification
+ * - 2025-07-21: Improved seller detection reliability and added additional logging
  */
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Session, User, AuthError } from '@supabase/supabase-js';
+import { createContext, useContext, useEffect } from "react";
+import { Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+import { SessionContextProvider } from "@supabase/auth-helpers-react";
+import { useSellerSession } from "@/hooks/useSellerSession";
+import { useOfflineStatus } from "@/hooks/useOfflineStatus";
+import { getFromCache, saveToCache } from "@/services/offlineCacheService";
 
 interface AuthContextType {
   session: Session | null;
-  user: User | null;
-  login: (email: string, password: string) => Promise<{ 
-    error: AuthError | null
-  }>;
-  logout: () => Promise<void>;
-  signup: (email: string, password: string, metadata?: any) => Promise<{
-    error: AuthError | null
-  }>;
-  loading: boolean;
-  isAuthenticated: boolean;
-  refreshSession: () => Promise<void>;
+  isLoading: boolean;
   isSeller: boolean;
+  isOffline: boolean;
   refreshSellerStatus: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
-  user: null,
-  login: async () => ({ error: null }),
-  logout: async () => {},
-  signup: async () => ({ error: null }),
-  loading: true,
-  isAuthenticated: false,
-  refreshSession: async () => {},
+  isLoading: true,
   isSeller: false,
+  isOffline: false,
   refreshSellerStatus: async () => false
 });
 
-export const useAuth = () => useContext(AuthContext);
-
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isSeller, setIsSeller] = useState(false);
-
-  // Initial session check
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  // Use the refactored hook directly in the provider
+  const { session, isLoading, isSeller, refreshSellerStatus } = useSellerSession();
+  const { isOffline } = useOfflineStatus();
+  
+  // Debug the auth state to help with troubleshooting
   useEffect(() => {
-    const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setUser(data.session?.user || null);
+    if (session) {
+      const hasSellerMetadata = !!session.user?.user_metadata?.role && 
+                               session.user.user_metadata.role === 'seller';
       
-      // Check if user is a seller
-      if (data.session?.user) {
-        const isSeller = data.session.user.user_metadata?.role === 'seller';
-        setIsSeller(isSeller);
-      }
-      
-      setLoading(false);
-    };
-
-    getSession();
-
-    // Subscribe to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        setSession(newSession);
-        setUser(newSession?.user || null);
-        
-        // Check if user is a seller
-        if (newSession?.user) {
-          const isSeller = newSession.user.user_metadata?.role === 'seller';
-          setIsSeller(isSeller);
-        } else {
-          setIsSeller(false);
-        }
-        
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
-  };
-
-  const signup = async (email: string, password: string, metadata?: any) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: metadata,
-      },
-    });
-    return { error };
-  };
-
-  const logout = async () => {
-    await supabase.auth.signOut();
-  };
-
-  const refreshSession = async () => {
-    const { data } = await supabase.auth.getSession();
-    setSession(data.session);
-    setUser(data.session?.user || null);
-  };
-
-  const refreshSellerStatus = async (): Promise<boolean> => {
-    try {
-      // Check if user is already signed in
-      if (!session?.user?.id) return false;
-      
-      // Refresh the session first
-      await refreshSession();
-      
-      // Check metadata first (fastest)
-      if (session?.user?.user_metadata?.role === 'seller') {
-        setIsSeller(true);
-        return true;
-      }
-      
-      // Try to check the database
-      const { data: sellerData, error } = await supabase
-        .from('sellers')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .maybeSingle();
-        
-      if (error) {
-        console.error("Error checking seller status:", error);
-        return false;
-      }
-      
-      const hasSellerRecord = !!sellerData;
-      setIsSeller(hasSellerRecord);
-      
-      // Update user metadata if needed
-      if (hasSellerRecord && !session.user.user_metadata?.role) {
-        await supabase.auth.updateUser({
-          data: { role: 'seller' }
-        });
-      }
-      
-      return hasSellerRecord;
-    } catch (error) {
-      console.error("Error refreshing seller status:", error);
-      return false;
+      console.log('AuthProvider: Session status', { 
+        isLoading, 
+        isSeller, 
+        hasSellerMetadata,
+        userId: session.user?.id,
+        email: session.user?.email
+      });
     }
-  };
+  }, [session, isLoading, isSeller]);
+  
+  // Cache the session when it changes (for offline use)
+  useEffect(() => {
+    if (session && !isOffline) {
+      // Always indicate seller role in cache if metadata says so
+      const hasSellerMetadata = !!session.user?.user_metadata?.role && 
+                              session.user.user_metadata.role === 'seller';
+      
+      const role = hasSellerMetadata || isSeller ? 'seller' : 'buyer';
+      
+      console.log('AuthProvider: Caching session with role:', role);
+      
+      saveToCache('userSession', {
+        userId: session.user.id,
+        email: session.user.email,
+        role: role
+      });
+    }
+  }, [session, isSeller, isOffline]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        session,
-        user,
-        login,
-        logout,
-        signup,
-        loading,
-        isAuthenticated: !!session,
-        refreshSession,
-        isSeller,
-        refreshSellerStatus
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <SessionContextProvider supabaseClient={supabase}>
+      <AuthContext.Provider 
+        value={{ 
+          session, 
+          isLoading, 
+          isSeller,
+          isOffline,
+          refreshSellerStatus
+        }}
+      >
+        {children}
+      </AuthContext.Provider>
+    </SessionContextProvider>
   );
-}
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};

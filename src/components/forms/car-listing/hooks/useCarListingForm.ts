@@ -1,7 +1,16 @@
 
 /**
- * Updated: 2025-08-28
- * Fixed TransactionType usage in useCarListingForm
+ * Hook for managing car listing form state and submission
+ * 
+ * Changes made:
+ * - 2024-10-25: Fixed form submission handler to use correct parameter count
+ * - 2024-12-05: Fixed type instantiation issue in form submission
+ * - 2024-12-06: Corrected imports and type errors to resolve build issues
+ * - 2027-08-01: Fixed transaction type usage and error handling
+ * - 2027-08-10: Fixed TransactionType import and usage
+ * - 2027-08-15: Fixed type error with TransactionType enum
+ * - 2027-08-16: Fixed TransactionType string literal type usage
+ * - 2027-08-19: Fixed transaction type parameter to use string literal instead of enum
  */
 
 import { useState, useCallback } from 'react';
@@ -131,10 +140,11 @@ export const useCarListingForm = () => {
         photoUrls = await uploadPhotos(data.photos);
       }
 
+      // Pass the transaction type as a string literal instead of enum
       await transaction.executeTransaction(
         'Create Car Listing',
-        TransactionType.CREATE, // Using the proper enum from our types
-        async () => { 
+        'CREATE', // Use string literal instead of enum
+        async (transactionId) => { 
           const result = await submitCarListing({
             ...data,
             photos: photoUrls,

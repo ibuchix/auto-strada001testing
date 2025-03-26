@@ -1,175 +1,161 @@
 
 /**
- * Updated: 2025-08-27
- * Fixed Badge variant type and destructuring of props
+ * Changes made:
+ * - 2025-06-12: Created component for showing registration status and repair options
+ * - 2025-06-12: Fixed TypeScript error with Alert variant
  */
 
-import { useEffect } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useState, useEffect } from "react";
+import { useSellerRecovery } from "@/hooks/auth/recovery/useSellerRecovery";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CheckCircle, XCircle, AlertTriangle, RefreshCw, ShieldAlert } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 interface RegistrationRecoveryPanelProps {
-  isLoading: boolean;
-  error: string | null;
-  diagnosis: any;
-  runDiagnosis: () => Promise<any>;
-  repairRegistration: () => Promise<any>;
+  onComplete?: () => void;
 }
 
-export const RegistrationRecoveryPanel: React.FC<RegistrationRecoveryPanelProps> = ({
-  isLoading,
-  error,
-  diagnosis,
-  runDiagnosis,
-  repairRegistration
-}) => {
+export const RegistrationRecoveryPanel = ({ onComplete }: RegistrationRecoveryPanelProps) => {
+  const { session, isSeller } = useAuth();
+  const { isRepairing, diagnosisResult, diagnoseRegistration, repairRegistration } = useSellerRecovery();
+  const [hasDiagnosed, setHasDiagnosed] = useState(false);
+
   useEffect(() => {
-    if (!diagnosis) {
-      runDiagnosis();
+    if (session?.user) {
+      diagnoseRegistration();
+      setHasDiagnosed(true);
     }
-  }, [diagnosis, runDiagnosis]);
+  }, [session, diagnoseRegistration]);
 
-  if (isLoading) {
+  const handleRepair = async () => {
+    const success = await repairRegistration();
+    if (success && onComplete) {
+      onComplete();
+    }
+  };
+  
+  if (!session) {
     return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Checking Registration Status</span>
-            </div>
-          </CardTitle>
-          <CardDescription>
-            We're diagnosing your seller registration...
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="destructive" className="mb-4">
-        <AlertTitle>Error</AlertTitle>
+      <Alert variant="destructive">
+        <ShieldAlert className="h-4 w-4" />
+        <AlertTitle>Authentication Required</AlertTitle>
         <AlertDescription>
-          {error}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="mt-2" 
-            onClick={runDiagnosis}
-          >
-            Try Again
-          </Button>
+          You must be logged in to diagnose or repair your seller registration.
         </AlertDescription>
       </Alert>
     );
   }
 
-  if (!diagnosis) {
-    return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>Registration Status Unknown</CardTitle>
-          <CardDescription>
-            We couldn't determine your registration status.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={runDiagnosis}>Run Diagnosis</Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto border-none shadow-lg">
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Registration Status</CardTitle>
-          <Badge variant={diagnosis.success ? "default" : "destructive"}>
-            {diagnosis.success ? "Complete" : "Incomplete"}
-          </Badge>
-        </div>
+        <CardTitle className="text-xl font-bold">Seller Registration Status</CardTitle>
         <CardDescription>
-          {diagnosis.success 
-            ? "Your seller registration is complete." 
-            : "Your seller registration needs repair."
-          }
+          Diagnose and repair any issues with your seller registration
         </CardDescription>
       </CardHeader>
-
+      
       <CardContent>
-        {!diagnosis.success && (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Registration Issues</h3>
-              <ul className="list-disc pl-5 text-sm space-y-1">
-                {!diagnosis.diagnosisDetails?.hasProfileRecord && (
-                  <li>User profile record is missing</li>
-                )}
-                {!diagnosis.diagnosisDetails?.hasSellerRecord && (
-                  <li>Seller record is missing</li>
-                )}
-                {!diagnosis.diagnosisDetails?.hasSellerRole && (
-                  <li>Seller role is not assigned</li>
-                )}
-                {!diagnosis.diagnosisDetails?.isVerified && (
-                  <li>Account is not verified</li>
-                )}
-              </ul>
-            </div>
-
-            <Button 
-              onClick={repairRegistration} 
-              disabled={isLoading} 
-              className="w-full"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Repairing...
-                </>
-              ) : (
-                "Repair Registration"
-              )}
-            </Button>
+        {isRepairing ? (
+          <div className="py-8 flex flex-col items-center">
+            <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mb-4" />
+            <p className="text-center font-medium">Repairing registration...</p>
+            <p className="text-center text-sm text-muted-foreground mt-2">
+              This may take a few moments
+            </p>
           </div>
-        )}
-
-        {diagnosis.success && (
+        ) : hasDiagnosed && diagnosisResult ? (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Registration Status</h3>
-              <ul className="list-disc pl-5 text-sm space-y-1">
-                <li>User profile: <Badge variant="default">Created</Badge></li>
-                <li>Seller record: <Badge variant="default">Created</Badge></li>
-                <li>Account role: <Badge variant="default">Assigned</Badge></li>
-                <li>Verification: <Badge variant="default">Complete</Badge></li>
-              </ul>
-            </div>
-            
-            <Button 
-              variant="outline" 
-              onClick={runDiagnosis} 
-              disabled={isLoading} 
-              className="w-full"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Checking...
-                </>
+            <Alert variant={diagnosisResult.isComplete ? "default" : "warning"}>
+              {diagnosisResult.isComplete ? (
+                <CheckCircle className="h-4 w-4" />
               ) : (
-                "Re-check Status"
+                <AlertTriangle className="h-4 w-4" />
               )}
-            </Button>
+              <AlertTitle>
+                {diagnosisResult.isComplete 
+                  ? "Registration Complete" 
+                  : "Incomplete Registration"}
+              </AlertTitle>
+              <AlertDescription>
+                {diagnosisResult.isComplete 
+                  ? "Your seller registration is complete and functional."
+                  : "Your seller registration appears to be incomplete. Repair is recommended."}
+              </AlertDescription>
+            </Alert>
+            
+            <div className="space-y-2 mt-4">
+              <div className="flex items-center justify-between py-2 border-b">
+                <span className="font-medium">User metadata has seller role</span>
+                {diagnosisResult.metadataHasRole ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-red-500" />
+                )}
+              </div>
+              
+              <div className="flex items-center justify-between py-2 border-b">
+                <span className="font-medium">Profile has seller role</span>
+                {diagnosisResult.profileHasRole ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-red-500" />
+                )}
+              </div>
+              
+              <div className="flex items-center justify-between py-2 border-b">
+                <span className="font-medium">Seller record exists</span>
+                {diagnosisResult.sellerRecordExists ? (
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-red-500" />
+                )}
+              </div>
+              
+              <div className="flex items-center justify-between py-2 border-b">
+                <span className="font-medium">Current seller status</span>
+                {isSeller ? (
+                  <span className="px-2 py-1 rounded bg-green-100 text-green-800 text-xs font-medium">
+                    Active
+                  </span>
+                ) : (
+                  <span className="px-2 py-1 rounded bg-red-100 text-red-800 text-xs font-medium">
+                    Inactive
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="py-8 flex flex-col items-center">
+            <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mb-4" />
+            <p className="text-center font-medium">Diagnosing registration status...</p>
           </div>
         )}
       </CardContent>
+      
+      <CardFooter className="flex flex-col space-y-2">
+        {diagnosisResult && !diagnosisResult.isComplete && (
+          <Button 
+            className="w-full bg-primary hover:bg-primary/90"
+            onClick={handleRepair}
+            disabled={isRepairing || diagnosisResult.isComplete}
+          >
+            Repair Registration
+          </Button>
+        )}
+        
+        <Button 
+          variant="outline" 
+          className="w-full"
+          onClick={() => diagnoseRegistration()}
+          disabled={isRepairing}
+        >
+          {hasDiagnosed ? "Re-check Status" : "Check Status"}
+        </Button>
+      </CardFooter>
     </Card>
   );
 };

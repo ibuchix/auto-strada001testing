@@ -1,7 +1,7 @@
 
 /**
- * Updated: 2025-08-27
- * Fixed SellerDashboard to properly use RegistrationStatusCheck with children
+ * Created: 2024-08-20
+ * Dashboard page for sellers
  */
 
 import { useState, useEffect } from "react";
@@ -85,72 +85,73 @@ const SellerDashboard = () => {
   }
 
   return (
-    <RegistrationStatusCheck>
-      <div className="container mx-auto py-8 px-4">
-        <h1 className="text-2xl font-bold mb-6">Seller Dashboard</h1>
-        
-        {/* Show error handler with repair link for RLS issues */}
-        {(isRlsError || errorMessage) && (
-          <AuthErrorHandler 
-            error={errorMessage || "Permission error detected"}
-            onRetry={handleRlsRetry}
-            isRlsError={isRlsError}
-            showSignIn={false}
-          />
-        )}
-        
-        {/* Main dashboard content - only show if no RLS errors */}
-        {!isRlsError && !errorMessage && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Listings</CardTitle>
-                <CardDescription>Manage your car listings</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  onClick={() => navigate('/seller-dashboard/listings')}
-                  className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
-                >
-                  View Listings
-                </Button>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Create Listing</CardTitle>
-                <CardDescription>List a new car for sale</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  onClick={() => navigate('/seller-form')}
-                  className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
-                >
-                  Sell a Car
-                </Button>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Settings</CardTitle>
-                <CardDescription>Manage your seller profile</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  onClick={() => navigate('/seller-dashboard/profile')}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Edit Profile
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
-    </RegistrationStatusCheck>
+    <div className="container mx-auto py-8 px-4">
+      <h1 className="text-2xl font-bold mb-6">Seller Dashboard</h1>
+      
+      {/* Registration status check will show repair option if needed */}
+      <RegistrationStatusCheck />
+      
+      {/* Show error handler with repair link for RLS issues */}
+      {(isRlsError || errorMessage) && (
+        <AuthErrorHandler 
+          error={errorMessage || "Permission error detected"}
+          onRetry={handleRlsRetry}
+          isRlsError={isRlsError}
+          showSignIn={false}
+        />
+      )}
+      
+      {/* Main dashboard content - only show if no RLS errors */}
+      {!isRlsError && !errorMessage && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>My Listings</CardTitle>
+              <CardDescription>Manage your car listings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={() => navigate('/seller-dashboard/listings')}
+                className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
+              >
+                View Listings
+              </Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Create Listing</CardTitle>
+              <CardDescription>List a new car for sale</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={() => navigate('/seller-form')}
+                className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
+              >
+                Sell a Car
+              </Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Settings</CardTitle>
+              <CardDescription>Manage your seller profile</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={() => navigate('/seller-dashboard/profile')}
+                variant="outline"
+                className="w-full"
+              >
+                Edit Profile
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 };
 

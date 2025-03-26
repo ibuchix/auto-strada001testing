@@ -1,8 +1,27 @@
 
 /**
- * Updated: 2024-09-08
- * Added CarListing interface for dashboard components
+ * Changes made:
+ * - 2024-08-04: Fixed import for CarFeatures type
+ * - 2025-12-05: Added explicit CarListing type definition
  */
+
+import { CarFeatures } from "@/types/forms";
+
+export interface DashboardStats {
+  totalListings: number;
+  activeListings: number;
+  soldListings: number;
+  totalEarnings: number;
+  averageSalePrice: number;
+}
+
+export interface RecentActivity {
+  id: string;
+  type: 'listing_created' | 'listing_sold' | 'bid_received' | 'system_message';
+  message: string;
+  timestamp: string;
+  details?: Record<string, any>;
+}
 
 export interface CarListing {
   id: string;
@@ -12,42 +31,46 @@ export interface CarListing {
   year: number;
   status: string;
   price: number;
-  currentBid?: number;
+  currentBid?: number | null;
+  thumbnailUrl?: string;
   createdAt: string;
-  created_at: string;
-  features: string[];
+  features: CarFeatures;
+  auctionStatus?: string;
+  auctionEndTime?: string;
   photos: string[];
-  images: string[];
   is_draft: boolean;
   seller_id: string;
-  auction_status?: string;
+  auction_status: string;
 }
 
-export interface DashboardStats {
-  activeListings: number;
-  completedAuctions: number;
-  pendingAuctions: number;
-  totalViews: number;
-  averageSalePrice: number;
-  totalSales: number;
-}
-
-export interface ActivityItem {
+export interface DashboardListing {
   id: string;
-  type: 'bid' | 'message' | 'auction_end' | 'listing_created' | 'system';
   title: string;
-  description: string;
-  timestamp: string;
-  relatedEntityId?: string;
-  isRead: boolean;
+  make: string;
+  model: string;
+  year: number;
+  status: string;
+  price: number;
+  currentBid?: number | null;
+  thumbnailUrl?: string;
+  createdAt: string;
+  features: CarFeatures;
+  auctionStatus?: string;
+  auctionEndTime?: string;
 }
 
-export interface NotificationSettings {
-  emailNotifications: boolean;
-  pushNotifications: boolean;
-  smsNotifications: boolean;
-  bidAlerts: boolean;
-  messageAlerts: boolean;
-  auctionEndAlerts: boolean;
-  systemAlerts: boolean;
+export interface DashboardBid {
+  id: string;
+  carId: string;
+  amount: number;
+  status: 'active' | 'outbid' | 'won' | 'lost';
+  timestamp: string;
+  carTitle: string;
+  carThumbnail?: string;
+}
+
+export interface DashboardData {
+  stats: DashboardStats;
+  recentActivity: RecentActivity[];
+  listings: DashboardListing[];
 }

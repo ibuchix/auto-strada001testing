@@ -1,23 +1,22 @@
 
 /**
- * Updated: 2025-08-27
- * Fixed transaction service to include required properties
+ * Transaction service for tracking application transactions
+ * 
+ * Changes made:
+ * - 2024-10-25: Standardized error property to use errorDetails instead of error
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { Session } from '@supabase/supabase-js';
 import { 
   TransactionDetails, 
+  TransactionMetadata,
+  TransactionOptions,
   TransactionStatus,
-  TransactionType,
-  TransactionStep,
-  TransactionOptions
+  TransactionType
 } from './types';
 import { supabase } from '@/integrations/supabase/client';
 import { transactionLogger } from './loggerService';
-
-// Added type definition for metadata
-type TransactionMetadata = Record<string, any>;
 
 export class TransactionService {
   private session: Session | null = null;
@@ -37,13 +36,12 @@ export class TransactionService {
     
     const transaction: TransactionDetails = {
       id,
+      operation,
       type,
-      name: operation, // Required name property
       status: TransactionStatus.PENDING,
       startTime,
       userId,
-      metadata: options?.metadata || {},
-      steps: [] // Initialize with empty array
+      metadata: options?.metadata || {}
     };
 
     if (options?.entityId) {
@@ -82,7 +80,7 @@ export class TransactionService {
     }
     
     if (error) {
-      updatedTransaction.error = typeof error === 'string' 
+      updatedTransaction.errorDetails = typeof error === 'string' 
         ? error 
         : error.message || JSON.stringify(error);
     }

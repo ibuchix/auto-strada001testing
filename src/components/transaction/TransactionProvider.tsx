@@ -1,7 +1,11 @@
 
 /**
- * Updated: 2025-08-27
- * Fixed TransactionProvider to include required properties in transaction object
+ * Changes made:
+ * - 2024-10-16: Created Transaction Provider component to track and manage critical operations
+ * - 2024-10-24: Fixed type issues with callback functions
+ * - 2024-10-25: Aligned callback parameter counts with updated transaction hooks
+ * - 2024-07-24: Fixed Date to string type conversions for transaction timestamps
+ * - 2024-08-04: Fixed TransactionType import to use transactions/types
  */
 
 import { createContext, useContext, ReactNode, useState, useCallback } from "react";
@@ -63,11 +67,10 @@ export const TransactionProvider = ({
       // Create a placeholder transaction for UI updates
       const placeholderTransaction: TransactionDetails = {
         id: crypto.randomUUID(),
+        operation,
         type,
-        name: operation, // Add name property
         status: TransactionStatus.PENDING,
-        startTime: new Date().toISOString(), // Convert Date to string
-        steps: [] // Add empty steps array
+        startTime: new Date().toISOString() // Convert Date to string
       };
       
       setCurrentTransaction(placeholderTransaction);
@@ -102,7 +105,7 @@ export const TransactionProvider = ({
               ...placeholderTransaction,
               status: TransactionStatus.ERROR,
               endTime: new Date().toISOString(), // Convert Date to string
-              error: error?.message || 'Unknown error'
+              errorDetails: error?.message || 'Unknown error'
             };
             addToHistory(failedTransaction);
             setCurrentTransaction(null);
