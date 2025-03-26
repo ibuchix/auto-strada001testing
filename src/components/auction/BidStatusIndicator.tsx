@@ -2,13 +2,16 @@
 /**
  * Changes made:
  * - 2024-06-18: Created new component for visual bid status feedback
+ * - 2024-07-31: Updated types to support transaction status
  */
 
 import { cn } from "@/lib/utils";
 import { Check, Clock, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TransactionStatus } from "@/services/supabase/transactions/types";
 
-type BidStatus = 'active' | 'outbid' | 'pending' | 'rejected' | 'won' | 'lost' | null;
+// Defined bid statuses to match what's used in the BidForm
+export type BidStatus = 'active' | 'outbid' | 'pending' | 'rejected' | 'won' | 'lost' | null;
 
 interface BidStatusIndicatorProps {
   status: BidStatus;

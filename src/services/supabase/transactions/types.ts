@@ -51,6 +51,7 @@ export interface TransactionOptions {
   onSuccess?: (result: any) => void;
   onError?: (error: any) => void;
   onComplete?: (details: TransactionDetails) => void;
+  type?: TransactionType; // Added type property to options
 }
 
 // Type for audit log action - simplified

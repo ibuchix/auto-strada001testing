@@ -4,11 +4,11 @@
  * - 2024-08-20: Added proper valuation data handling
  * - 2024-09-10: Updated to use useFormPersistence hook
  * - 2025-07-02: Fixed type issues and removed form property
+ * - 2025-07-31: Fixed missing getValuationData function
  */
 import { useForm } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { useFormPersistence } from "./useFormPersistence";
-import { validateValuationData } from "../submission/utils/validationHandler";
 
 // Export a function to get valuation data from localStorage
 export const getValuationData = () => {
@@ -20,6 +20,20 @@ export const getValuationData = () => {
     console.error('Error parsing valuation data:', error);
     return null;
   }
+};
+
+// Function to validate valuation data
+export const validateValuationData = () => {
+  const data = getValuationData();
+  if (!data) return null;
+  
+  // Basic validation to ensure we have the expected fields
+  if (!data.vin || !data.make || !data.model) {
+    console.warn('Incomplete valuation data found');
+    return null;
+  }
+  
+  return data;
 };
 
 export const useCarListingForm = (userId: string, draftId?: string) => {

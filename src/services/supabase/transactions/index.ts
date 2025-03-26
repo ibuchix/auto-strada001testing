@@ -3,12 +3,13 @@
  * Central export point for transaction system
  * - Simplified structure
  * - Removed diagnostic dependencies
+ * - Fixed type exports for TypeScript isolatedModules mode
  */
 
 // Export types
 export * from './types';
 
-// Export compatibility types from the transactionService
+// Export compatibility types from the transactionService - using proper type-only exports
 export {
   TransactionType,
   // Use type-only exports for types when isolatedModules is enabled

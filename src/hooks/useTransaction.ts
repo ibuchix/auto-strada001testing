@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - Fixed imports for TransactionStatus instead of TRANSACTION_STATUS
+ * - Removed generic type parameter from execute method
  * - Ensured consistent type usage for transaction status
  */
 
@@ -54,13 +55,14 @@ export function useCreateTransaction(options: TransactionHookOptions = {}) {
 
   /**
    * Execute a transaction with error handling
+   * Fix for error 4: Removed generic type parameter
    */
   const execute = useCallback(
-    async <T>(
+    async (
       operation: string,
-      callback: () => Promise<T>,
+      callback: () => Promise<any>,
       customOptions: Partial<TransactionOptions> = {}
-    ): Promise<T | null> => {
+    ): Promise<any> => {
       // Configure transaction options by merging defaults with custom options
       const transactionOptions: TransactionOptions = {
         showToast: options.showToast ?? true,
@@ -78,19 +80,19 @@ export function useCreateTransaction(options: TransactionHookOptions = {}) {
 
       // Start the loading state and set status to pending
       setIsLoading(true);
-      setTransactionStatus(TRANSACTION_STATUS.PENDING as TransactionStatus);
+      setTransactionStatus(TransactionStatus.PENDING);
 
       try {
         // Call the service layer to execute the operation with tracking
-        const result = await transactionService.executeTransaction<T>(
+        const result = await transactionService.executeTransaction(
           operation,
-          TransactionType.OTHER, // Default to OTHER type if not specified
+          customOptions.type || TransactionType.OTHER, // Default to OTHER type if not specified
           callback,
           {
             ...transactionOptions,
             onSuccess: (data) => {
               // Update UI state on success
-              setTransactionStatus(TRANSACTION_STATUS.SUCCESS as TransactionStatus);
+              setTransactionStatus(TransactionStatus.SUCCESS);
               setIsLoading(false);
 
               // Call custom onSuccess if provided
@@ -100,7 +102,7 @@ export function useCreateTransaction(options: TransactionHookOptions = {}) {
             },
             onError: (error) => {
               // Update UI state on error
-              setTransactionStatus(TRANSACTION_STATUS.ERROR as TransactionStatus);
+              setTransactionStatus(TransactionStatus.ERROR);
               setIsLoading(false);
 
               // Call custom onError if provided
@@ -114,7 +116,7 @@ export function useCreateTransaction(options: TransactionHookOptions = {}) {
         return result;
       } catch (error) {
         // Ensure the UI state is updated even if the transaction service throws
-        setTransactionStatus(TRANSACTION_STATUS.ERROR as TransactionStatus);
+        setTransactionStatus(TransactionStatus.ERROR);
         setIsLoading(false);
         return null;
       }
@@ -134,16 +136,16 @@ export function useCreateTransaction(options: TransactionHookOptions = {}) {
 /**
  * Simplified hook for creating and executing transactions
  */
-export function useTransaction<T = any>() {
+export function useTransaction() {
   const { execute, isLoading, transactionStatus, reset } = useCreateTransaction();
 
   const executeTransaction = async (
     operation: string,
     type: TransactionType,
-    callback: () => Promise<T>,
+    callback: () => Promise<any>,
     options?: Partial<TransactionOptions>
-  ): Promise<T | null> => {
-    return execute(operation, callback, options);
+  ): Promise<any> => {
+    return execute(operation, callback, { ...options, type });
   };
 
   return {

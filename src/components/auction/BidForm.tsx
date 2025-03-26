@@ -3,6 +3,8 @@
  * Changes made:
  * - Fixed TransactionType import and usage
  * - Updated to use proper transaction error handling
+ * - Fixed executeTransaction function call to match expected parameters
+ * - Fixed type conversion for BidStatusIndicator
  */
 import { useState } from "react";
 import { useAuctionTransaction } from "@/hooks/useAuctionTransaction";
@@ -61,30 +63,34 @@ export const BidForm = ({
     }
     
     try {
+      // Fix for error 1: Pass correct parameters to executeTransaction
       const result = await executeTransaction(
         "Place Bid",
-        TransactionType.AUCTION,
         async () => {
-          const bidResult = await placeBid(
+          const bidResult = await placeBid({
             carId,
             dealerId,
-            bidAmount,
-            useProxyBidding,
-            useProxyBidding ? maxProxyAmount : undefined
-          );
+            amount: bidAmount,
+            isProxy: useProxyBidding,
+            maxProxyAmount: useProxyBidding ? maxProxyAmount : undefined
+          });
           
           if (!bidResult.success) {
             throw new Error(bidResult.error || "Failed to place bid");
           }
           
-          if (onBidSuccess && bidResult.bidId) {
+          if (onBidSuccess && bidResult.bid_id) {
             onBidSuccess({
               amount: bidResult.amount || bidAmount,
-              bidId: bidResult.bidId
+              bidId: bidResult.bid_id
             });
           }
           
           return bidResult;
+        },
+        { 
+          description: "Placing bid on auction",
+          metadata: { bidAmount, useProxyBidding }
         }
       );
       
@@ -97,9 +103,20 @@ export const BidForm = ({
     }
   };
 
+  // Fix for error 2: Convert transactionStatus to BidStatus type
+  const getBidStatus = (): 'pending' | 'active' | null => {
+    if (!transactionStatus) return null;
+    
+    switch(transactionStatus) {
+      case 'pending': return 'pending';
+      case 'success': return 'active';
+      default: return null;
+    }
+  };
+
   return (
     <div className="space-y-4 p-4 border border-gray-200 rounded-md">
-      <BidStatusIndicator status={transactionStatus} />
+      <BidStatusIndicator status={getBidStatus()} />
       
       <form onSubmit={handleBidSubmit} className="space-y-4">
         <div>
