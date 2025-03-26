@@ -5,6 +5,7 @@
  * - 2024-10-24: Fixed type issues with callback functions
  * - 2024-10-25: Aligned callback parameter counts with updated transaction hooks
  * - 2024-07-24: Fixed Date to string type conversions for transaction timestamps
+ * - 2024-08-04: Fixed TransactionType import to use transactions/types
  */
 
 import { createContext, useContext, ReactNode, useState, useCallback } from "react";
@@ -76,7 +77,7 @@ export const TransactionProvider = ({
       
       return executeTransaction(
         operation,
-        type,
+        type as any, // Type assertion to handle TransactionType compatibility
         callback,
         {
           ...options,

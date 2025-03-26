@@ -1,8 +1,13 @@
+
+/**
+ * Changes made:
+ * - 2024-08-04: Fixed types to properly handle damageReports property
+ */
+
 import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, DamageType, DamageReport } from "@/types/forms";
 import { Card } from "@/components/ui/card";
 import { useState } from "react";
-import { DamageType } from "./types/damages";
 import { DamageTypeSelect } from "./damage/DamageTypeSelect";
 import { DamageDescription } from "./damage/DamageDescription";
 import { DamagePhotoUpload } from "./damage/DamagePhotoUpload";
@@ -17,13 +22,22 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
   const [description, setDescription] = useState('');
 
   const handlePhotoUploaded = (filePath: string) => {
-    const currentDamages = form.getValues('damageReports') || [];
-    form.setValue('damageReports', [...currentDamages, {
+    // Initialize damageReports if it doesn't exist
+    if (!form.getValues().damageReports) {
+      form.setValue('damageReports', []);
+    }
+
+    // Add the new damage report
+    const currentDamages = form.getValues().damageReports || [];
+    const newDamage: DamageReport = {
       type: selectedDamageType as DamageType,
       description,
       photoPath: filePath
-    }]);
+    };
+    
+    form.setValue('damageReports', [...currentDamages, newDamage]);
 
+    // Reset form
     setSelectedDamageType(null);
     setDescription('');
   };

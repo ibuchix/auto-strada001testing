@@ -1,69 +1,75 @@
 
 /**
  * Changes made:
- * - 2024-10-28: Created separate logger service for transactions
+ * - 2024-10-28: Created separate logger service for transaction logging
+ * - 2024-08-04: Fixed handling of string dates in logger service
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { TransactionDetails, AuditLogAction } from "./types";
 import { BaseService } from "../baseService";
+import { TransactionDetails } from "./types";
 
-export class TransactionLogger extends BaseService {
+class TransactionLoggerService extends BaseService {
   /**
-   * Log transaction to Supabase for auditing and troubleshooting
+   * Log a transaction to the database for audit purposes
    */
-  public async logTransaction(details: TransactionDetails): Promise<void> {
+  public async logTransaction(transaction: TransactionDetails): Promise<void> {
     try {
-      // Format dates as ISO strings for JSON compatibility
-      const formattedDetails = {
-        transaction_id: details.id,
-        status: details.status,
-        start_time: details.startTime.toISOString(),
-        end_time: details.endTime ? details.endTime.toISOString() : null,
-        metadata: details.metadata || {},
-        error: details.errorDetails || null
-      };
-
-      // Map operation string to valid audit_log_type enum value
-      const actionType = this.mapOperationToAuditLogType(details.operation);
-
-      await this.supabase.from('audit_logs').insert({
-        action: actionType,
-        entity_type: details.entityType || details.type,
-        entity_id: details.entityId,
-        details: formattedDetails,
-        user_id: details.userId
+      await this.supabase.from('transaction_logs').insert({
+        transaction_id: transaction.id,
+        operation: transaction.operation,
+        type: transaction.type,
+        status: transaction.status,
+        entity_id: transaction.entityId,
+        entity_type: transaction.entityType,
+        start_time: transaction.startTime,
+        end_time: transaction.endTime,
+        error_details: transaction.errorDetails,
+        metadata: transaction.metadata,
+        user_id: transaction.userId
       });
+      
+      console.log(`Transaction logged: ${transaction.id} (${transaction.operation})`);
     } catch (error) {
-      // Just log to console if we can't log to db - don't throw
-      console.error('Failed to log transaction to audit_logs:', error);
+      console.error('Failed to log transaction:', error);
     }
   }
   
   /**
-   * Map operation string to valid audit_log_type enum value
-   * This ensures compatibility with the database enum type
+   * Get transaction logs for a specific entity
    */
-  private mapOperationToAuditLogType(operation: string): AuditLogAction {
-    // Map our operation to one of the valid enum values
-    // Default to "create" if no match is found
-    const operationMap: Record<string, AuditLogAction> = {
-      'create': 'create',
-      'update': 'update',
-      'delete': 'delete',
-      'login': 'login',
-      'logout': 'logout',
-      'upload': 'create',
-      'auction': 'auction_closed',
-      'payment': 'update',
-      'authentication': 'login',
-      // Add more mappings as needed
-    };
-    
-    // Return the mapped value or default to "create"
-    return operationMap[operation.toLowerCase()] || 'create';
+  public async getEntityTransactionLogs(
+    entityType: string, 
+    entityId: string
+  ): Promise<TransactionDetails[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('transaction_logs')
+        .select('*')
+        .eq('entity_type', entityType)
+        .eq('entity_id', entityId)
+        .order('start_time', { ascending: false });
+        
+      if (error) throw error;
+      
+      return data.map(log => ({
+        id: log.transaction_id,
+        operation: log.operation,
+        type: log.type,
+        status: log.status,
+        entityId: log.entity_id,
+        entityType: log.entity_type,
+        startTime: log.start_time,
+        endTime: log.end_time,
+        errorDetails: log.error_details,
+        metadata: log.metadata,
+        userId: log.user_id
+      }));
+    } catch (error) {
+      console.error('Failed to get transaction logs:', error);
+      return [];
+    }
   }
 }
 
-// Export a singleton instance
-export const transactionLogger = new TransactionLogger();
+// Export singleton instance
+export const transactionLogger = new TransactionLoggerService();

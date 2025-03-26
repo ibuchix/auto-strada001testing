@@ -9,11 +9,12 @@
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field hasDocumentation
  * - 2025-06-10: Added schema validation to catch database field mismatches
+ * - 2024-08-04: Added damageReports field to form data and fixed features type
  */
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 import { useFormPersistence } from "./useFormPersistence";
 import { useLoadDraft } from "./useLoadDraft";
 import { validateFormData } from "../utils/validation";
@@ -34,13 +35,7 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
       name: "",
       address: "",
       mobileNumber: "",
-      features: {
-        satNav: false,
-        panoramicRoof: false,
-        reverseCamera: false,
-        heatedSeats: false,
-        upgradedSound: false
-      },
+      features: defaultCarFeatures,
       isDamaged: false,
       damageReports: [],
       isRegisteredInPoland: false,
@@ -52,8 +47,45 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
       rimPhotosComplete: false,
       sellerNotes: "",
       seatMaterial: "cloth",
-      numberOfKeys: "1"
-    },
+      numberOfKeys: "1",
+      vin: "",
+      make: "",
+      model: "",
+      year: new Date().getFullYear(),
+      registrationNumber: "",
+      mileage: 0,
+      engineCapacity: 0,
+      transmission: "manual",
+      bodyType: "sedan",
+      exteriorColor: "",
+      interiorColor: "",
+      numberOfDoors: "4",
+      price: "",
+      location: "",
+      description: "",
+      contactEmail: "",
+      notes: "",
+      previousOwners: 1,
+      accidentHistory: "none",
+      conditionRating: 3,
+      additionalPhotos: [],
+      requiredPhotos: {
+        front: null,
+        rear: null,
+        interior: null,
+        engine: null,
+      },
+      rimPhotos: {
+        front_left: null,
+        front_right: null,
+        rear_left: null,
+        rear_right: null,
+      },
+      warningLightPhotos: [],
+      financeDocument: null,
+      serviceHistoryFiles: [],
+      userId: userId,
+    }
   });
 
   // Add schema validation to catch database field mismatches early
@@ -92,6 +124,15 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
     return await withErrorHandling(async () => {
       const formData = form.getValues();
       
+      // Ensure all required features are present
+      const features = {
+        satNav: formData.features?.satNav ?? false,
+        panoramicRoof: formData.features?.panoramicRoof ?? false,
+        reverseCamera: formData.features?.reverseCamera ?? false,
+        heatedSeats: formData.features?.heatedSeats ?? false,
+        upgradedSound: formData.features?.upgradedSound ?? false
+      };
+      
       // Check if we're creating a new draft or updating an existing one
       const { data, error } = await supabase
         .from('cars')
@@ -101,7 +142,7 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
           seller_name: formData.name, // Use seller_name instead of name
           address: formData.address,
           mobile_number: formData.mobileNumber,
-          features: formData.features,
+          features,
           is_damaged: formData.isDamaged,
           is_registered_in_poland: formData.isRegisteredInPoland,
           is_selling_on_behalf: formData.isSellingOnBehalf,
@@ -112,6 +153,7 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
           seat_material: formData.seatMaterial,
           number_of_keys: formData.numberOfKeys ? parseInt(formData.numberOfKeys) : 1,
           additional_photos: formData.uploadedPhotos || [],
+          damage_reports: formData.damageReports || [],
           is_draft: true,
           form_metadata: {
             current_step: currentStep

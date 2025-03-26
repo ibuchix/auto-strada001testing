@@ -4,6 +4,7 @@
  * - 2024-10-28: Refactored transaction service for better separation of concerns
  * - Moved logging logic to a separate service
  * - Improved error handling and transaction management
+ * - 2024-08-04: Fixed Date to string conversion in transaction details
  */
 
 import { toast } from "sonner";
@@ -54,7 +55,7 @@ export class TransactionService extends BaseService {
       operation,
       type,
       status: TransactionStatus.PENDING,
-      startTime: new Date(),
+      startTime: new Date().toISOString(), // Convert Date to string
       userId,
       metadata: { ...metadata }
     };
@@ -80,7 +81,7 @@ export class TransactionService extends BaseService {
           
           // Operation succeeded, update details
           transactionDetails.status = TransactionStatus.SUCCESS;
-          transactionDetails.endTime = new Date();
+          transactionDetails.endTime = new Date().toISOString(); // Convert Date to string
           transactionDetails.metadata = { 
             ...(transactionDetails.metadata || {}),
             result: typeof result === 'object' ? 'Object data (not logged)' : result
@@ -122,7 +123,7 @@ export class TransactionService extends BaseService {
     } catch (error: any) {
       // Update transaction with error details
       transactionDetails.status = TransactionStatus.ERROR;
-      transactionDetails.endTime = new Date();
+      transactionDetails.endTime = new Date().toISOString(); // Convert Date to string
       transactionDetails.errorDetails = error.message || 'Unknown error';
       transactionDetails.metadata = { 
         ...(transactionDetails.metadata || {}),

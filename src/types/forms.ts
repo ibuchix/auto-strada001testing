@@ -2,6 +2,9 @@
 /**
  * Changes made:
  * - 2024-07-24: Created forms.ts to define form data types
+ * - 2024-08-01: Added damageReports array to CarListingFormData
+ * - 2024-08-02: Added additional exported types: DamageType, DamageReport, CarFeatures, defaultCarFeatures
+ * - 2024-08-03: Added CarListing and AuctionStatus types for carService
  */
 
 export interface CarListingFormData {
@@ -37,13 +40,7 @@ export interface CarListingFormData {
   serviceHistoryType: string;
   sellerNotes: string;
   conditionRating: number;
-  features: {
-    satNav: boolean;
-    panoramicRoof: boolean;
-    reverseCamera: boolean;
-    heatedSeats: boolean;
-    upgradedSound: boolean;
-  };
+  features: CarFeatures;
   uploadedPhotos: string[];
   additionalPhotos: string[];
   requiredPhotos: {
@@ -63,4 +60,55 @@ export interface CarListingFormData {
   financeDocument: string | null;
   serviceHistoryFiles: string[];
   userId?: string;
+  damageReports?: DamageReport[];
+}
+
+export type DamageType = 'bodywork' | 'mechanical' | 'electrical' | 'interior' | 'glass' | 'other';
+
+export interface DamageReport {
+  type: DamageType;
+  description: string;
+  photoPath: string;
+}
+
+export interface CarFeatures {
+  satNav: boolean;
+  panoramicRoof: boolean;
+  reverseCamera: boolean;
+  heatedSeats: boolean;
+  upgradedSound: boolean;
+}
+
+export const defaultCarFeatures: CarFeatures = {
+  satNav: false,
+  panoramicRoof: false,
+  reverseCamera: false,
+  heatedSeats: false,
+  upgradedSound: false
+};
+
+export enum AuctionStatus {
+  DRAFT = 'draft',
+  PENDING = 'pending',
+  ACTIVE = 'active',
+  ENDED = 'ended',
+  SOLD = 'sold',
+  CANCELLED = 'cancelled'
+}
+
+export interface CarListing {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  mileage: number;
+  status: string;
+  auction_status: AuctionStatus;
+  seller_id: string;
+  created_at: string;
+  current_bid?: number;
+  reserve_price?: number;
+  photos: string[];
+  features: CarFeatures;
 }

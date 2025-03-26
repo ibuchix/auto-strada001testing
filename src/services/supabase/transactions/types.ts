@@ -3,6 +3,8 @@
  * Changes made:
  * - 2024-10-28: Created separate types file for transaction system
  * - 2024-07-24: Added WARNING status and additional transaction types
+ * - 2024-08-04: Added INACTIVE status to match TransactionStatusIndicator usage
+ * - 2024-08-04: Synchronized TransactionType with transactionService
  */
 
 // Define transaction types to categorize different operations
@@ -22,7 +24,8 @@ export enum TransactionStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
   ERROR = 'error',
-  WARNING = 'warning'
+  WARNING = 'warning',
+  INACTIVE = 'inactive'
 }
 
 // Interface for transaction details

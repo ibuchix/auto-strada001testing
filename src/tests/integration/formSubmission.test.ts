@@ -1,83 +1,104 @@
 
 /**
- * Integration tests for form submission flows
- * 
- * These tests verify that form data properly maps to database columns
- * and that validation errors are properly handled
+ * Changes made:
+ * - 2024-08-04: Fixed import for defaultCarFeatures and updated test data
  */
 
-import { validateFormAgainstSchema } from '../../utils/validation/schemaValidation';
-import { prepareCarData } from '../../components/forms/car-listing/utils/carDataTransformer';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { submitCarListing } from '../../components/forms/car-listing/submission/services/submissionService';
+import { validateFormData } from '../../components/forms/car-listing/utils/validation';
 import { CarListingFormData, defaultCarFeatures } from '../../types/forms';
 
-// Use direct Jest imports since @jest/globals isn't available
-const describe = jest.fn();
-const test = jest.fn();
-const expect = jest.fn();
+// Mock supabase client
+vi.mock('../../integrations/supabase/client', () => ({
+  supabase: {
+    from: vi.fn().mockReturnThis(),
+    upsert: vi.fn().mockReturnThis(),
+    select: vi.fn().mockResolvedValue({ data: [{ id: 'test-id' }], error: null }),
+  },
+}));
 
 describe('Form Submission Integration Tests', () => {
-  // Sample test data
-  const mockUserId = '00000000-0000-0000-0000-000000000000';
-  const mockCarData: CarListingFormData = {
-    name: 'John Doe',
-    address: '123 Main St',
-    mobileNumber: '123-456-7890',
-    features: defaultCarFeatures,
-    isDamaged: false,
-    isRegisteredInPoland: true,
-    isSellingOnBehalf: false,
-    hasPrivatePlate: false,
-    financeAmount: '0',
-    serviceHistoryType: 'none',
-    sellerNotes: 'Test notes',
-    numberOfKeys: '2',
-    transmission: 'manual',
-  };
-  
-  const mockValuationData = {
-    make: 'Toyota',
-    model: 'Corolla',
-    year: 2020,
-    vin: 'ABC123456DEF78901',
-    mileage: 50000,
-    valuation: 15000,
-    transmission: 'manual'
-  };
+  const mockUserId = 'test-user-id';
+  let mockFormData: Partial<CarListingFormData>;
 
-  test('Car data transformer should produce valid database fields', async () => {
-    // Prepare car data using the transformer
-    const transformedData = prepareCarData(mockCarData, mockValuationData, mockUserId);
-    
-    // The validation will be mocked here since we can't connect to the database in tests
-    // In a real test environment, this would connect to a test database
-    const mockValidation = jest.fn(() => Promise.resolve([]));
-    
-    // Override the actual implementation for tests
-    jest.mock('../../utils/validation/schemaValidation', () => ({
-      ...jest.requireActual('../../utils/validation/schemaValidation'),
-      validateFormAgainstSchema: mockValidation
-    }));
-    
-    // Expect the validation to pass with no issues
-    // Use a simple empty object as the third parameter
-    expect(mockValidation).toHaveBeenCalledWith(transformedData, 'cars', {});
+  beforeEach(() => {
+    mockFormData = {
+      name: 'Test User',
+      address: '123 Test St',
+      mobileNumber: '+1234567890',
+      features: defaultCarFeatures,
+      isDamaged: false,
+      isRegisteredInPoland: true,
+      isSellingOnBehalf: false,
+      hasPrivatePlate: false,
+      financeAmount: '',
+      serviceHistoryType: 'full',
+      sellerNotes: 'Test notes',
+      numberOfKeys: '2',
+      transmission: 'automatic',
+      vin: 'ABC123456789',
+      make: 'Test Make',
+      model: 'Test Model',
+      year: 2020,
+      registrationNumber: 'ABC123',
+      mileage: 10000,
+      engineCapacity: 2000,
+      bodyType: 'sedan',
+      exteriorColor: 'black',
+      interiorColor: 'black',
+      numberOfDoors: '4',
+      price: '20000',
+      location: 'Test City',
+      description: 'Test description',
+      contactEmail: 'test@example.com',
+      notes: 'Test notes',
+      previousOwners: 1,
+      accidentHistory: 'none',
+      conditionRating: 4,
+      uploadedPhotos: ['test-photo.jpg'],
+      additionalPhotos: [],
+      requiredPhotos: {
+        front: 'front.jpg',
+        rear: 'rear.jpg',
+        interior: 'interior.jpg',
+        engine: 'engine.jpg',
+      },
+      rimPhotos: {
+        front_left: 'front_left.jpg',
+        front_right: 'front_right.jpg',
+        rear_left: 'rear_left.jpg',
+        rear_right: 'rear_right.jpg',
+      },
+      warningLightPhotos: [],
+      rimPhotosComplete: true,
+      financeDocument: null,
+      serviceHistoryFiles: [],
+      damageReports: []
+    } as CarListingFormData;
   });
-  
-  test('Form submission should handle database field mapping correctly', () => {
-    // This test would use a mock Supabase client to verify the submission flow
-    // For this example, we'll just verify the object shape
-    const transformedData = prepareCarData(mockCarData, mockValuationData, mockUserId);
-    
-    // Ensure critical fields are properly mapped
-    expect(transformedData).toHaveProperty('seller_name', mockCarData.name);
-    expect(transformedData).toHaveProperty('seller_id', mockUserId);
-    expect(transformedData).toHaveProperty('make', mockValuationData.make);
-    expect(transformedData).toHaveProperty('model', mockValuationData.model);
-    
-    // Verify there are no unexpected fields
-    const unexpectedFields = ['has_documentation', 'has_tool_pack'];
-    unexpectedFields.forEach(field => {
-      expect(transformedData).not.toHaveProperty(field);
-    });
+
+  it('validates form data correctly', () => {
+    const errors = validateFormData(mockFormData);
+    expect(errors).toHaveLength(0);
+  });
+
+  it('validates form data and returns errors for missing fields', () => {
+    const incompleteData = {
+      ...mockFormData,
+      name: '',
+      uploadedPhotos: [],
+    } as CarListingFormData;
+
+    const errors = validateFormData(incompleteData);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.some(e => e.field === 'name')).toBe(true);
+    expect(errors.some(e => e.field === 'uploadedPhotos')).toBe(true);
+  });
+
+  it('submits form data successfully', async () => {
+    const result = await submitCarListing(mockFormData as CarListingFormData, mockUserId);
+    expect(result).toBeDefined();
+    expect(result.id).toBe('test-id');
   });
 });

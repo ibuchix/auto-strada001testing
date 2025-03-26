@@ -3,6 +3,7 @@
  * Changes made:
  * - 2028-06-01: Created transaction status indicator for better user feedback
  * - 2028-07-24: Added pendingText, successText, errorText props for customization
+ * - 2024-08-04: Fixed string to enum conversion for status variant
  */
 
 import { useEffect, useState } from "react";

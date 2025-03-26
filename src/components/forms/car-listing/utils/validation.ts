@@ -4,6 +4,7 @@
  * - 2024-08-20: Enhanced form validation with standardized approach
  * - 2024-08-22: Added ValidationError type export to fix type errors in RequirementsDisplay.tsx
  * - 2025-06-02: Removed validation for non-existent has_documentation field
+ * - 2024-08-04: Fixed damageReports validation
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -30,7 +31,7 @@ export const validateFormData = (data: Partial<CarListingFormData>): ValidationR
 
   // Vehicle Status
   if (data.isDamaged && (!data.damageReports || data.damageReports.length === 0)) {
-    errors.push({ field: 'damageReports', message: 'Please document any damage' });
+    errors.push({ field: 'isDamaged', message: 'Please document any damage' });
   }
 
   // Service History
@@ -71,7 +72,7 @@ export const getFormProgress = (data: Partial<CarListingFormData>): number => {
   }
 
   // Vehicle Status
-  if (!data.isDamaged || (data.isDamaged && data.damageReports?.length)) {
+  if (!data.isDamaged || (data.isDamaged && data.damageReports && data.damageReports.length > 0)) {
     completedSteps++;
   }
 

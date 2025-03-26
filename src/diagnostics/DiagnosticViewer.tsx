@@ -1,134 +1,102 @@
 
 /**
  * Changes made:
- * - 2027-07-23: Created diagnostic viewer component for troubleshooting
- * - 2024-07-24: Fixed function call to getDiagnosticLogs
+ * - 2024-08-04: Fixed import for getDiagnosticLogs
  */
 
-import { useState, useEffect } from "react";
-import { getDiagnosticLogs, clearDiagnostics } from "./listingButtonDiagnostics";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { getDiagnostics } from './listingButtonDiagnostics';
 
-export const DiagnosticViewer = () => {
+const DiagnosticViewer = ({ diagnosticId }: { diagnosticId?: string }) => {
   const [logs, setLogs] = useState<any[]>([]);
-  const [filter, setFilter] = useState('');
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  
-  const refreshLogs = () => {
-    const allLogs = getDiagnosticLogs();
-    setLogs(allLogs);
-  };
+  const [selectedTab, setSelectedTab] = useState<string>('all');
+  const [refreshCount, setRefreshCount] = useState(0);
   
   useEffect(() => {
-    refreshLogs();
-    
-    if (autoRefresh) {
-      const interval = setInterval(refreshLogs, 1000);
-      return () => clearInterval(interval);
+    if (diagnosticId) {
+      const diagnosticLogs = getDiagnostics(diagnosticId);
+      setLogs(diagnosticLogs);
     }
-  }, [autoRefresh]);
+  }, [diagnosticId, refreshCount]);
   
-  const filteredLogs = filter 
-    ? logs.filter(log => 
-        log.area?.toLowerCase().includes(filter.toLowerCase()) || 
-        log.message?.toLowerCase().includes(filter.toLowerCase()) ||
-        (log.data && typeof log.data === 'string' && log.data.toLowerCase().includes(filter.toLowerCase()))
-      )
-    : logs;
-  
-  const handleClearLogs = () => {
-    clearDiagnostics(); // Now correctly passes no argument to clear all logs
-    refreshLogs();
+  const handleRefresh = () => {
+    setRefreshCount(prev => prev + 1);
   };
   
-  // Group logs by session ID
-  const sessionIds = [...new Set(logs.map(log => log.sessionId))];
+  const filteredLogs = selectedTab === 'all' 
+    ? logs 
+    : logs.filter(log => log.level === selectedTab);
+  
+  if (!diagnosticId) {
+    return null;
+  }
   
   return (
-    <div className="p-4 bg-white rounded-lg shadow max-w-6xl mx-auto my-8">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Diagnostic Logs</h2>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Filter logs..."
-            className="px-3 py-2 border rounded"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={() => setAutoRefresh(!autoRefresh)}
-            />
-            Auto-refresh
-          </label>
-          <button 
-            onClick={refreshLogs}
-            className="px-3 py-2 bg-blue-500 text-white rounded"
-          >
-            Refresh
-          </button>
-          <button 
-            onClick={handleClearLogs}
-            className="px-3 py-2 bg-red-500 text-white rounded"
-          >
-            Clear
-          </button>
+    <Card className="w-full">
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-sm">Diagnostic Logs</CardTitle>
+          <Button variant="ghost" size="sm" onClick={handleRefresh}>Refresh</Button>
         </div>
-      </div>
-      
-      <div className="mb-4">
-        <h3 className="font-bold">Sessions: {sessionIds.length}</h3>
-        <div className="flex flex-wrap gap-2 mt-2">
-          {sessionIds.map(id => (
-            <div key={id} className="px-3 py-1 bg-gray-100 rounded text-sm">
-              {id} ({logs.filter(log => log.sessionId === id).length} logs)
-            </div>
-          ))}
-        </div>
-      </div>
-      
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="p-2 text-left">Time</th>
-              <th className="p-2 text-left">Session</th>
-              <th className="p-2 text-left">Area</th>
-              <th className="p-2 text-left">Message</th>
-              <th className="p-2 text-left">Data</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredLogs.map((log) => (
-              <tr key={log.id} className="border-t border-gray-200">
-                <td className="p-2 text-xs text-gray-500">
-                  {new Date(log.timestamp).toLocaleTimeString()}
-                </td>
-                <td className="p-2 text-xs">
-                  {log.sessionId || '—'}
-                </td>
-                <td className="p-2 text-xs font-mono">
-                  {log.category || log.area || '—'}
-                </td>
-                <td className="p-2 text-xs">
-                  {log.message || '—'}
-                </td>
-                <td className="p-2 text-xs overflow-hidden">
-                  <pre className="whitespace-pre-wrap max-w-xs overflow-hidden text-ellipsis">
-                    {log.data ? 
-                      (typeof log.data === 'object' ? 
-                        JSON.stringify(log.data, null, 2) : 
-                        log.data.toString()
-                      ) : '—'}
-                  </pre>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="all" value={selectedTab} onValueChange={setSelectedTab}>
+          <TabsList className="mb-2">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="INFO">Info</TabsTrigger>
+            <TabsTrigger value="WARNING">Warnings</TabsTrigger>
+            <TabsTrigger value="ERROR">Errors</TabsTrigger>
+            <TabsTrigger value="DEBUG">Debug</TabsTrigger>
+          </TabsList>
+          <TabsContent value={selectedTab}>
+            <ScrollArea className="h-[300px]">
+              {filteredLogs.length === 0 ? (
+                <div className="text-center text-muted-foreground py-6">
+                  No logs found
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredLogs.map((log) => (
+                    <div key={log.id} className="border rounded-lg p-2 text-xs">
+                      <div className="flex justify-between mb-1">
+                        <span className="font-semibold">{log.event}</span>
+                        <Badge 
+                          variant={
+                            log.level === 'ERROR' ? 'destructive' : 
+                            log.level === 'WARNING' ? 'warning' : 
+                            'outline'
+                          }
+                        >
+                          {log.level}
+                        </Badge>
+                      </div>
+                      <p className="mb-1">{log.message}</p>
+                      <div className="text-muted-foreground text-[10px]">
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </div>
+                      {log.details && (
+                        <details className="mt-1">
+                          <summary className="cursor-pointer text-muted-foreground">Details</summary>
+                          <pre className="text-[10px] mt-1 bg-muted p-1 rounded">
+                            {JSON.stringify(log.details, null, 2)}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
+
+export default DiagnosticViewer;

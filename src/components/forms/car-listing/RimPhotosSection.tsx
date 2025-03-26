@@ -6,6 +6,7 @@
  * - 2027-08-03: Improved error handling when carId is not available
  * - 2027-08-12: Updated PhotoUpload props to use title and description instead of label
  * - 2028-05-30: Fixed type issues with onUpload function return type
+ * - 2024-08-04: Removed disabled property and used isUploading instead
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -31,6 +32,7 @@ export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
   });
   
   const [missingCarId, setMissingCarId] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Check if carId is available on mount and when it changes
   useEffect(() => {
@@ -46,6 +48,7 @@ export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
       return null;
     }
 
+    setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', `rim_${position}`);
@@ -82,6 +85,8 @@ export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
       toast.error('Failed to upload rim photo');
       console.error('Rim photo upload error:', error);
       return null; // Return null on error
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -113,32 +118,32 @@ export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
           id="rim_front_left"
           title="Front Left Rim"
           description="Clear photo of front left wheel"
-          isUploading={false}
-          disabled={missingCarId}
+          isUploading={isUploading}
+          isUploaded={uploadedRims.front_left}
           onUpload={(file) => handleRimPhotoUpload(file, 'front_left')}
         />
         <PhotoUpload
           id="rim_front_right"
           title="Front Right Rim"
           description="Clear photo of front right wheel"
-          isUploading={false}
-          disabled={missingCarId}
+          isUploading={isUploading}
+          isUploaded={uploadedRims.front_right}
           onUpload={(file) => handleRimPhotoUpload(file, 'front_right')}
         />
         <PhotoUpload
           id="rim_rear_left"
           title="Rear Left Rim"
           description="Clear photo of rear left wheel"
-          isUploading={false}
-          disabled={missingCarId}
+          isUploading={isUploading}
+          isUploaded={uploadedRims.rear_left}
           onUpload={(file) => handleRimPhotoUpload(file, 'rear_left')}
         />
         <PhotoUpload
           id="rim_rear_right"
           title="Rear Right Rim"
           description="Clear photo of rear right wheel"
-          isUploading={false}
-          disabled={missingCarId}
+          isUploading={isUploading}
+          isUploaded={uploadedRims.rear_right}
           onUpload={(file) => handleRimPhotoUpload(file, 'rear_right')}
         />
       </div>

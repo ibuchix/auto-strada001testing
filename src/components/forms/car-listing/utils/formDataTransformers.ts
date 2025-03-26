@@ -1,119 +1,116 @@
 
 /**
  * Changes made:
- * - 2024-03-20: Fixed type references to match database schema
- * - 2024-03-20: Updated property names to match database schema
- * - 2024-03-19: Added support for converting between form and database formats
- * - 2024-03-19: Added handling for default values and nullable fields
- * - 2024-03-25: Added support for additional_photos field
- * - 2024-08-08: Added support for form_metadata with current_step
- * - 2024-08-09: Fixed type handling for form_metadata field
- * - 2024-12-05: Added error handling for localStorage data access
- * - 2024-12-06: Fixed type errors with valuationData properties
- * - 2024-08-04: Fixed "name" column issue by using seller_name instead
- * - 2025-05-31: Standardized field naming approach by providing both name and seller_name
- * - 2025-06-01: Removed references to non-existent field has_tool_pack
- * - 2025-06-02: Removed references to non-existent field has_documentation
+ * - 2024-08-04: Fixed import for defaultCarFeatures
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
-import { Json } from "@/integrations/supabase/types";
 
-export const transformFormToDbData = (formData: CarListingFormData, userId: string): any => {
-  // Safely retrieve data from localStorage with fallbacks
-  let valuationData: Record<string, any> = {};
-  let mileage = 0;
-  let vin = '';
-  let currentStep = 0;
-  
-  try {
-    const valuationDataStr = localStorage.getItem('valuationData');
-    valuationData = valuationDataStr ? JSON.parse(valuationDataStr) : {};
-    
-    mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-    vin = localStorage.getItem('tempVIN') || '';
-    currentStep = parseInt(localStorage.getItem('formCurrentStep') || '0');
-  } catch (error) {
-    console.error('Error reading from localStorage:', error);
-  }
-  
-  // Create basic form data even if localStorage data is missing
-  const title = valuationData && 
-    typeof valuationData === 'object' && 
-    'make' in valuationData && 
-    'model' in valuationData && 
-    'year' in valuationData
-      ? `${valuationData.make || ''} ${valuationData.model || ''} ${valuationData.year || ''}`.trim()
-      : 'Draft Listing';
-  
-  // Safely extract price from valuation data, handling undefined/missing values
-  const price = valuationData && typeof valuationData === 'object' 
-    ? ('valuation' in valuationData && valuationData.valuation !== undefined && valuationData.valuation !== null
-        ? valuationData.valuation 
-        : ('averagePrice' in valuationData && valuationData.averagePrice !== undefined && valuationData.averagePrice !== null
-            ? valuationData.averagePrice 
-            : 0)) 
-    : 0;
-
+/**
+ * Transforms form data for API submission
+ */
+export const transformFormDataForSubmission = (data: CarListingFormData): Record<string, any> => {
   return {
-    seller_id: userId,
-    // Include both name and seller_name fields for maximum compatibility
-    name: formData.name, // For compatibility with code expecting name field
-    seller_name: formData.name, // For consistency with database schema
-    address: formData.address,
-    mobile_number: formData.mobileNumber,
-    features: formData.features as unknown as Json,
-    is_damaged: formData.isDamaged,
-    is_registered_in_poland: formData.isRegisteredInPoland,
-    is_selling_on_behalf: formData.isSellingOnBehalf,
-    has_private_plate: formData.hasPrivatePlate,
-    finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
-    service_history_type: formData.serviceHistoryType,
-    seller_notes: formData.sellerNotes,
-    seat_material: formData.seatMaterial,
-    number_of_keys: parseInt(formData.numberOfKeys),
-    is_draft: true,
-    last_saved: new Date().toISOString(),
-    mileage: mileage,
-    price: price,
-    title: title,
-    vin: vin,
-    transmission: formData.transmission,
-    additional_photos: formData.uploadedPhotos || [],
-    form_metadata: {
-      current_step: currentStep,
-      last_updated: new Date().toISOString()
-    } as Json
+    title: `${data.make} ${data.model} ${data.year}`,
+    vin: data.vin,
+    make: data.make,
+    model: data.model,
+    year: data.year,
+    mileage: Number(data.mileage),
+    price: Number(data.price),
+    transmission: data.transmission,
+    body_type: data.bodyType,
+    exterior_color: data.exteriorColor,
+    interior_color: data.interiorColor,
+    engine_capacity: Number(data.engineCapacity),
+    number_of_doors: Number(data.numberOfDoors),
+    seat_material: data.seatMaterial,
+    number_of_keys: Number(data.numberOfKeys),
+    description: data.description,
+    location: data.location,
+    seller_name: data.name,
+    address: data.address,
+    mobile_number: data.mobileNumber,
+    contact_email: data.contactEmail,
+    notes: data.notes,
+    previous_owners: Number(data.previousOwners),
+    accident_history: data.accidentHistory,
+    is_damaged: data.isDamaged,
+    is_registered_in_poland: data.isRegisteredInPoland,
+    is_selling_on_behalf: data.isSellingOnBehalf,
+    has_private_plate: data.hasPrivatePlate,
+    finance_amount: data.financeAmount ? Number(data.financeAmount) : null,
+    service_history_type: data.serviceHistoryType,
+    seller_notes: data.sellerNotes,
+    condition_rating: data.conditionRating,
+    features: data.features || defaultCarFeatures,
+    photos: data.uploadedPhotos || [],
+    additional_photos: data.additionalPhotos || [],
+    required_photos: data.requiredPhotos || {},
+    rim_photos: data.rimPhotos || {},
+    warning_light_photos: data.warningLightPhotos || [],
+    rim_photos_complete: data.rimPhotosComplete,
+    finance_document: data.financeDocument,
+    service_history_files: data.serviceHistoryFiles || [],
+    damage_reports: data.damageReports || []
   };
 };
 
-export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> => {
-  // Safely handle form_metadata
-  const metadata = dbData.form_metadata as Record<string, any> | null;
-  if (metadata && typeof metadata === 'object' && 'current_step' in metadata) {
-    try {
-      localStorage.setItem('formCurrentStep', String(metadata.current_step));
-    } catch (error) {
-      console.error('Error writing to localStorage:', error);
-    }
-  }
-  
+/**
+ * Transforms API data to form data format
+ */
+export const transformApiDataToFormData = (apiData: Record<string, any>): Partial<CarListingFormData> => {
   return {
-    // Map seller_name to name for form data, with fallback to name field
-    name: dbData.seller_name || dbData.name || "",
-    address: dbData.address || "",
-    mobileNumber: dbData.mobile_number || "",
-    features: dbData.features ? { ...defaultCarFeatures, ...dbData.features as Record<string, boolean> } : defaultCarFeatures,
-    isDamaged: dbData.is_damaged || false,
-    isRegisteredInPoland: dbData.is_registered_in_poland || false,
-    isSellingOnBehalf: dbData.is_selling_on_behalf || false,
-    hasPrivatePlate: dbData.has_private_plate || false,
-    financeAmount: dbData.finance_amount?.toString() || "",
-    serviceHistoryType: dbData.service_history_type || "none",
-    sellerNotes: dbData.seller_notes || "",
-    seatMaterial: dbData.seat_material || "",
-    numberOfKeys: dbData.number_of_keys?.toString() || "1",
-    transmission: dbData.transmission as "manual" | "automatic" | null,
-    uploadedPhotos: dbData.additional_photos || []
+    vin: apiData.vin || "",
+    make: apiData.make || "",
+    model: apiData.model || "",
+    year: apiData.year || new Date().getFullYear(),
+    mileage: apiData.mileage || 0,
+    price: String(apiData.price || ""),
+    transmission: apiData.transmission || "manual",
+    bodyType: apiData.body_type || "sedan",
+    exteriorColor: apiData.exterior_color || "",
+    interiorColor: apiData.interior_color || "",
+    engineCapacity: apiData.engine_capacity || 0,
+    numberOfDoors: String(apiData.number_of_doors || "4"),
+    seatMaterial: apiData.seat_material || "cloth",
+    numberOfKeys: String(apiData.number_of_keys || "1"),
+    description: apiData.description || "",
+    location: apiData.location || "",
+    name: apiData.seller_name || "",
+    address: apiData.address || "",
+    mobileNumber: apiData.mobile_number || "",
+    contactEmail: apiData.contact_email || "",
+    notes: apiData.notes || "",
+    previousOwners: apiData.previous_owners || 1,
+    accidentHistory: apiData.accident_history || "none",
+    isDamaged: apiData.is_damaged || false,
+    isRegisteredInPoland: apiData.is_registered_in_poland || true,
+    isSellingOnBehalf: apiData.is_selling_on_behalf || false,
+    hasPrivatePlate: apiData.has_private_plate || false,
+    financeAmount: String(apiData.finance_amount || ""),
+    serviceHistoryType: apiData.service_history_type || "none",
+    sellerNotes: apiData.seller_notes || "",
+    conditionRating: apiData.condition_rating || 3,
+    features: apiData.features || defaultCarFeatures,
+    uploadedPhotos: apiData.photos || [],
+    additionalPhotos: apiData.additional_photos || [],
+    requiredPhotos: apiData.required_photos || {
+      front: null,
+      rear: null,
+      interior: null,
+      engine: null
+    },
+    rimPhotos: apiData.rim_photos || {
+      front_left: null,
+      front_right: null,
+      rear_left: null,
+      rear_right: null
+    },
+    warningLightPhotos: apiData.warning_light_photos || [],
+    rimPhotosComplete: apiData.rim_photos_complete || false,
+    financeDocument: apiData.finance_document || null,
+    serviceHistoryFiles: apiData.service_history_files || [],
+    damageReports: apiData.damage_reports || []
   };
 };

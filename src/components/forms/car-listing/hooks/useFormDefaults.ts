@@ -1,29 +1,60 @@
 
 /**
  * Changes made:
- * - 2025-06-01: Removed references to non-existent field has_tool_pack
- * - 2025-06-02: Removed references to non-existent field hasDocumentation
+ * - 2024-08-04: Fixed import for defaultCarFeatures and added damageReports to default values
  */
 
+import { useState, useEffect } from "react";
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 
-export const getFormDefaults = (): Partial<CarListingFormData> => ({
-  name: "",
-  address: "",
-  mobileNumber: "",
-  features: defaultCarFeatures,
-  isDamaged: false,
-  isRegisteredInPoland: false,
-  isSellingOnBehalf: false,
-  hasPrivatePlate: false,
-  financeDocument: null,
-  uploadedPhotos: [],
-  seatMaterial: "",
-  numberOfKeys: "1",
-  serviceHistoryType: "none",
-  sellerNotes: "",
-  damageReports: [],
-  rimPhotosComplete: false,
-  warningLightPhotos: [],
-  transmission: null
-});
+export const useFormDefaults = (userId?: string) => {
+  const [defaultValues, setDefaultValues] = useState<Partial<CarListingFormData>>({
+    name: "",
+    address: "",
+    mobileNumber: "",
+    contactEmail: "",
+    previousOwners: 1,
+    accidentHistory: "none",
+    isDamaged: false,
+    isRegisteredInPoland: true,
+    isSellingOnBehalf: false,
+    hasPrivatePlate: false,
+    financeAmount: "",
+    serviceHistoryType: "full",
+    sellerNotes: "",
+    seatMaterial: "cloth",
+    numberOfKeys: "1",
+    conditionRating: 3,
+    features: defaultCarFeatures,
+    uploadedPhotos: [],
+    additionalPhotos: [],
+    requiredPhotos: {
+      front: null,
+      rear: null,
+      interior: null,
+      engine: null
+    },
+    rimPhotos: {
+      front_left: null,
+      front_right: null,
+      rear_left: null,
+      rear_right: null
+    },
+    warningLightPhotos: [],
+    rimPhotosComplete: false,
+    financeDocument: null,
+    serviceHistoryFiles: [],
+    damageReports: []
+  });
+
+  useEffect(() => {
+    if (userId) {
+      setDefaultValues(prev => ({
+        ...prev,
+        userId
+      }));
+    }
+  }, [userId]);
+
+  return defaultValues;
+};

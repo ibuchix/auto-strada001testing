@@ -1,30 +1,55 @@
 
 /**
  * Changes made:
- * - 2024-09-05: Created dashboard types for SellerDashboard refactoring
- * - 2024-09-22: Updated CarListing interface to match what's used in the application
- * - 2024-09-23: Made several fields optional to match actual database structure
+ * - 2024-08-04: Fixed import for CarFeatures type
  */
 
 import { CarFeatures } from "@/types/forms";
 
-// Define the interface clearly to avoid conflicts
-export interface CarListing {
+export interface DashboardStats {
+  totalListings: number;
+  activeListings: number;
+  soldListings: number;
+  totalEarnings: number;
+  averageSalePrice: number;
+}
+
+export interface RecentActivity {
+  id: string;
+  type: 'listing_created' | 'listing_sold' | 'bid_received' | 'system_message';
+  message: string;
+  timestamp: string;
+  details?: Record<string, any>;
+}
+
+export interface DashboardListing {
   id: string;
   title: string;
-  price: number;
-  status?: string;
-  created_at?: string;
   make: string;
   model: string;
   year: number;
-  is_draft: boolean;
-  is_auction?: boolean;
-  auction_status?: string;
-  description: string;
-  features?: CarFeatures | null;
-  seller_id?: string;
-  mileage?: number;
-  images?: string[] | null;
-  updated_at?: string;
+  status: string;
+  price: number;
+  currentBid?: number | null;
+  thumbnailUrl?: string;
+  createdAt: string;
+  features: CarFeatures;
+  auctionStatus?: string;
+  auctionEndTime?: string;
+}
+
+export interface DashboardBid {
+  id: string;
+  carId: string;
+  amount: number;
+  status: 'active' | 'outbid' | 'won' | 'lost';
+  timestamp: string;
+  carTitle: string;
+  carThumbnail?: string;
+}
+
+export interface DashboardData {
+  stats: DashboardStats;
+  recentActivity: RecentActivity[];
+  listings: DashboardListing[];
 }
