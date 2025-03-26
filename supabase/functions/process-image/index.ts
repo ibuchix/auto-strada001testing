@@ -7,7 +7,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ALLOWED_DOCUMENT_TYPES = [
+  'application/pdf', 
+  'application/msword', 
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+];
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -24,14 +30,19 @@ serve(async (req) => {
       throw new Error('Missing required fields')
     }
 
-    // Verify file is an image
-    if (!file.type.startsWith('image/')) {
-      throw new Error('File must be an image')
+    // Validate file type based on upload category
+    const isServiceDocument = type.includes('service_document');
+    const allowedTypes = isServiceDocument 
+      ? [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOCUMENT_TYPES]
+      : ALLOWED_IMAGE_TYPES;
+    
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error(`File type ${file.type} not allowed for ${isServiceDocument ? 'documents' : 'images'}`);
     }
 
     // Check file size
     if (file.size > MAX_FILE_SIZE) {
-      throw new Error('File size must be less than 5MB')
+      throw new Error(`File size must be less than ${MAX_FILE_SIZE / (1024 * 1024)}MB`)
     }
 
     const supabase = createClient(
@@ -54,6 +65,11 @@ serve(async (req) => {
       throw new Error('Failed to upload file')
     }
 
+    // Get the public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('car-images')
+      .getPublicUrl(filePath);
+
     // Log the upload
     await supabase
       .from('car_file_uploads')
@@ -69,8 +85,11 @@ serve(async (req) => {
         }
       })
 
-    // Update car's photos
-    if (type.includes('additional_')) {
+    // Update car's photos or documents
+    if (type.includes('service_document')) {
+      // For service documents, we return the URL without updating the car record
+      // as these are handled separately in the ServiceHistorySection component
+    } else if (type.includes('additional_')) {
       await supabase
         .from('cars')
         .update({
@@ -92,8 +111,9 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        message: 'Image uploaded successfully',
-        filePath
+        message: 'File uploaded successfully',
+        filePath,
+        publicUrl
       }),
       { 
         headers: { 
@@ -106,7 +126,7 @@ serve(async (req) => {
     console.error('Error:', error)
     return new Response(
       JSON.stringify({ 
-        error: 'Failed to process image', 
+        error: 'Failed to process file', 
         details: error.message 
       }),
       { 
