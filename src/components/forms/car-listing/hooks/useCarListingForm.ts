@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of form with validation
@@ -124,8 +123,8 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
     return await withErrorHandling(async () => {
       const formData = form.getValues();
       
-      // Ensure all required features are present
-      const features = {
+      // Ensure all required features are present and convert to JSON-compatible object
+      const featuresJson = {
         satNav: formData.features?.satNav ?? false,
         panoramicRoof: formData.features?.panoramicRoof ?? false,
         reverseCamera: formData.features?.reverseCamera ?? false,
@@ -139,10 +138,10 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
         .upsert({
           id: carId,
           seller_id: userId,
-          seller_name: formData.name, // Use seller_name instead of name
+          seller_name: formData.name,
           address: formData.address,
           mobile_number: formData.mobileNumber,
-          features,
+          features: featuresJson,
           is_damaged: formData.isDamaged,
           is_registered_in_poland: formData.isRegisteredInPoland,
           is_selling_on_behalf: formData.isSellingOnBehalf,
@@ -158,7 +157,7 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
           form_metadata: {
             current_step: currentStep
           }
-        })
+        } as any)
         .select()
         .single();
       

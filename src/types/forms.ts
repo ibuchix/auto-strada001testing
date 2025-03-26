@@ -1,10 +1,9 @@
 
 /**
  * Changes made:
- * - 2024-07-24: Created forms.ts to define form data types
- * - 2024-08-01: Added damageReports array to CarListingFormData
- * - 2024-08-02: Added additional exported types: DamageType, DamageReport, CarFeatures, defaultCarFeatures
- * - 2024-08-03: Added CarListing and AuctionStatus types for carService
+ * - 2024-08-04: Fixed compatibility issues with DamageType and DamageReport interfaces
+ * - 2024-08-04: Added Json conversion option for CarFeatures
+ * - 2024-08-04: Consolidated DamageType definitions
  */
 
 export interface CarListingFormData {
@@ -63,12 +62,20 @@ export interface CarListingFormData {
   damageReports?: DamageReport[];
 }
 
-export type DamageType = 'bodywork' | 'mechanical' | 'electrical' | 'interior' | 'glass' | 'other';
+// Unified damage type to resolve conflicts
+export type DamageType = 'scratches' | 'dents' | 'paintwork' | 'windscreen' | 'bodywork' | 'mechanical' | 'electrical' | 'interior' | 'glass' | 'other';
 
 export interface DamageReport {
   type: DamageType;
   description: string;
   photoPath: string;
+}
+
+export interface RimPhotos {
+  front_left: string | null;
+  front_right: string | null;
+  rear_left: string | null;
+  rear_right: string | null;
 }
 
 export interface CarFeatures {
@@ -78,6 +85,17 @@ export interface CarFeatures {
   heatedSeats: boolean;
   upgradedSound: boolean;
 }
+
+// Helper function to convert CarFeatures to JSON-compatible object
+export const carFeaturesToJson = (features: CarFeatures): Record<string, boolean> => {
+  return {
+    satNav: features.satNav,
+    panoramicRoof: features.panoramicRoof,
+    reverseCamera: features.reverseCamera,
+    heatedSeats: features.heatedSeats,
+    upgradedSound: features.upgradedSound
+  };
+};
 
 export const defaultCarFeatures: CarFeatures = {
   satNav: false,

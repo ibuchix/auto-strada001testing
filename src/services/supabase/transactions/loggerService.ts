@@ -1,75 +1,76 @@
 
 /**
- * Changes made:
- * - 2024-10-28: Created separate logger service for transaction logging
- * - 2024-08-04: Fixed handling of string dates in logger service
+ * Updated logger service to use system_logs table instead of transaction_logs
  */
 
-import { BaseService } from "../baseService";
+import { supabase } from "@/integrations/supabase/client";
 import { TransactionDetails } from "./types";
 
-class TransactionLoggerService extends BaseService {
-  /**
-   * Log a transaction to the database for audit purposes
-   */
-  public async logTransaction(transaction: TransactionDetails): Promise<void> {
-    try {
-      await this.supabase.from('transaction_logs').insert({
-        transaction_id: transaction.id,
-        operation: transaction.operation,
-        type: transaction.type,
-        status: transaction.status,
-        entity_id: transaction.entityId,
-        entity_type: transaction.entityType,
-        start_time: transaction.startTime,
-        end_time: transaction.endTime,
-        error_details: transaction.errorDetails,
-        metadata: transaction.metadata,
-        user_id: transaction.userId
+/**
+ * Logs a transaction event to the database for audit purposes
+ */
+export const logTransactionToDb = async (transaction: TransactionDetails): Promise<void> => {
+  try {
+    await supabase
+      .from('system_logs')
+      .insert({
+        log_type: transaction.status,
+        message: transaction.operation,
+        details: {
+          transaction_id: transaction.id,
+          operation: transaction.operation,
+          type: transaction.type,
+          status: transaction.status,
+          entity_id: transaction.entityId,
+          entity_type: transaction.entityType,
+          start_time: transaction.startTime,
+          end_time: transaction.endTime,
+          error_details: transaction.errorDetails,
+          metadata: transaction.metadata,
+          user_id: transaction.userId
+        },
+        correlation_id: transaction.id,
+        error_message: transaction.errorDetails
       });
-      
-      console.log(`Transaction logged: ${transaction.id} (${transaction.operation})`);
-    } catch (error) {
-      console.error('Failed to log transaction:', error);
-    }
+  } catch (error) {
+    console.error("Failed to log transaction:", error);
   }
-  
-  /**
-   * Get transaction logs for a specific entity
-   */
-  public async getEntityTransactionLogs(
-    entityType: string, 
-    entityId: string
-  ): Promise<TransactionDetails[]> {
-    try {
-      const { data, error } = await this.supabase
-        .from('transaction_logs')
-        .select('*')
-        .eq('entity_type', entityType)
-        .eq('entity_id', entityId)
-        .order('start_time', { ascending: false });
-        
-      if (error) throw error;
-      
-      return data.map(log => ({
-        id: log.transaction_id,
-        operation: log.operation,
-        type: log.type,
-        status: log.status,
-        entityId: log.entity_id,
-        entityType: log.entity_type,
-        startTime: log.start_time,
-        endTime: log.end_time,
-        errorDetails: log.error_details,
-        metadata: log.metadata,
-        userId: log.user_id
-      }));
-    } catch (error) {
-      console.error('Failed to get transaction logs:', error);
-      return [];
-    }
-  }
-}
+};
 
-// Export singleton instance
-export const transactionLogger = new TransactionLoggerService();
+/**
+ * Retrieves transaction logs for a specific transaction ID
+ */
+export const getTransactionLogs = async (transactionId: string): Promise<TransactionDetails[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('system_logs')
+      .select('*')
+      .eq('correlation_id', transactionId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) return [];
+
+    return data.map(log => {
+      const details = log.details || {};
+      
+      return {
+        id: log.correlation_id || '',
+        operation: details.operation || log.message || '',
+        type: details.type || 'other',
+        entityId: details.entity_id,
+        entityType: details.entity_type,
+        status: details.status || log.log_type,
+        startTime: details.start_time || log.created_at,
+        endTime: details.end_time,
+        errorDetails: details.error_details || log.error_message,
+        metadata: details.metadata,
+        userId: details.user_id
+      };
+    });
+  } catch (error) {
+    console.error("Failed to get transaction logs:", error);
+    return [];
+  }
+};

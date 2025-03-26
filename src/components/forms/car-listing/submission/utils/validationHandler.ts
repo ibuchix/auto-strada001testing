@@ -1,212 +1,148 @@
 /**
- * Changes made:
- * - 2028-06-01: Created dedicated validation and error handling utilities for submission process
+ * Fixes validation handler function calls
  */
 
-import { SubmissionErrorType } from "../types";
-import { debugMileageData } from "../../utils/debugUtils";
+import { toast } from "sonner";
 import { logDiagnostic } from "@/diagnostics/listingButtonDiagnostics";
 
+export interface ValidationError {
+  message: string;
+  description?: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
 /**
- * Validates that the VIN and mileage data are consistent and correct
- * between localStorage, form data, and valuation data
+ * Validates that valuation data exists in localStorage and is valid
  */
-export const validateMileageData = (): void => {
-  // Get diagnostic data first
-  const diagnosticData = debugMileageData();
-  
-  // Log rich diagnostics
-  console.info("Validating mileage data consistency...", diagnosticData);
-  
-  // Get value from localStorage directly
-  const tempMileage = localStorage.getItem('tempMileage');
-  
-  // Compare with valuation data
-  const valuationDataStr = localStorage.getItem('valuationData');
-  if (!valuationDataStr) {
-    logDiagnostic('VALIDATION_ERROR', 'Missing valuation data during mileage validation', {
-      tempMileage
-    }, undefined, 'ERROR');
-    
-    throw {
-      message: "Missing valuation data",
-      description: "The vehicle valuation data is missing. Please complete the valuation process first.",
-      action: {
-        label: "Start Valuation",
-        onClick: () => window.location.href = '/sellers'
-      }
-    } as SubmissionErrorType;
-  }
-  
+export const validateValuationData = (): any => {
   try {
+    const valuationDataStr = localStorage.getItem('valuationData');
+    if (!valuationDataStr) {
+      throw {
+        message: "No valuation data found",
+        description: "Please complete the valuation process first",
+      };
+    }
+
     const valuationData = JSON.parse(valuationDataStr);
     
-    // Check if mileage is present in valuation data
-    if (!valuationData.mileage && valuationData.mileage !== 0) {
-      logDiagnostic('VALIDATION_ERROR', 'Missing mileage in valuation data', {
-        valuationData,
-        tempMileage
-      }, undefined, 'ERROR');
-      
+    // Basic validation of required fields
+    if (!valuationData.make || !valuationData.model || !valuationData.year) {
       throw {
-        message: "Invalid valuation data",
-        description: "The mileage information is missing from the valuation data. Please retry the valuation.",
-        action: {
-          label: "Start Valuation",
-          onClick: () => {
-            localStorage.removeItem('valuationData');
-            window.location.href = '/sellers';
-          }
-        }
-      } as SubmissionErrorType;
+        message: "Incomplete valuation data",
+        description: "Required vehicle information is missing, please restart valuation",
+      };
     }
-    
-    // If tempMileage exists, check consistency with valuation data
-    if (tempMileage) {
-      const parsedTempMileage = parseInt(tempMileage, 10);
-      const parsedValuationMileage = parseInt(String(valuationData.mileage), 10);
-      
-      // Allow for small differences due to parsing or rounding
-      if (Math.abs(parsedTempMileage - parsedValuationMileage) > 1) {
-        console.warn('Mileage mismatch detected:', {
-          tempMileage: parsedTempMileage,
-          valuationMileage: parsedValuationMileage
-        });
-        
-        logDiagnostic('VALIDATION_WARNING', 'Mileage mismatch detected', {
-          tempMileage: parsedTempMileage,
-          valuationMileage: parsedValuationMileage,
-          diff: parsedTempMileage - parsedValuationMileage
-        }, undefined, 'WARNING');
-        
-        // Use valuation data as source of truth, but don't throw error
-        // This is just a warning, not an error condition
-      }
-    }
-    
-    logDiagnostic('VALIDATION_SUCCESS', 'Mileage validation successful', {
-      mileage: valuationData.mileage
-    });
-    
-  } catch (error) {
+
+    return valuationData;
+  } catch (error: any) {
+    // If error is already formatted, rethrow it
     if (error.message && error.description) {
-      // This is already a formatted SubmissionErrorType, re-throw it
       throw error;
     }
+
+    // Otherwise format the error
+    console.error("Valuation data validation error:", error);
     
-    // Otherwise, it's a JSON parsing error or similar
-    logDiagnostic('VALIDATION_ERROR', 'Error validating mileage data', {
-      error: error.message,
-      valuationDataStr: valuationDataStr ? valuationDataStr.substring(0, 50) + '...' : null
-    }, undefined, 'ERROR');
+    // Log diagnostic info
+    logDiagnostic(
+      'VALIDATION_ERROR', 
+      'Failed to validate valuation data', 
+      { error: error.message || 'Unknown error' },
+      undefined,
+      'ERROR'
+    );
     
     throw {
-      message: "Valuation data is invalid",
-      description: "Please retry the vehicle valuation process.",
-      action: {
-        label: "Start Valuation",
-        onClick: () => {
-          localStorage.removeItem('valuationData');
-          window.location.href = '/sellers';
-        }
-      }
-    } as SubmissionErrorType;
+      message: "Invalid valuation data",
+      description: "Please restart the valuation process",
+    };
   }
 };
 
 /**
- * Validates that the valuation data exists and is complete
+ * Validates that mileage data exists in localStorage
  */
-export const validateValuationData = (): any => {
-  const valuationDataStr = localStorage.getItem('valuationData');
-  
-  if (!valuationDataStr) {
-    logDiagnostic('VALIDATION_ERROR', 'Missing valuation data', {}, undefined, 'ERROR');
-    
-    throw {
-      message: "Missing valuation data",
-      description: "The vehicle valuation data is missing. Please complete the valuation process first.",
-      action: {
-        label: "Start Valuation",
-        onClick: () => window.location.href = '/sellers'
-      }
-    } as SubmissionErrorType;
-  }
-  
+export const validateMileageData = (): number => {
   try {
-    const valuationData = JSON.parse(valuationDataStr);
-    
-    // Check essential fields
-    const requiredFields = ['make', 'model', 'year', 'vin'];
-    const missingFields = requiredFields.filter(field => !valuationData[field]);
-    
-    if (missingFields.length > 0) {
-      logDiagnostic('VALIDATION_ERROR', 'Incomplete valuation data', {
-        missingFields,
-        valuationData
-      }, undefined, 'ERROR');
-      
+    const mileageStr = localStorage.getItem('tempMileage');
+    if (!mileageStr) {
       throw {
-        message: "Incomplete valuation data",
-        description: `Missing required information: ${missingFields.join(', ')}. Please retry the valuation.`,
-        action: {
-          label: "Start Valuation",
-          onClick: () => {
-            localStorage.removeItem('valuationData');
-            window.location.href = '/sellers';
-          }
-        }
-      } as SubmissionErrorType;
+        message: "No mileage data found",
+        description: "Please complete the valuation process first",
+      };
     }
-    
-    // Validate valuation amounts exist
-    if (!valuationData.valuation && !valuationData.reservePrice) {
-      logDiagnostic('VALIDATION_ERROR', 'Missing price information', {
-        valuationData
-      }, undefined, 'ERROR');
-      
+
+    const mileage = parseInt(mileageStr, 10);
+    if (isNaN(mileage)) {
       throw {
-        message: "Missing price information",
-        description: "The valuation data does not contain price information. Please retry the valuation.",
-        action: {
-          label: "Start Valuation",
-          onClick: () => {
-            localStorage.removeItem('valuationData');
-            window.location.href = '/sellers';
-          }
-        }
-      } as SubmissionErrorType;
+        message: "Invalid mileage data",
+        description: "The mileage value is not a valid number",
+      };
     }
-    
-    logDiagnostic('VALIDATION_SUCCESS', 'Valuation data validation successful', {
-      make: valuationData.make,
-      model: valuationData.model,
-      year: valuationData.year
-    });
-    
-    return valuationData;
-  } catch (error) {
+
+    return mileage;
+  } catch (error: any) {
+    // If error is already formatted, rethrow it
     if (error.message && error.description) {
-      // This is already a formatted SubmissionErrorType, re-throw it
       throw error;
     }
+
+    console.error("Mileage validation error:", error);
     
-    // Otherwise, it's a JSON parsing error or similar
-    logDiagnostic('VALIDATION_ERROR', 'Error parsing valuation data', {
-      error: error.message,
-      valuationDataStr: valuationDataStr ? valuationDataStr.substring(0, 50) + '...' : null
-    }, undefined, 'ERROR');
+    // Log diagnostic info
+    logDiagnostic(
+      'VALIDATION_ERROR', 
+      'Failed to validate mileage data', 
+      { error: error.message || 'Unknown error' },
+      undefined,
+      'ERROR'
+    );
     
     throw {
-      message: "Valuation data is invalid",
-      description: "Please retry the vehicle valuation process.",
-      action: {
-        label: "Start Valuation",
-        onClick: () => {
-          localStorage.removeItem('valuationData');
-          window.location.href = '/sellers';
-        }
-      }
-    } as SubmissionErrorType;
+      message: "Invalid mileage data",
+      description: "Please restart the valuation process",
+    };
+  }
+};
+
+/**
+ * Validates VIN data in localStorage
+ */
+export const validateVinData = (): string => {
+  try {
+    const vin = localStorage.getItem('tempVIN');
+    if (!vin) {
+      throw {
+        message: "No VIN data found",
+        description: "Please complete the valuation process first",
+      };
+    }
+
+    return vin;
+  } catch (error: any) {
+    // If error is already formatted, rethrow it
+    if (error.message && error.description) {
+      throw error;
+    }
+
+    console.error("VIN validation error:", error);
+    
+    // Log diagnostic info
+    logDiagnostic(
+      'VALIDATION_ERROR', 
+      'Failed to validate VIN data', 
+      { error: error.message || 'Unknown error' },
+      undefined,
+      'ERROR'
+    );
+    
+    throw {
+      message: "Invalid VIN data",
+      description: "Please restart the valuation process",
+    };
   }
 };

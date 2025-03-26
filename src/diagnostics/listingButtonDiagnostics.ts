@@ -1,95 +1,99 @@
 
 /**
- * Changes made:
- * - 2024-08-04: Created diagnostic utilities for form submission tracking
+ * Utilities for diagnosing listing button functionality
  */
 
-import { v4 as uuidv4 } from 'uuid';
+export type DiagnosticSeverity = 'INFO' | 'WARNING' | 'ERROR' | 'DEBUG';
 
-// Types
-type DiagnosticLevel = 'INFO' | 'WARNING' | 'ERROR' | 'DEBUG';
-
-interface DiagnosticLog {
+interface DiagnosticEntry {
   id: string;
-  timestamp: string;
-  event: string;
+  type: string;
   message: string;
   details: any;
-  level: DiagnosticLevel;
-  diagnosticId: string;
+  timestamp: string;
+  severity: DiagnosticSeverity;
 }
 
-// In-memory store for diagnostics
-const diagnosticStore: Map<string, DiagnosticLog[]> = new Map();
+// In-memory storage for diagnostics
+const diagnostics: Record<string, DiagnosticEntry[]> = {};
 
-// Generate a new diagnostic session ID
+/**
+ * Generates a unique diagnostic ID for tracing
+ */
 export const generateDiagnosticId = (): string => {
-  return uuidv4();
+  const timestamp = new Date().getTime();
+  const random = Math.floor(Math.random() * 1000000);
+  return `${timestamp}-${random}`;
 };
 
-// Log a diagnostic event
+/**
+ * Logs a diagnostic entry
+ */
 export const logDiagnostic = (
-  event: string,
+  type: string,
   message: string,
-  details: any = null,
-  diagnosticId: string,
-  level: DiagnosticLevel = 'INFO'
-): void => {
-  if (!diagnosticId) {
-    console.warn('Diagnostic ID is required for logging');
-    return;
+  details: any = {},
+  diagnosticId: string = generateDiagnosticId(),
+  severity: DiagnosticSeverity = 'INFO'
+): string => {
+  if (!diagnostics[diagnosticId]) {
+    diagnostics[diagnosticId] = [];
   }
 
-  const log: DiagnosticLog = {
-    id: uuidv4(),
-    timestamp: new Date().toISOString(),
-    event,
+  const entry: DiagnosticEntry = {
+    id: `${diagnosticId}-${diagnostics[diagnosticId].length}`,
+    type,
     message,
     details,
-    level,
-    diagnosticId
+    timestamp: new Date().toISOString(),
+    severity
   };
 
-  // Store in memory
-  const existingLogs = diagnosticStore.get(diagnosticId) || [];
-  diagnosticStore.set(diagnosticId, [...existingLogs, log]);
+  diagnostics[diagnosticId].push(entry);
+  console.log(`[${diagnosticId}] ${severity} - ${type}: ${message}`, details);
 
-  // Also log to console for development
-  console.log(`[DIAGNOSTIC] [${level}] ${event}: ${message}`, details);
+  return diagnosticId;
 };
 
-// Get all diagnostics for a specific ID
-export const getDiagnostics = (diagnosticId?: string): DiagnosticLog[] => {
-  if (!diagnosticId) {
-    return [];
+/**
+ * Gets all diagnostics for a specific ID
+ */
+export const getDiagnostics = (diagnosticId?: string): DiagnosticEntry[] => {
+  if (diagnosticId && diagnostics[diagnosticId]) {
+    return diagnostics[diagnosticId];
   }
   
-  return diagnosticStore.get(diagnosticId) || [];
+  // If no ID provided or ID not found, return all diagnostics flattened
+  return Object.values(diagnostics).flat();
 };
 
-// Also alias as getDiagnosticLogs for compatibility
-export const getDiagnosticLogs = getDiagnostics;
-
-// Clear diagnostics for a specific ID
-export const clearDiagnostics = (diagnosticId: string): void => {
-  diagnosticStore.delete(diagnosticId);
+/**
+ * Logs the current state of localStorage
+ */
+export const logStorageState = (diagnosticId: string): void => {
+  const storageItems: Record<string, string> = {};
+  
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key) {
+      try {
+        storageItems[key] = localStorage.getItem(key) || '';
+      } catch (e) {
+        storageItems[key] = 'Error reading value';
+      }
+    }
+  }
+  
+  logDiagnostic('STORAGE_STATE', 'Current localStorage state', storageItems, diagnosticId);
 };
 
-// Export utility functions for form diagnostics
-export const formDiagnostics = {
-  trackFormLoad: (formId: string, diagnosticId: string, metadata: any = {}) => {
-    logDiagnostic('FORM_LOAD', `Form ${formId} loaded`, metadata, diagnosticId);
-  },
-  
-  trackFormSubmit: (formId: string, diagnosticId: string, metadata: any = {}) => {
-    logDiagnostic('FORM_SUBMIT', `Form ${formId} submitted`, metadata, diagnosticId);
-  },
-  
-  trackFormError: (formId: string, error: any, diagnosticId: string) => {
-    logDiagnostic('FORM_ERROR', `Error in form ${formId}`, error, diagnosticId, 'ERROR');
-  },
-  
-  trackFormSuccess: (formId: string, result: any, diagnosticId: string) => {
-    logDiagnostic('FORM_SUCCESS', `Form ${formId} submitted successfully`, result, diagnosticId);
+/**
+ * Clears diagnostics for a specific ID or all if no ID provided
+ */
+export const clearDiagnostics = (diagnosticId?: string): void => {
+  if (diagnosticId) {
+    delete diagnostics[diagnosticId];
+  } else {
+    Object.keys(diagnostics).forEach(id => delete diagnostics[id]);
   }
 };

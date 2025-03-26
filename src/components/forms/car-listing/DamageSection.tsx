@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-08-04: Fixed types to properly handle damageReports property
+ * - 2024-08-05: Fixed damage type compatibility issues
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -51,7 +52,7 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <DamageTypeSelect 
             value={selectedDamageType} 
-            onValueChange={setSelectedDamageType}
+            onValueChange={(value: DamageType) => setSelectedDamageType(value)}
           />
           <DamageDescription 
             value={description}

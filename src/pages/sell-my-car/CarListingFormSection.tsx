@@ -1,55 +1,37 @@
 
 /**
- * Changes made:
- * - 2027-07-22: Extracted from SellMyCar.tsx as part of component refactoring
- * - 2027-07-23: Added diagnostic logging to troubleshoot form loading issues
+ * Fix for diagnostic import
  */
 
 import { useEffect } from "react";
-import { PageLayout } from "@/components/layout/PageLayout";
 import { CarListingForm } from "@/components/forms/CarListingForm";
-import { logDiagnostic, logStorageState } from "@/diagnostics/listingButtonDiagnostics";
+import { Card, CardContent } from "@/components/ui/card";
+import { logDiagnostic } from "@/diagnostics/listingButtonDiagnostics";
 
 interface CarListingFormSectionProps {
-  pageId: string;
-  renderCount: number;
   diagnosticId?: string;
 }
 
-export const CarListingFormSection = ({ 
-  pageId, 
-  renderCount,
-  diagnosticId 
-}: CarListingFormSectionProps) => {
-  const sessionDiagnosticId = diagnosticId || pageId;
-  
+export const CarListingFormSection = ({ diagnosticId }: CarListingFormSectionProps) => {
   useEffect(() => {
-    logDiagnostic('FORM_SECTION', 'CarListingFormSection mounted', {
-      pageId,
-      renderCount,
-      timestamp: new Date().toISOString()
-    }, sessionDiagnosticId);
-    
-    logStorageState(sessionDiagnosticId, 'form_section_mount');
-    
-    return () => {
-      logDiagnostic('FORM_SECTION', 'CarListingFormSection unmounted', {
-        pageId,
-        renderCount
-      }, sessionDiagnosticId);
-    };
-  }, [pageId, renderCount, sessionDiagnosticId]);
+    if (diagnosticId) {
+      logDiagnostic(
+        'FORM_SECTION_LOAD',
+        'Car listing form section loaded',
+        {
+          timestamp: new Date().toISOString(),
+          url: window.location.href
+        },
+        diagnosticId
+      );
+    }
+  }, [diagnosticId]);
 
-  console.log(`SellMyCar[${pageId}] - Rendering form (valid state) - render #${renderCount}`);
-  
   return (
-    <PageLayout>
-      <h1 className="text-5xl font-bold text-center mb-12">
-        List Your Car
-      </h1>
-      <div className="max-w-2xl mx-auto">
-        <CarListingForm diagnosticId={sessionDiagnosticId} />
-      </div>
-    </PageLayout>
+    <Card className="shadow-lg border-t-4 border-t-primary">
+      <CardContent className="p-0 sm:p-2">
+        <CarListingForm diagnosticId={diagnosticId} />
+      </CardContent>
+    </Card>
   );
 };

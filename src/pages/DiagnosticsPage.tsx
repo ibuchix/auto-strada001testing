@@ -2,9 +2,10 @@
 /**
  * Changes made:
  * - 2027-07-23: Created diagnostics page for troubleshooting navigation issues
+ * - 2024-08-05: Fixed import for DiagnosticViewer component
  */
 
-import { DiagnosticViewer } from "@/diagnostics/DiagnosticViewer";
+import DiagnosticViewer from "@/diagnostics/DiagnosticViewer";
 import { PageLayout } from "@/components/layout/PageLayout";
 
 const DiagnosticsPage = () => {
