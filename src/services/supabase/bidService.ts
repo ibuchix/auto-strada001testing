@@ -4,6 +4,7 @@
  * - 2024-10-25: Added missing placeBid export
  * - 2024-10-31: Fixed parameter names to match RPC function definition
  * - 2024-12-05: Improved type safety for bid response
+ * - 2024-12-12: Fixed type conversion for RPC response data
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -42,7 +43,8 @@ export const placeBid = async (auctionId: string, amount: number, userId: string
     if (error) throw error;
     
     // Properly cast and validate the response
-    if (typeof data === 'object' && data !== null) {
+    if (data && typeof data === 'object') {
+      // Type assertion after validation
       return data as BidResponse;
     }
     

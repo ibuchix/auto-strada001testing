@@ -5,6 +5,7 @@
  * Changes made:
  * - 2024-10-25: Standardized error property to use errorDetails instead of error
  * - 2024-12-05: Fixed type instantiation issue in log entries
+ * - 2024-12-12: Resolved deep type instantiation with explicit interface typing
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +17,16 @@ interface SystemLogEntry {
   message: string;
   details: Record<string, any>;
   correlation_id: string;
+}
+
+// Interface for database response to avoid excessive type recursion
+interface SystemLogRecord {
+  correlation_id: string;
+  created_at: string;
+  details: Record<string, any>;
+  id: string;
+  log_type: string;
+  message: string;
 }
 
 // Create a new transaction logger instance
@@ -71,8 +82,8 @@ export const transactionLoggerService = {
         return [];
       }
 
-      // Map the system logs to transaction details format
-      return (data || []).map((log: any) => {
+      // Map the system logs to transaction details format with explicit typing
+      return (data || []).map((log: SystemLogRecord) => {
         const details = log.details || {};
         
         return {

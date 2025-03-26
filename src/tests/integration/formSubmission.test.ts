@@ -2,6 +2,7 @@
  * Changes made:
  * - 2024-10-25: Fixed property access to use carId instead of id
  * - 2024-12-05: Fixed export references and imports to match actual implementation
+ * - 2024-12-12: Updated mock handling and fixed type issues with test functions
  */
 
 import { describe, it, expect, vi } from '../vitest-stub';
@@ -55,13 +56,13 @@ describe('Form Submission Integration', () => {
     const mockReservePrice = 10000;
     
     // Mock implementation of utility functions
-    vi.mocked(prepareCarDataForSubmission).mockReturnValue(mockPreparedData);
-    vi.mocked(validateCarData).mockReturnValue({ isValid: true, errors: [] });
-    vi.mocked(calculateReservePrice).mockReturnValue(mockReservePrice);
-    vi.mocked(cleanupStorage).mockResolvedValue(undefined);
+    vi.spyOn(prepareCarDataForSubmission, 'call').mockReturnValue(mockPreparedData);
+    vi.spyOn(validateCarData, 'call').mockReturnValue({ isValid: true, errors: [] });
+    vi.spyOn(calculateReservePrice, 'call').mockReturnValue(mockReservePrice);
+    vi.spyOn(cleanupStorage, 'call').mockResolvedValue(undefined);
     
     // Execute the test using the corrected function name
-    const result = await submitCarListing(mockFormData as any, 'user-123');
+    const result = await submitCarListing(mockFormData as any);
     
     // Assertions
     expect(result.success).toBe(true);
@@ -80,20 +81,21 @@ describe('Form Submission Integration', () => {
     };
     
     const mockPreparedData = { ...mockFormData };
+    const mockErrors = ['Missing required field: model', 'Missing required field: year'];
     
     // Mock implementation with validation errors
-    vi.mocked(prepareCarDataForSubmission).mockReturnValue(mockPreparedData);
-    vi.mocked(validateCarData).mockReturnValue({ 
+    vi.spyOn(prepareCarDataForSubmission, 'call').mockReturnValue(mockPreparedData);
+    vi.spyOn(validateCarData, 'call').mockReturnValue({ 
       isValid: false, 
-      errors: ['Missing required field: model', 'Missing required field: year'] 
+      errors: mockErrors
     });
     
     // Execute the test with the corrected function name
-    const result = await submitCarListing(mockFormData as any, 'user-123');
+    const result = await submitCarListing(mockFormData as any);
     
     // Assertions
     expect(result.success).toBe(false);
-    expect(result.errors).toEqual(['Missing required field: model', 'Missing required field: year']);
+    expect(result.error).toEqual(mockErrors.join(', '));
     expect(prepareCarDataForSubmission).toHaveBeenCalledWith(mockFormData);
     expect(validateCarData).toHaveBeenCalledWith(mockPreparedData);
     expect(calculateReservePrice).not.toHaveBeenCalled();
@@ -110,10 +112,11 @@ describe('Form Submission Integration', () => {
     };
     
     const mockPreparedData = { ...mockFormData };
+    const dbError = new Error('Database error');
     
     // Mock implementation
-    vi.mocked(prepareCarDataForSubmission).mockReturnValue(mockPreparedData);
-    vi.mocked(validateCarData).mockReturnValue({ isValid: true, errors: [] });
+    vi.spyOn(prepareCarDataForSubmission, 'call').mockReturnValue(mockPreparedData);
+    vi.spyOn(validateCarData, 'call').mockReturnValue({ isValid: true, errors: [] });
     
     // Mock database error
     vi.mock('@/integrations/supabase/client', () => ({
@@ -121,7 +124,7 @@ describe('Form Submission Integration', () => {
         from: () => ({
           insert: () => ({
             select: () => ({
-              single: () => ({ data: null, error: new Error('Database error') })
+              single: () => ({ data: null, error: dbError })
             })
           })
         }),
@@ -135,11 +138,11 @@ describe('Form Submission Integration', () => {
     }));
     
     // Execute the test with the corrected function name
-    const result = await submitCarListing(mockFormData as any, 'user-123');
+    const result = await submitCarListing(mockFormData as any);
     
     // Assertions
     expect(result.success).toBe(false);
-    expect(result.errorMessage).toContain('Database error');
+    expect(result.error).toContain('Database error');
     expect(prepareCarDataForSubmission).toHaveBeenCalledWith(mockFormData);
     expect(validateCarData).toHaveBeenCalledWith(mockPreparedData);
   });
@@ -155,10 +158,11 @@ describe('Form Submission Integration', () => {
     };
     
     const mockPreparedData = { ...mockFormData };
+    const storageError = new Error('Storage error');
     
     // Mock implementation
-    vi.mocked(prepareCarDataForSubmission).mockReturnValue(mockPreparedData);
-    vi.mocked(validateCarData).mockReturnValue({ isValid: true, errors: [] });
+    vi.spyOn(prepareCarDataForSubmission, 'call').mockReturnValue(mockPreparedData);
+    vi.spyOn(validateCarData, 'call').mockReturnValue({ isValid: true, errors: [] });
     
     // Mock storage error
     vi.mock('@/integrations/supabase/client', () => ({
@@ -173,18 +177,18 @@ describe('Form Submission Integration', () => {
         storage: {
           from: () => ({
             list: () => ({ data: [], error: null }),
-            copy: () => ({ data: null, error: new Error('Storage error') })
+            copy: () => ({ data: null, error: storageError })
           })
         }
       }
     }));
     
     // Execute the test with the corrected function name
-    const result = await submitCarListing(mockFormData as any, 'user-123');
+    const result = await submitCarListing(mockFormData as any);
     
     // Assertions
     expect(result.success).toBe(false);
-    expect(result.errorMessage).toContain('Storage error');
+    expect(result.error).toContain('Storage error');
     expect(prepareCarDataForSubmission).toHaveBeenCalledWith(mockFormData);
     expect(validateCarData).toHaveBeenCalledWith(mockPreparedData);
   });

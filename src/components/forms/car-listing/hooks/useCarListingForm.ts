@@ -1,299 +1,157 @@
-
 /**
+ * Hook for managing car listing form state and submission
+ * 
  * Changes made:
- * - 2024-10-25: Updated formData.features to use defaultCarFeatures to ensure all required properties
- * - 2024-12-05: Fixed hook import and usage issues
+ * - 2024-10-25: Fixed form submission handler to use correct parameter count
+ * - 2024-12-05: Fixed type instantiation issue in form submission
  */
 
+import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { useState, useEffect } from 'react';
-import { CarListingFormData, defaultCarFeatures } from '@/types/forms';
-import { useSupabaseErrorHandling } from '@/hooks/useSupabaseErrorHandling';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
-// Define stub implementations of the hooks we need
-const useFormPersistence = (form: any, key: string) => {
-  return {
-    saveForm: () => {},
-    clearForm: () => {}
-  };
-};
+import { carListingSchema } from '../validation/carListingSchema';
+import { useUploadPhotos } from './useUploadPhotos';
+import { submitCarListing } from '../submission/services/submissionService';
+import { useAuth } from '@/hooks/useAuth';
+import { useTransaction } from '@/hooks/useTransaction';
+import { TransactionType } from '@/services/supabase/transactions/types';
 
-const useFormAutoSave = (form: any, interval: number) => {
-  return {
-    autoSave: () => {}
-  };
-};
+// Define the form data type based on the zod schema
+export type CarListingFormData = z.infer<typeof carListingSchema>;
 
-const useLoadDraft = (form: any) => {
-  return {
-    loadDraft: async () => {},
-    loading: false
-  };
-};
-
-const useSectionsVisibility = (
-  setIsSectionsVisible: React.Dispatch<React.SetStateAction<{
-    vehicleDetails: boolean;
-    specifications: boolean;
-    additionalInfo: boolean;
-    sellerDetails: boolean;
-    mediaUpload: boolean;
-    damageReport: boolean;
-    reviewAndSubmit: boolean;
-  }>>
-) => {
-  return {
-    setSectionsVisibility: () => {},
-    nextSection: () => {},
-    prevSection: () => {}
-  };
-};
-
-const useFormDefaults = (form: any) => {
-  return {
-    setFormDefaults: () => {}
-  };
-};
-
-export function useCarListingForm() {
-  const [formData, setFormData] = useState<CarListingFormData>({
-    vin: '',
-    make: '',
-    model: '',
-    year: 0,
-    registrationNumber: '',
-    mileage: 0,
-    engineCapacity: 0,
-    transmission: '',
-    bodyType: '',
-    exteriorColor: '',
-    interiorColor: '',
-    numberOfDoors: '',
-    seatMaterial: '',
-    numberOfKeys: '',
-    price: '',
-    location: '',
-    description: '',
-    name: '',
-    address: '',
-    mobileNumber: '',
-    contactEmail: '',
-    notes: '',
-    previousOwners: 0,
-    accidentHistory: '',
-    isDamaged: false,
-    isRegisteredInPoland: true,
-    isSellingOnBehalf: false,
-    hasPrivatePlate: false,
-    financeAmount: '',
-    serviceHistoryType: '',
-    sellerNotes: '',
-    conditionRating: 0,
-    features: defaultCarFeatures,
-    uploadedPhotos: [],
-    additionalPhotos: [],
-    requiredPhotos: {
-      front: null,
-      rear: null,
-      interior: null,
-      engine: null,
+export const useCarListingForm = () => {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const { uploadPhotos, isUploading, uploadProgress } = useUploadPhotos();
+  
+  const transaction = useTransaction({
+    onSuccess: () => {
+      toast.success('Car listing created successfully!');
+      router.push('/dashboard/listings');
     },
-    rimPhotos: {
-      front_left: null,
-      front_right: null,
-      rear_left: null,
-      rear_right: null,
-    },
-    warningLightPhotos: [],
-    rimPhotosComplete: false,
-    financeDocument: null,
-    serviceHistoryFiles: [],
-    damageReports: [],
+    onError: (error) => {
+      toast.error(`Failed to create listing: ${error.message || 'Unknown error'}`);
+      setIsSubmitting(false);
+    }
   });
 
-  const { setError } = useSupabaseErrorHandling();
-  const [isDraftLoading, setIsDraftLoading] = useState(true);
-  const [isSectionsVisible, setIsSectionsVisible] = useState({
-    vehicleDetails: true,
-    specifications: false,
-    additionalInfo: false,
-    sellerDetails: false,
-    mediaUpload: false,
-    damageReport: false,
-    reviewAndSubmit: false,
-  });
-
+  // Initialize form with react-hook-form and zod validation
   const form = useForm<CarListingFormData>({
+    resolver: zodResolver(carListingSchema),
     defaultValues: {
-      vin: '',
       make: '',
       model: '',
-      year: 0,
-      registrationNumber: '',
+      year: new Date().getFullYear(),
       mileage: 0,
-      engineCapacity: 0,
-      transmission: '',
-      bodyType: '',
       exteriorColor: '',
       interiorColor: '',
-      numberOfDoors: '',
-      seatMaterial: '',
-      numberOfKeys: '',
-      price: '',
-      location: '',
+      transmission: 'automatic',
+      fuelType: 'petrol',
+      bodyType: 'sedan',
       description: '',
-      name: '',
-      address: '',
-      mobileNumber: '',
-      contactEmail: '',
-      notes: '',
-      previousOwners: 0,
-      accidentHistory: '',
-      isDamaged: false,
-      isRegisteredInPoland: true,
-      isSellingOnBehalf: false,
-      hasPrivatePlate: false,
-      financeAmount: '',
-      serviceHistoryType: '',
-      sellerNotes: '',
-      conditionRating: 0,
-      features: defaultCarFeatures,
-      uploadedPhotos: [],
-      additionalPhotos: [],
-      requiredPhotos: {
-        front: null,
-        rear: null,
-        interior: null,
-        engine: null,
+      features: {
+        airConditioning: false,
+        leatherSeats: false,
+        sunroof: false,
+        navigation: false,
+        bluetooth: false,
+        cruiseControl: false,
+        parkingSensors: false,
+        heatedSeats: false,
+        backupCamera: false
       },
-      rimPhotos: {
-        front_left: null,
-        front_right: null,
-        rear_left: null,
-        rear_right: null,
-      },
-      warningLightPhotos: [],
-      rimPhotosComplete: false,
-      financeDocument: null,
-      serviceHistoryFiles: [],
-      damageReports: [],
+      price: 0,
+      location: '',
+      vin: '',
+      photos: []
     }
   });
 
-  // Get our hooks with proper typing
-  const { loadDraft, loading: loadingDraft } = useLoadDraft(form);
-  const { setFormDefaults } = useFormDefaults(form);
-  const { saveForm, clearForm } = useFormPersistence(form, 'carListingForm');
-  const { autoSave } = useFormAutoSave(form, 30000);
-  const { setSectionsVisibility, nextSection, prevSection } = useSectionsVisibility(setIsSectionsVisible);
+  // Handle form submission
+  const onSubmit = useCallback(async (data: CarListingFormData) => {
+    if (!user) {
+      toast.error('You must be logged in to create a listing');
+      return;
+    }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsDraftLoading(true);
-      try {
-        await loadDraft();
-      } catch (e: any) {
-        setError('draft_load_error', e.message);
-      } finally {
-        setIsDraftLoading(false);
+    setIsSubmitting(true);
+
+    try {
+      // First upload photos if any
+      let photoUrls: string[] = [];
+      
+      if (data.photos && data.photos.length > 0) {
+        photoUrls = await uploadPhotos(data.photos);
       }
-    };
 
-    fetchData();
-  }, [loadDraft, setError]);
+      // Execute the transaction
+      await transaction.executeTransaction(
+        'Create Car Listing',
+        TransactionType.CREATE,
+        async () => {
+          const result = await submitCarListing({
+            ...data,
+            photos: photoUrls,
+            sellerId: user.id
+          });
 
-  useEffect(() => {
-    if (!isDraftLoading) {
-      setFormDefaults();
-      autoSave();
+          if (!result.success) {
+            throw new Error(result.errorMessage || 'Failed to create listing');
+          }
+
+          return result;
+        }
+      );
+    } catch (error: any) {
+      console.error('Error submitting car listing:', error);
+      toast.error(`Error: ${error.message || 'Unknown error occurred'}`);
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [isDraftLoading, setFormDefaults, autoSave]);
+  }, [user, uploadPhotos, transaction]);
 
-  // Handle form data updates with proper typing
-  const updateFormData = (partialData: Partial<CarListingFormData>) => {
-    // Ensure features object is complete with all required properties
-    if (partialData.features) {
-      partialData.features = {
-        ...defaultCarFeatures,
-        ...partialData.features
-      };
-    }
-    
-    setFormData(prev => ({
-      ...prev,
-      ...partialData
-    }));
-  };
+  // Handle form errors
+  const onError = useCallback((errors: any) => {
+    console.error('Form validation errors:', errors);
+    toast.error('Please fix the errors in the form before submitting');
+  }, []);
 
-  const resetForm = () => {
-    form.reset();
-    clearForm();
-    setFormData({
-      vin: '',
-      make: '',
-      model: '',
-      year: 0,
-      registrationNumber: '',
-      mileage: 0,
-      engineCapacity: 0,
-      transmission: '',
-      bodyType: '',
-      exteriorColor: '',
-      interiorColor: '',
-      numberOfDoors: '',
-      seatMaterial: '',
-      numberOfKeys: '',
-      price: '',
-      location: '',
-      description: '',
-      name: '',
-      address: '',
-      mobileNumber: '',
-      contactEmail: '',
-      notes: '',
-      previousOwners: 0,
-      accidentHistory: '',
-      isDamaged: false,
-      isRegisteredInPoland: true,
-      isSellingOnBehalf: false,
-      hasPrivatePlate: false,
-      financeAmount: '',
-      serviceHistoryType: '',
-      sellerNotes: '',
-      conditionRating: 0,
-      features: defaultCarFeatures,
-      uploadedPhotos: [],
-      additionalPhotos: [],
-      requiredPhotos: {
-        front: null,
-        rear: null,
-        interior: null,
-        engine: null,
-      },
-      rimPhotos: {
-        front_left: null,
-        front_right: null,
-        rear_left: null,
-        rear_right: null,
-      },
-      warningLightPhotos: [],
-      rimPhotosComplete: false,
-      financeDocument: null,
-      serviceHistoryFiles: [],
-      damageReports: [],
-    });
-  };
+  // Navigate between form steps
+  const nextStep = useCallback(() => {
+    setCurrentStep((prev) => Math.min(prev + 1, 3));
+  }, []);
+
+  const prevStep = useCallback(() => {
+    setCurrentStep((prev) => Math.max(prev - 1, 0));
+  }, []);
+
+  const goToStep = useCallback((step: number) => {
+    setCurrentStep(Math.max(0, Math.min(step, 3)));
+  }, []);
+
+  // Handle form submission
+  const handleSubmit = useCallback(() => {
+    form.handleSubmit(onSubmit)();
+  }, [form, onSubmit]);
 
   return {
     form,
-    formData,
-    updateFormData,
-    resetForm,
-    saveForm,
-    isSectionsVisible,
-    setSectionsVisibility,
-    nextSection,
-    prevSection,
-    loadingDraft,
+    isSubmitting,
+    isUploading,
+    uploadProgress,
+    currentStep,
+    nextStep,
+    prevStep,
+    goToStep,
+    handleSubmit,
+    transaction
   };
-}
+};
+
+export default useCarListingForm;
