@@ -26,7 +26,7 @@ export const mockSupabase = () => {
           list: () => ({ data: [], error: null }),
           copy: () => ({ data: {}, error: null })
         })
-      }),
+      },
       rpc: () => ({ data: { car_id: 'mock-car-id' }, error: null })
     }
   }));
@@ -59,7 +59,7 @@ export const mockDatabaseError = () => {
           list: () => ({ data: [], error: null }),
           copy: () => ({ data: {}, error: null })
         })
-      })
+      }
     }
   }));
   
@@ -84,9 +84,10 @@ export const mockStorageError = () => {
           list: () => ({ data: [], error: null }),
           copy: () => ({ data: null, error: storageError })
         })
-      })
+      }
     }
   }));
   
   return storageError;
 };
+
