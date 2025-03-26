@@ -5,6 +5,7 @@
  * - 2024-07-24: Added WARNING status and additional transaction types
  * - 2024-08-04: Added INACTIVE status to match TransactionStatusIndicator usage
  * - 2024-08-04: Synchronized TransactionType with transactionService
+ * - 2024-08-05: Added TransactionMetadata type for better metadata handling
  */
 
 // Define transaction types to categorize different operations
@@ -26,6 +27,15 @@ export enum TransactionStatus {
   ERROR = 'error',
   WARNING = 'warning',
   INACTIVE = 'inactive'
+}
+
+// Define the TransactionMetadata type for structured metadata handling
+export interface TransactionMetadata {
+  [key: string]: any;
+  description?: string;
+  entityName?: string;
+  timestamp?: string;
+  source?: string;
 }
 
 // Interface for transaction details
@@ -55,6 +65,8 @@ export interface TransactionOptions {
   onSuccess?: (result: any) => void;
   onError?: (error: any) => void;
   onComplete?: (details: TransactionDetails) => void;
+  entityId?: string;
+  entityType?: string;
 }
 
 // Type for audit log action
