@@ -23,6 +23,7 @@
  * - 2027-06-20: Refactored component into smaller, more manageable components
  * - 2027-07-01: Fixed TypeScript transmission type error by ensuring proper type casting
  * - 2027-07-22: Fixed TypeScript error with timeoutId return value
+ * - 2027-07-27: Fixed loading state propagation for the Continue button
  */
 
 import { useState } from "react";
@@ -116,7 +117,8 @@ export const ValuationResult = ({
     valuation: normalizedResult.valuation,
     reservePrice: normalizedResult.reservePrice,
     hasValidData: isValidData,
-    navigationAttempts
+    navigationAttempts,
+    isLoading
   });
 
   // Handle validation errors - incomplete data without explicit error

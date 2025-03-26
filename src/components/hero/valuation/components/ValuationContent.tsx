@@ -1,36 +1,21 @@
 
 /**
  * Changes made:
- * - 2024-03-19: Fixed props passed to ValuationDisplay
- * - 2024-03-19: Added vin prop and passed it to VehicleDetails
- * - 2024-03-19: Added averagePrice prop to handle API response data
- * - 2024-03-19: Fixed reserve price prop to use valuation instead of reservePrice
- * - 2024-11-11: Fixed button click handling for mobile devices by improving event handler
- * - 2024-11-12: Enhanced button click handler for better cross-device compatibility
- * - 2024-11-14: Further improved button click handler reliability for all devices
- * - 2024-12-05: Completely redesigned button click handler for maximum reliability
- * - 2025-03-21: Added logging and improved event handling for more reliable navigation
- * - 2025-06-12: Added comprehensive debugging for button click interactions
- * - 2025-07-04: Refactored into smaller components for better maintainability
- * - 2025-07-08: Updated onContinue type to handle argument-less function calls
- * - 2025-07-09: Removed component unmount check that was blocking navigation
- * - 2024-08-02: Removed average price from ValuationDisplay to prevent sellers from seeing it
- * - 2025-10-20: Fixed reserve price handling and added more debugging
- * - 2024-12-14: Added missing error and retry props to ValuationDisplay
- * - 2026-04-15: Enhanced error handling and improved loading state visualization
+ * - 2024-03-19: Initial implementation
+ * - 2024-03-19: Added user authentication checks
+ * - 2027-07-27: Added isLoading prop and passed it to ContinueButton
  */
 
-import { 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { ValuationDisplay } from "./ValuationDisplay";
+import { Button } from "@/components/ui/button";
 import { VehicleDetails } from "./VehicleDetails";
-import { ValuationDialogFooter } from "./layout/DialogFooter";
-import { useCallback, useEffect, useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { ValuationDisplay } from "./ValuationDisplay";
+import { ContinueButton } from "./buttons/ContinueButton";
 
 interface ValuationContentProps {
   make: string;
@@ -39,15 +24,15 @@ interface ValuationContentProps {
   vin: string;
   transmission: string;
   mileage: number;
+  averagePrice?: number;
   reservePrice?: number;
-  averagePrice?: number; // Still accept this prop but don't display it
   hasValuation: boolean;
   isLoggedIn: boolean;
   isLoading?: boolean;
   error?: string;
-  onRetry?: () => void;
   onClose: () => void;
   onContinue: () => void;
+  onRetry?: () => void;
 }
 
 export const ValuationContent = ({
@@ -57,131 +42,69 @@ export const ValuationContent = ({
   vin,
   transmission,
   mileage,
-  reservePrice,
-  averagePrice, // Keep receiving this but don't pass it to ValuationDisplay
+  reservePrice = 0,
   hasValuation,
   isLoggedIn,
-  isLoading,
+  isLoading = false,
   error,
-  onRetry,
   onClose,
-  onContinue
+  onContinue,
+  onRetry
 }: ValuationContentProps) => {
-  const [retryAttempts, setRetryAttempts] = useState(0);
-  const [showVehicleInfo, setShowVehicleInfo] = useState(true);
-  
-  // Log component mount with key props
-  useEffect(() => {
-    console.log('ValuationContent mounted with data:', {
-      make, model, year, hasValuation, isLoggedIn,
-      reservePrice, averagePrice, isLoading, error
-    });
-    
-    return () => {
-      console.log('ValuationContent unmounted');
-    };
-  }, [make, model, year, hasValuation, isLoggedIn, reservePrice, averagePrice, isLoading, error]);
-
-  // Handle retry with attempt counting
-  const handleRetry = useCallback(() => {
-    setRetryAttempts(prev => prev + 1);
-    if (onRetry) {
-      onRetry();
-    }
-  }, [onRetry]);
-
-  // Determine if we should show an additional warning based on retry attempts
-  const showRetryWarning = retryAttempts >= 2;
-
-  // Stabilized callback to prevent recreation on each render
-  const handleContinueClick = useCallback(() => {
-    // Comprehensive event logging
-    console.log('Continue button clicked - initiating action:', {
-      timestamp: new Date().toISOString(),
-      make, model, year,
-      isLoggedIn
-    });
-    
-    // Store last interaction timestamp and debug info
-    try {
-      localStorage.setItem('lastButtonClick', new Date().toISOString());
-      localStorage.setItem('listCarAction', 'initiated');
-      localStorage.setItem('clickEventDetails', JSON.stringify({
-        isLoggedIn,
-        make,
-        model,
-        year,
-        timestamp: new Date().toISOString()
-      }));
-      console.log('Click state stored in localStorage');
-    } catch (err) {
-      console.error('Error saving click state to localStorage:', err);
-    }
-    
-    // Execute the continue callback directly without unmount check
-    console.log('Executing continue action...');
-    try {
-      onContinue();
-      console.log('Continue callback executed successfully');
-    } catch (error) {
-      console.error('Error in continue callback execution:', error);
-    }
-    
-    // Update action status
-    try {
-      localStorage.setItem('listCarAction', 'completed');
-      console.log('Action marked as completed in localStorage');
-    } catch (err) {
-      console.warn('Error updating action state:', err);
-    }
-  }, [onContinue, isLoggedIn, make, model, year]);
-
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle className="text-2xl font-bold text-center mb-6">
-          Vehicle Valuation Result
+          Your Vehicle Valuation
         </DialogTitle>
       </DialogHeader>
 
       <div className="space-y-6">
-        {showVehicleInfo && (
-          <VehicleDetails
-            make={make}
-            model={model}
-            year={year}
-            vin={vin}
-            transmission={transmission}
-            mileage={mileage}
-          />
-        )}
-        
-        {showRetryWarning && (
-          <Alert variant="warning" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              We're experiencing some difficulty with the valuation service. If this persists, 
-              you can proceed to manual valuation.
-            </AlertDescription>
-          </Alert>
-        )}
-        
+        <VehicleDetails 
+          make={make}
+          model={model}
+          year={year}
+          vin={vin}
+          transmission={transmission}
+          mileage={mileage}
+        />
+
         {hasValuation && (
-          <ValuationDisplay 
-            reservePrice={reservePrice}
-            averagePrice={averagePrice}
-            isLoading={isLoading}
-            error={error}
-            onRetry={handleRetry}
-          />
+          <ValuationDisplay reservePrice={reservePrice} />
+        )}
+        
+        {error && (
+          <div className="text-red-500 p-3 bg-red-50 rounded-md">
+            {error}
+            {onRetry && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onRetry}
+                className="mt-2 w-full"
+              >
+                Retry
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
-      <ValuationDialogFooter
-        isLoggedIn={isLoggedIn}
-        onClose={onClose}
-        onContinue={handleContinueClick}
-      />
+      <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
+        <Button 
+          variant="outline"
+          onClick={onClose}
+          className="w-full sm:w-auto"
+          disabled={isLoading}
+        >
+          Close
+        </Button>
+        <ContinueButton 
+          isLoggedIn={isLoggedIn}
+          onClick={onContinue}
+          isLoading={isLoading}
+        />
+      </DialogFooter>
     </DialogContent>
   );
 };

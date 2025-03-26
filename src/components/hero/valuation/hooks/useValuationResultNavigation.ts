@@ -8,9 +8,10 @@
  * - 2027-07-15: Added guaranteed navigation with improved error handling
  * - 2027-07-20: Fixed immediate loading feedback and direct URL navigation support
  * - 2027-07-22: Fixed TypeScript error by ensuring no return value used in conditionals
+ * - 2027-07-27: Fixed loading state not being properly set and propagated
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ValuationData } from "../types";
 import { useValuationNavigation } from "./useValuationNavigation";
@@ -87,8 +88,6 @@ export const useValuationResultNavigation = () => {
       console.error('ValuationResult - Error during handleContinue:', navError);
       // Error will be handled by the ContinueButton's direct URL navigation
     }
-    
-    // No return value - we no longer need to return anything since the ContinueButton handles navigation
   };
 
   // Handle retry attempts for valuation
@@ -113,6 +112,22 @@ export const useValuationResultNavigation = () => {
       setTimeout(() => setIsLoading(false), 500);
     }
   };
+  
+  // Add a timeout to reset loading state if navigation doesn't happen
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    if (isLoading) {
+      timeoutId = setTimeout(() => {
+        console.log('ValuationResult - Loading state timeout reached, resetting');
+        setIsLoading(false);
+      }, 5000); // Reset loading state after 5 seconds if navigation doesn't happen
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isLoading]);
   
   return {
     handleContinueClick,

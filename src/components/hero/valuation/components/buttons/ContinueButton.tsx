@@ -2,6 +2,9 @@
 /**
  * Changes made:
  * - 2027-07-23: Added diagnostic logging to help troubleshoot navigation issues
+ * - 2027-07-27: Fixed loading state not showing when button is clicked
+ * - 2027-07-27: Enhanced direct navigation with immediate UI feedback
+ * - 2027-07-27: Added console logging for better debugging
  */
 
 import { Button } from "@/components/ui/button";
@@ -20,9 +23,10 @@ declare global {
 interface ContinueButtonProps {
   isLoggedIn: boolean;
   onClick: () => void;
+  isLoading?: boolean;
 }
 
-export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => {
+export const ContinueButton = ({ isLoggedIn, onClick, isLoading: externalLoading }: ContinueButtonProps) => {
   const [isNavigating, setIsNavigating] = useState(false);
   const [clickTimes, setClickTimes] = useState<{start?: number, processing?: number, end?: number}>({});
   const [diagnosticId, setDiagnosticId] = useState('');
@@ -68,6 +72,8 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
   
   // Advanced click handler with forced loading state and direct URL navigation
   const handleButtonClick = useCallback(() => {
+    console.log("ContinueButton: Button clicked");
+    
     // CRITICAL: Set loading state IMMEDIATELY to give user feedback
     setIsNavigating(true);
     
@@ -97,10 +103,13 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
     
     // Capture onClick attempt
     try {
+      console.log("ContinueButton: Calling original onClick handler");
       logDiagnostic('ONCLICK_ATTEMPT', 'Calling original onClick handler', { clickId }, diagnosticId);
       onClick();
       logDiagnostic('ONCLICK_SUCCESS', 'Original onClick handler completed', { clickId }, diagnosticId);
+      console.log("ContinueButton: Original onClick handler completed");
     } catch (err) {
+      console.error("ContinueButton: Error in original onClick handler", err);
       logDiagnostic('ONCLICK_ERROR', 'Error in original onClick handler', { 
         clickId, 
         error: err instanceof Error ? err.message : String(err) 
@@ -110,6 +119,7 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
     // CRITICAL: Use DIRECT URL NAVIGATION instead of React Router
     // This bypasses any potential React Router or state management issues
     setTimeout(() => {
+      console.log("ContinueButton: Starting direct URL navigation");
       logDiagnostic('URL_NAVIGATION', 'Starting direct URL navigation', { 
         clickId,
         destination: isLoggedIn ? '/sell-my-car' : '/auth'
@@ -125,6 +135,7 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
     // Secondary fallback (700ms) - if the primary navigation somehow fails
     setTimeout(() => {
       if (document.querySelector('#list-car-button')) {
+        console.log("ContinueButton: EMERGENCY NAVIGATION - Button still visible after timeout");
         logDiagnostic('EMERGENCY_NAVIGATION', 'Button still visible after timeout', { clickId }, diagnosticId);
         
         // Force navigation with special flag
@@ -137,6 +148,9 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
     }, 700); // Increased timeout for more reliable fallback
   }, [onClick, isLoggedIn, diagnosticId]);
 
+  // Use either external loading state or internal navigating state
+  const isButtonLoading = externalLoading || isNavigating;
+
   return (
     <Button 
       onClick={handleButtonClick}
@@ -145,9 +159,9 @@ export const ContinueButton = ({ isLoggedIn, onClick }: ContinueButtonProps) => 
       id="list-car-button"
       data-testid="list-car-button"
       data-diagnostic-id={diagnosticId}
-      disabled={isNavigating} // Prevent double clicks
+      disabled={isButtonLoading} // Prevent double clicks
     >
-      {isNavigating ? (
+      {isButtonLoading ? (
         <span className="flex items-center gap-2">
           <Loader2 className="h-5 w-5 animate-spin" />
           {isLoggedIn ? "Loading..." : "Redirecting..."}

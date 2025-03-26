@@ -1,45 +1,45 @@
 /**
  * Changes made:
  * - 2027-07-23: Created diagnostic utility for troubleshooting listing button issues
+ * - 2027-07-27: Enhanced diagnostic logging with more detailed navigation tracking
  */
 
 // Helper to generate a unique ID for each diagnostic session
 export const generateDiagnosticId = () => {
-  return Math.random().toString(36).substring(2, 10);
+  return Math.random().toString(36).substring(2, 12) + '_' + Date.now().toString(36);
 };
 
 // Central diagnostic logging function
 export const logDiagnostic = (
-  area: string, 
+  category: string, 
   message: string, 
-  data?: any, 
+  data: any = null, 
   diagnosticId?: string
 ) => {
   const timestamp = new Date().toISOString();
-  const sessionId = diagnosticId || 'unknown-session';
+  const id = diagnosticId || generateDiagnosticId();
   
-  console.log(`DIAGNOSTIC[${sessionId}][${area}] ${timestamp} - ${message}`, data || '');
+  console.log(`[${timestamp}] [${category}] [${id}] ${message}`, data);
   
+  // Store the last 10 diagnostic events in localStorage for debugging
   try {
-    // Store in sessionStorage for persistence across page loads
-    const currentLogs = JSON.parse(sessionStorage.getItem('listingDiagnostics') || '[]');
-    currentLogs.push({
+    const existingDiagnostics = JSON.parse(localStorage.getItem('diagnosticEvents') || '[]');
+    const newEntry = {
       timestamp,
-      sessionId,
-      area,
+      category,
       message,
-      data: data ? JSON.stringify(data) : undefined
-    });
+      data,
+      id
+    };
     
-    // Keep only the last 100 logs to prevent storage issues
-    if (currentLogs.length > 100) {
-      currentLogs.shift();
-    }
-    
-    sessionStorage.setItem('listingDiagnostics', JSON.stringify(currentLogs));
+    // Keep only the last 10 events
+    const updatedDiagnostics = [newEntry, ...existingDiagnostics].slice(0, 10);
+    localStorage.setItem('diagnosticEvents', JSON.stringify(updatedDiagnostics));
   } catch (error) {
-    console.error('Error storing diagnostic log:', error);
+    console.error('Failed to store diagnostic event', error);
   }
+  
+  return id;
 };
 
 // Clear all diagnostic data
@@ -53,29 +53,47 @@ export const clearDiagnostics = () => {
 };
 
 // Helper to log all relevant localStorage data
-export const logStorageState = (sessionId: string, context: string) => {
-  try {
-    const valuationData = localStorage.getItem('valuationData');
-    const tempVIN = localStorage.getItem('tempVIN');
-    const tempMileage = localStorage.getItem('tempMileage');
-    const tempGearbox = localStorage.getItem('tempGearbox');
-    const formCurrentStep = localStorage.getItem('formCurrentStep');
-    const navigationInProgress = localStorage.getItem('navigationInProgress');
-    const navigationStartTime = localStorage.getItem('navigationStartTime');
-    
-    logDiagnostic('STORAGE', `Storage state at ${context}`, {
-      valuationData: valuationData ? JSON.parse(valuationData) : null,
-      tempVIN,
-      tempMileage,
-      tempGearbox,
-      formCurrentStep,
-      navigationInProgress,
-      navigationStartTime,
-      allKeys: Object.keys(localStorage)
-    }, sessionId);
-  } catch (error) {
-    logDiagnostic('STORAGE', 'Error logging storage state', { error }, sessionId);
+export const logStorageState = (diagnosticId: string, eventName: string) => {
+  // Extract relevant localStorage items related to valuation and navigation
+  const storageItems = [
+    'valuationData', 
+    'tempVIN', 
+    'tempMileage', 
+    'tempGearbox',
+    'tempMake',
+    'tempModel',
+    'tempYear',
+    'navigationRecentAttempt',
+    'navigationAttemptCount',
+    'lastButtonClickTime',
+    'lastButtonClickId',
+    'buttonMountTime',
+    'buttonUnmountTime'
+  ];
+  
+  const storageData: Record<string, any> = {};
+  let storageSize = 0;
+  
+  for (const key of storageItems) {
+    const value = localStorage.getItem(key);
+    if (value) {
+      storageData[key] = key === 'valuationData' ? 'present' : value;
+      storageSize += value.length;
+    } else {
+      storageData[key] = 'missing';
+    }
   }
+  
+  logDiagnostic(
+    'STORAGE_STATE', 
+    `localStorage state at ${eventName}`, 
+    {
+      ...storageData,
+      totalItemsTracked: storageItems.length,
+      storageSize: `${(storageSize / 1024).toFixed(2)} KB`
+    }, 
+    diagnosticId
+  );
 };
 
 // Export diagnostic viewer component

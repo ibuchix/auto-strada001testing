@@ -18,12 +18,22 @@
  * - 2027-06-08: Added extensive navigation debugging and improved resilience
  * - 2027-06-15: Enhanced debugging with detailed page load diagnostics and navigation state tracking
  * - 2027-07-22: Refactored into smaller component files for improved maintainability
+ * - 2027-07-27: Added improved diagnostics logging and URL parameter parsing
  */
 
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useSellerCarListingValidation } from "@/hooks/seller/useSellerCarListingValidation";
 import { PageStateManager } from "./sell-my-car/PageStateManager";
+import { logDiagnostic } from "@/diagnostics/listingButtonDiagnostics";
 
 const SellMyCar = () => {
+  const [searchParams] = useSearchParams();
+  const diagnosticId = searchParams.get('diagnostic');
+  const from = searchParams.get('from');
+  const clickId = searchParams.get('clickId');
+  const emergency = searchParams.get('emergency');
+  
   const {
     isValid,
     isLoading,
@@ -32,6 +42,32 @@ const SellMyCar = () => {
     isVerifying,
     handleRetrySellerVerification
   } = useSellerCarListingValidation();
+
+  // Log page load with diagnostic information
+  useEffect(() => {
+    console.log('SellMyCar page loaded', { 
+      diagnosticId, 
+      from, 
+      clickId, 
+      emergency, 
+      isValid, 
+      isLoading 
+    });
+    
+    // Log additional diagnostics if we have an ID
+    if (diagnosticId) {
+      logDiagnostic('SELLMYCAR_LOAD', 'SellMyCar page loaded', {
+        from,
+        clickId,
+        emergency: emergency === 'true',
+        url: window.location.href,
+        timestamp: new Date().toISOString(),
+        valuationData: localStorage.getItem('valuationData') ? 'present' : 'missing',
+        tempVIN: localStorage.getItem('tempVIN'),
+        validationState: { isValid, isLoading, error, errorType }
+      }, diagnosticId);
+    }
+  }, [diagnosticId, from, clickId, emergency, isValid, isLoading, error, errorType]);
 
   return (
     <PageStateManager
