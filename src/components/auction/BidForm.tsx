@@ -1,8 +1,7 @@
-
 /**
  * Changes made:
- * - Fixed import references for useAuctionTransaction and TransactionType
- * - Updated to use correct transaction handling
+ * - Updated placeBid function call
+ * - Fixed type references for BidResponse
  */
 
 import { useState } from 'react';
@@ -21,7 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { placeBid, BidResponse } from '@/utils/bidUtils';
+import { placeBid } from '@/utils/bidUtils';
 import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 import { useAuth } from '@/components/AuthProvider';
 import { TransactionStatusIndicator } from '@/components/transaction/TransactionStatusIndicator';

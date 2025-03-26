@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of form with validation
@@ -8,11 +9,12 @@
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field hasDocumentation
  * - 2025-06-10: Added schema validation to catch database field mismatches
+ * - 2025-06-15: Fixed CarFeatures type import and usage
  */
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, CarFeatures } from "@/types/forms";
 import { useFormPersistence } from "./useFormPersistence";
 import { useLoadDraft } from "./useLoadDraft";
 import { validateFormData } from "../utils/validation";
@@ -100,7 +102,7 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
           seller_name: formData.name, // Use seller_name instead of name
           address: formData.address,
           mobile_number: formData.mobileNumber,
-          features: formData.features,
+          features: formData.features as CarFeatures,
           is_damaged: formData.isDamaged,
           is_registered_in_poland: formData.isRegisteredInPoland,
           is_selling_on_behalf: formData.isSellingOnBehalf,

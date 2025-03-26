@@ -1,17 +1,17 @@
 
 /**
- * Wrapper component for form sections
+ * A wrapper component for form sections
  */
-import React from 'react';
+import React, { ReactNode } from 'react';
 
 interface FormSectionProps {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }
 
 export const FormSection = ({ children, className = '' }: FormSectionProps) => {
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 p-6 shadow-sm ${className}`}>
+    <div className={`bg-white rounded-lg p-6 shadow-sm border border-gray-100 ${className}`}>
       {children}
     </div>
   );

@@ -1,35 +1,50 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TRANSACTION_STATUS, TransactionType } from "@/services/supabase/transactionService";
 
-export const placeBid = async (
-  carId: string,
-  amount: number,
-  dealerId: string,
-  executeTransaction: any
-) => {
-  return executeTransaction(
-    "Place Bid",
-    async () => {
-      const { data, error } = await supabase.rpc("place_bid", {
-        car_id: carId,
-        dealer_id: dealerId,
-        bid_amount: amount,
-      });
+export interface BidResponse {
+  success: boolean;
+  bid_id?: string;
+  amount?: number;
+  error?: string;
+}
 
-      if (error) throw error;
+export const placeBid = async ({
+  carId,
+  dealerId,
+  amount,
+  isProxy = false,
+  maxProxyAmount
+}: {
+  carId: string;
+  dealerId: string;
+  amount: number;
+  isProxy?: boolean;
+  maxProxyAmount?: number;
+}) => {
+  try {
+    const { data, error } = await supabase.rpc("place_bid", {
+      p_car_id: carId,
+      p_dealer_id: dealerId,
+      p_amount: amount,
+      p_is_proxy: isProxy,
+      p_max_proxy_amount: maxProxyAmount
+    });
 
-      // Safely check data structure
-      const result = data as any;
-      
-      if (result && (result.success === false || result.error)) {
-        throw new Error(result.message || "Bid could not be placed");
-      }
+    if (error) throw error;
 
-      return result;
+    // Safely check data structure
+    const result = data as any;
+    
+    if (result && (result.success === false || result.error)) {
+      throw new Error(result.message || "Bid could not be placed");
     }
-  );
+
+    return result;
+  } catch (error: any) {
+    console.error("Error placing bid:", error);
+    throw error;
+  }
 };
 
 export const getLatestBid = async (carId: string) => {

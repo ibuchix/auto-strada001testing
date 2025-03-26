@@ -1,6 +1,6 @@
 
 /**
- * Save button with loading state
+ * A button component for saving form progress
  */
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -8,29 +8,21 @@ import { Save } from 'lucide-react';
 
 interface SaveButtonProps {
   onClick: () => void;
-  isLoading?: boolean;
-  label?: string;
-  variant?: 'default' | 'outline' | 'secondary';
-  size?: 'sm' | 'default' | 'lg';
+  isSaving?: boolean;
+  className?: string;
 }
 
-export const SaveButton = ({ 
-  onClick, 
-  isLoading = false, 
-  label = 'Save',
-  variant = 'outline',
-  size = 'sm'
-}: SaveButtonProps) => {
+export const SaveButton = ({ onClick, isSaving = false, className = '' }: SaveButtonProps) => {
   return (
-    <Button
-      variant={variant}
-      size={size}
-      onClick={onClick}
-      disabled={isLoading}
-      className="flex items-center gap-1"
+    <Button 
+      type="button" 
+      variant="outline" 
+      onClick={onClick} 
+      disabled={isSaving}
+      className={`flex items-center gap-2 ${className}`}
     >
       <Save size={16} />
-      <span>{label}</span>
+      {isSaving ? 'Saving...' : 'Save Progress'}
     </Button>
   );
 };
