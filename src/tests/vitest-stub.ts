@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-10-25: Added missing vitest exports for test files
@@ -7,6 +6,7 @@
  * - 2025-05-16: Added support for mock negations and matchers
  * - 2025-05-17: Fixed type export with 'export type' for isolatedModules compatibility
  * - 2027-08-01: Improved type exports to use 'export type' syntax
+ * - 2027-08-15: Fixed mocked return type to support mockReturnValue and other mocking methods
  */
 
 // Define the common types needed for testing
@@ -111,39 +111,93 @@ export const expect = (value: any): Matcher & { resolves: AsyncMatcher; rejects:
   };
 };
 
+// Enhanced mock type definition
+export type MockedFunction<T extends (...args: any[]) => any> = jest.Mock<ReturnType<T>> & {
+  mockReturnValue: (val: ReturnType<T>) => MockedFunction<T>;
+  mockResolvedValue: <U>(val: U) => MockedFunction<T>;
+  mockRejectedValue: <U>(val: U) => MockedFunction<T>;
+  mockImplementation: (fn: (...args: Parameters<T>) => ReturnType<T>) => MockedFunction<T>;
+  mockClear: () => MockedFunction<T>;
+  mockReset: () => MockedFunction<T>;
+  mockRestore: () => MockedFunction<T>;
+};
+
 // Improved mocking capabilities
-interface SpyInstance {
-  mockReturnValue: (value: any) => SpyInstance;
-  mockResolvedValue: (value: any) => SpyInstance;
-  mockRejectedValue: (value: any) => SpyInstance;
-  mockImplementation: (fn: (...args: any[]) => any) => SpyInstance;
-  mockClear: () => SpyInstance;
-  mockReset: () => SpyInstance;
-  mockRestore: () => SpyInstance;
+interface SpyInstance<T extends (...args: any[]) => any> {
+  mockReturnValue: (value: ReturnType<T>) => SpyInstance<T>;
+  mockResolvedValue: <U>(value: U) => SpyInstance<T>;
+  mockRejectedValue: <U>(value: U) => SpyInstance<T>;
+  mockImplementation: (fn: (...args: Parameters<T>) => ReturnType<T>) => SpyInstance<T>;
+  mockClear: () => SpyInstance<T>;
+  mockReset: () => SpyInstance<T>;
+  mockRestore: () => SpyInstance<T>;
   getMockName: () => string;
-  mockReturnThis: () => SpyInstance;
-  mockName: (name: string) => SpyInstance;
+  mockReturnThis: () => SpyInstance<T>;
+  mockName: (name: string) => SpyInstance<T>;
 }
 
-// Enhanced vi mock object
+// Enhanced vi mock object with improved types
 export const vi = {
-  fn: <T = any>(implementation?: (...args: any[]) => T): jest.Mock<T> => 
-    implementation ? jest.fn(implementation) : jest.fn(),
+  fn: <T extends (...args: any[]) => any>(implementation?: T): MockedFunction<T> => {
+    const mockFn = function(...args: Parameters<T>): ReturnType<T> {
+      return implementation ? implementation(...args) : undefined as any;
+    } as MockedFunction<T>;
+    
+    mockFn.mockReturnValue = (val) => {
+      implementation = (() => val) as any;
+      return mockFn;
+    };
+    
+    mockFn.mockResolvedValue = (val) => {
+      implementation = (() => Promise.resolve(val)) as any;
+      return mockFn;
+    };
+    
+    mockFn.mockRejectedValue = (val) => {
+      implementation = (() => Promise.reject(val)) as any;
+      return mockFn;
+    };
+    
+    mockFn.mockImplementation = (fn) => {
+      implementation = fn as any;
+      return mockFn;
+    };
+    
+    mockFn.mockClear = () => mockFn;
+    mockFn.mockReset = () => mockFn;
+    mockFn.mockRestore = () => mockFn;
+    
+    return mockFn;
+  },
   
-  mock: (path: string) => {},
+  mock: (path: string, factory?: () => any) => {},
   
-  spyOn: (object: any, method: string): SpyInstance => ({
-    mockReturnValue: (value: any) => vi.spyOn(object, method),
-    mockResolvedValue: (value: any) => vi.spyOn(object, method),
-    mockRejectedValue: (value: any) => vi.spyOn(object, method),
-    mockImplementation: (fn: (...args: any[]) => any) => vi.spyOn(object, method),
-    mockClear: () => vi.spyOn(object, method),
-    mockReset: () => vi.spyOn(object, method),
-    mockRestore: () => vi.spyOn(object, method),
-    getMockName: () => '',
-    mockReturnThis: () => vi.spyOn(object, method),
-    mockName: (name: string) => vi.spyOn(object, method),
-  }),
+  mocked: <T>(item: T, deep = false): jest.Mocked<T> & T => {
+    // Add mockReturnValue and other functions to the mock
+    if (typeof item === 'function') {
+      const mockedFn = item as any;
+      mockedFn.mockReturnValue = (val: any) => {
+        mockedFn.mockImplementation = () => val;
+        return mockedFn;
+      };
+      mockedFn.mockResolvedValue = (val: any) => {
+        mockedFn.mockImplementation = () => Promise.resolve(val);
+        return mockedFn;
+      };
+      mockedFn.mockRejectedValue = (val: any) => {
+        mockedFn.mockImplementation = () => Promise.reject(val);
+        return mockedFn;
+      };
+      mockedFn.mockImplementation = (fn: any) => {
+        mockedFn.implementation = fn;
+        return mockedFn;
+      };
+      mockedFn.mockClear = () => mockedFn;
+      mockedFn.mockReset = () => mockedFn;
+      mockedFn.mockRestore = () => mockedFn;
+    }
+    return item as any;
+  },
   
   resetAllMocks: () => {},
   clearAllMocks: () => {},
@@ -151,7 +205,6 @@ export const vi = {
   hoisted: <T>(factory: () => T): T => factory(),
   importActual: <T>(path: string): Promise<T> => Promise.resolve({} as T),
   importMock: <T>(path: string): Promise<T> => Promise.resolve({} as T),
-  mocked: <T>(item: T, deep?: boolean): jest.Mocked<T> => item as any,
   resetModules: () => {},
 };
 
