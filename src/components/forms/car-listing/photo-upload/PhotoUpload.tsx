@@ -1,115 +1,163 @@
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { toast } from "sonner";
-import { ImagePreview } from "./ImagePreview";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+/**
+ * Component for handling individual photo uploads
+ * - 2027-08-12: Enhanced with better validation feedback and error handling
+ */
+import { useState } from "react";
+import { Camera, Upload, AlertCircle, CheckCircle } from "lucide-react";
+import { UploadProgress } from "@/components/forms/car-listing/UploadProgress";
+import { PhotoValidationIndicator } from "@/components/forms/car-listing/validation/PhotoValidationIndicator";
 
 export interface PhotoUploadProps {
   id: string;
-  label?: string;
-  title?: string; // Added to match props from RequiredPhotos
-  description?: string; // Added to match props from RequiredPhotos
-  isUploading: boolean;
+  title: string;
+  description: string;
+  onUpload: (file: File) => Promise<string | null>;
   isUploaded?: boolean;
+  isUploading?: boolean;
   progress?: number;
-  onFileSelect?: (file: File) => void;
-  onUpload?: (file: File) => Promise<string | null>; // Updated to match the expected return type
-  disabled?: boolean;
+  isRequired?: boolean;
+  diagnosticId?: string;
 }
 
-export const PhotoUpload = ({ 
-  id, 
-  label,
+export const PhotoUpload = ({
+  id,
   title,
   description,
-  isUploading, 
-  isUploaded = false,
-  progress = 0,
-  onFileSelect,
   onUpload,
-  disabled = false 
+  isUploaded = false,
+  isUploading = false,
+  progress = 0,
+  isRequired = true,
+  diagnosticId
 }: PhotoUploadProps) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [file, setFile] = useState<File | null>(null);
 
-  const validateFile = (file: File): boolean => {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Please upload a JPEG, PNG, or WebP image");
-      return false;
+  // Log for diagnostic purposes
+  const logUploadEvent = (event: string, data: any = {}) => {
+    if (diagnosticId) {
+      console.log(`[${diagnosticId}] [PhotoUpload:${id}] ${event}:`, {
+        ...data,
+        timestamp: new Date().toISOString()
+      });
     }
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error("File size must be less than 5MB");
-      return false;
-    }
-    return true;
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && validateFile(file)) {
-      setSelectedFile(file);
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+    setError(null);
+    
+    logUploadEvent('File selected', { 
+      fileName: selectedFile.name, 
+      fileSize: selectedFile.size 
+    });
+    
+    try {
+      const result = await onUpload(selectedFile);
       
-      // If we have an onUpload function, use it
-      if (onUpload) {
-        try {
-          // Simulate upload progress
-          let progress = 0;
-          const interval = setInterval(() => {
-            progress += 10;
-            setUploadProgress(progress);
-            if (progress >= 100) {
-              clearInterval(interval);
-            }
-          }, 200);
-          
-          await onUpload(file);
-          clearInterval(interval);
-          setUploadProgress(100);
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          toast.error('Failed to upload file');
-        }
-      } else if (onFileSelect) {
-        // Otherwise, just pass the file to parent
-        onFileSelect(file);
+      if (!result) {
+        setError("Upload failed. Please try again.");
+        logUploadEvent('Upload failed', { error: 'No result returned' });
+      } else {
+        logUploadEvent('Upload completed', { result });
       }
+    } catch (err: any) {
+      setError(err.message || "Upload failed. Please try again.");
+      logUploadEvent('Upload error', { error: err.message });
     }
   };
 
-  const handleRemove = () => {
-    setSelectedFile(null);
-    setUploadProgress(0);
+  const handleRetry = async () => {
+    setRetryCount(prev => prev + 1);
+    setError(null);
+    
+    if (!file) {
+      setError("No file to retry. Please select a file first.");
+      return;
+    }
+    
+    logUploadEvent('Retry attempt', { 
+      retryCount: retryCount + 1,
+      fileName: file.name
+    });
+    
+    try {
+      const result = await onUpload(file);
+      
+      if (!result) {
+        setError("Retry failed. Please try again or select a different file.");
+        logUploadEvent('Retry failed', { error: 'No result returned' });
+      } else {
+        logUploadEvent('Retry completed', { result });
+      }
+    } catch (err: any) {
+      setError(err.message || "Retry failed. Please try again.");
+      logUploadEvent('Retry error', { error: err.message });
+    }
   };
 
-  // Use label or title as the display text
-  const displayLabel = label || title || "Upload Photo";
-
   return (
-    <div className="space-y-4">
-      <Label htmlFor={id}>{displayLabel}</Label>
-      {description && <p className="text-xs text-subtitle">{description}</p>}
+    <div className="flex flex-col relative">
+      <div className={`relative ${isUploaded ? 'border-green-500' : error ? 'border-red-300' : 'border-gray-300'} border-2 rounded-md p-4 h-40 flex flex-col items-center justify-center text-center transition-colors`}>
+        {isUploaded ? (
+          <div className="flex flex-col items-center justify-center h-full space-y-2">
+            <CheckCircle className="h-8 w-8 text-green-500" />
+            <p className="text-sm font-medium text-green-800">{title} uploaded</p>
+          </div>
+        ) : (
+          <>
+            <input
+              type="file"
+              id={id}
+              accept="image/*"
+              onChange={handleFileChange}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+              disabled={isUploading}
+            />
+            <div className="flex flex-col items-center justify-center h-full space-y-2">
+              {error ? (
+                <AlertCircle className="h-8 w-8 text-red-500" />
+              ) : isUploading ? (
+                <Upload className="h-8 w-8 text-blue-500 animate-pulse" />
+              ) : (
+                <Camera className="h-8 w-8 text-gray-500" />
+              )}
+              <div>
+                <p className="text-sm font-medium">{title}</p>
+                <p className="text-xs text-gray-500">{description}</p>
+                {error && (
+                  <p className="text-xs text-red-500 mt-1">{error}</p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
       
-      {!selectedFile && !isUploaded ? (
-        <Input
-          id={id}
-          type="file"
-          accept="image/*"
-          disabled={isUploading || disabled}
-          onChange={handleFileChange}
-          className="cursor-pointer"
+      {/* Progress indicator */}
+      {isUploading && (
+        <UploadProgress 
+          progress={progress || 0} 
+          error={!!error}
+          onRetry={handleRetry}
+          className="mt-2"
         />
-      ) : (
-        <div className="space-y-4">
-          <ImagePreview file={selectedFile || new File([], "placeholder")} onRemove={handleRemove} />
-          {(uploadProgress < 100 || (progress && progress < 100)) && (
-            <Progress value={uploadProgress || progress} className="w-full" />
-          )}
-        </div>
       )}
+      
+      {/* Validation indicator */}
+      <div className="absolute -top-2 -right-2">
+        <PhotoValidationIndicator
+          isUploaded={isUploaded}
+          isRequired={isRequired}
+          photoType={title}
+          onRetry={!isUploaded ? handleRetry : undefined}
+        />
+      </div>
     </div>
   );
 };

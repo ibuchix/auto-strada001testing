@@ -5,22 +5,28 @@
  * - 2024-12-27: Fixed type incompatibility with PhotoUpload component
  * - 2025-05-03: Updated onFileSelect and onUpload to use consistent Promise<string | null> return type
  * - 2025-05-07: Added diagnosticId prop for improved debugging
+ * - 2027-08-12: Enhanced with recovery mechanisms and better validation feedback
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PhotoUpload } from "./PhotoUpload";
+import { FormValidationSummary } from "../validation/FormValidationSummary";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface RequiredPhotosProps {
   isUploading: boolean;
   progress?: number;
   onFileSelect: (file: File, type: string) => Promise<string | null>;
-  diagnosticId?: string; // Added diagnosticId
+  diagnosticId?: string;
+  onValidationChange?: (isValid: boolean) => void;
 }
 
 export const RequiredPhotos = ({ 
   isUploading, 
   progress, 
   onFileSelect,
-  diagnosticId 
+  diagnosticId,
+  onValidationChange
 }: RequiredPhotosProps) => {
   const [uploadedPhotos, setUploadedPhotos] = useState<Record<string, boolean>>({
     exterior_front: false,
@@ -32,6 +38,9 @@ export const RequiredPhotos = ({
     dashboard: false,
     odometer: false,
   });
+  
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
+  const [recoveryAttempted, setRecoveryAttempted] = useState(false);
 
   // Log for debugging purposes
   const logUploadEvent = (event: string, data: any) => {
@@ -40,12 +49,66 @@ export const RequiredPhotos = ({
     }
   };
 
+  // Check for any previously uploaded photos in localStorage
+  useEffect(() => {
+    if (!recoveryAttempted) {
+      try {
+        const savedPhotos = localStorage.getItem('uploadedRequiredPhotos');
+        if (savedPhotos) {
+          const parsedPhotos = JSON.parse(savedPhotos);
+          logUploadEvent('Recovered photos from localStorage', { savedPhotos: parsedPhotos });
+          setUploadedPhotos(prev => ({
+            ...prev,
+            ...parsedPhotos
+          }));
+          setRecoveryAttempted(true);
+        }
+      } catch (error) {
+        logUploadEvent('Failed to recover photos', { error });
+      }
+    }
+  }, [recoveryAttempted, diagnosticId]);
+
+  // Save upload state to localStorage
+  useEffect(() => {
+    // Only save if we have at least one uploaded photo
+    if (Object.values(uploadedPhotos).some(Boolean)) {
+      localStorage.setItem('uploadedRequiredPhotos', JSON.stringify(uploadedPhotos));
+      logUploadEvent('Saved photos to localStorage', { uploadedPhotos });
+    }
+  }, [uploadedPhotos, diagnosticId]);
+
+  // Validate and notify parent
+  useEffect(() => {
+    const isValid = Object.values(uploadedPhotos).every(Boolean);
+    if (onValidationChange) {
+      onValidationChange(isValid);
+    }
+  }, [uploadedPhotos, onValidationChange]);
+
   const handlePhotoUploaded = (type: string) => {
     setUploadedPhotos((prev) => {
       const newState = { ...prev, [type]: true };
       logUploadEvent('Photo uploaded', { type, uploadedPhotos: newState });
       return newState;
     });
+    
+    // Clear any errors for this photo
+    if (uploadErrors[type]) {
+      setUploadErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[type];
+        return newErrors;
+      });
+    }
+  };
+  
+  const handleUploadError = (type: string, error: string) => {
+    setUploadErrors(prev => ({
+      ...prev,
+      [type]: error
+    }));
+    logUploadEvent('Upload error', { type, error });
   };
 
   const requiredPhotos = [
@@ -90,10 +153,32 @@ export const RequiredPhotos = ({
       description: "Current mileage reading",
     },
   ];
+  
+  // Generate validation errors for displaying in summary
+  const validationErrors = requiredPhotos
+    .filter(photo => !uploadedPhotos[photo.id])
+    .map(photo => ({
+      field: `photo_${photo.id}`,
+      message: `${photo.title} photo is required`
+    }));
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Required Photos</h3>
+      
+      {/* Validation summary */}
+      {validationErrors.length > 0 ? (
+        <FormValidationSummary 
+          errors={validationErrors} 
+        />
+      ) : (
+        <Alert className="bg-green-50 border-green-200">
+          <AlertDescription className="text-green-700">
+            All required photos have been uploaded. You can proceed to the next step.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {requiredPhotos.map((photo) => (
           <PhotoUpload
@@ -104,6 +189,8 @@ export const RequiredPhotos = ({
             isUploading={isUploading}
             isUploaded={uploadedPhotos[photo.id]}
             progress={progress}
+            isRequired={true}
+            diagnosticId={diagnosticId}
             onUpload={async (file) => {
               logUploadEvent('Upload started', { photoId: photo.id });
               try {
@@ -113,10 +200,12 @@ export const RequiredPhotos = ({
                   logUploadEvent('Upload succeeded', { photoId: photo.id, url });
                 } else {
                   logUploadEvent('Upload returned null', { photoId: photo.id });
+                  handleUploadError(photo.id, "Upload failed");
                 }
                 return url;
-              } catch (error) {
+              } catch (error: any) {
                 logUploadEvent('Upload failed', { photoId: photo.id, error });
+                handleUploadError(photo.id, error.message || "Upload failed");
                 return null;
               }
             }}

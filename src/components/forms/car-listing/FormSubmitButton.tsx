@@ -6,14 +6,26 @@
  * - 2025-07-21: Added better error recovery for blank screen issues
  * - 2025-07-22: Improved error handling for 400/404 errors and added better diagnostics
  * - 2027-07-30: Enhanced button loading states and added recovery mechanisms
+ * - 2027-08-12: Improved error states and added recovery options
  */
 
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, RefreshCw, HelpCircle } from "lucide-react";
 import { TransactionStatusIndicator } from "@/components/transaction/TransactionStatusIndicator";
+import { TransactionStateIndicator } from "@/components/transaction/TransactionStateIndicator";
 import { TransactionStatus } from "@/services/supabase/transactionService";
 import { useState, useEffect } from "react";
 import { logDiagnostic } from "@/diagnostics/listingButtonDiagnostics";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
 
 interface FormSubmitButtonProps {
   isSubmitting: boolean;
@@ -22,6 +34,7 @@ interface FormSubmitButtonProps {
   forceEnable?: boolean;
   onRetry?: () => void;
   diagnosticId?: string;
+  formData?: any;
 }
 
 export const FormSubmitButton = ({ 
@@ -30,13 +43,16 @@ export const FormSubmitButton = ({
   transactionStatus,
   forceEnable = false,
   onRetry,
-  diagnosticId
+  diagnosticId,
+  formData
 }: FormSubmitButtonProps) => {
   // Track how long the button has been in a pending state
   const [pendingDuration, setPendingDuration] = useState<number>(0);
   const [buttonEnabled, setButtonEnabled] = useState<boolean>(true);
   const [errorOccurred, setErrorOccurred] = useState<boolean>(false);
   const [errorDetails, setErrorDetails] = useState<string>('');
+  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
+  const [recoveryAttempted, setRecoveryAttempted] = useState(false);
   
   // Determine the button state based on transaction status or legacy props
   const isPending = transactionStatus === TransactionStatus.PENDING || isSubmitting;
@@ -71,6 +87,29 @@ export const FormSubmitButton = ({
       setErrorDetails('Submission failed. Please try again.');
     }
   }, [transactionStatus]);
+
+  // Try to recover form data from localStorage when an error occurs
+  useEffect(() => {
+    if (hasError && !recoveryAttempted) {
+      const hasLocalData = localStorage.getItem('formBackupKeys') !== null;
+      
+      if (hasLocalData) {
+        setRecoveryAttempted(true);
+        
+        // Don't immediately show recovery dialog if we have a retry handler
+        if (!onRetry) {
+          setShowRecoveryDialog(true);
+        }
+      }
+      
+      if (diagnosticId) {
+        logDiagnostic('RECOVERY_CHECK', 'Checking for recoverable data', { 
+          hasLocalData, 
+          showDialog: !onRetry && hasLocalData 
+        }, diagnosticId);
+      }
+    }
+  }, [hasError, onRetry, recoveryAttempted, diagnosticId]);
   
   // Track pending duration and force enable after timeout
   useEffect(() => {
@@ -135,7 +174,37 @@ export const FormSubmitButton = ({
     if (transactionStatus === TransactionStatus.PENDING && pendingDuration > 20) {
       // Log that we're forcing a reload due to stuck state
       console.log('Forcing navigation to dashboard due to stuck state');
+      
+      // Save form data to localStorage before navigating away
+      if (formData) {
+        try {
+          const timestamp = new Date().toISOString();
+          localStorage.setItem(`emergencyBackup_${timestamp}`, JSON.stringify(formData));
+          localStorage.setItem('lastEmergencyBackup', timestamp);
+          
+          if (diagnosticId) {
+            logDiagnostic('EMERGENCY_BACKUP', 'Created emergency backup before navigation', {
+              timestamp,
+              backupCreated: true
+            }, diagnosticId);
+          }
+        } catch (error) {
+          console.error('Failed to create emergency backup:', error);
+        }
+      }
+      
       window.location.href = '/dashboard/seller';
+    }
+  };
+  
+  // Handle recovery action from dialog
+  const handleRecoveryAction = () => {
+    setShowRecoveryDialog(false);
+    
+    if (onRetry) {
+      onRetry();
+    } else {
+      window.location.reload();
     }
   };
   
@@ -200,11 +269,12 @@ export const FormSubmitButton = ({
       
       {transactionStatus && (
         <div className="mt-2 flex justify-center">
-          <TransactionStatusIndicator 
+          <TransactionStateIndicator 
             status={transactionStatus} 
             pendingText="Processing submission..." 
             successText="Submission successful!"
             errorText="Submission failed"
+            onRetry={onRetry}
           />
         </div>
       )}
@@ -231,6 +301,27 @@ export const FormSubmitButton = ({
           </Button>
         </div>
       )}
+      
+      {/* Recovery Dialog */}
+      <AlertDialog open={showRecoveryDialog} onOpenChange={setShowRecoveryDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <HelpCircle className="h-5 w-5 text-amber-500" />
+              Recover Your Progress
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              It looks like your previous submission was interrupted. Would you like to try recovering your form data and continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRecoveryAction}>
+              Recover My Data
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
