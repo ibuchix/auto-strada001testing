@@ -1,8 +1,10 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of warning lights section
  * - 2024-03-19: Added photo upload functionality
  * - 2024-03-19: Implemented success notifications
+ * - 2027-08-12: Updated PhotoUpload props to use title and description instead of label
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -55,9 +57,11 @@ export const WarningLightsSection = ({ form, carId }: WarningLightsSectionProps)
       <div className="space-y-4">
         <PhotoUpload
           id="warning_light"
-          label="Upload Warning Light Photo"
+          title="Warning Light Photo"
+          description="Upload a clear photo of any dashboard warning lights"
           isUploading={false}
-          onFileSelect={handleWarningLightPhotoUpload}
+          isRequired={false}
+          onUpload={handleWarningLightPhotoUpload}
         />
       </div>
     </Card>

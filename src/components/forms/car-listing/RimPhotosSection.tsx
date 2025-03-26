@@ -4,6 +4,7 @@
  * - 2024-08-09: Created RimPhotosSection component for rim photo uploads
  * - 2024-09-15: Added state tracking for uploaded rims
  * - 2027-08-03: Improved error handling when carId is not available
+ * - 2027-08-12: Updated PhotoUpload props to use title and description instead of label
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -106,31 +107,35 @@ export const RimPhotosSection = ({ form, carId }: RimPhotosSectionProps) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <PhotoUpload
           id="rim_front_left"
-          label="Front Left Rim"
+          title="Front Left Rim"
+          description="Clear photo of front left wheel"
           isUploading={false}
           disabled={missingCarId}
-          onFileSelect={(file) => handleRimPhotoUpload(file, 'front_left')}
+          onUpload={(file) => handleRimPhotoUpload(file, 'front_left')}
         />
         <PhotoUpload
           id="rim_front_right"
-          label="Front Right Rim"
+          title="Front Right Rim"
+          description="Clear photo of front right wheel"
           isUploading={false}
           disabled={missingCarId}
-          onFileSelect={(file) => handleRimPhotoUpload(file, 'front_right')}
+          onUpload={(file) => handleRimPhotoUpload(file, 'front_right')}
         />
         <PhotoUpload
           id="rim_rear_left"
-          label="Rear Left Rim"
+          title="Rear Left Rim"
+          description="Clear photo of rear left wheel"
           isUploading={false}
           disabled={missingCarId}
-          onFileSelect={(file) => handleRimPhotoUpload(file, 'rear_left')}
+          onUpload={(file) => handleRimPhotoUpload(file, 'rear_left')}
         />
         <PhotoUpload
           id="rim_rear_right"
-          label="Rear Right Rim"
+          title="Rear Right Rim"
+          description="Clear photo of rear right wheel"
           isUploading={false}
           disabled={missingCarId}
-          onFileSelect={(file) => handleRimPhotoUpload(file, 'rear_right')}
+          onUpload={(file) => handleRimPhotoUpload(file, 'rear_right')}
         />
       </div>
     </Card>

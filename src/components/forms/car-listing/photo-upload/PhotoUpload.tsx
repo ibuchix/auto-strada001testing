@@ -2,38 +2,35 @@
 /**
  * Component for handling individual photo uploads
  * - 2027-08-12: Enhanced with better validation feedback and error handling
+ * - 2027-08-12: Added support for both title/description and label prop styles for backward compatibility
  */
 import { useState } from "react";
 import { Camera, Upload, AlertCircle, CheckCircle } from "lucide-react";
 import { UploadProgress } from "@/components/forms/car-listing/UploadProgress";
 import { PhotoValidationIndicator } from "@/components/forms/car-listing/validation/PhotoValidationIndicator";
-
-export interface PhotoUploadProps {
-  id: string;
-  title: string;
-  description: string;
-  onUpload: (file: File) => Promise<string | null>;
-  isUploaded?: boolean;
-  isUploading?: boolean;
-  progress?: number;
-  isRequired?: boolean;
-  diagnosticId?: string;
-}
+import { PhotoUploadProps } from "./types";
 
 export const PhotoUpload = ({
   id,
   title,
   description,
+  label, // Support legacy prop
   onUpload,
+  onFileSelect, // Support legacy callback
   isUploaded = false,
   isUploading = false,
   progress = 0,
   isRequired = true,
-  diagnosticId
+  diagnosticId,
+  disabled = false
 }: PhotoUploadProps) => {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [file, setFile] = useState<File | null>(null);
+
+  // Handle both new and legacy prop styles
+  const displayTitle = title || label || "Upload Photo";
+  const displayDescription = description || "Upload a clear photo";
 
   // Log for diagnostic purposes
   const logUploadEvent = (event: string, data: any = {}) => {
@@ -56,6 +53,18 @@ export const PhotoUpload = ({
       fileName: selectedFile.name, 
       fileSize: selectedFile.size 
     });
+    
+    // Support both callback styles
+    if (onFileSelect) {
+      onFileSelect(selectedFile);
+      return;
+    }
+    
+    if (!onUpload) {
+      console.error("Neither onUpload nor onFileSelect provided to PhotoUpload component");
+      setError("Upload configuration error");
+      return;
+    }
     
     try {
       const result = await onUpload(selectedFile);
@@ -86,6 +95,16 @@ export const PhotoUpload = ({
       fileName: file.name
     });
     
+    // Support both callback styles on retry
+    if (onFileSelect) {
+      onFileSelect(file);
+      return;
+    }
+    
+    if (!onUpload) {
+      return;
+    }
+    
     try {
       const result = await onUpload(file);
       
@@ -103,11 +122,11 @@ export const PhotoUpload = ({
 
   return (
     <div className="flex flex-col relative">
-      <div className={`relative ${isUploaded ? 'border-green-500' : error ? 'border-red-300' : 'border-gray-300'} border-2 rounded-md p-4 h-40 flex flex-col items-center justify-center text-center transition-colors`}>
+      <div className={`relative ${isUploaded ? 'border-green-500' : error ? 'border-red-300' : 'border-gray-300'} border-2 rounded-md p-4 h-40 flex flex-col items-center justify-center text-center transition-colors ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
         {isUploaded ? (
           <div className="flex flex-col items-center justify-center h-full space-y-2">
             <CheckCircle className="h-8 w-8 text-green-500" />
-            <p className="text-sm font-medium text-green-800">{title} uploaded</p>
+            <p className="text-sm font-medium text-green-800">{displayTitle} uploaded</p>
           </div>
         ) : (
           <>
@@ -117,7 +136,7 @@ export const PhotoUpload = ({
               accept="image/*"
               onChange={handleFileChange}
               className="absolute inset-0 opacity-0 cursor-pointer"
-              disabled={isUploading}
+              disabled={isUploading || disabled}
             />
             <div className="flex flex-col items-center justify-center h-full space-y-2">
               {error ? (
@@ -128,8 +147,8 @@ export const PhotoUpload = ({
                 <Camera className="h-8 w-8 text-gray-500" />
               )}
               <div>
-                <p className="text-sm font-medium">{title}</p>
-                <p className="text-xs text-gray-500">{description}</p>
+                <p className="text-sm font-medium">{displayTitle}</p>
+                <p className="text-xs text-gray-500">{displayDescription}</p>
                 {error && (
                   <p className="text-xs text-red-500 mt-1">{error}</p>
                 )}
@@ -154,7 +173,7 @@ export const PhotoUpload = ({
         <PhotoValidationIndicator
           isUploaded={isUploaded}
           isRequired={isRequired}
-          photoType={title}
+          photoType={displayTitle}
           onRetry={!isUploaded ? handleRetry : undefined}
         />
       </div>

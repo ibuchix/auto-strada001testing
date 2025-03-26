@@ -15,15 +15,18 @@ export interface CarPhotoData {
 
 export interface PhotoUploadProps {
   id: string;
+  // Support both title/description and label for backwards compatibility
+  title?: string;
+  description?: string;
   label?: string;
-  title?: string; // Added title prop
-  description?: string; // Added description prop
   isUploading: boolean;
   isUploaded?: boolean;
   progress?: number;
   onFileSelect?: (file: File) => void;
   onUpload?: (file: File) => Promise<string | null>; // Updated return type
   disabled?: boolean;
+  isRequired?: boolean;
+  diagnosticId?: string;
 }
 
 export const requiredPhotos = [
