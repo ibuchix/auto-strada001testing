@@ -1,93 +1,49 @@
 
 /**
- * Changes made:
- * - 2024-08-15: Added entityId and entityType to TransactionOptions interface
- * - Expanded optional configuration for more flexible transaction tracking
- * - 2025-08-10: Fixed TransactionType export to resolve type incompatibility
+ * Created: 2025-08-25
+ * Types for transaction service
  */
 
-// Define transaction types to categorize different operations
 export enum TransactionType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  UPLOAD = 'upload',
-  AUCTION = 'auction',
-  PAYMENT = 'payment',
-  AUTHENTICATION = 'authentication',
-  OTHER = 'other'
+  CREATE = 'CREATE',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  READ = 'READ'
 }
 
-// Status of the transaction
-export enum TransactionStatus {
-  PENDING = 'pending',
-  SUCCESS = 'success',
-  ERROR = 'error',
-  WARNING = 'warning',
-  INACTIVE = 'inactive'
-}
+export type TransactionStatus = 'idle' | 'pending' | 'success' | 'error' | 'rollback';
 
-// Define the TransactionMetadata type for structured metadata handling
-export interface TransactionMetadata {
-  [key: string]: any;
-  description?: string;
-  entityName?: string;
-  timestamp?: string;
-  source?: string;
-}
-
-// Interface for transaction details
-export interface TransactionDetails {
+export interface TransactionDetailsBase {
   id: string;
-  operation: string;
   type: TransactionType;
-  entityId?: string; 
-  entityType?: string;
+  name: string;
   status: TransactionStatus;
   startTime: string;
   endTime?: string;
-  metadata?: Record<string, any>;
-  errorDetails?: string;
-  userId?: string;
+  duration?: number;
+  error?: any;
 }
 
-// Updated TransactionOptions interface with entityId and entityType
-export interface TransactionOptions {
-  showToast?: boolean;
-  toastDuration?: number;
-  logToDb?: boolean;
-  retryCount?: number;
-  retryDelay?: number;
-  description?: string;
+export interface TransactionDetails extends TransactionDetailsBase {
+  steps: TransactionStep[];
   metadata?: Record<string, any>;
+}
+
+export interface TransactionStep {
+  id: string;
+  name: string;
+  status: TransactionStatus;
+  startTime: string;
+  endTime?: string;
+  duration?: number;
+  error?: any;
+  metadata?: Record<string, any>;
+}
+
+export interface TransactionOptions {
+  timeout?: number;
+  retries?: number;
   onSuccess?: (result: any) => void;
   onError?: (error: any) => void;
-  onComplete?: (details: TransactionDetails) => void;
-  entityId?: string;
-  entityType?: string;
+  metadata?: Record<string, any>;
 }
-
-// Type for audit log action
-export type AuditLogAction = 
-  | "login" 
-  | "logout" 
-  | "create" 
-  | "update" 
-  | "delete" 
-  | "suspend" 
-  | "reinstate" 
-  | "verify" 
-  | "reject" 
-  | "approve" 
-  | "process_auctions" 
-  | "auction_closed" 
-  | "auto_proxy_bid" 
-  | "start_auction" 
-  | "auction_close_failed" 
-  | "auction_close_system_error" 
-  | "system_reset_failed" 
-  | "recovery_failed" 
-  | "manual_retry" 
-  | "auction_recovery" 
-  | "system_health_check" 
-  | "system_alert";

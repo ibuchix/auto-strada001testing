@@ -1,110 +1,113 @@
-
 /**
- * Created: 2024-08-19
- * This file provides stub implementations for Vitest functions
- * to allow type checking without actual test functionality.
- * 
- * This is useful when testing code during development without
- * a full testing infrastructure.
+ * Created: 2025-08-25
+ * Stub for Vitest testing functions
  */
 
-// Define simple types for mocked functions
-export type MockedFunction<T extends (...args: any[]) => any> = T & {
-  mockReturnValue: (val: ReturnType<T>) => MockedFunction<T>;
-  mockResolvedValue: (val: ResolvedType<ReturnType<T>>) => MockedFunction<T>;
-  mockImplementation: (impl: T) => MockedFunction<T>;
-  mockRejectedValue: (val: any) => MockedFunction<T>;
-};
+// Define mock function types
+interface MockedFunction<T extends (...args: any[]) => any> {
+  (...args: Parameters<T>): ReturnType<T>;
+  mockImplementation: (implementation: T) => MockedFunction<T>;
+  mockReturnValue: (value: ReturnType<T>) => MockedFunction<T>;
+  mockResolvedValue: <U>(value: U) => MockedFunction<T>;
+  mockRejectedValue: (error: any) => MockedFunction<T>;
+  calls: Parameters<T>[];
+}
 
-type ResolvedType<T> = T extends Promise<infer R> ? R : never;
+interface MockInstance<T extends (...args: any[]) => any> {
+  calls: Parameters<T>[];
+  mockImplementation: (implementation: T) => MockInstance<T>;
+  mockReturnValue: (value: ReturnType<T>) => MockInstance<T>;
+  mockResolvedValue: <U>(value: U) => MockInstance<T>;
+  mockRejectedValue: (error: any) => MockInstance<T>;
+}
 
-export type MockInstance<T extends (...args: any[]) => any> = {
-  mockReturnValue: (val: ReturnType<T>) => MockInstance<T>;
-  mockResolvedValue: (val: ResolvedType<ReturnType<T>>) => MockInstance<T>;
-  mockImplementation: (impl: T) => MockInstance<T>;
-  mockRejectedValue: (val: any) => MockInstance<T>;
-};
+// Helper for resolving nested promise types
+type ResolvedType<T> = T extends Promise<infer U> ? U : T;
 
-// Stub for expect
-const expectStub = (actual: any) => ({
-  toBe: (expected: any) => true,
-  toEqual: (expected: any) => true,
-  toBeDefined: () => true,
-  toBeUndefined: () => true,
-  toBeNull: () => true,
-  toBeTruthy: () => true,
-  toBeFalsy: () => true,
-  toContain: (item: any) => true,
-  toHaveBeenCalled: () => true,
-  toHaveBeenCalledWith: (...args: any[]) => true,
-  toHaveLength: (length: number) => true,
-  toThrow: (error?: any) => true,
-  not: {
-    toBe: (expected: any) => true,
-    toEqual: (expected: any) => true,
-    toBeDefined: () => true,
-    toBeUndefined: () => true,
-    toBeNull: () => true,
-    toBeTruthy: () => true,
-    toBeFalsy: () => true,
-    toContain: (item: any) => true,
-    toHaveBeenCalled: () => true,
-    toHaveBeenCalledWith: (...args: any[]) => true,
-    toHaveLength: (length: number) => true,
-    toThrow: (error?: any) => true,
-  }
-});
-
-// Create a stubbed implementation of Vitest
-const vi = {
+// Create a simple stub for vitest that can be extended
+export const vi = {
   fn: <T extends (...args: any[]) => any>(implementation?: T): MockedFunction<T> => {
-    const mockFn = ((...args: any[]) => {
-      return implementation ? implementation(...args) : undefined;
-    }) as MockedFunction<T>;
+    const calls: Parameters<T>[] = [];
     
-    mockFn.mockReturnValue = (val) => {
-      return vi.fn(() => val);
+    const mockFn = (...args: Parameters<T>): ReturnType<T> => {
+      calls.push(args);
+      return implementation ? implementation(...args) : undefined as unknown as ReturnType<T>;
     };
     
-    mockFn.mockResolvedValue = (val) => {
-      return vi.fn(() => Promise.resolve(val));
+    mockFn.calls = calls;
+    
+    mockFn.mockImplementation = (newImplementation: T): MockedFunction<T> => {
+      return vi.fn(newImplementation);
     };
     
-    mockFn.mockImplementation = (impl) => {
-      return vi.fn(impl);
+    mockFn.mockReturnValue = (returnValue: ReturnType<T>): MockedFunction<T> => {
+      return vi.fn(() => returnValue as ReturnType<T>);
     };
     
-    mockFn.mockRejectedValue = (val) => {
-      return vi.fn(() => Promise.reject(val));
+    mockFn.mockResolvedValue = <U>(value: U): MockedFunction<T> => {
+      return vi.fn(() => Promise.resolve(value) as unknown as ReturnType<T>);
+    };
+    
+    mockFn.mockRejectedValue = (error: any): MockedFunction<T> => {
+      return vi.fn(() => Promise.reject(error) as unknown as ReturnType<T>);
     };
     
     return mockFn;
   },
   
-  mock: (path: string, factory?: () => any) => {},
-  
-  mocked: <T>(item: T, deep?: boolean): T => item,
-  
-  spyOn: <T, K extends keyof T>(object: T, method: K): MockInstance<any> => {
-    const mockInstance = {
-      mockReturnValue: (val: any) => mockInstance,
-      mockResolvedValue: (val: any) => mockInstance,
-      mockImplementation: (impl: any) => mockInstance,
-      mockRejectedValue: (val: any) => mockInstance
-    };
-    return mockInstance;
+  mock: (path: string, factory?: () => any) => {
+    // Simple implementation that does nothing
+    console.log(`Mocking ${path}`);
   },
-
-  resetAllMocks: () => {}
+  
+  mocked: <T>(item: T, deep?: boolean): T => {
+    // Simply return the item as it comes to keep TypeScript happy
+    return item;
+  },
+  
+  spyOn: <T, K extends keyof T>(object: T, method: K): MockInstance<T[K] extends (...args: any[]) => any ? T[K] : never> => {
+    const original = object[method];
+    const calls: any[] = [];
+    
+    const spy = {
+      calls,
+      mockImplementation: (implementation: any) => {
+        // @ts-ignore - type complexity
+        object[method] = implementation;
+        return spy;
+      },
+      mockReturnValue: (value: any) => {
+        // @ts-ignore - type complexity
+        object[method] = () => value;
+        return spy;
+      },
+      mockResolvedValue: <U>(value: U) => {
+        // @ts-ignore - type complexity
+        object[method] = () => Promise.resolve(value);
+        return spy;
+      },
+      mockRejectedValue: (error: any) => {
+        // @ts-ignore - type complexity
+        object[method] = () => Promise.reject(error);
+        return spy;
+      }
+    };
+    
+    // @ts-ignore - type complexity
+    object[method] = (...args: any[]) => {
+      calls.push(args);
+      // @ts-ignore - type complexity
+      return original.apply(object, args);
+    };
+    
+    return spy as any;
+  },
+  
+  // Add a mock implementation of resetAllMocks
+  resetAllMocks: () => {
+    console.log('Mock reset');
+    // This is a stub implementation that doesn't actually reset anything
+  }
 };
 
-// Export stub functions with minimal implementations
-export { vi };
-export const describe = (name: string, fn: () => void) => {};
-export const it = (name: string, fn: () => void | Promise<void>) => {};
-export const test = it;
-export const expect = expectStub;
-export const beforeEach = (fn: () => void | Promise<void>) => {};
-export const afterEach = (fn: () => void | Promise<void>) => {};
-export const beforeAll = (fn: () => void | Promise<void>) => {};
-export const afterAll = (fn: () => void | Promise<void>) => {};
+export default vi;

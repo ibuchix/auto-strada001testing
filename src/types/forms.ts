@@ -2,7 +2,43 @@
 /**
  * Created: 2025-08-19
  * Type definitions for form data
+ * Updated: 2025-08-25: Added DamageType, DamageReport types and damageReports property
+ * Updated: 2025-08-25: Added carFeaturesToJson and defaultCarFeatures
  */
+
+// Damage types for car listing
+export type DamageType = 'scratches' | 'dents' | 'paintwork' | 'windscreen' | 'bodywork' | 'mechanical' | 'electrical' | 'interior' | 'glass' | 'other';
+
+// Damage report interface
+export interface DamageReport {
+  type: DamageType;
+  description: string;
+  photoPath?: string;
+}
+
+// Car features interface
+export interface CarFeatures {
+  satNav?: boolean;
+  panoramicRoof?: boolean;
+  reverseCamera?: boolean;
+  heatedSeats?: boolean;
+  upgradedSound?: boolean;
+  [key: string]: boolean | undefined;
+}
+
+// Default car features
+export const defaultCarFeatures: CarFeatures = {
+  satNav: false,
+  panoramicRoof: false,
+  reverseCamera: false,
+  heatedSeats: false,
+  upgradedSound: false
+};
+
+// Helper function to convert CarFeatures to JSON
+export const carFeaturesToJson = (features: CarFeatures): Record<string, boolean> => {
+  return { ...features };
+};
 
 // Simplified version of the car listing form data type for tests
 export interface CarListingFormData {
@@ -38,14 +74,7 @@ export interface CarListingFormData {
   serviceHistoryType: string;
   sellerNotes?: string;
   conditionRating: number;
-  features: {
-    satNav?: boolean;
-    panoramicRoof?: boolean;
-    reverseCamera?: boolean;
-    heatedSeats?: boolean;
-    upgradedSound?: boolean;
-    [key: string]: boolean | undefined;
-  };
+  features: CarFeatures;
   uploadedPhotos: string[];
   additionalPhotos?: string[];
   requiredPhotos: {
@@ -64,5 +93,27 @@ export interface CarListingFormData {
   rimPhotosComplete: boolean;
   financeDocument: File | null;
   serviceHistoryFiles?: string[];
+  damageReports?: DamageReport[];
   userId?: string;
+}
+
+// Auction status type
+export type AuctionStatus = 'scheduled' | 'active' | 'ended' | 'cancelled';
+
+// Car listing type for services
+export interface CarListing {
+  id: string;
+  title: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  mileage: number;
+  transmission: string;
+  images: string[];
+  features: CarFeatures;
+  created_at: string;
+  status: string;
+  auction_status: AuctionStatus | null;
+  [key: string]: any;
 }
