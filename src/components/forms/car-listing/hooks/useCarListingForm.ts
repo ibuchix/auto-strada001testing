@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of form with validation
@@ -9,6 +10,7 @@
  * - 2025-06-02: Removed references to non-existent field hasDocumentation
  * - 2025-06-10: Added schema validation to catch database field mismatches
  * - 2024-08-04: Added damageReports field to form data and fixed features type
+ * - 2025-12-10: Fixed features type compatibility by ensuring all properties are provided
  */
 
 import { useState, useEffect } from "react";
@@ -28,13 +30,13 @@ export const useCarListingForm = (userId?: string, draftId?: string) => {
   const [validationErrors, setValidationErrors] = useState<any[]>([]);
   const { error, isLoading, handleSupabaseError, withErrorHandling } = useSupabaseErrorHandling();
 
-  // Initialize form with default values
+  // Initialize form with default values - ensure features object is complete
   const form = useForm<CarListingFormData>({
     defaultValues: {
       name: "",
       address: "",
       mobileNumber: "",
-      features: defaultCarFeatures,
+      features: defaultCarFeatures, // Use the complete defaultCarFeatures object
       isDamaged: false,
       damageReports: [],
       isRegisteredInPoland: false,

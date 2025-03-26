@@ -5,6 +5,7 @@
  * - 2024-08-04: Added Json conversion option for CarFeatures
  * - 2024-08-04: Consolidated DamageType definitions
  * - 2025-12-05: Updated CarFeatures to make properties required
+ * - 2025-12-10: Fixed type incompatibility by consistently requiring all CarFeatures properties
  */
 
 export interface CarListingFormData {
@@ -98,6 +99,7 @@ export const carFeaturesToJson = (features: CarFeatures): Record<string, boolean
   };
 };
 
+// Ensure defaultCarFeatures has all required properties with default values
 export const defaultCarFeatures: CarFeatures = {
   satNav: false,
   panoramicRoof: false,
