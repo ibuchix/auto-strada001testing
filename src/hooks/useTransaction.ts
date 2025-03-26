@@ -1,6 +1,8 @@
+
 /**
  * Hook for creating and managing transactions
  * - 2025-06-15: Fixed TransactionStatus reference issues
+ * - 2025-06-20: Fixed database table references
  */
 
 import { useState, useCallback } from 'react';
@@ -77,16 +79,23 @@ export const useCreateTransaction = (options: UseCreateTransactionOptions = {}) 
         
         // Log to database if enabled
         if (logToDb) {
-          await supabase.from('transaction_logs').insert({
-            transaction_id: transaction.id,
-            transaction_name: name,
-            status: TRANSACTION_STATUS.SUCCESS,
-            result: JSON.stringify(operationResult),
-            description,
-            metadata
-          }).catch(err => {
-            console.error('Failed to log transaction:', err);
-          });
+          try {
+            // Use system_logs table instead of transaction_logs
+            await supabase.from('system_logs').insert({
+              log_type: 'transaction',
+              message: `Transaction completed: ${name}`,
+              details: {
+                transaction_id: transaction.id,
+                transaction_name: name,
+                status: TRANSACTION_STATUS.SUCCESS,
+                result: operationResult,
+                description,
+                metadata
+              }
+            });
+          } catch (logErr) {
+            console.error('Failed to log transaction:', logErr);
+          }
         }
         
         // Show success toast if enabled
@@ -119,16 +128,24 @@ export const useCreateTransaction = (options: UseCreateTransactionOptions = {}) 
         
         // Log to database if enabled
         if (logToDb) {
-          await supabase.from('transaction_logs').insert({
-            transaction_id: transaction.id,
-            transaction_name: name,
-            status: TRANSACTION_STATUS.ERROR,
-            error: JSON.stringify(err),
-            description,
-            metadata
-          }).catch(logErr => {
+          try {
+            // Use system_logs table instead of transaction_logs
+            await supabase.from('system_logs').insert({
+              log_type: 'transaction_error',
+              message: `Transaction failed: ${name}`,
+              details: {
+                transaction_id: transaction.id,
+                transaction_name: name,
+                status: TRANSACTION_STATUS.ERROR,
+                error: err,
+                description,
+                metadata
+              },
+              error_message: err.message || 'Unknown error'
+            });
+          } catch (logErr) {
             console.error('Failed to log transaction error:', logErr);
-          });
+          }
         }
         
         // Show error toast if enabled

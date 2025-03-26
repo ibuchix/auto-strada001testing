@@ -1,9 +1,8 @@
+
 /**
  * Changes made:
- * - 2024-10-16: Added transaction status indicator and improved error handling with transaction system
- * - 2024-10-24: Fixed type errors with transaction system usage
- * - 2024-10-25: Fixed incorrect executeTransaction parameter order
- * - 2024-12-08: Improved realtime connection handling and added reconnection UI
+ * - Fixed import references for useAuctionTransaction and TransactionType
+ * - Updated to use correct transaction handling
  */
 
 import { useState } from 'react';
@@ -26,7 +25,7 @@ import { placeBid, BidResponse } from '@/utils/bidUtils';
 import { useRealtimeBids } from '@/hooks/useRealtimeBids';
 import { useAuth } from '@/components/AuthProvider';
 import { TransactionStatusIndicator } from '@/components/transaction/TransactionStatusIndicator';
-import { useAuctionTransaction } from '@/hooks/useTransaction';
+import { useAuctionTransaction } from '@/hooks/useAuctionTransaction';
 import { TransactionType } from '@/services/supabase/transactionService';
 import { AlertTriangle } from 'lucide-react';
 

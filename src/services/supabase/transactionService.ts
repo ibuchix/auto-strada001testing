@@ -3,10 +3,23 @@
  * Changes made:
  * - 2028-06-20: Fixed TransactionStatus enum references
  * - Simplified transaction service to remove diagnostic dependencies
+ * - Added TransactionType enum to categorize transactions
+ * - Added missing exports needed by components
  */
 import { TransactionStatus } from "@/types/forms";
 
 export type { TransactionStatus };
+
+// Add TransactionType enum
+export enum TransactionType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  UPLOAD = 'upload',
+  AUCTION = 'auction',
+  PAYMENT = 'payment',
+  AUTHENTICATION = 'authentication'
+}
 
 export interface TransactionOptions {
   description?: string;

@@ -6,7 +6,8 @@
  * - Added defaultCarFeatures export
  * - Added AuctionStatus type
  * - Added CarListing type
- * - Made userId optional in CarListingFormData to fix type errors
+ * - Made all CarListingFormData properties optional for compatibility with form
+ * - Fixed the transaction status mapping
  */
 
 // Add or update the following types in forms.ts
@@ -32,7 +33,10 @@ export const defaultCarFeatures: CarFeatures = {
 // Define transaction status types
 export type TransactionStatus = "pending" | "success" | "error" | "idle";
 
-// Define CarListing type
+// Define AuctionStatus type as string for compatibility with database 
+export type AuctionStatus = "scheduled" | "active" | "ended" | "cancelled" | "sold" | string;
+
+// Define CarListing type with auction_status as string
 export interface CarListing {
   id: string;
   title: string;
@@ -49,29 +53,24 @@ export interface CarListing {
   [key: string]: any;
 }
 
-// Define AuctionStatus type
-export type AuctionStatus = "scheduled" | "active" | "ended" | "cancelled";
-
-// Ensure this type reflects the CarListing form shape
+// Make all properties optional for compatibility with form handling
 export interface CarListingFormData {
-  vin: string;
-  make: string;
-  model: string;
-  year: number;
-  notes: string;
-  address: string;
-  features: CarFeatures;
-  mileage: string | number;
-  price: string | number;
-  transmission: string;
-  description: string;
-  name: string;
-  userId?: string; // Make userId optional to fix type errors
-  uploadedPhotos: string[];
-  location: string;
-  // Add damageReports to the interface
+  vin?: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  notes?: string;
+  address?: string;
+  features?: CarFeatures;
+  mileage?: string | number;
+  price?: string | number;
+  transmission?: string;
+  description?: string;
+  name?: string;
+  userId?: string;
+  uploadedPhotos?: string[];
+  location?: string;
   damageReports?: DamageReport[];
-  // Add any other existing properties
   [key: string]: any;
 }
 
@@ -83,5 +82,3 @@ export interface CarFeatures {
   upgradedSound: boolean;
   [key: string]: boolean;
 }
-
-// Add any other necessary types
