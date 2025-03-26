@@ -1,99 +1,114 @@
-
 /**
- * Utilities for diagnosing listing button functionality
+ * Diagnostics utilities for tracking listing button interactions
  */
 
-export type DiagnosticSeverity = 'INFO' | 'WARNING' | 'ERROR' | 'DEBUG';
-
-interface DiagnosticEntry {
+interface DiagnosticLog {
   id: string;
-  type: string;
+  event: string;
   message: string;
-  details: any;
+  data: Record<string, any>;
   timestamp: string;
-  severity: DiagnosticSeverity;
+  diagnostic_id: string;
+  level: 'INFO' | 'WARNING' | 'ERROR';
 }
 
 // In-memory storage for diagnostics
-const diagnostics: Record<string, DiagnosticEntry[]> = {};
+const diagnosticLogs: DiagnosticLog[] = [];
 
-/**
- * Generates a unique diagnostic ID for tracing
- */
-export const generateDiagnosticId = (): string => {
-  const timestamp = new Date().getTime();
-  const random = Math.floor(Math.random() * 1000000);
-  return `${timestamp}-${random}`;
-};
-
-/**
- * Logs a diagnostic entry
- */
 export const logDiagnostic = (
-  type: string,
+  event: string,
   message: string,
-  details: any = {},
-  diagnosticId: string = generateDiagnosticId(),
-  severity: DiagnosticSeverity = 'INFO'
-): string => {
-  if (!diagnostics[diagnosticId]) {
-    diagnostics[diagnosticId] = [];
-  }
-
-  const entry: DiagnosticEntry = {
-    id: `${diagnosticId}-${diagnostics[diagnosticId].length}`,
-    type,
+  data: Record<string, any> = {},
+  diagnosticId: string,
+  level: 'INFO' | 'WARNING' | 'ERROR' = 'INFO'
+): void => {
+  const log: DiagnosticLog = {
+    id: crypto.randomUUID(),
+    event,
     message,
-    details,
+    data,
     timestamp: new Date().toISOString(),
-    severity
+    diagnostic_id: diagnosticId,
+    level
   };
 
-  diagnostics[diagnosticId].push(entry);
-  console.log(`[${diagnosticId}] ${severity} - ${type}: ${message}`, details);
-
-  return diagnosticId;
-};
-
-/**
- * Gets all diagnostics for a specific ID
- */
-export const getDiagnostics = (diagnosticId?: string): DiagnosticEntry[] => {
-  if (diagnosticId && diagnostics[diagnosticId]) {
-    return diagnostics[diagnosticId];
-  }
+  // Add to in-memory store and localStorage
+  diagnosticLogs.push(log);
   
-  // If no ID provided or ID not found, return all diagnostics flattened
-  return Object.values(diagnostics).flat();
-};
-
-/**
- * Logs the current state of localStorage
- */
-export const logStorageState = (diagnosticId: string): void => {
-  const storageItems: Record<string, string> = {};
-  
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key) {
-      try {
-        storageItems[key] = localStorage.getItem(key) || '';
-      } catch (e) {
-        storageItems[key] = 'Error reading value';
-      }
+  // Also save to localStorage for persistence
+  try {
+    const existingLogs = JSON.parse(localStorage.getItem('diagnosticLogs') || '[]');
+    const updatedLogs = [...existingLogs, log];
+    
+    // Keep only the last 100 logs to prevent excessive storage
+    if (updatedLogs.length > 100) {
+      updatedLogs.splice(0, updatedLogs.length - 100);
     }
+    
+    localStorage.setItem('diagnosticLogs', JSON.stringify(updatedLogs));
+  } catch (e) {
+    console.error('Failed to save diagnostic log to localStorage:', e);
   }
-  
-  logDiagnostic('STORAGE_STATE', 'Current localStorage state', storageItems, diagnosticId);
+
+  // Log to console for immediate visibility
+  console.log(`[${log.level}] ${event}: ${message}`, data);
 };
 
-/**
- * Clears diagnostics for a specific ID or all if no ID provided
- */
-export const clearDiagnostics = (diagnosticId?: string): void => {
-  if (diagnosticId) {
-    delete diagnostics[diagnosticId];
-  } else {
-    Object.keys(diagnostics).forEach(id => delete diagnostics[id]);
+export const getDiagnostics = (): DiagnosticLog[] => {
+  // Combine in-memory logs with those from localStorage
+  try {
+    const localStorageLogs = JSON.parse(localStorage.getItem('diagnosticLogs') || '[]');
+    
+    // Merge and deduplicate logs based on id
+    const allLogs = [...diagnosticLogs, ...localStorageLogs];
+    const uniqueLogs = allLogs.filter((log, index, self) => 
+      index === self.findIndex(l => l.id === log.id)
+    );
+    
+    // Sort by timestamp, newest first
+    return uniqueLogs.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  } catch (e) {
+    console.error('Failed to retrieve diagnostic logs:', e);
+    return diagnosticLogs;
+  }
+};
+
+export const clearDiagnostics = (): void => {
+  // Clear both in-memory and localStorage logs
+  diagnosticLogs.length = 0;
+  localStorage.removeItem('diagnosticLogs');
+};
+
+// Helper to log the state of relevant localStorage items
+export const logStorageState = (diagnosticId: string): void => {
+  try {
+    const storageKeys = [
+      'valuationData',
+      'tempVIN',
+      'tempMileage',
+      'tempGearbox',
+      'vinReservationId',
+      'formData'
+    ];
+    
+    const storageState: Record<string, any> = {};
+    
+    storageKeys.forEach(key => {
+      const value = localStorage.getItem(key);
+      storageState[key] = value ? 
+        (key === 'valuationData' || key === 'formData' ? 'present (JSON)' : value) : 
+        'not present';
+    });
+    
+    logDiagnostic(
+      'STORAGE_STATE',
+      'Current localStorage state',
+      storageState,
+      diagnosticId
+    );
+  } catch (e) {
+    console.error('Failed to log storage state:', e);
   }
 };

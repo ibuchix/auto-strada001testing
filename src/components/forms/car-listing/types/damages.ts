@@ -1,4 +1,10 @@
-export type DamageType = 'scratches' | 'dents' | 'paintwork' | 'windscreen';
+
+/**
+ * Changes made:
+ * - 2025-12-05: Updated DamageType to include all types from main types file
+ */
+
+export type DamageType = 'scratches' | 'dents' | 'paintwork' | 'windscreen' | 'bodywork' | 'mechanical' | 'electrical' | 'interior' | 'glass' | 'other';
 
 export interface DamageReport {
   type: DamageType;

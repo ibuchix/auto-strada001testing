@@ -4,6 +4,7 @@
  * - 2024-08-04: Fixed compatibility issues with DamageType and DamageReport interfaces
  * - 2024-08-04: Added Json conversion option for CarFeatures
  * - 2024-08-04: Consolidated DamageType definitions
+ * - 2025-12-05: Updated CarFeatures to make properties required
  */
 
 export interface CarListingFormData {
@@ -129,4 +130,5 @@ export interface CarListing {
   reserve_price?: number;
   photos: string[];
   features: CarFeatures;
+  is_draft: boolean;
 }

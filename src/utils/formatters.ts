@@ -12,6 +12,15 @@ export const currencyFormat = (value: number): string => {
   }).format(value);
 };
 
+export const plnCurrencyFormat = (value: number): string => {
+  return new Intl.NumberFormat('pl-PL', {
+    style: 'currency',
+    currency: 'PLN',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value);
+};
+
 export const dateFormat = (date: string | Date): string => {
   if (!date) return '';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -39,4 +48,11 @@ export const dateTimeFormat = (date: string | Date): string => {
 
 export const numberFormat = (value: number): string => {
   return new Intl.NumberFormat('en-GB').format(value);
+};
+
+export const compactNumberFormat = (value: number): string => {
+  return new Intl.NumberFormat('en-GB', {
+    notation: 'compact',
+    compactDisplay: 'short'
+  }).format(value);
 };

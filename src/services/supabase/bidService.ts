@@ -4,159 +4,176 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { TransactionType } from "@/services/supabase/transactions/types";
-import { toast } from "sonner";
+import { Session } from "@supabase/supabase-js";
 
-interface PlaceBidParams {
-  carId: string;
-  amount: number;
-  isProxy?: boolean;
-  maxProxyAmount?: number;
-}
-
-interface BidResult {
+export interface BidResult {
   success: boolean;
-  bidId?: string;
   error?: string;
+  bidId?: string;
+  newBidAmount?: number;
 }
 
-export const placeBid = async ({
-  carId,
-  amount,
-  isProxy = false,
-  maxProxyAmount
-}: PlaceBidParams): Promise<BidResult> => {
-  try {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+export const bidService = {
+  async placeBid(carId: string, amount: number, session: Session | null): Promise<BidResult> {
+    if (!session?.user?.id) {
       return {
         success: false,
-        error: "You must be logged in to place bids"
+        error: "You must be logged in to place a bid"
       };
     }
-    
-    // Get dealer profile for the user
-    const { data: dealerData, error: dealerError } = await supabase
+
+    // First, get dealer profile
+    const { data: dealer, error: dealerError } = await supabase
       .from('dealers')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', session.user.id)
       .single();
-      
-    if (dealerError || !dealerData) {
+
+    if (dealerError || !dealer) {
       return {
         success: false,
-        error: "You must have a dealer profile to place bids"
+        error: "Only verified dealers can place bids"
       };
     }
-    
-    // Check if car exists and is in an active auction
-    const { data: carData, error: carError } = await supabase
+
+    const dealerId = dealer.id;
+
+    // Get current car data
+    const { data: car, error: carError } = await supabase
       .from('cars')
-      .select('id, auction_status, current_bid, minimum_bid_increment')
+      .select('current_bid, minimum_bid_increment, price, is_auction, auction_status')
       .eq('id', carId)
       .single();
-      
-    if (carError || !carData) {
+
+    if (carError || !car) {
       return {
         success: false,
-        error: "Car not found or auction not active"
+        error: "Car not found"
       };
     }
-    
-    if (carData.auction_status !== 'active') {
+
+    // Validate auction status
+    if (!car.is_auction || car.auction_status !== 'active') {
       return {
         success: false,
-        error: "This auction is not currently active"
+        error: "This vehicle is not available for bidding"
       };
     }
-    
+
     // Validate bid amount
-    if (amount <= (carData.current_bid || 0)) {
+    const currentBid = car.current_bid || 0;
+    const minimumIncrement = car.minimum_bid_increment || 100;
+    const minimumBid = currentBid + minimumIncrement;
+
+    if (amount < minimumBid) {
       return {
         success: false,
-        error: `Bid must be higher than current bid of ${carData.current_bid}`
+        error: `Minimum bid amount is ${minimumBid}`
       };
     }
-    
-    const expectedIncrement = carData.minimum_bid_increment || 100;
-    if ((amount - (carData.current_bid || 0)) % expectedIncrement !== 0) {
-      return {
-        success: false,
-        error: `Bid must be in increments of ${expectedIncrement}`
-      };
-    }
-    
-    // Place the bid
-    const { data: bidData, error: bidError } = await supabase
+
+    // Create bid
+    const { data: bid, error: bidError } = await supabase
       .from('bids')
       .insert({
         car_id: carId,
-        dealer_id: dealerData.id,
-        amount: amount,
-        status: 'active'
+        dealer_id: dealerId,
+        amount
       })
       .select()
       .single();
-      
+
     if (bidError) {
-      console.error("Bid error:", bidError);
       return {
         success: false,
-        error: "Failed to place bid"
+        error: bidError.message
       };
     }
-    
-    // If this is a proxy bid, store the max amount
-    if (isProxy && maxProxyAmount && maxProxyAmount > amount) {
-      const { error: proxyError } = await supabase
-        .from('proxy_bids')
-        .insert({
-          car_id: carId,
-          dealer_id: dealerData.id,
-          max_bid_amount: maxProxyAmount,
-          last_processed_amount: amount
-        });
-        
-      if (proxyError) {
-        console.error("Proxy bid error:", proxyError);
-        // We don't fail the whole operation if just the proxy part fails
-        toast.warning("Your bid was placed, but proxy bidding may not work");
-      }
-    }
-    
-    // Update the car's current bid
+
+    // Update car with new current bid
     const { error: updateError } = await supabase
       .from('cars')
       .update({
         current_bid: amount
       })
       .eq('id', carId);
-      
+
     if (updateError) {
-      console.error("Car update error:", updateError);
-      // Don't fail the operation if just the update fails
+      console.error('Failed to update car with new bid amount:', updateError);
+      // We still return success since the bid was placed
     }
-    
-    // Log bid metrics for analytics
-    await supabase
-      .from('bid_metrics')
-      .insert({
-        bid_id: bidData.id,
-        success: true
-      });
-    
+
     return {
       success: true,
-      bidId: bidData.id
+      bidId: bid.id,
+      newBidAmount: amount
     };
-    
-  } catch (error: any) {
-    console.error("Bid placement error:", error);
-    return {
-      success: false,
-      error: error.message || "An unexpected error occurred"
-    };
+  },
+
+  async getBidsForCar(carId: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('bids')
+      .select(`
+        id,
+        amount,
+        created_at,
+        dealers:dealer_id (
+          dealership_name
+        )
+      `)
+      .eq('car_id', carId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching bids:', error);
+      return [];
+    }
+
+    return data || [];
+  },
+
+  async getUserBids(session: Session | null): Promise<any[]> {
+    if (!session?.user?.id) {
+      return [];
+    }
+
+    // First, get dealer ID
+    const { data: dealer, error: dealerError } = await supabase
+      .from('dealers')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (dealerError || !dealer) {
+      return [];
+    }
+
+    // Get bids
+    const { data, error } = await supabase
+      .from('bids')
+      .select(`
+        id,
+        amount,
+        created_at,
+        status,
+        cars:car_id (
+          id,
+          title,
+          make,
+          model,
+          year,
+          current_bid,
+          images
+        )
+      `)
+      .eq('dealer_id', dealer.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching user bids:', error);
+      return [];
+    }
+
+    return data || [];
   }
 };
