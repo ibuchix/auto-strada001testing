@@ -1,9 +1,3 @@
-
-/**
- * Changes made:
- * - Removed diagnostic-related code
- */
-
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { FormSections } from "./FormSections";
@@ -71,7 +65,7 @@ export const StepForm = ({
 
   return (
     <div className="space-y-8">
-      {/* Form progress indicator */}
+      {/* Centralized progress indicator */}
       <FormProgress 
         progress={progress} 
         steps={formSteps}

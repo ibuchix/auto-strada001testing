@@ -1,10 +1,3 @@
-
-/**
- * Changes made:
- * - Fixed type issues with form data
- * - Updated form types to use Partial<CarListingFormData>
- */
-
 import { useRef, useState, useEffect } from "react";
 import { Form } from "@/components/ui/form";
 import { StepForm } from "./StepForm";
@@ -17,7 +10,6 @@ import { FormSuccessDialog } from "./submission/FormSuccessDialog";
 import { useFormPersistence } from "./hooks/useFormPersistence";
 import { FormDataProvider } from "./context/FormDataContext";
 import { useSectionsVisibility } from "./hooks/useSectionsVisibility";
-import { FormStepIndicator } from "./FormStepIndicator";
 import { CarListingFormData } from "@/types/forms";
 
 interface FormContentProps {
@@ -32,14 +24,12 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
   const submissionErrorRef = useRef(null);
   const transactionIdRef = useRef(null);
   
-  // Generate a unique ID for this form session
   useEffect(() => {
     if (!transactionIdRef.current) {
       transactionIdRef.current = crypto.randomUUID();
     }
   }, [draftId]);
 
-  // Form state - use Partial<CarListingFormData> to allow optional fields
   const form = useForm<Partial<CarListingFormData>>({
     defaultValues: {
       vin: "",
@@ -102,7 +92,6 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     }
   });
 
-  // Use form submission context
   const { 
     submitting, 
     error, 
@@ -113,19 +102,16 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     resetTransaction 
   } = useFormSubmissionContext();
 
-  // Update component submitting state from context
   useEffect(() => {
     setIsSubmitting(submitting);
   }, [submitting, transactionStatus]);
 
-  // Track submission errors
   useEffect(() => {
     if (error && error !== submissionErrorRef.current) {
       submissionErrorRef.current = error;
     }
   }, [error]);
 
-  // Form persistence with autosave
   const { lastSaved, isOffline, saveProgress, carId } = useFormPersistence(
     form, 
     session?.user?.id, 
@@ -133,23 +119,16 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     { enableBackup: true }
   );
 
-  // Sections visibility handling - cast form to any to avoid type errors
   const { visibleSections } = useSectionsVisibility(form as any, carId);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Handle manual form submission
   const onSubmit = async (data: Partial<CarListingFormData>) => {
     try {
-      // Reset any previous errors
       submissionErrorRef.current = null;
-      
-      // Save progress one last time before submitting
       await saveProgress();
-      
-      // Handle submission - cast data to any to avoid type errors
       await handleSubmit(data as any, carId);
     } catch (error) {
       console.error('Form submission error:', error);
@@ -181,12 +160,6 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
           <FormSuccessDialog 
             open={showSuccessDialog} 
             onClose={() => setShowSuccessDialog(false)} 
-          />
-          
-          <FormStepIndicator 
-            currentStep={currentStep} 
-            onStepClick={setCurrentStep} 
-            visibleSections={visibleSections} 
           />
           
           <div>
