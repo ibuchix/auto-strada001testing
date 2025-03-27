@@ -15,6 +15,7 @@
  * - 2025-06-19: Fixed TypeScript errors in debounce function implementation
  * - 2025-06-20: Improved error handling and UI feedback
  * - 2025-06-21: Optimized save operations to prevent UI blocking
+ * - 2025-07-01: Fixed debounce function type errors
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -42,11 +43,17 @@ interface UseFormPersistenceOptions {
   saveDebounceTime?: number;
 }
 
+// Type for the debounced function
+type DebouncedFunction<F extends (...args: any[]) => any> = {
+  execute: (...args: Parameters<F>) => Promise<ReturnType<F>>;
+  cancel: () => void;
+};
+
 // Enhanced debounce utility with proper TypeScript typing and cancellation
 function createDebouncedFunction<F extends (...args: any[]) => any>(
   func: F,
   waitFor: number
-) {
+): DebouncedFunction<F> {
   let timeout: NodeJS.Timeout | null = null;
   
   // Function to execute the debounced function
@@ -229,7 +236,7 @@ export const useFormPersistence = (
     }
   }, [setValue]);
 
-  // Create a debounced save function (properly typed)
+  // Create a debounced save function with proper typing
   const debouncedSaveFn = useCallback(
     createDebouncedFunction(async (data: CarListingFormData) => {
       if (!userId || saveInProgressRef.current) return;

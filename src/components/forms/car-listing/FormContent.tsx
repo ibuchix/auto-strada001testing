@@ -3,7 +3,7 @@
  * Changes made:
  * - Fixed import for getFormDefaults instead of useFormDefaults
  * - Added required props to SuccessDialog
- * - Fixed useLoadDraft parameters and setCarId type
+ * - Fixed useLoadDraft parameters by passing session.user.id
  * - Removed formErrors prop as it's not part of useSectionsVisibility return
  * - Fixed isSaving state to provide visual feedback when saving
  */
