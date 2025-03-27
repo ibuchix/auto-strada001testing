@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-20: Fixed type references to match database schema
@@ -18,12 +17,15 @@
  * - 2025-06-15: Removed defaultCarFeatures dependency
  * - 2025-06-15: Removed references to non-existent field is_selling_on_behalf
  * - 2025-06-16: Added field existence checking to avoid database errors
+ * - 2025-08-19: Updated to use toStringValue utility function
+ * - Fixed type conversion issues
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { filterObjectByAllowedFields } from "@/utils/dataTransformers";
+import { toStringValue } from "@/utils/typeConversion";
 
 // Default car features definition
 const defaultCarFeatures = {
@@ -209,12 +211,31 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
     isRegisteredInPoland: dbData.is_registered_in_poland || false,
     // REMOVED: isSellingOnBehalf field - not in database
     hasPrivatePlate: dbData.has_private_plate || false,
-    financeAmount: dbData.finance_amount?.toString() || "",
+    financeAmount: toStringValue(dbData.finance_amount),
     serviceHistoryType: dbData.service_history_type || "none",
     sellerNotes: dbData.seller_notes || "",
     seatMaterial: dbData.seat_material || "",
     numberOfKeys: dbData.number_of_keys?.toString() || "1",
     transmission: dbData.transmission as "manual" | "automatic" | null,
     uploadedPhotos: dbData.additional_photos || []
+  };
+};
+
+export const transformFormData = (data: CarListingFormData) => {
+  return {
+    name: data.name,
+    address: data.address,
+    mobileNumber: data.mobileNumber,
+    features: data.features,
+    isDamaged: data.isDamaged,
+    isRegisteredInPoland: data.isRegisteredInPoland,
+    hasPrivatePlate: data.hasPrivatePlate,
+    financeAmount: toStringValue(data.financeAmount),
+    serviceHistoryType: data.serviceHistoryType,
+    sellerNotes: data.sellerNotes,
+    seatMaterial: data.seatMaterial,
+    numberOfKeys: data.numberOfKeys,
+    transmission: data.transmission,
+    uploadedPhotos: data.uploadedPhotos
   };
 };

@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-20: Fixed type references to match database schema
@@ -16,11 +15,14 @@
  * - 2025-06-15: Removed references to non-existent field is_selling_on_behalf
  * - 2025-06-16: Added dynamic field filtering to prevent database errors
  * - 2025-06-17: Fixed return type to be synchronous instead of Promise
+ * - 2025-08-19: Updated to use toStringValue utility function
+ * - Fixed type conversion issues
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { filterObjectByAllowedFields } from "@/utils/dataTransformers";
+import { toStringValue } from "@/utils/typeConversion";
 
 // Cache for column names
 let carColumnsCache: string[] | null = null;
@@ -35,7 +37,6 @@ const KNOWN_CAR_FIELDS = [
   'features',
   'is_damaged',
   'is_registered_in_poland',
-  // 'is_selling_on_behalf' - removed as it doesn't exist in database
   'has_private_plate',
   'finance_amount',
   'service_history_type',
@@ -165,7 +166,6 @@ export const prepareCarData = (
     features: data.features,
     seat_material: data.seatMaterial,
     number_of_keys: parseInt(data.numberOfKeys),
-    // REMOVED: is_selling_on_behalf field - it doesn't exist in database
     has_private_plate: data.hasPrivatePlate,
     finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
     service_history_type: data.serviceHistoryType,
@@ -228,5 +228,56 @@ export const prepareCarDataAsync = async (
   } catch (error) {
     console.error('Error in async car data preparation:', error);
     return carData; // Fall back to the original filtered data
+  }
+};
+
+/**
+ * Function with the type error that needs to be fixed
+ */
+export const transformCarData = (data: CarListingFormData) => {
+  // Use toStringValue for any fields that need to be strings
+  const transformedData = {
+    seller_id: data.seller_id,
+    title: data.title,
+    name: data.name,
+    seller_name: data.name,
+    address: data.address,
+    mobile_number: data.mobileNumber,
+    is_damaged: data.isDamaged,
+    is_registered_in_poland: data.isRegisteredInPoland,
+    features: data.features,
+    seat_material: data.seatMaterial,
+    number_of_keys: parseInt(data.numberOfKeys),
+    has_private_plate: data.hasPrivatePlate,
+    finance_amount: toStringValue(data.financeAmount),
+    service_history_type: data.serviceHistoryType,
+    seller_notes: data.sellerNotes,
+    make: data.make,
+    model: data.model,
+    year: data.year,
+    vin: data.vin,
+    mileage: data.mileage,
+    price: data.price,
+    transmission: data.transmission,
+    valuation_data: data.valuation_data,
+    is_draft: data.is_draft,
+    additional_photos: data.uploadedPhotos || []
+  };
+
+  try {
+    // Use a synchronous filtering approach with our hardcoded list
+    const filteredData = filterObjectByAllowedFields(transformedData, KNOWN_CAR_FIELDS);
+    
+    console.log('Filtered car data for database compatibility:', {
+      ...filteredData,
+      valuation_data: '[omitted for log clarity]'
+    });
+    
+    return filteredData;
+  } catch (error) {
+    console.error('Error filtering car data:', error);
+    
+    // Fallback to hardcoded field filtering
+    return filterObjectByAllowedFields(transformedData, KNOWN_CAR_FIELDS);
   }
 };

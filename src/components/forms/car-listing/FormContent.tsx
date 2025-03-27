@@ -10,6 +10,8 @@
  * - 2025-08-02: Fixed naming to use isSubmitting instead of submitting
  * - 2025-08-03: Added ErrorBoundary and improved loading states
  * - 2025-08-04: Fixed type issues with saveProgress prop
+ * - 2025-08-19: Added FormDataProvider to provide form context
+ * - 2025-08-19: Fixed return type for persistence.saveImmediately
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -28,6 +30,7 @@ import { CarListingFormData } from "@/types/forms";
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { FormDataProvider } from "./context/FormDataContext";
 
 interface FormContentProps {
   session: Session;
@@ -142,32 +145,34 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
   return (
     <ErrorBoundary onError={handleFormError}>
       <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <ProgressPreservation 
-            currentStep={currentStep}
-            lastSaved={lastSaved}
-            onOfflineStatusChange={persistence.setIsOffline}
-          />
-          
-          <StepForm
-            form={form}
-            currentStep={currentStep}
-            setCurrentStep={setCurrentStep}
-            carId={carId}
-            lastSaved={lastSaved}
-            isOffline={persistence.isOffline}
-            isSaving={persistence.isSaving || isSubmitting}
-            saveProgress={persistence.saveImmediately}
-            visibleSections={visibleSections}
-          />
-        </form>
+        <FormDataProvider form={form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <ProgressPreservation 
+              currentStep={currentStep}
+              lastSaved={lastSaved}
+              onOfflineStatusChange={persistence.setIsOffline}
+            />
+            
+            <StepForm
+              form={form}
+              currentStep={currentStep}
+              setCurrentStep={setCurrentStep}
+              carId={carId}
+              lastSaved={lastSaved}
+              isOffline={persistence.isOffline}
+              isSaving={persistence.isSaving || isSubmitting}
+              saveProgress={persistence.saveImmediately}
+              visibleSections={visibleSections}
+            />
+          </form>
 
-        <SuccessDialog 
-          open={showSuccessDialog}
-          onOpenChange={(open) => !open && setShowSuccessDialog(false)}
-          lastSaved={lastSaved}
-          carId={carId}
-        />
+          <SuccessDialog 
+            open={showSuccessDialog}
+            onOpenChange={(open) => !open && setShowSuccessDialog(false)}
+            lastSaved={lastSaved}
+            carId={carId}
+          />
+        </FormDataProvider>
       </FormProvider>
     </ErrorBoundary>
   );
