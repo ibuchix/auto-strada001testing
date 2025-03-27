@@ -2,9 +2,10 @@
 /**
  * Changes made:
  * - Improved automatic saving during step navigation
- * - Added validation check before proceeding to next step
- * - Added feedback during saving process
- * - Optimized step navigation logic
+ * - Enhanced validation check before proceeding to next step with field-specific feedback
+ * - Added comprehensive validation mapping for each form section
+ * - Improved error messaging and user feedback during validation
+ * - Optimized step navigation logic with better error handling
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -14,7 +15,7 @@ import { FormSections } from "./FormSections";
 import { Button } from "@/components/ui/button";
 import { FormStepper } from "./FormStepper";
 import { FormFooter } from "./FormFooter";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -43,11 +44,13 @@ export const StepForm = ({
 }: StepFormProps) => {
   const totalSteps = formSteps.length;
   const [isNavigating, setIsNavigating] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   // Handle navigation to previous step
   const handlePrevious = async () => {
     if (currentStep > 0 && !isSaving && !isNavigating) {
       setIsNavigating(true);
+      setValidationErrors({});
       
       try {
         // Save progress before moving to previous step
@@ -69,6 +72,7 @@ export const StepForm = ({
   const handleNext = async () => {
     if (currentStep < totalSteps - 1 && !isSaving && !isNavigating) {
       setIsNavigating(true);
+      setValidationErrors({});
       
       // Validate current step fields
       const currentStepId = formSteps[currentStep]?.id;
@@ -79,9 +83,48 @@ export const StepForm = ({
       
       if (!isValid) {
         setIsNavigating(false);
-        toast.error("Please complete all required fields", {
-          description: "Some information is missing or incorrect."
-        });
+        
+        // Get the errors from the form state
+        const formErrors = form.formState.errors;
+        const errorFields = Object.keys(formErrors);
+        
+        if (errorFields.length > 0) {
+          // Extract field errors for better messaging
+          const newValidationErrors: Record<string, string> = {};
+          errorFields.forEach(field => {
+            const errorMessage = formErrors[field as keyof typeof formErrors]?.message;
+            if (errorMessage && typeof errorMessage === 'string') {
+              newValidationErrors[field] = errorMessage;
+            }
+          });
+          
+          setValidationErrors(newValidationErrors);
+          
+          // Show toast with specific field errors
+          const firstErrorField = errorFields[0];
+          const firstErrorMessage = formErrors[firstErrorField as keyof typeof formErrors]?.message;
+          
+          toast.error("Please complete all required fields", {
+            description: typeof firstErrorMessage === 'string' 
+              ? firstErrorMessage 
+              : "Some information is missing or incorrect.",
+            action: {
+              label: "Review",
+              onClick: () => {
+                // Focus on the first error field if possible
+                const element = document.getElementById(firstErrorField);
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  element.focus();
+                }
+              }
+            }
+          });
+        } else {
+          toast.error("Please complete all required fields", {
+            description: "There are missing or invalid fields on this page."
+          });
+        }
         return;
       }
       
@@ -103,13 +146,16 @@ export const StepForm = ({
   
   // Get the fields that need to be validated for the current step
   const getFieldsToValidate = (stepId: string): string[] => {
-    // This is a simplified example - you would map step IDs to related form fields
+    // Comprehensive mapping of step IDs to form fields
     const fieldMappings: Record<string, string[]> = {
-      'vehicle-details': ['make', 'model', 'year', 'mileage'],
-      'photos': ['uploadedPhotos'],
-      'personal-details': ['name', 'address', 'mobileNumber'],
-      'notes': ['sellerNotes'],
-      // Add more step ID to field mappings as needed
+      'personal-details': ['name', 'email', 'phone', 'address', 'city', 'postalCode'],
+      'vehicle-status': ['make', 'model', 'year', 'mileage', 'condition', 'isDamaged'],
+      'features': ['features', 'transmission', 'fuelType', 'bodyType', 'color'],
+      'additional-info': ['purchaseDate', 'ownershipStatus', 'serviceHistory', 'hasDocumentation'],
+      'photos': ['uploadedPhotos', 'mainPhoto'],
+      'notes': ['sellerNotes', 'priceExpectation'],
+      'rims': ['frontLeftRimPhoto', 'frontRightRimPhoto', 'rearLeftRimPhoto', 'rearRightRimPhoto'],
+      'service-history': ['serviceDocuments', 'lastServiceDate']
     };
     
     return fieldMappings[stepId] || [];
@@ -119,9 +165,28 @@ export const StepForm = ({
   const validateStepFields = async (fields: string[]): Promise<boolean> => {
     if (fields.length === 0) return true;
     
-    const result = await form.trigger(fields as any[]);
-    return result;
+    // Get current form values for logging
+    const currentValues = form.getValues();
+    console.log(`Validating fields for step ${currentStep}:`, fields);
+    console.log('Current form values:', JSON.stringify(currentValues, null, 2));
+    
+    try {
+      const result = await form.trigger(fields as any[]);
+      
+      if (!result) {
+        // Log validation errors for debugging
+        console.log('Validation errors:', form.formState.errors);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error during field validation:', error);
+      return false;
+    }
   };
+  
+  // Determine if the form has validation errors to display
+  const hasValidationErrors = Object.keys(validationErrors).length > 0;
   
   return (
     <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6">
@@ -133,6 +198,38 @@ export const StepForm = ({
           visibleSections={visibleSections}
         />
       </div>
+      
+      {hasValidationErrors && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2" />
+            <div>
+              <h3 className="text-sm font-medium text-red-800">
+                Please correct the following errors:
+              </h3>
+              <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
+                {Object.entries(validationErrors).map(([field, message]) => (
+                  <li key={field} className="mt-1">
+                    <button 
+                      type="button"
+                      className="text-left underline hover:text-red-800 focus:outline-none"
+                      onClick={() => {
+                        const element = document.getElementById(field);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          element.focus();
+                        }
+                      }}
+                    >
+                      {message}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="form-container min-h-[400px] mb-10">
         <FormSections 
