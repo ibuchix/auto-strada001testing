@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of draft loading functionality
@@ -8,6 +7,7 @@
  * - 2025-07-02: Fixed parameter types for proper TypeScript checking
  * - 2025-07-04: Updated to use options object pattern for better TypeScript support
  * - 2025-07-05: Fixed TypeScript signature to resolve build errors
+ * - 2025-07-06: Added explicit parameter type to useLoadDraft function
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -27,7 +27,8 @@ export interface LoadDraftOptions {
   draftId?: string;
 }
 
-export const useLoadDraft = (options: LoadDraftOptions) => {
+// Added explicit parameter type to help TypeScript inference
+export const useLoadDraft = (options: LoadDraftOptions): void => {
   const { form, setCarId, setLastSaved, userId, draftId } = options;
   
   useEffect(() => {

@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Fixed import for getFormDefaults instead of useFormDefaults
@@ -8,7 +7,7 @@
  * - Fixed isSaving state to provide visual feedback when saving
  * - Created loadDraftOptions object to fix the useLoadDraft call
  * - Fixed TypeScript error by ensuring correct import and usage of useLoadDraft
- * - Actually passed the loadDraftOptions object to useLoadDraft() call
+ * - Added explicit type casting to ensure proper parameter passing to useLoadDraft
  */
 
 import { useState, useEffect } from "react";
@@ -38,10 +37,8 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
   
   const { showSuccessDialog, setShowSuccessDialog, handleSubmit } = useFormSubmission(session.user.id);
   
-  // Initialize form with default values
   const form = useCarListingForm();
   
-  // Set form defaults
   useEffect(() => {
     const defaults = getFormDefaults();
     Object.entries(defaults).forEach(([key, value]) => {
@@ -49,7 +46,6 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     });
   }, [form]);
   
-  // Create options object for useLoadDraft
   const loadDraftOptions: LoadDraftOptions = {
     form,
     setCarId,
@@ -58,13 +54,10 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     draftId
   };
   
-  // Load draft if draftId is provided - FIXED: Pass the options object to the hook
-  useLoadDraft(loadDraftOptions);
+  useLoadDraft(loadDraftOptions as LoadDraftOptions);
   
-  // Handle form persistence
   const persistence = useFormPersistence(form, session.user.id, currentStep);
   
-  // Update state from persistence hooks
   useEffect(() => {
     if (persistence.lastSaved) {
       setLastSaved(persistence.lastSaved);
@@ -76,10 +69,8 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     }
   }, [persistence.lastSaved, persistence.isOffline, persistence.isSaving, persistence.carId, carId]);
   
-  // Determine which form sections to show
   const { visibleSections } = useSectionsVisibility(form, carId);
   
-  // Handle form submission
   const onSubmit = (data: any) => {
     handleSubmit(data, carId);
   };
