@@ -1,6 +1,9 @@
-
 /**
  * Component for uploading photos to a car listing
+ * Changes made:
+ * - Updated to use typed StepComponentProps
+ * - Added validation support
+ * - Improved TypeScript typing
  */
 import React, { useState } from 'react';
 import { usePhotoUpload } from '../car-listing/photo-upload/usePhotoUpload';
@@ -10,10 +13,13 @@ import { SaveButton } from './SaveButton';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { UseFormReturn } from 'react-hook-form';
+import { CarListingFormData } from '@/types/forms';
 
 interface PhotoUploadSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<CarListingFormData>;
   carId?: string;
+  userId?: string;
+  onValidate?: () => Promise<boolean>;
 }
 
 // AdditionalPhotos component with correct props
@@ -90,7 +96,11 @@ const CurrentPhotos = ({ photos }: { photos: string[] }) => {
   );
 };
 
-export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => {
+export const PhotoUploadSection = ({ 
+  form, 
+  carId, 
+  onValidate 
+}: PhotoUploadSectionProps) => {
   const [savingProgress, setSavingProgress] = useState(false);
   const watchedPhotos = form.watch('uploadedPhotos') || [];
 
@@ -109,7 +119,6 @@ export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => 
   });
 
   const handlePhotoUpload = async (files: File[]) => {
-    // Process and upload the files
     try {
       toast.info(`Uploading ${files.length} photos...`);
       // Logic to handle the upload
@@ -123,6 +132,16 @@ export const PhotoUploadSection = ({ form, carId }: PhotoUploadSectionProps) => 
   const handleSavePhotos = async () => {
     try {
       setSavingProgress(true);
+      
+      // If onValidate is provided, run validation
+      if (onValidate) {
+        const isValid = await onValidate();
+        if (!isValid) {
+          toast.error('Please upload at least 3 photos');
+          return;
+        }
+      }
+      
       // Save logic here
       toast.success('Photos saved successfully');
     } catch (error) {

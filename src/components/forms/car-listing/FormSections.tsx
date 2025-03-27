@@ -7,6 +7,7 @@
  * - Added validation context support
  * - Improved TypeScript typing
  * - Added proper handling of validation functions from formSteps
+ * - Fixed validation function to use the correct data
  */
 
 import { UseFormReturn } from "react-hook-form";

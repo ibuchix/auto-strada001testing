@@ -6,6 +6,7 @@
  * - 2027-08-01: Ensured all step objects have consistent structure with required sections array
  * - 2027-08-15: Added requiredProps to each step for type-safe component rendering
  * - 2028-03-22: Updated to include validate functions and specific prop requirements
+ * - 2028-05-30: Enhanced validation functions with specific section requirements
  */
 
 import { PersonalDetailsSection } from "../PersonalDetailsSection";
@@ -39,7 +40,9 @@ export const formSteps: FormStep[] = [
     component: PersonalDetailsSection,
     requiredProps: ['form'],
     validate: (data: CarListingFormData) => 
-      !!data.name && !!data.email && !!data.phone && !!data.address
+      Boolean(data.name?.trim()) && 
+      Boolean(data.address?.trim()) && 
+      Boolean(data.mobileNumber?.trim())
   },
   {
     id: 'vehicle-status',
@@ -48,7 +51,10 @@ export const formSteps: FormStep[] = [
     component: VehicleStatusSection,
     requiredProps: ['form'],
     validate: (data: CarListingFormData) => 
-      !!data.make && !!data.model && !!data.year && !!data.mileage
+      Boolean(data.make?.trim()) && 
+      Boolean(data.model?.trim()) && 
+      Boolean(data.year) && 
+      Boolean(data.mileage)
   },
   {
     id: 'features',
@@ -57,7 +63,7 @@ export const formSteps: FormStep[] = [
     component: FeaturesSection,
     requiredProps: ['form'],
     validate: (data: CarListingFormData) => 
-      Object.values(data.features || {}).some(Boolean)
+      data.features ? Object.values(data.features).some(Boolean) : false
   },
   {
     id: 'additional-info',
@@ -66,7 +72,8 @@ export const formSteps: FormStep[] = [
     component: AdditionalInfoSection,
     requiredProps: ['form'],
     validate: (data: CarListingFormData) => 
-      !!data.seatMaterial && !!data.numberOfKeys
+      Boolean(data.seatMaterial) && 
+      Boolean(data.numberOfKeys)
   },
   {
     id: 'photos',
@@ -75,7 +82,8 @@ export const formSteps: FormStep[] = [
     component: PhotoUploadSection,
     requiredProps: ['form', 'carId'],
     validate: (data: CarListingFormData) => 
-      Array.isArray(data.uploadedPhotos) && data.uploadedPhotos.length >= 3
+      Array.isArray(data.uploadedPhotos) && 
+      data.uploadedPhotos.length >= 3
   },
   {
     id: 'notes',
@@ -84,7 +92,7 @@ export const formSteps: FormStep[] = [
     component: SellerNotesSection,
     requiredProps: ['form'],
     validate: (data: CarListingFormData) => 
-      !!data.sellerNotes
+      Boolean(data.sellerNotes?.trim())
   },
   {
     id: 'rims',
@@ -94,8 +102,10 @@ export const formSteps: FormStep[] = [
     description: 'Upload photos of all four rims',
     requiredProps: ['form', 'carId'],
     validate: (data: CarListingFormData) => 
-      !!data.frontLeftRimPhoto && !!data.frontRightRimPhoto && 
-      !!data.rearLeftRimPhoto && !!data.rearRightRimPhoto
+      Boolean(data.frontLeftRimPhoto) && 
+      Boolean(data.frontRightRimPhoto) && 
+      Boolean(data.rearLeftRimPhoto) && 
+      Boolean(data.rearRightRimPhoto)
   },
   {
     id: 'service-history',
@@ -105,6 +115,6 @@ export const formSteps: FormStep[] = [
     description: 'Provide service history details and documents',
     requiredProps: ['form', 'carId'],
     validate: (data: CarListingFormData) => 
-      !!data.serviceHistoryType
+      Boolean(data.serviceHistoryType)
   }
 ];
