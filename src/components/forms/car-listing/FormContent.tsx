@@ -7,6 +7,7 @@
  * - Removed formErrors prop as it's not part of useSectionsVisibility return
  * - Fixed isSaving state to provide visual feedback when saving
  * - Created loadDraftOptions object to fix the useLoadDraft call
+ * - Fixed TypeScript error by ensuring correct import and usage of useLoadDraft
  */
 
 import { useState, useEffect } from "react";
@@ -15,7 +16,7 @@ import { StepForm } from "./StepForm";
 import { SuccessDialog } from "./SuccessDialog";
 import { useCarListingForm } from "./hooks/useCarListingForm";
 import { getFormDefaults } from "./hooks/useFormDefaults";
-import { useLoadDraft } from "./hooks/useLoadDraft";
+import { useLoadDraft, LoadDraftOptions } from "./hooks/useLoadDraft";
 import { useSectionsVisibility } from "./hooks/useSectionsVisibility";
 import { useFormPersistence } from "./hooks/useFormPersistence";
 import { useFormSubmission } from "./submission/useFormSubmission";
@@ -48,7 +49,7 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
   }, [form]);
   
   // Create options object for useLoadDraft
-  const loadDraftOptions = {
+  const loadDraftOptions: LoadDraftOptions = {
     form,
     setCarId,
     setLastSaved,

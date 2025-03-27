@@ -7,6 +7,7 @@
  * - 2024-08-25: Fixed TypeScript type errors
  * - 2025-07-02: Fixed parameter types for proper TypeScript checking
  * - 2025-07-04: Updated to use options object pattern for better TypeScript support
+ * - 2025-07-05: Fixed TypeScript signature to resolve build errors
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -18,7 +19,7 @@ import { transformDbToFormData } from "../utils/formDataTransformers";
 
 type SetStateFunction<T> = (value: T) => void;
 
-interface LoadDraftOptions {
+export interface LoadDraftOptions {
   form: UseFormReturn<CarListingFormData>;
   setCarId: SetStateFunction<string | undefined>;
   setLastSaved: SetStateFunction<Date | null>;
