@@ -1,30 +1,15 @@
-
 /**
  * Changes made:
- * - 2024-03-19: Initial implementation of form saving utilities
- * - 2024-03-19: Added data transformation and validation
- * - 2024-03-19: Implemented error handling for save operations
- * - 2024-09-02: Enhanced error handling and added retry mechanism
- * - 2024-10-17: Added security definer function approach for reliable saving
- * - 2025-04-28: Fixed TypeScript errors with RPC types and return values
- * - 2025-05-01: Fixed TypeScript errors with RPC function name and return type casting
- * - 2025-05-16: Fixed TypeScript type errors for RPC function using "as any" casting
- * - 2025-08-04: Updated to use seller_name field instead of name
- * - 2025-05-30: Enhanced field handling to include both name and seller_name fields
- *   for maximum compatibility with the security definer function
- * - 2025-05-31: Applied consistent field mapping strategy across all transformations
- * - 2025-06-01: Removed references to non-existent field has_tool_pack
- * - 2025-06-02: Removed references to non-existent field has_documentation
- * - 2025-06-10: Added schema validation to catch field mismatches during development
- * - 2027-11-05: Enhanced schema validation with detailed logging and timing metrics
- * - 2027-11-07: Improved error diagnosis and added selective retries for transient errors
+ * - Reduced verbosity of console logging
+ * - Added more targeted diagnostic logging
+ * - Maintained key performance and error tracking information
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { prepareCarData } from "./carDataTransformer";
-import { validateFormSchema, getSchemaValidationDiagnostics } from "@/utils/validation/schemaValidation";
+import { validateFormSchema } from "@/utils/validation/schemaValidation";
 
 /**
  * Saves form data to Supabase with robust error handling and retry mechanism
@@ -41,36 +26,27 @@ export const saveFormData = async (
   
   const saveOperation = async (): Promise<{ success: boolean; carId?: string; error?: any }> => {
     try {
-      console.log('Preparing car data for save operation...');
       const carData = prepareCarData(formData, valuationData, userId);
       
-      // Only include carId in the upsert if it's defined
       const dataToUpsert = carId ? { ...carData, id: carId } : carData;
 
-      // Enhanced logging for debugging
-      console.log('Attempting to save car data with fields:', 
-        Object.keys(dataToUpsert).filter(key => 
-          key === 'name' || key === 'seller_name'
-        ).reduce((obj, key) => ({...obj, [key]: dataToUpsert[key]}), {})
-      );
+      // Minimal logging with environment check
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Preparing car data for save', {
+          sellerId: userId,
+          hasCarId: !!carId
+        });
+      }
 
-      // Run schema validation in development mode to catch mismatches early
-      console.log('Running schema validation before save...');
-      const validationStartTime = performance.now();
-      const validationIssues = await validateFormSchema(dataToUpsert, 'cars');
-      const validationEndTime = performance.now();
-      
-      console.log(`Schema validation completed in ${(validationEndTime - validationStartTime).toFixed(2)}ms`);
-      
-      if (validationIssues.length > 0) {
-        console.warn(`Found ${validationIssues.length} schema validation issues:`, validationIssues);
+      // Optional schema validation with minimal logging
+      try {
+        const schemaIssues = await validateFormSchema(dataToUpsert, 'cars');
         
-        // Log additional diagnostic information when issues are found
-        if (validationIssues.length > 0) {
-          console.debug('Schema validation diagnostics:', getSchemaValidationDiagnostics());
+        if (schemaIssues.length > 0 && process.env.NODE_ENV === 'development') {
+          console.warn(`${schemaIssues.length} schema validation issues detected`);
         }
-      } else {
-        console.log('Schema validation passed successfully');
+      } catch (validationError) {
+        console.warn('Schema validation encountered an error', validationError);
       }
 
       // Try using the security definer function first (most reliable method)
@@ -108,27 +84,29 @@ export const saveFormData = async (
 
       if (error) throw error;
       
-      console.log('Auto-save successful via standard approach');
+      const endTime = performance.now();
+      console.log(`Save operation completed in ${(endTime - startTime).toFixed(2)}ms`);
+      
       return { 
         success: true, 
         carId: data?.[0]?.id || carId 
       };
     } catch (error: any) {
-      console.error('Save error:', error);
+      // Targeted error logging
+      console.error('Save operation failed', {
+        errorMessage: error.message,
+        retryCount: retries
+      });
       
-      // Check for specific transient errors that should be retried
+      // Retry logic remains the same
       const isTransientError = 
         error.code === 'TIMEOUT' || 
         error.code === '503' || 
         error.message?.includes('timeout') || 
         error.message?.includes('network');
       
-      // If we haven't reached max retries and it's a transient error, try again
       if (retries < maxRetries && (isTransientError || retries === 0)) {
         retries++;
-        console.log(`Retrying save operation (attempt ${retries} of ${maxRetries})...`);
-        
-        // Exponential backoff: wait longer between each retry
         await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retries - 1)));
         return saveOperation();
       }
@@ -141,13 +119,8 @@ export const saveFormData = async (
   };
   
   const result = await saveOperation();
-  const endTime = performance.now();
-  
-  console.log(`Save operation completed in ${(endTime - startTime).toFixed(2)}ms with result:`, 
-    result.success ? 'Success' : 'Failure');
   
   if (!result.success) {
-    // Only show toast for final failure after retries
     toast.error(result.error.message || 'Failed to save changes', {
       description: "Your changes will be saved locally until connectivity is restored",
       duration: 5000,

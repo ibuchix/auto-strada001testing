@@ -1,16 +1,8 @@
 /**
  * Changes made:
- * - 2025-06-10: Created schema validation utility to compare form fields with database columns
- * - 2025-06-12: Fixed issue with RPC function type checking
- * - 2025-06-15: Added proper type assertion for RPC function call
- * - 2025-07-21: Fixed TypeScript error with RPC function name casting
- * - 2025-07-22: Updated getTableSchema to handle missing RPC function gracefully
- * - 2025-07-23: Fixed error with status property on PostgrestError type
- * - 2025-07-24: Implemented RPC function availability caching to prevent repeated failed calls
- * - 2025-07-24: Added environment-specific validation to avoid validation in production
- * - 2027-11-06: Enhanced error handling for PostgrestError types and improved logging
- * - 2027-11-07: Improved error diagnosis capabilities with more detailed logging
- * - 2027-11-07: Added selective retry mechanism for transient errors
+ * - Reduced verbosity of console logging
+ * - Added conditional logging based on environment
+ * - Maintained key diagnostic information
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -179,7 +171,7 @@ export const validateFormAgainstSchema = async (
     showWarnings?: boolean;
   } = {}
 ): Promise<string[]> => {
-  const { throwOnError = false, showWarnings = true } = options;
+  const { throwOnError = false, showWarnings = false } = options;
   
   // Skip validation in production
   if (!isDevelopment()) {
@@ -192,7 +184,9 @@ export const validateFormAgainstSchema = async (
   // If schema is null, it means the RPC function is not available
   // In this case, we'll skip validation but not block form submission
   if (!schema) {
-    console.log(`Schema validation skipped for table "${tableName}" - Schema information not available`);
+    if (isDevelopment()) {
+      console.log(`Schema validation skipped for table "${tableName}" - Schema information not available`);
+    }
     return [];
   }
   
@@ -226,16 +220,10 @@ export const validateFormAgainstSchema = async (
   });
   
   // Show warnings if enabled and there are issues
-  if (showWarnings && issues.length > 0) {
-    issues.forEach(issue => console.warn(`Schema validation warning: ${issue}`));
-    
-    toast.warning('Schema validation issues detected', {
-      description: `${issues.length} issues found in ${tableName} form data`,
-      action: {
-        label: 'View in Console',
-        onClick: () => console.table(issues)
-      }
-    });
+  if (showWarnings && issues.length > 0 && isDevelopment()) {
+    console.groupCollapsed(`Schema validation issues for ${tableName}`);
+    issues.forEach(issue => console.warn(issue));
+    console.groupEnd();
   }
   
   // Throw if configured to do so
@@ -283,13 +271,15 @@ export const validateFormSchema = async (
   }
   
   try {
-    return validateFormAgainstSchema(formData, tableName, {
+    return await validateFormAgainstSchema(formData, tableName, {
       throwOnError: false,
-      showWarnings: true
+      showWarnings: false
     });
   } catch (error) {
-    console.warn('Schema validation error:', error);
-    // Return empty array to prevent blocking form submission
+    // Only log in development
+    if (isDevelopment()) {
+      console.warn('Schema validation error:', error);
+    }
     return [];
   }
 };
