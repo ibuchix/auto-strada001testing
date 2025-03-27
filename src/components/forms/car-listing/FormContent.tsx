@@ -3,10 +3,10 @@
  * Changes made:
  * - Fixed import for getFormDefaults instead of useFormDefaults
  * - Added required props to SuccessDialog
- * - Fixed useLoadDraft parameters by passing session.user.id
+ * - Fixed useLoadDraft parameters by passing required parameters
  * - Removed formErrors prop as it's not part of useSectionsVisibility return
  * - Fixed isSaving state to provide visual feedback when saving
- * - Fixed useLoadDraft parameter passing with proper arguments
+ * - Created loadDraftOptions object to fix the useLoadDraft call
  */
 
 import { useState, useEffect } from "react";
@@ -47,8 +47,17 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     });
   }, [form]);
   
-  // Load draft if draftId is provided - fix parameters order
-  useLoadDraft(form, setCarId, setLastSaved, session.user.id, draftId);
+  // Create options object for useLoadDraft
+  const loadDraftOptions = {
+    form,
+    setCarId,
+    setLastSaved,
+    userId: session.user.id,
+    draftId
+  };
+  
+  // Load draft if draftId is provided
+  useLoadDraft(loadDraftOptions);
   
   // Handle form persistence
   const persistence = useFormPersistence(form, session.user.id, currentStep);
