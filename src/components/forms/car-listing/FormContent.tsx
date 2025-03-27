@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Fixed import for getFormDefaults instead of useFormDefaults
@@ -8,6 +9,7 @@
  * - Created loadDraftOptions object to fix the useLoadDraft call
  * - Fixed TypeScript error by ensuring correct import and usage of useLoadDraft
  * - Added explicit type casting to ensure proper parameter passing to useLoadDraft
+ * - Fixed useCarListingForm call by providing required parameters
  */
 
 import { useState, useEffect } from "react";
@@ -37,7 +39,7 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
   
   const { showSuccessDialog, setShowSuccessDialog, handleSubmit } = useFormSubmission(session.user.id);
   
-  const form = useCarListingForm();
+  const form = useCarListingForm(session.user.id, draftId);
   
   useEffect(() => {
     const defaults = getFormDefaults();
@@ -54,7 +56,7 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     draftId
   };
   
-  useLoadDraft(loadDraftOptions as LoadDraftOptions);
+  useLoadDraft(loadDraftOptions);
   
   const persistence = useFormPersistence(form, session.user.id, currentStep);
   
