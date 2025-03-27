@@ -1,11 +1,11 @@
 
 /**
  * Changes made:
- * - Improved automatic saving during step navigation
- * - Enhanced validation check before proceeding to next step with field-specific feedback
- * - Added comprehensive validation mapping for each form section
- * - Improved error messaging and user feedback during validation
- * - Optimized step navigation logic with better error handling
+ * - Centralized navigation logic with safe step transitions
+ * - Improved validation with type-safe field mappings
+ * - Enhanced error handling with specific error messages
+ * - Optimized re-renders with memoized components
+ * - Better type safety throughout the component
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -16,8 +16,20 @@ import { Button } from "@/components/ui/button";
 import { FormStepper } from "./FormStepper";
 import { FormFooter } from "./FormFooter";
 import { ArrowLeft, ArrowRight, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { toast } from "sonner";
+
+// Define field mappings for each step (should match your form structure)
+const STEP_FIELD_MAPPINGS: Record<string, Array<keyof CarListingFormData>> = {
+  'personal-details': ['name', 'email', 'phone', 'address', 'city', 'postalCode'],
+  'vehicle-status': ['make', 'model', 'year', 'mileage', 'condition', 'isDamaged'],
+  'features': ['features', 'transmission', 'fuelType', 'bodyType', 'color'],
+  'additional-info': ['purchaseDate', 'ownershipStatus', 'serviceHistory', 'seatMaterial', 'numberOfKeys'],
+  'photos': ['uploadedPhotos', 'mainPhoto'],
+  'notes': ['sellerNotes', 'priceExpectation'],
+  'rims': ['frontLeftRimPhoto', 'frontRightRimPhoto', 'rearLeftRimPhoto', 'rearRightRimPhoto'],
+  'service-history': ['serviceDocuments', 'lastServiceDate', 'serviceHistoryType']
+};
 
 interface StepFormProps {
   form: UseFormReturn<CarListingFormData>;
@@ -26,7 +38,7 @@ interface StepFormProps {
   carId?: string;
   lastSaved: Date | null;
   isOffline: boolean;
-  saveProgress: () => void;
+  saveProgress: () => Promise<void>;
   visibleSections: string[];
   isSaving?: boolean;
 }
@@ -45,149 +57,131 @@ export const StepForm = ({
   const totalSteps = formSteps.length;
   const [isNavigating, setIsNavigating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  
-  // Handle navigation to previous step
-  const handlePrevious = async () => {
-    if (currentStep > 0 && !isSaving && !isNavigating) {
-      setIsNavigating(true);
-      setValidationErrors({});
-      
-      try {
-        // Save progress before moving to previous step
-        await saveProgress();
-        setCurrentStep(currentStep - 1);
-        console.log(`Navigating to previous step: ${currentStep - 1}`);
-      } catch (error) {
-        console.error("Error saving progress:", error);
-        toast.error("Failed to save progress", {
-          description: "Your changes may not be saved. Please try again."
-        });
-      } finally {
-        setIsNavigating(false);
-      }
-    }
-  };
-  
-  // Handle navigation to next step
-  const handleNext = async () => {
-    if (currentStep < totalSteps - 1 && !isSaving && !isNavigating) {
-      setIsNavigating(true);
-      setValidationErrors({});
-      
-      // Validate current step fields
-      const currentStepId = formSteps[currentStep]?.id;
-      const fieldsToValidate = getFieldsToValidate(currentStepId);
-      
-      // Trigger validation only for current step fields
-      const isValid = await validateStepFields(fieldsToValidate);
-      
-      if (!isValid) {
-        setIsNavigating(false);
-        
-        // Get the errors from the form state
-        const formErrors = form.formState.errors;
-        const errorFields = Object.keys(formErrors);
-        
-        if (errorFields.length > 0) {
-          // Extract field errors for better messaging
-          const newValidationErrors: Record<string, string> = {};
-          errorFields.forEach(field => {
-            const errorMessage = formErrors[field as keyof typeof formErrors]?.message;
-            if (errorMessage && typeof errorMessage === 'string') {
-              newValidationErrors[field] = errorMessage;
-            }
-          });
-          
-          setValidationErrors(newValidationErrors);
-          
-          // Show toast with specific field errors
-          const firstErrorField = errorFields[0];
-          const firstErrorMessage = formErrors[firstErrorField as keyof typeof formErrors]?.message;
-          
-          toast.error("Please complete all required fields", {
-            description: typeof firstErrorMessage === 'string' 
-              ? firstErrorMessage 
-              : "Some information is missing or incorrect.",
-            action: {
-              label: "Review",
-              onClick: () => {
-                // Focus on the first error field if possible
-                const element = document.getElementById(firstErrorField);
-                if (element) {
-                  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  element.focus();
-                }
-              }
-            }
-          });
-        } else {
-          toast.error("Please complete all required fields", {
-            description: "There are missing or invalid fields on this page."
-          });
-        }
-        return;
-      }
-      
-      try {
-        // Save progress before moving to next step
-        await saveProgress();
-        setCurrentStep(currentStep + 1);
-        console.log(`Navigating to next step: ${currentStep + 1}`);
-      } catch (error) {
-        console.error("Error saving progress:", error);
-        toast.error("Failed to save progress", {
-          description: "Your changes may not be saved. Please try again."
-        });
-      } finally {
-        setIsNavigating(false);
-      }
-    }
-  };
-  
-  // Get the fields that need to be validated for the current step
-  const getFieldsToValidate = (stepId: string): string[] => {
-    // Comprehensive mapping of step IDs to form fields
-    const fieldMappings: Record<string, string[]> = {
-      'personal-details': ['name', 'email', 'phone', 'address', 'city', 'postalCode'],
-      'vehicle-status': ['make', 'model', 'year', 'mileage', 'condition', 'isDamaged'],
-      'features': ['features', 'transmission', 'fuelType', 'bodyType', 'color'],
-      'additional-info': ['purchaseDate', 'ownershipStatus', 'serviceHistory', 'hasDocumentation'],
-      'photos': ['uploadedPhotos', 'mainPhoto'],
-      'notes': ['sellerNotes', 'priceExpectation'],
-      'rims': ['frontLeftRimPhoto', 'frontRightRimPhoto', 'rearLeftRimPhoto', 'rearRightRimPhoto'],
-      'service-history': ['serviceDocuments', 'lastServiceDate']
-    };
-    
-    return fieldMappings[stepId] || [];
-  };
-  
-  // Validate only the fields for the current step
-  const validateStepFields = async (fields: string[]): Promise<boolean> => {
-    if (fields.length === 0) return true;
+
+  // Memoized field validator
+  const validateStepFields = useCallback(async (stepId: string) => {
+    const fieldsToValidate = STEP_FIELD_MAPPINGS[stepId] || [];
+    if (fieldsToValidate.length === 0) return true;
     
     // Get current form values for logging
     const currentValues = form.getValues();
-    console.log(`Validating fields for step ${currentStep}:`, fields);
+    console.log(`Validating fields for step ${currentStep}:`, fieldsToValidate);
     console.log('Current form values:', JSON.stringify(currentValues, null, 2));
     
     try {
-      const result = await form.trigger(fields as any[]);
+      const result = await form.trigger(fieldsToValidate);
       
       if (!result) {
         // Log validation errors for debugging
         console.log('Validation errors:', form.formState.errors);
+        
+        // Extract field errors for better messaging
+        const newValidationErrors: Record<string, string> = {};
+        fieldsToValidate.forEach(field => {
+          const errorMessage = form.formState.errors[field]?.message;
+          if (errorMessage && typeof errorMessage === 'string') {
+            newValidationErrors[field] = errorMessage;
+          }
+        });
+        
+        setValidationErrors(newValidationErrors);
+      } else {
+        // Clear validation errors if validation passes
+        setValidationErrors({});
       }
       
       return result;
     } catch (error) {
-      console.error('Error during field validation:', error);
+      console.error('Validation error:', error);
       return false;
     }
-  };
+  }, [form, currentStep]);
+
+  // Unified navigation handler
+  const handleNavigation = useCallback(async (direction: 'previous' | 'next') => {
+    if (isSaving || isNavigating) return;
+
+    setIsNavigating(true);
+    setValidationErrors({});
+    const newStep = direction === 'next' ? currentStep + 1 : currentStep - 1;
+
+    try {
+      // Validate current step before proceeding to next step
+      if (direction === 'next') {
+        const currentStepId = formSteps[currentStep]?.id;
+        const isValid = await validateStepFields(currentStepId);
+        
+        if (!isValid) {
+          setIsNavigating(false);
+          
+          // Get the errors from the form state
+          const formErrors = form.formState.errors;
+          const errorFields = Object.keys(formErrors);
+          
+          if (errorFields.length > 0) {
+            // Show toast with specific field errors
+            const firstErrorField = errorFields[0];
+            const firstErrorMessage = formErrors[firstErrorField as keyof typeof formErrors]?.message;
+            
+            toast.error("Please complete all required fields", {
+              description: typeof firstErrorMessage === 'string' 
+                ? firstErrorMessage 
+                : "Some information is missing or incorrect.",
+              action: {
+                label: "Review",
+                onClick: () => {
+                  // Focus on the first error field if possible
+                  const element = document.getElementById(firstErrorField);
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    element.focus();
+                  }
+                }
+              }
+            });
+          } else {
+            toast.error("Please complete all required fields", {
+              description: "There are missing or invalid fields on this page."
+            });
+          }
+          return;
+        }
+      }
+
+      // Save progress before navigation
+      await saveProgress();
+      setCurrentStep(newStep);
+      console.log(`Navigating to ${direction} step: ${newStep}`);
+      
+    } catch (error) {
+      console.error('Navigation error:', error);
+      toast.error('Navigation failed', {
+        description: error instanceof Error ? error.message : 'Failed to save progress'
+      });
+    } finally {
+      setIsNavigating(false);
+    }
+  }, [currentStep, isSaving, isNavigating, saveProgress, setCurrentStep, validateStepFields, form]);
+
+  const handlePrevious = useCallback(() => {
+    if (currentStep > 0) {
+      handleNavigation('previous');
+    }
+  }, [currentStep, handleNavigation]);
+  
+  const handleNext = useCallback(() => {
+    if (currentStep < totalSteps - 1) {
+      handleNavigation('next');
+    }
+  }, [currentStep, totalSteps, handleNavigation]);
+
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === totalSteps - 1;
+  const navigationDisabled = isSaving || isNavigating;
   
   // Determine if the form has validation errors to display
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
-  
+
   return (
     <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6">
       <div className="mb-10">
@@ -245,19 +239,21 @@ export const StepForm = ({
           type="button"
           variant="outline"
           onClick={handlePrevious}
-          disabled={currentStep === 0 || isSaving || isNavigating}
+          disabled={isFirstStep || navigationDisabled}
           className="w-32 h-11 text-base"
+          aria-label={isFirstStep ? "Cannot go back" : "Previous step"}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           {isNavigating ? "Saving..." : "Previous"}
         </Button>
         
-        {currentStep < totalSteps - 1 ? (
+        {!isLastStep ? (
           <Button
             type="button"
             onClick={handleNext}
-            disabled={isSaving || isNavigating}
+            disabled={navigationDisabled}
             className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-32 h-11 text-base"
+            aria-label={navigationDisabled ? "Saving changes" : "Next step"}
           >
             {isNavigating ? "Saving..." : "Next"}
             <ArrowRight className="ml-2 h-4 w-4" />
@@ -265,8 +261,9 @@ export const StepForm = ({
         ) : (
           <Button
             type="submit"
-            disabled={isSaving || isNavigating}
+            disabled={navigationDisabled}
             className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-32 h-11 text-base"
+            aria-label={navigationDisabled ? "Submitting..." : "Submit listing"}
           >
             Submit
           </Button>
@@ -277,7 +274,7 @@ export const StepForm = ({
         lastSaved={lastSaved}
         isOffline={isOffline}
         onSave={saveProgress}
-        isSaving={isSaving || isNavigating}
+        isSaving={navigationDisabled}
       />
     </div>
   );
