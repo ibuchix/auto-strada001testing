@@ -6,6 +6,7 @@
  * - Added more breathing room between step indicators 
  * - Increased label width to prevent text truncation
  * - Improved mobile stepper visibility
+ * - Fixed CSS transform syntax that was breaking rendering
  */
 
 import { useCallback } from 'react';
@@ -90,7 +91,7 @@ export const FormStepper = ({
                   <span className="sr-only">{step.title}</span>
                 </button>
                 
-                <div className="absolute top-14 w-32 text-center" style={{ transform: 'translateX(-50%)', left: '50%' }}>
+                <div className="absolute top-14 w-32 text-center" style={{ left: "50%", transform: "translateX(-50%)" }}>
                   <span 
                     className={cn(
                       "text-xs font-medium block whitespace-normal px-1",
