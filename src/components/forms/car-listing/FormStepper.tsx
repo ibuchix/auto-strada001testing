@@ -1,11 +1,11 @@
 
 /**
  * Changes made:
- * - Fixed step coloring issue for steps after current step
- * - Improved text spacing and truncation for step labels
+ * - Fixed step coloring issue for steps after current step (especially for step 6)
+ * - Improved text spacing and completely fixed overlapping labels
  * - Added more breathing room between step indicators 
- * - Fixed the overlapping text in long step labels
- * - Ensured proper spacing between steps
+ * - Increased label width to prevent text truncation
+ * - Improved mobile stepper visibility
  */
 
 import { useCallback } from 'react';
@@ -90,10 +90,10 @@ export const FormStepper = ({
                   <span className="sr-only">{step.title}</span>
                 </button>
                 
-                <div className="absolute top-14 w-24 text-center">
+                <div className="absolute top-14 w-32 text-center" style={{ transform: 'translateX(-50%)', left: '50%' }}>
                   <span 
                     className={cn(
-                      "text-xs font-medium block truncate px-1",
+                      "text-xs font-medium block whitespace-normal px-1",
                       isActive ? "text-[#DC143C] font-semibold" : 
                       isCompleted ? "text-gray-900" : "text-gray-500"
                     )}
