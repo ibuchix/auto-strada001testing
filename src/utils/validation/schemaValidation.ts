@@ -9,6 +9,7 @@
  * - 2025-07-23: Fixed error with status property on PostgrestError type
  * - 2025-07-24: Implemented RPC function availability caching to prevent repeated failed calls
  * - 2025-07-24: Added environment-specific validation to avoid validation in production
+ * - 2027-11-05: Improved error logging and handling for RPC function calls
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +51,8 @@ export const getTableSchema = async (tableName: string): Promise<ColumnDefinitio
   }
 
   try {
+    console.log(`Fetching schema for table "${tableName}" using get_table_columns RPC function`);
+    
     // Use type assertion with any to bypass TypeScript's strict checking of RPC function names
     const { data, error } = await supabase
       .rpc('get_table_columns' as any, { table_name: tableName })
@@ -73,6 +76,8 @@ export const getTableSchema = async (tableName: string): Promise<ColumnDefinitio
 
     // If we got here, the RPC function is available - update cache
     rpcFunctionAvailableCache[tableName] = true;
+    
+    console.log(`Successfully retrieved schema for "${tableName}": ${data?.length} columns found`);
 
     return data?.map(col => ({
       name: col.column_name,
@@ -125,7 +130,7 @@ export const validateFormAgainstSchema = async (
   // If schema is null, it means the RPC function is not available
   // In this case, we'll skip validation but not block form submission
   if (!schema) {
-    console.warn(`Schema validation skipped for table "${tableName}" - Schema information not available`);
+    console.log(`Schema validation skipped for table "${tableName}" - Schema information not available`);
     return [];
   }
   

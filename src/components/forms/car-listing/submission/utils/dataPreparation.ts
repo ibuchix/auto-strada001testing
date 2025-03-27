@@ -16,6 +16,7 @@
  * - 2025-06-10: Added schema validation to catch field mismatches before submission
  * - 2025-07-22: Improved error handling and added safeguards for field type mismatches
  * - 2025-07-24: Enhanced boolean field handling to ensure proper type conversion
+ * - 2027-11-05: Added detailed schema validation logging and timing metrics
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -70,6 +71,8 @@ export const prepareCarDataForSubmission = async (
   valuationData: any
 ) => {
   console.log('Preparing car data for submission with valuation data:', valuationData);
+  
+  const startTime = performance.now();
   
   if (!valuationData) {
     throw new Error("Valuation data is required for submission");
@@ -151,9 +154,17 @@ export const prepareCarDataForSubmission = async (
 
   // Validate against schema before submitting - only in development
   try {
+    console.log('Starting schema validation...');
+    const validationStartTime = performance.now();
     const schemaIssues = await validateFormSchema(carData, 'cars');
+    const validationEndTime = performance.now();
+    
+    console.log(`Schema validation completed in ${(validationEndTime - validationStartTime).toFixed(2)}ms`);
+    
     if (schemaIssues.length > 0) {
       console.warn('Schema validation issues detected:', schemaIssues);
+    } else {
+      console.log('Schema validation passed successfully');
     }
   } catch (error) {
     console.warn('Schema validation failed but continuing with submission:', error);
@@ -161,6 +172,8 @@ export const prepareCarDataForSubmission = async (
     // and we want the submission to proceed in production
   }
 
-  console.log('Car data prepared successfully');
+  const endTime = performance.now();
+  console.log(`Car data preparation completed in ${(endTime - startTime).toFixed(2)}ms`);
+  
   return carData;
 };

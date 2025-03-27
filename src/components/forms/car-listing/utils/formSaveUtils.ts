@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of form saving utilities
@@ -15,6 +16,7 @@
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field has_documentation
  * - 2025-06-10: Added schema validation to catch field mismatches during development
+ * - 2027-11-05: Enhanced schema validation with detailed logging and timing metrics
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -34,9 +36,11 @@ export const saveFormData = async (
   maxRetries = 2
 ): Promise<{ success: boolean; carId?: string; error?: any }> => {
   let retries = 0;
+  const startTime = performance.now();
   
   const saveOperation = async (): Promise<{ success: boolean; carId?: string; error?: any }> => {
     try {
+      console.log('Preparing car data for save operation...');
       const carData = prepareCarData(formData, valuationData, userId);
       
       // Only include carId in the upsert if it's defined
@@ -50,7 +54,18 @@ export const saveFormData = async (
       );
 
       // Run schema validation in development mode to catch mismatches early
-      await validateFormSchema(dataToUpsert, 'cars');
+      console.log('Running schema validation before save...');
+      const validationStartTime = performance.now();
+      const validationIssues = await validateFormSchema(dataToUpsert, 'cars');
+      const validationEndTime = performance.now();
+      
+      console.log(`Schema validation completed in ${(validationEndTime - validationStartTime).toFixed(2)}ms`);
+      
+      if (validationIssues.length > 0) {
+        console.warn(`Found ${validationIssues.length} schema validation issues:`, validationIssues);
+      } else {
+        console.log('Schema validation passed successfully');
+      }
 
       // Try using the security definer function first (most reliable method)
       try {
@@ -113,6 +128,10 @@ export const saveFormData = async (
   };
   
   const result = await saveOperation();
+  const endTime = performance.now();
+  
+  console.log(`Save operation completed in ${(endTime - startTime).toFixed(2)}ms with result:`, 
+    result.success ? 'Success' : 'Failure');
   
   if (!result.success) {
     // Only show toast for final failure after retries

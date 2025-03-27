@@ -1667,6 +1667,16 @@ export type Database = {
           verification_status: string
         }[]
       }
+      get_table_columns: {
+        Args: {
+          table_name: string
+        }
+        Returns: {
+          column_name: string
+          data_type: string
+          is_nullable: string
+        }[]
+      }
       get_user_id_by_email: {
         Args: {
           p_email: string
