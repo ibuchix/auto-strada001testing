@@ -6,6 +6,7 @@
  * - Improved required field indicators
  * - Better label/input spacing and sizing
  * - Fixed input event handling to ensure values are properly updated in form state
+ * - Fixed TypeScript error by properly accessing fieldState in render
  */
 
 import { Input } from "@/components/ui/input";
@@ -54,7 +55,7 @@ export const FormInput = ({
         required: required ? `${label || name} is required` : false,
         validate: validate
       }}
-      render={({ field }) => (
+      render={({ field, fieldState }) => (
         <FormItem className="space-y-2 mb-4">
           {label && (
             <FormLabel className="flex items-center text-base font-medium text-body">
@@ -69,7 +70,7 @@ export const FormInput = ({
               type={type}
               className={`h-12 px-4 text-base border rounded-md 
                 ${field.value ? 'border-gray-400' : ''}
-                ${fieldState.invalid ? "border-[#DC143C] focus-visible:ring-[#DC143C]/10" : 
+                ${fieldState?.invalid ? "border-[#DC143C] focus-visible:ring-[#DC143C]/10" : 
                 isFocused ? "border-[#4B4DED] focus-visible:ring-[#4B4DED]/10" : 
                 "border-gray-300"}
                 ${className}`}
