@@ -11,7 +11,7 @@ import { CarListingFormData } from "@/types/forms";
 
 // Create context with type compatibility
 interface FormDataContextType {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<CarListingFormData>;
 }
 
 const FormDataContext = createContext<FormDataContextType | null>(null);
@@ -19,7 +19,7 @@ const FormDataContext = createContext<FormDataContextType | null>(null);
 // Provider component
 interface FormDataProviderProps {
   children: ReactNode;
-  form: UseFormReturn<any>;
+  form: UseFormReturn<CarListingFormData>;
 }
 
 export const FormDataProvider = ({ children, form }: FormDataProviderProps) => {
