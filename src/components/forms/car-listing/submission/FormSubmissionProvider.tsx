@@ -7,6 +7,7 @@
  * - 2024-07-30: Added transaction reset functionality exposure
  * - 2027-07-30: Enhanced error handling and reset functionality
  * - 2027-07-31: Fixed type mismatch with TransactionStatus
+ * - 2025-08-03: Updated to use isSubmitting consistent naming
  */
 
 import { createContext, useContext } from "react";
@@ -26,7 +27,7 @@ export const useFormSubmissionContext = () => {
 
 export const FormSubmissionProvider = ({ children, userId }: FormSubmissionProviderProps) => {
   const {
-    submitting,
+    isSubmitting,
     error,
     transactionStatus,
     showSuccessDialog,
@@ -38,7 +39,7 @@ export const FormSubmissionProvider = ({ children, userId }: FormSubmissionProvi
   return (
     <FormSubmissionContext.Provider
       value={{
-        submitting,
+        isSubmitting,
         error,
         // Ensure we're using the correct type for transactionStatus
         transactionStatus: transactionStatus as TransactionStatus,

@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Added DamageType and DamageReport types
@@ -8,6 +7,7 @@
  * - Added CarListing type
  * - Made CarListingFormData use Partial to fix type conflicts
  * - Fixed the transaction status mapping
+ * - Added proper typing for CarListingFormData fields
  */
 
 // Add or update the following types in forms.ts
@@ -63,24 +63,53 @@ export interface CarListing {
   [key: string]: any;
 }
 
-// Make all properties optional for compatibility with form handling
+// Updated CarListingFormData interface with proper typing
 export interface CarListingFormData {
-  vin?: string;
-  make?: string;
-  model?: string;
-  year?: number;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  mileage: number;
+  vin: string;
+  
+  // Optional fields
+  transmission?: "manual" | "automatic";
   notes?: string;
   address?: string;
   features?: CarFeatures;
-  mileage?: string | number;
-  price?: string | number;
-  transmission?: string;
   description?: string;
   name?: string;
   userId?: string;
   uploadedPhotos?: string[];
   location?: string;
   damageReports?: DamageReport[];
-  [key: string]: any;
+  
+  // Form metadata
+  form_metadata?: {
+    currentStep?: number;
+    lastSavedAt?: string;
+    [key: string]: any;
+  };
+  
+  // Other fields
+  isDamaged?: boolean;
+  isRegisteredInPoland?: boolean;
+  isSellingOnBehalf?: boolean;
+  hasPrivatePlate?: boolean;
+  financeAmount?: string | number;
+  financeDocument?: string | null;
+  serviceHistoryType?: string;
+  serviceHistoryFiles?: string[];
+  sellerNotes?: string;
+  mobileNumber?: string;
+  registrationNumber?: string;
+  conditionRating?: number;
+  previousOwners?: number;
+  contactEmail?: string;
+  accidentHistory?: string;
+  engineCapacity?: string | number;
+  seatMaterial?: string;
+  numberOfKeys?: string;
+  
+  [key: string]: any; // Allow for additional dynamic properties
 }
-

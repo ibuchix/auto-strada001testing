@@ -9,7 +9,7 @@ export interface FormSubmissionProviderProps {
 }
 
 export interface FormSubmissionContextType {
-  submitting: boolean;
+  isSubmitting: boolean;
   error: string | null;
   transactionStatus: TransactionStatus | null;
   showSuccessDialog: boolean;

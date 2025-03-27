@@ -6,9 +6,11 @@
  * - 2024-09-15: Improved offline detection and backup saving
  * - 2025-08-01: Updated to use options object pattern for better TypeScript
  * - 2025-08-02: Fixed interface to align with the saveImmediately method naming
+ * - 2025-08-03: Added proper cleanup in useEffect hooks
+ * - 2025-08-03: Improved error handling and loading states
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { saveFormData } from "../utils/formSaveUtils";
@@ -28,7 +30,7 @@ interface UseFormPersistenceResult {
   lastSaved: Date | null;
   isOffline: boolean;
   isSaving: boolean;
-  saveImmediately: () => Promise<void>;
+  saveImmediately: () => Promise<string | undefined>;
   setIsOffline: (status: boolean) => void;
 }
 
@@ -45,10 +47,12 @@ export const useFormPersistence = (options: UseFormPersistenceOptions): UseFormP
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { isOffline, setIsOffline } = useOfflineStatus();
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
   
   // Save form data to database
   const saveFormData = useCallback(async () => {
-    if (!userId || isSaving || isOffline) return;
+    if (!userId || isSaving || isOffline || !isMountedRef.current) return;
     
     try {
       setIsSaving(true);
@@ -66,11 +70,11 @@ export const useFormPersistence = (options: UseFormPersistenceOptions): UseFormP
       // Save to database (implementation details in formSaveUtils.ts)
       const result = await saveFormData(formData, userId, null, carId);
       
-      if (result.success) {
+      if (result.success && isMountedRef.current) {
         console.log("Form data saved successfully");
         setLastSaved(new Date());
         return result.carId;
-      } else {
+      } else if (isMountedRef.current) {
         console.error("Failed to save form data", result.error);
         
         // Handle offline case
@@ -81,7 +85,9 @@ export const useFormPersistence = (options: UseFormPersistenceOptions): UseFormP
     } catch (error) {
       console.error("Error saving form data:", error);
     } finally {
-      setIsSaving(false);
+      if (isMountedRef.current) {
+        setIsSaving(false);
+      }
     }
   }, [form, userId, carId, currentStep, isSaving, isOffline, setIsOffline]);
   
@@ -93,7 +99,15 @@ export const useFormPersistence = (options: UseFormPersistenceOptions): UseFormP
       }
     }, autoSaveInterval);
     
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      isMountedRef.current = false;
+      
+      // Clear any pending timeouts
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [form, saveFormData, autoSaveInterval]);
   
   // Save on online status change
