@@ -15,6 +15,7 @@
  * - 2025-06-02: Removed references to non-existent field has_documentation
  * - 2025-06-15: Removed references to non-existent field is_selling_on_behalf
  * - 2025-06-16: Added dynamic field filtering to prevent database errors
+ * - 2025-06-17: Fixed return type to be synchronous instead of Promise
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -83,11 +84,14 @@ const getCarColumns = async (): Promise<string[]> => {
   }
 };
 
-export const prepareCarData = async (
+/**
+ * Synchronously prepares car data for submission
+ */
+export const prepareCarData = (
   data: CarListingFormData,
   valuationData: any,
   userId: string
-): Promise<any> => {
+): any => {
   // More thorough validation of valuationData
   if (!valuationData) {
     throw new Error("Valuation data is missing. Please complete the vehicle valuation first.");
@@ -179,11 +183,8 @@ export const prepareCarData = async (
   };
 
   try {
-    // Get actual database columns
-    const columns = await getCarColumns();
-    
-    // Filter the data to only include fields that exist in the database
-    const filteredData = filterObjectByAllowedFields(carData, columns);
+    // Use a synchronous filtering approach with our hardcoded list
+    const filteredData = filterObjectByAllowedFields(carData, KNOWN_CAR_FIELDS);
     
     console.log('Filtered car data for database compatibility:', {
       ...filteredData,
@@ -196,5 +197,36 @@ export const prepareCarData = async (
     
     // Fallback to hardcoded field filtering
     return filterObjectByAllowedFields(carData, KNOWN_CAR_FIELDS);
+  }
+};
+
+/**
+ * Asynchronous version of prepareCarData that also fetches column names
+ * Use this when you need the most accurate field filtering
+ */
+export const prepareCarDataAsync = async (
+  data: CarListingFormData,
+  valuationData: any,
+  userId: string
+): Promise<any> => {
+  // First prepare the basic data
+  const carData = prepareCarData(data, valuationData, userId);
+  
+  try {
+    // Get actual database columns
+    const columns = await getCarColumns();
+    
+    // Filter the data to only include fields that exist in the database
+    const filteredData = filterObjectByAllowedFields(carData, columns);
+    
+    console.log('Async filtered car data with DB columns:', {
+      ...filteredData,
+      valuation_data: '[omitted for log clarity]'
+    });
+    
+    return filteredData;
+  } catch (error) {
+    console.error('Error in async car data preparation:', error);
+    return carData; // Fall back to the original filtered data
   }
 };

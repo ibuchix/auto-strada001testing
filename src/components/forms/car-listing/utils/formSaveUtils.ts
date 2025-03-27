@@ -7,12 +7,13 @@
  * - Added better error handling for specific database errors
  * - Optimized logic to reduce save attempts for unchanged data
  * - Added cache of previous data to minimize unnecessary saves
+ * - Fixed TypeScript error by ensuring carData is not a Promise
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { prepareCarData } from "./carDataTransformer";
+import { prepareCarData, prepareCarDataAsync } from "./carDataTransformer";
 import { validateFormSchema } from "@/utils/validation/schemaValidation";
 
 // Cache last saved data to avoid unnecessary saves
@@ -34,9 +35,9 @@ export const saveFormData = async (
   // Generate cache key based on userId and carId
   const cacheKey = `${userId}_${carId || 'new'}`;
   
-  // Prepare data and check for changes
-  const carData = prepareCarData(formData, valuationData, userId);
-  const currentDataHash = JSON.stringify(carData);
+  // Prepare data synchronously first for validation and cache checks
+  const initialCarData = prepareCarData(formData, valuationData, userId);
+  const currentDataHash = JSON.stringify(initialCarData);
   
   // Check if data has changed since last save
   if (lastSavedDataCache.get(cacheKey) === currentDataHash) {
@@ -49,6 +50,10 @@ export const saveFormData = async (
   
   const saveOperation = async (): Promise<{ success: boolean; carId?: string; error?: any }> => {
     try {
+      // For database insertion, get the most accurate field filtering
+      // This is async but ensures best database compatibility
+      const carData = await prepareCarDataAsync(formData, valuationData, userId);
+      
       const dataToUpsert = carId ? { ...carData, id: carId } : carData;
 
       // Minimal logging with environment check
