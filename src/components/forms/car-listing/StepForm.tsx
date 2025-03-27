@@ -3,6 +3,7 @@
  * Changes made:
  * - Added saving indicator in the UI
  * - Improved step navigation to avoid blocking on save operations
+ * - Added isSaving prop to show saving state in UI
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { FormStepper } from "./FormStepper";
 import { FormFooter } from "./FormFooter";
 import { Loader2 } from "lucide-react";
+import { SaveButton } from "./SaveButton";
 
 interface StepFormProps {
   form: UseFormReturn<CarListingFormData>;
@@ -49,6 +51,8 @@ export const StepForm = ({
   
   const handleNext = () => {
     if (currentStep < totalSteps - 1) {
+      // No need to await save - navigation shouldn't be blocked
+      saveProgress();
       setCurrentStep(currentStep + 1);
     }
   };
@@ -84,13 +88,12 @@ export const StepForm = ({
           Previous
         </Button>
         
-        <div className="flex-grow text-center">
-          {isSaving && (
-            <div className="flex items-center justify-center text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </div>
-          )}
+        <div className="flex-grow flex justify-center">
+          <SaveButton 
+            onClick={saveProgress} 
+            isSaving={isSaving}
+            className="mx-2"
+          />
         </div>
         
         {currentStep < totalSteps - 1 && (
