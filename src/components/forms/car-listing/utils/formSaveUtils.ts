@@ -17,13 +17,14 @@
  * - 2025-06-02: Removed references to non-existent field has_documentation
  * - 2025-06-10: Added schema validation to catch field mismatches during development
  * - 2027-11-05: Enhanced schema validation with detailed logging and timing metrics
+ * - 2027-11-07: Improved error diagnosis and added selective retries for transient errors
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { prepareCarData } from "./carDataTransformer";
-import { validateFormSchema } from "@/utils/validation/schemaValidation";
+import { validateFormSchema, getSchemaValidationDiagnostics } from "@/utils/validation/schemaValidation";
 
 /**
  * Saves form data to Supabase with robust error handling and retry mechanism
@@ -63,6 +64,11 @@ export const saveFormData = async (
       
       if (validationIssues.length > 0) {
         console.warn(`Found ${validationIssues.length} schema validation issues:`, validationIssues);
+        
+        // Log additional diagnostic information when issues are found
+        if (validationIssues.length > 0) {
+          console.debug('Schema validation diagnostics:', getSchemaValidationDiagnostics());
+        }
       } else {
         console.log('Schema validation passed successfully');
       }
@@ -110,13 +116,20 @@ export const saveFormData = async (
     } catch (error: any) {
       console.error('Save error:', error);
       
-      // If we haven't reached max retries, try again
-      if (retries < maxRetries) {
+      // Check for specific transient errors that should be retried
+      const isTransientError = 
+        error.code === 'TIMEOUT' || 
+        error.code === '503' || 
+        error.message?.includes('timeout') || 
+        error.message?.includes('network');
+      
+      // If we haven't reached max retries and it's a transient error, try again
+      if (retries < maxRetries && (isTransientError || retries === 0)) {
         retries++;
         console.log(`Retrying save operation (attempt ${retries} of ${maxRetries})...`);
         
         // Exponential backoff: wait longer between each retry
-        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retries - 1)));
         return saveOperation();
       }
       
@@ -158,7 +171,7 @@ export const checkForExistingDraft = async (userId: string): Promise<string | nu
       .eq('is_draft', true)
       .order('updated_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
       
     if (error || !data) return null;
     
