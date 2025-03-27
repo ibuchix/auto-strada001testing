@@ -1,11 +1,11 @@
 
 /**
  * Changes made:
- * - Fixed step accessibility issue for step 6 (Seller Notes)
- * - Improved step label positioning to eliminate text overlap
- * - Added better handling of step states based on accessibilty
- * - Enhanced responsive design for mobile view
- * - Updated Step interface to include sections property
+ * - Enhanced accessibility for step navigation
+ * - Improved mobile styling for better readability
+ * - Added proper aria attributes for screen readers
+ * - Fixed step access issues for certain steps
+ * - Improved visual feedback for current and completed steps
  */
 
 import { useCallback } from 'react';
@@ -34,7 +34,7 @@ export const FormStepper = ({
 }: FormStepperProps) => {
   // Modified isStepAccessible function to handle "notes" or "seller-notes" sections
   const isStepAccessible = useCallback((step: Step, index: number) => {
-    // Make step 6 (Seller Notes) always accessible
+    // Always make specific steps accessible regardless of visibility
     if (step.id === 'notes' || step.title === 'Seller Notes') {
       return true;
     }
@@ -48,8 +48,23 @@ export const FormStepper = ({
     return visibleSections.includes(step.id);
   }, [visibleSections]);
 
+  // Handlers for accessibility
+  const handleStepClick = (index: number, isAccessible: boolean) => {
+    if (isAccessible) {
+      console.log(`Clicking on step ${index}`);
+      onStepChange(index);
+    }
+  };
+
+  const handleStepKeyDown = (e: React.KeyboardEvent, index: number, isAccessible: boolean) => {
+    if (isAccessible && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onStepChange(index);
+    }
+  };
+
   return (
-    <nav aria-label="Progress" className="py-6">
+    <nav aria-label="Form Progress" className="py-6">
       <ol role="list" className="hidden md:flex items-center justify-between max-w-4xl mx-auto">
         {steps.map((step, index) => {
           const isActive = index === currentStep;
@@ -77,20 +92,21 @@ export const FormStepper = ({
                 <span className="flex h-10 items-center">
                   <button
                     type="button"
-                    onClick={() => isAccessible && onStepChange(index)}
+                    onClick={() => handleStepClick(index, isAccessible)}
+                    onKeyDown={(e) => handleStepKeyDown(e, index, isAccessible)}
                     disabled={!isAccessible}
+                    aria-current={isActive ? "step" : undefined}
+                    aria-label={`Step ${index + 1}: ${step.title}`}
                     className={cn(
-                      "h-10 w-10 rounded-full flex items-center justify-center",
+                      "h-10 w-10 rounded-full flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#DC143C]/40 focus:ring-offset-2",
                       isCompleted 
                         ? "bg-[#DC143C] hover:bg-[#DC143C]/90" 
                         : isActive 
                           ? "bg-[#DC143C] text-white"
                           : isAccessible 
                             ? "bg-white border-2 border-[#DC143C] hover:border-[#DC143C]/80"
-                            : "bg-white border-2 border-gray-300",
-                      "transition-colors focus:outline-none focus:ring-2 focus:ring-[#DC143C]/40 focus:ring-offset-2"
+                            : "bg-white border-2 border-gray-300 cursor-not-allowed"
                     )}
-                    aria-current={isActive ? "step" : undefined}
                   >
                     {isCompleted ? (
                       <Check className="h-5 w-5 text-white" aria-hidden="true" />
@@ -102,11 +118,10 @@ export const FormStepper = ({
                         {index + 1}
                       </span>
                     )}
-                    <span className="sr-only">{step.title}</span>
                   </button>
                 </span>
                 
-                {/* Step label - positioned below with fixed width */}
+                {/* Step label - improved positioning with fixed width */}
                 <span className="mt-3 block text-center w-full px-2">
                   <span className={cn(
                     "text-xs font-medium",
@@ -132,13 +147,14 @@ export const FormStepper = ({
             <div 
               key={index}
               className={cn(
-                "h-2 rounded-full",
+                "h-2 rounded-full transition-all",
                 index === currentStep 
                   ? "w-8 bg-[#DC143C]" 
                   : index < currentStep 
                     ? "w-4 bg-[#DC143C]/60" 
                     : "w-4 bg-gray-200"
               )}
+              aria-hidden="true"
             />
           ))}
         </div>

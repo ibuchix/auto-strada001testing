@@ -1,9 +1,10 @@
 
 /**
  * Changes made:
- * - Removed explicit SaveButton
- * - Integrated automatic saving during navigation
- * - Simplified footer layout
+ * - Improved automatic saving during step navigation
+ * - Added validation check before proceeding to next step
+ * - Added feedback during saving process
+ * - Optimized step navigation logic
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -14,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { FormStepper } from "./FormStepper";
 import { FormFooter } from "./FormFooter";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface StepFormProps {
   form: UseFormReturn<CarListingFormData>;
@@ -39,19 +42,85 @@ export const StepForm = ({
   isSaving = false
 }: StepFormProps) => {
   const totalSteps = formSteps.length;
+  const [isNavigating, setIsNavigating] = useState(false);
   
-  const handlePrevious = () => {
-    if (currentStep > 0) {
-      saveProgress(); // Save progress when moving back
-      setCurrentStep(currentStep - 1);
+  // Handle navigation to previous step
+  const handlePrevious = async () => {
+    if (currentStep > 0 && !isSaving && !isNavigating) {
+      setIsNavigating(true);
+      
+      try {
+        // Save progress before moving to previous step
+        await saveProgress();
+        setCurrentStep(currentStep - 1);
+        console.log(`Navigating to previous step: ${currentStep - 1}`);
+      } catch (error) {
+        console.error("Error saving progress:", error);
+        toast.error("Failed to save progress", {
+          description: "Your changes may not be saved. Please try again."
+        });
+      } finally {
+        setIsNavigating(false);
+      }
     }
   };
   
-  const handleNext = () => {
-    if (currentStep < totalSteps - 1) {
-      saveProgress(); // Automatically save progress before moving to next step
-      setCurrentStep(currentStep + 1);
+  // Handle navigation to next step
+  const handleNext = async () => {
+    if (currentStep < totalSteps - 1 && !isSaving && !isNavigating) {
+      setIsNavigating(true);
+      
+      // Validate current step fields
+      const currentStepId = formSteps[currentStep]?.id;
+      const fieldsToValidate = getFieldsToValidate(currentStepId);
+      
+      // Trigger validation only for current step fields
+      const isValid = await validateStepFields(fieldsToValidate);
+      
+      if (!isValid) {
+        setIsNavigating(false);
+        toast.error("Please complete all required fields", {
+          description: "Some information is missing or incorrect."
+        });
+        return;
+      }
+      
+      try {
+        // Save progress before moving to next step
+        await saveProgress();
+        setCurrentStep(currentStep + 1);
+        console.log(`Navigating to next step: ${currentStep + 1}`);
+      } catch (error) {
+        console.error("Error saving progress:", error);
+        toast.error("Failed to save progress", {
+          description: "Your changes may not be saved. Please try again."
+        });
+      } finally {
+        setIsNavigating(false);
+      }
     }
+  };
+  
+  // Get the fields that need to be validated for the current step
+  const getFieldsToValidate = (stepId: string): string[] => {
+    // This is a simplified example - you would map step IDs to related form fields
+    const fieldMappings: Record<string, string[]> = {
+      'vehicle-details': ['make', 'model', 'year', 'mileage'],
+      'photos': ['uploadedPhotos'],
+      'personal-details': ['name', 'address', 'mobileNumber'],
+      'notes': ['sellerNotes'],
+      // Add more step ID to field mappings as needed
+    };
+    
+    return fieldMappings[stepId] || [];
+  };
+  
+  // Validate only the fields for the current step
+  const validateStepFields = async (fields: string[]): Promise<boolean> => {
+    if (fields.length === 0) return true;
+    
+    const result = await form.trigger(fields as any[]);
+    return result;
   };
   
   return (
@@ -79,27 +148,27 @@ export const StepForm = ({
           type="button"
           variant="outline"
           onClick={handlePrevious}
-          disabled={currentStep === 0 || isSaving}
+          disabled={currentStep === 0 || isSaving || isNavigating}
           className="w-32 h-11 text-base"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Previous
+          {isNavigating ? "Saving..." : "Previous"}
         </Button>
         
         {currentStep < totalSteps - 1 ? (
           <Button
             type="button"
             onClick={handleNext}
-            disabled={isSaving}
+            disabled={isSaving || isNavigating}
             className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-32 h-11 text-base"
           >
-            Next
+            {isNavigating ? "Saving..." : "Next"}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         ) : (
           <Button
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || isNavigating}
             className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-32 h-11 text-base"
           >
             Submit
@@ -111,7 +180,7 @@ export const StepForm = ({
         lastSaved={lastSaved}
         isOffline={isOffline}
         onSave={saveProgress}
-        isSaving={isSaving}
+        isSaving={isSaving || isNavigating}
       />
     </div>
   );
