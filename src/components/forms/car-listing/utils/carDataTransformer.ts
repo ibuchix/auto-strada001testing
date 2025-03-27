@@ -14,15 +14,80 @@
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field has_documentation
  * - 2025-06-15: Removed references to non-existent field is_selling_on_behalf
+ * - 2025-06-16: Added dynamic field filtering to prevent database errors
  */
 
 import { CarListingFormData } from "@/types/forms";
+import { supabase } from "@/integrations/supabase/client";
+import { filterObjectByAllowedFields } from "@/utils/dataTransformers";
 
-export const prepareCarData = (
+// Cache for column names
+let carColumnsCache: string[] | null = null;
+
+// List of known valid car table fields as fallback
+const KNOWN_CAR_FIELDS = [
+  'seller_id',
+  'seller_name',
+  'name',
+  'address',
+  'mobile_number',
+  'features',
+  'is_damaged',
+  'is_registered_in_poland',
+  // 'is_selling_on_behalf' - removed as it doesn't exist in database
+  'has_private_plate',
+  'finance_amount',
+  'service_history_type',
+  'seller_notes',
+  'seat_material',
+  'number_of_keys',
+  'is_draft',
+  'last_saved',
+  'mileage',
+  'price',
+  'title',
+  'vin',
+  'transmission',
+  'additional_photos',
+  'make',
+  'model',
+  'year',
+  'valuation_data'
+];
+
+/**
+ * Fetches and caches the actual column names from the cars table
+ */
+const getCarColumns = async (): Promise<string[]> => {
+  // Return cached result if available
+  if (carColumnsCache) {
+    return carColumnsCache;
+  }
+  
+  try {
+    const { data, error } = await supabase.rpc('get_table_columns', {
+      p_table_name: 'cars'
+    });
+    
+    if (error) {
+      console.error('Error fetching car table columns:', error);
+      return KNOWN_CAR_FIELDS;
+    }
+    
+    // Extract and cache column names
+    carColumnsCache = data.map(col => col.column_name);
+    return carColumnsCache;
+  } catch (error) {
+    console.error('Error in getCarColumns:', error);
+    return KNOWN_CAR_FIELDS;
+  }
+};
+
+export const prepareCarData = async (
   data: CarListingFormData,
   valuationData: any,
   userId: string
-): any => {
+): Promise<any> => {
   // More thorough validation of valuationData
   if (!valuationData) {
     throw new Error("Valuation data is missing. Please complete the vehicle valuation first.");
@@ -82,7 +147,8 @@ export const prepareCarData = (
   // Use either valuation or averagePrice, whichever is available
   const price = valuationData.valuation || valuationData.averagePrice || 0;
 
-  return {
+  // Create the initial car data object
+  const carData = {
     seller_id: userId,
     title,
     // Send both name and seller_name for maximum compatibility with both fields
@@ -111,4 +177,24 @@ export const prepareCarData = (
     is_draft: true,
     additional_photos: data.uploadedPhotos || []
   };
+
+  try {
+    // Get actual database columns
+    const columns = await getCarColumns();
+    
+    // Filter the data to only include fields that exist in the database
+    const filteredData = filterObjectByAllowedFields(carData, columns);
+    
+    console.log('Filtered car data for database compatibility:', {
+      ...filteredData,
+      valuation_data: '[omitted for log clarity]'
+    });
+    
+    return filteredData;
+  } catch (error) {
+    console.error('Error filtering car data:', error);
+    
+    // Fallback to hardcoded field filtering
+    return filterObjectByAllowedFields(carData, KNOWN_CAR_FIELDS);
+  }
 };

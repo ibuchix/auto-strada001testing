@@ -18,6 +18,7 @@
  * - 2025-07-24: Enhanced boolean field handling to ensure proper type conversion
  * - 2027-11-05: Added detailed schema validation logging and timing metrics
  * - 2027-11-06: Removed references to non-existent field is_selling_on_behalf
+ * - 2027-11-07: Added dynamic field filtering to avoid database errors
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -25,6 +26,72 @@ import { calculateReservePrice } from "./reservePriceCalculator";
 import { supabase } from "@/integrations/supabase/client";
 import { validateMileageData } from "./validationHandler";
 import { validateFormSchema } from "@/utils/validation/schemaValidation";
+import { filterObjectByAllowedFields } from "@/utils/dataTransformers";
+
+// List of known valid car table fields
+const VALID_CAR_FIELDS = [
+  'id',
+  'seller_id',
+  'name',
+  'seller_name',
+  'address',
+  'mobile_number',
+  'features',
+  'is_damaged',
+  'is_registered_in_poland',
+  // 'is_selling_on_behalf' - removed as it doesn't exist in database
+  'has_private_plate',
+  'finance_amount',
+  'service_history_type',
+  'seller_notes',
+  'seat_material',
+  'number_of_keys',
+  'is_draft',
+  'last_saved',
+  'mileage',
+  'price',
+  'title',
+  'vin',
+  'transmission',
+  'additional_photos',
+  'form_metadata',
+  'make',
+  'model',
+  'year',
+  'valuation_data',
+  'reserve_price'
+];
+
+// Cache the database schema to avoid repeated queries
+let columnNamesCache: string[] | null = null;
+
+/**
+ * Get actual database columns from Supabase
+ */
+const getCarTableColumns = async (): Promise<string[]> => {
+  // Return cached columns if available
+  if (columnNamesCache) {
+    return columnNamesCache;
+  }
+  
+  try {
+    const { data, error } = await supabase.rpc('get_table_columns', {
+      p_table_name: 'cars'
+    });
+    
+    if (error) {
+      console.error('Error fetching table columns:', error);
+      return VALID_CAR_FIELDS; // Fallback to hardcoded list
+    }
+    
+    // Extract column names and cache them
+    columnNamesCache = data.map(col => col.column_name);
+    return columnNamesCache;
+  } catch (error) {
+    console.error('Error in getCarTableColumns:', error);
+    return VALID_CAR_FIELDS; // Fallback to hardcoded list
+  }
+};
 
 /**
  * Safely converts values to appropriate types to avoid database casting errors
@@ -153,28 +220,51 @@ export const prepareCarDataForSubmission = async (
     valuation_data: '[omitted for log clarity]'
   });
 
-  // Validate against schema before submitting - only in development
   try {
-    console.log('Starting schema validation...');
-    const validationStartTime = performance.now();
-    const schemaIssues = await validateFormSchema(carData, 'cars');
-    const validationEndTime = performance.now();
+    // Get actual database columns to filter out non-existent fields
+    const dbColumns = await getCarTableColumns();
     
-    console.log(`Schema validation completed in ${(validationEndTime - validationStartTime).toFixed(2)}ms`);
+    // Filter the data to only include fields that exist in the database
+    const filteredData = filterObjectByAllowedFields(carData, dbColumns);
     
-    if (schemaIssues.length > 0) {
-      console.warn('Schema validation issues detected:', schemaIssues);
-    } else {
-      console.log('Schema validation passed successfully');
-    }
-  } catch (error) {
-    console.warn('Schema validation failed but continuing with submission:', error);
-    // We don't throw here as this is a development-only check
-    // and we want the submission to proceed in production
-  }
+    console.log('Filtered car data for submission:', {
+      ...filteredData,
+      valuation_data: '[omitted for log clarity]'
+    });
 
-  const endTime = performance.now();
-  console.log(`Car data preparation completed in ${(endTime - startTime).toFixed(2)}ms`);
-  
-  return carData;
+    // Validate against schema before submitting - only in development
+    try {
+      console.log('Starting schema validation...');
+      const validationStartTime = performance.now();
+      const schemaIssues = await validateFormSchema(filteredData, 'cars');
+      const validationEndTime = performance.now();
+      
+      console.log(`Schema validation completed in ${(validationEndTime - validationStartTime).toFixed(2)}ms`);
+      
+      if (schemaIssues.length > 0) {
+        console.warn('Schema validation issues detected:', schemaIssues);
+      } else {
+        console.log('Schema validation passed successfully');
+      }
+    } catch (error) {
+      console.warn('Schema validation failed but continuing with submission:', error);
+      // We don't throw here as this is a development-only check
+      // and we want the submission to proceed in production
+    }
+
+    const endTime = performance.now();
+    console.log(`Car data preparation completed in ${(endTime - startTime).toFixed(2)}ms`);
+    
+    return filteredData;
+  } catch (error) {
+    console.error('Error filtering car data:', error);
+    
+    // Fallback to hardcoded field filtering
+    const fallbackFilteredData = filterObjectByAllowedFields(carData, VALID_CAR_FIELDS);
+    
+    const endTime = performance.now();
+    console.log(`Car data preparation completed with fallback in ${(endTime - startTime).toFixed(2)}ms`);
+    
+    return fallbackFilteredData;
+  }
 };

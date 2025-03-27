@@ -17,10 +17,13 @@
  * - 2025-06-10: Added schema validation to catch field mismatches
  * - 2025-06-15: Removed defaultCarFeatures dependency
  * - 2025-06-15: Removed references to non-existent field is_selling_on_behalf
+ * - 2025-06-16: Added field existence checking to avoid database errors
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { Json } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
+import { filterObjectByAllowedFields } from "@/utils/dataTransformers";
 
 // Default car features definition
 const defaultCarFeatures = {
@@ -31,7 +34,75 @@ const defaultCarFeatures = {
   upgradedSound: false
 };
 
-export const transformFormToDbData = (formData: CarListingFormData, userId: string): any => {
+// List of known valid car table fields for safer data transformation
+const VALID_CAR_FIELDS = [
+  'seller_id',
+  'name',
+  'seller_name',
+  'address',
+  'mobile_number',
+  'features',
+  'is_damaged',
+  'is_registered_in_poland',
+  // 'is_selling_on_behalf' - removed as it doesn't exist in database
+  'has_private_plate',
+  'finance_amount',
+  'service_history_type',
+  'seller_notes',
+  'seat_material',
+  'number_of_keys',
+  'is_draft',
+  'last_saved',
+  'mileage',
+  'price',
+  'title',
+  'vin',
+  'transmission',
+  'additional_photos',
+  'form_metadata',
+  'make',
+  'model',
+  'year',
+  'valuation_data'
+];
+
+// Cache for database schema to avoid repeated queries
+let dbSchemaCache: {[table: string]: string[]} = {};
+
+/**
+ * Dynamically fetch table column names from the database
+ * This is a more reliable way to check field existence
+ */
+const getTableColumns = async (tableName: string): Promise<string[]> => {
+  // Return from cache if available
+  if (dbSchemaCache[tableName]) {
+    return dbSchemaCache[tableName];
+  }
+  
+  try {
+    const { data, error } = await supabase.rpc('get_table_columns', {
+      p_table_name: tableName
+    });
+    
+    if (error) {
+      console.error('Error fetching table columns:', error);
+      return VALID_CAR_FIELDS; // Fallback to hardcoded fields
+    }
+    
+    // Extract column names from the result
+    const columnNames = data.map(col => col.column_name);
+    
+    // Cache the result
+    dbSchemaCache[tableName] = columnNames;
+    
+    return columnNames;
+  } catch (error) {
+    console.error('Error in getTableColumns:', error);
+    return VALID_CAR_FIELDS; // Fallback to hardcoded fields
+  }
+};
+
+export const transformFormToDbData = async (formData: CarListingFormData, userId: string): Promise<any> => {
   // Safely retrieve data from localStorage with fallbacks
   let valuationData: Record<string, any> = {};
   let mileage = 0;
@@ -67,7 +138,8 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
             : 0)) 
     : 0;
 
-  return {
+  // Create initial data object with all possible fields
+  const initialData = {
     seller_id: userId,
     // Include both name and seller_name fields for maximum compatibility
     name: formData.name, // For compatibility with code expecting name field
@@ -97,6 +169,23 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
       last_updated: new Date().toISOString()
     } as Json
   };
+
+  try {
+    // Dynamically get actual database columns - this is safer than hardcoded lists
+    const dbColumns = await getTableColumns('cars');
+    
+    // Filter data to only include fields that exist in the database
+    const filteredData = filterObjectByAllowedFields(initialData, dbColumns);
+    
+    console.log('Filtered data for database compatibility', filteredData);
+    
+    return filteredData;
+  } catch (error) {
+    console.error('Error filtering data:', error);
+    
+    // Fallback to hardcoded list if dynamic check fails
+    return filterObjectByAllowedFields(initialData, VALID_CAR_FIELDS);
+  }
 };
 
 export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> => {
