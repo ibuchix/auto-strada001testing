@@ -1,11 +1,8 @@
-
 /**
  * Changes made:
- * - Fixed step labels overlapping by improving spacing and alignment
- * - Added fixed width containers for each step label
- * - Improved title positioning with better spacing
- * - Enhanced mobile responsive design
- * - Fixed visual hierarchy for active/completed steps
+ * - Further reduced step label width to prevent any potential overlap
+ * - Ensured correct step highlighting based on current step
+ * - Improved text truncation and positioning
  */
 
 import { useCallback } from 'react';
@@ -31,7 +28,6 @@ export const FormStepper = ({
   onStepChange,
   visibleSections = []
 }: FormStepperProps) => {
-  // Determine if a step is accessible based on visible sections
   const isStepAccessible = useCallback((stepId: string) => {
     return visibleSections.includes(stepId);
   }, [visibleSections]);
@@ -49,7 +45,6 @@ export const FormStepper = ({
               "relative flex flex-col items-center",
               index !== steps.length - 1 ? "flex-1" : ""
             )}>
-              {/* Step Connector Line */}
               {index !== steps.length - 1 && (
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
                   <div className={cn(
@@ -92,8 +87,7 @@ export const FormStepper = ({
                   <span className="sr-only">{step.title}</span>
                 </button>
                 
-                {/* Step Title - Fixed positioning and width to prevent overlap */}
-                <div className="absolute top-14 w-24 text-center mx-auto">
+                <div className="absolute top-14 w-20 text-center mx-auto">
                   <span 
                     className={cn(
                       "text-xs font-medium block truncate",
@@ -115,7 +109,6 @@ export const FormStepper = ({
         })}
       </ol>
       
-      {/* Mobile Stepper - Simplified for smaller screens */}
       <div className="md:hidden flex flex-col items-center">
         <div className="flex items-center space-x-2 mb-4">
           {steps.map((_, index) => (
