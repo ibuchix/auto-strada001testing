@@ -1,11 +1,12 @@
 
 /**
  * Changes made:
- * - Removed diagnostic-related code
+ * - Added loading prop to indicate when form is saving
+ * - Added visual feedback when next button is clicked
  */
 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 
 interface MultiStepFormControlsProps {
   currentStep: number;
@@ -15,6 +16,7 @@ interface MultiStepFormControlsProps {
   onSubmit: () => void;
   isSubmitting: boolean;
   isLastStep: boolean;
+  isSaving?: boolean;
 }
 
 export const MultiStepFormControls = ({
@@ -24,7 +26,8 @@ export const MultiStepFormControls = ({
   onNext,
   onSubmit,
   isSubmitting,
-  isLastStep
+  isLastStep,
+  isSaving = false
 }: MultiStepFormControlsProps) => {
   return (
     <div className="flex justify-between mt-8">
@@ -32,7 +35,7 @@ export const MultiStepFormControls = ({
         type="button"
         variant="outline"
         onClick={onPrevious}
-        disabled={currentStep === 0 || isSubmitting}
+        disabled={currentStep === 0 || isSubmitting || isSaving}
         className="flex items-center"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -52,11 +55,20 @@ export const MultiStepFormControls = ({
         <Button
           type="button"
           onClick={onNext}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isSaving}
           className="flex items-center"
         >
-          Next
-          <ArrowRight className="ml-2 h-4 w-4" />
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              Next
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </>
+          )}
         </Button>
       )}
     </div>
