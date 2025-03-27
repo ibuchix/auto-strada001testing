@@ -3,6 +3,7 @@
  * Changes made:
  * - Added loading prop to indicate when form is saving
  * - Added visual feedback when next button is clicked
+ * - Corrected submit button logic to only show on final step
  */
 
 import { Button } from "@/components/ui/button";

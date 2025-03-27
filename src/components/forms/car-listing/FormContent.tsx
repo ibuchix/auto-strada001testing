@@ -1,3 +1,4 @@
+
 import { useRef, useState, useEffect } from "react";
 import { Form } from "@/components/ui/form";
 import { StepForm } from "./StepForm";
@@ -11,6 +12,9 @@ import { useFormPersistence } from "./hooks/useFormPersistence";
 import { FormDataProvider } from "./context/FormDataContext";
 import { useSectionsVisibility } from "./hooks/useSectionsVisibility";
 import { CarListingFormData } from "@/types/forms";
+import { formSteps } from "./constants/formSteps";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 interface FormContentProps {
   session: any;
@@ -146,6 +150,8 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     return <div className="p-8 text-center">Loading form...</div>;
   }
 
+  const isLastStep = currentStep === formSteps.length - 1;
+
   return (
     <FormDataProvider form={form as any}>
       <Form {...form}>
@@ -176,12 +182,24 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
             />
           </div>
           
-          <FormSubmitButton
-            isSubmitting={isSubmitting}
-            transactionStatus={transactionStatus}
-            onRetry={resetTransaction}
-            formData={form.getValues()}
-          />
+          {isLastStep && (
+            <div className="mt-8">
+              <Button
+                type="submit"
+                className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-full md:w-auto float-right"
+                disabled={isSubmitting || transactionStatus === 'PENDING'}
+              >
+                {isSubmitting || transactionStatus === 'PENDING' ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Listing'
+                )}
+              </Button>
+            </div>
+          )}
         </form>
       </Form>
     </FormDataProvider>
