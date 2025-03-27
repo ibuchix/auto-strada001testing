@@ -1,12 +1,11 @@
 
 /**
  * Changes made:
- * - Fixed step indicator spacing to prevent overlapping
- * - Improved mobile responsiveness
- * - Added proper spacing between step indicators
- * - Fixed subtitle positioning and alignment
- * - Improved visual hierarchy for active/completed steps
- * - Enhanced button accessibility with proper focus states
+ * - Fixed step labels overlapping by improving spacing and alignment
+ * - Added fixed width containers for each step label
+ * - Improved title positioning with better spacing
+ * - Enhanced mobile responsive design
+ * - Fixed visual hierarchy for active/completed steps
  */
 
 import { useCallback } from 'react';
@@ -47,7 +46,7 @@ export const FormStepper = ({
           
           return (
             <li key={step.id} className={cn(
-              "relative",
+              "relative flex flex-col items-center",
               index !== steps.length - 1 ? "flex-1" : ""
             )}>
               {/* Step Connector Line */}
@@ -93,11 +92,11 @@ export const FormStepper = ({
                   <span className="sr-only">{step.title}</span>
                 </button>
                 
-                {/* Step Title */}
-                <div className="absolute top-14 w-32 text-center">
+                {/* Step Title - Fixed positioning and width to prevent overlap */}
+                <div className="absolute top-14 w-24 text-center mx-auto">
                   <span 
                     className={cn(
-                      "text-sm font-medium whitespace-normal",
+                      "text-xs font-medium block truncate",
                       isActive ? "text-[#DC143C] font-semibold" : 
                       isCompleted ? "text-gray-900" : "text-gray-500"
                     )}
@@ -105,7 +104,7 @@ export const FormStepper = ({
                     {step.title}
                   </span>
                   {step.description && (
-                    <p className="text-xs text-gray-500 mt-1 whitespace-normal">
+                    <p className="text-xs text-gray-500 mt-1 hidden">
                       {step.description}
                     </p>
                   )}
