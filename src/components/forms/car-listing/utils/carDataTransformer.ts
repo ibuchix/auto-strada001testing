@@ -16,13 +16,13 @@
  * - 2025-06-16: Added dynamic field filtering to prevent database errors
  * - 2025-06-17: Fixed return type to be synchronous instead of Promise
  * - 2025-08-19: Updated to use toStringValue utility function
- * - Fixed type conversion issues
+ * - 2025-08-20: Fixed type conversion issues with financeAmount
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { filterObjectByAllowedFields } from "@/utils/dataTransformers";
-import { toStringValue } from "@/utils/typeConversion";
+import { toStringValue, toNumberValue } from "@/utils/typeConversion";
 
 // Cache for column names
 let carColumnsCache: string[] | null = null;
@@ -167,7 +167,7 @@ export const prepareCarData = (
     seat_material: data.seatMaterial,
     number_of_keys: parseInt(data.numberOfKeys),
     has_private_plate: data.hasPrivatePlate,
-    finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
+    finance_amount: data.financeAmount ? toNumberValue(data.financeAmount) : null,
     service_history_type: data.serviceHistoryType,
     seller_notes: data.sellerNotes,
     make: valuationData.make,
@@ -249,7 +249,7 @@ export const transformCarData = (data: CarListingFormData) => {
     seat_material: data.seatMaterial,
     number_of_keys: parseInt(data.numberOfKeys),
     has_private_plate: data.hasPrivatePlate,
-    finance_amount: toStringValue(data.financeAmount),
+    finance_amount: toNumberValue(data.financeAmount),
     service_history_type: data.serviceHistoryType,
     seller_notes: data.sellerNotes,
     make: data.make,

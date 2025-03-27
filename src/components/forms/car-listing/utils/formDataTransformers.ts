@@ -18,14 +18,14 @@
  * - 2025-06-15: Removed references to non-existent field is_selling_on_behalf
  * - 2025-06-16: Added field existence checking to avoid database errors
  * - 2025-08-19: Updated to use toStringValue utility function
- * - Fixed type conversion issues
+ * - 2025-08-20: Fixed type conversion issues with financeAmount
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { filterObjectByAllowedFields } from "@/utils/dataTransformers";
-import { toStringValue } from "@/utils/typeConversion";
+import { toStringValue, toNumberValue } from "@/utils/typeConversion";
 
 // Default car features definition
 const defaultCarFeatures = {
@@ -46,7 +46,6 @@ const VALID_CAR_FIELDS = [
   'features',
   'is_damaged',
   'is_registered_in_poland',
-  // 'is_selling_on_behalf' - removed as it doesn't exist in database
   'has_private_plate',
   'finance_amount',
   'service_history_type',
@@ -151,9 +150,8 @@ export const transformFormToDbData = async (formData: CarListingFormData, userId
     features: formData.features as unknown as Json,
     is_damaged: formData.isDamaged,
     is_registered_in_poland: formData.isRegisteredInPoland,
-    // REMOVED: is_selling_on_behalf field - it doesn't exist in database
     has_private_plate: formData.hasPrivatePlate,
-    finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
+    finance_amount: formData.financeAmount ? toNumberValue(formData.financeAmount) : null,
     service_history_type: formData.serviceHistoryType,
     seller_notes: formData.sellerNotes,
     seat_material: formData.seatMaterial,
@@ -209,7 +207,6 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
     features: dbData.features ? { ...defaultCarFeatures, ...dbData.features as Record<string, boolean> } : defaultCarFeatures,
     isDamaged: dbData.is_damaged || false,
     isRegisteredInPoland: dbData.is_registered_in_poland || false,
-    // REMOVED: isSellingOnBehalf field - not in database
     hasPrivatePlate: dbData.has_private_plate || false,
     financeAmount: toStringValue(dbData.finance_amount),
     serviceHistoryType: dbData.service_history_type || "none",
