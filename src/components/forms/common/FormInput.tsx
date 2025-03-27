@@ -1,7 +1,10 @@
 
 /**
  * Changes made:
- * - 2024-08-20: Created reusable form input with validation
+ * - Enhanced input styles with better visual feedback
+ * - Added proper focus and error states
+ * - Improved required field indicators
+ * - Better label/input spacing and sizing
  */
 
 import { Input } from "@/components/ui/input";
@@ -50,10 +53,10 @@ export const FormInput = ({
         required: required ? `${label || name} is required` : false,
         validate: validate
       }}
-      render={({ field }) => (
-        <FormItem>
+      render={({ field, fieldState }) => (
+        <FormItem className="space-y-2 mb-4">
           {label && (
-            <FormLabel className="flex items-center">
+            <FormLabel className="flex items-center text-base font-medium text-body">
               {label}
               {required && <span className="text-[#DC143C] ml-1">*</span>}
             </FormLabel>
@@ -63,9 +66,11 @@ export const FormInput = ({
               {...field}
               placeholder={placeholder}
               type={type}
-              className={`border-secondary/20 focus-visible:ring-[#4B4DED] ${className} ${
-                isFocused ? "border-[#4B4DED]" : ""
-              }`}
+              className={`h-12 px-4 text-base border rounded-md 
+                ${fieldState.invalid ? "border-[#DC143C] focus-visible:ring-[#DC143C]/10" : 
+                isFocused ? "border-[#4B4DED] focus-visible:ring-[#4B4DED]/10" : 
+                "border-gray-300"}
+                ${className}`}
               disabled={disabled}
               autoComplete={autoComplete}
               onFocus={() => setIsFocused(true)}
@@ -78,7 +83,7 @@ export const FormInput = ({
               pattern={pattern}
             />
           </FormControl>
-          <FormMessage className="text-[#DC143C]" />
+          <FormMessage className="text-[#DC143C] text-sm font-medium" />
         </FormItem>
       )}
     />

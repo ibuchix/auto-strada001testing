@@ -3,9 +3,11 @@
  * Changes made:
  * - Fixed props interface to match the expected props from FormContent
  * - Updated visibleSections prop usage to match the new structure
- * - Removed formErrors prop as it's no longer needed
- * - Added isSaving prop to show saving state in UI
- * - Improved saving state display
+ * - Improved button styling and layout for better visual hierarchy
+ * - Added proper spacing between form elements
+ * - Enhanced save button and progress indicator visibility
+ * - Improved mobile responsiveness
+ * - Added consistent button styling with proper spacing
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -15,7 +17,7 @@ import { FormSections } from "./FormSections";
 import { Button } from "@/components/ui/button";
 import { FormStepper } from "./FormStepper";
 import { FormFooter } from "./FormFooter";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { SaveButton } from "./SaveButton";
 
 interface StepFormProps {
@@ -58,8 +60,8 @@ export const StepForm = ({
   };
   
   return (
-    <div className="space-y-10">
-      <div className="mb-8">
+    <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6">
+      <div className="mb-10">
         <FormStepper 
           steps={formSteps} 
           currentStep={currentStep} 
@@ -68,7 +70,7 @@ export const StepForm = ({
         />
       </div>
       
-      <div className="form-container min-h-[400px]">
+      <div className="form-container min-h-[400px] mb-10">
         <FormSections 
           form={form} 
           currentStep={currentStep}
@@ -77,14 +79,15 @@ export const StepForm = ({
         />
       </div>
       
-      <div className="flex justify-between items-center mt-8">
+      <div className="flex justify-between items-center mt-12 border-t pt-6">
         <Button
           type="button"
           variant="outline"
           onClick={handlePrevious}
           disabled={currentStep === 0 || isSaving}
-          className="w-28"
+          className="w-32 h-11 text-base"
         >
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Previous
         </Button>
         
@@ -92,18 +95,27 @@ export const StepForm = ({
           <SaveButton 
             onClick={saveProgress} 
             isSaving={isSaving}
-            className="mx-2"
+            className="mx-2 h-11 text-base"
           />
         </div>
         
-        {currentStep < totalSteps - 1 && (
+        {currentStep < totalSteps - 1 ? (
           <Button
             type="button"
             onClick={handleNext}
             disabled={isSaving}
-            className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-28"
+            className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-32 h-11 text-base"
           >
             Next
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            disabled={isSaving}
+            className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-32 h-11 text-base"
+          >
+            Submit
           </Button>
         )}
       </div>

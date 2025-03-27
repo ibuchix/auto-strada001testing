@@ -1,13 +1,16 @@
 
 /**
- * New component:
- * - Created FormStepper component for step navigation
- * - Added support for visible sections tracking
- * - Implemented flexible step navigation interface
+ * Changes made:
+ * - Fixed step indicator spacing to prevent overlapping
+ * - Improved mobile responsiveness
+ * - Added proper spacing between step indicators
+ * - Fixed subtitle positioning and alignment
+ * - Improved visual hierarchy for active/completed steps
+ * - Enhanced button accessibility with proper focus states
  */
 
 import { useCallback } from 'react';
-import { Check, Circle } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface Step {
@@ -35,8 +38,8 @@ export const FormStepper = ({
   }, [visibleSections]);
 
   return (
-    <nav aria-label="Progress">
-      <ol role="list" className="flex items-center">
+    <nav aria-label="Progress" className="py-6">
+      <ol role="list" className="hidden md:flex items-center justify-between">
         {steps.map((step, index) => {
           const isActive = index === currentStep;
           const isCompleted = index < currentStep;
@@ -44,10 +47,10 @@ export const FormStepper = ({
           
           return (
             <li key={step.id} className={cn(
-              "relative flex-1",
-              index !== steps.length - 1 ? "pr-8 sm:pr-20" : ""
+              "relative",
+              index !== steps.length - 1 ? "flex-1" : ""
             )}>
-              {/* Step Connector */}
+              {/* Step Connector Line */}
               {index !== steps.length - 1 && (
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
                   <div className={cn(
@@ -57,55 +60,83 @@ export const FormStepper = ({
                 </div>
               )}
               
-              <button
-                type="button"
-                onClick={() => isAccessible && onStepChange(index)}
-                disabled={!isAccessible}
-                className={cn(
-                  "relative flex h-8 w-8 items-center justify-center rounded-full",
-                  isCompleted 
-                    ? "bg-[#DC143C] hover:bg-[#DC143C]/90" 
-                    : isActive 
-                      ? "bg-[#DC143C] text-white"
-                      : isAccessible 
-                        ? "bg-white border-2 border-[#DC143C] hover:border-[#DC143C]/80"
-                        : "bg-white border-2 border-gray-300",
-                  "transition-colors focus:outline-none focus:ring-2 focus:ring-[#DC143C]/40 focus:ring-offset-2"
-                )}
-              >
-                {isCompleted ? (
-                  <Check className="h-5 w-5 text-white" aria-hidden="true" />
-                ) : (
+              <div className="relative flex flex-col items-center group">
+                <button
+                  type="button"
+                  onClick={() => isAccessible && onStepChange(index)}
+                  disabled={!isAccessible}
+                  className={cn(
+                    "relative flex h-10 w-10 items-center justify-center rounded-full",
+                    isCompleted 
+                      ? "bg-[#DC143C] hover:bg-[#DC143C]/90" 
+                      : isActive 
+                        ? "bg-[#DC143C] text-white"
+                        : isAccessible 
+                          ? "bg-white border-2 border-[#DC143C] hover:border-[#DC143C]/80"
+                          : "bg-white border-2 border-gray-300",
+                    "transition-colors focus:outline-none focus:ring-2 focus:ring-[#DC143C]/40 focus:ring-offset-2 z-10"
+                  )}
+                  aria-current={isActive ? "step" : undefined}
+                >
+                  {isCompleted ? (
+                    <Check className="h-5 w-5 text-white" aria-hidden="true" />
+                  ) : (
+                    <span 
+                      className={cn(
+                        "text-sm font-semibold", 
+                        isActive ? "text-white" : isAccessible ? "text-[#DC143C]" : "text-gray-500"
+                      )}
+                    >
+                      {index + 1}
+                    </span>
+                  )}
+                  <span className="sr-only">{step.title}</span>
+                </button>
+                
+                {/* Step Title */}
+                <div className="absolute top-14 w-32 text-center">
                   <span 
                     className={cn(
-                      "text-sm font-semibold", 
-                      isActive ? "text-white" : isAccessible ? "text-[#DC143C]" : "text-gray-500"
+                      "text-sm font-medium whitespace-normal",
+                      isActive ? "text-[#DC143C] font-semibold" : 
+                      isCompleted ? "text-gray-900" : "text-gray-500"
                     )}
                   >
-                    {index + 1}
+                    {step.title}
                   </span>
-                )}
-                <span className="sr-only">{step.title}</span>
-              </button>
-              
-              {/* Step Title */}
-              <div className="hidden absolute top-10 sm:flex sm:flex-col sm:items-center w-max transform -translate-x-1/2 left-1/2">
-                <span 
-                  className={cn(
-                    "text-sm font-medium",
-                    isActive ? "text-[#DC143C]" : isCompleted ? "text-gray-900" : "text-gray-500"
+                  {step.description && (
+                    <p className="text-xs text-gray-500 mt-1 whitespace-normal">
+                      {step.description}
+                    </p>
                   )}
-                >
-                  {step.title}
-                </span>
-                {step.description && (
-                  <span className="text-xs text-gray-500">{step.description}</span>
-                )}
+                </div>
               </div>
             </li>
           );
         })}
       </ol>
+      
+      {/* Mobile Stepper - Simplified for smaller screens */}
+      <div className="md:hidden flex flex-col items-center">
+        <div className="flex items-center space-x-2 mb-4">
+          {steps.map((_, index) => (
+            <div 
+              key={index}
+              className={cn(
+                "h-2 rounded-full",
+                index === currentStep 
+                  ? "w-8 bg-[#DC143C]" 
+                  : index < currentStep 
+                    ? "w-4 bg-[#DC143C]/60" 
+                    : "w-4 bg-gray-200"
+              )}
+            />
+          ))}
+        </div>
+        <p className="text-sm font-medium text-center">
+          Step {currentStep + 1} of {steps.length}: <span className="text-[#DC143C]">{steps[currentStep]?.title}</span>
+        </p>
+      </div>
     </nav>
   );
 };
