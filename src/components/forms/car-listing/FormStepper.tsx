@@ -5,6 +5,7 @@
  * - Improved step label positioning to eliminate text overlap
  * - Added better handling of step states based on accessibilty
  * - Enhanced responsive design for mobile view
+ * - Updated Step interface to include sections property
  */
 
 import { useCallback } from 'react';
@@ -15,6 +16,7 @@ export interface Step {
   id: string;
   title: string;
   description?: string;
+  sections?: string[]; // Added sections property to fix TypeScript errors
 }
 
 interface FormStepperProps {
