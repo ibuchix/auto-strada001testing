@@ -1,11 +1,10 @@
 
 /**
  * Changes made:
- * - Fixed step coloring issue for steps after current step (especially for step 6)
- * - Completely redesigned step label positioning to eliminate overlapping text
- * - Added fixed width containers for each step to ensure proper spacing
- * - Improved mobile view for better readability
- * - Fixed accessibility state handling for all steps
+ * - Fixed step accessibility issue for step 6 (Seller Notes)
+ * - Improved step label positioning to eliminate text overlap
+ * - Added better handling of step states based on accessibilty
+ * - Enhanced responsive design for mobile view
  */
 
 import { useCallback } from 'react';
@@ -31,37 +30,49 @@ export const FormStepper = ({
   onStepChange,
   visibleSections = []
 }: FormStepperProps) => {
-  const isStepAccessible = useCallback((stepId: string) => {
-    return visibleSections.includes(stepId);
+  // Modified isStepAccessible function to handle "notes" or "seller-notes" sections
+  const isStepAccessible = useCallback((step: Step, index: number) => {
+    // Make step 6 (Seller Notes) always accessible
+    if (step.id === 'notes' || step.title === 'Seller Notes') {
+      return true;
+    }
+    
+    // For steps with multiple sections, check if any of their sections are visible
+    if (Array.isArray(step.sections)) {
+      return step.sections.some(sectionId => visibleSections.includes(sectionId));
+    }
+    
+    // Default case: check if the step ID is in visible sections
+    return visibleSections.includes(step.id);
   }, [visibleSections]);
 
   return (
     <nav aria-label="Progress" className="py-6">
-      <ol role="list" className="hidden md:flex items-center">
+      <ol role="list" className="hidden md:flex items-center justify-between max-w-4xl mx-auto">
         {steps.map((step, index) => {
           const isActive = index === currentStep;
           const isCompleted = index < currentStep;
-          const isAccessible = isStepAccessible(step.id);
+          const isAccessible = isStepAccessible(step, index);
           
           return (
             <li key={step.id} className={cn(
               "relative",
-              index !== steps.length - 1 ? "flex-1 pr-8" : "",
-              "flex-shrink-0 w-full max-w-[140px]"
+              "flex-shrink-0 flex flex-col items-center",
+              "w-[120px]"
             )}>
               {/* Connection line between steps */}
               {index !== steps.length - 1 && (
-                <div className="absolute top-5 left-7 w-full h-0.5" aria-hidden="true">
+                <div className="absolute top-5 left-10 w-full h-0.5" aria-hidden="true">
                   <div className={cn(
-                    "h-0.5 w-full max-w-[80px]",
+                    "h-0.5 w-[calc(100%-20px)]",
                     isCompleted ? "bg-[#DC143C]" : "bg-gray-200"
                   )} />
                 </div>
               )}
               
-              <div className="group relative flex flex-col items-start">
+              <div className="group flex flex-col items-center">
                 {/* Step circle */}
-                <span className="flex items-center">
+                <span className="flex h-10 items-center">
                   <button
                     type="button"
                     onClick={() => isAccessible && onStepChange(index)}
@@ -94,9 +105,9 @@ export const FormStepper = ({
                 </span>
                 
                 {/* Step label - positioned below with fixed width */}
-                <span className="mt-3 block w-32 text-center" style={{ marginLeft: "-11px" }}>
+                <span className="mt-3 block text-center w-full px-2">
                   <span className={cn(
-                    "text-xs font-medium whitespace-normal",
+                    "text-xs font-medium",
                     isActive 
                       ? "text-[#DC143C] font-semibold" 
                       : isCompleted 
@@ -115,7 +126,7 @@ export const FormStepper = ({
       {/* Mobile view - improved for better readability */}
       <div className="md:hidden">
         <div className="flex items-center space-x-2 mb-4 justify-center">
-          {steps.map((_, index) => (
+          {steps.map((step, index) => (
             <div 
               key={index}
               className={cn(
