@@ -1,8 +1,9 @@
-
 /**
  * Validation utilities for form submission
  */
 import { toast } from "sonner";
+import { validateVIN, validateCarForm } from "@/validation/carListing";
+import { CarListingFormData } from "@/types/forms";
 
 /**
  * Validate that valuation data exists in localStorage
@@ -113,4 +114,56 @@ export const getValuationData = () => {
     console.error('Error parsing valuation data:', error);
     return null;
   }
+};
+
+/**
+ * Validate the complete car listing form before submission
+ * @param formData The car listing form data to validate
+ * @returns True if form is valid, false otherwise
+ * @throws Error with validation message if validation fails critically
+ */
+export const validateCompleteCarForm = (formData: CarListingFormData): boolean => {
+  // Basic validation
+  if (!validateCarForm(formData)) {
+    throw {
+      message: "Invalid form data",
+      description: "Please check VIN, photos, price, and year",
+      action: {
+        label: "Review Details",
+        onClick: () => window.scrollTo(0, 0)
+      }
+    };
+  }
+  
+  // VIN validation
+  if (!validateVIN(formData.vin)) {
+    throw {
+      message: "Invalid VIN",
+      description: "Please enter a valid 17-character VIN",
+      action: {
+        label: "Fix VIN",
+        onClick: () => {
+          const vinInput = document.getElementById('vin');
+          if (vinInput) {
+            vinInput.scrollIntoView({ behavior: 'smooth' });
+            vinInput.focus();
+          }
+        }
+      }
+    };
+  }
+  
+  // Check required fields
+  if (!formData.make || !formData.model) {
+    throw {
+      message: "Missing car details",
+      description: "Make and model are required fields",
+      action: {
+        label: "Complete Details",
+        onClick: () => window.scrollTo(0, 0)
+      }
+    };
+  }
+  
+  return true;
 };
