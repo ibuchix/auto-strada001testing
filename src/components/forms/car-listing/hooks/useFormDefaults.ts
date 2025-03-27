@@ -5,18 +5,10 @@
  * - 2025-06-02: Removed references to non-existent field hasDocumentation
  * - 2025-06-10: Added defaultCarFeatures import
  * - 2025-08-04: Added missing required fields to default values
+ * - 2025-08-21: Updated defaultFeatures to include new required properties
  */
 
-import { CarListingFormData } from "@/types/forms";
-
-// Define default features inline instead of importing
-const defaultFeatures = {
-  satNav: false,
-  panoramicRoof: false,
-  reverseCamera: false,
-  heatedSeats: false,
-  upgradedSound: false
-};
+import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 
 export const getFormDefaults = async (): Promise<Partial<CarListingFormData>> => ({
   // Required fields
@@ -31,7 +23,7 @@ export const getFormDefaults = async (): Promise<Partial<CarListingFormData>> =>
   name: "",
   address: "",
   mobileNumber: "",
-  features: defaultFeatures,
+  features: defaultCarFeatures, // Use the imported defaultCarFeatures with all required properties
   isDamaged: false,
   isRegisteredInPoland: false,
   isSellingOnBehalf: false,

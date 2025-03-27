@@ -19,22 +19,14 @@
  * - 2025-06-16: Added field existence checking to avoid database errors
  * - 2025-08-19: Updated to use toStringValue utility function
  * - 2025-08-20: Fixed type conversion issues with financeAmount
+ * - 2025-08-21: Updated default car features to include all required properties
  */
 
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 import { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { filterObjectByAllowedFields } from "@/utils/dataTransformers";
 import { toStringValue, toNumberValue } from "@/utils/typeConversion";
-
-// Default car features definition
-const defaultCarFeatures = {
-  satNav: false,
-  panoramicRoof: false,
-  reverseCamera: false,
-  heatedSeats: false,
-  upgradedSound: false
-};
 
 // List of known valid car table fields for safer data transformation
 const VALID_CAR_FIELDS = [

@@ -1,3 +1,4 @@
+
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +16,9 @@ export const FeaturesSection = ({ form }: FeaturesSectionProps) => {
     reverseCamera: "Reverse Camera",
     heatedSeats: "Heated Seats",
     upgradedSound: "Upgraded Sound System",
+    bluetooth: "Bluetooth",
+    sunroof: "Sunroof",
+    alloyWheels: "Alloy Wheels"
   };
 
   return (

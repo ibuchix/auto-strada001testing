@@ -1,10 +1,12 @@
+
 /**
  * Changes made:
  * - 2025-08-19: Added required fields to mock form data
  * - 2025-08-20: Fixed vitest import by using jest-compatible syntax
+ * - 2025-08-21: Updated to use vitest imports instead of jest
  */
 
-import { describe, it, expect } from 'jest';
+import { describe, it, expect } from 'vitest';
 import { CarListingFormData } from '@/types/forms';
 
 describe('Form Submission', () => {

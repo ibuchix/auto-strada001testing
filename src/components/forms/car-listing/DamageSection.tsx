@@ -2,10 +2,12 @@
 /**
  * Changes made:
  * - Fixed type errors for DamageType and DamageReport
+ * - Updated DamageReport interface to match the one in types/forms.ts
+ * - Made photo nullable instead of optional to match the type definition
  */
 
 import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, DamageType, DamageReport } from "@/types/forms";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -13,15 +15,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-// Properly define the types directly here to avoid import issues
-type DamageType = "scratch" | "dent" | "paint" | "glass" | "other";
-
-interface DamageReport {
-  type: DamageType;
-  description: string;
-  photo?: string; // Optional photo path
-}
 
 interface DamageSectionProps {
   form: UseFormReturn<CarListingFormData>;
@@ -32,6 +25,7 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
   const [newDamage, setNewDamage] = useState<DamageReport>({
     type: "scratch",
     description: "",
+    photo: null, // Initialize as null to match the required type
   });
 
   // Get the damage reports from form values or initialize as empty array
@@ -48,6 +42,7 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
     setNewDamage({
       type: "scratch",
       description: "",
+      photo: null, // Reset with null
     });
   };
 
@@ -72,6 +67,12 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
                 <div>
                   <p className="font-medium capitalize">{report.type}</p>
                   <p className="text-sm text-gray-500">{report.description}</p>
+                  {report.location && (
+                    <p className="text-sm text-gray-500">Location: {report.location}</p>
+                  )}
+                  {report.severity && (
+                    <p className="text-sm text-gray-500">Severity: {report.severity}</p>
+                  )}
                 </div>
                 <Button 
                   variant="ghost" 
@@ -108,6 +109,8 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
                   <SelectItem value="dent">Dent</SelectItem>
                   <SelectItem value="paint">Paint Damage</SelectItem>
                   <SelectItem value="glass">Glass/Window</SelectItem>
+                  <SelectItem value="mechanical">Mechanical</SelectItem>
+                  <SelectItem value="structural">Structural</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
