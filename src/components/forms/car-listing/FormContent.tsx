@@ -10,6 +10,7 @@
  * - Fixed TypeScript error by ensuring correct import and usage of useLoadDraft
  * - Added explicit type casting to ensure proper parameter passing to useLoadDraft
  * - Fixed useCarListingForm call by providing required parameters
+ * - Fixed saveProgress type compatibility issue
  */
 
 import { useState, useEffect } from "react";
@@ -77,6 +78,11 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     handleSubmit(data, carId);
   };
   
+  // Create a wrapper function that returns void to fix the type error
+  const saveProgressWrapper = async (): Promise<void> => {
+    await persistence.saveImmediately();
+  };
+  
   return (
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -94,7 +100,7 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
           lastSaved={lastSaved}
           isOffline={isOffline}
           isSaving={isSaving}
-          saveProgress={persistence.saveImmediately}
+          saveProgress={saveProgressWrapper}
           visibleSections={visibleSections}
         />
       </form>

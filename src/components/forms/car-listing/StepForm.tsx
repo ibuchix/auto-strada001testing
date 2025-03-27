@@ -69,7 +69,7 @@ export const StepForm = ({
     console.log('Current form values:', JSON.stringify(currentValues, null, 2));
     
     try {
-      const result = await form.trigger(fieldsToValidate);
+      const result = await form.trigger(fieldsToValidate as any[]);
       
       if (!result) {
         // Log validation errors for debugging
