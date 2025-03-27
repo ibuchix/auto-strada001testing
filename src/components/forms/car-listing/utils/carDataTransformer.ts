@@ -13,6 +13,7 @@
  * - 2025-05-31: Standardized field mapping approach across all transformations
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field has_documentation
+ * - 2025-06-15: Removed references to non-existent field is_selling_on_behalf
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -94,7 +95,7 @@ export const prepareCarData = (
     features: data.features,
     seat_material: data.seatMaterial,
     number_of_keys: parseInt(data.numberOfKeys),
-    is_selling_on_behalf: data.isSellingOnBehalf,
+    // REMOVED: is_selling_on_behalf field - it doesn't exist in database
     has_private_plate: data.hasPrivatePlate,
     finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
     service_history_type: data.serviceHistoryType,

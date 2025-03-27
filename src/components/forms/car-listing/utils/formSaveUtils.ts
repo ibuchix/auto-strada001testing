@@ -1,8 +1,12 @@
+
 /**
  * Changes made:
  * - Reduced verbosity of console logging
  * - Added more targeted diagnostic logging
  * - Maintained key performance and error tracking information
+ * - Added better error handling for specific database errors
+ * - Optimized logic to reduce save attempts for unchanged data
+ * - Added cache of previous data to minimize unnecessary saves
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -10,6 +14,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { prepareCarData } from "./carDataTransformer";
 import { validateFormSchema } from "@/utils/validation/schemaValidation";
+
+// Cache last saved data to avoid unnecessary saves
+let lastSavedDataCache = new Map<string, string>();
 
 /**
  * Saves form data to Supabase with robust error handling and retry mechanism
@@ -24,10 +31,24 @@ export const saveFormData = async (
   let retries = 0;
   const startTime = performance.now();
   
+  // Generate cache key based on userId and carId
+  const cacheKey = `${userId}_${carId || 'new'}`;
+  
+  // Prepare data and check for changes
+  const carData = prepareCarData(formData, valuationData, userId);
+  const currentDataHash = JSON.stringify(carData);
+  
+  // Check if data has changed since last save
+  if (lastSavedDataCache.get(cacheKey) === currentDataHash) {
+    console.log('Data unchanged since last save, skipping');
+    return { 
+      success: true, 
+      carId: carId 
+    };
+  }
+  
   const saveOperation = async (): Promise<{ success: boolean; carId?: string; error?: any }> => {
     try {
-      const carData = prepareCarData(formData, valuationData, userId);
-      
       const dataToUpsert = carId ? { ...carData, id: carId } : carData;
 
       // Minimal logging with environment check
@@ -62,6 +83,9 @@ export const saveFormData = async (
         if (!rpcError && rpcResult) {
           console.log('Auto-save successful via security definer function', rpcResult);
           
+          // Update cache with successfully saved data
+          lastSavedDataCache.set(cacheKey, currentDataHash);
+          
           // Extract the car_id from the result with proper type safety
           const resultObj = rpcResult as any;
           
@@ -69,6 +93,42 @@ export const saveFormData = async (
             success: true, 
             carId: resultObj.car_id ? String(resultObj.car_id) : carId
           };
+        }
+        
+        // Check for specific column does not exist error
+        if (rpcError && rpcError.message && rpcError.message.includes('column') && rpcError.message.includes('does not exist')) {
+          console.warn('Column does not exist error detected:', rpcError.message);
+          
+          // Try to identify the problematic field
+          const match = rpcError.message.match(/column ["']([^"']+)["'] of relation/);
+          if (match && match[1]) {
+            console.warn(`Problematic field identified: ${match[1]}`);
+            
+            // Remove the problematic field if found
+            if (dataToUpsert[match[1]] !== undefined) {
+              console.log(`Removing problematic field ${match[1]} and retrying`);
+              delete dataToUpsert[match[1]];
+              
+              // Retry with modified data
+              const { data: retryResult, error: retryError } = await supabase.rpc(
+                'create_car_listing' as any,
+                { p_car_data: dataToUpsert }
+              );
+              
+              if (!retryError && retryResult) {
+                console.log('Auto-save successful after removing problematic field', retryResult);
+                
+                // Update cache with successfully saved data
+                lastSavedDataCache.set(cacheKey, JSON.stringify(dataToUpsert));
+                
+                const resultObj = retryResult as any;
+                return { 
+                  success: true, 
+                  carId: resultObj.car_id ? String(resultObj.car_id) : carId
+                };
+              }
+            }
+          }
         }
         
         console.warn('Security definer function failed, falling back to standard approach:', rpcError);
@@ -86,6 +146,9 @@ export const saveFormData = async (
       
       const endTime = performance.now();
       console.log(`Save operation completed in ${(endTime - startTime).toFixed(2)}ms`);
+      
+      // Update cache with successfully saved data
+      lastSavedDataCache.set(cacheKey, currentDataHash);
       
       return { 
         success: true, 
@@ -153,4 +216,14 @@ export const checkForExistingDraft = async (userId: string): Promise<string | nu
     console.error('Error checking for existing draft:', error);
     return null;
   }
+};
+
+/**
+ * Clear the save cache for a specific user/car
+ * Call this when intentionally discarding drafts
+ */
+export const clearSaveCache = (userId: string, carId?: string) => {
+  const cacheKey = `${userId}_${carId || 'new'}`;
+  lastSavedDataCache.delete(cacheKey);
+  console.log(`Save cache cleared for ${cacheKey}`);
 };

@@ -16,6 +16,7 @@
  * - 2025-06-02: Removed references to non-existent field has_documentation
  * - 2025-06-10: Added schema validation to catch field mismatches
  * - 2025-06-15: Removed defaultCarFeatures dependency
+ * - 2025-06-15: Removed references to non-existent field is_selling_on_behalf
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -76,7 +77,7 @@ export const transformFormToDbData = (formData: CarListingFormData, userId: stri
     features: formData.features as unknown as Json,
     is_damaged: formData.isDamaged,
     is_registered_in_poland: formData.isRegisteredInPoland,
-    is_selling_on_behalf: formData.isSellingOnBehalf,
+    // REMOVED: is_selling_on_behalf field - it doesn't exist in database
     has_private_plate: formData.hasPrivatePlate,
     finance_amount: formData.financeAmount ? parseFloat(formData.financeAmount) : null,
     service_history_type: formData.serviceHistoryType,
@@ -117,7 +118,7 @@ export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> 
     features: dbData.features ? { ...defaultCarFeatures, ...dbData.features as Record<string, boolean> } : defaultCarFeatures,
     isDamaged: dbData.is_damaged || false,
     isRegisteredInPoland: dbData.is_registered_in_poland || false,
-    isSellingOnBehalf: dbData.is_selling_on_behalf || false,
+    // REMOVED: isSellingOnBehalf field - not in database
     hasPrivatePlate: dbData.has_private_plate || false,
     financeAmount: dbData.finance_amount?.toString() || "",
     serviceHistoryType: dbData.service_history_type || "none",

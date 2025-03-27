@@ -4,6 +4,8 @@
  * - Fixed type comparison errors by importing and using TransactionStatus enum
  * - Used proper enum values instead of string literals for transaction status checks
  * - Cleaned up imports and code structure
+ * - Optimized form step navigation to be independent of save operations
+ * - Added better loading indicators and error handling
  */
 
 import { useRef, useState, useEffect } from "react";
@@ -32,6 +34,8 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
   const [isMounted, setIsMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   const submissionErrorRef = useRef(null);
   const transactionIdRef = useRef(null);
   
@@ -69,7 +73,6 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
       accidentHistory: "none",
       isDamaged: false,
       isRegisteredInPoland: true,
-      isSellingOnBehalf: false,
       hasPrivatePlate: false,
       financeAmount: "",
       serviceHistoryType: "full",
@@ -136,10 +139,47 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     setIsMounted(true);
   }, []);
 
+  // Debounced save handler with visual feedback
+  const handleSaveProgress = async () => {
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+      setSaveTimeout(null);
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      await saveProgress();
+    } catch (error) {
+      console.error('Error saving form progress:', error);
+    } finally {
+      // Show saving indicator for at least 500ms for better UX
+      const timeout = setTimeout(() => {
+        setIsSaving(false);
+        setSaveTimeout(null);
+      }, 500);
+      
+      setSaveTimeout(timeout);
+    }
+  };
+
+  // Handle navigation between steps without blocking UI
+  const handleStepChange = (newStep: number) => {
+    // First update the step immediately
+    setCurrentStep(newStep);
+    
+    // Then trigger save in the background without blocking
+    handleSaveProgress();
+  };
+
   const onSubmit = async (data: Partial<CarListingFormData>) => {
     try {
       submissionErrorRef.current = null;
-      await saveProgress();
+      
+      // First save progress without awaiting to ensure local data is saved
+      saveProgress();
+      
+      // Then handle the submission
       await handleSubmit(data as any, carId);
     } catch (error) {
       console.error('Form submission error:', error);
@@ -179,13 +219,14 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
             <StepForm
               form={form as any}
               currentStep={currentStep}
-              setCurrentStep={setCurrentStep}
+              setCurrentStep={handleStepChange}
               carId={carId}
               lastSaved={lastSaved}
               isOffline={isOffline}
-              saveProgress={saveProgress}
+              saveProgress={handleSaveProgress}
               formErrors={form.formState.errors}
               visibleSections={visibleSections}
+              isSaving={isSaving}
             />
           </div>
           

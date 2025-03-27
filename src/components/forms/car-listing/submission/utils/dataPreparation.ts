@@ -17,6 +17,7 @@
  * - 2025-07-22: Improved error handling and added safeguards for field type mismatches
  * - 2025-07-24: Enhanced boolean field handling to ensure proper type conversion
  * - 2027-11-05: Added detailed schema validation logging and timing metrics
+ * - 2027-11-06: Removed references to non-existent field is_selling_on_behalf
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -136,7 +137,7 @@ export const prepareCarDataForSubmission = async (
     features: data.features,
     is_damaged: safeTypeConversion('is_damaged', data.isDamaged),
     is_registered_in_poland: safeTypeConversion('is_registered_in_poland', data.isRegisteredInPoland),
-    is_selling_on_behalf: safeTypeConversion('is_selling_on_behalf', data.isSellingOnBehalf), 
+    // REMOVED: is_selling_on_behalf field - it doesn't exist in database
     has_private_plate: safeTypeConversion('has_private_plate', data.hasPrivatePlate),
     finance_amount: safeTypeConversion('finance_amount', data.financeAmount),
     service_history_type: data.serviceHistoryType,

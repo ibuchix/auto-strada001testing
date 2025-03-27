@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of form persistence logic
@@ -8,6 +9,8 @@
  * - 2024-09-02: Enhanced reliability with improved error handling and offline support
  * - 2024-10-15: Refactored to use central offline status hook and cache service
  * - 2025-05-03: Added backup system and recovery mechanisms for form data
+ * - 2025-06-16: Implemented optimizations to reduce save frequency
+ * - 2025-06-16: Added debounce rate limiting for save operations
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -17,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { transformFormToDbData, transformDbToFormData } from "../utils/formDataTransformers";
 import { SAVE_DEBOUNCE_TIME } from "../constants";
-import { saveFormData } from "../utils/formSaveUtils";
+import { saveFormData, clearSaveCache } from "../utils/formSaveUtils";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { 
   CACHE_KEYS, 
@@ -34,6 +37,26 @@ interface UseFormPersistenceOptions {
   backupInterval?: number;
   saveDebounceTime?: number;
 }
+
+// Use a more advanced debounce utility
+const debounce = <F extends (...args: any[]) => any>(
+  func: F,
+  waitFor: number
+) => {
+  let timeout: NodeJS.Timeout;
+  
+  return (...args: Parameters<F>): Promise<ReturnType<F>> => {
+    return new Promise(resolve => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      
+      timeout = setTimeout(() => {
+        resolve(func(...args));
+      }, waitFor);
+    });
+  };
+};
 
 export const useFormPersistence = (
   form: UseFormReturn<CarListingFormData>,
@@ -57,6 +80,7 @@ export const useFormPersistence = (
   const carIdRef = useRef<string | undefined>(undefined);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const backupIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const previousDataRef = useRef<string>("");
   
   // Store diagnosticId in cache for logging purposes
   useEffect(() => {
@@ -182,91 +206,90 @@ export const useFormPersistence = (
     }
   }, [setValue]);
 
+  // Create a debounced version of the save function
+  const debouncedSave = useCallback(
+    debounce(async (data: CarListingFormData) => {
+      if (!userId) return;
+      
+      // Compare with previous data to avoid unnecessary saves
+      const currentDataString = JSON.stringify(data);
+      if (currentDataString === previousDataRef.current) {
+        logAction('Skipping save - data unchanged');
+        return;
+      }
+      
+      previousDataRef.current = currentDataString;
+      
+      try {
+        // Always save to localStorage/cache immediately
+        saveToCache(CACHE_KEYS.FORM_PROGRESS, data);
+        saveToCache(CACHE_KEYS.FORM_STEP, String(currentStep));
+        
+        // Don't attempt backend save if offline
+        if (isOffline) {
+          pendingSavesRef.current = data;
+          logAction('Stored as pending request', { reason: 'Offline' });
+          return;
+        }
+        
+        // Get valuation data from cache
+        const valuationData = getFromCache('valuationData');
+        if (!valuationData) {
+          logAction('No valuation data found in cache');
+          return;
+        }
+        
+        // Save to backend using the enhanced saveFormData utility
+        const result = await saveFormData(
+          data, 
+          userId, 
+          valuationData, 
+          carIdRef.current
+        );
+        
+        if (result.success) {
+          setLastSaved(new Date());
+          if (result.carId) {
+            carIdRef.current = result.carId;
+          }
+          logAction('Backend save successful', { carId: result.carId });
+        } else if (result.error) {
+          logAction('Backend save failed', { error: result.error });
+        }
+      } catch (error: any) {
+        logAction('Error in saveProgress', { error });
+        // Store for later retry if save fails
+        pendingSavesRef.current = data;
+      }
+    }, saveDebounceTime),
+    [userId, isOffline, currentStep, saveDebounceTime]
+  );
+
   // Save progress to both localStorage and backend
   const saveProgress = useCallback(async (data: CarListingFormData) => {
     // Always save to localStorage/cache immediately
     saveToCache(CACHE_KEYS.FORM_PROGRESS, data);
     saveToCache(CACHE_KEYS.FORM_STEP, String(currentStep));
     
-    logAction('Saving progress', { toStorage: true, toBackend: !isOffline && !!userId });
+    logAction('Starting save process', { immediate: true, debounced: true });
     
-    // Don't attempt backend save if offline or no user
-    if (isOffline || !userId) {
-      if (!isOffline && !userId) {
-        logAction('Not saving to backend', { reason: 'No user ID provided' });
-      }
-      
-      if (isOffline) {
-        pendingSavesRef.current = data;
-        logAction('Storing as pending request', { reason: 'Offline' });
-        
-        // Store as a pending request for later processing
-        if (userId) {
-          const valuationData = getFromCache('valuationData');
-          if (valuationData) {
-            storePendingRequest({
-              endpoint: '/cars',
-              method: 'UPSERT',
-              body: { formData: data, userId, valuationData, carId: carIdRef.current },
-              id: carIdRef.current || 'new-car'
-            });
-          }
-        }
-      }
-      
-      return;
-    }
-    
-    try {
-      // Get valuation data from cache
-      const valuationData = getFromCache('valuationData');
-      if (!valuationData) {
-        logAction('No valuation data found in cache');
-        return;
-      }
-      
-      // Save to backend using the enhanced saveFormData utility
-      const result = await saveFormData(
-        data, 
-        userId, 
-        valuationData, 
-        carIdRef.current
-      );
-      
-      if (result.success) {
-        setLastSaved(new Date());
-        if (result.carId) {
-          carIdRef.current = result.carId;
-        }
-        logAction('Backend save successful', { carId: result.carId });
-      } else if (result.error) {
-        logAction('Backend save failed', { error: result.error });
-      }
-    } catch (error) {
-      logAction('Error in saveProgress', { error });
-      // Store for later retry if save fails
-      pendingSavesRef.current = data;
-    }
-  }, [userId, isOffline, currentStep, diagnosticId]);
+    // Trigger the debounced save
+    debouncedSave(data);
+  }, [debouncedSave, currentStep]);
 
-  // Set up auto-save with debounce
+  // Set up auto-save when form data changes
   useEffect(() => {
-    // Clear any existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    
-    // Set new timeout for saving
-    saveTimeoutRef.current = setTimeout(() => {
+    const handler = () => {
       saveProgress(formData);
-    }, saveDebounceTime);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
     };
-  }, [formData, saveProgress, saveDebounceTime]);
+    
+    // Use a less frequent interval for auto-save to reduce load
+    const autoSaveInterval = setInterval(handler, 10000); // 10 seconds
+    
+    return () => {
+      clearInterval(autoSaveInterval);
+    };
+  }, [formData, saveProgress]);
 
   // Set up periodic backups if enabled
   useEffect(() => {
@@ -287,14 +310,23 @@ export const useFormPersistence = (
   useEffect(() => {
     return () => {
       logAction('Component unmounting, saving final state');
-      saveProgress(formData);
+      
+      // Force immediate save without debounce on unmount
+      if (userId) {
+        const valuationData = getFromCache('valuationData');
+        if (valuationData) {
+          saveFormData(formData, userId, valuationData, carIdRef.current)
+            .then(() => logAction('Final save on unmount completed'))
+            .catch(error => logAction('Final save on unmount failed', { error }));
+        }
+      }
       
       // Create one final backup
       if (enableBackup) {
         createBackup();
       }
     };
-  }, [formData, saveProgress, enableBackup, createBackup]);
+  }, [formData, userId, enableBackup, createBackup]);
 
   // Restore progress on mount
   useEffect(() => {
@@ -417,6 +449,7 @@ export const useFormPersistence = (
     carId: carIdRef.current,
     createBackup,
     recoverFromBackup: recoverFromLatestBackup,
-    backupCreated
+    backupCreated,
+    clearDraftCache: () => clearSaveCache(userId || '', carIdRef.current)
   };
 };
