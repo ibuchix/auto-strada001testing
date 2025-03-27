@@ -12,6 +12,7 @@
  * - 2024-07-28: Added debug utilities to help diagnose mileage issues
  * - 2024-07-30: Added transaction reset and improved error handling
  * - 2025-06-15: Removed diagnostic code
+ * - 2025-06-22: Exposed setShowSuccessDialog for external control
  */
 
 import { useState, useEffect } from "react";

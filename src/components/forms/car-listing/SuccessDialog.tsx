@@ -1,7 +1,8 @@
 
 /**
  * Changes made:
- * - 2027-07-25: Updated props to match expected usage in FormContent.tsx
+ * - Updated props interface to include required open and onOpenChange props
+ * - Added proper Dialog component usage with open and onOpenChange
  */
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";

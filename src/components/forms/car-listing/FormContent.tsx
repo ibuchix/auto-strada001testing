@@ -1,7 +1,11 @@
 
 /**
  * Changes made:
- * - Added isSaving state to provide visual feedback when saving
+ * - Fixed import for getFormDefaults instead of useFormDefaults
+ * - Added required props to SuccessDialog
+ * - Fixed useLoadDraft parameters and setCarId type
+ * - Removed formErrors prop as it's not part of useSectionsVisibility return
+ * - Fixed isSaving state to provide visual feedback when saving
  */
 
 import { useState, useEffect } from "react";
@@ -9,7 +13,7 @@ import { FormProvider } from "react-hook-form";
 import { StepForm } from "./StepForm";
 import { SuccessDialog } from "./SuccessDialog";
 import { useCarListingForm } from "./hooks/useCarListingForm";
-import { useFormDefaults } from "./hooks/useFormDefaults";
+import { getFormDefaults } from "./hooks/useFormDefaults";
 import { useLoadDraft } from "./hooks/useLoadDraft";
 import { useSectionsVisibility } from "./hooks/useSectionsVisibility";
 import { useFormPersistence } from "./hooks/useFormPersistence";
@@ -27,15 +31,23 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [carId, setCarId] = useState<string | undefined>(undefined);
   
-  const { showSuccessDialog, handleSubmit } = useFormSubmission(session.user.id);
+  const { showSuccessDialog, setShowSuccessDialog, handleSubmit } = useFormSubmission(session.user.id);
   
   // Initialize form with default values
   const form = useCarListingForm();
-  useFormDefaults(form);
+  
+  // Set form defaults
+  useEffect(() => {
+    const defaults = getFormDefaults();
+    Object.entries(defaults).forEach(([key, value]) => {
+      form.setValue(key as any, value as any, { shouldValidate: false });
+    });
+  }, [form]);
   
   // Load draft if draftId is provided
-  useLoadDraft(form, draftId, session.user.id);
+  useLoadDraft(form, setCarId, setLastSaved, session.user.id, draftId);
   
   // Handle form persistence
   const persistence = useFormPersistence(form, session.user.id, currentStep);
@@ -47,14 +59,17 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     }
     setIsOffline(persistence.isOffline);
     setIsSaving(persistence.isSaving);
-  }, [persistence.lastSaved, persistence.isOffline, persistence.isSaving]);
+    if (persistence.carId && !carId) {
+      setCarId(persistence.carId);
+    }
+  }, [persistence.lastSaved, persistence.isOffline, persistence.isSaving, persistence.carId, carId]);
   
   // Determine which form sections to show
-  const { visibleSections, formErrors } = useSectionsVisibility(form);
+  const { visibleSections } = useSectionsVisibility(form, carId);
   
   // Handle form submission
   const onSubmit = (data: any) => {
-    handleSubmit(data, persistence.carId);
+    handleSubmit(data, carId);
   };
   
   return (
@@ -70,18 +85,20 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
           form={form}
           currentStep={currentStep}
           setCurrentStep={setCurrentStep}
-          carId={persistence.carId}
+          carId={carId}
           lastSaved={lastSaved}
           isOffline={isOffline}
           isSaving={isSaving}
           saveProgress={persistence.saveImmediately}
-          formErrors={formErrors}
           visibleSections={visibleSections}
         />
       </form>
       
       {showSuccessDialog && (
-        <SuccessDialog />
+        <SuccessDialog 
+          open={showSuccessDialog} 
+          onOpenChange={setShowSuccessDialog}
+        />
       )}
     </FormProvider>
   );

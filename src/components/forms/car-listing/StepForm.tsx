@@ -1,9 +1,11 @@
 
 /**
  * Changes made:
- * - Added saving indicator in the UI
- * - Improved step navigation to avoid blocking on save operations
+ * - Fixed props interface to match the expected props from FormContent
+ * - Updated visibleSections prop usage to match the new structure
+ * - Removed formErrors prop as it's no longer needed
  * - Added isSaving prop to show saving state in UI
+ * - Improved saving state display
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -24,7 +26,6 @@ interface StepFormProps {
   lastSaved: Date | null;
   isOffline: boolean;
   saveProgress: () => void;
-  formErrors: any;
   visibleSections: string[];
   isSaving?: boolean;
 }
@@ -37,7 +38,6 @@ export const StepForm = ({
   lastSaved,
   isOffline,
   saveProgress,
-  formErrors,
   visibleSections,
   isSaving = false
 }: StepFormProps) => {

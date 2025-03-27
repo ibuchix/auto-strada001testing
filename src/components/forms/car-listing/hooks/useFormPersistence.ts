@@ -11,9 +11,10 @@
  * - 2025-05-03: Added backup system and recovery mechanisms for form data
  * - 2025-06-16: Implemented optimizations to reduce save frequency
  * - 2025-06-16: Added debounce rate limiting for save operations
- * - 2025-06-18: Enhanced debounce implementation with proper cancellation
- * - 2025-06-18: Improved error handling and UI feedback
- * - 2025-06-18: Optimized save operations to prevent UI blocking
+ * - 2025-06-18: Enhanced debounce implementation with proper type definitions
+ * - 2025-06-19: Fixed TypeScript errors in debounce function implementation
+ * - 2025-06-20: Improved error handling and UI feedback
+ * - 2025-06-21: Optimized save operations to prevent UI blocking
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -42,10 +43,10 @@ interface UseFormPersistenceOptions {
 }
 
 // Enhanced debounce utility with proper TypeScript typing and cancellation
-const createDebouncedFunction = <F extends (...args: any[]) => any>(
+function createDebouncedFunction<F extends (...args: any[]) => any>(
   func: F,
   waitFor: number
-) => {
+) {
   let timeout: NodeJS.Timeout | null = null;
   
   // Function to execute the debounced function
@@ -72,9 +73,12 @@ const createDebouncedFunction = <F extends (...args: any[]) => any>(
     }
   };
   
-  // Return both the execute function and the cancel function
-  return { execute, cancel };
-};
+  // Return both functions
+  return {
+    execute,
+    cancel
+  };
+}
 
 export const useFormPersistence = (
   form: UseFormReturn<CarListingFormData>,
@@ -225,7 +229,7 @@ export const useFormPersistence = (
     }
   }, [setValue]);
 
-  // Create a debounced save function with cancellation
+  // Create a debounced save function (properly typed)
   const debouncedSaveFn = useCallback(
     createDebouncedFunction(async (data: CarListingFormData) => {
       if (!userId || saveInProgressRef.current) return;
