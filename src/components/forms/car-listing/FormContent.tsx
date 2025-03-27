@@ -8,6 +8,7 @@
  * - Fixed isSaving state to provide visual feedback when saving
  * - Created loadDraftOptions object to fix the useLoadDraft call
  * - Fixed TypeScript error by ensuring correct import and usage of useLoadDraft
+ * - Actually passed the loadDraftOptions object to useLoadDraft() call
  */
 
 import { useState, useEffect } from "react";
@@ -57,7 +58,7 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     draftId
   };
   
-  // Load draft if draftId is provided
+  // Load draft if draftId is provided - FIXED: Pass the options object to the hook
   useLoadDraft(loadDraftOptions);
   
   // Handle form persistence
