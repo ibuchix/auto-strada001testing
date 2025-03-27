@@ -6,12 +6,12 @@
  * - Implemented declarative prop requirements in form steps
  * - Added validation context support
  * - Improved TypeScript typing
+ * - Added proper handling of validation functions from formSteps
  */
 
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { formSteps } from "./constants/formSteps";
-import { useFormContext } from "react-hook-form";
+import { formSteps, FormStep } from "./constants/formSteps";
 
 // Define required props for each step type
 type StepComponentProps = {
@@ -19,17 +19,6 @@ type StepComponentProps = {
   carId?: string;
   userId?: string;
   onValidate?: () => Promise<boolean>;
-};
-
-// Strongly type the form steps configuration
-type FormStep = {
-  id: string;
-  title: string;
-  component: React.ComponentType<StepComponentProps>;
-  requiredProps?: Array<keyof StepComponentProps>;
-  validate?: (data: CarListingFormData) => boolean;
-  sections?: string[];
-  description?: string;
 };
 
 interface FormSectionsProps {
@@ -46,7 +35,7 @@ export const FormSections = ({
   userId
 }: FormSectionsProps) => {
   // We need to cast formSteps to the correct type
-  const steps = formSteps as unknown as FormStep[];
+  const steps = formSteps as FormStep[];
   const currentStepConfig = steps[currentStep];
 
   if (!currentStepConfig?.component) {
