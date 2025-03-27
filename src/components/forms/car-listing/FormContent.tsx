@@ -7,6 +7,7 @@
  * - Enhanced form submission handling with better error management
  * - Added loading state for draft loading
  * - Better TypeScript typing throughout the component
+ * - 2025-08-02: Fixed naming to use isSubmitting instead of submitting
  */
 
 import { useState, useEffect, useCallback } from "react";

@@ -9,6 +9,7 @@
  * - 2025-07-04: Updated to use options object pattern for better TypeScript support
  * - 2025-07-06: Added explicit parameter type to useLoadDraft function
  * - 2025-08-01: Added onLoaded callback for draft data
+ * - 2025-08-02: Updated interface to match expected shape
  */
 
 import { UseFormReturn } from "react-hook-form";

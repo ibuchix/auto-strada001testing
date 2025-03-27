@@ -13,6 +13,7 @@
  * - 2024-07-30: Added transaction reset and improved error handling
  * - 2025-06-15: Removed diagnostic code
  * - 2025-06-22: Exposed setShowSuccessDialog for external control
+ * - 2025-08-01: Renamed submitting to isSubmitting for consistent naming
  */
 
 import { useState, useEffect } from "react";
@@ -41,7 +42,7 @@ export const useFormSubmission = (userId?: string) => {
 
   const { 
     execute: executeSubmission, 
-    isLoading: submitting, 
+    isLoading: isSubmitting, 
     transactionStatus,
     reset: resetTransaction
   } = useCreateTransaction({
@@ -240,7 +241,7 @@ export const useFormSubmission = (userId?: string) => {
   };
 
   return {
-    submitting,
+    isSubmitting,
     error,
     transactionStatus,
     showSuccessDialog,

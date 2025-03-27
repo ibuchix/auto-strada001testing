@@ -5,10 +5,10 @@
  * - 2024-09-10: Updated to use useFormPersistence hook
  * - 2025-07-02: Fixed type issues and removed form property
  * - 2025-07-31: Fixed missing getValuationData function
+ * - 2025-08-02: Updated to match the UseFormPersistenceResult interface
  */
 import { useForm } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { useFormPersistence } from "./useFormPersistence";
 
 // Export a function to get valuation data from localStorage
 export const getValuationData = () => {
@@ -62,17 +62,6 @@ export const useCarListingForm = (userId: string, draftId?: string) => {
     },
   });
 
-  // Use form persistence for auto-saving
-  const { 
-    saveProgress,
-    lastSaved,
-    isOffline,
-    carId,
-    createBackup,
-    recoverFromBackup,
-    backupCreated 
-  } = useFormPersistence(form, userId, 0, { enableBackup: true });
-
   // Pre-fill form with valuation data if available
   const loadValuationData = () => {
     try {
@@ -100,13 +89,6 @@ export const useCarListingForm = (userId: string, draftId?: string) => {
   // Return the form and utility functions
   return {
     ...form,
-    lastSaved,
-    isOffline,
-    saveProgress,
-    carId,
-    createBackup,
-    recoverFromBackup,
-    backupCreated,
     loadValuationData
   };
 };

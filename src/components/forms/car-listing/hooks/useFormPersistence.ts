@@ -5,6 +5,7 @@
  * - 2024-08-08: Added loading state and error handling
  * - 2024-09-15: Improved offline detection and backup saving
  * - 2025-08-01: Updated to use options object pattern for better TypeScript
+ * - 2025-08-02: Fixed interface to align with the saveImmediately method naming
  */
 
 import { useState, useEffect, useCallback } from "react";
