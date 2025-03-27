@@ -1,13 +1,9 @@
 
 /**
  * Changes made:
- * - Fixed props interface to match the expected props from FormContent
- * - Updated visibleSections prop usage to match the new structure
- * - Improved button styling and layout for better visual hierarchy
- * - Added proper spacing between form elements
- * - Enhanced save button and progress indicator visibility
- * - Improved mobile responsiveness
- * - Added consistent button styling with proper spacing
+ * - Removed explicit SaveButton
+ * - Integrated automatic saving during navigation
+ * - Simplified footer layout
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -17,8 +13,7 @@ import { FormSections } from "./FormSections";
 import { Button } from "@/components/ui/button";
 import { FormStepper } from "./FormStepper";
 import { FormFooter } from "./FormFooter";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
-import { SaveButton } from "./SaveButton";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 interface StepFormProps {
   form: UseFormReturn<CarListingFormData>;
@@ -47,14 +42,14 @@ export const StepForm = ({
   
   const handlePrevious = () => {
     if (currentStep > 0) {
+      saveProgress(); // Save progress when moving back
       setCurrentStep(currentStep - 1);
     }
   };
   
   const handleNext = () => {
     if (currentStep < totalSteps - 1) {
-      // No need to await save - navigation shouldn't be blocked
-      saveProgress();
+      saveProgress(); // Automatically save progress before moving to next step
       setCurrentStep(currentStep + 1);
     }
   };
@@ -90,14 +85,6 @@ export const StepForm = ({
           <ArrowLeft className="mr-2 h-4 w-4" />
           Previous
         </Button>
-        
-        <div className="flex-grow flex justify-center">
-          <SaveButton 
-            onClick={saveProgress} 
-            isSaving={isSaving}
-            className="mx-2 h-11 text-base"
-          />
-        </div>
         
         {currentStep < totalSteps - 1 ? (
           <Button
