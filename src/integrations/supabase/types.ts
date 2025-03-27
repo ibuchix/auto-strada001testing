@@ -1669,7 +1669,7 @@ export type Database = {
       }
       get_table_columns: {
         Args: {
-          table_name: string
+          p_table_name: string
         }
         Returns: {
           column_name: string

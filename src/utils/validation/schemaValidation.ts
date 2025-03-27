@@ -9,7 +9,7 @@
  * - 2025-07-23: Fixed error with status property on PostgrestError type
  * - 2025-07-24: Implemented RPC function availability caching to prevent repeated failed calls
  * - 2025-07-24: Added environment-specific validation to avoid validation in production
- * - 2027-11-05: Improved error logging and handling for RPC function calls
+ * - 2027-11-06: Enhanced error handling for PostgrestError types and improved logging
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -55,7 +55,7 @@ export const getTableSchema = async (tableName: string): Promise<ColumnDefinitio
     
     // Use type assertion with any to bypass TypeScript's strict checking of RPC function names
     const { data, error } = await supabase
-      .rpc('get_table_columns' as any, { table_name: tableName })
+      .rpc('get_table_columns' as any, { p_table_name: tableName })
       .select('column_name, data_type, is_nullable');
 
     if (error) {
