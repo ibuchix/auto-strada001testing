@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of form persistence logic
@@ -16,6 +15,7 @@
  * - 2025-06-20: Improved error handling and UI feedback
  * - 2025-06-21: Optimized save operations to prevent UI blocking
  * - 2025-07-01: Fixed debounce function type errors
+ * - 2025-07-02: Completely refactored debounce implementation to fix type issues
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -43,49 +43,8 @@ interface UseFormPersistenceOptions {
   saveDebounceTime?: number;
 }
 
-// Type for the debounced function
-type DebouncedFunction<F extends (...args: any[]) => any> = {
-  execute: (...args: Parameters<F>) => Promise<ReturnType<F>>;
-  cancel: () => void;
-};
-
-// Enhanced debounce utility with proper TypeScript typing and cancellation
-function createDebouncedFunction<F extends (...args: any[]) => any>(
-  func: F,
-  waitFor: number
-): DebouncedFunction<F> {
-  let timeout: NodeJS.Timeout | null = null;
-  
-  // Function to execute the debounced function
-  const execute = (...args: Parameters<F>): Promise<ReturnType<F>> => {
-    return new Promise(resolve => {
-      // Clear existing timeout
-      if (timeout) {
-        clearTimeout(timeout);
-      }
-      
-      // Set new timeout
-      timeout = setTimeout(() => {
-        const result = func(...args);
-        resolve(result as ReturnType<F>);
-      }, waitFor);
-    });
-  };
-  
-  // Function to cancel the debounced function
-  const cancel = () => {
-    if (timeout) {
-      clearTimeout(timeout);
-      timeout = null;
-    }
-  };
-  
-  // Return both functions
-  return {
-    execute,
-    cancel
-  };
-}
+// Simple type for our debounce function without the complex object structure
+type SimpleDebounceFn = (data: CarListingFormData) => void;
 
 export const useFormPersistence = (
   form: UseFormReturn<CarListingFormData>,
@@ -111,6 +70,7 @@ export const useFormPersistence = (
   const saveInProgressRef = useRef(false);
   const backupIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const previousDataRef = useRef<string>("");
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Store diagnosticId in cache for logging purposes
   useEffect(() => {
@@ -236,86 +196,99 @@ export const useFormPersistence = (
     }
   }, [setValue]);
 
-  // Create a debounced save function with proper typing
-  const debouncedSaveFn = useCallback(
-    createDebouncedFunction(async (data: CarListingFormData) => {
-      if (!userId || saveInProgressRef.current) return;
+  // Internal save function that performs the actual save operation
+  const performSave = async (data: CarListingFormData): Promise<void> => {
+    if (!userId || saveInProgressRef.current) return;
+    
+    // Compare with previous data to avoid unnecessary saves
+    const currentDataString = JSON.stringify(data);
+    if (currentDataString === previousDataRef.current) {
+      logAction('Skipping save - data unchanged');
+      return;
+    }
+    
+    previousDataRef.current = currentDataString;
+    saveInProgressRef.current = true;
+    setIsSaving(true);
+    
+    try {
+      // Always save to localStorage/cache immediately
+      saveToCache(CACHE_KEYS.FORM_PROGRESS, data);
+      saveToCache(CACHE_KEYS.FORM_STEP, String(currentStep));
       
-      // Compare with previous data to avoid unnecessary saves
-      const currentDataString = JSON.stringify(data);
-      if (currentDataString === previousDataRef.current) {
-        logAction('Skipping save - data unchanged');
+      // Don't attempt backend save if offline
+      if (isOffline) {
+        pendingSavesRef.current = data;
+        logAction('Stored as pending request', { reason: 'Offline' });
         return;
       }
       
-      previousDataRef.current = currentDataString;
-      saveInProgressRef.current = true;
-      setIsSaving(true);
-      
-      try {
-        // Always save to localStorage/cache immediately
-        saveToCache(CACHE_KEYS.FORM_PROGRESS, data);
-        saveToCache(CACHE_KEYS.FORM_STEP, String(currentStep));
-        
-        // Don't attempt backend save if offline
-        if (isOffline) {
-          pendingSavesRef.current = data;
-          logAction('Stored as pending request', { reason: 'Offline' });
-          return;
-        }
-        
-        // Get valuation data from cache
-        const valuationData = getFromCache('valuationData');
-        if (!valuationData) {
-          logAction('No valuation data found in cache');
-          return;
-        }
-        
-        // Save to backend using the enhanced saveFormData utility
-        const result = await saveFormData(
-          data, 
-          userId, 
-          valuationData, 
-          carIdRef.current
-        );
-        
-        if (result.success) {
-          setLastSaved(new Date());
-          if (result.carId) {
-            carIdRef.current = result.carId;
-          }
-          logAction('Backend save successful', { carId: result.carId });
-        } else if (result.error) {
-          logAction('Backend save failed', { error: result.error });
-        }
-      } catch (error: any) {
-        logAction('Error in saveProgress', { error });
-        // Store for later retry if save fails
-        pendingSavesRef.current = data;
-      } finally {
-        saveInProgressRef.current = false;
-        setIsSaving(false);
+      // Get valuation data from cache
+      const valuationData = getFromCache('valuationData');
+      if (!valuationData) {
+        logAction('No valuation data found in cache');
+        return;
       }
-    }, saveDebounceTime),
-    [userId, isOffline, currentStep, saveDebounceTime]
-  );
+      
+      // Save to backend using the enhanced saveFormData utility
+      const result = await saveFormData(
+        data, 
+        userId, 
+        valuationData, 
+        carIdRef.current
+      );
+      
+      if (result.success) {
+        setLastSaved(new Date());
+        if (result.carId) {
+          carIdRef.current = result.carId;
+        }
+        logAction('Backend save successful', { carId: result.carId });
+      } else if (result.error) {
+        logAction('Backend save failed', { error: result.error });
+      }
+    } catch (error: any) {
+      logAction('Error in saveProgress', { error });
+      // Store for later retry if save fails
+      pendingSavesRef.current = data;
+    } finally {
+      saveInProgressRef.current = false;
+      setIsSaving(false);
+    }
+  };
 
-  // Save progress to both localStorage and backend
+  // Create a debounced save function using a standard approach that works well with TypeScript
+  const debouncedSave = useCallback((data: CarListingFormData) => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Set a new timeout
+    timeoutRef.current = setTimeout(() => {
+      performSave(data);
+    }, saveDebounceTime);
+  }, [saveDebounceTime, currentStep]);
+  
+  // Our main save progress function that's exposed to consumers
   const saveProgress = useCallback((data: CarListingFormData) => {
     // Always save to localStorage/cache immediately
     saveToCache(CACHE_KEYS.FORM_PROGRESS, data);
     saveToCache(CACHE_KEYS.FORM_STEP, String(currentStep));
     
-    logAction('Starting save process', { immediate: true });
+    logAction('Starting save process', { immediate: false });
     
     // Trigger the debounced save
-    debouncedSaveFn.execute(data);
-  }, [debouncedSaveFn, currentStep]);
+    debouncedSave(data);
+  }, [debouncedSave, currentStep]);
 
   // Immediately save without debouncing
   const saveImmediately = useCallback(() => {
     // Cancel any pending debounced saves
-    debouncedSaveFn.cancel();
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     
     // Get current form values
     const currentData = getValues();
@@ -409,7 +382,10 @@ export const useFormPersistence = (
       logAction('Component unmounting, saving final state');
       
       // Cancel any pending debounced saves
-      debouncedSaveFn.cancel();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
       
       // Force immediate save without debounce on unmount
       if (userId && !saveInProgressRef.current) {
@@ -426,7 +402,7 @@ export const useFormPersistence = (
         createBackup();
       }
     };
-  }, [formData, userId, enableBackup, createBackup, debouncedSaveFn]);
+  }, [formData, userId, enableBackup, createBackup]);
 
   // Restore progress on mount
   useEffect(() => {

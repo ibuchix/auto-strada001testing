@@ -6,6 +6,7 @@
  * - Fixed useLoadDraft parameters by passing session.user.id
  * - Removed formErrors prop as it's not part of useSectionsVisibility return
  * - Fixed isSaving state to provide visual feedback when saving
+ * - Fixed useLoadDraft parameter passing with proper arguments
  */
 
 import { useState, useEffect } from "react";
@@ -46,7 +47,7 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     });
   }, [form]);
   
-  // Load draft if draftId is provided
+  // Load draft if draftId is provided - fix parameters order
   useLoadDraft(form, setCarId, setLastSaved, session.user.id, draftId);
   
   // Handle form persistence

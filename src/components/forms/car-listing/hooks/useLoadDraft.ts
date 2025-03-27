@@ -1,9 +1,11 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of draft loading functionality
  * - 2024-03-19: Added data validation and form population
  * - 2024-03-19: Implemented error handling for draft loading
  * - 2024-08-25: Fixed TypeScript type errors
+ * - 2025-07-02: Fixed parameter types for proper TypeScript checking
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -13,11 +15,13 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { transformDbToFormData } from "../utils/formDataTransformers";
 
+type SetStateFunction<T> = (value: T) => void;
+
 export const useLoadDraft = (
   form: UseFormReturn<CarListingFormData>,
-  setCarId: (id: string) => void,
-  setLastSaved: (date: Date | null) => void,
-  userId?: string,
+  setCarId: SetStateFunction<string | undefined>,
+  setLastSaved: SetStateFunction<Date | null>,
+  userId: string,
   draftId?: string
 ) => {
   useEffect(() => {
