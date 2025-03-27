@@ -1,31 +1,32 @@
 
-/**
- * Changes made:
- * - Updated props interface to include required open and onOpenChange props
- * - Added proper Dialog component usage with open and onOpenChange
- */
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 
 interface SuccessDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onClose?: () => void;
+  lastSaved?: Date | null;
+  carId?: string;
 }
 
-export const SuccessDialog = ({ open, onOpenChange, onClose }: SuccessDialogProps) => {
+export const SuccessDialog = ({ 
+  open, 
+  onOpenChange,
+  lastSaved,
+  carId
+}: SuccessDialogProps) => {
   const navigate = useNavigate();
 
-  const handleClose = () => {
-    onOpenChange(false);
-    if (onClose) {
-      onClose();
+  const handleViewListing = () => {
+    if (carId) {
+      navigate(`/dashboard/listing/${carId}`);
     } else {
-      navigate('/dashboard/seller');
+      navigate("/dashboard");
     }
+    onOpenChange(false);
   };
 
   return (
@@ -37,20 +38,27 @@ export const SuccessDialog = ({ open, onOpenChange, onClose }: SuccessDialogProp
             Listing Submitted Successfully
           </DialogTitle>
           <DialogDescription className="text-center pt-4">
-            <div className="space-y-4">
-              <p className="text-base text-subtitle">
-                Your car listing has been submitted and is currently under review by our team.
+            <p className="mb-4 text-base">
+              Thank you for submitting your vehicle listing. Our team will review your information.
+            </p>
+            {lastSaved && (
+              <p className="text-sm text-subtitle mb-2">
+                Submitted on: {format(lastSaved, 'PPP p')}
               </p>
-              <div className="bg-[#EFEFFD] p-4 rounded-lg">
-                <p className="text-sm text-subtitle">
-                  We will carefully review your listing details to ensure everything meets our quality standards. 
-                  You will receive a notification once your listing is approved and live on our platform. 
-                  If any changes are needed, we'll contact you directly.
-                </p>
-              </div>
+            )}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
               <Button 
-                className="mt-6 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-full sm:w-auto"
-                onClick={handleClose}
+                className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
+                onClick={handleViewListing}
+              >
+                View Listing
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  onOpenChange(false);
+                  navigate('/dashboard');
+                }}
               >
                 Go to Dashboard
               </Button>

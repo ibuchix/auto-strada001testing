@@ -4,40 +4,24 @@
  * - 2024-06-07: Created ProgressPreservation component to handle form persistence
  * - 2024-08-08: Updated to save current step along with form data
  * - 2024-09-02: Enhanced to expose lastSaved and offline status
+ * - 2025-08-01: Updated props interface to include lastSaved
  */
 
-import { useFormContext } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
-import { useAuth } from "@/components/AuthProvider";
-import { useFormPersistence } from "../hooks/useFormPersistence";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 
 interface ProgressPreservationProps {
-  currentStep?: number;
-  onLastSavedChange?: (date: Date | null) => void;
+  currentStep: number;
+  lastSaved: Date | null;
   onOfflineStatusChange?: (isOffline: boolean) => void;
 }
 
 export const ProgressPreservation = ({ 
-  currentStep = 0,
-  onLastSavedChange,
+  currentStep,
+  lastSaved, 
   onOfflineStatusChange 
 }: ProgressPreservationProps) => {
-  const form = useFormContext<CarListingFormData>();
-  const { session } = useAuth();
-  
-  const { lastSaved, isOffline, carId } = useFormPersistence(
-    form, 
-    session?.user.id, 
-    currentStep
-  );
-  
-  // Propagate lastSaved date up to parent components
-  useEffect(() => {
-    if (onLastSavedChange) {
-      onLastSavedChange(lastSaved);
-    }
-  }, [lastSaved, onLastSavedChange]);
+  const { isOffline } = useOfflineStatus();
   
   // Propagate offline status up to parent components
   useEffect(() => {
@@ -46,5 +30,6 @@ export const ProgressPreservation = ({
     }
   }, [isOffline, onOfflineStatusChange]);
 
+  // This component doesn't render anything visible
   return null;
 };
