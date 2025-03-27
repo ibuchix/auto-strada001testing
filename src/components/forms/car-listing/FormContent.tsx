@@ -1,4 +1,11 @@
 
+/**
+ * Changes made:
+ * - Fixed type comparison errors by importing and using TransactionStatus enum
+ * - Used proper enum values instead of string literals for transaction status checks
+ * - Cleaned up imports and code structure
+ */
+
 import { useRef, useState, useEffect } from "react";
 import { Form } from "@/components/ui/form";
 import { StepForm } from "./StepForm";
@@ -6,7 +13,6 @@ import { useForm } from "react-hook-form";
 import { useFormSubmissionContext } from "./submission/FormSubmissionProvider";
 import { toast } from "sonner";
 import { FormTransactionError } from "./submission/FormTransactionError";
-import { FormSubmitButton } from "./FormSubmitButton";
 import { FormSuccessDialog } from "./submission/FormSuccessDialog";
 import { useFormPersistence } from "./hooks/useFormPersistence";
 import { FormDataProvider } from "./context/FormDataContext";
@@ -15,6 +21,7 @@ import { CarListingFormData } from "@/types/forms";
 import { formSteps } from "./constants/formSteps";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { TransactionStatus } from "@/services/supabase/transactions/types";
 
 interface FormContentProps {
   session: any;
@@ -187,9 +194,9 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
               <Button
                 type="submit"
                 className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-full md:w-auto float-right"
-                disabled={isSubmitting || transactionStatus === 'PENDING'}
+                disabled={isSubmitting || transactionStatus === TransactionStatus.PENDING}
               >
-                {isSubmitting || transactionStatus === 'PENDING' ? (
+                {isSubmitting || transactionStatus === TransactionStatus.PENDING ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Submitting...
