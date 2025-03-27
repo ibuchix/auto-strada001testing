@@ -4,6 +4,7 @@
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field hasDocumentation
  * - 2025-06-10: Added defaultCarFeatures import
+ * - 2025-08-04: Added missing required fields to default values
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -17,7 +18,16 @@ const defaultFeatures = {
   upgradedSound: false
 };
 
-export const getFormDefaults = (): Partial<CarListingFormData> => ({
+export const getFormDefaults = async (): Promise<Partial<CarListingFormData>> => ({
+  // Required fields
+  make: "",
+  model: "",
+  year: new Date().getFullYear(),
+  price: 0,
+  mileage: 0,
+  vin: "",
+  
+  // Common fields
   name: "",
   address: "",
   mobileNumber: "",
@@ -32,8 +42,10 @@ export const getFormDefaults = (): Partial<CarListingFormData> => ({
   numberOfKeys: "1",
   serviceHistoryType: "none",
   sellerNotes: "",
+  
+  // Optional fields
   damageReports: [],
   rimPhotosComplete: false,
   warningLightPhotos: [],
-  transmission: null
+  transmission: "manual"
 });

@@ -10,6 +10,7 @@
  * - 2025-07-06: Added explicit parameter type to useLoadDraft function
  * - 2025-08-01: Added onLoaded callback for draft data
  * - 2025-08-02: Updated interface to match expected shape
+ * - 2025-08-04: Fixed type issues with draft data
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -26,7 +27,7 @@ export interface LoadDraftOptions {
   onLoaded?: (draft: {
     carId: string;
     updatedAt: Date;
-    data: CarListingFormData;
+    data: Partial<CarListingFormData>;
   }) => void;
 }
 

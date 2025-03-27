@@ -9,6 +9,7 @@
  * - 2024-08-05: Updated to use seller_name instead of name to match database schema
  * - 2025-06-01: Removed references to non-existent field has_tool_pack
  * - 2025-06-02: Removed references to non-existent field has_documentation
+ * - 2025-08-04: Fixed type issues with numeric fields
  */
 
 import { useForm } from "react-hook-form";
@@ -51,6 +52,19 @@ export const useManualValuationForm = () => {
     },
   });
 
+  // Helper for safe numeric parsing
+  const safeParseInt = (value: string | number | undefined): number | null => {
+    if (value === undefined || value === null || value === '') return null;
+    const num = typeof value === 'string' ? parseInt(value, 10) : value;
+    return isNaN(num) ? null : num;
+  };
+
+  const safeParseFloat = (value: string | number | undefined): number | null => {
+    if (value === undefined || value === null || value === '') return null;
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    return isNaN(num) ? null : num;
+  };
+
   const onSubmit = async (data: CarListingFormData) => {
     setIsSubmitting(true);
     try {
@@ -71,18 +85,18 @@ export const useManualValuationForm = () => {
           title: `${data.make} ${data.model} ${data.year}`,
           make: data.make,
           model: data.model,
-          year: parseInt(String(data.year), 10),
+          year: safeParseInt(data.year) || new Date().getFullYear(),
           transmission: data.transmission,
           price: 0, // Will be updated after valuation
-          mileage: parseInt(String(data.mileage), 10),
+          mileage: safeParseInt(data.mileage) || 0,
           features: data.features,
           is_damaged: data.isDamaged,
           is_registered_in_poland: data.isRegisteredInPoland,
           seat_material: data.seatMaterial,
-          number_of_keys: parseInt(data.numberOfKeys),
+          number_of_keys: safeParseInt(data.numberOfKeys) || 1,
           is_selling_on_behalf: data.isSellingOnBehalf,
           has_private_plate: data.hasPrivatePlate,
-          finance_amount: data.financeAmount ? parseFloat(data.financeAmount) : null,
+          finance_amount: safeParseFloat(data.financeAmount),
           service_history_type: data.serviceHistoryType,
           seller_notes: data.sellerNotes,
           seller_name: data.name, // Use seller_name instead of name

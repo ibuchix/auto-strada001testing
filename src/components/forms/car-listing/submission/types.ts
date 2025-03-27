@@ -15,7 +15,7 @@ export interface FormSubmissionContextType {
   showSuccessDialog: boolean;
   setShowSuccessDialog: (value: boolean) => void;
   handleSubmit: (data: CarListingFormData, carId?: string) => Promise<any>;
-  resetTransaction: () => void;  // Add resetTransaction to context type
+  resetTransaction: () => void;
 }
 
 export interface SubmissionErrorType {

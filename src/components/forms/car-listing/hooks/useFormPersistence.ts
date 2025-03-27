@@ -8,13 +8,12 @@
  * - 2025-08-02: Fixed interface to align with the saveImmediately method naming
  * - 2025-08-03: Added proper cleanup in useEffect hooks
  * - 2025-08-03: Improved error handling and loading states
+ * - 2025-08-04: Fixed type issues with saveFormData function
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { saveFormData } from "../utils/formSaveUtils";
-import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { toast } from "sonner";
 
 interface UseFormPersistenceOptions {
@@ -33,6 +32,29 @@ interface UseFormPersistenceResult {
   saveImmediately: () => Promise<string | undefined>;
   setIsOffline: (status: boolean) => void;
 }
+
+// Custom hook for offline status tracking
+export const useOfflineStatus = () => {
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  
+  return { isOffline, setIsOffline };
+};
+
+// Import the actual saveFormData function from your utility file
+import { saveFormData } from "../utils/formSaveUtils";
 
 export const useFormPersistence = (options: UseFormPersistenceOptions): UseFormPersistenceResult => {
   const { 

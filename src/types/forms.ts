@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Added DamageType and DamageReport types
@@ -8,6 +9,7 @@
  * - Made CarListingFormData use Partial to fix type conflicts
  * - Fixed the transaction status mapping
  * - Added proper typing for CarListingFormData fields
+ * - 2025-08-04: Fixed issue with required vs optional fields
  */
 
 // Add or update the following types in forms.ts
@@ -65,6 +67,7 @@ export interface CarListing {
 
 // Updated CarListingFormData interface with proper typing
 export interface CarListingFormData {
+  // Core required fields (these should always be present for a valid form)
   make: string;
   model: string;
   year: number;
@@ -72,17 +75,37 @@ export interface CarListingFormData {
   mileage: number;
   vin: string;
   
+  // Common fields that are required in most contexts
+  name: string;
+  address: string;
+  mobileNumber: string;
+  transmission: "manual" | "automatic" | null;
+  features: CarFeatures;
+  isDamaged: boolean;
+  isRegisteredInPoland: boolean;
+  isSellingOnBehalf: boolean;
+  hasPrivatePlate: boolean;
+  numberOfKeys: string;
+  serviceHistoryType: string;
+  sellerNotes: string;
+  
   // Optional fields
-  transmission?: "manual" | "automatic";
   notes?: string;
-  address?: string;
-  features?: CarFeatures;
   description?: string;
-  name?: string;
   userId?: string;
   uploadedPhotos?: string[];
   location?: string;
   damageReports?: DamageReport[];
+  financeAmount?: string | number;
+  financeDocument?: string | null;
+  serviceHistoryFiles?: string[];
+  conditionRating?: number;
+  previousOwners?: number;
+  contactEmail?: string;
+  accidentHistory?: string;
+  engineCapacity?: string | number;
+  seatMaterial?: string;
+  registrationNumber?: string;
   
   // Form metadata
   form_metadata?: {
@@ -91,25 +114,10 @@ export interface CarListingFormData {
     [key: string]: any;
   };
   
-  // Other fields
-  isDamaged?: boolean;
-  isRegisteredInPoland?: boolean;
-  isSellingOnBehalf?: boolean;
-  hasPrivatePlate?: boolean;
-  financeAmount?: string | number;
-  financeDocument?: string | null;
-  serviceHistoryType?: string;
-  serviceHistoryFiles?: string[];
-  sellerNotes?: string;
-  mobileNumber?: string;
-  registrationNumber?: string;
-  conditionRating?: number;
-  previousOwners?: number;
-  contactEmail?: string;
-  accidentHistory?: string;
-  engineCapacity?: string | number;
-  seatMaterial?: string;
-  numberOfKeys?: string;
+  // Add any other fields that might be needed
+  seller_id?: string;
+  rimPhotosComplete?: boolean;
+  warningLightPhotos?: string[];
   
   [key: string]: any; // Allow for additional dynamic properties
 }

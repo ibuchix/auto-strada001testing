@@ -3,6 +3,7 @@
  * Changes made:
  * - Updated to use explicit CarListingFormData type
  * - Fixed type compatibility issue with Partial
+ * - 2025-08-04: Fixed type issues with the form context
  */
 
 import React, { createContext, ReactNode, useContext } from "react";

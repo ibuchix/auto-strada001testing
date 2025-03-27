@@ -6,6 +6,7 @@
  * - 2025-07-02: Fixed type issues and removed form property
  * - 2025-07-31: Fixed missing getValuationData function
  * - 2025-08-02: Updated to match the UseFormPersistenceResult interface
+ * - 2025-08-04: Fixed type casting for numeric values
  */
 import { useForm } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
@@ -72,14 +73,28 @@ export const useCarListingForm = (userId: string, draftId?: string) => {
       form.setValue('vin', valuationData.vin || '');
       form.setValue('make', valuationData.make || '');
       form.setValue('model', valuationData.model || '');
-      form.setValue('year', valuationData.year || new Date().getFullYear());
-      form.setValue('mileage', valuationData.mileage?.toString() || '');
+      
+      // Ensure year is properly parsed as a number
+      const year = valuationData.year ? 
+        (typeof valuationData.year === 'string' ? parseInt(valuationData.year, 10) : valuationData.year) : 
+        new Date().getFullYear();
+      form.setValue('year', year);
+      
+      // Handle mileage - ensure it's a number
+      const mileageValue = valuationData.mileage ? 
+        (typeof valuationData.mileage === 'string' ? parseInt(valuationData.mileage, 10) : valuationData.mileage) : 
+        0;
+      form.setValue('mileage', mileageValue);
+      
       form.setValue('transmission', valuationData.transmission || 'manual');
       
       // Also try to load temporary mileage from localStorage if available
       const tempMileage = localStorage.getItem('tempMileage');
       if (tempMileage) {
-        form.setValue('mileage', tempMileage);
+        const parsedMileage = parseInt(tempMileage, 10);
+        if (!isNaN(parsedMileage)) {
+          form.setValue('mileage', parsedMileage);
+        }
       }
     } catch (error) {
       console.error('Error loading valuation data:', error);

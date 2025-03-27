@@ -9,6 +9,7 @@
  * - Better TypeScript typing throughout the component
  * - 2025-08-02: Fixed naming to use isSubmitting instead of submitting
  * - 2025-08-03: Added ErrorBoundary and improved loading states
+ * - 2025-08-04: Fixed type issues with saveProgress prop
  */
 
 import { useState, useEffect, useCallback } from "react";

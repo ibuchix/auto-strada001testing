@@ -64,7 +64,7 @@ export const validateMileageData = () => {
     // First check tempMileage in localStorage
     const tempMileage = localStorage.getItem('tempMileage');
     if (tempMileage) {
-      const mileageValue = parseInt(tempMileage);
+      const mileageValue = parseInt(tempMileage, 10);
       if (!isNaN(mileageValue) && mileageValue > 0) {
         return mileageValue;
       }
@@ -72,8 +72,8 @@ export const validateMileageData = () => {
     
     // Then check valuation data
     const valuationData = validateValuationData();
-    if (valuationData.mileage && !isNaN(parseInt(String(valuationData.mileage)))) {
-      return parseInt(String(valuationData.mileage));
+    if (valuationData.mileage && !isNaN(parseInt(String(valuationData.mileage), 10))) {
+      return parseInt(String(valuationData.mileage), 10);
     }
     
     throw {
