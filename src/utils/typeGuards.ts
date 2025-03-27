@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - Added missing CarFeatures properties (bluetooth, sunroof, alloyWheels)
+ */
+
 import { CarFeatures } from "@/types/forms";
 
 export const isCarFeatures = (obj: unknown): obj is CarFeatures => {

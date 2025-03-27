@@ -575,6 +575,50 @@ export type Database = {
           },
         ]
       }
+      damage_reports: {
+        Row: {
+          car_id: string | null
+          created_at: string
+          description: string
+          id: string
+          location: string | null
+          photo: string | null
+          severity: Database["public"]["Enums"]["damage_severity"] | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          car_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          location?: string | null
+          photo?: string | null
+          severity?: Database["public"]["Enums"]["damage_severity"] | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          car_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          location?: string | null
+          photo?: string | null
+          severity?: Database["public"]["Enums"]["damage_severity"] | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "damage_reports_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dealer_purchases: {
         Row: {
           amount: number
@@ -1291,6 +1335,38 @@ export type Database = {
         }
         Relationships: []
       }
+      service_history: {
+        Row: {
+          car_id: string | null
+          created_at: string
+          description: string | null
+          document_url: string
+          id: string
+        }
+        Insert: {
+          car_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_url: string
+          id?: string
+        }
+        Update: {
+          car_id?: string | null
+          created_at?: string
+          description?: string | null
+          document_url?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_history_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_health: {
         Row: {
           component_name: string
@@ -1815,6 +1891,13 @@ export type Database = {
         | "running"
         | "completed"
         | "cancelled"
+      auction_status:
+        | "draft"
+        | "scheduled"
+        | "active"
+        | "ended"
+        | "cancelled"
+        | "sold"
       audit_log_type:
         | "login"
         | "logout"
@@ -1839,6 +1922,7 @@ export type Database = {
         | "system_health_check"
         | "system_alert"
       car_transmission_type: "automatic" | "manual"
+      damage_severity: "minor" | "moderate" | "severe"
       dispute_status: "open" | "investigating" | "resolved" | "closed"
       dispute_type:
         | "payment"
@@ -1847,6 +1931,7 @@ export type Database = {
         | "auction_process"
         | "other"
       system_component_health: "healthy" | "degraded" | "failing" | "unknown"
+      transmission_type: "manual" | "automatic"
       user_role: "dealer" | "seller" | "admin"
       verification_status: "pending" | "approved" | "rejected"
     }
