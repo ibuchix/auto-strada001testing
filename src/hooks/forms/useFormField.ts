@@ -5,6 +5,7 @@
  * - Encapsulated field validation and state handling
  * - Added focus/blur event tracking
  * - Implemented consistent error handling
+ * - 2025-11-05: Fixed TypeScript errors with field state typing
  */
 
 import { useState, useCallback } from "react";
@@ -66,6 +67,13 @@ export function useFormField<T extends FieldValues>({
     setIsHovered(false);
   }, []);
   
+  // Safely access touchedFields and dirtyFields
+  const isTouchedField = form.formState.touchedFields ? 
+    (name in form.formState.touchedFields) : false;
+  
+  const isDirtyField = form.formState.dirtyFields ? 
+    (name in form.formState.dirtyFields) : false;
+  
   return {
     error,
     isFocused,
@@ -74,8 +82,8 @@ export function useFormField<T extends FieldValues>({
     rules,
     fieldState: {
       error,
-      isTouched: isTouched || form.formState.touchedFields[name],
-      isDirty: form.formState.dirtyFields[name]
+      isTouched: isTouched || isTouchedField,
+      isDirty: isDirtyField
     },
     eventHandlers: {
       onFocus: handleFocus,

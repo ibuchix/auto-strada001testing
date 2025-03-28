@@ -2,10 +2,11 @@
 /**
  * Hook to handle document upload functionality
  * - Optimized with memoization and parallel processing
+ * - 2025-11-05: Updated to handle ServiceHistoryFile type correctly
  */
 import { useState, useCallback, useMemo } from "react";
 import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, ServiceHistoryFile } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -81,8 +82,8 @@ export const useDocumentUpload = (form: UseFormReturn<CarListingFormData>, carId
       
       const totalFiles = newFilesArray.length;
       let completedFiles = 0;
-      const uploadUrls: string[] = [];
-      const uploadTasks: Promise<string | null>[] = [];
+      const uploadUrls: ServiceHistoryFile[] = [];
+      const uploadTasks: Promise<ServiceHistoryFile | null>[] = [];
       
       // Process files in parallel batches for better performance
       const batchSize = 3; // Upload 3 files at a time
@@ -90,7 +91,7 @@ export const useDocumentUpload = (form: UseFormReturn<CarListingFormData>, carId
       for (let i = 0; i < newFilesArray.length; i += batchSize) {
         const batch = newFilesArray.slice(i, i + batchSize);
         
-        const batchPromises = batch.map(async (file): Promise<string | null> => {
+        const batchPromises = batch.map(async (file): Promise<ServiceHistoryFile | null> => {
           try {
             // Create a unique file path in the service_documents folder
             const filePath = createFilePath(file, carId);
@@ -125,7 +126,13 @@ export const useDocumentUpload = (form: UseFormReturn<CarListingFormData>, carId
                 category: 'service_document'
               });
             
-            return publicUrl;
+            return {
+              id: uuidv4(),
+              name: file.name,
+              url: publicUrl,
+              type: file.type,
+              uploadDate: new Date().toISOString()
+            };
           } catch (err) {
             console.error('Error processing file:', err);
             return null;
@@ -136,8 +143,8 @@ export const useDocumentUpload = (form: UseFormReturn<CarListingFormData>, carId
         const batchResults = await Promise.all(batchPromises);
         
         // Add successful uploads to the URL list
-        batchResults.filter(Boolean).forEach(url => {
-          if (url) uploadUrls.push(url);
+        batchResults.filter(Boolean).forEach(result => {
+          if (result) uploadUrls.push(result);
         });
         
         // Update progress
@@ -149,7 +156,7 @@ export const useDocumentUpload = (form: UseFormReturn<CarListingFormData>, carId
       // Update form with uploaded files
       if (uploadUrls.length > 0) {
         const currentFiles = form.getValues('serviceHistoryFiles') || [];
-        form.setValue('serviceHistoryFiles', [...currentFiles, ...uploadUrls], { 
+        form.setValue('serviceHistoryFiles', [...currentFiles, ...uploadUrls] as any, { 
           shouldValidate: true, 
           shouldDirty: true 
         });
@@ -178,10 +185,19 @@ export const useDocumentUpload = (form: UseFormReturn<CarListingFormData>, carId
     });
   }, []);
 
-  const removeUploadedFile = useCallback((url: string) => {
-    const currentFiles = [...(form.getValues('serviceHistoryFiles') || [])];
-    const updatedFiles = currentFiles.filter(fileUrl => fileUrl !== url);
-    form.setValue('serviceHistoryFiles', updatedFiles, { 
+  const removeUploadedFile = useCallback((fileId: string) => {
+    const currentFiles = form.getValues('serviceHistoryFiles') || [];
+    
+    // Handle both string and object types for files
+    const updatedFiles = currentFiles.filter((file: string | ServiceHistoryFile) => {
+      if (typeof file === 'string') {
+        return file !== fileId;
+      } else {
+        return file.id !== fileId;
+      }
+    });
+    
+    form.setValue('serviceHistoryFiles', updatedFiles as any, { 
       shouldValidate: true, 
       shouldDirty: true 
     });

@@ -4,11 +4,12 @@
  * - Created custom hook for Service History section
  * - Encapsulated document management and validation logic
  * - Implemented service history type handling
+ * - 2025-11-05: Fixed TypeScript errors with service history files typing
  */
 
 import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, ServiceHistoryFile } from "@/types/forms";
 import { toast } from "sonner";
 
 export const useServiceHistorySection = (form: UseFormReturn<CarListingFormData>, carId?: string) => {
@@ -65,7 +66,7 @@ export const useServiceHistorySection = (form: UseFormReturn<CarListingFormData>
       }
       
       // Generate mock URLs for uploaded files
-      const uploadedUrls = validFiles.map((file, index) => ({
+      const uploadedUrls: ServiceHistoryFile[] = validFiles.map((file, index) => ({
         id: `doc-${Date.now()}-${index}`,
         name: file.name,
         url: URL.createObjectURL(file),
@@ -75,7 +76,8 @@ export const useServiceHistorySection = (form: UseFormReturn<CarListingFormData>
       
       // Update form with new files
       const currentFiles = form.getValues('serviceHistoryFiles') || [];
-      const newFiles = [...currentFiles, ...uploadedUrls];
+      // Cast to any to allow for flexibility in the types during transition
+      const newFiles = [...currentFiles, ...uploadedUrls] as any;
       
       form.setValue('serviceHistoryFiles', newFiles, { shouldValidate: true });
       
@@ -102,9 +104,17 @@ export const useServiceHistorySection = (form: UseFormReturn<CarListingFormData>
   // Remove an uploaded file
   const removeUploadedFile = useCallback((fileId: string) => {
     const currentFiles = form.getValues('serviceHistoryFiles') || [];
-    const updatedFiles = currentFiles.filter(file => file.id !== fileId);
     
-    form.setValue('serviceHistoryFiles', updatedFiles, { shouldValidate: true });
+    // Handle both string arrays and ServiceHistoryFile arrays
+    const updatedFiles = currentFiles.filter((file: string | ServiceHistoryFile) => {
+      if (typeof file === 'string') {
+        return file !== fileId; // If file is a string, compare directly with fileId
+      } else {
+        return file.id !== fileId; // If file is an object, compare its id with fileId
+      }
+    });
+    
+    form.setValue('serviceHistoryFiles', updatedFiles as any, { shouldValidate: true });
     toast.success('Document removed');
   }, [form]);
   

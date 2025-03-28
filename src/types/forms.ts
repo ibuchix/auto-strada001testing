@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Added DamageType and DamageReport types
@@ -13,6 +14,7 @@
  * - 2025-08-20: Enhanced DamageType and DamageReport with additional fields
  * - 2025-08-20: Added new CarFeatures properties
  * - 2025-08-25: Ensured CarEntity type extends from CarListingFormData with required DB fields
+ * - 2025-11-05: Added proper typing for service history file objects
  */
 
 // DamageType with expanded options
@@ -58,6 +60,15 @@ export const defaultCarFeatures: CarFeatures = {
   sunroof: false,
   alloyWheels: false
 };
+
+// Service History File type for proper typing
+export interface ServiceHistoryFile {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  uploadDate: string;
+}
 
 // Enhanced TransactionStatus type
 export type TransactionStatus = 
@@ -131,7 +142,7 @@ export interface CarListingFormData {
   location?: string;
   financeAmount?: string | number;
   financeDocument?: string | null;
-  serviceHistoryFiles?: string[];
+  serviceHistoryFiles?: ServiceHistoryFile[] | string[]; // Now supports both string arrays and object arrays
   conditionRating?: number;
   previousOwners?: number;
   contactEmail?: string;

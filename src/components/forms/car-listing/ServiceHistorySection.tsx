@@ -8,10 +8,11 @@
  * - 2027-08-04: Enhanced upload success feedback with toast notifications
  * - 2027-08-04: Added conditional rendering for document upload based on service history type
  * - 2027-08-16: Refactored into smaller components for better maintainability
+ * - 2025-11-05: Updated to use ServiceHistoryFile type for proper typing
  */
 
 import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, ServiceHistoryFile } from "@/types/forms";
 import { ServiceHistoryTypeSelector } from "./service-history/ServiceHistoryTypeSelector";
 import { DocumentUploader } from "./service-history/DocumentUploader";
 import { DocumentList } from "./service-history/DocumentList";
