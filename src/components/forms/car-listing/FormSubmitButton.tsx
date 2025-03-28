@@ -5,10 +5,11 @@
  * - Improved state indicators for better user feedback
  * - Added consistent button styling across states
  * - 2028-06-15: Added micro-interactions for button states
+ * - 2028-06-16: Fixed missing RefreshCw icon import
  */
 
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { ArrowRight, Loader2, AlertCircle, CheckCircle, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface FormSubmitButtonProps {
