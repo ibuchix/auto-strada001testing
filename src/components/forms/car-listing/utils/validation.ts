@@ -4,16 +4,29 @@
  * - 2024-08-20: Enhanced form validation with standardized approach
  * - 2024-08-22: Added ValidationError type export to fix type errors in RequirementsDisplay.tsx
  * - 2025-06-02: Removed validation for non-existent has_documentation field
+ * - 2025-08-28: Implemented enhanced validation with detailed field validation
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { ValidationResult } from "@/utils/validation";
+import { validateVIN } from "@/validation/carListing";
 
 // Export the ValidationError type to be used by RequirementsDisplay
 export type ValidationError = ValidationResult;
 
 export const validateFormData = (data: Partial<CarListingFormData>): ValidationResult[] => {
   const errors: ValidationResult[] = [];
+
+  // Basic vehicle information
+  if (!data.make?.trim()) {
+    errors.push({ field: 'make', message: 'Make is required' });
+  }
+  if (!data.model?.trim()) {
+    errors.push({ field: 'model', message: 'Model is required' });
+  }
+  if (!data.vin || !validateVIN(data.vin)) {
+    errors.push({ field: 'vin', message: 'Invalid VIN' });
+  }
 
   // Personal Details
   if (!data.name?.trim()) {
