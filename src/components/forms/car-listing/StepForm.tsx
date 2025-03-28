@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Centralized navigation logic with safe step transitions
@@ -6,6 +5,8 @@
  * - Enhanced error handling with specific error messages
  * - Optimized re-renders with memoized components
  * - Better type safety throughout the component
+ * - Added step completion tracking
+ * - Improved error display and navigation
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -54,27 +55,41 @@ export const StepForm = ({
   visibleSections,
   isSaving = false
 }: StepFormProps) => {
-  const totalSteps = formSteps.length;
+  // Filter steps based on visibility of their sections
+  const filteredSteps = formSteps.filter(step => {
+    return step.sections.some(section => visibleSections.includes(section));
+  });
+  
+  const totalSteps = filteredSteps.length;
   const [isNavigating, setIsNavigating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [stepValidationErrors, setStepValidationErrors] = useState<Record<string, boolean>>({});
 
   // Memoized field validator
   const validateStepFields = useCallback(async (stepId: string) => {
     const fieldsToValidate = STEP_FIELD_MAPPINGS[stepId] || [];
     if (fieldsToValidate.length === 0) return true;
     
-    // Get current form values for logging
-    const currentValues = form.getValues();
-    console.log(`Validating fields for step ${currentStep}:`, fieldsToValidate);
-    console.log('Current form values:', JSON.stringify(currentValues, null, 2));
-    
     try {
+      // Get current form values for validation
+      const currentValues = form.getValues();
+      
+      // Use the validate function from formSteps if available
+      const currentStepConfig = filteredSteps.find(step => step.id === stepId);
+      if (currentStepConfig?.validate) {
+        const isValid = currentStepConfig.validate(currentValues);
+        
+        if (!isValid) {
+          setStepValidationErrors(prev => ({...prev, [stepId]: true}));
+          return false;
+        }
+      }
+      
+      // Standard field validation
       const result = await form.trigger(fieldsToValidate as any[]);
       
       if (!result) {
-        // Log validation errors for debugging
-        console.log('Validation errors:', form.formState.errors);
-        
         // Extract field errors for better messaging
         const newValidationErrors: Record<string, string> = {};
         fieldsToValidate.forEach(field => {
@@ -85,9 +100,20 @@ export const StepForm = ({
         });
         
         setValidationErrors(newValidationErrors);
+        setStepValidationErrors(prev => ({...prev, [stepId]: true}));
       } else {
         // Clear validation errors if validation passes
         setValidationErrors({});
+        setStepValidationErrors(prev => {
+          const updated = {...prev};
+          delete updated[stepId];
+          return updated;
+        });
+        
+        // Mark step as completed
+        if (!completedSteps.includes(currentStep)) {
+          setCompletedSteps(prev => [...prev, currentStep].sort((a, b) => a - b));
+        }
       }
       
       return result;
@@ -95,7 +121,7 @@ export const StepForm = ({
       console.error('Validation error:', error);
       return false;
     }
-  }, [form, currentStep]);
+  }, [form, currentStep, filteredSteps, completedSteps]);
 
   // Unified navigation handler
   const handleNavigation = useCallback(async (direction: 'previous' | 'next') => {
@@ -108,7 +134,7 @@ export const StepForm = ({
     try {
       // Validate current step before proceeding to next step
       if (direction === 'next') {
-        const currentStepId = formSteps[currentStep]?.id;
+        const currentStepId = filteredSteps[currentStep]?.id;
         const isValid = await validateStepFields(currentStepId);
         
         if (!isValid) {
@@ -151,7 +177,6 @@ export const StepForm = ({
       // Save progress before navigation
       await saveProgress();
       setCurrentStep(newStep);
-      console.log(`Navigating to ${direction} step: ${newStep}`);
       
     } catch (error) {
       console.error('Navigation error:', error);
@@ -161,7 +186,7 @@ export const StepForm = ({
     } finally {
       setIsNavigating(false);
     }
-  }, [currentStep, isSaving, isNavigating, saveProgress, setCurrentStep, validateStepFields, form]);
+  }, [currentStep, filteredSteps, isSaving, isNavigating, saveProgress, setCurrentStep, validateStepFields, form]);
 
   const handlePrevious = useCallback(() => {
     if (currentStep > 0) {
@@ -184,16 +209,28 @@ export const StepForm = ({
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6">
-      <div className="mb-10">
+      <div className="mb-6">
         <FormStepper 
-          steps={formSteps} 
+          steps={filteredSteps} 
           currentStep={currentStep} 
           onStepChange={setCurrentStep}
           visibleSections={visibleSections}
+          completedSteps={completedSteps}
+          validationErrors={stepValidationErrors}
         />
       </div>
       
-      {hasValidationErrors && (
+      {/* Current step description */}
+      {filteredSteps[currentStep]?.description && (
+        <div className="bg-blue-50 border border-blue-100 rounded-md p-4 mb-6">
+          <h3 className="text-sm font-medium text-blue-800">
+            {filteredSteps[currentStep].description}
+          </h3>
+        </div>
+      )}
+      
+      {/* Error display */}
+      {Object.keys(validationErrors).length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
           <div className="flex items-start">
             <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2" />
@@ -234,6 +271,7 @@ export const StepForm = ({
         />
       </div>
       
+      {/* Step navigation */}
       <div className="flex justify-between items-center mt-12 border-t pt-6">
         <Button
           type="button"
@@ -270,11 +308,14 @@ export const StepForm = ({
         )}
       </div>
       
+      {/* Progress indicator */}
       <FormFooter
         lastSaved={lastSaved}
         isOffline={isOffline}
         onSave={saveProgress}
         isSaving={navigationDisabled}
+        currentStep={currentStep + 1}
+        totalSteps={totalSteps}
       />
     </div>
   );
