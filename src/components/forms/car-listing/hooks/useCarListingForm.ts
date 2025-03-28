@@ -29,7 +29,7 @@ type ValuationData = {
 
 // Helper for safe number parsing
 const safeParseNumber = (value: unknown, fallback: number): number => {
-  return toNumberValue(value, fallback);
+  return toNumberValue(value as string | number | null | undefined, fallback);
 };
 
 export const useCarListingForm = (userId: string, draftId?: string) => {
@@ -67,8 +67,13 @@ export const useCarListingForm = (userId: string, draftId?: string) => {
       });
     }
   };
+  
+  // Form reset handler
+  const handleReset = () => {
+    form.reset(getInitialFormValues());
+  };
 
-  return { ...form, loadInitialData };
+  return { ...form, loadInitialData, handleReset };
 };
 
 const defaultCarFormValues = {
