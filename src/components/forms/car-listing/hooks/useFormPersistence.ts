@@ -9,6 +9,7 @@
  * - Improved error handling for aborted requests
  * - Fixed TypeScript errors with CACHE_KEYS.TEMP_FORM_DATA
  * - Added API endpoint integration
+ * - Updated to work with new cache expiration system
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -22,6 +23,7 @@ import { saveFormData } from "../utils/formSaveUtils";
 // Debounce time in milliseconds
 const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
 const SAVE_DEBOUNCE = 500; // 0.5 seconds
+const CACHE_TTL = 86400000; // 24 hours
 
 // Define the interface for the hook result
 export interface UseFormPersistenceResult {
@@ -72,29 +74,19 @@ export const useFormPersistence = ({
       const formData = form.getValues();
 
       // Save key form fields to local storage for offline recovery
-      saveToCache(CACHE_KEYS.TEMP_VIN, formData.vin);
-      saveToCache(CACHE_KEYS.TEMP_MILEAGE, formData.mileage.toString());
-      saveToCache(CACHE_KEYS.TEMP_GEARBOX, formData.transmission);
+      saveToCache(CACHE_KEYS.TEMP_VIN, formData.vin, CACHE_TTL);
+      saveToCache(CACHE_KEYS.TEMP_MILEAGE, formData.mileage.toString(), CACHE_TTL);
+      saveToCache(CACHE_KEYS.TEMP_GEARBOX, formData.transmission, CACHE_TTL);
 
-      // Optimistic local cache update
+      // Optimistic local cache update with TTL
       saveToCache(CACHE_KEYS.TEMP_FORM_DATA, {
         ...formData,
         form_metadata: {
           currentStep,
           lastSavedAt: new Date().toISOString()
         }
-      });
+      }, CACHE_TTL);
 
-      // Here we would actually save the data
-      console.log("Saving form data:", {
-        ...formData,
-        seller_id: userId,
-        form_metadata: {
-          currentStep,
-          lastSavedAt: new Date().toISOString()
-        }
-      });
-      
       // Call the saveFormData function to save to database
       const result = await saveFormData(
         formData,

@@ -4,6 +4,7 @@
  * - 2024-12-16: Fixed JSON parsing error by adding safe parsing logic for string values
  * - 2025-05-03: Added recovery mechanism and diagnostic logging
  * - 2025-08-29: Added TEMP_FORM_DATA key for form autosaving
+ * - 2025-11-01: Added cache expiration functionality with configurable TTL
  */
 
 // Cache keys for different types of data
@@ -24,21 +25,39 @@ export const CACHE_KEYS = {
   TEMP_FORM_DATA: 'tempFormData' // Added this key for form autosaving
 };
 
+// Default expiration time (24 hours in milliseconds)
+const DEFAULT_EXPIRATION = 86400000;
+
+// Cache item interface with expiration
+interface CacheItem<T> {
+  data: T;
+  timestamp: number;
+}
+
 // Log function for debugging cache operations
 const logCacheOperation = (operation: string, key: string, details?: any) => {
-  const diagnosticId = getFromCache(CACHE_KEYS.DIAGNOSTIC_ID, '');
+  const diagnosticId = getFromCache(CACHE_KEYS.DIAGNOSTIC_ID, '', Infinity);
   const prefix = diagnosticId ? `[${diagnosticId}]` : '';
   console.log(`${prefix} [CacheService] ${operation}: ${key}`, details || '');
 };
 
 /**
- * Save data to the cache with backup mechanism
+ * Save data to the cache with expiration timestamp
+ * @param key Cache key
+ * @param data Data to store
+ * @param ttl Time to live in milliseconds (defaults to 24 hours)
  */
-export const saveToCache = <T>(key: string, data: T): void => {
+export const saveToCache = <T>(key: string, data: T, ttl: number = DEFAULT_EXPIRATION): void => {
   try {
+    // Create cache item with timestamp
+    const cacheItem: CacheItem<T> = {
+      data,
+      timestamp: Date.now()
+    };
+    
     // Create backup before saving
     const timestamp = new Date().toISOString();
-    const existingBackups = getFromCache<Record<string, any>>(CACHE_KEYS.FORM_BACKUP, {});
+    const existingBackups = getFromCache<Record<string, any>>(CACHE_KEYS.FORM_BACKUP, {}, Infinity);
     
     // Keep backups organized by key
     const keyBackups = {...(existingBackups[key] || {})};
@@ -53,18 +72,13 @@ export const saveToCache = <T>(key: string, data: T): void => {
       existingBackups[key] = keyBackups;
     }
     
-    // Save the backup registry
+    // Save the backup registry with infinite TTL
     localStorage.setItem(CACHE_KEYS.FORM_BACKUP, JSON.stringify(existingBackups));
     
-    // Now save the actual data
-    if (typeof data === 'string') {
-      localStorage.setItem(key, data);
-    } else {
-      // For objects and other types, use JSON.stringify
-      localStorage.setItem(key, JSON.stringify(data));
-    }
+    // Now save the actual data with expiration
+    localStorage.setItem(key, JSON.stringify(cacheItem));
     
-    logCacheOperation('Saved', key);
+    logCacheOperation('Saved', key, { ttl });
   } catch (error) {
     console.error(`Failed to save data to cache (${key}):`, error);
     logCacheOperation('Save Error', key, error);
@@ -72,9 +86,13 @@ export const saveToCache = <T>(key: string, data: T): void => {
 };
 
 /**
- * Get data from the cache
+ * Get data from the cache, checking expiration
+ * @param key Cache key
+ * @param defaultValue Default value if not found
+ * @param ttl Custom TTL for this retrieval (defaults to 24 hours)
+ * @returns The cached data or defaultValue
  */
-export const getFromCache = <T>(key: string, defaultValue: T | null = null): T | null => {
+export const getFromCache = <T>(key: string, defaultValue: T | null = null, ttl: number = DEFAULT_EXPIRATION): T | null => {
   try {
     const item = localStorage.getItem(key);
     
@@ -82,6 +100,29 @@ export const getFromCache = <T>(key: string, defaultValue: T | null = null): T |
       return defaultValue;
     }
     
+    // Try parsing as cache item with expiration
+    try {
+      const cacheItem = JSON.parse(item) as CacheItem<T>;
+      
+      // Check if the item has timestamp (is a cache item)
+      if (cacheItem && 'timestamp' in cacheItem && 'data' in cacheItem) {
+        // Check expiration
+        if (ttl !== Infinity && Date.now() - cacheItem.timestamp > ttl) {
+          logCacheOperation('Expired', key, {
+            age: Date.now() - cacheItem.timestamp,
+            ttl
+          });
+          localStorage.removeItem(key);
+          return defaultValue;
+        }
+        
+        return cacheItem.data;
+      }
+    } catch (parseError) {
+      // Not a cache item with expiration, try parsing as regular data
+    }
+    
+    // Handle legacy data or direct values without cache wrapper
     // Handle different expected return types
     if (defaultValue !== null) {
       // If defaultValue is a string, return the raw item
@@ -152,7 +193,7 @@ export const clearCache = (): void => {
  */
 export const recoverFromBackup = (key: string): any | null => {
   try {
-    const backups = getFromCache<Record<string, any>>(CACHE_KEYS.FORM_BACKUP, {});
+    const backups = getFromCache<Record<string, any>>(CACHE_KEYS.FORM_BACKUP, {}, Infinity);
     const keyBackups = backups[key] || {};
     
     // Get the most recent backup timestamp
@@ -195,12 +236,12 @@ export const storePendingRequest = (request: {
   body: any;
   id: string;
 }): void => {
-  const pendingRequests = getFromCache<any[]>(CACHE_KEYS.PENDING_REQUESTS, []);
+  const pendingRequests = getFromCache<any[]>(CACHE_KEYS.PENDING_REQUESTS, [], DEFAULT_EXPIRATION * 2);
   pendingRequests?.push({
     ...request,
     timestamp: new Date().toISOString()
   });
-  saveToCache(CACHE_KEYS.PENDING_REQUESTS, pendingRequests);
+  saveToCache(CACHE_KEYS.PENDING_REQUESTS, pendingRequests, DEFAULT_EXPIRATION * 2);
   logCacheOperation('Stored Pending Request', request.endpoint, { id: request.id });
 };
 
@@ -257,10 +298,32 @@ export const getCacheState = (): Record<string, any> => {
     // Get the size of each cache key
     Object.values(CACHE_KEYS).forEach(key => {
       const item = localStorage.getItem(key);
+      
+      if (item) {
+        try {
+          // Try to parse as cache item
+          const cacheItem = JSON.parse(item);
+          if (cacheItem && 'timestamp' in cacheItem && 'data' in cacheItem) {
+            const age = Date.now() - cacheItem.timestamp;
+            state[key] = {
+              exists: true,
+              size: item.length,
+              type: typeof cacheItem.data === 'object' ? 'JSON' : typeof cacheItem.data,
+              age: `${Math.round(age / 1000 / 60)} minutes`,
+              expired: age > DEFAULT_EXPIRATION
+            };
+            return;
+          }
+        } catch (e) {
+          // Not a cache item
+        }
+      }
+      
       state[key] = {
         exists: item !== null,
         size: item ? item.length : 0,
-        type: item ? (item.startsWith('{') || item.startsWith('[') ? 'JSON' : 'string') : 'none'
+        type: item ? (item.startsWith('{') || item.startsWith('[') ? 'JSON' : 'string') : 'none',
+        expiration: 'unknown (legacy format)'
       };
     });
     
@@ -282,5 +345,42 @@ export const getCacheState = (): Record<string, any> => {
   } catch (error) {
     console.error('Failed to get cache state:', error);
     return { error: String(error) };
+  }
+};
+
+/**
+ * Clean expired cache entries
+ */
+export const cleanExpiredCache = (): { cleaned: number, total: number } => {
+  let cleaned = 0;
+  let total = 0;
+  
+  try {
+    Object.values(CACHE_KEYS).forEach(key => {
+      total++;
+      const item = localStorage.getItem(key);
+      
+      if (item) {
+        try {
+          const cacheItem = JSON.parse(item);
+          if (cacheItem && 'timestamp' in cacheItem && 'data' in cacheItem) {
+            if (Date.now() - cacheItem.timestamp > DEFAULT_EXPIRATION) {
+              localStorage.removeItem(key);
+              cleaned++;
+              logCacheOperation('Cleaned expired', key, { 
+                age: Date.now() - cacheItem.timestamp 
+              });
+            }
+          }
+        } catch (e) {
+          // Not a cache item with expiration, skip
+        }
+      }
+    });
+    
+    return { cleaned, total };
+  } catch (error) {
+    console.error('Failed to clean expired cache:', error);
+    return { cleaned, total };
   }
 };
