@@ -1,43 +1,67 @@
 
 /**
  * Changes made:
- * - 2025-06-01: Removed references to non-existent field has_tool_pack
- * - 2025-06-02: Removed references to non-existent field hasDocumentation
- * - 2025-06-10: Added defaultCarFeatures import
- * - 2025-08-04: Added missing required fields to default values
- * - 2025-08-21: Updated defaultFeatures to include new required properties
+ * - Refined type definitions for form defaults
+ * - Added type-safe implementation for form initialization
+ * - Enhanced type guarantees for required fields
+ * - Improved default value generation
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 
-export const getFormDefaults = async (): Promise<Partial<CarListingFormData>> => ({
-  // Required fields
-  make: "",
-  model: "",
+// Type for guaranteed required fields (matches database NOT NULL columns)
+type FormDefaults = Pick<CarListingFormData, 
+  'make' | 'model' | 'year' | 'price' | 'mileage' | 'vin' | 'transmission' | 'features'
+> & {
+  // Add other required fields with their default values
+  isRegisteredInPoland: boolean;
+  serviceHistoryType: string;
+  numberOfKeys: string;
+};
+
+/**
+ * Returns validated default values for car listing form
+ * Ensures compatibility with database schema constraints
+ */
+export const getFormDefaults = (): FormDefaults => ({
+  // Core required fields
+  make: '',
+  model: '',
   year: new Date().getFullYear(),
   price: 0,
   mileage: 0,
-  vin: "",
-  
-  // Common fields
-  name: "",
-  address: "",
-  mobileNumber: "",
-  features: defaultCarFeatures, // Use the imported defaultCarFeatures with all required properties
+  vin: '',
+  transmission: 'manual', // Default to manual instead of null
+
+  // Required features with defaults
+  features: defaultCarFeatures,
+
+  // Required form-specific defaults
+  isRegisteredInPoland: true,
+  serviceHistoryType: 'none',
+  numberOfKeys: '2'
+});
+
+/**
+ * Returns complete initial values for form reset
+ * Combines database defaults with UI-specific defaults
+ */
+export const getInitialFormValues = (): CarListingFormData => ({
+  ...getFormDefaults(),
+  // Optional fields
+  name: '',
+  address: '',
+  mobileNumber: '',
+  damageReports: [],
+  uploadedPhotos: [],
+  sellerNotes: '',
   isDamaged: false,
-  isRegisteredInPoland: false,
   isSellingOnBehalf: false,
   hasPrivatePlate: false,
-  financeDocument: null,
-  uploadedPhotos: [],
-  seatMaterial: "",
-  numberOfKeys: "1",
-  serviceHistoryType: "none",
-  sellerNotes: "",
-  
-  // Optional fields
-  damageReports: [],
-  rimPhotosComplete: false,
-  warningLightPhotos: [],
-  transmission: "manual"
+  // Transient form state
+  form_metadata: {
+    currentStep: 0,
+    lastSavedAt: new Date().toISOString()
+  }
 });
+
