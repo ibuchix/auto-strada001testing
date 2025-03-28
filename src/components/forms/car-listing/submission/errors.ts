@@ -1,39 +1,97 @@
 
 /**
  * Changes made:
- * - Created custom error classes for form validation and submission
- * - Added proper typing for error properties
- * - Implemented descriptive error handling with action support
+ * - 2024-06-07: Created initial error module for submission handling
+ * - 2025-12-01: Updated to use standard application error architecture
  */
 
-export class ValidationError extends Error {
-  description: string;
-  action?: { label: string; onClick: () => void };
-  
-  constructor(
-    message: string, 
-    description: string = '',
-    action?: { label: string; onClick: () => void }
-  ) {
-    super(message);
-    this.name = "ValidationError";
-    this.description = description;
-    this.action = action;
-  }
+import { 
+  ValidationError, 
+  SubmissionError, 
+  BaseApplicationError 
+} from "@/errors/classes";
+
+/**
+ * Create a validation error for submission forms
+ */
+export function createValidationError(
+  message: string, 
+  description?: string,
+  action?: { label: string; onClick: () => void }
+) {
+  return new ValidationError({
+    code: "VALIDATION_ERROR",
+    message,
+    description,
+    recovery: action ? {
+      type: 'form_retry',
+      label: action.label,
+      action: action.onClick
+    } : undefined
+  });
 }
 
-export class SubmissionError extends Error {
-  description: string;
-  retryable: boolean;
-  
-  constructor(
-    message: string,
-    description: string = '',
-    retryable: boolean = false
-  ) {
-    super(message);
-    this.name = "SubmissionError";
-    this.description = description;
-    this.retryable = retryable;
+/**
+ * Create a submission error for form submissions
+ */
+export function createSubmissionError(
+  message: string, 
+  description?: string,
+  retryable: boolean = true,
+  action?: { label: string; onClick: () => void }
+) {
+  return new SubmissionError({
+    code: "SUBMISSION_ERROR",
+    message,
+    description,
+    retryable,
+    recovery: action ? {
+      type: 'form_retry',
+      label: action.label,
+      action: action.onClick
+    } : undefined
+  });
+}
+
+/**
+ * Type for submission-specific errors
+ * @deprecated Use typed error classes instead
+ */
+export interface SubmissionErrorType {
+  message: string;
+  description?: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+/**
+ * Convert a generic error to a BaseApplicationError
+ * @deprecated Use error factory instead
+ */
+export function normalizeError(error: any): BaseApplicationError {
+  if (error instanceof BaseApplicationError) {
+    return error;
   }
+
+  // Handle submission error type
+  if (error && typeof error === 'object' && 'message' in error) {
+    return createSubmissionError(
+      error.message,
+      error.description,
+      true,
+      error.action
+    );
+  }
+
+  // Handle standard Error objects
+  if (error instanceof Error) {
+    return createSubmissionError(error.message);
+  }
+
+  // Fallback
+  return createSubmissionError(
+    typeof error === 'string' ? error : 'An unknown error occurred'
+  );
 }

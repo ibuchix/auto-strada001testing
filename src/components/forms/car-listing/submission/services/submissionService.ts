@@ -8,16 +8,18 @@
  * - 2024-08-01: Fixed TypeScript error with car_id property access
  * - 2025-07-21: Added enhanced error handling to prevent blank screen issues
  * - 2025-08-25: Integrated prepareSubmission for cleaner data transformation
+ * - 2025-12-01: Updated to use the new error architecture
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { CarListingFormData } from "@/types/forms";
 import { prepareCarDataForSubmission } from "../utils/dataPreparation";
 import { validateValuationData, validateMileageData } from "../utils/validationHandler";
-import { SubmissionErrorType } from "../types";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { prepareSubmission } from "../../utils/submission";
+import { createTimeoutError, createSubmissionError, createNetworkError } from "@/errors/factory";
+import { SubmissionErrorCode } from "@/errors/types";
 
 export const submitCarListing = async (
   formData: CarListingFormData, 
@@ -30,14 +32,10 @@ export const submitCarListing = async (
     // Set up submission timeout
     const submissionTimeout = setTimeout(() => {
       console.error('Submission operation timed out after 20 seconds');
-      throw {
-        message: "Submission Timeout",
+      throw createTimeoutError("Submission Timeout", {
         description: "The operation took too long to complete. Please try again.",
-        action: {
-          label: "Try Again",
-          onClick: () => window.location.reload()
-        }
-      } as SubmissionErrorType;
+        retryAction: () => window.location.reload()
+      });
     }, 20000);
     
     try {
@@ -113,7 +111,14 @@ export const submitCarListing = async (
         
         if (error) {
           console.error('Database error during submission:', error);
-          throw error;
+          throw createSubmissionError(
+            "Database error during submission", 
+            {
+              code: SubmissionErrorCode.DATABASE_ERROR,
+              description: error.message || "Failed to save your listing data.",
+              retryable: true
+            }
+          );
         }
         
         // Clear the timeout since operation succeeded
@@ -137,7 +142,14 @@ export const submitCarListing = async (
           }
         }, 5000);
         
-        throw dbError;
+        throw createSubmissionError(
+          "Database operation failed", 
+          {
+            code: SubmissionErrorCode.DATABASE_ERROR,
+            description: dbError instanceof Error ? dbError.message : "Failed to save your listing.",
+            retryable: true
+          }
+        );
       }
       
     } catch (innerError) {
@@ -149,39 +161,36 @@ export const submitCarListing = async (
   } catch (error: any) {
     console.error('Submission error:', error);
     
-    // Format error appropriately
-    if (error.message && typeof error.message === 'string') {
-      // Make sure we don't stay on a blank page
-      setTimeout(() => {
-        if (window.location.pathname.includes('sell-my-car') && !document.body.textContent) {
-          console.log('Detected possible blank page, redirecting to dashboard');
-          window.location.href = '/dashboard/seller';
-        }
-      }, 3000);
-      
-      throw {
-        message: error.message,
-        description: "There was an error submitting your listing. Please try again or contact support if the issue persists.",
-        action: {
-          label: "Try Again",
-          onClick: () => window.location.reload()
-        }
-      } as SubmissionErrorType;
-    }
-    
-    // If it's already a SubmissionErrorType, just rethrow
-    if (error.message && error.description) {
+    // If it's already one of our error types, just rethrow
+    if (error.name === 'ValidationError' || 
+        error.name === 'SubmissionError' ||
+        error.name === 'BaseApplicationError') {
       throw error;
     }
     
-    // Fallback generic error
-    throw {
-      message: "Submission Failed",
-      description: error.message || "An unexpected error occurred while submitting your listing.",
-      action: {
-        label: "Try Again",
-        onClick: () => window.location.reload()
+    // Check for network-related errors
+    if (error.message && (
+        error.message.includes('network') ||
+        error.message.includes('connection') ||
+        error.message.includes('offline')
+      )) {
+      throw createNetworkError(
+        "Network connection issue",
+        { 
+          description: "Please check your internet connection and try again.",
+          retryAction: () => window.location.reload()
+        }
+      );
+    }
+    
+    // Format error appropriately for unknown errors
+    throw createSubmissionError(
+      error.message || "Submission Failed", 
+      {
+        code: SubmissionErrorCode.UNKNOWN,
+        description: "An unexpected error occurred while submitting your listing.",
+        retryable: true
       }
-    } as SubmissionErrorType;
+    );
   }
 };
