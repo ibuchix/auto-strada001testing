@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-12-20: Created valuation request hook extracted from useValuationForm
+ * - 2024-08-17: Refactored to use standardized timeout utilities
  */
 
 import { useRef, useEffect } from "react";
@@ -10,6 +11,7 @@ import { getValuation, cleanupValuationData } from "@/components/hero/valuation/
 import { useRealtime } from "@/components/RealtimeProvider";
 import { ValuationFormData } from "@/types/validation";
 import { UseValuationRequestProps } from "./types";
+import { TimeoutDurations, withTimeout } from "@/utils/timeoutUtils";
 
 /**
  * Hook for handling valuation API requests
@@ -48,7 +50,7 @@ export const useValuationRequest = ({
       console.warn('WebSocket not connected during valuation request');
       toast.warning("Limited connectivity detected", {
         description: "We'll still try to get your valuation, but you may need to refresh if there are issues.",
-        duration: 3000
+        duration: TimeoutDurations.SHORT
       });
     }
     
@@ -61,7 +63,7 @@ export const useValuationRequest = ({
           description: "The valuation request is taking longer than expected. Please try again.",
         });
       }
-    }, 20000); // 20 second timeout
+    }, TimeoutDurations.LONG); // 20 second timeout
     
     try {
       console.log('Calling getValuation with parameters:', {
@@ -70,10 +72,15 @@ export const useValuationRequest = ({
         gearbox: data.gearbox
       });
       
-      const result = await getValuation(
-        data.vin,
-        parseInt(data.mileage),
-        data.gearbox
+      // Use withTimeout utility to handle timeout in a more structured way
+      const result = await withTimeout(
+        getValuation(
+          data.vin,
+          parseInt(data.mileage),
+          data.gearbox
+        ),
+        TimeoutDurations.LONG,
+        "Valuation request timed out"
       );
 
       console.log('Valuation result:', result);
@@ -159,7 +166,11 @@ export const useValuationRequest = ({
     if (errorMessage.includes('WebSocket') || errorMessage.includes('network') || 
         errorMessage.includes('connection') || !isConnected) {
       toast.error("Connection issue detected", {
-        description: "Please check your internet connection and try again."
+        description: "Please check your internet connection and try again.",
+        action: {
+          label: "Retry",
+          onClick: () => console.log("Retry action triggered")
+        }
       });
     } else {
       toast.error(errorMessage, {

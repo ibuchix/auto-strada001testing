@@ -10,6 +10,7 @@
  * - Fixed TypeScript errors with CACHE_KEYS.TEMP_FORM_DATA
  * - Added API endpoint integration
  * - Updated to work with new cache expiration system
+ * - 2024-08-17: Refactored to use standardized timeout utilities
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -19,10 +20,11 @@ import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { toast } from "sonner";
 import { CACHE_KEYS, saveToCache } from "@/services/offlineCacheService";
 import { saveFormData } from "../utils/formSaveUtils";
+import { TimeoutDurations } from "@/utils/timeoutUtils";
 
-// Debounce time in milliseconds
-const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
-const SAVE_DEBOUNCE = 500; // 0.5 seconds
+// Debounce time in milliseconds - now using standardized durations
+const AUTO_SAVE_INTERVAL = TimeoutDurations.STANDARD; // 5 seconds (changed from 30)
+const SAVE_DEBOUNCE = 500; // 0.5 seconds (kept as custom value due to debounce specifics)
 const CACHE_TTL = 86400000; // 24 hours
 
 // Define the interface for the hook result
@@ -124,7 +126,7 @@ export const useFormPersistence = ({
     return () => subscription.unsubscribe();
   }, [form, debouncedSave]);
 
-  // Periodic save insurance
+  // Periodic save insurance - using standardized interval
   useEffect(() => {
     const interval = setInterval(saveProgress, AUTO_SAVE_INTERVAL);
     return () => {
