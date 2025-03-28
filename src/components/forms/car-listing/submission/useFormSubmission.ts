@@ -9,6 +9,7 @@
  * - Maintained compatibility with existing components
  * - Enhanced TypeScript usage with proper error typing
  * - Added useCallback for better performance
+ * - Fixed TypeScript errors with proper type guards
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -23,11 +24,22 @@ import { SubmissionErrorType } from "./types";
 import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
 import { useCreateTransaction } from "@/hooks/useTransaction";
 import { TransactionOptions } from "@/services/supabase/transactionService";
-import { ValidationError, SubmissionError } from "./errors";
+import { ValidationError, SubmissionError, normalizeError } from "./errors";
+import { BaseApplicationError } from "@/errors/classes";
 
 // Configuration constants
 const SUBMISSION_TIMEOUT = 30000;
 const TOAST_DURATION = 5000;
+
+// Type guard for error objects
+function isSubmissionErrorType(error: unknown): error is SubmissionErrorType {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as any).message === 'string'
+  );
+}
 
 export const useFormSubmission = (userId?: string) => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -65,14 +77,16 @@ export const useFormSubmission = (userId?: string) => {
       return valuationData;
     } catch (error: any) {
       console.error('Valuation data validation failed:', error);
-      throw new ValidationError(
-        error.message || "Missing valuation data",
-        error.description || "Please complete the vehicle valuation first",
-        error.action || {
+      throw new ValidationError({
+        code: "MISSING_VALUATION",
+        message: error.message || "Missing valuation data",
+        description: error.description || "Please complete the vehicle valuation first",
+        recovery: {
+          type: RecoveryType.NAVIGATE,
           label: "Start Valuation",
-          onClick: () => navigate("/sellers")
+          action: () => navigate("/sellers")
         }
-      );
+      });
     }
   }, [navigate]);
 
@@ -83,33 +97,41 @@ export const useFormSubmission = (userId?: string) => {
       console.log('Mileage validation successful');
     } catch (error: any) {
       console.error('Mileage validation failed:', error);
-      throw new ValidationError(
-        error.message || "Missing mileage data",
-        error.description || "Please complete the vehicle valuation with mileage information",
-        error.action || {
+      throw new ValidationError({
+        code: "REQUIRED_FIELD",
+        message: error.message || "Missing mileage data",
+        description: error.description || "Please complete the vehicle valuation with mileage information",
+        recovery: {
+          type: RecoveryType.NAVIGATE,
           label: "Start Valuation",
-          onClick: () => navigate("/sellers")
+          action: () => navigate("/sellers")
         }
-      );
+      });
     }
   }, [navigate]);
 
   // Validate form data for completeness
   const validateForm = useCallback((data: CarListingFormData) => {
     if (!userId) {
-      throw new ValidationError(
-        "Authentication Required",
-        "Please sign in to submit a listing",
-        { label: "Sign In", onClick: () => navigate("/auth") }
-      );
+      throw new ValidationError({
+        code: "AUTHENTICATION_REQUIRED",
+        message: "Authentication Required",
+        description: "Please sign in to submit a listing",
+        recovery: {
+          type: RecoveryType.SIGN_IN,
+          label: "Sign In", 
+          action: () => navigate("/auth")
+        }
+      });
     }
 
     const errors = validateFormData(data);
     if (errors.length > 0) {
-      throw new ValidationError(
-        "Please complete all required fields",
-        "Some information is missing or incomplete"
-      );
+      throw new ValidationError({
+        code: "INCOMPLETE_FORM",
+        message: "Please complete all required fields",
+        description: "Some information is missing or incomplete"
+      });
     }
   }, [userId, navigate]);
 
@@ -123,7 +145,10 @@ export const useFormSubmission = (userId?: string) => {
       toast.error(error.message, {
         description: error.description,
         duration: TOAST_DURATION,
-        action: error.action
+        action: error.recovery ? {
+          label: error.recovery.label,
+          onClick: error.recovery.action
+        } : undefined
       });
       return;
     }
@@ -141,14 +166,13 @@ export const useFormSubmission = (userId?: string) => {
     }
 
     // Handle submission-specific errors
-    if (error && typeof error === 'object' && 'message' in error && 'description' in error) {
-      const submissionError = error as SubmissionErrorType;
-      setError(submissionError.message);
+    if (isSubmissionErrorType(error)) {
+      setError(error.message);
       
-      toast.error(submissionError.message, {
-        description: submissionError.description,
+      toast.error(error.message, {
+        description: error.description,
         duration: TOAST_DURATION,
-        action: submissionError.action
+        action: error.action
       });
       return;
     }
@@ -298,3 +322,6 @@ export const useFormSubmission = (userId?: string) => {
     resetTransaction
   };
 };
+
+// Import RecoveryType from errors/types
+import { RecoveryType } from "@/errors/types";

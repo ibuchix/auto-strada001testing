@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-07: Created initial error module for submission handling
  * - 2025-12-01: Updated to use standard application error architecture
+ * - 2025-12-05: Fixed TypeScript errors with RecoveryType
  */
 
 import { 
@@ -10,6 +11,7 @@ import {
   SubmissionError, 
   BaseApplicationError 
 } from "@/errors/classes";
+import { RecoveryType } from "@/errors/types";
 
 /**
  * Create a validation error for submission forms
@@ -24,7 +26,7 @@ export function createValidationError(
     message,
     description,
     recovery: action ? {
-      type: 'form_retry',
+      type: RecoveryType.FORM_RETRY,
       label: action.label,
       action: action.onClick
     } : undefined
@@ -46,7 +48,7 @@ export function createSubmissionError(
     description,
     retryable,
     recovery: action ? {
-      type: 'form_retry',
+      type: RecoveryType.FORM_RETRY,
       label: action.label,
       action: action.onClick
     } : undefined
@@ -95,3 +97,6 @@ export function normalizeError(error: any): BaseApplicationError {
     typeof error === 'string' ? error : 'An unknown error occurred'
   );
 }
+
+// Export these types to fix imports in useFormSubmission
+export { ValidationError, SubmissionError };

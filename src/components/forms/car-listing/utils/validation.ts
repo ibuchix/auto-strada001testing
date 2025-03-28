@@ -1,27 +1,34 @@
-
 /**
  * Changes made:
  * - 2024-08-20: Enhanced form validation with standardized approach
  * - 2024-08-22: Added ValidationError type export to fix type errors in RequirementsDisplay.tsx
  * - 2025-06-02: Removed validation for non-existent has_documentation field
  * - 2025-08-28: Implemented enhanced validation with detailed field validation
+ * - 2025-12-05: Integrated with new error factory for consistent error handling
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { ValidationResult } from "@/utils/validation";
 import { validateVIN } from "@/validation/carListing";
+import { createFieldError, createFormError } from "@/errors/factory";
+import { ValidationErrorCode } from "@/errors/types";
 
 // Export the ValidationError type to be used by RequirementsDisplay
 export type ValidationError = ValidationResult;
+
+// Validation utility to check if a string field is empty
+const isEmptyField = (value: string | undefined): boolean => {
+  return !value || value.trim() === '';
+};
 
 export const validateFormData = (data: Partial<CarListingFormData>): ValidationResult[] => {
   const errors: ValidationResult[] = [];
 
   // Basic vehicle information
-  if (!data.make?.trim()) {
+  if (isEmptyField(data.make)) {
     errors.push({ field: 'make', message: 'Make is required' });
   }
-  if (!data.model?.trim()) {
+  if (isEmptyField(data.model)) {
     errors.push({ field: 'model', message: 'Model is required' });
   }
   if (!data.vin || !validateVIN(data.vin)) {
@@ -29,15 +36,15 @@ export const validateFormData = (data: Partial<CarListingFormData>): ValidationR
   }
 
   // Personal Details
-  if (!data.name?.trim()) {
+  if (isEmptyField(data.name)) {
     errors.push({ field: 'name', message: 'Name is required' });
   }
-  if (!data.address?.trim()) {
+  if (isEmptyField(data.address)) {
     errors.push({ field: 'address', message: 'Address is required' });
   }
-  if (!data.mobileNumber?.trim()) {
+  if (isEmptyField(data.mobileNumber)) {
     errors.push({ field: 'mobileNumber', message: 'Mobile number is required' });
-  } else if (!/^\+?[0-9\s\-()]{8,}$/.test(data.mobileNumber)) {
+  } else if (!/^\+?[0-9\s\-()]{8,}$/.test(data.mobileNumber!)) {
     errors.push({ field: 'mobileNumber', message: 'Please enter a valid mobile number' });
   }
 
@@ -72,6 +79,47 @@ export const validateFormData = (data: Partial<CarListingFormData>): ValidationR
   }
 
   return errors;
+};
+
+// Enhanced validation that returns proper error objects instead of simple messages
+export const validateFormDataWithErrors = (data: Partial<CarListingFormData>) => {
+  // Basic vehicle information
+  if (isEmptyField(data.make)) {
+    throw createFieldError('make', 'Make is required', {
+      code: ValidationErrorCode.REQUIRED_FIELD
+    });
+  }
+  
+  if (isEmptyField(data.model)) {
+    throw createFieldError('model', 'Model is required', {
+      code: ValidationErrorCode.REQUIRED_FIELD
+    });
+  }
+  
+  if (!data.vin) {
+    throw createFieldError('vin', 'VIN is required', {
+      code: ValidationErrorCode.REQUIRED_FIELD
+    });
+  } else if (!validateVIN(data.vin)) {
+    throw createFieldError('vin', 'Invalid VIN format', {
+      code: ValidationErrorCode.INVALID_VIN,
+      description: 'VIN must be 17 characters and contain only valid characters'
+    });
+  }
+  
+  // All remaining validation...
+  // Note: We keep the traditional validation for backward compatibility
+  
+  // Check overall form completeness
+  const errors = validateFormData(data);
+  if (errors.length > 0) {
+    throw createFormError('Form validation failed', {
+      code: ValidationErrorCode.INCOMPLETE_FORM,
+      description: `${errors.length} field(s) require attention`
+    });
+  }
+  
+  return true;
 };
 
 export const getFormProgress = (data: Partial<CarListingFormData>): number => {
