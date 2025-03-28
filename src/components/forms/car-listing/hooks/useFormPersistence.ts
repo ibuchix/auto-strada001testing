@@ -5,6 +5,7 @@
  * - Fixed setIsOffline property access
  * - Corrected parameter count in saveProgress call
  * - Added proper error handling for async operations
+ * - Implemented periodic auto-save functionality
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -12,6 +13,7 @@ import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { toast } from "sonner";
+import { CACHE_KEYS, saveToCache } from "@/services/offlineCacheService";
 
 // Define the interface for the hook result
 export interface UseFormPersistenceResult {
@@ -58,6 +60,11 @@ export const useFormPersistence = ({
     try {
       setIsSaving(true);
       const formData = form.getValues();
+      
+      // Save key form fields to local storage for offline recovery
+      saveToCache(CACHE_KEYS.TEMP_VIN, formData.vin);
+      saveToCache(CACHE_KEYS.TEMP_MILEAGE, formData.mileage.toString());
+      saveToCache(CACHE_KEYS.TEMP_GEARBOX, formData.transmission);
       
       // Add metadata about the form state
       const dataToSave = {

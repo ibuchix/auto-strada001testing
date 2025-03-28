@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Updated state management with useState hooks
@@ -11,6 +12,7 @@
  * - 2025-08-04: Fixed type issues with saveProgress prop
  * - 2025-08-19: Added FormDataProvider to provide form context
  * - 2025-08-19: Fixed return type for persistence.saveImmediately
+ * - 2025-10-01: Implemented periodic data saving for key form values
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -30,6 +32,7 @@ import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { FormDataProvider } from "./context/FormDataContext";
+import { saveToCache, CACHE_KEYS } from "@/services/offlineCacheService";
 
 interface FormContentProps {
   session: Session;
@@ -151,6 +154,24 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
       });
     }
   }, [form]);
+
+  // Periodic saving of key form values
+  useEffect(() => {
+    const interval = setInterval(() => {
+      try {
+        const formValues = form.getValues();
+        saveToCache(CACHE_KEYS.TEMP_MILEAGE, formValues.mileage.toString());
+        saveToCache(CACHE_KEYS.TEMP_VIN, formValues.vin);
+        saveToCache(CACHE_KEYS.FORM_STEP, currentStep.toString());
+        
+        console.log('Periodic save completed', new Date().toISOString());
+      } catch (error) {
+        console.error('Periodic save failed:', error);
+      }
+    }, 5000); // Save every 5 seconds as requested
+
+    return () => clearInterval(interval);
+  }, [form, currentStep]);
 
   // Show loading state when initializing or loading draft
   if (isInitializing || isLoadingDraft) {
