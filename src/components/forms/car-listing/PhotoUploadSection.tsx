@@ -1,144 +1,24 @@
-
 /**
  * Component for uploading photos to a car listing
  * Changes made:
- * - Updated to use typed StepComponentProps
- * - Added validation support
- * - Fixed FormSection usage by adding required title prop
- * - Improved TypeScript typing
- * - Replaced toast notifications with persistent error messages
- * - Enhanced mobile experience with larger touch targets and better spacing
- * - Added responsive grid layouts for photo display
+ * - Refactored into smaller, more focused components
+ * - Extracted AdditionalPhotosUploader and CurrentPhotosDisplay into separate files
+ * - Improved error handling and user feedback
+ * - Enhanced mobile experience with better spacing and touch targets
  */
 import React, { useState } from 'react';
-import { usePhotoUpload } from '../car-listing/photo-upload/usePhotoUpload';
-import { FormSectionHeader } from './FormSectionHeader';
+import { usePhotoUpload } from './photo-upload/usePhotoUpload';
 import { FormSection } from './FormSection';
 import { SaveButton } from './SaveButton';
-import { toast } from 'sonner';
-import { Card } from '@/components/ui/card';
-import { UseFormReturn } from 'react-hook-form';
-import { CarListingFormData } from '@/types/forms';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
-
-interface PhotoUploadSectionProps {
-  form: UseFormReturn<CarListingFormData>;
-  carId?: string;
-  userId?: string;
-  onValidate?: () => Promise<boolean>;
-}
-
-interface PhotoUploadError {
-  message: string;
-  description?: string;
-}
-
-// AdditionalPhotos component with correct props
-interface AdditionalPhotosProps {
-  isUploading: boolean;
-  onPhotosSelected: (files: File[]) => Promise<void>;
-  progress: number;
-  error: PhotoUploadError | null;
-  isMobile: boolean;
-}
-
-const AdditionalPhotos = ({ isUploading, onPhotosSelected, progress, error, isMobile }: AdditionalPhotosProps) => {
-  const handleDrop = async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
-    await onPhotosSelected(acceptedFiles);
-  };
-
-  return (
-    <div className="mt-6">
-      <h4 className="text-base font-medium mb-3">Additional Photos</h4>
-      
-      {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>{error.message}</AlertTitle>
-          {error.description && <AlertDescription>{error.description}</AlertDescription>}
-        </Alert>
-      )}
-      
-      <div 
-        className={`border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors ${isMobile ? 'min-h-[120px] flex items-center justify-center' : ''}`}
-        onClick={() => {
-          // Simulate click on file input
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.multiple = true;
-          input.accept = 'image/*';
-          input.onchange = (e: any) => {
-            if (e.target.files) {
-              handleDrop(Array.from(e.target.files));
-            }
-          };
-          input.click();
-        }}
-      >
-        {isUploading ? (
-          <div className="w-full">
-            <p className="text-sm text-gray-500 mb-2">Uploading...</p>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-primary h-3 rounded-full" 
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-          </div>
-        ) : (
-          <div className={isMobile ? "px-4" : ""}>
-            <p className="text-sm text-gray-500">{isMobile ? "Tap to upload photos" : "Drag & drop photos here or click to browse"}</p>
-            <p className="text-xs text-gray-400 mt-1">JPG, PNG, or WEBP (max 10MB)</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const CurrentPhotos = ({ photos, onRemovePhoto, isMobile }: { 
-  photos: string[], 
-  onRemovePhoto?: (url: string) => void,
-  isMobile: boolean
-}) => {
-  if (photos.length === 0) return null;
-
-  // Adjust grid columns based on screen size
-  const gridClass = isMobile 
-    ? "grid grid-cols-2 gap-3" 
-    : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4";
-
-  return (
-    <div className="mt-6">
-      <h4 className="text-base font-medium mb-3">Current Photos</h4>
-      <div className={gridClass}>
-        {photos.map((photo, index) => (
-          <Card key={index} className="relative overflow-hidden aspect-square">
-            <img
-              src={photo}
-              alt={`Car photo ${index + 1}`}
-              className="w-full h-full object-cover"
-            />
-            {onRemovePhoto && (
-              <Button 
-                variant="destructive" 
-                size="icon" 
-                className={`absolute top-1 right-1 ${isMobile ? 'h-8 w-8' : 'h-7 w-7'} rounded-full opacity-70 hover:opacity-100`}
-                onClick={() => onRemovePhoto(photo)}
-              >
-                <X className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`} />
-              </Button>
-            )}
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-};
+import { UseFormReturn } from 'react-hook-form';
+import { CarListingFormData } from '@/types/forms';
+import { CurrentPhotosDisplay } from './photo-upload/CurrentPhotosDisplay';
+import { AdditionalPhotosUploader } from './photo-upload/AdditionalPhotosUploader';
+import { PhotoUploadError, PhotoUploadSectionProps } from './photo-upload/types';
 
 export const PhotoUploadSection = ({ 
   form, 
@@ -307,18 +187,16 @@ export const PhotoUploadSection = ({
         </Alert>
       )}
 
-      <CurrentPhotos 
+      <CurrentPhotosDisplay 
         photos={watchedPhotos}
         onRemovePhoto={handleRemovePhoto}
-        isMobile={isMobile}
       />
 
-      <AdditionalPhotos
+      <AdditionalPhotosUploader
         isUploading={isUploading}
         onPhotosSelected={handlePhotoUpload}
         progress={uploadProgress}
         error={uploadError}
-        isMobile={isMobile}
       />
     </FormSection>
   );
