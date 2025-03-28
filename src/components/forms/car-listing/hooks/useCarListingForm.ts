@@ -1,8 +1,36 @@
-import { useForm } from "react-hook-form";
+
+/**
+ * Changes made:
+ * - Added missing imports (toast, UseFormReturn)
+ * - Added ValuationData type definition
+ * - Added safeParseNumber function
+ * - Fixed references to these items
+ * - Maintained integration with useFormDefaults
+ */
+
+import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CarListingFormData } from "@/types/forms";
 import { carListingValidationSchema } from "@/validation/carListing";
 import { getInitialFormValues } from "./useFormDefaults";
+import { toast } from "sonner";
+import { toNumberValue } from "@/utils/typeConversion";
+
+// ValuationData type definition for data received from API or localStorage
+type ValuationData = {
+  vin?: string;
+  make?: string;
+  model?: string;
+  year?: number | string;
+  mileage?: number | string;
+  transmission?: "manual" | "automatic";
+  [key: string]: any; // Allow additional properties
+};
+
+// Helper for safe number parsing
+const safeParseNumber = (value: unknown, fallback: number): number => {
+  return toNumberValue(value, fallback);
+};
 
 export const useCarListingForm = (userId: string, draftId?: string) => {
   const form = useForm<CarListingFormData>({
