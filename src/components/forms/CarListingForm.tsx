@@ -4,9 +4,10 @@
  * - Removed diagnostic-related code
  * - 2025-11-02: Added error boundary handling for draft loading errors
  * - 2025-11-03: Added retry functionality for draft loading errors
+ * - 2025-11-04: Added support for loading drafts from URL parameters
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { FormSubmissionProvider } from "./car-listing/submission/FormSubmissionProvider";
@@ -16,9 +17,22 @@ import { FormErrorHandler } from "./car-listing/FormErrorHandler";
 export const CarListingForm = () => {
   const { session } = useAuth();
   const location = useLocation();
-  const draftId = location.state?.draftId;
+  const [searchParams] = useSearchParams();
+  const locationDraftId = location.state?.draftId;
+  const urlDraftId = searchParams.get('draft');
   const [draftError, setDraftError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  
+  // Use draft ID from URL parameter or location state
+  const draftId = urlDraftId || locationDraftId;
+
+  useEffect(() => {
+    if (urlDraftId) {
+      console.log("Loading draft from URL parameter:", urlDraftId);
+    } else if (locationDraftId) {
+      console.log("Loading draft from location state:", locationDraftId);
+    }
+  }, [urlDraftId, locationDraftId]);
 
   const handleDraftError = useCallback((error: Error) => {
     console.error("Draft loading error:", error);

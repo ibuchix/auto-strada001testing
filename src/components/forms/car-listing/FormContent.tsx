@@ -15,12 +15,14 @@
  * - 2025-10-01: Implemented periodic data saving for key form values
  * - 2025-11-02: Added error boundary integration with useLoadDraft
  * - 2025-11-03: Added support for retrying draft loading
+ * - 2025-11-04: Added save and continue later functionality
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { FormProvider } from "react-hook-form";
 import { StepForm } from "./StepForm";
 import { SuccessDialog } from "./SuccessDialog";
+import { SaveProgressDialog } from "./SaveProgressDialog";
 import { useCarListingForm } from "./hooks/useCarListingForm";
 import { getFormDefaults } from "./hooks/useFormDefaults";
 import { useLoadDraft } from "./hooks/useLoadDraft";
@@ -36,6 +38,7 @@ import { toast } from "sonner";
 import { FormDataProvider } from "./context/FormDataContext";
 import { saveToCache, CACHE_KEYS } from "@/services/offlineCacheService";
 import { FormErrorHandler } from "./FormErrorHandler";
+import { useNavigate } from "react-router-dom";
 
 interface FormContentProps {
   session: Session;
@@ -68,7 +71,9 @@ export const FormContent = ({
   const [carId, setCarId] = useState<string>();
   const [isInitializing, setIsInitializing] = useState(true);
   const [draftLoadError, setDraftLoadError] = useState<Error | null>(null);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
   const form = useCarListingForm(session.user.id, draftId);
+  const navigate = useNavigate();
 
   // Form state initialization
   useEffect(() => {
@@ -166,7 +171,7 @@ export const FormContent = ({
   // Initial data loading with error handling
   useEffect(() => {
     try {
-      form.loadInitialData();
+      form.loadInitialData && form.loadInitialData();
     } catch (error) {
       console.error('Form initialization error:', error);
       toast.error('Failed to load initial form data', {
@@ -184,8 +189,8 @@ export const FormContent = ({
     const interval = setInterval(() => {
       try {
         const formValues = form.getValues();
-        saveToCache(CACHE_KEYS.TEMP_MILEAGE, formValues.mileage.toString());
-        saveToCache(CACHE_KEYS.TEMP_VIN, formValues.vin);
+        saveToCache(CACHE_KEYS.TEMP_MILEAGE, formValues.mileage?.toString() || '');
+        saveToCache(CACHE_KEYS.TEMP_VIN, formValues.vin || '');
         saveToCache(CACHE_KEYS.FORM_STEP, currentStep.toString());
         
         console.log('Periodic save completed', new Date().toISOString());
@@ -203,6 +208,19 @@ export const FormContent = ({
       setDraftLoadError(null);
     }
   }, [retryCount]);
+
+  // Handle save and continue action
+  const handleSaveAndContinue = useCallback(async () => {
+    try {
+      await persistence.saveImmediately();
+      setShowSaveDialog(true);
+    } catch (error) {
+      console.error("Error saving progress:", error);
+      toast.error("Failed to save progress", {
+        description: "Please try again or check your connection"
+      });
+    }
+  }, [persistence]);
 
   // Show draft loading error if there is one
   if (draftLoadError && !isInitializing) {
@@ -238,11 +256,19 @@ export const FormContent = ({
             />
           </form>
 
+          {/* Success dialog shown after form submission */}
           <SuccessDialog 
             open={showSuccessDialog}
             onOpenChange={(open) => !open && setShowSuccessDialog(false)}
             lastSaved={lastSaved}
             carId={carId}
+          />
+          
+          {/* Save progress dialog shown when user saves to continue later */}
+          <SaveProgressDialog
+            open={showSaveDialog}
+            onOpenChange={(open) => !open && setShowSaveDialog(false)}
+            draftId={carId}
           />
         </FormDataProvider>
       </FormProvider>

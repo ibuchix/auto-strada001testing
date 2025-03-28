@@ -7,6 +7,7 @@
  * - Improved type safety and reduced redundancy
  * - Enhanced error handling with clearer user feedback
  * - Better organization of code with logical grouping
+ * - Added save and continue later functionality
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -112,13 +113,15 @@ export const StepForm = ({
         />
       </div>
       
-      {/* Navigation controls */}
+      {/* Navigation controls with save and continue functionality */}
       <FormNavigationControls
         isFirstStep={isFirstStep}
         isLastStep={isLastStep}
         onPrevious={handlePrevious}
         onNext={handleNext}
         isNavigating={navigationDisabled || isSaving}
+        onSave={saveProgress}
+        carId={carId}
       />
       
       {/* Progress indicator */}

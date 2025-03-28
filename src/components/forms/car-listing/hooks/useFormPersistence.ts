@@ -12,6 +12,7 @@
  * - Updated to work with new cache expiration system
  * - 2024-08-17: Refactored to use standardized timeout utilities
  * - 2024-08-19: Improved type safety for debounced save handling
+ * - 2025-11-04: Added support for save and continue later functionality
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -23,6 +24,7 @@ import { CACHE_KEYS, saveToCache } from "@/services/offlineCacheService";
 import { saveFormData } from "../utils/formSaveUtils";
 import { TimeoutDurations, createTimeout } from "@/utils/timeoutUtils";
 import { useDebounce } from "@/hooks/useTimeout";
+import { useNavigate } from "react-router-dom";
 
 // Debounce time in milliseconds - now using standardized durations
 const AUTO_SAVE_INTERVAL = TimeoutDurations.STANDARD; // 5 seconds (changed from 30)
@@ -56,6 +58,7 @@ export const useFormPersistence = ({
   const [customOfflineStatus, setCustomOfflineStatus] = useState<boolean | null>(null);
   const networkStatus = useOfflineStatus();
   const abortControllerRef = useRef<AbortController>();
+  const navigate = useNavigate();
   
   // Use custom offline status if set, otherwise use network status
   const isOffline = customOfflineStatus !== null ? customOfflineStatus : networkStatus.isOffline;
@@ -77,9 +80,9 @@ export const useFormPersistence = ({
       const formData = form.getValues();
 
       // Save key form fields to local storage for offline recovery
-      saveToCache(CACHE_KEYS.TEMP_VIN, formData.vin, CACHE_TTL);
-      saveToCache(CACHE_KEYS.TEMP_MILEAGE, formData.mileage.toString(), CACHE_TTL);
-      saveToCache(CACHE_KEYS.TEMP_GEARBOX, formData.transmission, CACHE_TTL);
+      saveToCache(CACHE_KEYS.TEMP_VIN, formData.vin || '', CACHE_TTL);
+      saveToCache(CACHE_KEYS.TEMP_MILEAGE, formData.mileage?.toString() || '', CACHE_TTL);
+      saveToCache(CACHE_KEYS.TEMP_GEARBOX, formData.transmission || '', CACHE_TTL);
 
       // Optimistic local cache update with TTL
       saveToCache(CACHE_KEYS.TEMP_FORM_DATA, {
@@ -102,7 +105,14 @@ export const useFormPersistence = ({
         throw new Error(result.error?.message || 'Failed to save draft');
       }
       
+      // Update carId if it's a new draft
+      if (result.carId && !carId) {
+        console.log('New carId received:', result.carId);
+      }
+      
       setLastSaved(new Date());
+      
+      return result.carId;
     } catch (error: any) {
       if (error.name !== 'AbortError') {
         console.error('Save failed:', error);
@@ -110,6 +120,7 @@ export const useFormPersistence = ({
           description: 'Your changes are saved locally and will sync when online'
         });
       }
+      throw error;
     } finally {
       setIsSaving(false);
     }

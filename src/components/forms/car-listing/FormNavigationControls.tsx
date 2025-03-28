@@ -1,13 +1,12 @@
 
 /**
- * Component for form navigation controls
- * - Handles previous/next buttons
- * - Submit button for the last step
- * - Responsive layout with proper button states
+ * Form Navigation Controls
+ * Provides navigation buttons for a multi-step form
  */
 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { SaveAndContinueButton } from "./SaveAndContinueButton";
 
 interface FormNavigationControlsProps {
   isFirstStep: boolean;
@@ -15,6 +14,8 @@ interface FormNavigationControlsProps {
   onPrevious: () => void;
   onNext: () => void;
   isNavigating: boolean;
+  onSave: () => Promise<void>;
+  carId?: string;
 }
 
 export const FormNavigationControls = ({
@@ -22,43 +23,54 @@ export const FormNavigationControls = ({
   isLastStep,
   onPrevious,
   onNext,
-  isNavigating
+  isNavigating,
+  onSave,
+  carId
 }: FormNavigationControlsProps) => {
   return (
-    <div className="flex justify-between items-center mt-12 border-t pt-6">
-      <Button
-        type="button"
-        variant="outline"
-        onClick={onPrevious}
-        disabled={isFirstStep || isNavigating}
-        className="w-32 h-11 text-base"
-        aria-label={isFirstStep ? "Cannot go back" : "Previous step"}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        {isNavigating ? "Saving..." : "Previous"}
-      </Button>
+    <div className="flex items-center justify-between pt-4 border-t">
+      <div>
+        {!isFirstStep && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onPrevious}
+            disabled={isNavigating}
+            className="flex items-center gap-2"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </Button>
+        )}
+      </div>
       
-      {!isLastStep ? (
-        <Button
-          type="button"
-          onClick={onNext}
-          disabled={isNavigating}
-          className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-32 h-11 text-base"
-          aria-label={isNavigating ? "Saving changes" : "Next step"}
-        >
-          {isNavigating ? "Saving..." : "Next"}
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      ) : (
-        <Button
-          type="submit"
-          disabled={isNavigating}
-          className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-32 h-11 text-base"
-          aria-label={isNavigating ? "Submitting..." : "Submit listing"}
-        >
-          Submit
-        </Button>
-      )}
+      <div className="flex space-x-3">
+        <SaveAndContinueButton 
+          onSave={onSave}
+          carId={carId}
+          isDisabled={isNavigating}
+        />
+        
+        {!isLastStep ? (
+          <Button
+            type="button"
+            onClick={onNext}
+            disabled={isNavigating}
+            className="flex items-center gap-2"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            disabled={isNavigating}
+            className="flex items-center gap-2"
+          >
+            Submit
+          </Button>
+        )}
+      </div>
     </div>
   );
 };
