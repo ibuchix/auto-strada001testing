@@ -8,6 +8,7 @@
  * - Enhanced error handling with clearer user feedback
  * - Better organization of code with logical grouping
  * - Added save and continue later functionality
+ * - Added completion percentage calculation for progress indicator
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -19,6 +20,8 @@ import { FormFooter } from "./FormFooter";
 import { ValidationErrorDisplay } from "./ValidationErrorDisplay";
 import { FormNavigationControls } from "./FormNavigationControls";
 import { useStepNavigation } from "./hooks/useStepNavigation";
+import { useMemo } from "react";
+import { STEP_FIELD_MAPPINGS } from "./hooks/useStepNavigation";
 
 interface StepFormProps {
   form: UseFormReturn<CarListingFormData>;
@@ -68,6 +71,39 @@ export const StepForm = ({
     saveProgress,
     filteredSteps
   });
+
+  // Calculate overall form completion percentage
+  const completionPercentage = useMemo(() => {
+    const formValues = form.getValues();
+    let totalFields = 0;
+    let completedFields = 0;
+    
+    // Count fields from all visible steps
+    filteredSteps.forEach(step => {
+      const fieldsInStep = STEP_FIELD_MAPPINGS[step.id] || [];
+      
+      fieldsInStep.forEach(field => {
+        const fieldValue = formValues[field];
+        totalFields++;
+        
+        // Check if the field has a value
+        if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
+          if (typeof fieldValue === 'object') {
+            // For objects like features, check if any property is true
+            if (Array.isArray(fieldValue)) {
+              if (fieldValue.length > 0) completedFields++;
+            } else if (Object.values(fieldValue).some(v => v)) {
+              completedFields++;
+            }
+          } else {
+            completedFields++;
+          }
+        }
+      });
+    });
+    
+    return totalFields > 0 ? (completedFields / totalFields) * 100 : 0;
+  }, [form, filteredSteps, completedSteps]);
 
   // Sync external state with internal state
   const handleStepChange = (step: number) => {
@@ -132,6 +168,7 @@ export const StepForm = ({
         isSaving={navigationDisabled || isSaving}
         currentStep={currentStep + 1}
         totalSteps={totalSteps}
+        completionPercentage={completionPercentage}
       />
     </div>
   );

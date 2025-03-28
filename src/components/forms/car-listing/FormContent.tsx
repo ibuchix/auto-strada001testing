@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Updated state management with useState hooks
@@ -39,6 +38,8 @@ import { FormDataProvider } from "./context/FormDataContext";
 import { saveToCache, CACHE_KEYS } from "@/services/offlineCacheService";
 import { FormErrorHandler } from "./FormErrorHandler";
 import { useNavigate } from "react-router-dom";
+import { STEP_FIELD_MAPPINGS } from "./hooks/useStepNavigation";
+import { useStepNavigation } from "./hooks/useStepNavigation";
 
 interface FormContentProps {
   session: Session;
@@ -222,6 +223,54 @@ export const FormContent = ({
     }
   }, [persistence]);
 
+  // Calculate form progress based on completed steps and current form data
+  const calculateFormProgress = useCallback(() => {
+    const formValues = form.getValues();
+    let totalFields = 0;
+    let completedFields = 0;
+    
+    // Count all fields in the form
+    Object.entries(formValues).forEach(([key, value]) => {
+      if (key === 'seller_id' || key === 'valuation_data') return; // Skip system fields
+      
+      totalFields++;
+      
+      // Check if the field has a value
+      if (value !== undefined && value !== null && value !== '') {
+        if (typeof value === 'object') {
+          // For objects like features, check if any property is true
+          if (Array.isArray(value)) {
+            if (value.length > 0) completedFields++;
+          } else if (Object.values(value).some(v => v)) {
+            completedFields++;
+          }
+        } else {
+          completedFields++;
+        }
+      }
+    });
+    
+    return totalFields > 0 ? Math.round((completedFields / totalFields) * 100) : 0;
+  }, [form]);
+
+  // Get validation errors by step for progress tracking
+  const getStepValidationErrors = useCallback(() => {
+    const formErrors = form.formState.errors;
+    const stepErrors: Record<string, boolean> = {};
+    
+    // Map errors to steps
+    Object.keys(formErrors).forEach(fieldName => {
+      for (const [stepId, fields] of Object.entries(STEP_FIELD_MAPPINGS)) {
+        if (fields.includes(fieldName as any)) {
+          stepErrors[stepId] = true;
+          break;
+        }
+      }
+    });
+    
+    return stepErrors;
+  }, [form.formState.errors]);
+
   // Show draft loading error if there is one
   if (draftLoadError && !isInitializing) {
     return <FormErrorHandler draftError={draftLoadError} />;
@@ -232,6 +281,20 @@ export const FormContent = ({
     return <LoadingState />;
   }
 
+  // Get completed steps and error steps for progress display
+  const { completedSteps = [] } = useStepNavigation({
+    form,
+    totalSteps: formSteps.length,
+    initialStep: currentStep,
+    saveProgress: persistence.saveImmediately,
+    filteredSteps: formSteps.filter(step => {
+      return step.sections.some(section => visibleSections.includes(section));
+    })
+  });
+  
+  const progress = calculateFormProgress();
+  const stepErrors = getStepValidationErrors();
+
   return (
     <ErrorBoundary onError={handleFormError}>
       <FormProvider {...form}>
@@ -241,6 +304,16 @@ export const FormContent = ({
               currentStep={currentStep}
               lastSaved={lastSaved}
               onOfflineStatusChange={persistence.setIsOffline}
+            />
+            
+            {/* Add FormProgress component showing completion status */}
+            <FormProgress 
+              progress={progress}
+              steps={formSteps}
+              currentStep={currentStep}
+              onStepClick={setCurrentStep}
+              completedSteps={completedSteps}
+              errorSteps={stepErrors}
             />
             
             <StepForm
