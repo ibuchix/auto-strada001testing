@@ -3,10 +3,11 @@
  * MobileStepper Component
  * Renders a compact stepper view for mobile screens
  * Enhanced to show completion status more clearly
+ * Added swipe gesture hint for better user experience
  */
 
 import { cn } from '@/lib/utils';
-import { Check, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface MobileStepperProps {
   steps: Array<{
@@ -25,6 +26,9 @@ export const MobileStepper = ({
   completedSteps, 
   stepErrors 
 }: MobileStepperProps) => {
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === steps.length - 1;
+
   return (
     <div className="md:hidden">
       <div className="flex items-center space-x-2 mb-4 justify-center">
@@ -97,6 +101,27 @@ export const MobileStepper = ({
               ? "Needs attention"
               : "In progress"}
         </span>
+      </div>
+
+      {/* Swipe gesture hint */}
+      <div className="mt-4 flex items-center justify-center text-xs text-gray-500">
+        <div className="flex items-center">
+          {!isFirstStep && (
+            <>
+              <ChevronLeft className="h-3 w-3" />
+              <span className="mx-1">Swipe right for previous</span>
+            </>
+          )}
+          
+          {!isFirstStep && !isLastStep && <span className="mx-2">|</span>}
+          
+          {!isLastStep && (
+            <>
+              <span className="mx-1">Swipe left for next</span>
+              <ChevronRight className="h-3 w-3" />
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

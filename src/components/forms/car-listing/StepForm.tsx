@@ -9,6 +9,7 @@
  * - Better organization of code with logical grouping
  * - Added save and continue later functionality
  * - Added completion percentage calculation for progress indicator
+ * - Added gesture-based navigation for mobile devices
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -22,6 +23,7 @@ import { FormNavigationControls } from "./FormNavigationControls";
 import { useStepNavigation } from "./hooks/useStepNavigation";
 import { useMemo } from "react";
 import { STEP_FIELD_MAPPINGS } from "./hooks/useStepNavigation";
+import { SwipeNavigation } from "./SwipeNavigation";
 
 interface StepFormProps {
   form: UseFormReturn<CarListingFormData>;
@@ -139,14 +141,22 @@ export const StepForm = ({
       {/* Validation errors display */}
       <ValidationErrorDisplay validationErrors={validationErrors} />
       
-      {/* Form content */}
+      {/* Form content with swipe navigation */}
       <div className="form-container min-h-[400px] mb-10">
-        <FormSections 
-          form={form} 
-          currentStep={currentStep}
-          carId={carId}
-          userId={form.watch("seller_id") as string}
-        />
+        <SwipeNavigation
+          onNext={handleNext}
+          onPrevious={handlePrevious}
+          isFirstStep={isFirstStep}
+          isLastStep={isLastStep}
+          disabled={navigationDisabled || isSaving}
+        >
+          <FormSections 
+            form={form} 
+            currentStep={currentStep}
+            carId={carId}
+            userId={form.watch("seller_id") as string}
+          />
+        </SwipeNavigation>
       </div>
       
       {/* Navigation controls with save and continue functionality */}

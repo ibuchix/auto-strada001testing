@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap');
 
 @tailwind base;
@@ -131,5 +130,43 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+}
+
+/* Swipe navigation styles */
+.swipe-indicators svg {
+  opacity: 0;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Touch-optimized form elements */
+@media (max-width: 768px) {
+  .form-container {
+    touch-action: pan-y;
+    overflow-x: hidden;
+  }
+  
+  /* Improve touch area for form controls */
+  input[type="radio"],
+  input[type="checkbox"] {
+    min-width: 20px;
+    min-height: 20px;
+  }
+  
+  /* Ensure buttons have adequate touch target size */
+  button {
+    min-height: 44px;
   }
 }
