@@ -1,12 +1,26 @@
 
 /**
  * Changes made:
- * - Created validation helpers for car listing form
- * - Added VIN validation with proper regex
- * - Added comprehensive form validation with multiple checks
+ * - Updated validation functions to match the specified schema requirements
+ * - Aligned VIN validation with the schema
+ * - Enhanced year validation to match schema
+ * - Added transmission validation
+ * - Updated price validation minimum value to 100
  */
 
 import { CarListingFormData } from "@/types/forms";
+import { z } from "zod";
+
+/**
+ * Zod schema for car listing validation
+ */
+export const carListingValidationSchema = z.object({
+  vin: z.string().length(17).regex(/^[A-HJ-NPR-Z0-9]{17}$/i),
+  year: z.number().min(1886).max(new Date().getFullYear() + 1),
+  mileage: z.number().min(0),
+  price: z.number().min(100),
+  transmission: z.enum(['manual', 'automatic']),
+});
 
 /**
  * Validates a Vehicle Identification Number (VIN).
@@ -31,8 +45,11 @@ export const validateCarForm = (formData: CarListingFormData): boolean => {
   return (
     validateVIN(formData.vin) &&
     formData.uploadedPhotos.length >= 1 &&
-    formData.price > 0 &&
-    formData.year >= 1886
+    formData.price >= 100 &&
+    formData.year >= 1886 &&
+    formData.year <= (new Date().getFullYear() + 1) &&
+    formData.mileage >= 0 &&
+    (formData.transmission === 'manual' || formData.transmission === 'automatic')
   );
 };
 
@@ -66,13 +83,22 @@ export const getCarFormValidationErrors = (formData: CarListingFormData): string
   }
   
   // Price validation
-  if (formData.price <= 0) {
-    errors.push("Price must be greater than 0");
+  if (!formData.price) {
+    errors.push("Price is required");
+  } else if (formData.price < 100) {
+    errors.push("Price must be at least 100");
   }
   
   // Mileage validation
   if (formData.mileage < 0) {
     errors.push("Mileage cannot be negative");
+  }
+  
+  // Transmission validation
+  if (!formData.transmission) {
+    errors.push("Transmission type is required");
+  } else if (formData.transmission !== 'manual' && formData.transmission !== 'automatic') {
+    errors.push("Transmission must be either manual or automatic");
   }
   
   // Photo validation

@@ -1,9 +1,11 @@
+
 /**
  * Validation utilities for form submission
  */
 import { toast } from "sonner";
-import { validateVIN, validateCarForm } from "@/validation/carListing";
+import { validateVIN, validateCarForm, carListingValidationSchema } from "@/validation/carListing";
 import { CarListingFormData } from "@/types/forms";
+import { ZodError } from "zod";
 
 /**
  * Validate that valuation data exists in localStorage
@@ -123,47 +125,95 @@ export const getValuationData = () => {
  * @throws Error with validation message if validation fails critically
  */
 export const validateCompleteCarForm = (formData: CarListingFormData): boolean => {
-  // Basic validation
-  if (!validateCarForm(formData)) {
-    throw {
-      message: "Invalid form data",
-      description: "Please check VIN, photos, price, and year",
-      action: {
-        label: "Review Details",
-        onClick: () => window.scrollTo(0, 0)
-      }
-    };
-  }
-  
-  // VIN validation
-  if (!validateVIN(formData.vin)) {
-    throw {
-      message: "Invalid VIN",
-      description: "Please enter a valid 17-character VIN",
-      action: {
-        label: "Fix VIN",
-        onClick: () => {
-          const vinInput = document.getElementById('vin');
-          if (vinInput) {
-            vinInput.scrollIntoView({ behavior: 'smooth' });
-            vinInput.focus();
+  try {
+    // Use Zod schema to validate core properties
+    const result = carListingValidationSchema.parse({
+      vin: formData.vin,
+      year: formData.year,
+      mileage: formData.mileage,
+      price: formData.price,
+      transmission: formData.transmission
+    });
+    
+    // Basic validation for other required fields
+    if (!formData.make || !formData.model) {
+      throw {
+        message: "Missing car details",
+        description: "Make and model are required fields",
+        action: {
+          label: "Complete Details",
+          onClick: () => window.scrollTo(0, 0)
+        }
+      };
+    }
+    
+    // Photo validation
+    if (!formData.uploadedPhotos || formData.uploadedPhotos.length === 0) {
+      throw {
+        message: "Missing photos",
+        description: "At least one photo is required",
+        action: {
+          label: "Add Photos",
+          onClick: () => {
+            const photoSection = document.getElementById('photo-upload');
+            if (photoSection) {
+              photoSection.scrollIntoView({ behavior: 'smooth' });
+            }
           }
         }
-      }
-    };
+      };
+    }
+    
+    // Damage reports validation
+    if (formData.isDamaged && (!formData.damageReports || formData.damageReports.length === 0)) {
+      throw {
+        message: "Missing damage reports",
+        description: "Please document any damage",
+        action: {
+          label: "Add Damage Reports",
+          onClick: () => {
+            const damageSection = document.getElementById('damage-reports');
+            if (damageSection) {
+              damageSection.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+        }
+      };
+    }
+    
+    return true;
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const firstError = error.errors[0];
+      throw {
+        message: "Invalid form data",
+        description: firstError.message,
+        action: {
+          label: "Fix Issue",
+          onClick: () => {
+            const fieldId = firstError.path[0]?.toString();
+            if (fieldId) {
+              const element = document.getElementById(fieldId);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+                element.focus();
+              }
+            }
+          }
+        }
+      };
+    } else if (error.message && error.description) {
+      throw error;
+    } else {
+      console.error('Form validation error:', error);
+      throw {
+        message: "Invalid form data",
+        description: "Please check all required fields",
+        action: {
+          label: "Review Form",
+          onClick: () => window.scrollTo(0, 0)
+        }
+      };
+    }
   }
-  
-  // Check required fields
-  if (!formData.make || !formData.model) {
-    throw {
-      message: "Missing car details",
-      description: "Make and model are required fields",
-      action: {
-        label: "Complete Details",
-        onClick: () => window.scrollTo(0, 0)
-      }
-    };
-  }
-  
-  return true;
 };

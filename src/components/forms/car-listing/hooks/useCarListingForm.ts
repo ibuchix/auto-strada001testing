@@ -8,6 +8,7 @@
  * - 2025-08-02: Updated to match the UseFormPersistenceResult interface
  * - 2025-08-04: Fixed type casting for numeric values
  * - 2025-08-12: Implemented improved validation data loading with helper functions
+ * - 2025-09-18: Fixed transmission type to match validation schema
  */
 import { useForm, UseFormReturn } from "react-hook-form";
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
@@ -37,7 +38,7 @@ export const useCarListingForm = (userId: string, draftId?: string) => {
       mileage: 0,
       vin: '',
       features: defaultCarFeatures,
-      transmission: "manual",
+      transmission: "manual", // Set default transmission type to match schema
       isRegisteredInPoland: true,
       serviceHistoryType: "none",
       numberOfKeys: "2",
