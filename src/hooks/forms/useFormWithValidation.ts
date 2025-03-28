@@ -5,6 +5,7 @@
  * - Added consistent error handling and validation
  * - Implemented performance optimizations with defaultValues memoization
  * - Added form state persistence capabilities
+ * - Fixed TypeScript error with defaultValues type
  */
 
 import { useState, useEffect, useMemo } from "react";
@@ -14,7 +15,8 @@ import {
   FieldValues, 
   UseFormReturn, 
   SubmitHandler,
-  SubmitErrorHandler
+  SubmitErrorHandler,
+  DefaultValues
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -28,7 +30,7 @@ type FormPersistenceOptions = {
 
 interface UseFormWithValidationProps<T extends FieldValues> {
   schema: z.ZodType<T, any, any>;
-  defaultValues: Partial<T>;
+  defaultValues: DefaultValues<T>;
   onSubmit: SubmitHandler<T>;
   onError?: SubmitErrorHandler<T>;
   persistenceOptions?: FormPersistenceOptions;
