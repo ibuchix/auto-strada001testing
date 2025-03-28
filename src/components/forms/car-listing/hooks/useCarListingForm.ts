@@ -6,12 +6,13 @@
  * - Added safeParseNumber function
  * - Fixed references to these items
  * - Maintained integration with useFormDefaults
+ * - Integrated with carSchema validation
  */
 
 import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CarListingFormData } from "@/types/forms";
-import { carListingValidationSchema } from "@/validation/carListing";
+import { carSchema } from "@/utils/validation/carSchema";
 import { getInitialFormValues } from "./useFormDefaults";
 import { toast } from "sonner";
 import { toNumberValue } from "@/utils/typeConversion";
@@ -35,7 +36,7 @@ const safeParseNumber = (value: unknown, fallback: number): number => {
 export const useCarListingForm = (userId: string, draftId?: string) => {
   const form = useForm<CarListingFormData>({
     defaultValues: getInitialFormValues(),
-    resolver: zodResolver(carListingValidationSchema),
+    resolver: zodResolver(carSchema.partial()),
     mode: 'onBlur'
   });
 

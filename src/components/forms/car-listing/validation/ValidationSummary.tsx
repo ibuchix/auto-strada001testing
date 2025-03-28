@@ -4,6 +4,7 @@
  * - Created new ValidationSummary component to display form validation errors
  * - Component shows errors in a clean, organized manner with error icons
  * - Provides clickable errors that focus on the relevant form fields
+ * - Updated to use carSchema for validation
  */
 
 import React from 'react';
@@ -12,6 +13,8 @@ import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCarFormValidationErrors } from "@/validation/carListing";
 import { CarListingFormData } from "@/types/forms";
+import { z } from 'zod';
+import { carSchema } from '@/utils/validation/carSchema';
 
 interface ValidationSummaryProps {
   formData: CarListingFormData;
@@ -35,22 +38,32 @@ export const ValidationSummary = ({ formData, visible }: ValidationSummaryProps)
   
   // Map common error texts to field IDs for scrolling
   const errorToFieldMap: Record<string, string> = {
-    "VIN is required": "vin",
-    "Invalid VIN format": "vin",
-    "Car make is required": "make",
-    "Car model is required": "model",
-    "Year is required": "year",
-    "Price must be greater than 0": "price",
-    "Mileage cannot be negative": "mileage",
-    "At least one photo is required": "photo-upload"
+    "vin": "vin",
+    "make": "make",
+    "model": "model",
+    "year": "year",
+    "price": "price",
+    "mileage": "mileage",
+    "photo-upload": "photo-upload"
   };
   
   const getFieldId = (error: string): string | undefined => {
-    for (const [errorText, fieldId] of Object.entries(errorToFieldMap)) {
-      if (error.includes(errorText)) {
+    // First check if the error starts with a field name we recognize
+    for (const [fieldName, fieldId] of Object.entries(errorToFieldMap)) {
+      if (error.startsWith(`${fieldName}:`)) {
         return fieldId;
       }
     }
+    
+    // Then check for common error phrases
+    if (error.includes("VIN")) return "vin";
+    if (error.includes("make")) return "make";
+    if (error.includes("model")) return "model";
+    if (error.includes("year")) return "year";
+    if (error.includes("price")) return "price";
+    if (error.includes("mileage")) return "mileage";
+    if (error.includes("photo")) return "photo-upload";
+    
     return undefined;
   };
 

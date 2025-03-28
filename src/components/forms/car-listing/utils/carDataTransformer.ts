@@ -5,9 +5,12 @@
  * - Added synchronous and asynchronous car data preparation functions
  * - Implemented field filtering for database compatibility
  * - Added TypeScript type safety for car data
+ * - Integrated with carSchema validation
  */
 
 import { CarListingFormData, CarEntity } from '@/types/forms';
+import { carSchema, validateCar } from '@/utils/validation/carSchema';
+import { toast } from 'sonner';
 
 /**
  * Prepare car data for database insertion (synchronous version)
@@ -18,7 +21,8 @@ export const prepareCarData = (
   valuationData: any,
   userId: string
 ): Partial<CarEntity> => {
-  return {
+  // Basic data preparation
+  const preparedData = {
     // Seller information
     seller_id: userId,
     seller_name: formData.name || '',
@@ -59,6 +63,8 @@ export const prepareCarData = (
     // Valuation data
     valuation_data: valuationData || {}
   };
+
+  return preparedData;
 };
 
 /**
@@ -74,8 +80,29 @@ export const prepareCarDataAsync = async (
   // Start with the synchronous data preparation
   const baseData = prepareCarData(formData, valuationData, userId);
   
-  // Add any async operations here if needed in the future
-  // For example, field validation or data enrichment that requires API calls
+  // Validate core car data
+  try {
+    const coreData = {
+      make: baseData.make,
+      model: baseData.model,
+      year: baseData.year as number,
+      price: baseData.price as number,
+      mileage: baseData.mileage as number,
+      vin: baseData.vin
+    };
+    
+    // Only validate if we have enough data (silent return if not enough data yet)
+    if (coreData.make && coreData.model && coreData.year && coreData.vin) {
+      const validationResult = validateCar(coreData);
+      
+      if (!validationResult.success && validationResult.errors) {
+        console.warn('Car data validation failed:', validationResult.errors.format());
+      }
+    }
+  } catch (error) {
+    console.error('Error during car data validation:', error);
+    // Don't throw, just log - this is just a validation check
+  }
   
   return baseData;
 };

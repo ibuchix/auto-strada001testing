@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Updated to use security definer function for database operations
@@ -5,6 +6,7 @@
  * - Enhanced error handling and retry logic
  * - Added more robust logging
  * - Implemented better type safety for response handling
+ * - Fixed type error with created_at field being Date instead of string
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -51,7 +53,10 @@ export const saveFormData = async (
       // This is async but ensures best database compatibility
       const carData = await prepareCarDataAsync(formData, valuationData, userId);
       
-      const dataToUpsert = carId ? { ...carData, id: carId } : carData;
+      // Convert any Date objects to ISO strings to fix type errors
+      const dataToUpsert = carId 
+        ? { ...convertDatesToISOStrings(carData), id: carId } 
+        : convertDatesToISOStrings(carData);
 
       // Minimal logging with environment check
       if (process.env.NODE_ENV === 'development') {
@@ -76,7 +81,6 @@ export const saveFormData = async (
       try {
         console.log('Attempting save via security definer function');
         
-        // Cast the function name and result as any to bypass TypeScript's strict checking
         const { data: rpcResult, error: rpcError } = await supabase.rpc(
           'upsert_car_listing',
           { car_data: dataToUpsert }
@@ -138,7 +142,7 @@ export const saveFormData = async (
         console.warn('Exception calling security definer function:', rpcException);
       }
 
-      // Fallback to standard approach
+      // Fallback to standard approach - use proper type conversion
       const { data, error } = await supabase
         .from('cars')
         .upsert(dataToUpsert)
@@ -191,6 +195,22 @@ export const saveFormData = async (
       duration: 5000,
     });
   }
+  
+  return result;
+};
+
+/**
+ * Helper function to convert Date objects to ISO strings
+ * This fixes type errors when sending data to Supabase
+ */
+const convertDatesToISOStrings = (data: Record<string, any>): Record<string, any> => {
+  const result = { ...data };
+  
+  Object.keys(result).forEach(key => {
+    if (result[key] instanceof Date) {
+      result[key] = result[key].toISOString();
+    }
+  });
   
   return result;
 };

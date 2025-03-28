@@ -6,21 +6,17 @@
  * - Enhanced year validation to match schema
  * - Added transmission validation
  * - Updated price validation minimum value to 100
+ * - Integrated with carSchema from utils/validation/carSchema
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { z } from "zod";
+import { carSchema } from "@/utils/validation/carSchema";
 
 /**
  * Zod schema for car listing validation
  */
-export const carListingValidationSchema = z.object({
-  vin: z.string().length(17).regex(/^[A-HJ-NPR-Z0-9]{17}$/i),
-  year: z.number().min(1886).max(new Date().getFullYear() + 1),
-  mileage: z.number().min(0),
-  price: z.number().min(100),
-  transmission: z.enum(['manual', 'automatic']),
-});
+export const carListingValidationSchema = carSchema;
 
 /**
  * Validates a Vehicle Identification Number (VIN).
@@ -62,44 +58,27 @@ export const validateCarForm = (formData: CarListingFormData): boolean => {
 export const getCarFormValidationErrors = (formData: CarListingFormData): string[] => {
   const errors: string[] = [];
   
-  // Required fields validation
-  if (!formData.make) errors.push("Car make is required");
-  if (!formData.model) errors.push("Car model is required");
-  
-  // VIN validation
-  if (!formData.vin) {
-    errors.push("VIN is required");
-  } else if (!validateVIN(formData.vin)) {
-    errors.push("Invalid VIN format - must be 17 characters");
+  try {
+    // Validate core fields with our schema
+    carSchema.parse({
+      make: formData.make,
+      model: formData.model,
+      year: formData.year,
+      price: formData.price,
+      mileage: formData.mileage,
+      vin: formData.vin
+    });
+  } catch (validationError) {
+    if (validationError instanceof z.ZodError) {
+      // Extract error messages from Zod validation
+      validationError.errors.forEach(err => {
+        const field = err.path.join('.');
+        errors.push(`${field}: ${err.message}`);
+      });
+    }
   }
   
-  // Year validation
-  if (!formData.year) {
-    errors.push("Year is required");
-  } else if (formData.year < 1886) {
-    errors.push("Year must be 1886 or later");
-  } else if (formData.year > new Date().getFullYear() + 1) {
-    errors.push(`Year cannot be later than ${new Date().getFullYear() + 1}`);
-  }
-  
-  // Price validation
-  if (!formData.price) {
-    errors.push("Price is required");
-  } else if (formData.price < 100) {
-    errors.push("Price must be at least 100");
-  }
-  
-  // Mileage validation
-  if (formData.mileage < 0) {
-    errors.push("Mileage cannot be negative");
-  }
-  
-  // Transmission validation
-  if (!formData.transmission) {
-    errors.push("Transmission type is required");
-  } else if (formData.transmission !== 'manual' && formData.transmission !== 'automatic') {
-    errors.push("Transmission must be either manual or automatic");
-  }
+  // Additional validation not covered by schema
   
   // Photo validation
   if (!formData.uploadedPhotos || formData.uploadedPhotos.length === 0) {
