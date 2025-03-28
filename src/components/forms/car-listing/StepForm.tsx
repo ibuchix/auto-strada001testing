@@ -7,6 +7,7 @@
  * - Better type safety throughout the component
  * - Added step completion tracking
  * - Improved error display and navigation
+ * - Fixed FormFooter props to include currentStep and totalSteps
  */
 
 import { UseFormReturn } from "react-hook-form";
