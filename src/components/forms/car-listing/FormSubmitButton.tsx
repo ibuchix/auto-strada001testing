@@ -7,8 +7,10 @@
  * - 2028-06-15: Added micro-interactions for button states
  * - 2028-06-16: Fixed missing RefreshCw icon import
  * - 2028-06-17: Implemented lazy loading and code splitting
+ * - 2028-06-18: Fixed React import for React.memo
  */
 
+import React from 'react';
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2, AlertCircle, CheckCircle, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";

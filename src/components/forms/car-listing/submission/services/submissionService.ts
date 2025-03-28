@@ -4,6 +4,7 @@
  * - Implemented code splitting through dynamic imports
  * - Added server-side validation integration
  * - Improved error handling with more specific error types
+ * - Fixed SubmissionError constructor calls to include required 'code' property
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -63,6 +64,7 @@ export const submitCarListing = async (
     if (error.code?.startsWith('23') || error.code?.startsWith('22')) {
       // Database constraint or data type errors
       throw new SubmissionError({
+        code: "DATABASE_CONSTRAINT",
         message: "Database constraint violation",
         description: "There was an issue with some of your data. Please try again.",
         retryable: true
@@ -76,6 +78,7 @@ export const submitCarListing = async (
     
     // Generic error for other issues
     throw new SubmissionError({
+      code: "SUBMISSION_FAILED",
       message: error.message || "Failed to submit listing",
       description: "There was an error processing your submission",
       retryable: true
