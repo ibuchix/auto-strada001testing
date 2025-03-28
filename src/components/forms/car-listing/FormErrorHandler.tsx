@@ -5,14 +5,16 @@
  * - 2025-11-02: Enhanced with draft error handling capabilities
  * - 2025-11-03: Added retry functionality with loading state indicator
  * - 2025-12-01: Updated to use the new error architecture
+ * - 2024-08-15: Enhanced with consistent recovery paths and feedback patterns
  */
 
-import { ErrorHandler } from "./submission/ErrorHandler";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { BaseApplicationError, AuthenticationError } from "@/errors/classes";
+import { ErrorHandler } from "./submission/ErrorHandler";
+import { ErrorCategory, RecoveryType } from "@/errors/types";
 
 interface FormErrorHandlerProps {
   error?: string | Error | BaseApplicationError | null;
@@ -21,7 +23,7 @@ interface FormErrorHandlerProps {
 }
 
 export const FormErrorHandler = ({ 
-  error = "Please sign in to create a listing. Your progress will be saved.", 
+  error, 
   draftError,
   onRetry 
 }: FormErrorHandlerProps) => {
@@ -49,7 +51,44 @@ export const FormErrorHandler = ({
     
     setIsRetrying(true);
     onRetry();
+    // Reset loading state after a delay
     setTimeout(() => setIsRetrying(false), 2000);
+  };
+  
+  // Enhanced recovery options with clear labels
+  const getRecoveryAction = (err: BaseApplicationError) => {
+    if (err.recovery?.action) {
+      return err.recovery.action;
+    }
+    return onRetry;
+  };
+  
+  const getRecoveryLabel = (err: BaseApplicationError) => {
+    if (err.recovery?.label) {
+      return err.recovery.label;
+    }
+    
+    // Generate appropriate label based on recovery type and category
+    if (err.recovery?.type) {
+      switch (err.recovery.type) {
+        case RecoveryType.FIELD_CORRECTION:
+          return 'Fix Error';
+        case RecoveryType.FORM_RETRY:
+          return 'Try Again';
+        case RecoveryType.SIGN_IN:
+          return 'Sign In';
+        case RecoveryType.NAVIGATE:
+          return 'Continue';
+        case RecoveryType.REFRESH:
+          return 'Refresh Page';
+        case RecoveryType.CONTACT_SUPPORT:
+          return 'Contact Support';
+        default:
+          return 'Try Again';
+      }
+    }
+    
+    return 'Try Again';
   };
   
   // If there's a draft error, show a specialized error message
@@ -57,22 +96,31 @@ export const FormErrorHandler = ({
     const errorMessage = getErrorMessage(draftError);
     const errorDescription = getErrorDescription(draftError) || "There was a problem loading your saved draft.";
     
+    // Apply recovery options if it's a BaseApplicationError
+    const recoveryAction = draftError instanceof BaseApplicationError
+      ? getRecoveryAction(draftError)
+      : onRetry;
+      
+    const recoveryLabel = draftError instanceof BaseApplicationError
+      ? getRecoveryLabel(draftError)
+      : 'Try Again';
+    
     return (
       <Alert variant="destructive" className="mb-8">
         <AlertCircle className="h-5 w-5" />
         <AlertTitle>Failed to load draft</AlertTitle>
         <AlertDescription className="mt-2">
           <p className="mb-4">{errorMessage}</p>
-          {onRetry && (
+          {recoveryAction && (
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={handleRetry}
+              onClick={recoveryAction === onRetry ? handleRetry : recoveryAction}
               disabled={isRetrying}
               className="flex items-center"
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
-              {isRetrying ? 'Retrying...' : 'Try Again'}
+              {isRetrying ? 'Retrying...' : recoveryLabel}
             </Button>
           )}
         </AlertDescription>
@@ -87,12 +135,16 @@ export const FormErrorHandler = ({
 
   // For standard errors, use the ErrorHandler component
   if (typeof error === 'string') {
-    return <ErrorHandler error={error} />;
+    return <ErrorHandler 
+      error={error} 
+      onRetry={onRetry} 
+    />;
   } else if (error instanceof BaseApplicationError) {
     return <ErrorHandler 
-      error={error.message} 
+      error={error} 
       description={error.description} 
-      onRetry={error.recovery?.action} 
+      onRetry={onRetry}
+      actionFn={error.recovery?.action} 
       actionLabel={error.recovery?.label}
     />;
   } else if (error instanceof Error) {

@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2028-07-02: Updated component to correctly handle position prop and follow brand styling
+ * - 2024-08-15: Enhanced with consistent action button styling for recovery paths
  */
 
 import { useToast } from "@/hooks/use-toast"
@@ -27,7 +28,25 @@ export function Toaster({ position = "top-right" }: ToasterProps) {
         // Apply custom styling based on variant
         const toastClass = variant === 'destructive' 
           ? 'border-[#DC143C]/20 bg-[#DC143C]/10 text-[#DC143C]' 
-          : 'border-[#4B4DED]/20 bg-[#4B4DED]/10 text-[#222020]';
+          : variant === 'success'
+            ? 'border-[#21CA6F]/20 bg-[#21CA6F]/10 text-[#21CA6F]'
+            : 'border-[#4B4DED]/20 bg-[#EFEFFD] text-[#222020]';
+          
+        // Style action button based on variant
+        const enhancedAction = action && variant
+          ? {
+              ...action,
+              // Add custom styling to action elements based on variant
+              // The actual button styles will be applied in toast.tsx
+              className: action.className + ' ' + (
+                variant === 'destructive' 
+                  ? 'toast-action-destructive'
+                  : variant === 'success'
+                    ? 'toast-action-success'
+                    : 'toast-action-default'
+              )
+            }
+          : action;
           
         return (
           <Toast key={id} className={toastClass} {...props}>
@@ -37,8 +56,8 @@ export function Toaster({ position = "top-right" }: ToasterProps) {
                 <ToastDescription>{description}</ToastDescription>
               )}
             </div>
-            {action}
-            <ToastClose className={variant === 'destructive' ? 'text-[#DC143C]' : 'text-[#222020]'} />
+            {enhancedAction}
+            <ToastClose className={variant === 'destructive' ? 'text-[#DC143C]' : variant === 'success' ? 'text-[#21CA6F]' : 'text-[#222020]'} />
           </Toast>
         )
       })}

@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2024-08-15: Updated with consistent recovery paths and UI patterns
+ */
+
 import {
   DialogContent,
   DialogHeader,
@@ -9,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCw, ClipboardCheck } from "lucide-react";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useState } from "react";
 
 interface ErrorDialogProps {
   error: string;
@@ -26,12 +32,23 @@ export const ErrorDialog = ({
   onManualValuation 
 }: ErrorDialogProps) => {
   const { isOffline } = useOfflineStatus();
+  const [isRetrying, setIsRetrying] = useState(false);
   
   // Determine if this is a network-related error
   const isNetworkError = error.toLowerCase().includes('network') ||
     error.toLowerCase().includes('connection') ||
     error.toLowerCase().includes('offline') ||
     isOffline;
+  
+  // Enhanced retry handler with loading state
+  const handleRetry = () => {
+    if (!onRetry || isOffline) return;
+    
+    setIsRetrying(true);
+    onRetry();
+    // Reset loading state after reasonable delay
+    setTimeout(() => setIsRetrying(false), 2000);
+  };
   
   return (
     <DialogContent className="sm:max-w-md">
@@ -78,11 +95,12 @@ export const ErrorDialog = ({
         
         {onRetry && !isOffline && (
           <Button 
-            onClick={onRetry}
+            onClick={handleRetry}
+            disabled={isRetrying}
             className="w-full sm:w-auto flex items-center gap-1 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
           >
-            <RefreshCw className="h-3 w-3" />
-            Try Different VIN
+            <RefreshCw className={`h-3 w-3 ${isRetrying ? 'animate-spin' : ''}`} />
+            {isRetrying ? 'Retrying...' : 'Try Different VIN'}
           </Button>
         )}
         

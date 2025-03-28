@@ -4,6 +4,7 @@
  * - 2025-04-21: Created component for handling valuation errors extracted from ValuationResult
  * - 2026-04-15: Enhanced error feedback and added resilience for network issues
  * - 2027-06-20: Extracted from ValuationResult component as part of code refactoring
+ * - 2024-08-15: Updated with consistent recovery paths and UI patterns
  */
 
 import { useNavigate } from "react-router-dom";
@@ -12,10 +13,11 @@ import { ErrorDialog } from "./ErrorDialog";
 import { ExistingVehicleDialog } from "./dialogs/ExistingVehicleDialog";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { useState, useEffect } from "react";
+import { BaseApplicationError } from "@/errors/classes";
 
 interface ValuationErrorHandlerProps {
   valuationResult: {
-    error?: string;
+    error?: string | BaseApplicationError;
     isExisting?: boolean;
     vin?: string;
     transmission?: string;
@@ -38,10 +40,17 @@ export const ValuationErrorHandler = ({
   const { isOffline } = useOfflineStatus();
   const [retryCount, setRetryCount] = useState(0);
   
+  // Extract error message regardless of error type
+  const errorMsg = typeof valuationResult.error === 'string' 
+    ? valuationResult.error 
+    : valuationResult.error instanceof BaseApplicationError 
+      ? valuationResult.error.message 
+      : '';
+  
   // Check if the error is related to network connectivity
-  const isNetworkError = valuationResult.error?.toLowerCase().includes('network') ||
-    valuationResult.error?.toLowerCase().includes('connection') ||
-    valuationResult.error?.toLowerCase().includes('timeout') ||
+  const isNetworkError = errorMsg.toLowerCase().includes('network') ||
+    errorMsg.toLowerCase().includes('connection') ||
+    errorMsg.toLowerCase().includes('timeout') ||
     isOffline;
 
   // Increment retry count when component mounts
@@ -111,8 +120,18 @@ export const ValuationErrorHandler = ({
     }
   };
 
+  // Use recovery action from BaseApplicationError if available
+  const getRecoveryAction = () => {
+    if (typeof valuationResult.error !== 'string' && 
+        valuationResult.error instanceof BaseApplicationError && 
+        valuationResult.error.recovery) {
+      return valuationResult.error.recovery.action;
+    }
+    return handleRetry;
+  };
+
   // Prepare the error message for other errors or no data
-  let errorMessage = valuationResult.error || 
+  let errorMessage = errorMsg || 
     "No data found for this VIN. Would you like to proceed with manual valuation?";
     
   // If we're offline, provide a clearer error message
@@ -129,7 +148,7 @@ export const ValuationErrorHandler = ({
     <ErrorDialog 
       error={errorMessage}
       onClose={onClose}
-      onRetry={handleRetry}
+      onRetry={getRecoveryAction()}
       showManualOption={true}
       onManualValuation={handleManualValuation}
     />

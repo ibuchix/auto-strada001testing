@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import * as ToastPrimitives from "@radix-ui/react-toast"
 import { cva, type VariantProps } from "class-variance-authority"
@@ -63,7 +62,11 @@ const ToastAction = React.forwardRef<
   <ToastPrimitives.Action
     ref={ref}
     className={cn(
-      "inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive",
+      "inline-flex h-8 shrink-0 items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+      "group-[.toast-action-destructive]:border-[#DC143C] group-[.toast-action-destructive]:text-[#DC143C] group-[.toast-action-destructive]:hover:bg-[#DC143C]/10",
+      "group-[.toast-action-success]:border-[#21CA6F] group-[.toast-action-success]:text-[#21CA6F] group-[.toast-action-success]:hover:bg-[#21CA6F]/10",
+      "group-[.toast-action-default]:border-[#4B4DED] group-[.toast-action-default]:text-[#4B4DED] group-[.toast-action-default]:hover:bg-[#4B4DED]/10",
+      "group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive/10",
       className
     )}
     {...props}
