@@ -7,6 +7,8 @@
  * - Implemented periodic auto-save insurance
  * - Added offline recovery handler
  * - Improved error handling for aborted requests
+ * - Fixed TypeScript errors with CACHE_KEYS.TEMP_FORM_DATA
+ * - Added API endpoint integration
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -15,6 +17,7 @@ import { CarListingFormData } from "@/types/forms";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { toast } from "sonner";
 import { CACHE_KEYS, saveToCache } from "@/services/offlineCacheService";
+import { saveFormData } from "../utils/formSaveUtils";
 
 // Debounce time in milliseconds
 const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
@@ -92,8 +95,17 @@ export const useFormPersistence = ({
         }
       });
       
-      // Mock API call - in real app, this would call an actual API
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Call the saveFormData function to save to database
+      const result = await saveFormData(
+        formData,
+        userId,
+        formData.valuation_data || {},
+        carId
+      );
+      
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to save draft');
+      }
       
       setLastSaved(new Date());
     } catch (error: any) {
@@ -106,7 +118,7 @@ export const useFormPersistence = ({
     } finally {
       setIsSaving(false);
     }
-  }, [form, userId, currentStep, isOffline]);
+  }, [form, userId, currentStep, isOffline, carId]);
 
   // Debounced auto-save handler
   const debouncedSave = useCallback(() => {

@@ -3,6 +3,7 @@
  * - 2024-10-15: Created a central service for offline data caching
  * - 2024-12-16: Fixed JSON parsing error by adding safe parsing logic for string values
  * - 2025-05-03: Added recovery mechanism and diagnostic logging
+ * - 2025-08-29: Added TEMP_FORM_DATA key for form autosaving
  */
 
 // Cache keys for different types of data
@@ -19,7 +20,8 @@ export const CACHE_KEYS = {
   UPLOADED_PHOTOS: 'uploadedPhotos',
   FORM_SUBMISSION_STATE: 'formSubmissionState',
   FORM_BACKUP: 'formBackup',
-  DIAGNOSTIC_ID: 'diagnosticId'
+  DIAGNOSTIC_ID: 'diagnosticId',
+  TEMP_FORM_DATA: 'tempFormData' // Added this key for form autosaving
 };
 
 // Log function for debugging cache operations
