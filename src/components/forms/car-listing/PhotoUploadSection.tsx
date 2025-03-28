@@ -7,6 +7,8 @@
  * - Fixed FormSection usage by adding required title prop
  * - Improved TypeScript typing
  * - Replaced toast notifications with persistent error messages
+ * - Enhanced mobile experience with larger touch targets and better spacing
+ * - Added responsive grid layouts for photo display
  */
 import React, { useState } from 'react';
 import { usePhotoUpload } from '../car-listing/photo-upload/usePhotoUpload';
@@ -20,6 +22,7 @@ import { CarListingFormData } from '@/types/forms';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PhotoUploadSectionProps {
   form: UseFormReturn<CarListingFormData>;
@@ -39,17 +42,18 @@ interface AdditionalPhotosProps {
   onPhotosSelected: (files: File[]) => Promise<void>;
   progress: number;
   error: PhotoUploadError | null;
+  isMobile: boolean;
 }
 
-const AdditionalPhotos = ({ isUploading, onPhotosSelected, progress, error }: AdditionalPhotosProps) => {
+const AdditionalPhotos = ({ isUploading, onPhotosSelected, progress, error, isMobile }: AdditionalPhotosProps) => {
   const handleDrop = async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     await onPhotosSelected(acceptedFiles);
   };
 
   return (
-    <div className="mt-4">
-      <h4 className="text-base font-medium mb-2">Additional Photos</h4>
+    <div className="mt-6">
+      <h4 className="text-base font-medium mb-3">Additional Photos</h4>
       
       {error && (
         <Alert variant="destructive" className="mb-4">
@@ -60,7 +64,7 @@ const AdditionalPhotos = ({ isUploading, onPhotosSelected, progress, error }: Ad
       )}
       
       <div 
-        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+        className={`border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors ${isMobile ? 'min-h-[120px] flex items-center justify-center' : ''}`}
         onClick={() => {
           // Simulate click on file input
           const input = document.createElement('input');
@@ -76,33 +80,42 @@ const AdditionalPhotos = ({ isUploading, onPhotosSelected, progress, error }: Ad
         }}
       >
         {isUploading ? (
-          <div>
-            <p className="text-sm text-gray-500 mb-1">Uploading...</p>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div className="w-full">
+            <p className="text-sm text-gray-500 mb-2">Uploading...</p>
+            <div className="w-full bg-gray-200 rounded-full h-3">
               <div 
-                className="bg-primary h-2.5 rounded-full" 
+                className="bg-primary h-3 rounded-full" 
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
           </div>
         ) : (
-          <>
-            <p className="text-sm text-gray-500">Drag & drop photos here or click to browse</p>
+          <div className={isMobile ? "px-4" : ""}>
+            <p className="text-sm text-gray-500">{isMobile ? "Tap to upload photos" : "Drag & drop photos here or click to browse"}</p>
             <p className="text-xs text-gray-400 mt-1">JPG, PNG, or WEBP (max 10MB)</p>
-          </>
+          </div>
         )}
       </div>
     </div>
   );
 };
 
-const CurrentPhotos = ({ photos, onRemovePhoto }: { photos: string[], onRemovePhoto?: (url: string) => void }) => {
+const CurrentPhotos = ({ photos, onRemovePhoto, isMobile }: { 
+  photos: string[], 
+  onRemovePhoto?: (url: string) => void,
+  isMobile: boolean
+}) => {
   if (photos.length === 0) return null;
 
+  // Adjust grid columns based on screen size
+  const gridClass = isMobile 
+    ? "grid grid-cols-2 gap-3" 
+    : "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4";
+
   return (
-    <div className="mt-4">
-      <h4 className="text-base font-medium mb-2">Current Photos</h4>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+    <div className="mt-6">
+      <h4 className="text-base font-medium mb-3">Current Photos</h4>
+      <div className={gridClass}>
         {photos.map((photo, index) => (
           <Card key={index} className="relative overflow-hidden aspect-square">
             <img
@@ -114,10 +127,10 @@ const CurrentPhotos = ({ photos, onRemovePhoto }: { photos: string[], onRemovePh
               <Button 
                 variant="destructive" 
                 size="icon" 
-                className="absolute top-1 right-1 h-7 w-7 rounded-full opacity-70 hover:opacity-100"
+                className={`absolute top-1 right-1 ${isMobile ? 'h-8 w-8' : 'h-7 w-7'} rounded-full opacity-70 hover:opacity-100`}
                 onClick={() => onRemovePhoto(photo)}
               >
-                <X className="h-4 w-4" />
+                <X className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`} />
               </Button>
             )}
           </Card>
@@ -136,6 +149,7 @@ export const PhotoUploadSection = ({
   const [uploadError, setUploadError] = useState<PhotoUploadError | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const watchedPhotos = form.watch('uploadedPhotos') || [];
+  const isMobile = useIsMobile();
 
   const {
     isUploading,
@@ -247,6 +261,7 @@ export const PhotoUploadSection = ({
           onClick={handleSavePhotos}
           isLoading={savingProgress}
           label="Save Photos"
+          className={isMobile ? "px-4 py-2 text-sm" : ""}
         />
       }
     >
@@ -294,7 +309,8 @@ export const PhotoUploadSection = ({
 
       <CurrentPhotos 
         photos={watchedPhotos}
-        onRemovePhoto={handleRemovePhoto} 
+        onRemovePhoto={handleRemovePhoto}
+        isMobile={isMobile}
       />
 
       <AdditionalPhotos
@@ -302,6 +318,7 @@ export const PhotoUploadSection = ({
         onPhotosSelected={handlePhotoUpload}
         progress={uploadProgress}
         error={uploadError}
+        isMobile={isMobile}
       />
     </FormSection>
   );

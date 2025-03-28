@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { ValuationFormData } from "@/types/validation";
 import { UseFormReturn } from "react-hook-form";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ValuationInputProps {
   form: UseFormReturn<ValuationFormData>;
@@ -15,6 +16,8 @@ interface ValuationInputProps {
 }
 
 export const ValuationInput = ({ form, isLoading, onSubmit }: ValuationInputProps) => {
+  const isMobile = useIsMobile();
+  
   return (
     <Form {...form}>
       <form onSubmit={onSubmit} className="space-y-6 max-w-sm mx-auto">
@@ -28,12 +31,12 @@ export const ValuationInput = ({ form, isLoading, onSubmit }: ValuationInputProp
                   <Input
                     {...field}
                     placeholder="ENTER VIN"
-                    className="h-12 text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md"
+                    className={`${isMobile ? 'h-14' : 'h-12'} text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md`}
                     disabled={isLoading}
                     maxLength={17}
                   />
                 </FormControl>
-                <FormMessage />
+                <FormMessage className={isMobile ? "text-sm mt-1" : ""} />
               </FormItem>
             )}
           />
@@ -50,11 +53,11 @@ export const ValuationInput = ({ form, isLoading, onSubmit }: ValuationInputProp
                     inputMode="numeric"
                     pattern="\d*"
                     placeholder="ENTER MILEAGE (KM)"
-                    className="h-12 text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md"
+                    className={`${isMobile ? 'h-14' : 'h-12'} text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md`}
                     disabled={isLoading}
                   />
                 </FormControl>
-                <FormMessage />
+                <FormMessage className={isMobile ? "text-sm mt-1" : ""} />
               </FormItem>
             )}
           />
@@ -68,24 +71,38 @@ export const ValuationInput = ({ form, isLoading, onSubmit }: ValuationInputProp
                   <RadioGroup
                     onValueChange={field.onChange}
                     value={field.value}
-                    className="flex gap-6 justify-center bg-white border-2 border-secondary/20 rounded-md p-4"
+                    className={`flex gap-6 justify-center bg-white border-2 border-secondary/20 rounded-md ${isMobile ? 'p-5' : 'p-4'}`}
                     disabled={isLoading}
                   >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="manual" id="manual" />
-                      <Label htmlFor="manual" className="font-medium cursor-pointer">
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem 
+                        value="manual" 
+                        id="manual" 
+                        className={isMobile ? "h-6 w-6" : ""}
+                      />
+                      <Label 
+                        htmlFor="manual" 
+                        className={`font-medium cursor-pointer ${isMobile ? 'text-base' : ''}`}
+                      >
                         Manual
                       </Label>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="automatic" id="automatic" />
-                      <Label htmlFor="automatic" className="font-medium cursor-pointer">
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem 
+                        value="automatic" 
+                        id="automatic" 
+                        className={isMobile ? "h-6 w-6" : ""}
+                      />
+                      <Label 
+                        htmlFor="automatic" 
+                        className={`font-medium cursor-pointer ${isMobile ? 'text-base' : ''}`}
+                      >
                         Automatic
                       </Label>
                     </div>
                   </RadioGroup>
                 </FormControl>
-                <FormMessage />
+                <FormMessage className={isMobile ? "text-sm mt-1" : ""} />
               </FormItem>
             )}
           />
@@ -93,7 +110,7 @@ export const ValuationInput = ({ form, isLoading, onSubmit }: ValuationInputProp
 
         <Button
           type="submit"
-          className="w-full h-12 bg-secondary hover:bg-secondary/90 text-white text-lg rounded-md flex items-center justify-center gap-2"
+          className={`w-full ${isMobile ? 'h-14' : 'h-12'} bg-secondary hover:bg-secondary/90 text-white text-lg rounded-md flex items-center justify-center gap-2`}
           disabled={isLoading}
         >
           {isLoading ? (

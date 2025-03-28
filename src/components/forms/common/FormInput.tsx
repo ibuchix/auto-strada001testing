@@ -8,6 +8,7 @@
  * - Fixed input event handling to ensure values are properly updated in form state
  * - Fixed TypeScript error by properly accessing fieldState in render
  * - Added inline validation feedback with immediate error messages
+ * - Optimized for mobile/touch with larger hit areas and better spacing
  */
 
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { UseFormReturn } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { AlertCircle } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FormInputProps {
   form: UseFormReturn<any>;
@@ -51,6 +53,7 @@ export const FormInput = ({
 }: FormInputProps) => {
   const [isFocused, setIsFocused] = useState(false);
   const [touched, setTouched] = useState(false);
+  const isMobile = useIsMobile();
   
   // Force validation if the field is required and was touched
   useEffect(() => {
@@ -75,9 +78,9 @@ export const FormInput = ({
         const showError = hasError && (touched || fieldState.isTouched);
         
         return (
-          <FormItem className="space-y-2 mb-4">
+          <FormItem className={`space-y-2 mb-5 ${isMobile ? 'mb-6' : ''}`}>
             {label && (
-              <FormLabel className="flex items-start text-base font-medium text-body">
+              <FormLabel className={`flex items-start text-base font-medium text-body ${isMobile ? 'text-base mb-1' : ''}`}>
                 <span>{label}</span>
                 {required && <span className="text-[#DC143C] ml-1 font-bold">*</span>}
               </FormLabel>
@@ -89,7 +92,9 @@ export const FormInput = ({
                   placeholder={placeholder}
                   type={type}
                   id={name}
-                  className={`h-12 px-4 text-base border rounded-md transition-colors
+                  className={`
+                    ${isMobile ? 'h-14 text-base px-4' : 'h-12 px-4 text-base'} 
+                    border rounded-md transition-colors
                     ${field.value ? 'border-gray-400' : ''}
                     ${showError 
                       ? "border-[#DC143C] focus-visible:ring-[#DC143C]/20 pr-10" 
@@ -135,13 +140,13 @@ export const FormInput = ({
                 />
               </FormControl>
               {showError && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#DC143C]">
-                  <AlertCircle className="h-5 w-5" />
+                <div className={`absolute right-3 top-1/2 -translate-y-1/2 text-[#DC143C] ${isMobile ? 'right-4' : ''}`}>
+                  <AlertCircle className={`${isMobile ? 'h-6 w-6' : 'h-5 w-5'}`} />
                 </div>
               )}
             </div>
             {showError && (
-              <div className="text-[#DC143C] text-sm font-medium flex items-start gap-1 mt-1">
+              <div className={`text-[#DC143C] ${isMobile ? 'text-sm mt-2' : 'text-sm'} font-medium flex items-start gap-1 mt-1`}>
                 <FormMessage />
               </div>
             )}
