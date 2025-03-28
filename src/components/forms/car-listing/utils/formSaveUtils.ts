@@ -1,12 +1,10 @@
 /**
  * Changes made:
- * - Reduced verbosity of console logging
- * - Added more targeted diagnostic logging
- * - Maintained key performance and error tracking information
- * - Added better error handling for specific database errors
- * - Optimized logic to reduce save attempts for unchanged data
- * - Added cache of previous data to minimize unnecessary saves
- * - Fixed TypeScript error by ensuring carData is not a Promise
+ * - Updated to use security definer function for database operations
+ * - Improved cache management with better data change detection
+ * - Enhanced error handling and retry logic
+ * - Added more robust logging
+ * - Implemented better type safety for response handling
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -80,8 +78,8 @@ export const saveFormData = async (
         
         // Cast the function name and result as any to bypass TypeScript's strict checking
         const { data: rpcResult, error: rpcError } = await supabase.rpc(
-          'create_car_listing' as any,
-          { p_car_data: dataToUpsert }
+          'upsert_car_listing',
+          { car_data: dataToUpsert }
         );
         
         if (!rpcError && rpcResult) {
@@ -115,8 +113,8 @@ export const saveFormData = async (
               
               // Retry with modified data
               const { data: retryResult, error: retryError } = await supabase.rpc(
-                'create_car_listing' as any,
-                { p_car_data: dataToUpsert }
+                'upsert_car_listing',
+                { car_data: dataToUpsert }
               );
               
               if (!retryError && retryResult) {

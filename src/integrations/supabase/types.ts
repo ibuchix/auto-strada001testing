@@ -1862,6 +1862,13 @@ export type Database = {
         }
         Returns: string
       }
+      upsert_car_listing: {
+        Args: {
+          car_data: Json
+          is_draft?: boolean
+        }
+        Returns: Json
+      }
       verify_dealer: {
         Args: {
           p_dealer_id: string
