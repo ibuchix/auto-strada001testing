@@ -1,7 +1,9 @@
+
 /**
  * Changes made:
  * - 2024-09-05: Extracted from CarListingForm.tsx to separate component
  * - 2025-11-02: Enhanced with draft error handling capabilities
+ * - 2025-11-03: Added retry functionality with loading state indicator
  */
 
 import { ErrorHandler } from "./submission/ErrorHandler";

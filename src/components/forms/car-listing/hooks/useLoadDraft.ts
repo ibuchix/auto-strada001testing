@@ -15,6 +15,7 @@
  * - 2025-09-15: Improved validation with validateDraft function
  * - 2025-09-15: Implemented batched form updates for better performance
  * - 2025-11-02: Fixed Error constructor parameters to avoid using ES2022 features
+ * - 2025-11-03: Added support for retry functionality with retryCount prop
  */
 
 import { useEffect, useState } from "react";
@@ -36,6 +37,7 @@ export interface LoadDraftOptions {
   draftId?: string;
   onLoaded?: (data: DraftData) => void;
   onError?: (error: Error) => void;
+  retryCount?: number; // Added retryCount to trigger retries
 }
 
 export interface UseLoadDraftResult {
@@ -52,7 +54,7 @@ const validateDraft = (draft: unknown): draft is CarEntity => {
 
 // Updated draft loading hook with loading state and callback
 export const useLoadDraft = (options: LoadDraftOptions): UseLoadDraftResult => {
-  const { form, userId, draftId, onLoaded, onError } = options;
+  const { form, userId, draftId, onLoaded, onError, retryCount = 0 } = options;
   const [state, setState] = useState<UseLoadDraftResult>({ 
     isLoading: !!draftId, 
     error: null 
@@ -121,7 +123,7 @@ export const useLoadDraft = (options: LoadDraftOptions): UseLoadDraftResult => {
 
     loadDraft();
     return () => abortController.abort();
-  }, [draftId, userId, form, onLoaded, onError]);
+  }, [draftId, userId, form, onLoaded, onError, retryCount]); // Added retryCount as dependency
 
   return state;
 };

@@ -14,6 +14,7 @@
  * - 2025-08-19: Fixed return type for persistence.saveImmediately
  * - 2025-10-01: Implemented periodic data saving for key form values
  * - 2025-11-02: Added error boundary integration with useLoadDraft
+ * - 2025-11-03: Added support for retrying draft loading
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -107,6 +108,7 @@ export const FormContent = ({
     form,
     userId: session.user.id,
     draftId,
+    retryCount, // Pass the retryCount to trigger reloading when it changes
     onLoaded: (draft) => {
       setCarId(draft.carId);
       setLastSaved(draft.updatedAt);

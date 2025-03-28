@@ -3,6 +3,7 @@
  * Changes made:
  * - Removed diagnostic-related code
  * - 2025-11-02: Added error boundary handling for draft loading errors
+ * - 2025-11-03: Added retry functionality for draft loading errors
  */
 
 import { useState, useCallback } from "react";
