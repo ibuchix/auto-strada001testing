@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-06-12: Created dedicated utility for preparing submission data
@@ -19,6 +18,7 @@
  * - 2027-11-05: Added detailed schema validation logging and timing metrics
  * - 2027-11-06: Removed references to non-existent field is_selling_on_behalf
  * - 2027-11-07: Added dynamic field filtering to avoid database errors
+ * - 2025-08-25: Integrated prepareSubmission function from submission.ts
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { validateMileageData } from "./validationHandler";
 import { validateFormSchema } from "@/utils/validation/schemaValidation";
 import { filterObjectByAllowedFields } from "@/utils/dataTransformers";
+import { prepareSubmission } from "../../utils/submission";
 
 // List of known valid car table fields
 const VALID_CAR_FIELDS = [
@@ -39,7 +40,6 @@ const VALID_CAR_FIELDS = [
   'features',
   'is_damaged',
   'is_registered_in_poland',
-  // 'is_selling_on_behalf' - removed as it doesn't exist in database
   'has_private_plate',
   'finance_amount',
   'service_history_type',
@@ -181,6 +181,10 @@ export const prepareCarDataForSubmission = async (
     throw new Error('Failed to calculate reserve price. Please try again.');
   }
 
+  // Use prepareSubmission as the base for our data preparation
+  // but still adapt it specifically for the database submission
+  const baseData = prepareSubmission(data);
+  
   // Build the car data object with explicit type conversion for all fields
   const carData = {
     id: carId,
@@ -204,7 +208,6 @@ export const prepareCarDataForSubmission = async (
     features: data.features,
     is_damaged: safeTypeConversion('is_damaged', data.isDamaged),
     is_registered_in_poland: safeTypeConversion('is_registered_in_poland', data.isRegisteredInPoland),
-    // REMOVED: is_selling_on_behalf field - it doesn't exist in database
     has_private_plate: safeTypeConversion('has_private_plate', data.hasPrivatePlate),
     finance_amount: safeTypeConversion('finance_amount', data.financeAmount),
     service_history_type: data.serviceHistoryType,

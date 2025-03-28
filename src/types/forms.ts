@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Added DamageType and DamageReport types
@@ -13,6 +12,7 @@
  * - 2025-08-20: Updated types based on user requirements
  * - 2025-08-20: Enhanced DamageType and DamageReport with additional fields
  * - 2025-08-20: Added new CarFeatures properties
+ * - 2025-08-25: Ensured CarEntity type extends from CarListingFormData with required DB fields
  */
 
 // DamageType with expanded options
@@ -163,8 +163,8 @@ export interface CarListingFormData {
   [key: string]: any; // Allow for additional dynamic properties
 }
 
-// Database entity type
-export interface CarEntity extends Omit<CarListingFormData, 'formProgress' | 'isValid'> {
+// Database entity type - defines what gets stored in the database
+export interface CarEntity extends Omit<CarListingFormData, 'formProgress' | 'isValid' | 'form_metadata'> {
   id: string;
   created_at: Date;
   updated_at: Date;

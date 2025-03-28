@@ -7,6 +7,7 @@
  * - 2024-07-30: Added timeout handling and better error recovery
  * - 2024-08-01: Fixed TypeScript error with car_id property access
  * - 2025-07-21: Added enhanced error handling to prevent blank screen issues
+ * - 2025-08-25: Integrated prepareSubmission for cleaner data transformation
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +17,7 @@ import { validateValuationData, validateMileageData } from "../utils/validationH
 import { SubmissionErrorType } from "../types";
 import { Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { prepareSubmission } from "../../utils/submission";
 
 export const submitCarListing = async (
   formData: CarListingFormData, 
