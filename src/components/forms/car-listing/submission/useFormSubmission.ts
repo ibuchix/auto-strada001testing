@@ -23,26 +23,11 @@ import { SubmissionErrorType } from "./types";
 import { useSupabaseErrorHandling } from "@/hooks/useSupabaseErrorHandling";
 import { useCreateTransaction } from "@/hooks/useTransaction";
 import { TransactionOptions } from "@/services/supabase/transactionService";
+import { ValidationError, SubmissionError } from "./errors";
 
 // Configuration constants
 const SUBMISSION_TIMEOUT = 30000;
 const TOAST_DURATION = 5000;
-
-export class ValidationError extends Error {
-  description: string;
-  action?: { label: string; onClick: () => void };
-  
-  constructor(
-    message: string, 
-    description: string,
-    action?: { label: string; onClick: () => void }
-  ) {
-    super(message);
-    this.name = "ValidationError";
-    this.description = description;
-    this.action = action;
-  }
-}
 
 export const useFormSubmission = (userId?: string) => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -139,6 +124,18 @@ export const useFormSubmission = (userId?: string) => {
         description: error.description,
         duration: TOAST_DURATION,
         action: error.action
+      });
+      return;
+    }
+
+    if (error instanceof SubmissionError) {
+      toast.error(error.message, {
+        description: error.description,
+        duration: TOAST_DURATION,
+        action: error.retryable ? {
+          label: "Try Again",
+          onClick: () => window.location.reload()
+        } : undefined
       });
       return;
     }
