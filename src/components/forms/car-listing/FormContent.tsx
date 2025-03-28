@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Updated state management with useState hooks
@@ -15,6 +16,7 @@
  * - 2025-11-02: Added error boundary integration with useLoadDraft
  * - 2025-11-03: Added support for retrying draft loading
  * - 2025-11-04: Added save and continue later functionality
+ * - 2025-11-05: Fixed import issues for formSteps and FormProgress
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -40,6 +42,8 @@ import { FormErrorHandler } from "./FormErrorHandler";
 import { useNavigate } from "react-router-dom";
 import { STEP_FIELD_MAPPINGS } from "./hooks/useStepNavigation";
 import { useStepNavigation } from "./hooks/useStepNavigation";
+import { formSteps } from "./constants/formSteps";
+import { FormProgress } from "./FormProgress";
 
 interface FormContentProps {
   session: Session;
@@ -348,3 +352,4 @@ export const FormContent = ({
     </ErrorBoundary>
   );
 };
+
