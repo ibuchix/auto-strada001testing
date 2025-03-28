@@ -1,11 +1,11 @@
 
 /**
  * Form Navigation Controls
- * Provides navigation buttons for a multi-step form
+ * Provides navigation buttons for a multi-step form with improved visual hierarchy
  */
 
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { SaveAndContinueButton } from "./SaveAndContinueButton";
 
 interface FormNavigationControlsProps {
@@ -36,7 +36,7 @@ export const FormNavigationControls = ({
             variant="outline"
             onClick={onPrevious}
             disabled={isNavigating}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700"
           >
             <ChevronLeft className="h-4 w-4" />
             Previous
@@ -56,7 +56,7 @@ export const FormNavigationControls = ({
             type="button"
             onClick={onNext}
             disabled={isNavigating}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-medium px-6"
           >
             Next
             <ChevronRight className="h-4 w-4" />
@@ -65,7 +65,7 @@ export const FormNavigationControls = ({
           <Button
             type="submit"
             disabled={isNavigating}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-medium px-6"
           >
             Submit
           </Button>

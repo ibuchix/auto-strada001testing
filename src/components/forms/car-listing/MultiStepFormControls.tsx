@@ -1,13 +1,13 @@
 
 /**
  * Changes made:
- * - Added loading prop to indicate when form is saving
- * - Added visual feedback when next button is clicked
- * - Corrected submit button logic to only show on final step
+ * - Enhanced visual hierarchy with distinctive primary/secondary buttons
+ * - Added clear visual indicators for button state
+ * - Improved loading states with consistent styling
  */
 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Check } from "lucide-react";
 
 interface MultiStepFormControlsProps {
   currentStep: number;
@@ -37,7 +37,7 @@ export const MultiStepFormControls = ({
         variant="outline"
         onClick={onPrevious}
         disabled={currentStep === 0 || isSubmitting || isSaving}
-        className="flex items-center"
+        className="flex items-center border-gray-300 hover:bg-gray-50 hover:text-gray-700"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
         Previous
@@ -48,16 +48,26 @@ export const MultiStepFormControls = ({
           type="button"
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
+          className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-medium px-6"
         >
-          Submit
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Submitting...
+            </>
+          ) : (
+            <>
+              Submit
+              <Check className="ml-2 h-4 w-4" />
+            </>
+          )}
         </Button>
       ) : (
         <Button
           type="button"
           onClick={onNext}
           disabled={isSubmitting || isSaving}
-          className="flex items-center"
+          className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white flex items-center px-6"
         >
           {isSaving ? (
             <>

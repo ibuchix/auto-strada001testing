@@ -2,11 +2,12 @@
 /**
  * SaveAndContinueButton Component
  * Allows users to save their form progress and continue later
+ * Enhanced with improved visual hierarchy
  */
 
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Share } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -61,11 +62,15 @@ export const SaveAndContinueButton = ({
     <Button
       type="button"
       variant="outline"
-      className="flex items-center gap-2"
+      className="flex items-center gap-2 border-[#383B39] hover:bg-[#383B39]/10 text-[#383B39]"
       onClick={handleSaveAndExit}
       disabled={isDisabled || isSaving}
     >
-      <Share className="h-4 w-4" />
+      {isSaving ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Save className="h-4 w-4" />
+      )}
       <span>{isSaving ? "Saving..." : "Save & Continue Later"}</span>
     </Button>
   );

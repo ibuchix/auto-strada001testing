@@ -1,12 +1,13 @@
 
 /**
  * Changes made:
- * - 2024-06-03: Created FormSubmitButton to handle form submission with transaction status
- * - Removed diagnostic-related code
+ * - Enhanced visual hierarchy for primary submit action
+ * - Improved state indicators for better user feedback
+ * - Added consistent button styling across states
  */
 
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, AlertCircle, CheckCircle } from "lucide-react";
 
 interface FormSubmitButtonProps {
   isSubmitting: boolean;
@@ -29,14 +30,15 @@ export const FormSubmitButton = ({
   if (isError) {
     return (
       <div className="flex flex-col items-center space-y-2 mt-4">
-        <p className="text-sm text-red-600">
+        <p className="text-sm text-red-600 flex items-center gap-1">
+          <AlertCircle className="h-4 w-4" />
           There was an error submitting your listing.
         </p>
         <Button 
           type="button"
           onClick={onRetry}
           variant="outline"
-          className="text-[#DC143C] border-[#DC143C] hover:bg-[#DC143C]/10"
+          className="text-[#DC143C] border-[#DC143C] hover:bg-[#DC143C]/10 font-medium"
         >
           Try Again
         </Button>
@@ -49,9 +51,10 @@ export const FormSubmitButton = ({
     return (
       <Button
         type="button"
-        className="bg-green-600 hover:bg-green-700 text-white"
+        className="bg-[#21CA6F] hover:bg-[#21CA6F]/90 text-white font-medium px-6 flex items-center"
         disabled
       >
+        <CheckCircle className="mr-2 h-4 w-4" />
         Submitted Successfully!
       </Button>
     );
@@ -61,7 +64,7 @@ export const FormSubmitButton = ({
   return (
     <Button
       type="submit"
-      className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white w-full md:w-auto float-right"
+      className="bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-medium w-full md:w-auto float-right px-6"
       disabled={isPending}
     >
       {isPending ? (

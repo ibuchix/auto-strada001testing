@@ -5,6 +5,7 @@
  * - Improved loading state visual feedback
  * - Added consistent sizing and spacing
  * - Fixed button text alignment
+ * - Updated to match new visual hierarchy
  */
 import React from 'react';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,7 @@ export const SaveButton = ({
       variant="outline" 
       onClick={onClick} 
       disabled={isProcessing}
-      className={`flex items-center justify-center border-gray-300 hover:bg-gray-50 hover:border-gray-400 min-w-36 ${className}`}
+      className={`flex items-center justify-center border-[#383B39] hover:bg-[#383B39]/10 text-[#383B39] min-w-36 ${className}`}
     >
       {isProcessing ? (
         <>
