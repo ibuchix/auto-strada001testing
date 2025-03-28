@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Reduced verbosity of console logging
