@@ -11,99 +11,110 @@
  * - 2025-08-01: Added onLoaded callback for draft data
  * - 2025-08-02: Updated interface to match expected shape
  * - 2025-08-04: Fixed type issues with draft data
+ * - 2025-09-15: Added abort controller for cancellable requests
+ * - 2025-09-15: Improved validation with validateDraft function
+ * - 2025-09-15: Implemented batched form updates for better performance
  */
 
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
-import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
+import { UseFormReturn } from "react-hook-form";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CarListingFormData, CarEntity } from "@/types/forms";
 import { transformDbToFormData } from "../utils/formDataTransformers";
+
+type DraftData = {
+  carId: string;
+  updatedAt: Date;
+  formData: Partial<CarListingFormData>;
+};
 
 export interface LoadDraftOptions {
   form: UseFormReturn<CarListingFormData>;
   userId: string;
   draftId?: string;
-  onLoaded?: (draft: {
-    carId: string;
-    updatedAt: Date;
-    data: Partial<CarListingFormData>;
-  }) => void;
+  onLoaded?: (data: DraftData) => void;
+  onError?: (error: Error) => void;
 }
 
-interface UseLoadDraftResult {
+export interface UseLoadDraftResult {
   isLoading: boolean;
   error: Error | null;
 }
 
+const validateDraft = (draft: unknown): draft is CarEntity => {
+  return !!draft && typeof draft === 'object' && 
+         'id' in draft && 
+         'seller_id' in draft &&
+         'created_at' in draft;
+};
+
 // Updated draft loading hook with loading state and callback
 export const useLoadDraft = (options: LoadDraftOptions): UseLoadDraftResult => {
-  const { form, userId, draftId, onLoaded } = options;
-  const [isLoading, setIsLoading] = useState(!!draftId);
-  const [error, setError] = useState<Error | null>(null);
-  
+  const { form, userId, draftId, onLoaded, onError } = options;
+  const [state, setState] = useState<UseLoadDraftResult>({ 
+    isLoading: !!draftId, 
+    error: null 
+  });
+
   useEffect(() => {
-    if (!userId || !draftId) {
-      setIsLoading(false);
-      return;
-    }
+    if (!draftId || !userId) return;
+
+    const abortController = new AbortController();
 
     const loadDraft = async () => {
+      setState({ isLoading: true, error: null });
+
       try {
-        setIsLoading(true);
         const { data: draft, error } = await supabase
           .from('cars')
-          .select('*')
+          .select<string, CarEntity>('*')
           .eq('id', draftId)
           .eq('seller_id', userId)
+          .abortSignal(abortController.signal)
           .single();
 
-        if (error) {
-          console.error("Error loading draft:", error);
-          setError(new Error(error.message));
+        if (error) throw error;
+        if (!validateDraft(draft)) throw new Error('Invalid draft data');
+
+        const formData = transformDbToFormData(draft);
+
+        // Batch form updates
+        form.reset({
+          ...form.getValues(),
+          ...formData
+        });
+
+        if (onLoaded) {
+          onLoaded({
+            carId: draft.id,
+            updatedAt: new Date(draft.updated_at ?? draft.created_at),
+            formData
+          });
+        }
+
+        toast.success("Draft loaded successfully!");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        const draftError = new Error(`Failed to load draft: ${message}`, { cause: error });
+        
+        setState(prev => ({ ...prev, error: draftError }));
+        onError?.(draftError);
+        
+        // Only show error toast if it's not due to abort
+        if (!(error instanceof Error && error.name === 'AbortError')) {
           toast.error("Failed to load draft", {
             description: "Please check your connection and try again.",
           });
-          return;
         }
-
-        if (draft) {
-          const formValues = transformDbToFormData(draft);
-          Object.keys(formValues).forEach((key) => {
-            const value = formValues[key as keyof CarListingFormData];
-            if (value !== undefined) {
-              form.setValue(key as any, value as any, {
-                shouldValidate: false,
-                shouldDirty: true,
-                shouldTouch: false,
-              });
-            }
-          });
-
-          if (onLoaded) {
-            onLoaded({
-              carId: draft.id,
-              updatedAt: new Date(draft.updated_at || draft.created_at),
-              data: formValues
-            });
-          }
-          
-          toast.success("Draft loaded successfully!");
-        }
-      } catch (err) {
-        const error = err as Error;
-        console.error("Error loading draft:", error);
-        setError(error);
-        toast.error("Failed to load draft", {
-          description: "An unexpected error occurred. Please try again.",
-        });
       } finally {
-        setIsLoading(false);
+        setState(prev => ({ ...prev, isLoading: false }));
       }
     };
 
     loadDraft();
-  }, [form, userId, draftId, onLoaded]);
-  
-  return { isLoading, error };
+    return () => abortController.abort();
+  }, [draftId, userId, form, onLoaded, onError]);
+
+  return state;
 };
