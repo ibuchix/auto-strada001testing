@@ -13,6 +13,7 @@
  * - 2024-08-17: Refactored to use standardized timeout utilities
  * - 2024-08-19: Improved type safety for debounced save handling
  * - 2025-11-04: Added support for save and continue later functionality
+ * - 2025-11-05: Fixed TypeScript return type for saveImmediately function
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -156,11 +157,22 @@ export const useFormPersistence = ({
     }
   }, [isOffline, saveProgress, lastSaved]);
 
+  // Fixed return type by wrapping saveProgress function to ensure it returns void
+  const saveImmediately = useCallback(async (): Promise<void> => {
+    try {
+      await saveProgress();
+      // Explicitly return void
+    } catch (error) {
+      console.error('Error in saveImmediately:', error);
+      // Still return void in error cases
+    }
+  }, [saveProgress]);
+
   return {
     isSaving,
     lastSaved,
     isOffline,
-    saveImmediately: saveProgress,
+    saveImmediately,
     setIsOffline
   };
 };
