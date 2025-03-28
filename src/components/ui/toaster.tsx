@@ -4,6 +4,7 @@
  * - 2028-07-02: Updated component to correctly handle position prop and follow brand styling
  * - 2024-08-15: Enhanced with consistent action button styling for recovery paths
  * - 2024-08-16: Fixed TypeScript error with action.className
+ * - 2024-08-17: Fixed TypeScript error by removing altText property that doesn't exist on ToastActionElement
  */
 
 import { useToast } from "@/hooks/use-toast"
@@ -33,17 +34,8 @@ export function Toaster({ position = "top-right" }: ToasterProps) {
             ? 'border-[#21CA6F]/20 bg-[#21CA6F]/10 text-[#21CA6F]'
             : 'border-[#4B4DED]/20 bg-[#EFEFFD] text-[#222020]';
           
-        // Style action button based on variant
-        const enhancedAction = action
-          ? {
-              ...action,
-              // Add custom styling to action elements based on variant
-              // The actual button styles will be applied in toast.tsx
-              altText: action.altText || 'Action',
-              // Ensure className is only added if it's allowed in the type
-              // This avoids TypeScript errors
-            }
-          : action;
+        // Style action button based on variant without adding unsupported properties
+        const enhancedAction = action ? { ...action } : action;
           
         return (
           <Toast key={id} className={toastClass} {...props}>
