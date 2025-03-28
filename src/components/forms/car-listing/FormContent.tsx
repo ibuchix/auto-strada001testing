@@ -13,6 +13,7 @@
  * - 2025-08-19: Added FormDataProvider to provide form context
  * - 2025-08-19: Fixed return type for persistence.saveImmediately
  * - 2025-10-01: Implemented periodic data saving for key form values
+ * - 2025-11-02: Added error boundary integration with useLoadDraft
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -33,10 +34,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { FormDataProvider } from "./context/FormDataContext";
 import { saveToCache, CACHE_KEYS } from "@/services/offlineCacheService";
+import { FormErrorHandler } from "./FormErrorHandler";
 
 interface FormContentProps {
   session: Session;
   draftId?: string;
+  onDraftError?: (error: Error) => void;
+  retryCount?: number;
 }
 
 const LoadingState = () => (
@@ -52,11 +56,17 @@ const LoadingState = () => (
   </div>
 );
 
-export const FormContent = ({ session, draftId }: FormContentProps) => {
+export const FormContent = ({ 
+  session, 
+  draftId,
+  onDraftError,
+  retryCount = 0
+}: FormContentProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [carId, setCarId] = useState<string>();
   const [isInitializing, setIsInitializing] = useState(true);
+  const [draftLoadError, setDraftLoadError] = useState<Error | null>(null);
   const form = useCarListingForm(session.user.id, draftId);
 
   // Form state initialization
@@ -82,15 +92,27 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
     };
   }, [form]);
 
+  // Handle draft error
+  const handleDraftError = useCallback((error: Error) => {
+    console.error("Draft loading error:", error);
+    setDraftLoadError(error);
+    
+    if (onDraftError) {
+      onDraftError(error);
+    }
+  }, [onDraftError]);
+
   // Draft loading
-  const { isLoading: isLoadingDraft } = useLoadDraft({
+  const { isLoading: isLoadingDraft, error } = useLoadDraft({
     form,
     userId: session.user.id,
     draftId,
     onLoaded: (draft) => {
       setCarId(draft.carId);
       setLastSaved(draft.updatedAt);
-    }
+      setDraftLoadError(null); // Clear any previous errors on successful load
+    },
+    onError: handleDraftError
   });
 
   // Form persistence
@@ -172,6 +194,18 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
 
     return () => clearInterval(interval);
   }, [form, currentStep]);
+
+  // Effect to clear draft error when retryCount changes
+  useEffect(() => {
+    if (retryCount > 0) {
+      setDraftLoadError(null);
+    }
+  }, [retryCount]);
+
+  // Show draft loading error if there is one
+  if (draftLoadError && !isInitializing) {
+    return <FormErrorHandler draftError={draftLoadError} />;
+  }
 
   // Show loading state when initializing or loading draft
   if (isInitializing || isLoadingDraft) {

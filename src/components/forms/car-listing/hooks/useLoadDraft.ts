@@ -14,7 +14,7 @@
  * - 2025-09-15: Added abort controller for cancellable requests
  * - 2025-09-15: Improved validation with validateDraft function
  * - 2025-09-15: Implemented batched form updates for better performance
- * - 2025-11-02: Fixed Error constructor parameters
+ * - 2025-11-02: Fixed Error constructor parameters to avoid using ES2022 features
  */
 
 import { useEffect, useState } from "react";
@@ -99,9 +99,11 @@ export const useLoadDraft = (options: LoadDraftOptions): UseLoadDraftResult => {
         const message = error instanceof Error ? error.message : 'Unknown error';
         const draftError = new Error(`Failed to load draft: ${message}`);
         
-        if (error instanceof Error) {
-          draftError.cause = error;
-        }
+        // ES2022 cause compatibility fix - store error reference without using the cause property
+        Object.defineProperty(draftError, '_originalError', {
+          value: error,
+          enumerable: false
+        });
         
         setState(prev => ({ ...prev, error: draftError }));
         onError?.(draftError);
