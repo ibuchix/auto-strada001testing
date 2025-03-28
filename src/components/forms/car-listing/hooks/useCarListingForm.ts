@@ -1,39 +1,13 @@
-import { useForm, UseFormReturn } from "react-hook-form";
-import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
-import { toast } from "sonner";
-
-type ValuationData = {
-  vin?: string;
-  make?: string;
-  model?: string;
-  year?: number | string;
-  mileage?: number | string;
-  transmission?: "manual" | "automatic";
-};
-
-// Helper for safe number parsing
-const safeParseNumber = (value: unknown, fallback: number): number => {
-  const parsed = Number(value);
-  return isNaN(parsed) ? fallback : parsed;
-};
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { CarListingFormData } from "@/types/forms";
+import { carListingValidationSchema } from "@/validation/carListing";
+import { getInitialFormValues } from "./useFormDefaults";
 
 export const useCarListingForm = (userId: string, draftId?: string) => {
   const form = useForm<CarListingFormData>({
-    defaultValues: {
-      make: '',
-      model: '',
-      year: new Date().getFullYear(),
-      price: 0,
-      mileage: 0,
-      vin: '',
-      features: defaultCarFeatures,
-      transmission: "manual",
-      isRegisteredInPoland: true,
-      serviceHistoryType: "none",
-      numberOfKeys: "2",
-      ...defaultCarFormValues,
-      uploadedPhotos: [] // Required for form validation
-    },
+    defaultValues: getInitialFormValues(),
+    resolver: zodResolver(carListingValidationSchema),
     mode: 'onBlur'
   });
 
@@ -69,7 +43,6 @@ export const useCarListingForm = (userId: string, draftId?: string) => {
   return { ...form, loadInitialData };
 };
 
-// Helper functions remain the same as before
 const defaultCarFormValues = {
   name: "",
   address: "",
