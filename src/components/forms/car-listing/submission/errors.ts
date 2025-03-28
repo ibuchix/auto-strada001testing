@@ -2,8 +2,8 @@
 /**
  * Changes made:
  * - 2024-06-07: Created initial error module for submission handling
- * - 2025-12-01: Updated to use standard application error architecture
- * - 2025-12-05: Fixed TypeScript errors with RecoveryType
+ * - 2024-08-14: Updated to use standard application error architecture
+ * - 2024-08-15: Fixed TypeScript errors with RecoveryType
  */
 
 import { 

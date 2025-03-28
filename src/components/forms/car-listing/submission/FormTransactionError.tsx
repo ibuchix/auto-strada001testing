@@ -2,7 +2,7 @@
 /**
  * Changes made:
  * - 2024-06-07: Created FormTransactionError component to display form submission errors
- * - 2025-12-05: Updated to work with the new error architecture
+ * - 2024-08-14: Updated to work with the new error architecture
  */
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

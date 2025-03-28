@@ -5,9 +5,7 @@
  * - 2024-10-22: Fixed missing TransactionStatus import and type issues
  * - 2024-10-23: Removed redundant FormSubmissionContextType interface
  * - 2024-07-30: Added transaction reset functionality exposure
- * - 2027-07-30: Enhanced error handling and reset functionality
- * - 2027-07-31: Fixed type mismatch with TransactionStatus
- * - 2025-08-03: Updated to use isSubmitting consistent naming
+ * - 2024-08-14: Enhanced error handling and reset functionality
  */
 
 import { createContext, useContext } from "react";

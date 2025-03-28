@@ -3,8 +3,8 @@
  * Changes made:
  * - 2024-06-07: Created initial validation handlers
  * - 2024-08-25: Enhanced validation with better error messages
- * - 2025-12-01: Updated to use standard application error architecture
- * - 2025-12-05: Refactored to use the new error factory for consistency
+ * - 2024-08-14: Updated to use standard application error architecture
+ * - 2024-08-15: Refactored to use the new error factory for consistency
  */
 
 import { createFieldError, createFormError } from "@/errors/factory";
