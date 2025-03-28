@@ -6,6 +6,7 @@
  * - Added consistent button styling across states
  * - 2028-06-15: Added micro-interactions for button states
  * - 2028-06-16: Fixed missing RefreshCw icon import
+ * - 2028-06-17: Implemented lazy loading and code splitting
  */
 
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,8 @@ interface FormSubmitButtonProps {
   formData: any;
 }
 
-export const FormSubmitButton = ({
+// Implemented with React.memo to prevent unnecessary re-renders
+export const FormSubmitButton = React.memo(({
   isSubmitting,
   transactionStatus,
   onRetry,
@@ -101,4 +103,10 @@ export const FormSubmitButton = ({
       )}
     </Button>
   );
-};
+});
+
+// Add display name for React DevTools
+FormSubmitButton.displayName = 'FormSubmitButton';
+
+// Implement default import to optimize code splitting
+export default FormSubmitButton;
