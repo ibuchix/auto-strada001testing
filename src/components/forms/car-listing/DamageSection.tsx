@@ -1,20 +1,20 @@
 
 /**
  * Changes made:
- * - Fixed type errors for DamageType and DamageReport
- * - Updated DamageReport interface to match the one in types/forms.ts
- * - Made photo nullable instead of optional to match the type definition
+ * - Updated to use the useDamageSection custom hook
+ * - Simplified component with extracted logic
+ * - Improved code organization and readability
  */
 
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData, DamageType, DamageReport } from "@/types/forms";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UseFormReturn } from "react-hook-form";
+import { CarListingFormData, DamageType } from "@/types/forms";
+import { useDamageSection } from "./hooks/useDamageSection";
 
 interface DamageSectionProps {
   form: UseFormReturn<CarListingFormData>;
@@ -22,36 +22,32 @@ interface DamageSectionProps {
 }
 
 export const DamageSection = ({ form, carId }: DamageSectionProps) => {
-  const [newDamage, setNewDamage] = useState<DamageReport>({
-    type: "scratch",
-    description: "",
-    photo: null, // Initialize as null to match the required type
-  });
+  const {
+    isDamaged,
+    damageReports,
+    newDamage,
+    updateNewDamage,
+    addDamageReport,
+    removeDamageReport,
+    handleDamagePhotoUpload,
+    validateDamageSection
+  } = useDamageSection(form);
 
-  // Get the damage reports from form values or initialize as empty array
-  const damageReports = form.getValues().damageReports || [];
-  
-  // Add a new damage report
-  const addDamageReport = () => {
-    if (!newDamage.description.trim()) return;
-    
-    const updatedReports = [...damageReports, { ...newDamage }];
-    form.setValue("damageReports", updatedReports, { shouldValidate: true });
-    
-    // Reset new damage form
-    setNewDamage({
-      type: "scratch",
-      description: "",
-      photo: null, // Reset with null
-    });
-  };
-
-  // Remove a damage report
-  const removeDamageReport = (index: number) => {
-    const updatedReports = [...damageReports];
-    updatedReports.splice(index, 1);
-    form.setValue("damageReports", updatedReports, { shouldValidate: true });
-  };
+  if (!isDamaged) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Damage Report</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            You've indicated that your vehicle is not damaged. If this is incorrect, 
+            please go back to the Vehicle Status section and update your selection.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full">
@@ -99,7 +95,7 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
               <Select
                 value={newDamage.type}
                 onValueChange={(value: DamageType) => 
-                  setNewDamage({ ...newDamage, type: value })}
+                  updateNewDamage('type', value)}
               >
                 <SelectTrigger id="damage-type">
                   <SelectValue placeholder="Select damage type" />
@@ -121,7 +117,7 @@ export const DamageSection = ({ form, carId }: DamageSectionProps) => {
               <Input
                 id="damage-description"
                 value={newDamage.description}
-                onChange={(e) => setNewDamage({ ...newDamage, description: e.target.value })}
+                onChange={(e) => updateNewDamage('description', e.target.value)}
                 placeholder="Describe the damage"
               />
             </div>
