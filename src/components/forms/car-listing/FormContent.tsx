@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Updated state management with useState hooks
@@ -136,6 +135,22 @@ export const FormContent = ({ session, draftId }: FormContentProps) => {
       description: "Please try refreshing the page"
     });
   }, []);
+
+  // Initial data loading with error handling
+  useEffect(() => {
+    try {
+      form.loadInitialData();
+    } catch (error) {
+      console.error('Form initialization error:', error);
+      toast.error('Failed to load initial form data', {
+        description: 'Please refresh the page or try again later',
+        action: {
+          label: 'Retry',
+          onClick: () => window.location.reload()
+        }
+      });
+    }
+  }, [form]);
 
   // Show loading state when initializing or loading draft
   if (isInitializing || isLoadingDraft) {

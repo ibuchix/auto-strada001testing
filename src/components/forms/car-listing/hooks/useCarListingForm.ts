@@ -1,17 +1,6 @@
-
-/**
- * Changes made:
- * - 2024-08-20: Added proper valuation data handling
- * - 2024-09-10: Updated to use useFormPersistence hook
- * - 2025-07-02: Fixed type issues and removed form property
- * - 2025-07-31: Fixed missing getValuationData function
- * - 2025-08-02: Updated to match the UseFormPersistenceResult interface
- * - 2025-08-04: Fixed type casting for numeric values
- * - 2025-08-12: Implemented improved validation data loading with helper functions
- * - 2025-09-18: Fixed transmission type to match validation schema
- */
 import { useForm, UseFormReturn } from "react-hook-form";
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
+import { toast } from "sonner";
 
 type ValuationData = {
   vin?: string;
@@ -38,34 +27,49 @@ export const useCarListingForm = (userId: string, draftId?: string) => {
       mileage: 0,
       vin: '',
       features: defaultCarFeatures,
-      transmission: "manual", // Set default transmission type to match schema
+      transmission: "manual",
       isRegisteredInPoland: true,
       serviceHistoryType: "none",
       numberOfKeys: "2",
-      // Add other required fields from CarListingFormData
       ...defaultCarFormValues,
       uploadedPhotos: [] // Required for form validation
     },
     mode: 'onBlur'
   });
 
-  // Unified data loader
+  // Improved error handling for initial data loading
   const loadInitialData = () => {
     try {
       const valuationData = getValidatedValuationData();
       const tempMileage = getValidatedMileage();
       
-      if (valuationData) applyValuationData(form, valuationData);
-      if (tempMileage) form.setValue('mileage', tempMileage);
+      if (valuationData) {
+        applyValuationData(form, valuationData);
+      } else {
+        toast.warning("No existing valuation data found", {
+          description: "Start a new valuation or continue with manual entry"
+        });
+      }
+
+      if (tempMileage) {
+        form.setValue('mileage', tempMileage);
+      }
     } catch (error) {
       console.error('Data loading failed:', error);
+      toast.error('Failed to load initial data', {
+        description: 'Please refresh the page or start over',
+        action: {
+          label: 'Retry',
+          onClick: () => window.location.reload()
+        }
+      });
     }
   };
 
   return { ...form, loadInitialData };
 };
 
-// Helper functions
+// Helper functions remain the same as before
 const defaultCarFormValues = {
   name: "",
   address: "",
