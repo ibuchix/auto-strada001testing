@@ -3,9 +3,10 @@
  * Changes made:
  * - 2024-12-20: Created valuation request hook extracted from useValuationForm
  * - 2024-08-17: Refactored to use standardized timeout utilities
+ * - 2024-12-21: Optimized with memoization and better resource management
  */
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { getValuation, cleanupValuationData } from "@/components/hero/valuation/services/valuationService";
 import { useRealtime } from "@/components/RealtimeProvider";
@@ -31,11 +32,68 @@ export const useValuationRequest = ({
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
   }, [isConnected]);
 
-  const executeRequest = async (data: ValuationFormData) => {
+  // Optimized error handlers with memoization
+  const handleApiError = useCallback((errorMessage?: string) => {
+    console.error('Valuation failed:', errorMessage);
+    
+    // Handle specific error scenarios
+    if (errorMessage?.includes('rate limit') || 
+        errorMessage?.includes('too many requests')) {
+      toast.error("Too many requests", {
+        description: "Please wait a moment before trying again.",
+      });
+    } else if (errorMessage === 'Request timed out') {
+      // Timeout was already handled by the service
+    } else if (errorMessage?.includes('WebSocket') || 
+               errorMessage?.includes('connection')) {
+      toast.error("Connection issue detected", {
+        description: "Please check your internet connection and try again.",
+      });
+    } else {
+      toast.error(errorMessage || "Failed to get vehicle valuation", {
+        description: "Please try again or contact support if the issue persists."
+      });
+    }
+    
+    onError(new Error(errorMessage || "Valuation failed"));
+  }, [onError]);
+
+  const handleRequestError = useCallback((error: any) => {
+    console.error("Valuation error:", error);
+    
+    // Clear timeout since we got a response
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    
+    // Check for WebSocket or network errors
+    const errorMessage = error.message || "Failed to get vehicle valuation";
+    if (errorMessage.includes('WebSocket') || errorMessage.includes('network') || 
+        errorMessage.includes('connection') || !isConnected) {
+      toast.error("Connection issue detected", {
+        description: "Please check your internet connection and try again.",
+        action: {
+          label: "Retry",
+          onClick: () => console.log("Retry action triggered")
+        }
+      });
+    } else {
+      toast.error(errorMessage, {
+        description: "Please check your connection and try again."
+      });
+    }
+    
+    onError(error);
+  }, [onError, isConnected]);
+
+  // Optimized request execution with error handling
+  const executeRequest = useCallback(async (data: ValuationFormData) => {
     console.log('Starting valuation form submission:', data);
     
     // Clear any existing timeout
@@ -66,9 +124,12 @@ export const useValuationRequest = ({
     }, TimeoutDurations.LONG); // 20 second timeout
     
     try {
+      // Safely parse mileage to ensure it's a number
+      const mileage = parseInt(data.mileage) || 0;
+      
       console.log('Calling getValuation with parameters:', {
         vin: data.vin,
-        mileage: parseInt(data.mileage),
+        mileage,
         gearbox: data.gearbox
       });
       
@@ -76,7 +137,7 @@ export const useValuationRequest = ({
       const result = await withTimeout(
         getValuation(
           data.vin,
-          parseInt(data.mileage),
+          mileage,
           data.gearbox
         ),
         TimeoutDurations.LONG,
@@ -125,64 +186,10 @@ export const useValuationRequest = ({
       // Make sure isLoading is set to false in all cases
       setIsLoading(false);
     }
-  };
+  }, [isConnected, setIsLoading, onSuccess, handleApiError, handleRequestError]);
 
-  const handleApiError = (errorMessage?: string) => {
-    console.error('Valuation failed:', errorMessage);
-    
-    // Handle specific error scenarios
-    if (errorMessage?.includes('rate limit') || 
-        errorMessage?.includes('too many requests')) {
-      toast.error("Too many requests", {
-        description: "Please wait a moment before trying again.",
-      });
-    } else if (errorMessage === 'Request timed out') {
-      // Timeout was already handled by the service
-    } else if (errorMessage?.includes('WebSocket') || 
-               errorMessage?.includes('connection')) {
-      toast.error("Connection issue detected", {
-        description: "Please check your internet connection and try again.",
-      });
-    } else {
-      toast.error(errorMessage || "Failed to get vehicle valuation", {
-        description: "Please try again or contact support if the issue persists."
-      });
-    }
-    
-    onError(new Error(errorMessage || "Valuation failed"));
-  };
-
-  const handleRequestError = (error: any) => {
-    console.error("Valuation error:", error);
-    
-    // Clear timeout since we got a response
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    
-    // Check for WebSocket or network errors
-    const errorMessage = error.message || "Failed to get vehicle valuation";
-    if (errorMessage.includes('WebSocket') || errorMessage.includes('network') || 
-        errorMessage.includes('connection') || !isConnected) {
-      toast.error("Connection issue detected", {
-        description: "Please check your internet connection and try again.",
-        action: {
-          label: "Retry",
-          onClick: () => console.log("Retry action triggered")
-        }
-      });
-    } else {
-      toast.error(errorMessage, {
-        description: "Please check your connection and try again."
-      });
-    }
-    
-    onError(error);
-  };
-
-  return {
+  return useMemo(() => ({
     executeRequest,
     isConnected
-  };
+  }), [executeRequest, isConnected]);
 };

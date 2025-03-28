@@ -5,6 +5,7 @@
  * - Added server-side validation integration
  * - Improved error handling with more specific error types
  * - Fixed SubmissionError constructor calls to include required 'code' property
+ * - Optimized function execution with early returns and performance improvements
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -29,6 +30,15 @@ export const submitCarListing = async (
   userId: string,
   carId?: string
 ) => {
+  if (!data || !userId) {
+    throw new SubmissionError({
+      code: "INVALID_INPUT",
+      message: "Missing required submission data",
+      description: "Please ensure all required fields are filled in",
+      retryable: true
+    });
+  }
+
   try {
     console.log('Starting submission process with validation');
     
@@ -36,8 +46,13 @@ export const submitCarListing = async (
     await validateSubmission(data, userId);
     
     // Dynamically import helper functions for code splitting
-    const { prepareSubmissionData } = await getFormDataHelpers();
-    const { cleanupFormStorage } = await getStorageHelpers();
+    const [formDataModule, storageModule] = await Promise.all([
+      getFormDataHelpers(),
+      getStorageHelpers()
+    ]);
+    
+    const { prepareSubmissionData } = formDataModule;
+    const { cleanupFormStorage } = storageModule;
     
     // Prepare submission data
     const submissionData = await prepareSubmissionData(data, userId, carId);

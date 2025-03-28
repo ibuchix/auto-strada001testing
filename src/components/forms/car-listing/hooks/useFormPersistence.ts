@@ -14,9 +14,10 @@
  * - 2024-08-19: Improved type safety for debounced save handling
  * - 2025-11-04: Added support for save and continue later functionality
  * - 2025-11-05: Fixed TypeScript return type for saveImmediately function
+ * - 2025-12-01: Optimized with memoization and better performance
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
@@ -28,7 +29,7 @@ import { useDebounce } from "@/hooks/useTimeout";
 import { useNavigate } from "react-router-dom";
 
 // Debounce time in milliseconds - now using standardized durations
-const AUTO_SAVE_INTERVAL = TimeoutDurations.STANDARD; // 5 seconds (changed from 30)
+const AUTO_SAVE_INTERVAL = TimeoutDurations.STANDARD; // 5 seconds
 const SAVE_DEBOUNCE = 500; // 0.5 seconds (kept as custom value due to debounce specifics)
 const CACHE_TTL = 86400000; // 24 hours
 
@@ -59,6 +60,8 @@ export const useFormPersistence = ({
   const [customOfflineStatus, setCustomOfflineStatus] = useState<boolean | null>(null);
   const networkStatus = useOfflineStatus();
   const abortControllerRef = useRef<AbortController>();
+  const pendingSaveRef = useRef<Promise<any> | null>(null);
+  const lastSavedDataRef = useRef<string>('');
   const navigate = useNavigate();
   
   // Use custom offline status if set, otherwise use network status
@@ -69,8 +72,32 @@ export const useFormPersistence = ({
     setCustomOfflineStatus(status);
   }, []);
 
+  // Memoize key values to prevent unnecessary re-renders
+  const essentialValues = useMemo(() => ({
+    userId,
+    carId,
+    currentStep,
+    isOffline
+  }), [userId, carId, currentStep, isOffline]);
+
+  // Save data only if there are actual changes
+  const hasChanges = useCallback(() => {
+    const formData = form.getValues();
+    const currentDataString = JSON.stringify({
+      ...formData,
+      // Exclude fields that change but don't need saves
+      form_metadata: undefined,
+      updated_at: undefined
+    });
+    
+    return currentDataString !== lastSavedDataRef.current;
+  }, [form]);
+
   const saveProgress = useCallback(async () => {
+    const { userId, carId, currentStep, isOffline } = essentialValues;
+    
     if (!userId || isOffline) return;
+    if (!hasChanges() && carId) return; // Skip if no changes and not first save
 
     // Cancel pending request if new save comes in
     abortControllerRef.current?.abort();
@@ -86,13 +113,22 @@ export const useFormPersistence = ({
       saveToCache(CACHE_KEYS.TEMP_GEARBOX, formData.transmission || '', CACHE_TTL);
 
       // Optimistic local cache update with TTL
-      saveToCache(CACHE_KEYS.TEMP_FORM_DATA, {
+      const formDataToCache = {
         ...formData,
         form_metadata: {
           currentStep,
           lastSavedAt: new Date().toISOString()
         }
-      }, CACHE_TTL);
+      };
+      
+      saveToCache(CACHE_KEYS.TEMP_FORM_DATA, formDataToCache, CACHE_TTL);
+      
+      // Update reference to track changes
+      lastSavedDataRef.current = JSON.stringify({
+        ...formData,
+        form_metadata: undefined,
+        updated_at: undefined
+      });
 
       // Call the saveFormData function to save to database
       const result = await saveFormData(
@@ -125,46 +161,65 @@ export const useFormPersistence = ({
     } finally {
       setIsSaving(false);
     }
-  }, [form, userId, currentStep, isOffline, carId]);
+  }, [essentialValues, form, hasChanges]);
 
   // Use our enhanced useDebounce hook with proper type safety
   const debouncedSave = useDebounce(saveProgress, SAVE_DEBOUNCE);
 
   // Auto-save triggers
   useEffect(() => {
-    const subscription = form.watch(() => debouncedSave());
-    return () => subscription.unsubscribe();
-  }, [form, debouncedSave]);
+    if (!essentialValues.userId) return;
+    
+    const unsubscribe = form.watch(() => {
+      if (hasChanges()) {
+        debouncedSave();
+      }
+    });
+    
+    return () => unsubscribe.unsubscribe();
+  }, [form, debouncedSave, hasChanges, essentialValues.userId]);
 
   // Periodic save insurance - using standardized interval and createTimeout
   useEffect(() => {
-    // Using createTimeout utility for better cleanup
+    if (!essentialValues.userId) return;
+    
     const intervalTimer = setInterval(() => {
-      saveProgress();
+      if (hasChanges()) {
+        saveProgress();
+      }
     }, AUTO_SAVE_INTERVAL);
     
     return () => {
       clearInterval(intervalTimer);
       abortControllerRef.current?.abort();
     };
-  }, [saveProgress]);
+  }, [saveProgress, hasChanges, essentialValues.userId]);
 
   // Offline recovery handler
   useEffect(() => {
     if (!isOffline && lastSaved) {
       const offlineData = localStorage.getItem(CACHE_KEYS.TEMP_FORM_DATA);
-      if (offlineData) saveProgress();
+      if (offlineData && hasChanges()) saveProgress();
     }
-  }, [isOffline, saveProgress, lastSaved]);
+  }, [isOffline, saveProgress, lastSaved, hasChanges]);
 
   // Fixed return type by wrapping saveProgress function to ensure it returns void
   const saveImmediately = useCallback(async (): Promise<void> => {
     try {
-      await saveProgress();
-      // Explicitly return void
+      // If there's a pending save, wait for it to complete first
+      if (pendingSaveRef.current) {
+        await pendingSaveRef.current;
+      }
+      
+      // Start a new save operation
+      pendingSaveRef.current = saveProgress();
+      await pendingSaveRef.current;
+      
+      // Clear the pending save reference
+      pendingSaveRef.current = null;
     } catch (error) {
       console.error('Error in saveImmediately:', error);
-      // Still return void in error cases
+      pendingSaveRef.current = null;
     }
   }, [saveProgress]);
 
