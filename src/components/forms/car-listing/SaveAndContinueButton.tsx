@@ -2,12 +2,12 @@
 /**
  * SaveAndContinueButton Component
  * Allows users to save their form progress and continue later
- * Enhanced with improved visual hierarchy
+ * Enhanced with improved visual hierarchy and micro-interactions
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -23,7 +23,19 @@ export const SaveAndContinueButton = ({
   isDisabled = false 
 }: SaveAndContinueButtonProps) => {
   const [isSaving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Reset success state after a delay
+    if (showSuccess) {
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess]);
   
   const handleSaveAndExit = async () => {
     if (isDisabled || isSaving) return;
@@ -32,6 +44,9 @@ export const SaveAndContinueButton = ({
       setSaving(true);
       // Save the form data
       await onSave();
+      
+      // Show success state
+      setShowSuccess(true);
       
       // Show success toast with action to copy link
       toast.success("Progress saved successfully", {
@@ -44,17 +59,21 @@ export const SaveAndContinueButton = ({
       });
       
       // Navigate to dashboard after a short delay
-      setTimeout(() => {
+      const navigationTimer = setTimeout(() => {
         navigate("/dashboard/seller");
       }, 1500);
       
+      return () => clearTimeout(navigationTimer);
     } catch (error) {
       console.error("Error saving progress:", error);
       toast.error("Failed to save progress", {
         description: "Please try again or contact support if the problem persists."
       });
     } finally {
-      setSaving(false);
+      // Allow a moment to see the success state before clearing
+      setTimeout(() => {
+        setSaving(false);
+      }, 300);
     }
   };
 
@@ -62,16 +81,24 @@ export const SaveAndContinueButton = ({
     <Button
       type="button"
       variant="outline"
-      className="flex items-center gap-2 border-[#383B39] hover:bg-[#383B39]/10 text-[#383B39]"
+      className="flex items-center gap-2 border-[#383B39] hover:bg-[#383B39]/10 text-[#383B39] group transition-all duration-300"
       onClick={handleSaveAndExit}
       disabled={isDisabled || isSaving}
     >
       {isSaving ? (
         <Loader2 className="h-4 w-4 animate-spin" />
+      ) : showSuccess ? (
+        <CheckCircle className="h-4 w-4 text-green-500 animate-scale-in" />
       ) : (
-        <Save className="h-4 w-4" />
+        <Save className="h-4 w-4 transition-transform group-hover:scale-110 duration-300" />
       )}
-      <span>{isSaving ? "Saving..." : "Save & Continue Later"}</span>
+      <span>
+        {isSaving 
+          ? "Saving..." 
+          : showSuccess 
+            ? "Saved!" 
+            : "Save & Continue Later"}
+      </span>
     </Button>
   );
 };
