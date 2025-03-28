@@ -3,6 +3,7 @@
  * Changes made:
  * - Updated to use typed StepComponentProps
  * - Added validation support
+ * - Fixed FormSection usage by adding required title prop
  * - Improved TypeScript typing
  */
 import React, { useState } from 'react';
@@ -153,19 +154,17 @@ export const PhotoUploadSection = ({
   };
 
   return (
-    <FormSection>
-      <FormSectionHeader
-        title="Photos"
-        subtitle="Upload photos of your vehicle"
-        right={
-          <SaveButton
-            onClick={handleSavePhotos}
-            isLoading={savingProgress}
-            label="Save Photos"
-          />
-        }
-      />
-
+    <FormSection 
+      title="Photos"
+      subtitle="Upload photos of your vehicle"
+      right={
+        <SaveButton
+          onClick={handleSavePhotos}
+          isLoading={savingProgress}
+          label="Save Photos"
+        />
+      }
+    >
       <CurrentPhotos photos={watchedPhotos} />
 
       <AdditionalPhotos

@@ -3,7 +3,7 @@
  * Changes made:
  * - Added more status options for better vehicle condition information
  * - Reorganized into logical groupings
- * - Added section title and description
+ * - Fixed FormSection usage by adding required title prop
  * - Improved accessibility with better labeling
  */
 
@@ -23,7 +23,7 @@ export const VehicleStatusSection = ({ form }: VehicleStatusSectionProps) => {
   const isDamaged = form.watch("isDamaged");
   
   return (
-    <FormSection>
+    <FormSection title="Vehicle Status">
       <CardHeader className="pb-3">
         <CardTitle>Vehicle Status</CardTitle>
         <CardDescription>

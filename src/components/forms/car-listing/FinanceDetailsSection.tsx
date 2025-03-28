@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-10: Created new component for finance details
  * - This component is conditionally shown based on vehicle having outstanding finance
+ * - Fixed FormSection usage by adding required title prop
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
@@ -47,7 +48,7 @@ export const FinanceDetailsSection = ({ form, carId }: FinanceDetailsSectionProp
 
   if (!showFinanceFields) {
     return (
-      <FormSection>
+      <FormSection title="Finance Details">
         <CardHeader>
           <CardTitle>Finance Details</CardTitle>
           <CardDescription>
@@ -64,7 +65,7 @@ export const FinanceDetailsSection = ({ form, carId }: FinanceDetailsSectionProp
   }
 
   return (
-    <FormSection>
+    <FormSection title="Finance Details">
       <CardHeader>
         <CardTitle>Finance Details</CardTitle>
         <CardDescription>

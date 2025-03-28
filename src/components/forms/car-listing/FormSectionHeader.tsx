@@ -1,14 +1,15 @@
 
 /**
  * Updated FormSectionHeader to include subtitle prop and better spacing
+ * Removed isOptional prop as it's not being used in the rendering
  */
 import React, { ReactNode } from 'react';
 
 export interface FormSectionHeaderProps {
   title: string;
   description?: string;
-  subtitle?: string; // Added subtitle prop
-  right?: ReactNode; // Added right element prop
+  subtitle?: string;
+  right?: ReactNode;
 }
 
 export const FormSectionHeader = ({ 
