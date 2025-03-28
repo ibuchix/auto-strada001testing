@@ -189,21 +189,6 @@ export const validateCompleteCarForm = (formData: CarListingFormData) => {
 };
 
 /**
- * Get valuation data from localStorage
- * @returns The parsed valuation data object or null if not found
- */
-export const getValuationData = () => {
-  try {
-    const valuationDataString = localStorage.getItem('valuationData');
-    if (!valuationDataString) return null;
-    return JSON.parse(valuationDataString);
-  } catch (error) {
-    console.error('Error parsing valuation data:', error);
-    return null;
-  }
-};
-
-/**
  * Validate the complete car listing form before submission
  * @param formData The car listing form data to validate
  * @returns True if form is valid, false otherwise
