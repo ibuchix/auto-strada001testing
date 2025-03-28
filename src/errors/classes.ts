@@ -3,6 +3,7 @@
  * Error class hierarchy for standardized application errors
  * Created: 2025-12-01
  * Purpose: Provides a consistent error structure throughout the application
+ * Updated: 2024-08-16: Added ID property and improved error handling
  */
 
 import { ErrorCategory, RecoveryType } from './types';
@@ -20,6 +21,7 @@ interface BaseErrorParams {
     action: () => void;
   };
   category?: ErrorCategory;
+  id?: string;
 }
 
 /**
@@ -37,6 +39,7 @@ export class BaseApplicationError extends Error {
     action: () => void;
   };
   category: ErrorCategory;
+  id: string;
 
   constructor({
     code,
@@ -45,7 +48,8 @@ export class BaseApplicationError extends Error {
     retryable = false,
     metadata,
     recovery,
-    category = ErrorCategory.UNKNOWN
+    category = ErrorCategory.UNKNOWN,
+    id
   }: BaseErrorParams) {
     super(message);
     this.name = this.constructor.name;
@@ -55,6 +59,8 @@ export class BaseApplicationError extends Error {
     this.metadata = metadata;
     this.recovery = recovery;
     this.category = category;
+    // Generate UUID if ID is not provided
+    this.id = id || crypto.randomUUID();
 
     // Ensure proper prototype chain for instanceof checks
     Object.setPrototypeOf(this, new.target.prototype);

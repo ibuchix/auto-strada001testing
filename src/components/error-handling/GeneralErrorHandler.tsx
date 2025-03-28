@@ -2,6 +2,7 @@
  * Changes made:
  * - 2024-08-25: Created generalized error handler component
  * - 2024-08-15: Enhanced with consistent recovery paths and feedback patterns
+ * - 2024-08-16: Fixed TypeScript errors with ErrorCategory enum
  */
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -66,15 +67,15 @@ export const GeneralErrorHandler = ({
     // If we have a BaseApplicationError, use its category
     if (error instanceof BaseApplicationError) {
       switch (error.category) {
-        case ErrorCategory.AUTHENTICATION:
+        case 'authentication':
           return "Authentication Error";
-        case ErrorCategory.PERMISSION:
+        case 'authorization':
           return "Permission Denied";
-        case ErrorCategory.VALIDATION:
+        case 'validation':
           return "Validation Error";
-        case ErrorCategory.NETWORK:
+        case 'network':
           return "Network Error";
-        case ErrorCategory.SUBMISSION:
+        case 'submission':
           return "Submission Error";
         default:
           return "An Error Occurred";

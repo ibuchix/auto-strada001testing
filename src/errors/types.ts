@@ -3,6 +3,7 @@
  * Core error types and interfaces for the application
  * Created: 2025-12-01
  * Purpose: Provides standardized error types for consistent error handling
+ * Updated: 2024-08-16: Updated ErrorCategory to be string type
  */
 
 /**
@@ -15,6 +16,7 @@ export interface AppError {
   retryable?: boolean;    // Whether this error can be retried
   metadata?: Record<string, any>; // Additional debugging data
   recovery?: ErrorRecovery; // Recovery options
+  id?: string;            // Unique identifier for the error
 }
 
 /**

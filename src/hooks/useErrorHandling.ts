@@ -1,11 +1,11 @@
-
 /**
  * Hook for handling application errors in React components
  * Created: 2025-12-01
  * Purpose: Provides a standardized way to handle errors in components
+ * Updated: 2024-08-16: Integrated with centralized error context
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { 
@@ -24,12 +24,15 @@ import {
   createTimeoutError
 } from '../errors/factory';
 import { ErrorCategory } from '../errors/types';
+import { useErrorContext } from '@/contexts/ErrorContext';
+import { logError } from '@/utils/errorLogger';
 
 interface ErrorHandlingOptions {
   showToast?: boolean;
   focusOnErrors?: boolean;
   logErrors?: boolean;
   captureInState?: boolean;
+  captureInContext?: boolean;
 }
 
 /**
@@ -40,12 +43,22 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
     showToast = true,
     focusOnErrors = true,
     logErrors = true,
-    captureInState = true
+    captureInState = true,
+    captureInContext = true
   } = options;
   
+  const errorContext = useErrorContext();
   const navigate = useNavigate();
   const [error, setError] = useState<BaseApplicationError | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      setError(null);
+      setFieldErrors({});
+    };
+  }, []);
   
   /**
    * Clear all errors
@@ -74,9 +87,14 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
             retryable: false
           });
       
+      // Capture in the global error context if enabled
+      if (captureInContext && errorContext) {
+        errorContext.captureError(appError);
+      }
+      
       // Log error if enabled
       if (logErrors) {
-        console.error(`[${appError.category}] [${appError.code}]: ${appError.message}`, appError);
+        logError(appError);
       }
       
       // Store in state if enabled
@@ -132,7 +150,7 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
       
       return null;
     }
-  }, [showToast, focusOnErrors, logErrors, captureInState]);
+  }, [showToast, focusOnErrors, logErrors, captureInState, captureInContext, errorContext]);
   
   /**
    * Create common type of errors with preset handling
