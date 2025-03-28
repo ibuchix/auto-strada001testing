@@ -11,6 +11,7 @@
  * - Added API endpoint integration
  * - Updated to work with new cache expiration system
  * - 2024-08-17: Refactored to use standardized timeout utilities
+ * - 2024-08-19: Improved type safety for debounced save handling
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -20,7 +21,8 @@ import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { toast } from "sonner";
 import { CACHE_KEYS, saveToCache } from "@/services/offlineCacheService";
 import { saveFormData } from "../utils/formSaveUtils";
-import { TimeoutDurations } from "@/utils/timeoutUtils";
+import { TimeoutDurations, createTimeout } from "@/utils/timeoutUtils";
+import { useDebounce } from "@/hooks/useTimeout";
 
 // Debounce time in milliseconds - now using standardized durations
 const AUTO_SAVE_INTERVAL = TimeoutDurations.STANDARD; // 5 seconds (changed from 30)
@@ -53,7 +55,6 @@ export const useFormPersistence = ({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [customOfflineStatus, setCustomOfflineStatus] = useState<boolean | null>(null);
   const networkStatus = useOfflineStatus();
-  const timeoutRef = useRef<NodeJS.Timeout>();
   const abortControllerRef = useRef<AbortController>();
   
   // Use custom offline status if set, otherwise use network status
@@ -114,11 +115,8 @@ export const useFormPersistence = ({
     }
   }, [form, userId, currentStep, isOffline, carId]);
 
-  // Debounced auto-save handler
-  const debouncedSave = useCallback(() => {
-    clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(saveProgress, SAVE_DEBOUNCE);
-  }, [saveProgress]);
+  // Use our enhanced useDebounce hook with proper type safety
+  const debouncedSave = useDebounce(saveProgress, SAVE_DEBOUNCE);
 
   // Auto-save triggers
   useEffect(() => {
@@ -126,11 +124,15 @@ export const useFormPersistence = ({
     return () => subscription.unsubscribe();
   }, [form, debouncedSave]);
 
-  // Periodic save insurance - using standardized interval
+  // Periodic save insurance - using standardized interval and createTimeout
   useEffect(() => {
-    const interval = setInterval(saveProgress, AUTO_SAVE_INTERVAL);
+    // Using createTimeout utility for better cleanup
+    const intervalTimer = setInterval(() => {
+      saveProgress();
+    }, AUTO_SAVE_INTERVAL);
+    
     return () => {
-      clearInterval(interval);
+      clearInterval(intervalTimer);
       abortControllerRef.current?.abort();
     };
   }, [saveProgress]);

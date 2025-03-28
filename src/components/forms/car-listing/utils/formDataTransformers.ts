@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-20: Fixed type references to match database schema
@@ -19,7 +20,6 @@
  * - 2025-06-16: Added field existence checking to avoid database errors
  * - 2025-08-19: Updated to use toStringValue utility function
  * - 2025-08-20: Fixed type conversion issues with financeAmount
- * - 2025-08-21: Updated default car features to include all required properties
  */
 
 import { CarListingFormData, defaultCarFeatures } from "@/types/forms";

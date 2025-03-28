@@ -1,7 +1,11 @@
+
 /**
  * Changes made:
  * - 2024-08-17: Created centralized timeout utilities for standardized timeout management
+ * - 2024-08-19: Fixed React import placement and improved type safety
  */
+
+import React from 'react';
 
 // Standard timeout durations in milliseconds
 export const TimeoutDurations = {
@@ -134,6 +138,3 @@ export const useTimeoutManager = () => {
 export const delay = (ms: number): Promise<void> => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
-
-// Missing import for React
-import React from 'react';

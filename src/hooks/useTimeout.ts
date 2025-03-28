@@ -2,6 +2,8 @@
 /**
  * Changes made:
  * - 2024-08-17: Created reusable timeout hook with automatic cleanup
+ * - 2024-08-19: Refactored to use standardized timeouts from timeoutUtils
+ * - 2024-08-19: Enhanced type safety with proper TypeScript generics for callback arguments
  */
 
 import { useRef, useEffect, useCallback } from 'react';
@@ -89,8 +91,8 @@ export const useTimeout = (
  * @param delay Delay in milliseconds
  * @returns Function that when called will execute callback after delay
  */
-export const useDebounce = (
-  callback: (...args: any[]) => void,
+export const useDebounce = <T extends any[]>(
+  callback: (...args: T) => void,
   delay: number = 500
 ) => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -104,8 +106,8 @@ export const useDebounce = (
     };
   }, []);
   
-  // Return debounced function
-  return useCallback((...args: any[]) => {
+  // Return debounced function with proper type safety for arguments
+  return useCallback((...args: T) => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
@@ -125,13 +127,14 @@ export const useDebounce = (
  * @param immediate Whether to execute callback immediately on start
  * @returns Object with start, stop, and isActive methods
  */
-export const useInterval = (
-  callback: () => void,
+export const useInterval = <T extends any[]>(
+  callback: (...args: T) => void,
   delay: number = 1000,
   immediate: boolean = false
 ) => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const callbackRef = useRef(callback);
+  const argsRef = useRef<T | null>(null);
   
   // Update the callback ref when it changes
   useEffect(() => {
@@ -148,20 +151,25 @@ export const useInterval = (
   }, []);
   
   // Start the interval
-  const start = useCallback(() => {
+  const start = useCallback((...args: T) => {
+    // Store the arguments
+    argsRef.current = args;
+    
     // Clear existing interval if any
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
     
     // Execute immediately if requested
-    if (immediate) {
-      callbackRef.current();
+    if (immediate && argsRef.current) {
+      callbackRef.current(...argsRef.current);
     }
     
     // Create new interval
     intervalRef.current = setInterval(() => {
-      callbackRef.current();
+      if (argsRef.current) {
+        callbackRef.current(...argsRef.current);
+      }
     }, delay);
   }, [delay, immediate]);
   
