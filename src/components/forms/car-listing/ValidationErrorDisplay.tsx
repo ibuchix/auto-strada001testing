@@ -3,38 +3,68 @@
  * Component to display validation errors in a structured format
  * - Shows field-specific error messages
  * - Provides easy navigation to error fields
+ * - Visual indicators for error severity
  */
 
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ValidationErrorDisplayProps {
   validationErrors: Record<string, string>;
+  title?: string;
+  onDismiss?: () => void;
 }
 
-export const ValidationErrorDisplay = ({ validationErrors }: ValidationErrorDisplayProps) => {
+export const ValidationErrorDisplay = ({ 
+  validationErrors,
+  title = "Please correct the following errors:",
+  onDismiss
+}: ValidationErrorDisplayProps) => {
   if (Object.keys(validationErrors).length === 0) {
     return null;
   }
 
+  // Get the count of errors
+  const errorCount = Object.keys(validationErrors).length;
+
   return (
     <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
       <div className="flex items-start">
-        <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2" />
-        <div>
-          <h3 className="text-sm font-medium text-red-800">
-            Please correct the following errors:
-          </h3>
-          <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
+        <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-red-800">
+              {title} ({errorCount} {errorCount === 1 ? 'error' : 'errors'})
+            </h3>
+            {onDismiss && (
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-100"
+                onClick={onDismiss}
+              >
+                <XCircle className="h-5 w-5" />
+                <span className="sr-only">Dismiss</span>
+              </Button>
+            )}
+          </div>
+          <ul className="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
             {Object.entries(validationErrors).map(([field, message]) => (
-              <li key={field} className="mt-1">
+              <li key={field} className="flex items-start">
+                <span className="inline-block h-4 w-4 flex-shrink-0" />
                 <button 
                   type="button"
-                  className="text-left underline hover:text-red-800 focus:outline-none"
+                  className="text-left underline hover:text-red-800 focus:outline-none focus:text-red-900"
                   onClick={() => {
                     const element = document.getElementById(field);
                     if (element) {
-                      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      element.focus();
+                      // Scroll the element into view with offset
+                      const yOffset = -100; // 100px from the top
+                      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                      window.scrollTo({ top: y, behavior: 'smooth' });
+                      // Focus after scrolling completes
+                      setTimeout(() => element.focus(), 500);
                     }
                   }}
                 >

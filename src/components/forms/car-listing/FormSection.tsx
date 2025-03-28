@@ -1,18 +1,39 @@
 
 /**
- * A wrapper component for form sections
+ * Changes made:
+ * - Added RequiredFieldsIndicator to form sections
+ * - Enhanced section structure with better spacing
  */
-import React, { ReactNode } from 'react';
+
+import { Card } from "@/components/ui/card";
+import { ReactNode } from "react";
+import { FormSectionHeader } from "./FormSectionHeader";
+import { RequiredFieldsIndicator } from "./RequiredFieldsIndicator";
 
 interface FormSectionProps {
+  title: string;
+  description?: string;
   children: ReactNode;
-  className?: string;
+  isOptional?: boolean;
+  hasRequiredFields?: boolean;
 }
 
-export const FormSection = ({ children, className = '' }: FormSectionProps) => {
+export const FormSection = ({
+  title,
+  description,
+  children,
+  isOptional,
+  hasRequiredFields = true
+}: FormSectionProps) => {
   return (
-    <div className={`bg-white rounded-lg p-6 shadow-sm border border-gray-100 ${className}`}>
-      {children}
-    </div>
+    <Card className="border-none shadow-sm">
+      <div className="p-6 space-y-4">
+        <div className="space-y-1">
+          <FormSectionHeader title={title} description={description} isOptional={isOptional} />
+          {hasRequiredFields && <RequiredFieldsIndicator className="mt-1" />}
+        </div>
+        <div className="mt-6">{children}</div>
+      </div>
+    </Card>
   );
 };
