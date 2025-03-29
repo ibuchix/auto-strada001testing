@@ -5,7 +5,7 @@ import { corsHeaders } from "./cors.ts";
 import { logOperation } from "./utils.ts";
 import { checkVehicleExists } from "./vehicle-checker.ts";
 import { z } from "https://esm.sh/zod@3.22.2";
-import * as md5 from "https://esm.sh/js-md5@0.8.3";
+import { generateChecksum } from "./checksum.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -25,6 +25,7 @@ const getValuationSchema = z.object({
   operation: z.literal("get_valuation"),
   vin: z.string().min(17).max(17),
   mileage: z.number().positive(),
+  gearbox: z.string().optional().default("manual"),
   currency: z.string().optional().default("PLN")
 });
 
@@ -32,6 +33,16 @@ const reserveVinSchema = z.object({
   operation: z.literal("reserve_vin"),
   vin: z.string().min(17).max(17),
   userId: z.string().uuid()
+});
+
+const createListingSchema = z.object({
+  operation: z.literal("create_listing"),
+  userId: z.string().uuid(),
+  vin: z.string().min(17).max(17),
+  valuationData: z.record(z.any()),
+  mileage: z.number().positive(),
+  transmission: z.string(),
+  reservationId: z.string().uuid().optional()
 });
 
 const processProxyBidsSchema = z.object({
@@ -43,6 +54,7 @@ const operationSchema = z.union([
   validateVinSchema,
   getValuationSchema,
   reserveVinSchema,
+  createListingSchema,
   processProxyBidsSchema
 ]);
 
@@ -122,7 +134,7 @@ serve(async (req) => {
         
       case "get_valuation":
         logOperation('get_valuation_start', { requestId, vin: data.vin });
-        result = await getValuationFromAPI(data.vin, data.mileage, "manual", requestId);
+        result = await getValuationFromAPI(data.vin, data.mileage, data.gearbox, requestId);
         break;
         
       case "reserve_vin":
@@ -168,6 +180,90 @@ serve(async (req) => {
         }
         break;
         
+      case "create_listing":
+        logOperation('create_listing_start', {
+          requestId,
+          userId: data.userId,
+          vin: data.vin
+        });
+        
+        // Verify reservation if provided
+        if (data.reservationId) {
+          const { data: validReservation, error: reservationError } = await supabase
+            .from('vin_reservations')
+            .select('*')
+            .eq('id', data.reservationId)
+            .eq('user_id', data.userId)
+            .eq('vin', data.vin)
+            .eq('status', 'active')
+            .single();
+            
+          if (reservationError || !validReservation) {
+            logOperation('invalid_reservation', {
+              requestId,
+              reservationId: data.reservationId,
+              error: reservationError?.message
+            }, 'error');
+            
+            result = {
+              success: false,
+              error: "Invalid or expired VIN reservation"
+            };
+            break;
+          }
+        }
+        
+        // Create the car listing
+        const { data: car, error: createError } = await supabase.rpc('create_car_listing', {
+          p_car_data: {
+            seller_id: data.userId,
+            make: data.valuationData.make,
+            model: data.valuationData.model,
+            year: data.valuationData.year,
+            mileage: data.mileage,
+            price: data.valuationData.price_med || data.valuationData.averagePrice,
+            vin: data.vin,
+            is_draft: true,
+            transmission: data.transmission,
+            valuation_data: data.valuationData
+          },
+          p_user_id: data.userId
+        });
+        
+        if (createError) {
+          logOperation('create_listing_error', {
+            requestId,
+            error: createError.message
+          }, 'error');
+          
+          result = {
+            success: false,
+            error: "Failed to create listing: " + createError.message
+          };
+        } else {
+          // Mark reservation as used if provided
+          if (data.reservationId) {
+            await supabase
+              .from('vin_reservations')
+              .update({
+                status: 'completed',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', data.reservationId);
+          }
+          
+          logOperation('create_listing_success', {
+            requestId,
+            carId: car.car_id
+          });
+          
+          result = {
+            success: true,
+            data: car
+          };
+        }
+        break;
+      
       case "process_proxy_bids":
         logOperation('process_proxy_bids_start', { 
           requestId, 
@@ -232,7 +328,7 @@ serve(async (req) => {
 async function getValuationFromAPI(vin: string, mileage: number, gearbox: string, requestId: string) {
   try {
     // Generate checksum for API authentication
-    const checksum = md5.default(API_ID + API_SECRET + vin);
+    const checksum = generateChecksum(API_ID, API_SECRET, vin);
     
     // Construct API URL
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
@@ -276,6 +372,22 @@ async function getValuationFromAPI(vin: string, mileage: number, gearbox: string
       }, 'warn');
     }
     
+    // Calculate base price (average of min and median prices from API)
+    const priceMin = Number(apiData.price_min) || 0;
+    const priceMed = Number(apiData.price_med) || 0;
+    
+    if (priceMin <= 0 || priceMed <= 0) {
+      return {
+        success: false,
+        error: 'Could not retrieve valid pricing data for this vehicle'
+      };
+    }
+    
+    const basePrice = (priceMin + priceMed) / 2;
+    
+    // Calculate reserve price
+    const reservePrice = calculateReservePrice(basePrice);
+    
     // Format response
     return {
       success: true,
@@ -289,6 +401,8 @@ async function getValuationFromAPI(vin: string, mileage: number, gearbox: string
         price_min: apiData.priceMin,
         price_max: apiData.priceMax,
         price_med: apiData.priceMed,
+        basePrice,
+        reservePrice,
         valuationDetails: apiData
       }
     };
@@ -315,4 +429,47 @@ async function storeInCache(vin: string, mileage: number, valuationData: any) {
     p_mileage: mileage,
     p_valuation_data: valuationData
   });
+}
+
+// Calculate reserve price based on base price
+function calculateReservePrice(basePrice: number): number {
+  // Determine the percentage based on price tier
+  let percentage = 0;
+  
+  if (basePrice <= 15000) {
+    percentage = 0.65;
+  } else if (basePrice <= 20000) {
+    percentage = 0.46;
+  } else if (basePrice <= 30000) {
+    percentage = 0.37;
+  } else if (basePrice <= 50000) {
+    percentage = 0.27;
+  } else if (basePrice <= 60000) {
+    percentage = 0.27;
+  } else if (basePrice <= 70000) {
+    percentage = 0.22;
+  } else if (basePrice <= 80000) {
+    percentage = 0.23;
+  } else if (basePrice <= 100000) {
+    percentage = 0.24;
+  } else if (basePrice <= 130000) {
+    percentage = 0.20;
+  } else if (basePrice <= 160000) {
+    percentage = 0.185;
+  } else if (basePrice <= 200000) {
+    percentage = 0.22;
+  } else if (basePrice <= 250000) {
+    percentage = 0.17;
+  } else if (basePrice <= 300000) {
+    percentage = 0.18;
+  } else if (basePrice <= 400000) {
+    percentage = 0.18;
+  } else if (basePrice <= 500000) {
+    percentage = 0.16;
+  } else {
+    percentage = 0.145; // 500,001+
+  }
+  
+  // Calculate and round to the nearest whole number
+  return Math.round(basePrice - (basePrice * percentage));
 }

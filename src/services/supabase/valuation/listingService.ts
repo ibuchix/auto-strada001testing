@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-10-15: Extracted listing functionality from valuationService.ts
  * - 2025-06-12: Updated to use consolidated handle-seller-operations endpoint
+ * - 2025-06-15: Refactored to use consolidated approach with combined operations
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
@@ -19,23 +20,13 @@ export class ValuationListingService extends ValuationServiceBase {
         throw new Error("No valid VIN reservation found. Please start the process again.");
       }
 
-      // Verify the reservation is still valid
-      const { data: reservation, error: reservationError } = await this.supabase
-        .from('vin_reservations')
-        .select('*')
-        .eq('id', reservationId)
-        .eq('status', 'active')
-        .single();
-
-      if (reservationError || !reservation) {
-        throw new Error("Your VIN reservation has expired. Please start the process again.");
-      }
-
-      const { data, error } = await this.supabase.functions.invoke('create-car-listing', {
+      // Call the consolidated handle-seller-operations edge function
+      const { data, error } = await this.supabase.functions.invoke('handle-seller-operations', {
         body: {
-          valuationData,
+          operation: 'create_listing',
           userId,
           vin,
+          valuationData,
           mileage,
           transmission,
           reservationId
@@ -45,7 +36,7 @@ export class ValuationListingService extends ValuationServiceBase {
       if (error) throw error;
       
       if (!data?.success) {
-        throw new Error(data?.message || "Failed to create listing");
+        throw new Error(data?.error || "Failed to create listing");
       }
 
       // Clear the reservation ID from localStorage after successful creation

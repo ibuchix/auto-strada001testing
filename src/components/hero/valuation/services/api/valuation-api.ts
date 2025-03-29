@@ -4,6 +4,7 @@
  * - 2025-05-15: Extracted API calls from valuationService.ts
  * - 2025-11-05: Integrated with robust API client for automatic retries and error handling
  * - 2025-11-06: Fixed TypeScript response type issues
+ * - 2025-11-10: Updated to use consolidated handle-seller-operations function
  */
 
 import { apiClient } from "@/services/api/apiClientService";
@@ -35,8 +36,11 @@ export async function fetchHomeValuation(
 ): Promise<ValuationResponse> {
   console.log('Fetching home valuation from API for:', { vin, mileage, gearbox });
   
-  const response = await apiClient.invokeFunction('get-vehicle-valuation', {
-    vin, mileage, gearbox, context: 'home'
+  const response = await apiClient.invokeFunction('handle-seller-operations', {
+    operation: 'get_valuation',
+    vin, 
+    mileage, 
+    gearbox
   }, {
     retries: 2,
     timeout: 15000,

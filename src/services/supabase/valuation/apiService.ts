@@ -5,6 +5,7 @@
  * - 2025-04-28: Fixed TypeScript errors with method calls and return types
  * - 2025-05-01: Fixed method name inconsistencies to match ValuationCacheService
  * - 2025-06-12: Updated to use consolidated handle-seller-operations endpoint
+ * - 2025-06-15: Refactored to use consolidated approach with combined operations
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
