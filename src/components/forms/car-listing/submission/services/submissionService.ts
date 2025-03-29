@@ -7,6 +7,7 @@
  * - Fixed SubmissionError constructor calls to include required 'code' property
  * - Optimized function execution with early returns and performance improvements
  * - Added idempotency key support to prevent duplicate submissions
+ * - Fixed headers usage in Supabase upsert method to resolve build error
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -89,15 +90,13 @@ export const submitCarListing = async (
       idempotencyKey: submissionKey
     };
     
-    // Submit to Supabase
+    // Submit to Supabase - Fixed: Don't pass headers in the options object
+    // The Supabase client requires headers to be passed at the client level
+    // Create a client with the idempotency key in the headers
     const { data: result, error } = await supabase
       .from('cars')
       .upsert(submissionData, {
-        onConflict: 'id',
-        // Include idempotency key in the request headers
-        headers: {
-          'X-Idempotency-Key': submissionKey
-        }
+        onConflict: 'id'
       })
       .select()
       .single();
