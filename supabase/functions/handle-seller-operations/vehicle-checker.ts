@@ -1,52 +1,58 @@
 
-/**
- * Changes made:
- * - 2024-07-22: Extracted vehicle checking functionality from vin-validation.ts
- */
-
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { Database } from '../_shared/database.types.ts';
-import { logOperation, ValidationError, cacheValidation } from './utils.ts';
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { logOperation } from './utils.ts';
 
 /**
- * Checks if a vehicle with the given VIN already exists in the database
+ * Checks if a vehicle with the given VIN already exists
+ * 
+ * @param supabase Supabase client
+ * @param vin Vehicle Identification Number
+ * @param mileage Current mileage of the vehicle
+ * @param requestId Request ID for logging
+ * @returns Boolean indicating if the vehicle exists
  */
 export async function checkVehicleExists(
-  supabase: ReturnType<typeof createClient<Database>>,
+  supabase: SupabaseClient,
   vin: string,
   mileage: number,
   requestId: string
 ): Promise<boolean> {
-  const { data: existingVehicle, error: existingVehicleError } = await supabase
-    .from('cars')
-    .select('id')
-    .eq('vin', vin)
-    .single();
-
-  if (existingVehicleError && existingVehicleError.code !== 'PGRST116') {
-    logOperation('existing_vehicle_check_error', { 
-      requestId,
+  try {
+    // Check if the VIN exists in the cars table (excluding drafts)
+    const { data, error } = await supabase
+      .from('cars')
+      .select('id, is_draft')
+      .eq('vin', vin)
+      .is('is_draft', false)  // Only consider non-draft listings
+      .maybeSingle();
+    
+    if (error) {
+      logOperation('vehicle_check_error', { 
+        requestId, 
+        vin, 
+        error: error.message 
+      }, 'error');
+      return false; // Assume it doesn't exist if there's an error
+    }
+    
+    // If data exists and it's not a draft, the car exists
+    const exists = !!data;
+    
+    logOperation('vehicle_check', { 
+      requestId, 
       vin, 
-      error: existingVehicleError.message 
-    }, 'error');
-    throw new ValidationError(
-      'Error checking existing vehicle', 
-      'DATABASE_ERROR'
-    );
-  }
-
-  if (existingVehicle) {
-    logOperation('vehicle_already_exists', { 
-      requestId,
-      vin, 
-      vehicleId: existingVehicle.id 
+      exists,
+      mileage
     });
     
-    // Cache this result
-    cacheValidation(vin, { isExisting: true }, mileage);
-    
-    return true;
+    return exists;
+  } catch (error) {
+    logOperation('vehicle_check_exception', { 
+      requestId, 
+      vin, 
+      error: error.message,
+      stack: error.stack
+    }, 'error');
+    return false;
   }
-  
-  return false;
 }

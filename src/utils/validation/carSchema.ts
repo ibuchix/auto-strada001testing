@@ -4,19 +4,12 @@
  * - Created car validation schema using Zod
  * - Implemented validation for make, model, year, price, mileage, and VIN
  * - Added strict VIN format validation with 17-character requirement
+ * - Added TypeScript type inference from Zod schema
  */
 
 import { z } from 'zod';
 
-/**
- * Schema for validating car data
- * - make: Must be at least 2 characters
- * - model: Must be at least 1 character
- * - year: Must be between 1886 (first automobile) and next year's models
- * - price: Must be at least 100
- * - mileage: Must be non-negative
- * - vin: Must be 17 characters and only contain valid VIN characters (no I, O, Q)
- */
+// Schema for basic car validation
 export const carSchema = z.object({
   make: z.string().min(2, "Make must be at least 2 characters"),
   model: z.string().min(1, "Model is required"),
@@ -25,6 +18,9 @@ export const carSchema = z.object({
   mileage: z.number().min(0, "Mileage cannot be negative"),
   vin: z.string().regex(/^[A-HJ-NPR-Z0-9]{17}$/i, "VIN must be 17 characters and contain only valid characters")
 });
+
+// Type inference from the schema
+export type CarData = z.infer<typeof carSchema>;
 
 // Extended schema with optional fields
 export const extendedCarSchema = carSchema.extend({
@@ -41,8 +37,18 @@ export const extendedCarSchema = carSchema.extend({
   seller_id: z.string().uuid().optional(),
   seller_name: z.string().optional(),
   address: z.string().optional(),
-  mobile_number: z.string().optional()
+  mobile_number: z.string().optional(),
+  // Form metadata
+  form_metadata: z.object({
+    currentStep: z.number().optional(),
+    lastSavedAt: z.string().optional(),
+  }).optional(),
+  // Idempotency
+  idempotencyKey: z.string().optional()
 });
+
+// Type for extended car data
+export type ExtendedCarData = z.infer<typeof extendedCarSchema>;
 
 // Type for car validation results
 export type CarValidationResult = {
@@ -58,6 +64,26 @@ export type CarValidationResult = {
 export const validateCar = (data: any): CarValidationResult => {
   try {
     carSchema.parse(data);
+    return { success: true };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { 
+        success: false, 
+        errors: error 
+      };
+    }
+    throw error;
+  }
+};
+
+/**
+ * Validate extended car data against schema
+ * @param data The extended car data to validate
+ * @returns Validation result with success status and any errors
+ */
+export const validateExtendedCar = (data: any): CarValidationResult => {
+  try {
+    extendedCarSchema.parse(data);
     return { success: true };
   } catch (error) {
     if (error instanceof z.ZodError) {

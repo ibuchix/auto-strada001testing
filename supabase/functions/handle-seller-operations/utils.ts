@@ -1,20 +1,70 @@
 
+export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+
 /**
- * Changes made:
- * - 2024-06-22: Enhanced with checksum calculation functionality from operations.ts
- * - 2024-07-07: Added rate limiting, improved error handling, and enhanced logging
- * - 2024-07-15: Added caching for recent VIN validations
- * - 2024-07-22: Refactored into multiple smaller modules
+ * Structured logging for edge function operations
  */
+export function logOperation(
+  operation: string, 
+  details: Record<string, any>,
+  level: LogLevel = 'info'
+): void {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    operation,
+    level,
+    ...details
+  };
+  
+  switch (level) {
+    case 'error':
+      console.error(JSON.stringify(logEntry));
+      break;
+    case 'warn':
+      console.warn(JSON.stringify(logEntry));
+      break;
+    case 'debug':
+      console.debug(JSON.stringify(logEntry));
+      break;
+    default:
+      console.log(JSON.stringify(logEntry));
+  }
+}
 
-// Re-export from individual modules for backward compatibility
-export * from './validation-utils.ts';
-export * from './cache.ts';
-export * from './rate-limiter.ts';
-export * from './logging.ts';
+/**
+ * Validation error with code for better error handling
+ */
+export class ValidationError extends Error {
+  code: string;
+  
+  constructor(message: string, code: string = 'VALIDATION_ERROR') {
+    super(message);
+    this.name = 'ValidationError';
+    this.code = code;
+  }
+}
 
-// CORS headers used across various functions
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+/**
+ * API error with code for better error handling
+ */
+export class ApiError extends Error {
+  code: string;
+  
+  constructor(message: string, code: string = 'API_ERROR') {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+  }
+}
+
+/**
+ * Helper to safely parse JSON with error handling
+ */
+export function safeJsonParse<T>(json: string, defaultValue: T): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch (error) {
+    logOperation('json_parse_error', { error: error.message }, 'warn');
+    return defaultValue;
+  }
+}

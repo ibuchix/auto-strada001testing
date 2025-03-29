@@ -1,215 +1,184 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { corsHeaders, logOperation } from './utils.ts';
-import { ValuationRequest, ProxyBidRequest } from './types.ts';
-import { validateVin, processProxyBids } from './operations.ts';
+import { validateSchema, valuationRequestSchema, carOperationSchema } from './schema-validation.ts';
+import { handleGetValuation } from './valuation-handler.ts';
+import { handleProxyBids } from './proxy-bid-handler.ts';
+import { setupIdempotencyTable, checkIdempotencyKey, recordIdempotencyRequest, updateIdempotencyRecord } from '../_shared/setup-scripts/idempotency.ts';
+import { corsHeaders } from './cors.ts';
 
 serve(async (req) => {
-  // Add detailed request logging
-  const requestId = crypto.randomUUID();
-  const requestStartTime = Date.now();
-  
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  // Handle CORS for preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Set up idempotency table if needed
+    await setupIdempotencyTable();
+    
+    // Parse request body
     const requestData = await req.json();
-    const { operation } = requestData;
     
-    // Extract idempotency key from request headers
-    const idempotencyKey = req.headers.get('X-Idempotency-Key');
-    
-    // Log operation start with request ID for tracing
-    logOperation('request_start', { 
-      requestId, 
-      operation,
+    // Generate a consistent request ID for logging
+    const requestId = crypto.randomUUID();
+    console.log(`Request ${requestId} received:`, JSON.stringify({
       method: req.method,
       url: req.url,
-      idempotencyKey: idempotencyKey || 'none'
-    });
-
-    // If idempotency key is provided, check cache for previous response
-    if (idempotencyKey) {
-      const cachedResponse = await checkIdempotencyCache(idempotencyKey);
-      if (cachedResponse) {
-        logOperation('request_complete_from_cache', {
-          requestId,
-          operation,
-          idempotencyKey,
-          executionTime: Date.now() - requestStartTime
-        });
-        
-        return new Response(
-          JSON.stringify(cachedResponse),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      {
-        auth: { persistSession: false },
-        db: { schema: 'public' }
-      }
-    );
-
-    let response;
+      // Don't log sensitive fields like passwords or full car details
+      operation: requestData.operation
+    }));
     
-    switch (operation) {
-      case 'validate_vin': {
-        const { vin, mileage, gearbox, userId } = requestData as ValuationRequest;
-        response = await validateVin(supabase, vin, mileage, gearbox, userId);
-        break;
-      }
-
-      case 'process_proxy_bids': {
-        const { carId } = requestData as ProxyBidRequest;
-        if (!carId) {
-          throw new Error('Car ID is required for processing proxy bids');
+    // Validate base request structure
+    const baseValidation = validateSchema(carOperationSchema, requestData);
+    if (!baseValidation.success) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Invalid request format: ${baseValidation.error}`,
+          errorCode: 'SCHEMA_VALIDATION_ERROR'
+        }),
+        { 
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
         }
-        response = await processProxyBids(supabase, carId);
-        break;
+      );
+    }
+    
+    // Check for idempotency key in headers
+    const idempotencyKey = req.headers.get('X-Idempotency-Key');
+    if (idempotencyKey) {
+      const requestPath = new URL(req.url).pathname;
+      const existingRequest = await checkIdempotencyKey(supabase, idempotencyKey, requestPath);
+      
+      if (existingRequest.exists) {
+        if (existingRequest.status === 'completed') {
+          // Return the cached response
+          return new Response(
+            JSON.stringify(existingRequest.data || { success: true, message: 'Request already processed' }),
+            { 
+              status: 200,
+              headers: {
+                ...corsHeaders,
+                "Content-Type": "application/json",
+                "X-Idempotency-Status": "reused"
+              }
+            }
+          );
+        } else if (existingRequest.status === 'processing') {
+          // Request is still being processed
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'Your request is still being processed',
+              errorCode: 'REQUEST_IN_PROGRESS'
+            }),
+            { 
+              status: 409,
+              headers: {
+                ...corsHeaders,
+                "Content-Type": "application/json",
+                "X-Idempotency-Status": "processing"
+              }
+            }
+          );
+        }
       }
       
-      case 'cache_valuation': {
-        // Handle caching valuation data with elevated permissions
-        const { vin, mileage, valuation_data } = requestData;
-        
-        if (!vin || !mileage || !valuation_data) {
-          throw new Error('Missing required parameters for caching valuation');
+      // Record this new request
+      await recordIdempotencyRequest(
+        supabase, 
+        idempotencyKey, 
+        requestPath, 
+        requestData.userId
+      );
+    }
+    
+    // Process based on operation
+    let responseData;
+    
+    switch(requestData.operation) {
+      case 'get_valuation':
+        // Validate valuation-specific schema
+        const valuationValidation = validateSchema(valuationRequestSchema, requestData);
+        if (!valuationValidation.success) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Invalid valuation request: ${valuationValidation.error}`,
+              errorCode: 'VALIDATION_ERROR'
+            }),
+            { 
+              status: 400,
+              headers: {
+                ...corsHeaders,
+                "Content-Type": "application/json"
+              }
+            }
+          );
         }
         
-        const { error } = await supabase.rpc(
-          'store_vin_valuation_cache',
-          { 
-            p_vin: vin, 
-            p_mileage: mileage, 
-            p_valuation_data: valuation_data 
-          }
-        );
-        
-        if (error) throw error;
-        
-        response = {
-          success: true,
-          message: 'Valuation data cached successfully'
-        };
+        responseData = await handleGetValuation(supabase, valuationValidation.data!, requestId);
         break;
-      }
-
+        
+      case 'get_proxy_bids':
+        responseData = await handleProxyBids(supabase, requestData);
+        break;
+        
       default:
-        throw new Error('Invalid operation');
+        responseData = {
+          success: false,
+          error: `Unsupported operation: ${requestData.operation}`,
+          errorCode: 'UNSUPPORTED_OPERATION'
+        };
     }
     
-    // If idempotency key is provided, cache the response
+    // Update idempotency record if we're using one
     if (idempotencyKey) {
-      await cacheIdempotencyResponse(idempotencyKey, response);
+      await updateIdempotencyRecord(
+        supabase,
+        idempotencyKey,
+        responseData.success ? 'completed' : 'failed',
+        responseData
+      );
     }
     
-    // Log successful completion with timing information
-    const executionTime = Date.now() - requestStartTime;
-    logOperation('request_complete', { 
-      requestId, 
-      operation,
-      executionTime,
-      status: 'success',
-      idempotencyKey: idempotencyKey || 'none'
-    });
-    
+    // Return the response
     return new Response(
-      JSON.stringify(response),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify(responseData),
+      { 
+        status: responseData.success ? 200 : 400,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
     );
   } catch (error) {
-    // Log detailed error information
-    const executionTime = Date.now() - requestStartTime;
-    logOperation('request_error', { 
-      requestId,
-      executionTime,
-      errorMessage: error.message,
-      errorStack: error.stack,
-      errorCode: error.code || 'UNKNOWN_ERROR'
-    }, 'error');
+    console.error("Unhandled error:", error);
     
     return new Response(
       JSON.stringify({
         success: false,
-        data: {
-          error: error.message || 'Failed to process seller operation',
-          errorCode: error.code || 'SYSTEM_ERROR'
-        }
+        error: "An unexpected error occurred",
+        errorCode: "SERVER_ERROR",
+        details: Deno.env.get('ENVIRONMENT') === 'development' ? error.message : undefined
       }),
-      { 
+      {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
       }
     );
   }
 });
-
-/**
- * Check if a response is already cached for the given idempotency key
- */
-async function checkIdempotencyCache(idempotencyKey: string): Promise<any> {
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      {
-        auth: { persistSession: false },
-        db: { schema: 'public' }
-      }
-    );
-    
-    const { data, error } = await supabase
-      .from('idempotency_keys')
-      .select('response_data')
-      .eq('key', idempotencyKey)
-      .single();
-    
-    if (error || !data) {
-      return null;
-    }
-    
-    return data.response_data;
-  } catch (error) {
-    console.error('Error checking idempotency cache:', error);
-    return null; // Proceed with normal request processing
-  }
-}
-
-/**
- * Cache the response for the given idempotency key
- */
-async function cacheIdempotencyResponse(idempotencyKey: string, response: any): Promise<void> {
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      {
-        auth: { persistSession: false },
-        db: { schema: 'public' }
-      }
-    );
-    
-    // Use upsert to handle potential race conditions
-    await supabase
-      .from('idempotency_keys')
-      .upsert({
-        key: idempotencyKey,
-        response_data: response,
-        created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
-      }, {
-        onConflict: 'key'
-      });
-      
-  } catch (error) {
-    console.error('Error caching idempotency response:', error);
-    // Don't throw - this is a best-effort operation
-  }
-}

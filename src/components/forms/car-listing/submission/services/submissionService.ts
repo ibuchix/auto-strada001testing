@@ -8,6 +8,7 @@
  * - Optimized function execution with early returns and performance improvements
  * - Added idempotency key support to prevent duplicate submissions
  * - Fixed headers usage in Supabase upsert method to resolve build error
+ * - Added schema validation before submission
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -19,6 +20,7 @@ import {
   markIdempotencyKeyAsUsed, 
   isIdempotencyKeyUsed
 } from "@/utils/idempotencyUtils";
+import { validateExtendedCar } from "@/utils/validation/carSchema";
 
 // Import helper functions using dynamic imports for code splitting
 const getFormDataHelpers = () => import("../utils/dataPreparation");
@@ -47,6 +49,21 @@ export const submitCarListing = async (
       code: "INVALID_INPUT",
       message: "Missing required submission data",
       description: "Please ensure all required fields are filled in",
+      retryable: true
+    });
+  }
+
+  // Validate against schema
+  const schemaValidation = validateExtendedCar(data);
+  if (!schemaValidation.success) {
+    const errorMessages = schemaValidation.errors?.errors.map(e => 
+      `${e.path.join('.')}: ${e.message}`
+    ).join(', ');
+    
+    throw new SubmissionError({
+      code: "SCHEMA_VALIDATION_ERROR",
+      message: "Form data doesn't match expected schema",
+      description: errorMessages || "Please check all fields for errors",
       retryable: true
     });
   }
