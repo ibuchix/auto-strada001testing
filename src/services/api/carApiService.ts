@@ -5,6 +5,7 @@
  * Changes made:
  * - 2025-11-05: Integrated with robust API client for automatic retries and error normalization
  * - Enhanced error handling and type safety
+ * - 2025-11-06: Fixed TypeScript errors with array handling and config interfaces
  */
 
 import { CarEntity, CarListingFormData } from "@/types/forms";
@@ -54,10 +55,8 @@ export const fetchCars = async (): Promise<CarEntity[]> => {
       return [];
     }
     
-    // Use type guard to filter out invalid entries
-    if (isCarEntityArray(response.data)) {
-      return response.data;
-    } else {
+    // Handle array response properly with type checking
+    if (Array.isArray(response.data)) {
       // Filter out invalid car entries individually
       const validCars: CarEntity[] = [];
       for (const car of response.data) {
@@ -68,6 +67,9 @@ export const fetchCars = async (): Promise<CarEntity[]> => {
         }
       }
       return validCars;
+    } else {
+      console.error('Expected array response from API but received:', typeof response.data);
+      return [];
     }
   } catch (error) {
     console.error('Error in fetchCars:', error);
@@ -84,8 +86,7 @@ export const createCarListing = async (carData: CarListingFormData): Promise<Car
   try {
     const response = await apiClient.post('/api/cars', carData, {
       errorMessage: 'Failed to create car listing',
-      retries: 2,
-      successMessage: 'Car listing created successfully'
+      retries: 2
     });
     
     if (response.error || !response.data) {
@@ -94,6 +95,7 @@ export const createCarListing = async (carData: CarListingFormData): Promise<Car
     
     // Use type guard to ensure data is valid
     if (isCarEntity(response.data)) {
+      toast.success('Car listing created successfully');
       return response.data;
     } else {
       console.error('Invalid car data structure received from API after creation');

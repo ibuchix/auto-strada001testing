@@ -1,4 +1,3 @@
-
 /**
  * API Client Service
  * 
@@ -7,6 +6,7 @@
  * - Implemented configurable retry strategy with exponential backoff
  * - Added standardized error handling and response normalization
  * - Integrated with existing error types for consistent application behavior
+ * - 2025-11-06: Added successMessage property to ApiRequestConfig interface
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,7 @@ interface ApiRequestConfig {
   timeout?: number;
   silent?: boolean;
   errorMessage?: string;
+  successMessage?: string;
   headers?: Record<string, string>;
 }
 
@@ -93,7 +94,7 @@ export class ApiClient extends RetryService {
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse<T>> {
     try {
-      const { timeout = DEFAULT_TIMEOUT } = config;
+      const { timeout = DEFAULT_TIMEOUT, successMessage } = config;
       
       // Create a promise that will reject after the timeout
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -122,6 +123,11 @@ export class ApiClient extends RetryService {
       
       // Race the request against the timeout
       const result = await Promise.race([requestPromise, timeoutPromise]);
+      
+      // Show success message if provided
+      if (successMessage && !config.silent) {
+        toast.success(successMessage);
+      }
       
       return {
         data: result,

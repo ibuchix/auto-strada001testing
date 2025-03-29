@@ -12,6 +12,7 @@
  * - 2025-05-16: Fixed import function name to match exported name
  * - 2025-05-17: Fixed function name references to match actual exports
  * - 2025-07-07: Completely isolated cache operations from main valuation flow
+ * - 2025-07-08: Fixed TypeScript type issues with API response handling
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -65,7 +66,7 @@ export async function processSellerValuation(
         // Check if the vehicle already exists in the system
         if (!cachedData.isExisting) {
           try {
-            const { data: reservationData } = await supabase.functions.invoke('handle-seller-operations', {
+            const response = await supabase.functions.invoke('handle-seller-operations', {
               body: {
                 operation: 'create_reservation',
                 vin,
@@ -74,8 +75,11 @@ export async function processSellerValuation(
               }
             });
             
-            if (reservationData?.reservation?.id) {
-              storeReservationId(reservationData.reservation.id);
+            // Safely access response data with proper type checking
+            const responseData = response.data as { reservation?: { id?: string } } | null;
+            
+            if (responseData?.reservation?.id) {
+              storeReservationId(responseData.reservation.id);
             }
           } catch (reservationError) {
             console.error('Reservation error with cached data:', reservationError);
@@ -99,7 +103,24 @@ export async function processSellerValuation(
     
     // No cache found, proceed with API call
     console.log('No cache found, fetching valuation from API for VIN:', vin);
-    const { data, error } = await fetchSellerValuation(vin, mileage, gearbox, userId);
+    const response = await fetchSellerValuation(vin, mileage, gearbox, userId);
+    
+    // Properly type the API response
+    const { data, error } = response as { 
+      data?: { 
+        data?: {
+          isExisting?: boolean;
+          reservationId?: string;
+          make?: string;
+          model?: string;
+          year?: number;
+          valuation?: number;
+          averagePrice?: number;
+          reservePrice?: number;
+        } 
+      }; 
+      error?: Error 
+    };
     
     if (error) {
       console.error('Seller valuation error:', error);
