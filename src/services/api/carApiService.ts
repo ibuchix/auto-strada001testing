@@ -2,13 +2,15 @@
 /**
  * Car API Service
  * 
- * Provides methods for interacting with the car API endpoints
- * Uses type guards to ensure type safety with API responses
+ * Changes made:
+ * - 2025-11-05: Integrated with robust API client for automatic retries and error normalization
+ * - Enhanced error handling and type safety
  */
 
 import { CarEntity, CarListingFormData } from "@/types/forms";
 import { isCarEntity, isCarEntityArray } from "@/utils/typeGuards";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "./apiClientService";
+import { toast } from "sonner";
 
 /**
  * Fetch a car by its ID from the API
@@ -17,20 +19,17 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const fetchCarById = async (id: string): Promise<CarEntity | null> => {
   try {
-    const { data, error } = await supabase
-      .from('cars')
-      .select('*')
-      .eq('id', id)
-      .single();
-      
-    if (error || !data) {
-      console.error('Error fetching car:', error);
+    const response = await apiClient.get(`/api/cars/${id}`, {
+      errorMessage: 'Failed to fetch car details'
+    });
+    
+    if (response.error || !response.data) {
       return null;
     }
     
     // Use type guard to ensure data is valid
-    if (isCarEntity(data)) {
-      return data;
+    if (isCarEntity(response.data)) {
+      return response.data;
     } else {
       console.error('Invalid car data structure received from API');
       return null;
@@ -47,22 +46,21 @@ export const fetchCarById = async (id: string): Promise<CarEntity | null> => {
  */
 export const fetchCars = async (): Promise<CarEntity[]> => {
   try {
-    const { data, error } = await supabase
-      .from('cars')
-      .select('*');
-      
-    if (error || !data) {
-      console.error('Error fetching cars:', error);
+    const response = await apiClient.get('/api/cars', {
+      errorMessage: 'Failed to fetch cars'
+    });
+    
+    if (response.error || !response.data) {
       return [];
     }
     
     // Use type guard to filter out invalid entries
-    if (isCarEntityArray(data)) {
-      return data;
+    if (isCarEntityArray(response.data)) {
+      return response.data;
     } else {
       // Filter out invalid car entries individually
       const validCars: CarEntity[] = [];
-      for (const car of data) {
+      for (const car of response.data) {
         if (isCarEntity(car)) {
           validCars.push(car);
         } else {
@@ -84,20 +82,19 @@ export const fetchCars = async (): Promise<CarEntity[]> => {
  */
 export const createCarListing = async (carData: CarListingFormData): Promise<CarEntity | null> => {
   try {
-    const { data, error } = await supabase
-      .from('cars')
-      .insert([carData])
-      .select()
-      .single();
-      
-    if (error || !data) {
-      console.error('Error creating car listing:', error);
+    const response = await apiClient.post('/api/cars', carData, {
+      errorMessage: 'Failed to create car listing',
+      retries: 2,
+      successMessage: 'Car listing created successfully'
+    });
+    
+    if (response.error || !response.data) {
       return null;
     }
     
     // Use type guard to ensure data is valid
-    if (isCarEntity(data)) {
-      return data;
+    if (isCarEntity(response.data)) {
+      return response.data;
     } else {
       console.error('Invalid car data structure received from API after creation');
       return null;

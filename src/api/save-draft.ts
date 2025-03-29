@@ -2,12 +2,14 @@
 /**
  * API endpoint for saving car listing drafts
  * 
- * This endpoint handles persisting form data to the database
- * and provides robust error handling
+ * Changes made:
+ * - 2025-11-05: Integrated with robust API client for automatic retries and error normalization
+ * - Enhanced error handling with more detailed error information
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { saveFormData } from "@/components/forms/car-listing/utils/formSaveUtils";
+import { apiClient } from "@/services/api/apiClientService";
 
 interface SaveDraftRequest {
   formData: CarListingFormData;
