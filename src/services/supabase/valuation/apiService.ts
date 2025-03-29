@@ -4,6 +4,7 @@
  * - 2024-10-15: Extracted API functionality from valuationService.ts
  * - 2025-04-28: Fixed TypeScript errors with method calls and return types
  * - 2025-05-01: Fixed method name inconsistencies to match ValuationCacheService
+ * - 2025-06-12: Updated to use consolidated handle-seller-operations endpoint
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
@@ -22,8 +23,13 @@ export class ValuationApiService extends ValuationServiceBase {
         return cachedData;
       }
       
-      const { data, error } = await this.supabase.functions.invoke('get-vehicle-valuation', {
-        body: { vin, mileage, gearbox, context: 'home' },
+      const { data, error } = await this.supabase.functions.invoke('handle-seller-operations', {
+        body: { 
+          operation: "get_valuation",
+          vin, 
+          mileage, 
+          gearbox 
+        },
         // Add request timeout
         headers: { 'X-Request-Timeout': '15000' }
       });

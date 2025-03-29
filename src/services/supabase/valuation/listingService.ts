@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-15: Extracted listing functionality from valuationService.ts
+ * - 2025-06-12: Updated to use consolidated handle-seller-operations endpoint
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
