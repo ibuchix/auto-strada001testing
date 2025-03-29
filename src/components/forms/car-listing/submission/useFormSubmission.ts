@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Refactored for improved type safety and error handling
@@ -12,6 +11,7 @@
  * - Fixed TypeScript errors with proper type guards
  * - Optimized function execution paths for faster performance
  * - Implemented memoization patterns for expensive operations
+ * - Added idempotency key support to prevent duplicate submissions
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -28,10 +28,16 @@ import { useCreateTransaction } from "@/hooks/useTransaction";
 import { TransactionOptions } from "@/services/supabase/transactionService";
 import { ValidationError, SubmissionError, normalizeError } from "./errors";
 import { BaseApplicationError } from "@/errors/classes";
+import { 
+  generateIdempotencyKey, 
+  getCurrentIdempotencyKey, 
+  cleanupIdempotencyKeys 
+} from "@/utils/idempotencyUtils";
 
 // Configuration constants
 const SUBMISSION_TIMEOUT = 30000;
 const TOAST_DURATION = 5000;
+const SUBMISSION_OPERATION = 'car_submission';
 
 // Type guard for error objects
 function isSubmissionErrorType(error: unknown): error is SubmissionErrorType {
@@ -45,6 +51,7 @@ function isSubmissionErrorType(error: unknown): error is SubmissionErrorType {
 
 export const useFormSubmission = (userId?: string) => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const navigate = useNavigate();
   
   const { 
@@ -64,9 +71,24 @@ export const useFormSubmission = (userId?: string) => {
     logToDb: true
   });
 
-  // Reset transaction state when component mounts and clean up on unmount
+  // Initialize idempotency key on component mount
   useEffect(() => {
+    // Try to get an existing key first
+    const existingKey = getCurrentIdempotencyKey(SUBMISSION_OPERATION);
+    if (existingKey) {
+      setIdempotencyKey(existingKey);
+    } else {
+      // Generate a new key if none exists
+      const newKey = generateIdempotencyKey(SUBMISSION_OPERATION);
+      setIdempotencyKey(newKey);
+    }
+    
+    // Clean up old idempotency keys to prevent localStorage bloat
+    cleanupIdempotencyKeys();
+    
+    // Reset transaction state
     resetTransaction();
+    
     return () => resetTransaction();
   }, [resetTransaction]);
 
@@ -254,7 +276,7 @@ export const useFormSubmission = (userId?: string) => {
         duration: TOAST_DURATION
       });
 
-      console.log('Starting transaction execution');
+      console.log('Starting transaction execution with idempotency key:', idempotencyKey);
       
       // Execute the submission within a transaction with timeout handling
       const transactionOptions: TransactionOptions = {
@@ -262,7 +284,8 @@ export const useFormSubmission = (userId?: string) => {
         metadata: {
           carId,
           make: data.make,
-          model: data.model
+          model: data.model,
+          idempotencyKey
         },
         onSuccess: (result) => {
           toast.dismiss(uploadingToast);
@@ -271,6 +294,13 @@ export const useFormSubmission = (userId?: string) => {
         onError: (error) => {
           console.log('Submission error callback triggered', error);
           handleSubmissionError(error, uploadingToast);
+          
+          // Generate a new idempotency key if the transaction failed
+          // but not for duplicate submissions
+          if (!(error instanceof SubmissionError && error.code === "DUPLICATE_SUBMISSION")) {
+            const newKey = generateIdempotencyKey(SUBMISSION_OPERATION, carId);
+            setIdempotencyKey(newKey);
+          }
           
           // Ensure transaction state is reset after error
           resetTransaction();
@@ -281,7 +311,7 @@ export const useFormSubmission = (userId?: string) => {
         "Submit Car Listing",
         async () => {
           console.log('Executing submission callback');
-          return await submitCarListing(data, userId, carId);
+          return await submitCarListing(data, userId, carId, idempotencyKey || undefined);
         },
         transactionOptions
       );
@@ -303,6 +333,10 @@ export const useFormSubmission = (userId?: string) => {
         toast.error("Submission timed out", {
           description: "Please try again. If the problem persists, contact support."
         });
+        
+        // Generate a new idempotency key if the submission timed out
+        const newKey = generateIdempotencyKey(SUBMISSION_OPERATION, carId);
+        setIdempotencyKey(newKey);
         
         // Force reset of transaction state
         resetTransaction();
@@ -328,7 +362,8 @@ export const useFormSubmission = (userId?: string) => {
     validateForm,
     handleSubmissionError,
     submissionConfig,
-    setError
+    setError,
+    idempotencyKey
   ]);
 
   return {
@@ -338,7 +373,8 @@ export const useFormSubmission = (userId?: string) => {
     showSuccessDialog,
     setShowSuccessDialog,
     handleSubmit,
-    resetTransaction
+    resetTransaction,
+    idempotencyKey
   };
 };
 

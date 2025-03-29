@@ -6,16 +6,25 @@
  * - Improved error handling with more specific error types
  * - Fixed SubmissionError constructor calls to include required 'code' property
  * - Optimized function execution with early returns and performance improvements
+ * - Added idempotency key support to prevent duplicate submissions
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { validateSubmission } from "./validationService";
 import { SubmissionError } from "../errors";
+import { 
+  generateIdempotencyKey, 
+  markIdempotencyKeyAsUsed, 
+  isIdempotencyKeyUsed
+} from "@/utils/idempotencyUtils";
 
 // Import helper functions using dynamic imports for code splitting
 const getFormDataHelpers = () => import("../utils/dataPreparation");
 const getStorageHelpers = () => import("../utils/storageCleanup");
+
+// Constants
+const SUBMISSION_OPERATION = 'car_submission';
 
 /**
  * Submit car listing with complete validation
@@ -23,12 +32,14 @@ const getStorageHelpers = () => import("../utils/storageCleanup");
  * @param data - Form data to submit
  * @param userId - User ID submitting the form
  * @param carId - Optional existing car ID for updates
+ * @param idempotencyKey - Optional existing idempotency key
  * @returns Promise resolving to submission result
  */
 export const submitCarListing = async (
   data: CarListingFormData,
   userId: string,
-  carId?: string
+  carId?: string,
+  idempotencyKey?: string
 ) => {
   if (!data || !userId) {
     throw new SubmissionError({
@@ -36,6 +47,20 @@ export const submitCarListing = async (
       message: "Missing required submission data",
       description: "Please ensure all required fields are filled in",
       retryable: true
+    });
+  }
+
+  // Generate or use provided idempotency key
+  const submissionKey = idempotencyKey || generateIdempotencyKey(SUBMISSION_OPERATION, carId);
+
+  // Check if this key has already been used successfully
+  if (isIdempotencyKeyUsed(submissionKey)) {
+    console.log(`Duplicate submission detected with key: ${submissionKey}`);
+    throw new SubmissionError({
+      code: "DUPLICATE_SUBMISSION",
+      message: "This form has already been submitted",
+      description: "The system detected a duplicate submission. Please refresh the page if you need to submit again.",
+      retryable: false
     });
   }
 
@@ -58,22 +83,43 @@ export const submitCarListing = async (
     const submissionData = await prepareSubmissionData(data, userId, carId);
     console.log('Submission data prepared');
     
+    // Add idempotency key to metadata
+    submissionData.metadata = {
+      ...(submissionData.metadata || {}),
+      idempotencyKey: submissionKey
+    };
+    
     // Submit to Supabase
     const { data: result, error } = await supabase
       .from('cars')
-      .upsert(submissionData)
+      .upsert(submissionData, {
+        onConflict: 'id',
+        // Include idempotency key in the request headers
+        headers: {
+          'X-Idempotency-Key': submissionKey
+        }
+      })
       .select()
       .single();
     
     if (error) throw error;
     
+    // Mark idempotency key as used after successful submission
+    markIdempotencyKeyAsUsed(submissionKey);
+    
     // Clean up local storage
     await cleanupFormStorage();
     
-    console.log('Submission completed successfully');
+    console.log('Submission completed successfully with idempotency key:', submissionKey);
     return result;
   } catch (error: any) {
     console.error('Submission error:', error);
+    
+    // Only mark as used for specific errors (not for validation errors, network issues, etc.)
+    if (error.code === 'duplicate_key_violates_unique_constraint') {
+      // This might be a real duplicate, so mark the key as used
+      markIdempotencyKeyAsUsed(submissionKey);
+    }
     
     // Enhanced error handling with specific error types
     if (error.code?.startsWith('23') || error.code?.startsWith('22')) {

@@ -1,12 +1,12 @@
+
 /**
  * API Client Service
  * 
  * Changes made:
- * - 2025-11-05: Created robust API client with automatic retries and error normalization
- * - Implemented configurable retry strategy with exponential backoff
- * - Added standardized error handling and response normalization
- * - Integrated with existing error types for consistent application behavior
- * - 2025-11-06: Added successMessage property to ApiRequestConfig interface
+ * - 2025-11-05: Integrated with robust API client for automatic retries and error normalization
+ * - Enhanced error handling and type safety
+ * - 2025-11-06: Fixed TypeScript errors with array handling and config interfaces
+ * - 2025-11-07: Added idempotency key support for preventing duplicate submissions
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +30,7 @@ interface ApiRequestConfig {
   errorMessage?: string;
   successMessage?: string;
   headers?: Record<string, string>;
+  idempotencyKey?: string;
 }
 
 interface ApiResponse<T> {
@@ -94,7 +95,7 @@ export class ApiClient extends RetryService {
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse<T>> {
     try {
-      const { timeout = DEFAULT_TIMEOUT, successMessage } = config;
+      const { timeout = DEFAULT_TIMEOUT, successMessage, idempotencyKey } = config;
       
       // Create a promise that will reject after the timeout
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -106,12 +107,19 @@ export class ApiClient extends RetryService {
       // Create the actual request promise
       const requestPromise = this.withRetry<T>(
         async () => {
+          // Prepare headers with idempotency key if provided
+          const headers = {
+            ...(config.headers || {}),
+            'X-Request-Timeout': timeout.toString()
+          };
+          
+          if (idempotencyKey) {
+            headers['X-Idempotency-Key'] = idempotencyKey;
+          }
+          
           return await this.supabase.functions.invoke(functionName, {
             body: data,
-            headers: {
-              ...(config.headers || {}),
-              'X-Request-Timeout': timeout.toString()
-            }
+            headers
           });
         },
         {
@@ -149,7 +157,7 @@ export class ApiClient extends RetryService {
     config: ApiRequestConfig = {}
   ): Promise<ApiResponse<T>> {
     try {
-      const { timeout = DEFAULT_TIMEOUT } = config;
+      const { timeout = DEFAULT_TIMEOUT, idempotencyKey } = config;
       
       // Create a promise that will reject after the timeout
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -161,12 +169,19 @@ export class ApiClient extends RetryService {
       // Create the actual request promise
       const requestPromise = this.withRetry<T>(
         async () => {
+          // Prepare headers with idempotency key if provided
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            ...(config.headers || {})
+          };
+          
+          if (idempotencyKey) {
+            headers['X-Idempotency-Key'] = idempotencyKey;
+          }
+          
           const response = await fetch(url, {
             method,
-            headers: {
-              'Content-Type': 'application/json',
-              ...(config.headers || {})
-            },
+            headers,
             body: data ? JSON.stringify(data) : undefined,
             signal: AbortSignal.timeout(timeout)
           });
