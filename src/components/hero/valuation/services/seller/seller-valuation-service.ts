@@ -2,6 +2,9 @@
 /**
  * Changes made:
  * - 2024-11-21: Extracted from seller-valuation.ts as part of refactoring
+ * - 2024-11-24: Enhanced data processing and error handling
+ * - 2024-11-24: Added forced recalculation of reserve price as fallback
+ * - 2024-11-24: Improved logging to track data through the pipeline
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +12,64 @@ import { ValuationResult, TransmissionType } from "../../types";
 import { hasEssentialData, handleApiError, storeReservationId } from "../utils/validation-helpers";
 import { getSellerValuationCache, storeSellerValuationCache } from "./seller-valuation-cache";
 import { fetchSellerValuationData } from "./seller-valuation-api";
+
+/**
+ * Ensure we have a valid reserve price by calculating it if necessary
+ */
+function ensureValidReservePrice(data: any): any {
+  if (!data) return data;
+  
+  let basePrice = data.basePrice || data.averagePrice || data.price_med || 0;
+  let reservePrice = data.reservePrice || data.valuation || 0;
+  
+  console.log('Price check before validation:', { basePrice, reservePrice });
+  
+  // If we have a base price but no reserve price, calculate it
+  if (basePrice > 0 && (!reservePrice || reservePrice <= 0)) {
+    // Calculate reserve price using the standard formula
+    let percentage = 0;
+    
+    if (basePrice <= 15000) percentage = 0.65;
+    else if (basePrice <= 20000) percentage = 0.46;
+    else if (basePrice <= 30000) percentage = 0.37;
+    else if (basePrice <= 50000) percentage = 0.27;
+    else if (basePrice <= 60000) percentage = 0.27;
+    else if (basePrice <= 70000) percentage = 0.22;
+    else if (basePrice <= 80000) percentage = 0.23;
+    else if (basePrice <= 100000) percentage = 0.24;
+    else if (basePrice <= 130000) percentage = 0.20;
+    else if (basePrice <= 160000) percentage = 0.185;
+    else if (basePrice <= 200000) percentage = 0.22;
+    else if (basePrice <= 250000) percentage = 0.17;
+    else if (basePrice <= 300000) percentage = 0.18;
+    else if (basePrice <= 400000) percentage = 0.18;
+    else if (basePrice <= 500000) percentage = 0.16;
+    else percentage = 0.145;
+    
+    reservePrice = Math.round(basePrice - (basePrice * percentage));
+    console.log('Calculated reserve price:', { basePrice, percentage, reservePrice });
+    
+    return {
+      ...data,
+      reservePrice,
+      valuation: reservePrice // Add both for compatibility with various components
+    };
+  }
+  
+  // If we still don't have a valid reserve price but have valuation or price fields, use them
+  if ((!reservePrice || reservePrice <= 0) && (data.price > 0 || data.valuation > 0 || data.price_med > 0)) {
+    const fallbackPrice = data.price || data.valuation || data.price_med;
+    console.log('Using fallback price:', fallbackPrice);
+    
+    return {
+      ...data,
+      reservePrice: fallbackPrice,
+      valuation: fallbackPrice
+    };
+  }
+  
+  return data;
+}
 
 /**
  * Process valuation for the seller page context
@@ -42,11 +103,13 @@ export async function processSellerValuation(
     
     if (cachedData) {
       console.log('Using cached valuation data for VIN:', vin);
+      const enhancedCachedData = ensureValidReservePrice(cachedData);
+      console.log('Enhanced cached data:', enhancedCachedData);
       
       // Even with cached data, we might need to create a reservation
       try {
-        if (!cachedData.isExisting) {
-          await createReservationFromCachedData(vin, userId, cachedData);
+        if (!enhancedCachedData.isExisting) {
+          await createReservationFromCachedData(vin, userId, enhancedCachedData);
         }
       } catch (error) {
         console.error('Reservation error with cached data:', error);
@@ -56,7 +119,7 @@ export async function processSellerValuation(
       return {
         success: true,
         data: {
-          ...cachedData,
+          ...enhancedCachedData,
           vin,
           transmission: gearbox
         }
@@ -76,7 +139,7 @@ export async function processSellerValuation(
     console.log('Seller valuation raw response:', data);
     
     // Check if car already exists
-    if (data?.data?.isExisting) {
+    if (data?.isExisting || data?.data?.isExisting) {
       return {
         success: true,
         data: {
@@ -88,16 +151,19 @@ export async function processSellerValuation(
       };
     }
     
+    // Extract the actual data object, handling nested structure if present
+    const valuationData = data?.data || data;
+    
     // Try to store reservation ID
-    if (data?.data?.reservationId) {
-      storeReservationId(data.data.reservationId);
+    if (valuationData?.reservationId) {
+      storeReservationId(valuationData.reservationId);
     }
     
     // If we don't have essential data
-    if (!hasEssentialData(data?.data)) {
+    if (!hasEssentialData(valuationData)) {
       console.log('No essential data found for VIN in seller context');
       return {
-        success: true,
+        success: false,
         data: {
           vin,
           transmission: gearbox,
@@ -107,26 +173,33 @@ export async function processSellerValuation(
       };
     }
     
+    // Ensure we have a valid reserve price by calculating it if necessary
+    const enhancedValuationData = ensureValidReservePrice(valuationData);
+    
     // Prepare the valuation data with required fields
-    const valuationData = {
-      make: data.data.make,
-      model: data.data.model,
-      year: data.data.year,
-      valuation: data.data.valuation,
-      averagePrice: data.data.averagePrice,
-      reservePrice: data.data.reservePrice,
+    const normalizedData = {
+      make: enhancedValuationData.make,
+      model: enhancedValuationData.model,
+      year: enhancedValuationData.year,
+      valuation: enhancedValuationData.valuation || enhancedValuationData.reservePrice,
+      averagePrice: enhancedValuationData.averagePrice || enhancedValuationData.basePrice || enhancedValuationData.price_med,
+      reservePrice: enhancedValuationData.reservePrice || enhancedValuationData.valuation,
+      basePrice: enhancedValuationData.basePrice || enhancedValuationData.averagePrice || enhancedValuationData.price_med,
       isExisting: false,
       vin,
       transmission: gearbox
     };
     
+    // Log the normalized data to ensure it has the necessary properties
+    console.log('Normalized valuation data:', normalizedData);
+    
     // Try to cache the data but do it in non-blocking way
-    storeSellerValuationCache(vin, mileage, valuationData);
+    storeSellerValuationCache(vin, mileage, normalizedData);
     
     console.log('Returning complete valuation data for seller context');
     return {
       success: true,
-      data: valuationData
+      data: normalizedData
     };
   } catch (error: any) {
     return handleApiError(error, vin, gearbox);

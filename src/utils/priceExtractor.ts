@@ -1,6 +1,15 @@
 
+/**
+ * Enhanced price extractor with better debugging
+ */
 export const extractPrice = (responseData: any): number | null => {
   console.log('Extracting price from response:', JSON.stringify(responseData, null, 2));
+
+  // If response is empty or invalid
+  if (!responseData) {
+    console.error('Price extraction failed: Empty response data');
+    return null;
+  }
 
   // Direct price fields with validation
   const directPrices = [
@@ -12,7 +21,11 @@ export const extractPrice = (responseData: any): number | null => {
     responseData?.estimated_value,
     responseData?.market_value,
     responseData?.value,
-    responseData?.suggested_price
+    responseData?.suggested_price,
+    // Add specific paths from the external API
+    responseData?.price_med,
+    responseData?.price_min,
+    responseData?.price_max
   ].filter(price => typeof price === 'number' && price > 0);
 
   if (directPrices.length > 0) {
@@ -52,6 +65,6 @@ export const extractPrice = (responseData: any): number | null => {
     return recursivePrice;
   }
 
-  console.log('No valid price found in response');
+  console.error('No valid price found in response');
   return null;
 };
