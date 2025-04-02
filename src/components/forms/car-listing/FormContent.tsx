@@ -20,6 +20,9 @@
  * - 2024-06-23: Fixed infinite re-render by consolidating progress tracking
  * - 2024-06-24: Added proper memoization of state updates and callbacks to prevent loops
  * - 2024-06-25: Fixed component communication to ensure one-way data flow
+ * - 2024-06-27: Fixed dependency arrays in useEffect hooks to prevent unnecessary renders
+ * - 2024-06-27: Added refs for values that shouldn't trigger effect reruns
+ * - 2024-06-27: Optimized state updates to reduce render cycles
  */
 
 import { useNavigate } from "react-router-dom";
@@ -41,7 +44,7 @@ import { FormProgressSection } from "./components/FormProgressSection";
 import { FormErrorSection } from "./components/FormErrorSection";
 import { MainFormContent } from "./components/MainFormContent";
 import { useFormActions } from "./hooks/useFormActions";
-import { useCallback, useMemo, useEffect, memo } from "react";
+import { useCallback, useMemo, useEffect, memo, useRef } from "react";
 import { FormDataProvider } from "./context/FormDataContext";
 
 interface FormContentProps {
@@ -65,6 +68,10 @@ export const FormContent = memo(({
   // Form state management
   const { formState, updateFormState } = useFormState();
   
+  // Use refs for values that shouldn't trigger effect reruns
+  const carIdRef = useRef<string | undefined>(formState.carId);
+  const lastSavedRef = useRef<Date | null>(formState.lastSaved);
+  
   // Form initialization and draft loading
   const { 
     isLoadingDraft, 
@@ -81,21 +88,23 @@ export const FormContent = memo(({
     retryCount
   });
 
-  // Update carId and lastSaved from draft loading - use useEffect to prevent render-time updates
+  // Update carId and lastSaved from draft loading - use refs to prevent render-time updates
   useEffect(() => {
-    if (carId && carId !== formState.carId) {
+    if (carId && carId !== carIdRef.current) {
+      carIdRef.current = carId;
       updateFormState(prev => ({ ...prev, carId }));
     }
     
-    if (lastSaved && lastSaved !== formState.lastSaved) {
+    if (lastSaved && (!lastSavedRef.current || lastSaved.getTime() !== lastSavedRef.current.getTime())) {
+      lastSavedRef.current = lastSaved;
       updateFormState(prev => ({ ...prev, lastSaved }));
     }
-  }, [carId, lastSaved, formState.carId, formState.lastSaved, updateFormState]);
+  }, [carId, lastSaved, updateFormState]);
 
   // Dialog management
   const { showSaveDialog, showSuccessDialog, actions: dialogActions } = useFormDialogs();
 
-  // Section visibility management
+  // Section visibility management - memoize dependencies
   const { visibleSections } = useSectionsVisibility(form, formState.carId);
   
   // Form step filtering
@@ -104,8 +113,8 @@ export const FormContent = memo(({
     setFormState: updateFormState
   });
 
-  // Step navigation - memoize to prevent recreation
-  const stepNavigation = useStepNavigation({
+  // Create a stable initialization object for step navigation
+  const stepNavigationConfig = useMemo(() => ({
     form,
     totalSteps: formState.totalSteps,
     initialStep: formState.currentStep,
@@ -113,7 +122,10 @@ export const FormContent = memo(({
       return true; // Will be updated after initialization
     },
     filteredSteps: typedStepConfigs
-  });
+  }), [form, formState.totalSteps, formState.currentStep, typedStepConfigs]);
+
+  // Step navigation - use memoized config
+  const stepNavigation = useStepNavigation(stepNavigationConfig);
 
   // Create a memoized save function to prevent recreation on every render
   const persistence = useFormPersistence({
@@ -123,7 +135,7 @@ export const FormContent = memo(({
     currentStep: stepNavigation.currentStep
   });
 
-  // Create a memoized save wrapper function
+  // Create a memoized save wrapper function with stable identity
   const saveWrapper = useCallback(async () => {
     try {
       await persistence.saveImmediately();
@@ -134,32 +146,47 @@ export const FormContent = memo(({
     }
   }, [persistence]);
   
-  // Update step navigation save function - use useEffect to prevent render-time updates
+  // Store initial save function reference
+  const initialSaveRef = useRef(saveWrapper);
+
+  // Update step navigation save function once on mount and when saveWrapper changes
+  // Use a ref to track if we've already set it to prevent loops
+  const hasUpdatedSaveFunctionRef = useRef(false);
+  
   useEffect(() => {
-    stepNavigation.updateSaveFunction(saveWrapper);
+    // Either this is the first time or saveWrapper has changed
+    if (!hasUpdatedSaveFunctionRef.current || initialSaveRef.current !== saveWrapper) {
+      stepNavigation.updateSaveFunction(saveWrapper);
+      initialSaveRef.current = saveWrapper;
+      hasUpdatedSaveFunctionRef.current = true;
+    }
   }, [stepNavigation, saveWrapper]);
 
   // Form submission - must happen after form is initialized
   const { handleSubmit: handleFormSubmit, isSubmitting } = useFormSubmission(session.user.id);
 
-  // Form actions - memoize to prevent recreation
-  const { onSubmit, handleSaveAndContinue, handleSave } = useFormActions({
+  // Form actions - memoize with stable dependencies to prevent recreation
+  const formActionsConfig = useMemo(() => ({
     handleFormSubmit,
     saveImmediately: persistence.saveImmediately,
     showSaveDialog: dialogActions.showSaveDialog,
     showSuccessDialog: dialogActions.showSuccessDialog
-  });
+  }), [handleFormSubmit, persistence.saveImmediately, dialogActions.showSaveDialog, dialogActions.showSuccessDialog]);
+  
+  const { onSubmit, handleSaveAndContinue, handleSave } = useFormActions(formActionsConfig);
 
-  // Form progress calculation
-  const { calculateFormProgress } = useFormProgress({
+  // Form progress calculation - use stable props to prevent recreation
+  const progressConfig = useMemo(() => ({
     form,
     currentStep: stepNavigation.currentStep,
     filteredStepsArray: formState.filteredStepsArray,
     completedSteps: stepNavigation.completedSteps,
     totalSteps: formState.totalSteps
-  });
+  }), [form, stepNavigation.currentStep, formState.filteredStepsArray, stepNavigation.completedSteps, formState.totalSteps]);
+  
+  const { calculateFormProgress } = useFormProgress(progressConfig);
 
-  // Validation error tracking
+  // Validation error tracking - with stable dependency
   const { getStepValidationErrors } = useValidationErrorTracking(form);
   
   // Calculate progress and errors - memoize to prevent recalculation on every render
@@ -182,6 +209,7 @@ export const FormContent = memo(({
     persistence.setIsOffline(status);
   }, [persistence]);
   
+  // Create a stable submit handler with minimal dependencies
   const handleFormSubmit2 = useCallback((data: any) => {
     return onSubmit(data, formState.carId);
   }, [onSubmit, formState.carId]);
