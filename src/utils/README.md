@@ -1,90 +1,136 @@
 
-# Utils Directory
+# Utility Functions
 
-This directory contains utility functions and helpers used throughout the application.
+This document provides an overview of the utility functions available in the application.
 
-## Timeout Utilities (`timeoutUtils.ts`)
+## API Utilities
 
-A set of standardized utilities for managing timeouts consistently across the application.
+### Error Utilities (`errorUtils.ts`)
 
-### Standardized Durations
+Functions for handling API errors consistently:
 
-The `TimeoutDurations` constant provides standardized timeout durations:
+#### `normalizeError<T>(error: any, config: ApiRequestConfig): ApiResponse<T>`
+
+Normalizes any error into a consistent `ApiResponse` format.
 
 ```typescript
-SHORT: 3000,       // 3 seconds - for quick operations, toasts
-STANDARD: 5000,    // 5 seconds - default duration for most operations
-MEDIUM: 10000,     // 10 seconds - for moderate operations like data fetching
-LONG: 20000,       // 20 seconds - for longer operations like uploads
-EXTENDED: 30000,   // 30 seconds - for complex operations like submissions
-CRITICAL: 60000    // 60 seconds - for critical operations that must complete
-```
+import { normalizeError } from "@/services/api/utils/errorUtils";
 
-### Core Utilities
-
-1. `createTimeout`: Creates a managed timeout with built-in cleanup
-2. `withTimeout`: Wraps a promise with a timeout (race condition)
-3. `useTimeoutManager`: React hook for managing multiple timeouts
-4. `delay`: Creates a promise that resolves after specified duration
-
-### Usage Examples
-
-**Basic Timeout with Cleanup:**
-```typescript
-const { clear, promise } = createTimeout(() => {
-  console.log('Timeout completed');
-}, TimeoutDurations.SHORT);
-
-// To cancel the timeout:
-clear();
-
-// To wait for completion:
-await promise;
-```
-
-**Promise with Timeout:**
-```typescript
 try {
-  const result = await withTimeout(
-    fetchData(),
-    TimeoutDurations.MEDIUM,
-    "Data fetching timed out"
-  );
-  handleSuccess(result);
+  // API call
 } catch (error) {
-  handleError(error);
+  return normalizeError(error, { silent: true });
 }
 ```
 
-**React Component Timeouts:**
+#### `isNetworkError(error: any): boolean`
+
+Determines if an error is related to network connectivity.
+
 ```typescript
-import { useTimeout, useInterval, useDebounce } from '@/hooks/useTimeout';
+import { isNetworkError } from "@/services/api/utils/errorUtils";
+
+if (isNetworkError(error)) {
+  // Handle offline scenario
+}
+```
+
+### Request Utilities (`requestUtils.ts`)
+
+Functions for making API requests:
+
+#### `makeRequest<T>(requestFn: () => Promise<T>, config: ApiRequestConfig): Promise<T>`
+
+Makes an API request with standardized error handling.
+
+## Type Guards
+
+### `isCarEntity(obj: any): obj is CarEntity`
+
+Type guard to ensure an object conforms to the `CarEntity` interface.
+
+```typescript
+import { isCarEntity } from "@/utils/typeGuards";
+
+if (isCarEntity(data)) {
+  // It's safe to use data.make, data.model, etc.
+}
+```
+
+### `isCarEntityArray(obj: any): obj is CarEntity[]`
+
+Type guard to ensure an object is an array of `CarEntity` objects.
+
+## Offline Status Hook
+
+### `useOfflineStatus(options?: UseOfflineStatusOptions)`
+
+Hook for detecting offline status with optional toast notifications.
+
+```typescript
+import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 
 function MyComponent() {
-  // Managed timeout
-  const { start, stop, reset } = useTimeout(() => {
-    console.log('Timeout completed');
-  }, TimeoutDurations.STANDARD);
+  const { isOffline } = useOfflineStatus({ showToasts: true });
   
-  // Debounced input handler
-  const debouncedSearch = useDebounce((query) => {
-    console.log('Searching for:', query);
-  }, 500);
+  if (isOffline) {
+    return <OfflineIndicator />;
+  }
   
-  // Interval
-  const { start: startInterval, stop: stopInterval } = useInterval(() => {
-    console.log('Interval tick');
-  }, 1000, true); // Execute immediately on start
-  
-  // All timeouts/intervals are automatically cleared on component unmount
+  // Regular component rendering
 }
 ```
 
-## Best Practices
+Options:
+- `showToasts`: Whether to show toast notifications when online/offline status changes
 
-1. Always use `TimeoutDurations` constants for consistency
-2. Always ensure timeouts are properly cleaned up to prevent memory leaks
-3. For React components, prefer the hook-based timeout utilities
-4. Use appropriate timeout durations based on expected operation time
-5. Always handle timeout errors gracefully with user feedback
+## API Request Hooks
 
+### `useApiRequest(options?: UseApiCoreOptions)`
+
+Hook providing all API methods in one place.
+
+```typescript
+import { useApiRequest } from "@/hooks/api";
+
+function MyComponent() {
+  const api = useApiRequest({
+    onSuccess: (data) => console.log('Success:', data),
+    onError: (error) => console.error('Error:', error)
+  });
+  
+  const handleClick = async () => {
+    await api.invokeFunction('my-function', { data: 'value' });
+    // No need to check for errors - handled by onError callback
+  };
+}
+```
+
+Options:
+- `onSuccess`: Callback for successful requests
+- `onError`: Callback for failed requests
+- `onSettled`: Callback that runs after request completes (success or failure)
+- `showSuccessToast`: Whether to show success toast notifications
+- `showErrorToast`: Whether to show error toast notifications
+
+## Valuation Service
+
+### `getVehicleValuation(vin, mileage, gearbox)`
+
+Get vehicle valuation data.
+
+```typescript
+import { getVehicleValuation } from "@/services/api/valuationService";
+
+const { data, error } = await getVehicleValuation('WVWZZZ1KZAM082351', 80000, 'manual');
+```
+
+### `getSellerValuation(vin, mileage, gearbox, userId)`
+
+Get seller-specific valuation with authentication.
+
+```typescript
+import { getSellerValuation } from "@/services/api/valuationService";
+
+const { data, error } = await getSellerValuation('WVWZZZ1KZAM082351', 80000, 'manual', userId);
+```
