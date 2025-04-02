@@ -1571,6 +1571,10 @@ export type Database = {
         }
         Returns: Json
       }
+      cleanup_expired_vin_reservations: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       cleanup_vin_valuation_cache: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1777,6 +1781,12 @@ export type Database = {
       }
       is_seller: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_vin_available: {
+        Args: {
+          p_vin: string
+        }
         Returns: boolean
       }
       log_admin_action: {

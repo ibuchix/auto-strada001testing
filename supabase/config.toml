@@ -15,3 +15,6 @@ verify_jwt = true
 
 [functions.validate-vin]
 verify_jwt = false
+
+[functions.reserve-vin]
+verify_jwt = false
