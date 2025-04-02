@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -48,6 +49,14 @@ export default {
         },
         body: "#222020",
         subtitle: "#6A6A77",
+        sidebar: {
+          DEFAULT: "var(--sidebar-bg, #FFFFFF)",
+          foreground: "var(--sidebar-fg, #222020)",
+          border: "var(--sidebar-border, #E0E0E0)",
+          ring: "var(--sidebar-ring, #0E0E2C)",
+          accent: "var(--sidebar-accent, #ECF1F4)",
+          "accent-foreground": "var(--sidebar-accent-fg, #222020)",
+        },
       },
       keyframes: {
         "fade-in": {

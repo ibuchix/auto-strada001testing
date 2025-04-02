@@ -15,6 +15,8 @@ export * from './SidebarRail';
 export * from './SidebarInput';
 export * from './SidebarInset';
 export * from './SidebarSeparator';
+export * from './SidebarTrigger';
+export * from './SidebarThemeToggle';
 export * from './types';
 export * from './hooks';
 
