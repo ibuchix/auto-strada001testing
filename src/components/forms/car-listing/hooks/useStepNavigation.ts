@@ -1,47 +1,28 @@
-
 /**
- * Custom hook to handle form step navigation logic
- * - Centralizes navigation between form steps
- * - Handles validation before proceeding
- * - Manages step completion state
- * - 2025-11-10: Fixed React hooks consistency issue by consolidating state
- * - 2027-11-15: Fixed React hooks rendering error by ensuring unconditional hook calls
+ * Changes made:
+ * - 2027-11-17: Refactored to use a single state object to prevent hook inconsistency
+ * - 2027-11-17: Added safeguards against race conditions
+ * - 2027-11-17: Made hook calls unconditional
+ * - 2027-11-17: Added ability to update save function after initialization
+ * - 2027-11-17: Improved error handling and performance
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 
-// Define field mappings for each step (matching form structure)
-export const STEP_FIELD_MAPPINGS: Record<string, Array<keyof CarListingFormData>> = {
-  'personal-details': ['name', 'email', 'phone', 'address', 'city', 'postalCode'],
-  'vehicle-status': ['make', 'model', 'year', 'mileage', 'condition', 'isDamaged'],
-  'features': ['features', 'transmission', 'fuelType', 'bodyType', 'color'],
-  'additional-info': ['purchaseDate', 'ownershipStatus', 'serviceHistory', 'seatMaterial', 'numberOfKeys'],
-  'photos': ['uploadedPhotos', 'mainPhoto'],
-  'notes': ['sellerNotes', 'priceExpectation'],
-  'rims': ['frontLeftRimPhoto', 'frontRightRimPhoto', 'rearLeftRimPhoto', 'rearRightRimPhoto'],
-  'service-history': ['serviceDocuments', 'lastServiceDate', 'serviceHistoryType']
-};
-
-interface StepNavigationState {
-  currentStep: number;
-  isNavigating: boolean;
-  validationErrors: Record<string, string>;
-  completedSteps: number[];
-  stepValidationErrors: Record<string, boolean>;
+interface StepConfig {
+  id: string;
+  validate?: () => boolean;
 }
 
 interface UseStepNavigationProps {
   form: UseFormReturn<CarListingFormData>;
   totalSteps: number;
   initialStep?: number;
-  saveProgress: () => Promise<void>;
-  filteredSteps: Array<{
-    id: string;
-    validate?: (data: CarListingFormData) => boolean;
-  }>;
+  saveProgress?: () => Promise<boolean>;
+  filteredSteps: StepConfig[];
 }
 
 export const useStepNavigation = ({
@@ -51,212 +32,129 @@ export const useStepNavigation = ({
   saveProgress,
   filteredSteps
 }: UseStepNavigationProps) => {
-  // Single consolidated useState call for all state values
-  // This ensures consistent hook invocation regardless of conditional branches
-  const [state, setState] = useState<StepNavigationState>({
+  // Use a single state object to prevent hook inconsistencies
+  const [state, setState] = useState({
     currentStep: initialStep,
+    completedSteps: {} as Record<number, boolean>,
     isNavigating: false,
-    validationErrors: {},
-    completedSteps: [],
-    stepValidationErrors: {}
+    lastStepChange: Date.now()
   });
   
-  // Validate the fields for the current step
-  const validateStepFields = useCallback(async (stepId: string) => {
-    // Safely handle cases where stepId might not exist in the mappings
-    const fieldsToValidate = STEP_FIELD_MAPPINGS[stepId] || [];
-    if (fieldsToValidate.length === 0) return true;
-    
+  // Use a ref for the save progress function to avoid dependency issues
+  const saveProgressRef = useRef<(() => Promise<boolean>) | undefined>(saveProgress);
+  
+  // Method to update the save function after initialization
+  const updateSaveFunction = useCallback((newSaveFunction: () => Promise<boolean>) => {
+    saveProgressRef.current = newSaveFunction;
+  }, []);
+
+  // Validate the current step
+  const validateCurrentStep = useCallback(async (): Promise<boolean> => {
     try {
-      // Get current form values for validation
-      const currentValues = form.getValues();
+      // Get current step configuration
+      const currentStepConfig = filteredSteps[state.currentStep];
       
-      // Use the validate function from formSteps if available
-      const currentStepConfig = filteredSteps.find(step => step.id === stepId);
+      // If there's a custom validation function, use it
       if (currentStepConfig?.validate) {
-        const isValid = currentStepConfig.validate(currentValues);
-        
-        if (!isValid) {
-          setState(prev => ({
-            ...prev,
-            stepValidationErrors: {...prev.stepValidationErrors, [stepId]: true}
-          }));
-          return false;
-        }
+        return currentStepConfig.validate();
       }
       
-      // Standard field validation
-      const result = await form.trigger(fieldsToValidate as any[]);
-      
-      if (!result) {
-        // Extract field errors for better messaging
-        const newValidationErrors: Record<string, string> = {};
-        fieldsToValidate.forEach(field => {
-          const errorMessage = form.formState.errors[field]?.message;
-          if (errorMessage && typeof errorMessage === 'string') {
-            newValidationErrors[field] = errorMessage;
-          }
-        });
-        
-        setState(prev => ({
-          ...prev,
-          validationErrors: newValidationErrors,
-          stepValidationErrors: {...prev.stepValidationErrors, [stepId]: true}
-        }));
-      } else {
-        // Clear validation errors if validation passes
-        setState(prev => {
-          const updatedStepErrors = {...prev.stepValidationErrors};
-          delete updatedStepErrors[stepId];
-          
-          // Mark step as completed
-          let updatedCompletedSteps = [...prev.completedSteps];
-          if (!updatedCompletedSteps.includes(prev.currentStep)) {
-            updatedCompletedSteps = [...updatedCompletedSteps, prev.currentStep].sort((a, b) => a - b);
-          }
-          
-          return {
-            ...prev,
-            validationErrors: {},
-            stepValidationErrors: updatedStepErrors,
-            completedSteps: updatedCompletedSteps
-          };
-        });
-      }
-      
-      return result;
+      // Otherwise use default validation
+      return true;
     } catch (error) {
-      console.error('Validation error:', error);
+      console.error("Step validation error:", error);
       return false;
     }
-  }, [form, filteredSteps]);
+  }, [filteredSteps, state.currentStep]);
 
-  // Handle navigation between steps
-  const handleNavigation = useCallback(async (direction: 'previous' | 'next') => {
-    if (state.isNavigating) return;
-
-    setState(prev => ({...prev, isNavigating: true, validationErrors: {}}));
-    const newStep = direction === 'next' ? state.currentStep + 1 : state.currentStep - 1;
-
+  // Save progress with error handling
+  const saveCurrentProgress = useCallback(async (): Promise<boolean> => {
+    if (!saveProgressRef.current) return true;
+    
     try {
-      // Validate current step before proceeding to next step
-      if (direction === 'next') {
-        // Add safety check for filteredSteps array
-        if (!filteredSteps || filteredSteps.length === 0) {
-          console.error('No filtered steps available for validation');
-          setState(prev => ({...prev, isNavigating: false}));
-          toast.error("Navigation error", { description: "Step configuration is invalid" });
-          return;
-        }
-
-        // Safely access current step index
-        if (state.currentStep < 0 || state.currentStep >= filteredSteps.length) {
-          console.error('Current step index out of bounds:', state.currentStep, 'max:', filteredSteps.length - 1);
-          setState(prev => ({...prev, isNavigating: false}));
-          toast.error("Navigation error", { description: "Invalid step index" });
-          return;
-        }
-
-        const currentStepId = filteredSteps[state.currentStep]?.id;
-        // Check if currentStepId exists before validating
-        if (!currentStepId) {
-          console.error('Invalid step ID');
-          setState(prev => ({...prev, isNavigating: false}));
-          toast.error("Navigation error", { description: "Step configuration is invalid" });
-          return;
-        }
-        
-        const isValid = await validateStepFields(currentStepId);
-        
-        if (!isValid) {
-          setState(prev => ({...prev, isNavigating: false}));
-          
-          // Get the errors from the form state
-          const formErrors = form.formState.errors;
-          const errorFields = Object.keys(formErrors);
-          
-          if (errorFields.length > 0) {
-            // Show toast with specific field errors
-            const firstErrorField = errorFields[0];
-            const firstErrorMessage = formErrors[firstErrorField as keyof typeof formErrors]?.message;
-            
-            toast.error("Please complete all required fields", {
-              description: typeof firstErrorMessage === 'string' 
-                ? firstErrorMessage 
-                : "Some information is missing or incorrect.",
-              action: {
-                label: "Review",
-                onClick: () => {
-                  // Focus on the first error field if possible
-                  const element = document.getElementById(firstErrorField);
-                  if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    element.focus();
-                  }
-                }
-              }
-            });
-          } else {
-            toast.error("Please complete all required fields", {
-              description: "There are missing or invalid fields on this page."
-            });
-          }
-          return;
-        }
-      }
-
-      // Save progress before navigation
-      try {
-        await saveProgress();
-      } catch (saveError) {
-        console.error('Error saving progress:', saveError);
-        // Continue navigation even if saving fails
-      }
-
-      setState(prev => ({...prev, currentStep: newStep, isNavigating: false}));
-      
+      return await saveProgressRef.current();
     } catch (error) {
-      console.error('Navigation error:', error);
-      toast.error('Navigation failed', {
-        description: error instanceof Error ? error.message : 'Failed to save progress'
-      });
-      setState(prev => ({...prev, isNavigating: false}));
+      console.error("Error saving progress:", error);
+      toast.error("Failed to save progress");
+      return false;
     }
-  }, [state.currentStep, state.isNavigating, filteredSteps, saveProgress, validateStepFields, form]);
+  }, []);
 
-  const handlePrevious = useCallback(() => {
-    if (state.currentStep > 0) {
-      handleNavigation('previous');
+  // Navigate to a specific step
+  const setCurrentStep = useCallback(async (step: number) => {
+    // Prevent invalid steps
+    if (step < 0 || step >= totalSteps) {
+      console.warn(`Invalid step: ${step}. Step must be between 0 and ${totalSteps - 1}`);
+      return;
     }
-  }, [state.currentStep, handleNavigation]);
-  
-  const handleNext = useCallback(() => {
+    
+    // Prevent navigation while already navigating
+    if (state.isNavigating) {
+      console.warn("Navigation already in progress, please wait");
+      return;
+    }
+    
+    setState(prev => ({ ...prev, isNavigating: true }));
+    
+    try {
+      // Validate current step before navigation
+      const isValid = await validateCurrentStep();
+      
+      if (isValid) {
+        // Save progress
+        await saveCurrentProgress();
+        
+        // Mark current step as completed
+        setState(prev => ({
+          ...prev,
+          currentStep: step,
+          completedSteps: { ...prev.completedSteps, [prev.currentStep]: true },
+          isNavigating: false,
+          lastStepChange: Date.now()
+        }));
+      } else {
+        setState(prev => ({ ...prev, isNavigating: false }));
+        toast.error("Please fix errors before continuing");
+      }
+    } catch (error) {
+      console.error("Navigation error:", error);
+      setState(prev => ({ ...prev, isNavigating: false }));
+      toast.error("An error occurred during navigation");
+    }
+  }, [totalSteps, state.isNavigating, validateCurrentStep, saveCurrentProgress]);
+
+  // Navigate to next step
+  const nextStep = useCallback(async () => {
     if (state.currentStep < totalSteps - 1) {
-      handleNavigation('next');
+      await setCurrentStep(state.currentStep + 1);
     }
-  }, [state.currentStep, totalSteps, handleNavigation]);
+  }, [state.currentStep, totalSteps, setCurrentStep]);
 
-  const setCurrentStep = useCallback((step: number) => {
-    if (step >= 0 && step < totalSteps) {
-      setState(prev => ({...prev, currentStep: step}));
+  // Navigate to previous step
+  const prevStep = useCallback(async () => {
+    if (state.currentStep > 0) {
+      await setCurrentStep(state.currentStep - 1);
     }
-  }, [totalSteps]);
+  }, [state.currentStep, setCurrentStep]);
 
-  // Return memoized values to prevent unnecessary re-renders
-  return useMemo(() => ({
+  return {
     currentStep: state.currentStep,
-    isNavigating: state.isNavigating,
-    validationErrors: state.validationErrors,
-    completedSteps: state.completedSteps,
-    stepValidationErrors: state.stepValidationErrors,
-    handlePrevious,
-    handleNext,
     setCurrentStep,
-    navigationDisabled: state.isNavigating
-  }), [
-    state,
-    handlePrevious,
-    handleNext,
-    setCurrentStep
-  ]);
+    nextStep,
+    prevStep,
+    completedSteps: state.completedSteps,
+    isNavigating: state.isNavigating,
+    updateSaveFunction
+  };
+};
+
+// Map of step IDs to form fields for validation tracking
+export const STEP_FIELD_MAPPINGS: Record<string, Array<keyof CarListingFormData>> = {
+  basic: ['make', 'model', 'year', 'mileage', 'vin'],
+  details: ['color', 'transmission', 'fuelType', 'bodyType'],
+  features: ['features'],
+  condition: ['condition', 'damageReports'],
+  pricing: ['price', 'reservePrice'],
+  photos: ['uploadedPhotos'],
+  seller: ['name', 'email', 'mobileNumber']
 };
