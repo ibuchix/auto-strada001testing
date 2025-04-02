@@ -1,8 +1,7 @@
 
 /**
- * Changes made:
- * - 2028-11-15: Extracted from StepForm.tsx to create a reusable progress indicator component
- * - 2024-06-05: Enhanced to be the single source of progress tracking in the form
+ * Form Progress Indicator component
+ * - Extracted from FormProgressSection.tsx to separate UI concerns
  */
 
 import { FormStepper } from "../FormStepper";
@@ -10,21 +9,27 @@ import { FormStepper } from "../FormStepper";
 interface FormProgressIndicatorProps {
   steps: any[];
   currentStep: number;
+  totalSteps: number;
   onStepChange: (step: number) => void;
   visibleSections: string[];
   completedSteps: number[];
   validationErrors: Record<string, boolean>;
   description?: string;
+  lastSaved?: Date | null;
+  onOfflineChange?: (status: boolean) => void;
 }
 
 export const FormProgressIndicator = ({
   steps,
   currentStep,
+  totalSteps,
   onStepChange,
   visibleSections,
   completedSteps,
   validationErrors,
-  description
+  description,
+  lastSaved,
+  onOfflineChange
 }: FormProgressIndicatorProps) => {
   return (
     <>

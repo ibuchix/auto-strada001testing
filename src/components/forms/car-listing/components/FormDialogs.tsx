@@ -4,8 +4,8 @@
  * - Extracted from FormContent.tsx to separate dialog management
  */
 import { memo } from "react";
-import { FormSaveDialog } from "../FormSaveDialog";
-import { FormSuccessDialog } from "../FormSuccessDialog";
+import { FormSaveDialog } from "./FormSaveDialog";
+import { FormSuccessDialog } from "./FormSuccessDialog";
 
 interface FormDialogsProps {
   showSuccessDialog: boolean;

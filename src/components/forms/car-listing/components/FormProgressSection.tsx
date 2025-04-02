@@ -4,7 +4,7 @@
  * - Extracted from FormContent.tsx to separate UI concerns
  */
 import { memo } from "react";
-import { FormProgressIndicator } from "../FormProgressIndicator";
+import { FormProgressIndicator } from "./FormProgressIndicator";
 
 interface FormProgressSectionProps {
   currentStep: number;
