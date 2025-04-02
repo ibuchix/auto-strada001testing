@@ -1,15 +1,16 @@
-
 /**
  * Changes made:
  * - 2024-06-17: Fixed TypeScript type errors for Supabase RPC response data
  * - 2024-06-17: Added proper type assertions and interfaces for bid responses
  * - 2024-06-18: Fixed type conversion error with safer type assertion
+ * - Current: Updated to use dedicated proxy bid processing service
  */
 
 import { useState } from 'react';
 import { useToast } from './use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
+import { processCarProxyBids } from '@/services/proxyBidService';
 
 // Define proper interfaces for RPC responses
 interface BidResponse {
@@ -78,26 +79,14 @@ export const useBidding = () => {
           variant: 'default',
         });
         
-        // If it's a proxy bid, trigger the background process to execute it
+        // If it's a proxy bid, trigger the dedicated function to execute it
         if (isProxyBid) {
-          // Call the edge function to process proxy bids
-          const proxyProcessResponse = await fetch(
-            `${import.meta.env.VITE_SUPABASE_FUNCTIONS_URL}/handle-seller-operations`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                operation: 'process_proxy_bids',
-                carId
-              }),
-            }
-          );
-          
-          if (!proxyProcessResponse.ok) {
-            console.warn('Proxy bid placed but processing failed. System will retry automatically.');
+          try {
+            // Use the dedicated proxy bid processing service
+            await processCarProxyBids(carId, { showToasts: false });
+          } catch (proxyError) {
+            // Just log the error, don't fail the bid (processing can happen later)
+            console.warn('Proxy bid placed but processing failed. System will retry automatically.', proxyError);
           }
         }
         
