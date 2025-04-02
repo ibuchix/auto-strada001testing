@@ -8,6 +8,7 @@
  * - 2027-11-17: Added proper fallbacks for all conditional data
  * - 2027-11-19: Fixed TypeScript compatibility issues with hook return types
  * - 2028-11-10: Fixed progress percentage calculation to ignore default values
+ * - 2028-11-11: Fixed totalSteps reference error in calculateFormProgress function
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -327,6 +328,9 @@ export const FormContent = ({
     let totalFields = 0;
     let completedFields = 0;
     
+    // Get the total number of steps for use in calculations
+    const totalSteps = formState.totalSteps;
+    
     // Count all fields in the form that are visible in current step and previous steps
     Object.entries(formValues).forEach(([key, value]) => {
       if (key === 'seller_id' || key === 'valuation_data' || key === 'form_metadata') return; // Skip system fields
@@ -417,7 +421,7 @@ export const FormContent = ({
     
     // Ensure minimum progress is shown when form is started (psychological benefit)
     return Math.max(progress, formState.currentStep > 0 ? 10 : 5);
-  }, [form, formState.currentStep, formState.filteredStepsArray, stepNavigation.completedSteps, totalSteps]);
+  }, [form, formState.currentStep, formState.filteredStepsArray, stepNavigation.completedSteps, formState.totalSteps]);
 
   // Get validation errors by step for progress tracking
   const getStepValidationErrors = useCallback(() => {
