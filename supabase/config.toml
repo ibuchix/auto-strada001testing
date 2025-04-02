@@ -1,2 +1,17 @@
 
 project_id = "sdvakfhmoaoucmhbhwvy"
+
+[functions.handle-car-listing]
+verify_jwt = true
+
+[functions.get-vehicle-valuation]
+verify_jwt = false
+
+[functions.handle-seller-operations]
+verify_jwt = false
+
+[functions.create-car-listing]
+verify_jwt = true
+
+[functions.validate-vin]
+verify_jwt = false
