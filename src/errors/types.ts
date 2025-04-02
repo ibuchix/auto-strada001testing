@@ -1,6 +1,7 @@
 
 /**
  * Updated 2028-05-15: Added additional error types and codes for better error handling
+ * Updated 2028-05-18: Added INVALID_VIN error code and fixed RecoveryAction field property
  */
 
 export enum ErrorCategory {
@@ -40,7 +41,8 @@ export enum ValidationErrorCode {
   PATTERN_MISMATCH = 'pattern_mismatch',
   DUPLICATE_VALUE = 'duplicate_value',
   MISSING_VALUATION = 'missing_valuation',
-  INCOMPLETE_FORM = 'incomplete_form'
+  INCOMPLETE_FORM = 'incomplete_form',
+  INVALID_VIN = 'invalid_vin' // Added this missing error code
 }
 
 export enum SubmissionErrorCode {

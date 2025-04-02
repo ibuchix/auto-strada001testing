@@ -2,6 +2,7 @@
 /**
  * General Error Handler Component
  * Created 2028-05-15: Provides consistent error handling UI
+ * Updated 2028-05-18: Added support for category prop
  */
 
 import React from "react";
@@ -15,12 +16,25 @@ interface GeneralErrorHandlerProps {
   error: Error | unknown;
   resetError?: () => void;
   fallbackUI?: React.ReactNode;
+  category?: ErrorCategory;  // Added category prop
+  title?: string;  // Added title prop
+  description?: string;  // Added description prop
+  primaryAction?: {  // Added primaryAction prop
+    label: string;
+    onClick: () => void;
+  };
+  onRetry?: () => void;  // Added onRetry prop
 }
 
 export const GeneralErrorHandler = ({
   error,
   resetError,
-  fallbackUI
+  fallbackUI,
+  category: providedCategory,  // Use the category if provided
+  title,
+  description,
+  primaryAction,
+  onRetry
 }: GeneralErrorHandlerProps) => {
   const navigate = useNavigate();
   
@@ -31,11 +45,21 @@ export const GeneralErrorHandler = ({
       ? error 
       : 'An unknown error occurred';
   
-  // Detect error category
-  const errorCategory = determineErrorCategory(error);
+  // Detect error category - use provided category or determine from error
+  const errorCategory = providedCategory || determineErrorCategory(error);
   
   // Handle different error types differently
   const handleErrorAction = () => {
+    if (onRetry) {
+      onRetry();
+      return;
+    }
+    
+    if (primaryAction) {
+      primaryAction.onClick();
+      return;
+    }
+    
     switch (errorCategory) {
       case ErrorCategory.AUTHENTICATION:
         navigate('/auth');
@@ -61,8 +85,8 @@ export const GeneralErrorHandler = ({
     <div className="p-4 max-w-md mx-auto">
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{errorMessage}</AlertDescription>
+        <AlertTitle>{title || "Error"}</AlertTitle>
+        <AlertDescription>{description || errorMessage}</AlertDescription>
         <div className="mt-4 flex justify-end">
           <Button 
             variant="outline" 
@@ -71,7 +95,7 @@ export const GeneralErrorHandler = ({
             className="flex items-center gap-2"
           >
             <RefreshCw size={14} />
-            {getActionLabel(errorCategory)}
+            {primaryAction?.label || getActionLabel(errorCategory)}
           </Button>
         </div>
       </Alert>

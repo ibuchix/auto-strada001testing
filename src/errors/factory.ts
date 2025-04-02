@@ -3,7 +3,7 @@
  * Error factory for creating standardized error objects
  * Created: 2025-12-01
  * Updated: 2028-05-15: Enhanced with new error types
- * Purpose: Provides a single source of truth for creating application errors
+ * Updated: 2028-05-18: Fixed RecoveryAction property names
  */
 
 import {
@@ -36,7 +36,7 @@ export function createFieldError(field: string, message: string, options: {
   const focusAction = options.focus !== false ? () => {
     const element = document.getElementById(field);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTimeout(() => element.focus(), 100);
     }
   } : () => {};
@@ -49,7 +49,7 @@ export function createFieldError(field: string, message: string, options: {
     recovery: {
       type: RecoveryType.FIELD_CORRECTION,
       label: 'Fix Field',
-      field,
+      fieldId: field,  // Changed from 'field' to 'fieldId'
       action: focusAction
     }
   });

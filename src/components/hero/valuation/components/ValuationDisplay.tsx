@@ -10,13 +10,14 @@
  * - 2024-12-14: Fixed price rendering and added better debugging for valuation issues
  * - 2026-04-10: Added strict type checking and proper null/undefined handling
  * - 2026-04-15: Enhanced error resilience and improved visual feedback
+ * - 2028-05-18: Fixed GeneralErrorHandler props
  */
 
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, Info } from "lucide-react";
 import { useEffect } from "react";
 import { GeneralErrorHandler } from "@/components/error-handling/GeneralErrorHandler";
-import { ErrorCategory } from "@/utils/errorHandlers";
+import { ErrorCategory } from "@/errors/types";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 
 interface ValuationDisplayProps {
