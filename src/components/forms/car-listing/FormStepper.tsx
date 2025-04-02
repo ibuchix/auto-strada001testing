@@ -6,6 +6,7 @@
  * - Created separate Desktop and Mobile stepper components
  * - Added accessibility utility hook
  * - Improved code organization and readability
+ * - Fixed tooltip import and usage
  */
 
 import { useCallback } from 'react';

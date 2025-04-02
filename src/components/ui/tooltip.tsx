@@ -2,6 +2,7 @@
 /**
  * Created: 2028-06-14
  * Simple tooltip component for showing additional information
+ * Updated: 2028-09-21: Added TooltipProvider, TooltipContent, and TooltipTrigger components for compatibility
  */
 
 import { ReactNode } from "react";
@@ -21,4 +22,17 @@ export const Tooltip = ({ children, content }: TooltipProps) => {
       </div>
     </div>
   );
+};
+
+// Add these components for compatibility with existing code
+export const TooltipProvider = ({ children }: { children: ReactNode }) => {
+  return <>{children}</>;
+};
+
+export const TooltipContent = ({ children }: { children: ReactNode }) => {
+  return <>{children}</>;
+};
+
+export const TooltipTrigger = ({ asChild, children }: { asChild?: boolean; children: ReactNode }) => {
+  return <>{children}</>;
 };
