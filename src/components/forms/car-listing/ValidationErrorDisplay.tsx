@@ -6,13 +6,14 @@
  * - Visual indicators for error severity
  * - 2027-11-21: Updated props interface to support string array or record format
  * - 2028-03-27: Fixed type definition for validationErrors to properly handle string arrays
+ * - 2024-06-22: Updated interface to support various error formats consistently
  */
 
 import { AlertCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ValidationErrorDisplayProps {
-  validationErrors: string[] | Record<string, string>;
+  validationErrors: string[] | Record<string, string> | any;
   title?: string;
   onDismiss?: () => void;
 }
@@ -22,19 +23,28 @@ export const ValidationErrorDisplay = ({
   title = "Please correct the following errors:",
   onDismiss
 }: ValidationErrorDisplayProps) => {
-  // Handle both array and record formats for validation errors
+  // Handle different formats of validation errors
   const hasErrors = Array.isArray(validationErrors) 
     ? validationErrors.length > 0
-    : Object.keys(validationErrors).length > 0;
+    : typeof validationErrors === 'object' && validationErrors !== null
+      ? Object.keys(validationErrors).length > 0
+      : false;
     
   if (!hasErrors) {
     return null;
   }
 
-  // Convert validation errors to array format if it's a record
+  // Convert validation errors to array format for consistent display
   const errorsArray = Array.isArray(validationErrors)
     ? validationErrors
-    : Object.entries(validationErrors).map(([field, message]) => `${field}: ${message}`);
+    : typeof validationErrors === 'object' && validationErrors !== null
+      ? Object.entries(validationErrors).map(([field, message]) => 
+          typeof message === 'string' 
+            ? `${field}: ${message}`
+            : Array.isArray(message) 
+              ? message.join(', ') 
+              : `${field}: Invalid format`)
+      : [String(validationErrors)];
 
   // Get the count of errors
   const errorCount = errorsArray.length;
@@ -64,9 +74,9 @@ export const ValidationErrorDisplay = ({
           <ul className="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
             {errorsArray.map((error, index) => {
               // Extract field name if the error is in format "field: message"
-              const match = error.match(/^([^:]+):\s*(.+)$/);
+              const match = String(error).match(/^([^:]+):\s*(.+)$/);
               const field = match ? match[1] : '';
-              const message = match ? match[2] : error;
+              const message = match ? match[2] : String(error);
               
               return (
                 <li key={index} className="flex items-start">

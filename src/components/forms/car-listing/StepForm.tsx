@@ -89,6 +89,18 @@ export const StepForm = ({
     }, [] as number[]);
   }, [completedSteps]);
   
+  // Convert stepValidationErrors (Record<number, string[]>) to the format expected by FormProgressIndicator
+  const formattedValidationErrors = useMemo(() => {
+    const formatted: Record<string, boolean> = {};
+    
+    // Convert numeric keys to strings and map arrays to booleans (has errors or not)
+    Object.entries(stepValidationErrors).forEach(([stepIndex, errors]) => {
+      formatted[stepIndex] = Array.isArray(errors) && errors.length > 0;
+    });
+    
+    return formatted;
+  }, [stepValidationErrors]);
+  
   // Enhanced wrapper functions to ensure proper async handling and debugging
   const handlePreviousWrapper = async (): Promise<void> => {
     console.log("Previous button clicked in StepForm");
@@ -125,7 +137,7 @@ export const StepForm = ({
         onStepChange={handleStepChange}
         visibleSections={visibleSections}
         completedSteps={completedStepsArray}
-        validationErrors={stepValidationErrors}
+        validationErrors={formattedValidationErrors}
         description={filteredSteps[currentStep]?.description}
       />
       

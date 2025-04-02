@@ -4,6 +4,7 @@
  * - 2024-06-20: Extracted error handling from FormContent.tsx
  * - Created a dedicated component for error display and handling
  * - 2024-06-21: Fixed TypeScript typing to properly handle error object
+ * - 2024-06-22: Updated interface to accept Record<number, string[]> for step validation errors
  */
 
 import { ValidationErrorDisplay } from "../ValidationErrorDisplay";
@@ -19,11 +20,16 @@ export const FormErrorSection = ({ validationErrors }: FormErrorSectionProps) =>
     !Array.isArray(validationErrors) && 
     Object.keys(validationErrors).length > 0
   ) {
-    const currentStepErrors = Object.values(validationErrors)[0];
+    // Find the first key with errors
+    const firstKey = Object.keys(validationErrors)[0];
+    const currentStepErrors = validationErrors[firstKey];
+    
+    // If the errors are an array and it's empty, don't show anything
     if (Array.isArray(currentStepErrors) && currentStepErrors.length === 0) {
       return null;
     }
     
+    // Pass the errors to the ValidationErrorDisplay component
     return <ValidationErrorDisplay validationErrors={currentStepErrors || []} />;
   }
   
