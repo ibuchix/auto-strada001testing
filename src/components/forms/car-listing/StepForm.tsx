@@ -89,16 +89,32 @@ export const StepForm = ({
     }, [] as number[]);
   }, [completedSteps]);
   
+  // Enhanced wrapper functions to ensure proper async handling and debugging
   const handlePreviousWrapper = async (): Promise<void> => {
-    await handlePrevious();
+    console.log("Previous button clicked in StepForm");
+    try {
+      await handlePrevious();
+    } catch (error) {
+      console.error("Error in handlePreviousWrapper:", error);
+    }
   };
   
   const handleNextWrapper = async (): Promise<void> => {
-    await handleNext();
+    console.log("Next button clicked in StepForm");
+    try {
+      await handleNext();
+    } catch (error) {
+      console.error("Error in handleNextWrapper:", error);
+    }
   };
   
   const saveProgressWrapper = async (): Promise<void> => {
-    await saveProgress();
+    console.log("Save button clicked in StepForm");
+    try {
+      await saveProgress();
+    } catch (error) {
+      console.error("Error in saveProgressWrapper:", error);
+    }
   };
   
   return (

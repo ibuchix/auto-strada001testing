@@ -6,6 +6,7 @@
  * - 2027-11-21: Updated props interface for better type safety
  * - 2028-03-27: Updated function signatures to match required return types
  * - 2028-03-28: Fixed navigation button handling to prevent errors and provide better feedback
+ * - 2028-11-16: Fixed Next button functionality by improving error handling and event flow
  */
 
 import { Button } from "@/components/ui/button";
@@ -53,29 +54,43 @@ export const FormNavigationControls = ({
   }, [isNavigating]);
 
   // Handle next button click with loading state
-  const handleNextClick = async () => {
-    if (isProcessing) return;
+  const handleNextClick = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default form submission
+    
+    if (isProcessing || isNavigating) {
+      console.log("Navigation already in progress, ignoring click");
+      return;
+    }
     
     try {
+      console.log("Next button clicked, setting isProcessing to true");
       setIsProcessing(true);
       await onNext();
     } catch (error) {
       console.error("Error navigating to next step:", error);
     } finally {
+      console.log("Navigation completed, setting isProcessing to false");
       setIsProcessing(false);
     }
   };
   
   // Handle previous button click
-  const handlePreviousClick = async () => {
-    if (isProcessing) return;
+  const handlePreviousClick = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default form submission
+    
+    if (isProcessing || isNavigating) {
+      console.log("Navigation already in progress, ignoring click");
+      return;
+    }
     
     try {
+      console.log("Previous button clicked, setting isProcessing to true");
       setIsProcessing(true);
       await onPrevious();
     } catch (error) {
       console.error("Error navigating to previous step:", error);
     } finally {
+      console.log("Navigation completed, setting isProcessing to false");
       setIsProcessing(false);
     }
   };

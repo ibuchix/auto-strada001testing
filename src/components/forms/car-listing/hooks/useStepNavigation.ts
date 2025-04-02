@@ -12,6 +12,7 @@
  * - 2028-03-27: Refactored into smaller, more focused hooks
  * - 2028-03-28: Fixed isValid variable reference error in finally block
  * - 2028-03-28: Fixed navigation logic to properly handle Next button click
+ * - 2028-11-16: Fixed issue with Next button not working by ensuring proper validation flow
  */
 
 import { useCallback, useEffect } from "react";
@@ -106,15 +107,20 @@ export const useStepNavigation = ({
         // Mark current step as completed and update step
         markStepComplete(currentStep);
         setStepState(step);
-        setNavigating(false);
       } else {
-        setNavigating(false);
-        toast.error("Please fix errors before continuing");
+        // Show toast notification for validation error
+        toast.error("Please fix errors before continuing", {
+          id: "validation-error",
+          duration: 3000
+        });
       }
     } catch (error) {
       console.error("Navigation error:", error);
+      toast.error("An error occurred during navigation", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
+    } finally {
       setNavigating(false);
-      toast.error("An error occurred during navigation");
     }
   }, [
     totalSteps, 
@@ -130,6 +136,7 @@ export const useStepNavigation = ({
   // Navigate to next step
   const nextStep = useCallback(async () => {
     if (currentStep < totalSteps - 1) {
+      console.log("Attempting to navigate to next step:", currentStep + 1);
       await setCurrentStep(currentStep + 1);
     }
   }, [currentStep, totalSteps, setCurrentStep]);
@@ -137,17 +144,20 @@ export const useStepNavigation = ({
   // Navigate to previous step
   const prevStep = useCallback(async () => {
     if (currentStep > 0) {
+      console.log("Navigating to previous step:", currentStep - 1);
       await setCurrentStep(currentStep - 1);
     }
   }, [currentStep, setCurrentStep]);
 
   // Helper functions for compatibility with existing code
   const handleNext = useCallback(async () => {
+    console.log("handleNext called");
     await nextStep();
     return true;
   }, [nextStep]);
 
   const handlePrevious = useCallback(async () => {
+    console.log("handlePrevious called");
     await prevStep();
     return true;
   }, [prevStep]);
