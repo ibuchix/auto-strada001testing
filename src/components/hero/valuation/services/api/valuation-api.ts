@@ -5,6 +5,7 @@
  * - 2025-11-05: Integrated with robust API client for automatic retries and error handling
  * - 2025-11-06: Fixed TypeScript response type issues
  * - 2025-11-10: Updated to use consolidated handle-seller-operations function
+ * - 2025-12-01: Updated to use dedicated get-vehicle-valuation endpoint
  */
 
 import { apiClient } from "@/services/api/apiClientService";
@@ -36,8 +37,8 @@ export async function fetchHomeValuation(
 ): Promise<ValuationResponse> {
   console.log('Fetching home valuation from API for:', { vin, mileage, gearbox });
   
-  const response = await apiClient.invokeFunction('handle-seller-operations', {
-    operation: 'get_valuation',
+  // Use the dedicated valuation endpoint
+  const response = await apiClient.invokeFunction('get-vehicle-valuation', {
     vin, 
     mileage, 
     gearbox
@@ -52,6 +53,7 @@ export async function fetchHomeValuation(
 
 /**
  * Fetch valuation data for seller context with user authentication
+ * This still uses handle-seller-operations as it needs additional seller-specific validation
  */
 export async function fetchSellerValuation(
   vin: string,

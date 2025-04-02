@@ -17,6 +17,7 @@ export async function getVehicleValuation(
   try {
     console.log('Getting valuation for:', { vin, mileage, gearbox });
     
+    // Use the dedicated valuation endpoint
     const { data, error } = await supabase.functions.invoke(
       'get-vehicle-valuation',
       {
@@ -50,6 +51,8 @@ export async function getVehicleValuation(
 
 /**
  * Get seller valuation for a vehicle by VIN (with auth)
+ * This still uses the handle-seller-operations endpoint as it needs
+ * additional seller-specific validation
  */
 export async function getSellerValuation(
   vin: string, 

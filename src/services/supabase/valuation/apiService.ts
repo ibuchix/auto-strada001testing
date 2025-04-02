@@ -6,6 +6,7 @@
  * - 2025-05-01: Fixed method name inconsistencies to match ValuationCacheService
  * - 2025-06-12: Updated to use consolidated handle-seller-operations endpoint
  * - 2025-06-15: Refactored to use consolidated approach with combined operations
+ * - 2025-06-18: Updated to use dedicated get-vehicle-valuation endpoint for better separation of concerns
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
@@ -24,9 +25,9 @@ export class ValuationApiService extends ValuationServiceBase {
         return cachedData;
       }
       
-      const { data, error } = await this.supabase.functions.invoke('handle-seller-operations', {
+      // Use dedicated valuation endpoint instead of handle-seller-operations
+      const { data, error } = await this.supabase.functions.invoke('get-vehicle-valuation', {
         body: { 
-          operation: "get_valuation",
           vin, 
           mileage, 
           gearbox 
@@ -53,6 +54,8 @@ export class ValuationApiService extends ValuationServiceBase {
    */
   async getSellerValuation(vin: string, mileage: number, gearbox: string, userId: string): Promise<ValuationData | null> {
     try {
+      // For seller validation we still use handle-seller-operations as it needs to perform
+      // additional seller-specific validation
       const { data, error } = await this.supabase.functions.invoke('handle-seller-operations', {
         body: {
           operation: 'validate_vin',
