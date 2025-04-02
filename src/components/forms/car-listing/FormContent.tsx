@@ -29,6 +29,7 @@
  * - 2028-05-15: Wrapped critical sections in error boundaries
  * - 2028-05-15: Added detailed debugging logs for key state changes
  * - 2028-05-18: Fixed form initialization to prevent stuck loading state
+ * - 2028-05-19: Fixed form context issue causing "form.formState is undefined" error
  */
 
 import { useNavigate } from "react-router-dom";
@@ -304,6 +305,17 @@ export const FormContent = memo(({
                     handleComponentError(error);
                     debugLog('Error in main content section', error);
                   }}
+                  fallback={
+                    <div className="bg-white rounded-lg shadow-sm p-6">
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Something went wrong</AlertTitle>
+                        <AlertDescription>
+                          There was an error loading the form content. Please try refreshing the page.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  }
                 >
                   <MainFormContent
                     currentStep={stepNavigation.currentStep}

@@ -2,11 +2,13 @@
 /**
  * Main Form Content component
  * - Extracted from FormContent.tsx to separate the main form rendering logic
+ * - Updated 2025-04-02: Fixed form context usage to prevent undefined form errors
  */
 import { memo } from "react";
 import { StepForm } from "../StepForm";
 import { FormNavigationControls } from "../FormNavigationControls";
 import { FormFooter } from "../FormFooter";
+import { useFormData } from "../context/FormDataContext";
 
 interface MainFormContentProps {
   currentStep: number;
@@ -37,6 +39,9 @@ export const MainFormContent = memo(({
   onSaveAndContinue,
   onSave
 }: MainFormContentProps) => {
+  // Get form from context instead of expecting it as a prop
+  const { form } = useFormData();
+  
   return (
     <div className="relative">
       {/* Conditionally show submitting overlay if needed */}
@@ -50,7 +55,7 @@ export const MainFormContent = memo(({
       )}
       
       <StepForm 
-        form={undefined} // This will be provided by context
+        form={form} // Pass form from context
         currentStep={currentStep}
         setCurrentStep={setCurrentStep}
         carId={carId}

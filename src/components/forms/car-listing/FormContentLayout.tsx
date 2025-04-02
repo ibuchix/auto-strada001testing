@@ -2,6 +2,7 @@
 /**
  * Form Content Layout - Controls the overall layout of the form
  * Created 2028-05-18: Fixed loading state display to prevent form getting stuck
+ * Updated 2028-05-19: Added proper error handling and Alert imports
  */
 
 import { ReactNode } from "react";

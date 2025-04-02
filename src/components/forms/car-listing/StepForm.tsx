@@ -34,6 +34,17 @@ export const StepForm = ({
   visibleSections,
   isSaving = false
 }: StepFormProps) => {
+  // Safeguard against undefined form
+  if (!form) {
+    console.error("Form is undefined in StepForm component");
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+        <p className="text-red-500">Error: Form context not available</p>
+        <p>Please refresh the page and try again</p>
+      </div>
+    );
+  }
+
   // Filter steps based on visible sections
   const filteredSteps = useMemo(() => {
     return formSteps.filter(step => {
