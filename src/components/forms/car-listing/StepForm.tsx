@@ -69,36 +69,57 @@ export const StepForm = ({
 
   // Calculate overall form completion percentage
   const completionPercentage = useMemo(() => {
+    // For initial rendering, just show progress based on completed steps
+    const completedStepsCount = Object.values(completedSteps).filter(Boolean).length;
+    const basicProgress = totalSteps > 0 ? Math.round((completedStepsCount / totalSteps) * 100) : 0;
+    
+    // Don't count fields that just have default values
     const formValues = form.getValues();
     let totalFields = 0;
     let completedFields = 0;
     
-    // Count fields from all visible steps
-    filteredSteps.forEach(step => {
-      const fieldsInStep = STEP_FIELD_MAPPINGS[step.id] || [];
+    // Only count fields from the current and previous steps
+    for (let i = 0; i <= currentStep; i++) {
+      if (i >= filteredSteps.length) continue;
+      
+      const fieldsInStep = STEP_FIELD_MAPPINGS[filteredSteps[i].id] || [];
       
       fieldsInStep.forEach(field => {
         const fieldValue = formValues[field as keyof CarListingFormData];
         totalFields++;
         
-        // Check if the field has a value
+        // Only count a field as completed if it has been explicitly set or modified
+        // This prevents counting default values as completed
         if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
-          if (typeof fieldValue === 'object') {
-            // For objects like features, check if any property is true
-            if (Array.isArray(fieldValue)) {
-              if (fieldValue.length > 0) completedFields++;
-            } else if (Object.values(fieldValue).some(v => v)) {
+          // For arrays, check if they have been modified from default empty state
+          if (Array.isArray(fieldValue)) {
+            if (fieldValue.length > 0) completedFields++;
+          } 
+          // For objects, check if they have properties that are true
+          else if (typeof fieldValue === 'object') {
+            if (Object.values(fieldValue).some(v => v === true)) {
               completedFields++;
             }
-          } else {
+          } 
+          // For primitive values, check if they're truthy or numeric values (including 0)
+          else if (fieldValue || typeof fieldValue === 'number') {
             completedFields++;
           }
         }
       });
-    });
+    }
     
-    return totalFields > 0 ? (completedFields / totalFields) * 100 : 0;
-  }, [form, filteredSteps]);
+    // Calculate more accurate percentage based on fields
+    const fieldProgress = totalFields > 0 ? Math.round((completedFields / totalFields) * 100) : 0;
+    
+    // Combine both metrics, giving more weight to field progress for early steps
+    // and more weight to step completion for later steps
+    const stepRatio = currentStep / totalSteps;
+    const combinedProgress = Math.round(fieldProgress * (1 - stepRatio) + basicProgress * stepRatio);
+    
+    // Ensure progress is never more than actual step completion percentage
+    return Math.min(combinedProgress, basicProgress > 0 ? basicProgress : 10);
+  }, [form, filteredSteps, currentStep, completedSteps, totalSteps]);
 
   // Sync external state with internal state
   const handleStepChange = (step: number) => {
@@ -200,4 +221,3 @@ export const StepForm = ({
     </div>
   );
 };
-

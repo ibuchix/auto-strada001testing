@@ -11,6 +11,7 @@
  * - 2027-11-20: Fixed validate function call with proper argument handling
  * - 2028-03-27: Refactored into smaller, more focused hooks
  * - 2028-03-28: Fixed isValid variable reference error in finally block
+ * - 2028-03-28: Fixed navigation logic to properly handle Next button click
  */
 
 import { useCallback, useEffect } from "react";
@@ -85,11 +86,18 @@ export const useStepNavigation = ({
     
     setNavigating(true);
     
-    let isValidStep = false; // Define a variable to track validation status
-    
     try {
-      // Validate current step before navigation
-      isValidStep = await validateCurrentStep();
+      // For back navigation, we don't need to validate
+      if (step < currentStep) {
+        await saveCurrentProgress();
+        markStepComplete(currentStep);
+        setStepState(step);
+        setNavigating(false);
+        return;
+      }
+      
+      // For forward navigation, validate current step
+      const isValidStep = await validateCurrentStep();
       
       if (isValidStep) {
         // Save progress
@@ -98,6 +106,7 @@ export const useStepNavigation = ({
         // Mark current step as completed and update step
         markStepComplete(currentStep);
         setStepState(step);
+        setNavigating(false);
       } else {
         setNavigating(false);
         toast.error("Please fix errors before continuing");
@@ -106,10 +115,6 @@ export const useStepNavigation = ({
       console.error("Navigation error:", error);
       setNavigating(false);
       toast.error("An error occurred during navigation");
-    } finally {
-      if (isValidStep) {
-        setNavigating(false);
-      }
     }
   }, [
     totalSteps, 
