@@ -11,6 +11,7 @@
  * - 2025-09-18: Added request timeout handling and additional error recovery
  * - 2025-10-18: Fixed TypeScript type errors related to TransmissionType casting
  * - 2025-10-19: Fixed duplicate export issues causing SyntaxError
+ * - 2025-11-01: Fixed VIN validation flow with improved error handling and logging
  */
 
 import { ValuationResult, TransmissionType } from "../types";
@@ -55,6 +56,31 @@ export const getValuation = async (
   }
   
   try {
+    // Validate inputs before proceeding
+    if (!vin || vin.length < 11 || vin.length > 17) {
+      console.error('Invalid VIN format:', vin);
+      return {
+        success: false,
+        data: {
+          error: 'Invalid VIN format. Please enter a valid 17-character VIN.',
+          vin,
+          transmission: gearbox as TransmissionType
+        }
+      };
+    }
+
+    if (isNaN(mileage) || mileage < 0) {
+      console.error('Invalid mileage value:', mileage);
+      return {
+        success: false,
+        data: {
+          error: 'Please enter a valid mileage value.',
+          vin,
+          transmission: gearbox as TransmissionType
+        }
+      };
+    }
+    
     // Delegate to the appropriate context handler with timeout
     const timeoutPromise = new Promise<ValuationResult>((_, reject) => {
       setTimeout(() => {
@@ -64,6 +90,8 @@ export const getValuation = async (
     
     // Cast the gearbox string to TransmissionType for type safety
     const transmissionType = gearbox as TransmissionType;
+    
+    console.log(`Calling ${context} valuation processor with:`, { vin, mileage, transmissionType });
     
     const valuationPromise = context === 'seller' 
       ? processSellerValuation(vin, mileage, transmissionType)

@@ -1,316 +1,111 @@
 
 /**
  * Changes made:
- * - 2024-07-25: Extracted home valuation from valuationService.ts
- * - 2025-09-18: Added additional error handling and recovery mechanisms
- * - 2025-10-18: Fixed TypeScript type safety with TransmissionType
- * - 2025-10-20: Fixed reserve price calculation and display
- * - 2024-12-14: Added error resilience, fixed calculateReservePrice, and improved response handling
- * - 2025-12-22: Fixed property naming consistency and improved data handling
- * - 2025-12-23: Fixed TypeScript type issues with property access on dynamic objects
- * - 2026-04-10: Added strict type checking and proper data normalization
+ * - 2025-05-15: Created home-valuation processor extracted from valuationService
+ * - 2025-11-01: Fixed VIN validation flow with improved error handling and API integration
  */
 
-import { supabase } from "@/integrations/supabase/client";
 import { ValuationResult, TransmissionType, ValuationData } from "../types";
-import { getCachedValuation, storeValuationInCache } from "./api/cache-api";
+import { fetchHomeValuation } from "./api/valuation-api";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Calculate reserve price based on the pricing tiers
- * Implemented exactly according to the business requirements
- */
-function calculateReservePrice(basePrice: number): number {
-  let percentage = 0;
-  
-  // Determine percentage based on base price tiers
-  if (basePrice <= 15000) {
-    percentage = 0.65;
-  } else if (basePrice <= 20000) {
-    percentage = 0.46;
-  } else if (basePrice <= 30000) {
-    percentage = 0.37;
-  } else if (basePrice <= 50000) {
-    percentage = 0.27;
-  } else if (basePrice <= 60000) {
-    percentage = 0.27;
-  } else if (basePrice <= 70000) {
-    percentage = 0.22;
-  } else if (basePrice <= 80000) {
-    percentage = 0.23;
-  } else if (basePrice <= 100000) {
-    percentage = 0.24;
-  } else if (basePrice <= 130000) {
-    percentage = 0.20;
-  } else if (basePrice <= 160000) {
-    percentage = 0.185;
-  } else if (basePrice <= 200000) {
-    percentage = 0.22;
-  } else if (basePrice <= 250000) {
-    percentage = 0.17;
-  } else if (basePrice <= 300000) {
-    percentage = 0.18;
-  } else if (basePrice <= 400000) {
-    percentage = 0.18;
-  } else if (basePrice <= 500000) {
-    percentage = 0.16;
-  } else {
-    percentage = 0.145; // 500,001+ PLN
-  }
-  
-  // Calculate reserve price using the formula: basePrice - (basePrice * percentage)
-  return Math.round(basePrice - (basePrice * percentage));
-}
-
-/**
- * Process valuation for the home page context
+ * Process valuation for home page context
  */
 export async function processHomeValuation(
   vin: string,
   mileage: number,
-  gearbox: TransmissionType
+  transmission: TransmissionType
 ): Promise<ValuationResult> {
-  console.log('Processing home page valuation for VIN:', vin);
+  console.log('Starting home valuation process for VIN:', vin);
   
   try {
-    // Try to get cached valuation first for performance
-    try {
-      const cachedData = await getCachedValuation(vin, mileage);
-      if (cachedData) {
-        console.log('Using cached valuation data for VIN:', vin, cachedData);
-        
-        // Create a properly typed normalized data object
-        const normalizedData: Record<string, any> = { ...cachedData };
-        
-        // Ensure valuation/reserve price is available in cached data
-        if (!normalizedData.valuation && !normalizedData.reservePrice && normalizedData.basePrice) {
-          const calculatedPrice = calculateReservePrice(Number(normalizedData.basePrice));
-          normalizedData.valuation = calculatedPrice;
-          normalizedData.reservePrice = calculatedPrice;
-          console.log('Calculated reserve price from cached base price:', calculatedPrice);
-        } else if (normalizedData.valuation && !normalizedData.reservePrice) {
-          normalizedData.reservePrice = normalizedData.valuation;
-        } else if (!normalizedData.valuation && normalizedData.reservePrice) {
-          normalizedData.valuation = normalizedData.reservePrice;
-        }
-        
-        // Create a ValuationData compatible result
-        return {
-          success: true,
-          data: {
-            ...normalizedData,
-            vin,
-            transmission: gearbox,
-            // Ensure numeric type for valuation
-            valuation: normalizedData.valuation ? Number(normalizedData.valuation) : undefined,
-            reservePrice: normalizedData.reservePrice ? Number(normalizedData.reservePrice) : undefined,
-            averagePrice: normalizedData.averagePrice ? Number(normalizedData.averagePrice) : undefined,
-            basePrice: normalizedData.basePrice ? Number(normalizedData.basePrice) : undefined
-          }
-        };
-      }
-    } catch (cacheError) {
-      console.warn('Cache error, continuing with API call:', cacheError);
-      // Continue with API call - don't let cache errors block the flow
-    }
+    // First check if we have this valuation in cache
+    const { data: cachedValuation } = await supabase
+      .from('vin_valuation_cache')
+      .select('valuation_data')
+      .eq('vin', vin)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
     
-    // Get valuation from API
-    console.log('Calling valuation API for VIN:', vin);
-    
-    const startTime = Date.now();
-    
-    // First try the direct get-vehicle-valuation edge function
-    try {
-      const { data: directData, error: directError } = await supabase.functions.invoke('get-vehicle-valuation', {
-        body: { 
-          vin, 
-          mileage, 
-          gearbox 
-        },
-        headers: {
-          'X-Request-Timeout': '15000' // 15 second timeout on the edge function side
-        }
-      });
+    if (cachedValuation?.valuation_data) {
+      console.log('Using cached valuation data for VIN:', vin);
       
-      const endTime = Date.now();
-      console.log(`Direct API response time: ${endTime - startTime}ms`);
-      
-      if (!directError && directData?.success) {
-        console.log('Direct valuation API response:', directData);
-        
-        // Prepare the response with normalized fields
-        const responseData: Record<string, any> = {}; 
-        
-        // Copy all properties from API response
-        if (directData.data && typeof directData.data === 'object') {
-          Object.keys(directData.data).forEach(key => {
-            responseData[key] = directData.data[key];
-          });
-        }
-        
-        // Add required fields
-        responseData.vin = vin;
-        responseData.transmission = gearbox;
-        
-        // Ensure reservePrice is set for consistent property access
-        if (!('reservePrice' in responseData) && 'valuation' in responseData) {
-          responseData.reservePrice = responseData.valuation;
-        } else if (!('valuation' in responseData) && 'reservePrice' in responseData) {
-          responseData.valuation = responseData.reservePrice;
-        }
-        
-        // Store in cache for future use
-        try {
-          await storeValuationInCache(vin, mileage, responseData);
-        } catch (cacheError) {
-          console.warn('Failed to cache valuation data:', cacheError);
-          // Non-critical, continue with operation
-        }
-        
-        // Create a ValuationData compatible result
-        return {
-          success: true,
-          data: {
-            ...responseData,
-            // Ensure numeric type for valuation
-            valuation: responseData.valuation ? Number(responseData.valuation) : undefined,
-            reservePrice: responseData.reservePrice ? Number(responseData.reservePrice) : undefined,
-            averagePrice: responseData.averagePrice ? Number(responseData.averagePrice) : undefined,
-            basePrice: responseData.basePrice ? Number(responseData.basePrice) : undefined
-          }
-        };
-      }
-      
-      // If direct call failed, we'll try the fallback below
-      console.log('Direct API call did not return valid data, trying fallback...');
-    } catch (directError) {
-      console.warn('Direct API call failed:', directError);
-      // Continue with fallback approach
-    }
-    
-    // Fallback to handle-seller-operations edge function
-    const { data, error } = await supabase.functions.invoke('handle-seller-operations', {
-      body: {
-        operation: 'validate_vin',
+      // Ensure the data is in the correct format
+      const valuationData: ValuationData = {
+        ...cachedValuation.valuation_data,
         vin,
         mileage,
-        gearbox,
-        userId: 'anonymous' // For home page context, we use anonymous
-      },
-      headers: {
-        'X-Request-Timeout': '15000' // 15 second timeout on the edge function side
-      }
-    });
-    const endTime = Date.now();
-    
-    console.log(`Fallback API response time: ${endTime - startTime}ms`);
-    console.log('Fallback API response:', data);
-    
-    if (error) {
-      console.error('Valuation API error:', error);
-      throw error;
-    }
-    
-    if (!data.success) {
-      console.error('Validation failed:', data.data?.error);
+        transmission
+      };
+      
       return {
-        success: false,
-        data: {
-          error: data.data?.error || 'Failed to validate VIN',
-          vin,
-          transmission: gearbox
-        }
+        success: true,
+        data: valuationData
       };
     }
     
-    // Successfully retrieved valuation data
-    console.log('Valuation data successfully retrieved:', data.data);
+    // No cache hit, make the API call
+    console.log('No cache hit, calling valuation API for VIN:', vin);
+    const { data, error } = await fetchHomeValuation(vin, mileage, transmission);
     
-    // Prepare the response with normalized fields
-    const responseData: Record<string, any> = { vin, transmission: gearbox };
-    
-    // Copy all properties from API response
-    if (data.data && typeof data.data === 'object') {
-      Object.keys(data.data).forEach(key => {
-        responseData[key] = data.data[key];
-      });
+    if (error) {
+      console.error('Error from valuation API:', error);
+      throw error;
     }
     
-    // Ensure consistent property names
-    if (!('reservePrice' in responseData) && 'valuation' in responseData) {
-      responseData.reservePrice = responseData.valuation;
-    } else if (!('valuation' in responseData) && 'reservePrice' in responseData) {
-      responseData.valuation = responseData.reservePrice;
+    if (!data) {
+      console.error('No data returned from valuation API');
+      throw new Error('No valuation data available for this vehicle');
     }
     
-    // Calculate reserve price if needed
-    if (!responseData.valuation && !responseData.reservePrice) {
-      // Try using basePrice
-      if (responseData.basePrice || responseData.price_min) {
-        // If we have basePrice, use it directly
-        if (responseData.basePrice) {
-          const calculatedPrice = calculateReservePrice(Number(responseData.basePrice));
-          responseData.valuation = calculatedPrice;
-          responseData.reservePrice = calculatedPrice;
-          console.log('Calculated valuation from basePrice:', calculatedPrice);
-        } 
-        // Otherwise calculate basePrice from price_min and price_med
-        else if (responseData.price_min && responseData.price_med) {
-          const basePrice = (parseFloat(String(responseData.price_min)) + parseFloat(String(responseData.price_med))) / 2;
-          responseData.basePrice = basePrice;
-          const calculatedPrice = calculateReservePrice(basePrice);
-          responseData.valuation = calculatedPrice;
-          responseData.reservePrice = calculatedPrice;
-          console.log('Calculated basePrice and valuation:', basePrice, calculatedPrice);
-        }
-      }
-    }
-    
-    // Log the final response data
-    console.log('Final valuation result with reserve price:', {
-      valuation: responseData.valuation,
-      reservePrice: responseData.reservePrice,
-      basePrice: responseData.basePrice
-    });
+    // Ensure the response has the required fields
+    const valuationData: ValuationData = {
+      ...data,
+      vin,
+      mileage,
+      transmission,
+      // Ensure these fields exist with fallbacks
+      make: data.make || 'Unknown',
+      model: data.model || 'Unknown',
+      year: data.year || new Date().getFullYear(),
+      valuation: data.valuation || 0,
+      averagePrice: data.averagePrice || data.valuation || 0,
+      reservePrice: data.reservePrice || data.valuation || 0
+    };
     
     // Store in cache for future use
     try {
-      if (!data.data?.isExisting) {
-        await storeValuationInCache(vin, mileage, responseData);
-      }
+      await supabase
+        .from('vin_valuation_cache')
+        .upsert({
+          vin,
+          mileage,
+          valuation_data: valuationData
+        });
+      
+      console.log('Valuation data cached successfully');
     } catch (cacheError) {
       console.warn('Failed to cache valuation data:', cacheError);
       // Non-critical, continue with operation
     }
     
+    console.log('Home valuation completed successfully:', valuationData);
+    
     return {
       success: true,
-      data: {
-        ...responseData,
-        // Ensure numeric type for numeric values
-        valuation: responseData.valuation ? Number(responseData.valuation) : undefined,
-        reservePrice: responseData.reservePrice ? Number(responseData.reservePrice) : undefined,
-        averagePrice: responseData.averagePrice ? Number(responseData.averagePrice) : undefined,
-        basePrice: responseData.basePrice ? Number(responseData.basePrice) : undefined
-      }
+      data: valuationData
     };
-    
   } catch (error: any) {
-    console.error('Home valuation processing error:', error);
-    
-    // Check if this is a timeout or network error
-    const isTimeoutError = error.message?.includes('timeout') || 
-                          error.message?.includes('network') ||
-                          error.code === 'ECONNABORTED' ||
-                          error.code === 'ETIMEDOUT';
+    console.error('Error in processHomeValuation:', error);
     
     return {
       success: false,
       data: {
-        error: isTimeoutError 
-          ? 'Connection timed out. Please try again later.' 
-          : error.message || 'Failed to get valuation',
+        error: error.message || 'Failed to get vehicle valuation',
         vin,
-        transmission: gearbox
+        transmission,
       }
     };
   }
