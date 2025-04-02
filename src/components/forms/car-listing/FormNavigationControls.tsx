@@ -4,6 +4,7 @@
  * Provides navigation buttons for a multi-step form with improved visual hierarchy
  * Enhanced with micro-interactions for better user feedback
  * - 2027-11-21: Updated props interface for better type safety
+ * - 2028-03-27: Updated function signatures to match required return types
  */
 
 import { Button } from "@/components/ui/button";

@@ -5,6 +5,7 @@
  * - Provides easy navigation to error fields
  * - Visual indicators for error severity
  * - 2027-11-21: Updated props interface to support string array or record format
+ * - 2028-03-27: Fixed type definition for validationErrors to properly handle string arrays
  */
 
 import { AlertCircle, XCircle } from "lucide-react";

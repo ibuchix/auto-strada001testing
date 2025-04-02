@@ -13,6 +13,7 @@
  * - 2027-11-19: Fixed TypeScript compatibility issues with useStepNavigation
  * - 2027-11-20: Fixed type errors with validationErrors and Promise return types
  * - 2027-11-21: Updated function return types and fixed validation errors type
+ * - 2028-03-27: Updated to work with refactored step navigation hooks
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -25,7 +26,7 @@ import { ValidationErrorDisplay } from "./ValidationErrorDisplay";
 import { FormNavigationControls } from "./FormNavigationControls";
 import { useStepNavigation } from "./hooks/useStepNavigation";
 import { useMemo } from "react";
-import { STEP_FIELD_MAPPINGS } from "./hooks/useStepNavigation";
+import { STEP_FIELD_MAPPINGS } from "./hooks/useStepValidation";
 import { SwipeNavigation } from "./SwipeNavigation";
 
 interface StepFormProps {
@@ -157,7 +158,7 @@ export const StepForm = ({
           onStepChange={handleStepChange}
           visibleSections={visibleSections}
           completedSteps={completedStepsArray}
-          validationErrors={stepValidationErrors as Record<string, boolean>}
+          validationErrors={stepValidationErrors}
         />
       </div>
       
