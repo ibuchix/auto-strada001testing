@@ -13,14 +13,18 @@
  * - 2028-05-18: Fixed GeneralErrorHandler props
  * - 2028-06-02: Fixed zero price display issue and improved debugging
  * - 2028-06-03: Added better debug logging for valuation data
+ * - 2028-06-14: Enhanced error resilience with comprehensive null/undefined checks
+ * - 2028-06-14: Added detailed debug view toggle for troubleshooting
+ * - 2028-06-14: Improved visual feedback during processing states
  */
 
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle, Info } from "lucide-react";
-import { useEffect } from "react";
+import { RefreshCw, AlertCircle, Info, Bug } from "lucide-react";
+import { useEffect, useState } from "react";
 import { GeneralErrorHandler } from "@/components/error-handling/GeneralErrorHandler";
 import { ErrorCategory } from "@/errors/types";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface ValuationDisplayProps {
   reservePrice: number | undefined | null;
@@ -37,6 +41,8 @@ export const ValuationDisplay = ({
   error,
   onRetry
 }: ValuationDisplayProps) => {
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  
   // Debug log props on mount and when they change
   useEffect(() => {
     console.log('ValuationDisplay mounted/updated with props:', {
@@ -56,20 +62,28 @@ export const ValuationDisplay = ({
         isPositive: Number(reservePrice) > 0,
         formatted: new Intl.NumberFormat('pl-PL').format(Number(reservePrice))
       });
+    } else {
+      console.log('Reserve price validation failed:', {
+        isUndefined: reservePrice === undefined,
+        isNull: reservePrice === null,
+        rawValue: reservePrice
+      });
     }
   }, [reservePrice, averagePrice, isLoading, error]);
 
+  // Enhanced loading state with more visual feedback
   if (isLoading) {
     return (
-      <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
-        <p className="text-sm text-subtitle mb-2">Calculating...</p>
+      <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center animate-pulse">
+        <p className="text-sm text-subtitle mb-2">Calculating valuation...</p>
         <div className="flex items-center justify-center">
-          <LoadingIndicator message="" />
+          <LoadingIndicator message="Processing your vehicle data" />
         </div>
       </div>
     );
   }
 
+  // Improved error handling with more context
   if (error) {
     return (
       <div className="bg-primary/5 border border-primary/20 rounded-lg p-6">
@@ -88,7 +102,7 @@ export const ValuationDisplay = ({
     );
   }
 
-  // Improved validation of reserve price with more detailed logging
+  // Enhanced validation of reserve price with more detailed logging
   const hasValidPrice = (
     reservePrice !== undefined && 
     reservePrice !== null && 
@@ -116,6 +130,9 @@ export const ValuationDisplay = ({
             No valuation available
           </p>
         </div>
+        <p className="text-sm text-subtitle mb-4">
+          We couldn't calculate a valuation for this vehicle.
+        </p>
         {onRetry && (
           <Button 
             variant="outline" 
@@ -127,6 +144,33 @@ export const ValuationDisplay = ({
             Try Again
           </Button>
         )}
+        
+        {/* Debug information toggle for troubleshooting */}
+        <div className="mt-4 pt-2 border-t border-gray-200">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-subtitle flex items-center gap-1"
+            onClick={() => setShowDebugInfo(!showDebugInfo)}
+          >
+            <Bug className="h-3 w-3" />
+            {showDebugInfo ? "Hide Details" : "Technical Details"}
+          </Button>
+          
+          {showDebugInfo && (
+            <div className="mt-2 p-2 bg-gray-100 rounded text-left overflow-auto max-h-40 text-xs">
+              <pre>
+                {JSON.stringify({
+                  reservePrice,
+                  reservePriceType: typeof reservePrice,
+                  isNull: reservePrice === null,
+                  isUndefined: reservePrice === undefined,
+                  averagePrice
+                }, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -143,6 +187,36 @@ export const ValuationDisplay = ({
       <p className="text-4xl font-bold text-primary">
         PLN {formattedPrice}
       </p>
+      
+      {/* Debug toggle button - only visible in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-4 pt-2 border-t border-gray-200">
+          <Tooltip content="Technical debugging information">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-subtitle flex items-center gap-1"
+              onClick={() => setShowDebugInfo(!showDebugInfo)}
+            >
+              <Bug className="h-3 w-3" />
+              {showDebugInfo ? "Hide Debug" : "Show Debug"}
+            </Button>
+          </Tooltip>
+          
+          {showDebugInfo && (
+            <div className="mt-2 p-2 bg-gray-100 rounded text-left overflow-auto max-h-40 text-xs">
+              <pre>
+                {JSON.stringify({
+                  reservePrice: priceValue,
+                  rawValue: reservePrice,
+                  formatted: formattedPrice,
+                  averagePrice
+                }, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

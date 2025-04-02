@@ -1,61 +1,91 @@
-
 /**
- * Changes made:
- * - 2027-06-20: Created utility for normalizing valuation data as part of code refactoring
+ * Created: 2028-06-14
+ * Utility functions to normalize and validate valuation data
  */
 
-import { ValuationData } from "../types";
+import { ValuationData, TransmissionType } from "../types";
 
 /**
- * Normalize valuation result data to handle property name variations and type conversions
+ * Normalizes valuation data ensuring consistent property names and values
  */
-export function normalizeValuationData(valuationResult: ValuationData): ValuationData {
-  if (!valuationResult) return {};
-  
-  console.log('Normalizing valuation data');
-  const normalized = { ...valuationResult };
-  
-  // Ensure either reservePrice or valuation is available (if one exists without the other)
-  if (normalized.valuation !== undefined && normalized.reservePrice === undefined) {
-    normalized.reservePrice = normalized.valuation;
-    console.log('Using valuation as reservePrice:', normalized.valuation);
-  } else if (normalized.reservePrice !== undefined && normalized.valuation === undefined) {
-    normalized.valuation = normalized.reservePrice;
-    console.log('Using reservePrice as valuation:', normalized.reservePrice);
+export function normalizeValuationData(data: any): ValuationData {
+  // If data is falsy, return an empty object with proper typing
+  if (!data) {
+    console.warn('Normalizing empty valuation data');
+    return {} as ValuationData;
   }
   
-  // Convert string values to numbers if needed
-  if (typeof normalized.valuation === 'string') {
-    normalized.valuation = Number(normalized.valuation);
-    console.log('Converted valuation string to number:', normalized.valuation);
-  }
-  if (typeof normalized.reservePrice === 'string') {
-    normalized.reservePrice = Number(normalized.reservePrice);
-    console.log('Converted reservePrice string to number:', normalized.reservePrice);
-  }
-  if (typeof normalized.averagePrice === 'string') {
-    normalized.averagePrice = Number(normalized.averagePrice);
-    console.log('Converted averagePrice string to number:', normalized.averagePrice);
-  }
+  console.log('Normalizing valuation data:', {
+    hasValuation: !!data.valuation,
+    hasReservePrice: !!data.reservePrice,
+    hasBasePrice: !!data.basePrice,
+    hasAveragePrice: !!data.averagePrice
+  });
+  
+  // Create a normalized valuation data object
+  const normalized: ValuationData = {
+    // Basic vehicle information
+    make: data.make || '',
+    model: data.model || '',
+    year: data.year || new Date().getFullYear(),
+    vin: data.vin || '',
+    mileage: data.mileage || 0,
+    
+    // Ensure the transmission type is valid or default to manual
+    transmission: (data.transmission === 'manual' || data.transmission === 'automatic') 
+      ? data.transmission as TransmissionType 
+      : 'manual' as TransmissionType,
+      
+    // Handle valuation values
+    // Use the first available price value for reserve price (priority order)
+    reservePrice: data.reservePrice || data.valuation || 0,
+    
+    // Use the first available price value for valuation (priority order)
+    valuation: data.valuation || data.reservePrice || 0,
+    
+    // Use the first available price value for average price (priority order)
+    averagePrice: data.averagePrice || data.basePrice || data.price_med || 0,
+    
+    // Other properties
+    isExisting: !!data.isExisting,
+    error: data.error || '',
+    noData: !!data.noData
+  };
   
   return normalized;
 }
 
 /**
- * Validate if the normalized data has all required fields
+ * Validates if valuation data contains all required properties
  */
-export function validateValuationData(data: ValuationData): boolean {
+export function validateValuationData(data: any): boolean {
   if (!data) return false;
   
-  // Check if we have any error
-  if (data.error || data.noData) return false;
+  // Check if we have all the basic required vehicle data
+  const hasBasicData = Boolean(
+    data.make && 
+    data.model && 
+    data.year
+  );
   
-  // Check for essential car info
-  const hasCarInfo = !!data.make && !!data.model;
+  // Check if we have either valuation or reservePrice
+  const hasPriceData = Boolean(
+    ((data.reservePrice || data.reservePrice === 0) && Number(data.reservePrice) >= 0) || 
+    ((data.valuation || data.valuation === 0) && Number(data.valuation) >= 0)
+  );
   
-  // Check for valuation data
-  const hasValuation = (data.valuation !== undefined && data.valuation !== null) || 
-                       (data.reservePrice !== undefined && data.reservePrice !== null);
+  const isValid = hasBasicData && hasPriceData;
   
-  return hasCarInfo && hasValuation;
+  console.log('Validation result for valuation data:', {
+    isValid,
+    hasBasicData,
+    hasPriceData,
+    make: data.make,
+    model: data.model,
+    year: data.year,
+    reservePrice: data.reservePrice,
+    valuation: data.valuation
+  });
+  
+  return isValid;
 }
