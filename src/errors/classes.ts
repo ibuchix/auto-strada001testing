@@ -3,6 +3,7 @@
  * Error classes for structured error handling
  * Created: 2025-12-01
  * Updated: 2028-05-18: Added missing error classes and fixed extension
+ * Updated: 2028-05-20: Added missing properties used across the application
  */
 
 import { ErrorCategory, RecoveryAction, ValidationErrorCode, AuthErrorCode, SubmissionErrorCode, NetworkErrorCode } from './types';
@@ -14,6 +15,8 @@ interface BaseErrorOptions {
   description?: string;
   recovery?: RecoveryAction;
   retryable?: boolean;
+  metadata?: Record<string, any>;
+  id?: string;
 }
 
 export class BaseApplicationError extends Error {
@@ -22,6 +25,8 @@ export class BaseApplicationError extends Error {
   description?: string;
   recovery?: RecoveryAction;
   retryable: boolean;
+  metadata?: Record<string, any>;
+  id: string;
 
   constructor({ 
     message, 
@@ -29,7 +34,9 @@ export class BaseApplicationError extends Error {
     category = ErrorCategory.GENERAL,
     description,
     recovery,
-    retryable = true 
+    retryable = true,
+    metadata,
+    id
   }: BaseErrorOptions) {
     super(message);
     this.code = code;
@@ -37,6 +44,8 @@ export class BaseApplicationError extends Error {
     this.description = description;
     this.recovery = recovery;
     this.retryable = retryable;
+    this.metadata = metadata || {};
+    this.id = id || crypto.randomUUID();
     
     // Ensure instanceof works correctly
     Object.setPrototypeOf(this, new.target.prototype);

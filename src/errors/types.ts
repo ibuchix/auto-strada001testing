@@ -2,6 +2,7 @@
 /**
  * Updated 2028-05-15: Added additional error types and codes for better error handling
  * Updated 2028-05-18: Added INVALID_VIN error code and fixed RecoveryAction field property
+ * Updated 2028-05-20: Added missing error codes to match actual usage in the codebase
  */
 
 export enum ErrorCategory {
@@ -42,7 +43,13 @@ export enum ValidationErrorCode {
   DUPLICATE_VALUE = 'duplicate_value',
   MISSING_VALUATION = 'missing_valuation',
   INCOMPLETE_FORM = 'incomplete_form',
-  INVALID_VIN = 'invalid_vin' // Added this missing error code
+  INVALID_VIN = 'invalid_vin',
+  // Added missing validation error codes
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  SCHEMA_VALIDATION_ERROR = 'SCHEMA_VALIDATION_ERROR',
+  RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
+  SERVER_VALIDATION_FAILED = 'SERVER_VALIDATION_FAILED',
+  AUTHENTICATION_REQUIRED = 'AUTHENTICATION_REQUIRED'
 }
 
 export enum SubmissionErrorCode {
@@ -52,7 +59,14 @@ export enum SubmissionErrorCode {
   VALIDATION_FAILED = 'validation_failed',
   MISSING_FIELD = 'missing_field',
   UNAUTHORIZED = 'unauthorized',
-  TRANSACTION_FAILED = 'transaction_failed'
+  TRANSACTION_FAILED = 'transaction_failed',
+  // Added missing submission error codes
+  SUBMISSION_ERROR = 'SUBMISSION_ERROR',
+  INVALID_INPUT = 'INVALID_INPUT',
+  SCHEMA_VALIDATION_ERROR = 'SCHEMA_VALIDATION_ERROR',
+  DUPLICATE_SUBMISSION = 'DUPLICATE_SUBMISSION',
+  DATABASE_CONSTRAINT = 'DATABASE_CONSTRAINT',
+  SUBMISSION_FAILED = 'SUBMISSION_FAILED'
 }
 
 export enum AuthErrorCode {
