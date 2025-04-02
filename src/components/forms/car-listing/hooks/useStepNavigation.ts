@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2027-11-17: Refactored to use a single state object to prevent hook inconsistency
@@ -8,6 +7,7 @@
  * - 2027-11-17: Improved error handling and performance
  * - 2027-11-19: Fixed TypeScript return types to ensure compatibility
  * - 2027-11-19: Added validation errors tracking and step error handling
+ * - 2027-11-20: Fixed validate function call with proper argument handling
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -61,13 +61,8 @@ export const useStepNavigation = ({
       
       // If there's a custom validation function, use it
       if (currentStepConfig?.validate) {
-        // If it needs form data, provide it
-        const validate = currentStepConfig.validate;
-        if (validate.length > 0) { // Check if validation function expects parameters
-          return validate(form.getValues());
-        } else {
-          return validate();
-        }
+        // Call the validate function without arguments
+        return currentStepConfig.validate();
       }
       
       // Otherwise use default validation
@@ -76,7 +71,7 @@ export const useStepNavigation = ({
       console.error("Step validation error:", error);
       return false;
     }
-  }, [filteredSteps, state.currentStep, form]);
+  }, [filteredSteps, state.currentStep]);
 
   // Save progress with error handling
   const saveCurrentProgress = useCallback(async (): Promise<boolean> => {

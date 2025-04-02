@@ -11,6 +11,7 @@
  * - Added completion percentage calculation for progress indicator
  * - Added gesture-based navigation for mobile devices
  * - 2027-11-19: Fixed TypeScript compatibility issues with useStepNavigation
+ * - 2027-11-20: Fixed type errors with validationErrors and Promise return types
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -142,7 +143,7 @@ export const StepForm = ({
           onStepChange={handleStepChange}
           visibleSections={visibleSections}
           completedSteps={completedStepsArray}
-          validationErrors={stepValidationErrors}
+          validationErrors={stepValidationErrors as Record<string, boolean>}
         />
       </div>
       
@@ -161,8 +162,14 @@ export const StepForm = ({
       {/* Form content with swipe navigation */}
       <div className="form-container min-h-[400px] mb-10">
         <SwipeNavigation
-          onNext={handleNext}
-          onPrevious={handlePrevious}
+          onNext={() => {
+            handleNext();
+            return Promise.resolve();
+          }}
+          onPrevious={() => {
+            handlePrevious();
+            return Promise.resolve();
+          }}
           isFirstStep={isFirstStep}
           isLastStep={isLastStep}
           disabled={navigationDisabled || isSaving}
@@ -180,8 +187,14 @@ export const StepForm = ({
       <FormNavigationControls
         isFirstStep={isFirstStep}
         isLastStep={isLastStep}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
+        onPrevious={() => {
+          handlePrevious();
+          return Promise.resolve();
+        }}
+        onNext={() => {
+          handleNext();
+          return Promise.resolve();
+        }}
         isNavigating={navigationDisabled || isSaving}
         onSave={saveProgress}
         carId={carId}
@@ -200,3 +213,4 @@ export const StepForm = ({
     </div>
   );
 };
+
