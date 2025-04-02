@@ -18,6 +18,7 @@
  * - 2025-11-04: Added save and continue later functionality
  * - 2025-11-05: Fixed import issues for formSteps and FormProgress
  * - 2025-11-06: Fixed React hooks issue with conditional rendering
+ * - 2025-11-07: Fixed TypeScript errors with STEP_FIELD_MAPPINGS import
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -43,7 +44,7 @@ import { FormErrorHandler } from "./FormErrorHandler";
 import { useNavigate } from "react-router-dom";
 import { formSteps } from "./constants/formSteps";
 import { FormProgress } from "./FormProgress";
-import { useStepNavigation } from "./hooks/useStepNavigation";
+import { useStepNavigation, STEP_FIELD_MAPPINGS } from "./hooks/useStepNavigation";
 
 interface FormContentProps {
   session: Session;
@@ -265,7 +266,7 @@ export const FormContent = ({
     // Map errors to steps
     Object.keys(formErrors).forEach(fieldName => {
       for (const [stepId, fields] of Object.entries(STEP_FIELD_MAPPINGS)) {
-        if (fields.includes(fieldName as any)) {
+        if (fields.includes(fieldName as keyof CarListingFormData)) {
           stepErrors[stepId] = true;
           break;
         }
