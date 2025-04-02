@@ -1,3 +1,4 @@
+
 /**
  * Type definitions for database entities
  */
