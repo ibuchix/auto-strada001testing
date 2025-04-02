@@ -6,6 +6,7 @@
  * - 2024-09-21: Added session validation and handling for RLS
  * - 2024-10-15: Added offline support with local cache fallback
  * - 2024-10-16: Fixed function parameter format for consistent usage
+ * - 2026-05-12: Updated to match revised useOfflineStatus hook signature
  */
 
 import { useQuery, UseQueryOptions } from "@tanstack/react-query";
@@ -32,7 +33,7 @@ export function useOptimizedQuery<TData, TError = Error>(
   options?: OptimizedQueryOptions<TData, TError>
 ) {
   const { session } = useAuth();
-  const { isOffline } = useOfflineStatus({ showToasts: false });
+  const { isOffline } = useOfflineStatus();
   
   const {
     errorMessage = "Failed to load data",

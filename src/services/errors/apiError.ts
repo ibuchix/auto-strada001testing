@@ -1,11 +1,13 @@
+
 /**
  * Custom error class for API errors
  * 
  * Changes made:
  * - 2026-05-10: Enhanced with error code, category and network status detection
+ * - 2026-05-12: Fixed TypeScript type issues with Error.code property
  */
 export class ApiError extends Error {
-  public originalError?: Error;
+  public originalError?: Error | any;
   public statusCode?: number;
   public errorCode?: string;
   public isNetworkError: boolean;
@@ -76,10 +78,11 @@ export class ApiError extends Error {
       }
       
       // Check for common network error codes
-      if (this.originalError.code === 'ECONNREFUSED' ||
-          this.originalError.code === 'ECONNRESET' ||
-          this.originalError.code === 'ETIMEDOUT' ||
-          this.originalError.code === 'ENETUNREACH') {
+      const errorCode = (this.originalError as any).code;
+      if (errorCode === 'ECONNREFUSED' ||
+          errorCode === 'ECONNRESET' ||
+          errorCode === 'ETIMEDOUT' ||
+          errorCode === 'ENETUNREACH') {
         return true;
       }
     }

@@ -4,6 +4,7 @@
  * 
  * Changes made:
  * - 2026-05-10: Enhanced with offline mode support and better error feedback
+ * - 2026-05-12: Updated to work with revised useOfflineStatus hook
  */
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";

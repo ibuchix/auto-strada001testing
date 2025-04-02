@@ -12,7 +12,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 export const BottomCTA = () => {
   const [vin, setVin] = useState("");
   const navigate = useNavigate();
-  const { isOffline } = useOfflineStatus({ showToasts: false });
+  const { isOffline } = useOfflineStatus();
   const isMobile = useIsMobile();
 
   // Load from cache if available

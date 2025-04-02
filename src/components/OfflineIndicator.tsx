@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-10-15: Created OfflineIndicator component to show connection status
+ * - 2026-05-12: Updated to match revised useOfflineStatus hook signature
  */
 
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
@@ -9,7 +10,7 @@ import { Wifi, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export const OfflineIndicator = () => {
-  const { isOffline } = useOfflineStatus({ showToasts: false });
+  const { isOffline } = useOfflineStatus();
   const [show, setShow] = useState(false);
   
   // Show the indicator immediately if offline,
