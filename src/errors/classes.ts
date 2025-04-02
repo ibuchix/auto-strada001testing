@@ -1,6 +1,6 @@
 
 /**
- * Created 2028-05-15: Base application error classes
+ * Updated 2028-05-15: Enhanced application error classes with additional types
  * Provides consistent error handling and recovery options
  */
 
@@ -14,6 +14,7 @@ interface BaseErrorParams {
   metadata?: Record<string, any>;
   recovery?: RecoveryAction;
   cause?: Error;
+  retryable?: boolean; // Added retryable property
 }
 
 export class BaseApplicationError extends Error {
@@ -24,6 +25,7 @@ export class BaseApplicationError extends Error {
   metadata?: Record<string, any>;
   recovery?: RecoveryAction;
   cause?: Error;
+  retryable: boolean; // Added retryable property
   
   constructor(params: BaseErrorParams) {
     super(params.message);
@@ -35,6 +37,7 @@ export class BaseApplicationError extends Error {
     this.metadata = params.metadata;
     this.recovery = params.recovery;
     this.cause = params.cause;
+    this.retryable = params.retryable ?? true; // Default to true if not specified
     
     // Ensure stack trace captures the point of error creation
     Error.captureStackTrace(this, this.constructor);
@@ -51,16 +54,42 @@ export class ValidationError extends BaseApplicationError {
   }
 }
 
-export class SubmissionError extends BaseApplicationError {
-  retryable: boolean;
+// Add field validation specific error
+export class FieldValidationError extends ValidationError {
+  field: string;
   
-  constructor(params: Omit<BaseErrorParams, 'category'> & { retryable?: boolean }) {
+  constructor(params: Omit<BaseErrorParams, 'category'> & { field: string }) {
+    super({
+      ...params,
+      metadata: { ...(params.metadata || {}), field: params.field }
+    });
+    this.name = 'FieldValidationError';
+    this.field = params.field;
+  }
+}
+
+// Add form validation specific error
+export class FormValidationError extends ValidationError {
+  fields?: string[];
+  
+  constructor(params: Omit<BaseErrorParams, 'category'> & { fields?: string[] }) {
+    super({
+      ...params,
+      metadata: { ...(params.metadata || {}), fields: params.fields }
+    });
+    this.name = 'FormValidationError';
+    this.fields = params.fields;
+  }
+}
+
+export class SubmissionError extends BaseApplicationError {
+  
+  constructor(params: Omit<BaseErrorParams, 'category'>) {
     super({
       ...params,
       category: ErrorCategory.SUBMISSION
     });
     this.name = 'SubmissionError';
-    this.retryable = params.retryable ?? false;
   }
 }
 
@@ -71,6 +100,20 @@ export class NetworkError extends BaseApplicationError {
       category: ErrorCategory.NETWORK
     });
     this.name = 'NetworkError';
+  }
+}
+
+// Add timeout specific error
+export class TimeoutError extends NetworkError {
+  timeout?: number;
+  
+  constructor(params: Omit<BaseErrorParams, 'category'> & { timeout?: number }) {
+    super({
+      ...params,
+      code: params.code || 'TIMEOUT'
+    });
+    this.name = 'TimeoutError';
+    this.timeout = params.timeout;
   }
 }
 

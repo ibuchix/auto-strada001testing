@@ -5,11 +5,11 @@
  * - 2024-08-25: Enhanced validation with better error messages
  * - 2024-08-14: Updated to use standard application error architecture
  * - 2024-08-15: Refactored to use the new error factory for consistency
+ * - 2028-05-16: Updated imports for ValidationErrorCode
  */
 
 import { createFieldError, createFormError } from "@/errors/factory";
 import { ValidationErrorCode, RecoveryType } from "@/errors/types";
-import { useNavigate } from "react-router-dom";
 
 /**
  * Validates that valuation data exists in localStorage

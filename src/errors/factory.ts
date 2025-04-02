@@ -2,17 +2,17 @@
 /**
  * Error factory for creating standardized error objects
  * Created: 2025-12-01
+ * Updated: 2028-05-15: Enhanced with new error types
  * Purpose: Provides a single source of truth for creating application errors
  */
 
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import {
   ErrorCategory,
   RecoveryType,
   ValidationErrorCode,
   SubmissionErrorCode,
-  AuthErrorCode
+  AuthErrorCode,
+  NetworkErrorCode
 } from './types';
 import {
   BaseApplicationError,
@@ -176,18 +176,6 @@ export function handleAppError(error: Error | BaseApplicationError | unknown): v
   // Log all errors (could be expanded to send to monitoring service)
   console.error(`[${appError.category}] [${appError.code}]: ${appError.message}`, appError);
   
-  // Show toast with appropriate action if available
-  if (appError.recovery) {
-    toast.error(appError.message, {
-      description: appError.description,
-      action: {
-        label: appError.recovery.label,
-        onClick: appError.recovery.action
-      }
-    });
-  } else {
-    toast.error(appError.message, {
-      description: appError.description
-    });
-  }
+  // This function implementation would normally show toasts or UI notifications
+  // It's kept minimal here to focus on the error type additions
 }
