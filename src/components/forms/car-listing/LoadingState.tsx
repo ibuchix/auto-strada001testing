@@ -1,16 +1,20 @@
 
 /**
- * Loading State component
- * - Provides feedback while the form is loading
+ * Loading state component for form 
+ * Created 2028-05-15: Provides consistent loading UI for form states
  */
-import React from 'react';
 
-export const LoadingState = () => {
+import { Loader2 } from "lucide-react";
+
+interface LoadingStateProps {
+  message?: string;
+}
+
+export const LoadingState = ({ message = "Loading form..." }: LoadingStateProps) => {
   return (
-    <div className="flex flex-col items-center justify-center p-12 space-y-4">
-      <div className="w-12 h-12 rounded-full border-4 border-gray-200 border-t-[#DC143C] animate-spin"></div>
-      <p className="text-lg font-medium text-gray-700">Loading form...</p>
-      <p className="text-sm text-gray-500">Please wait while we prepare your listing form</p>
+    <div className="flex flex-col items-center justify-center p-8 h-48">
+      <Loader2 className="h-8 w-8 animate-spin text-[#DC143C]" />
+      <p className="mt-4 text-muted-foreground">{message}</p>
     </div>
   );
 };

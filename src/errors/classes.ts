@@ -1,216 +1,107 @@
 
 /**
- * Error class hierarchy for standardized application errors
- * Created: 2025-12-01
- * Purpose: Provides a consistent error structure throughout the application
- * Updated: 2024-08-16: Added ID property and improved error handling
+ * Created 2028-05-15: Base application error classes
+ * Provides consistent error handling and recovery options
  */
 
-import { ErrorCategory, RecoveryType } from './types';
+import { ErrorCategory, RecoveryAction } from './types';
 
 interface BaseErrorParams {
-  code: string;
   message: string;
+  code?: string;
   description?: string;
-  retryable?: boolean;
-  metadata?: Record<string, any>;
-  recovery?: {
-    type: RecoveryType;
-    label: string;
-    field?: string;
-    action: () => void;
-  };
   category?: ErrorCategory;
-  id?: string;
+  metadata?: Record<string, any>;
+  recovery?: RecoveryAction;
+  cause?: Error;
 }
 
-/**
- * Base application error class that all other error types extend
- */
 export class BaseApplicationError extends Error {
+  id: string;
   code: string;
   description?: string;
-  retryable: boolean;
-  metadata?: Record<string, any>;
-  recovery?: {
-    type: RecoveryType;
-    label: string;
-    field?: string;
-    action: () => void;
-  };
   category: ErrorCategory;
-  id: string;
-
-  constructor({
-    code,
-    message,
-    description,
-    retryable = false,
-    metadata,
-    recovery,
-    category = ErrorCategory.UNKNOWN,
-    id
-  }: BaseErrorParams) {
-    super(message);
-    this.name = this.constructor.name;
-    this.code = code;
-    this.description = description;
-    this.retryable = retryable;
-    this.metadata = metadata;
-    this.recovery = recovery;
-    this.category = category;
-    // Generate UUID if ID is not provided
-    this.id = id || crypto.randomUUID();
-
-    // Ensure proper prototype chain for instanceof checks
-    Object.setPrototypeOf(this, new.target.prototype);
-  }
-}
-
-interface ValidationErrorParams extends BaseErrorParams {
-  field?: string;
-  fields?: string[];
-}
-
-/**
- * Base validation error for all validation-related errors
- */
-export class ValidationError extends BaseApplicationError {
-  constructor(params: ValidationErrorParams) {
-    super({
-      ...params,
-      category: ErrorCategory.VALIDATION,
-    });
-    
-    // Add field to metadata if provided
-    if (params.field) {
-      this.metadata = {
-        ...this.metadata,
-        field: params.field
-      };
-    }
-    
-    // Add fields to metadata if provided
-    if (params.fields) {
-      this.metadata = {
-        ...this.metadata,
-        fields: params.fields
-      };
-    }
-  }
-}
-
-/**
- * Field-specific validation error
- */
-export class FieldValidationError extends ValidationError {
-  constructor(params: ValidationErrorParams) {
-    super({
-      ...params,
-      recovery: params.recovery || {
-        type: RecoveryType.FIELD_CORRECTION,
-        label: 'Fix Field',
-        field: params.field,
-        action: () => {
-          const element = document.getElementById(params.field as string);
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
-            setTimeout(() => element.focus(), 100);
-          }
-        }
-      }
-    });
-  }
-}
-
-/**
- * Form-level validation error (multiple fields)
- */
-export class FormValidationError extends ValidationError {
-  constructor(params: ValidationErrorParams) {
-    super({
-      ...params,
-      recovery: params.recovery || {
-        type: RecoveryType.FORM_RETRY,
-        label: 'Fix Form',
-        action: () => {
-          window.scrollTo(0, 0);
-        }
-      }
-    });
-  }
-}
-
-interface SubmissionErrorParams extends BaseErrorParams {
-  timeout?: number;
-}
-
-/**
- * Base submission error for all submission-related errors
- */
-export class SubmissionError extends BaseApplicationError {
-  timeout?: number;
+  metadata?: Record<string, any>;
+  recovery?: RecoveryAction;
+  cause?: Error;
   
-  constructor(params: SubmissionErrorParams) {
-    super({
-      ...params,
-      category: ErrorCategory.SUBMISSION,
-      retryable: params.retryable ?? true
-    });
-    
-    this.timeout = params.timeout;
-  }
-}
-
-/**
- * Network-related submission error
- */
-export class NetworkError extends SubmissionError {
-  constructor(params: Omit<SubmissionErrorParams, 'code'>) {
-    super({
-      ...params,
-      code: 'NETWORK_ERROR',
-      recovery: params.recovery || {
-        type: RecoveryType.REFRESH,
-        label: 'Retry',
-        action: () => window.location.reload()
-      }
-    });
-  }
-}
-
-/**
- * Timeout-specific submission error
- */
-export class TimeoutError extends SubmissionError {
-  constructor(params: Omit<SubmissionErrorParams, 'code'>) {
-    super({
-      ...params,
-      code: 'TIMEOUT',
-      recovery: params.recovery || {
-        type: RecoveryType.REFRESH,
-        label: 'Try Again',
-        action: () => window.location.reload()
-      }
-    });
-  }
-}
-
-/**
- * Authentication-related errors
- */
-export class AuthenticationError extends BaseApplicationError {
   constructor(params: BaseErrorParams) {
+    super(params.message);
+    this.name = this.constructor.name;
+    this.id = crypto.randomUUID();
+    this.code = params.code || 'UNKNOWN_ERROR';
+    this.description = params.description;
+    this.category = params.category || ErrorCategory.GENERAL;
+    this.metadata = params.metadata;
+    this.recovery = params.recovery;
+    this.cause = params.cause;
+    
+    // Ensure stack trace captures the point of error creation
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+export class ValidationError extends BaseApplicationError {
+  constructor(params: Omit<BaseErrorParams, 'category'>) {
     super({
       ...params,
-      category: ErrorCategory.AUTHENTICATION,
-      recovery: params.recovery || {
-        type: RecoveryType.SIGN_IN,
-        label: 'Sign In',
-        action: () => {
-          window.location.href = '/auth';
-        }
-      }
+      category: ErrorCategory.VALIDATION
+    });
+    this.name = 'ValidationError';
+  }
+}
+
+export class SubmissionError extends BaseApplicationError {
+  retryable: boolean;
+  
+  constructor(params: Omit<BaseErrorParams, 'category'> & { retryable?: boolean }) {
+    super({
+      ...params,
+      category: ErrorCategory.SUBMISSION
+    });
+    this.name = 'SubmissionError';
+    this.retryable = params.retryable ?? false;
+  }
+}
+
+export class NetworkError extends BaseApplicationError {
+  constructor(params: Omit<BaseErrorParams, 'category'>) {
+    super({
+      ...params,
+      category: ErrorCategory.NETWORK
+    });
+    this.name = 'NetworkError';
+  }
+}
+
+export class AuthenticationError extends BaseApplicationError {
+  constructor(params: Omit<BaseErrorParams, 'category'>) {
+    super({
+      ...params,
+      category: ErrorCategory.AUTHENTICATION
+    });
+    this.name = 'AuthenticationError';
+  }
+}
+
+// Helper function to normalize any error to BaseApplicationError
+export function normalizeError(error: unknown): BaseApplicationError {
+  if (error instanceof BaseApplicationError) {
+    return error;
+  }
+  
+  if (error instanceof Error) {
+    return new BaseApplicationError({
+      message: error.message,
+      code: 'UNKNOWN_ERROR',
+      description: error.stack,
+      cause: error
     });
   }
+  
+  return new BaseApplicationError({
+    message: typeof error === 'string' ? error : 'Unknown error occurred',
+    code: 'UNKNOWN_ERROR',
+    description: typeof error === 'object' ? JSON.stringify(error) : undefined
+  });
 }

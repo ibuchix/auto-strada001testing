@@ -2,6 +2,8 @@
 /**
  * ErrorBoundary component to catch and handle errors in the component tree
  * Added in 2025-08-03
+ * Updated in 2028-05-15: Added better error reporting and reset functionality
+ * Updated in 2028-05-15: Enhanced with recovery options and detailed error display
  */
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from "@/components/ui/button";
@@ -12,11 +14,13 @@ interface Props {
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
   resetOnPropsChange?: boolean;
+  boundary?: string; // Identifier for the boundary location
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorInfo: ErrorInfo | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -24,11 +28,12 @@ export class ErrorBoundary extends Component<Props, State> {
     super(props);
     this.state = {
       hasError: false,
-      error: null
+      error: null,
+      errorInfo: null
     };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return {
       hasError: true,
       error
@@ -36,8 +41,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // Log error to an error reporting service
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Enhanced error logging with boundary identification
+    console.error(`ErrorBoundary${this.props.boundary ? ` [${this.props.boundary}]` : ''} caught an error:`, error);
+    console.error('Component stack:', errorInfo.componentStack);
+    
+    this.setState({ errorInfo });
     
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
@@ -51,17 +59,21 @@ export class ErrorBoundary extends Component<Props, State> {
       this.props.resetOnPropsChange &&
       prevProps !== this.props
     ) {
+      console.log(`ErrorBoundary${this.props.boundary ? ` [${this.props.boundary}]` : ''} resetting due to props change`);
       this.setState({
         hasError: false,
-        error: null
+        error: null,
+        errorInfo: null
       });
     }
   }
 
   resetErrorBoundary = (): void => {
+    console.log(`ErrorBoundary${this.props.boundary ? ` [${this.props.boundary}]` : ''} manually reset`);
     this.setState({
       hasError: false,
-      error: null
+      error: null,
+      errorInfo: null
     });
   };
 
@@ -82,8 +94,13 @@ export class ErrorBoundary extends Component<Props, State> {
             {this.state.error && (
               <div className="mb-4 p-3 bg-black/10 rounded text-left w-full max-w-md overflow-auto">
                 <p className="font-mono text-sm whitespace-pre-wrap break-words">
-                  {this.state.error.toString()}
+                  <strong>Error:</strong> {this.state.error.toString()}
                 </p>
+                {this.state.errorInfo && (
+                  <p className="font-mono text-xs mt-2 text-muted-foreground whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                    {this.state.errorInfo.componentStack}
+                  </p>
+                )}
               </div>
             )}
             <Button onClick={this.resetErrorBoundary} variant="default">

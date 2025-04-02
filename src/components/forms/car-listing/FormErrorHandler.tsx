@@ -3,34 +3,77 @@
  * Changes made:
  * - 2027-11-17: Created component to handle form errors with recovery options
  * - 2027-11-18: Added onRetry prop for error recovery functionality
+ * - 2028-05-15: Enhanced error display with technical details
+ * - 2028-05-15: Added error type differentiation
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, RefreshCcw } from "lucide-react";
+import { AlertCircle, RefreshCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface FormErrorHandlerProps {
   draftError?: Error;
-  onRetry?: () => void;  // Added this prop to handle retries
+  onRetry?: () => void;
+  showTechnicalInfo?: boolean;
 }
 
-export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({ draftError, onRetry }) => {
+export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({ 
+  draftError, 
+  onRetry,
+  showTechnicalInfo = true
+}) => {
   const navigate = useNavigate();
+  const [showDetails, setShowDetails] = useState(false);
+
+  // Log error for debugging
+  console.error("[FormErrorHandler] Handling error:", draftError);
 
   const handleRefresh = () => {
     if (onRetry) {
+      console.log("[FormErrorHandler] Using provided retry handler");
       onRetry();
     } else {
+      console.log("[FormErrorHandler] No retry handler provided, reloading page");
       window.location.reload();
     }
   };
 
   const handleStartOver = () => {
+    console.log("[FormErrorHandler] Starting over, clearing localStorage data");
     // Clear any saved draft data that might be causing issues
     localStorage.removeItem('valuationData');
     navigate('/sellers');
+  };
+
+  // Determine error type for better user messaging
+  const errorType = draftError ? 
+    draftError.name === 'NetworkError' ? 'network' :
+    draftError.name === 'ValidationError' ? 'validation' :
+    draftError.message.toLowerCase().includes('permission') ? 'permission' :
+    draftError.message.toLowerCase().includes('auth') ? 'auth' :
+    draftError.message.toLowerCase().includes('draft') ? 'draft' : 'generic'
+    : 'unknown';
+
+  // Get user-friendly error message based on type
+  const getUserMessage = () => {
+    switch(errorType) {
+      case 'network':
+        return "Network connection issue. Please check your internet connection and try again.";
+      case 'validation':
+        return "There was an issue with the form data. Some information may be invalid or missing.";
+      case 'permission':
+        return "You don't have permission to access this draft. Please sign in with the correct account.";
+      case 'auth':
+        return "Authentication error. Please sign in again to continue.";
+      case 'draft':
+        return "There was a problem loading your draft. The data may be corrupted or missing.";
+      default:
+        return draftError ? 
+          draftError.message || "An error occurred while loading the form." :
+          "There was a problem loading the form. Please try again or start over.";
+    }
   };
 
   return (
@@ -39,11 +82,7 @@ export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({ draftError, 
         <AlertCircle className="h-5 w-5 mr-2" />
         <AlertTitle>Error Loading Form</AlertTitle>
         <AlertDescription className="mt-2">
-          {draftError ? (
-            <p>{draftError.message || "Failed to load draft data"}</p>
-          ) : (
-            <p>There was a problem loading the form. Please try again or start over.</p>
-          )}
+          <p>{getUserMessage()}</p>
         </AlertDescription>
       </Alert>
 
@@ -64,15 +103,40 @@ export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({ draftError, 
         </Button>
       </div>
 
-      <div className="mt-6 bg-amber-50 border border-amber-200 rounded-md p-4">
-        <h3 className="text-sm font-medium text-amber-800">Technical Information</h3>
-        <p className="text-sm text-amber-700 mt-2">
-          If this issue persists, please report it with the following error code:
-          <code className="bg-amber-100 px-2 py-1 rounded mx-1">
-            {draftError?.name || "FORM_LOAD_ERROR"}
-          </code>
-        </p>
-      </div>
+      {showTechnicalInfo && draftError && (
+        <div className="mt-6 bg-amber-50 border border-amber-200 rounded-md p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-amber-800">Technical Information</h3>
+            
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowDetails(!showDetails)}
+              className="h-6 p-1"
+            >
+              {showDetails ? 
+                <ChevronUp className="h-4 w-4 text-amber-700" /> : 
+                <ChevronDown className="h-4 w-4 text-amber-700" />
+              }
+            </Button>
+          </div>
+          
+          <p className="text-sm text-amber-700 mt-2">
+            If this issue persists, please report it with the following error code:
+            <code className="bg-amber-100 px-2 py-1 rounded mx-1">
+              {draftError?.name || "FORM_LOAD_ERROR"}
+            </code>
+          </p>
+          
+          {showDetails && (
+            <div className="mt-3 p-2 bg-amber-100/50 rounded overflow-auto max-h-48">
+              <p className="font-mono text-xs whitespace-pre-wrap">
+                {draftError.stack || draftError.toString()}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

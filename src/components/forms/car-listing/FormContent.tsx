@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2027-11-17: Fixed React hooks inconsistency by ensuring unconditional hook calls
@@ -25,6 +24,9 @@
  * - 2024-06-27: Optimized state updates to reduce render cycles
  * - 2026-05-15: Updated import for refactored useFormPersistence hook
  * - 2028-06-28: Refactored into smaller components with better separation of concerns
+ * - 2028-05-15: Added comprehensive error handling and debugging
+ * - 2028-05-15: Wrapped critical sections in error boundaries
+ * - 2028-05-15: Added detailed debugging logs for key state changes
  */
 
 import { useNavigate } from "react-router-dom";
@@ -48,6 +50,9 @@ import { MainFormContent } from "./components/MainFormContent";
 import { useFormActions } from "./hooks/useFormActions";
 import { useCallback, useMemo, useEffect, memo, useRef } from "react";
 import { FormDataProvider } from "./context/FormDataContext";
+import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
+import { FormErrorProvider } from "./context/FormErrorContext";
+import { useDebugRender } from "./hooks/useDebugRender";
 
 interface FormContentProps {
   session: Session;
@@ -63,6 +68,12 @@ export const FormContent = memo(({
   retryCount = 0
 }: FormContentProps) => {
   const navigate = useNavigate();
+  
+  const { debugLog } = useDebugRender('FormContent', {
+    trackDeps: { session: !!session, draftId, retryCount }
+  });
+  
+  debugLog('Initializing form content component');
   
   // Form initialization - must happen first
   const form = useCarListingForm(session.user.id, draftId);
@@ -216,6 +227,19 @@ export const FormContent = memo(({
     return onSubmit(data, formState.carId);
   }, [onSubmit, formState.carId]);
 
+  // Create error handler for critical sections
+  const handleComponentError = useCallback((error: Error, errorInfo?: React.ErrorInfo) => {
+    debugLog('Component error caught', error);
+    
+    if (onDraftError && error.message.includes('draft')) {
+      onDraftError(error);
+    } else if (handleFormError) {
+      handleFormError(error);
+    } else {
+      console.error('Unhandled form error:', error, errorInfo);
+    }
+  }, [onDraftError]);
+
   // Return loading or error state if needed
   if (draftError && !formState.isInitializing) {
     return (
@@ -249,58 +273,77 @@ export const FormContent = memo(({
     );
   }
   
-  // Main form content - wrap in FormDataProvider for better context sharing
+  // Main form content - wrap in FormDataProvider and ErrorBoundary for better context sharing
   return (
-    <FormDataProvider form={form}>
-      <FormContentLayout
-        form={form}
-        isInitializing={formState.isInitializing}
-        isLoadingDraft={isLoadingDraft}
-        draftError={null}
-        onDraftErrorRetry={resetDraftError}
-        onFormSubmit={handleFormSubmit2}
-        onFormError={handleFormError}
-      >
-        <FormProgressSection
-          currentStep={stepNavigation.currentStep}
-          lastSaved={formState.lastSaved}
-          onOfflineStatusChange={handleOfflineStatusChange}
-          steps={formState.filteredStepsArray}
-          visibleSections={visibleSections}
-          completedSteps={completedStepsArray}
-          validationErrors={stepErrors}
-          onStepChange={handleStepChange}
-        />
-        
-        <FormErrorSection 
-          validationErrors={stepNavigation.stepValidationErrors || {}}
-        />
-        
-        <MainFormContent
-          currentStep={stepNavigation.currentStep}
-          setCurrentStep={handleStepChange}
-          carId={formState.carId}
-          lastSaved={formState.lastSaved}
-          isOffline={persistence.isOffline}
-          isSaving={persistence.isSaving}
-          isSubmitting={isSubmitting}
-          saveProgress={saveWrapper}
-          visibleSections={visibleSections}
-          totalSteps={formState.totalSteps}
-          onSaveAndContinue={handleSaveAndContinue}
-          onSave={handleSave}
-        />
+    <ErrorBoundary 
+      onError={handleComponentError}
+      boundary="form-content-outer"
+      resetOnPropsChange
+    >
+      <FormErrorProvider formId={formState.carId || 'new-form'}>
+        <FormDataProvider form={form}>
+          <FormContentLayout
+            form={form}
+            isInitializing={formState.isInitializing}
+            isLoadingDraft={isLoadingDraft}
+            draftError={draftError}
+            onDraftErrorRetry={resetDraftError}
+            onFormSubmit={handleFormSubmit2}
+            onFormError={handleFormError}
+            layoutId={formState.carId || 'new-form'}
+          >
+            <FormProgressSection
+              currentStep={stepNavigation.currentStep}
+              lastSaved={formState.lastSaved}
+              onOfflineStatusChange={handleOfflineStatusChange}
+              steps={formState.filteredStepsArray}
+              visibleSections={visibleSections}
+              completedSteps={completedStepsArray}
+              validationErrors={stepErrors}
+              onStepChange={handleStepChange}
+            />
+            
+            <FormErrorSection 
+              validationErrors={stepNavigation.stepValidationErrors || {}}
+              showDetails={process.env.NODE_ENV !== 'production'}
+            />
+            
+            <ErrorBoundary
+              boundary="main-form-content"
+              resetOnPropsChange
+              onError={(error) => {
+                handleComponentError(error);
+                debugLog('Error in main content section', error);
+              }}
+            >
+              <MainFormContent
+                currentStep={stepNavigation.currentStep}
+                setCurrentStep={handleStepChange}
+                carId={formState.carId}
+                lastSaved={formState.lastSaved}
+                isOffline={persistence.isOffline}
+                isSaving={persistence.isSaving}
+                isSubmitting={isSubmitting}
+                saveProgress={saveWrapper}
+                visibleSections={visibleSections}
+                totalSteps={formState.totalSteps}
+                onSaveAndContinue={handleSaveAndContinue}
+                onSave={handleSave}
+              />
+            </ErrorBoundary>
 
-        <FormDialogs 
-          showSuccessDialog={showSuccessDialog}
-          showSaveDialog={showSaveDialog}
-          onSuccessDialogOpenChange={(open) => !open && dialogActions.hideSuccessDialog()}
-          onSaveDialogOpenChange={(open) => !open && dialogActions.hideSaveDialog()}
-          lastSaved={formState.lastSaved}
-          carId={formState.carId}
-        />
-      </FormContentLayout>
-    </FormDataProvider>
+            <FormDialogs 
+              showSuccessDialog={showSuccessDialog}
+              showSaveDialog={showSaveDialog}
+              onSuccessDialogOpenChange={(open) => !open && dialogActions.hideSuccessDialog()}
+              onSaveDialogOpenChange={(open) => !open && dialogActions.hideSaveDialog()}
+              lastSaved={formState.lastSaved}
+              carId={formState.carId}
+            />
+          </FormContentLayout>
+        </FormDataProvider>
+      </FormErrorProvider>
+    </ErrorBoundary>
   );
 });
 
