@@ -13,6 +13,7 @@
  * - 2028-11-12: Refactored into smaller, more maintainable components and hooks
  * - 2028-11-14: Fixed TypeScript errors with form extension types
  * - 2024-06-05: Removed FormProgress import that was causing build error
+ * - 2024-06-05: Added back useStepNavigation import to fix build error
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -39,6 +40,7 @@ import { useValidationErrorTracking } from "./hooks/useValidationErrorTracking";
 import { useFilteredSteps } from "./hooks/useFilteredSteps";
 import { useFormDialogs } from "./hooks/useFormDialogs";
 import { FormProgressIndicator } from "./components/FormProgressIndicator";
+import { useStepNavigation } from "./hooks/useStepNavigation";
 
 interface FormContentProps {
   session: Session;
