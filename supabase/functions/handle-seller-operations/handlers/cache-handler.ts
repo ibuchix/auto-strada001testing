@@ -5,7 +5,7 @@
  */
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { logOperation } from '../_shared/index.ts';
+import { logOperation } from '../../_shared/index.ts';
 
 /**
  * Handle cache valuation request
@@ -150,3 +150,4 @@ export async function handleGetCachedValuationRequest(
     };
   }
 }
+
