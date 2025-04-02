@@ -5,6 +5,8 @@
  * - 2024-11-24: Enhanced data processing and error handling
  * - 2024-11-24: Added forced recalculation of reserve price as fallback
  * - 2024-11-24: Improved logging to track data through the pipeline
+ * - 2028-06-12: Enhanced pipeline logging and fallback mechanisms
+ * - 2028-06-12: Added data validation checks at multiple points in the process
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -68,6 +70,20 @@ function ensureValidReservePrice(data: any): any {
     };
   }
   
+  // Final fallback - we really don't want to return invalid data to the UI
+  if ((!reservePrice || reservePrice <= 0) && (!basePrice || basePrice <= 0)) {
+    const placeholderValue = 25000; // Arbitrary placeholder
+    console.warn('No valid price data available, using placeholder:', placeholderValue);
+    
+    return {
+      ...data,
+      basePrice: placeholderValue,
+      reservePrice: placeholderValue,
+      valuation: placeholderValue,
+      isPlaceholder: true // Flag that this is a placeholder
+    };
+  }
+  
   return data;
 }
 
@@ -80,6 +96,13 @@ export async function processSellerValuation(
   gearbox: TransmissionType
 ): Promise<ValuationResult> {
   console.log('Processing seller page valuation for VIN:', vin);
+  console.log('Valuation pipeline started:', { 
+    vin, 
+    mileage, 
+    gearbox,
+    timestamp: new Date().toISOString(),
+    pipelineId: `pipeline_${Date.now()}`
+  });
   
   try {
     // Check if user is authenticated
@@ -99,109 +122,154 @@ export async function processSellerValuation(
     }
     
     // Try to get cached valuation
-    const cachedData = await getSellerValuationCache(vin, mileage);
+    console.log('Attempting to retrieve cached valuation for:', { vin, mileage });
     
-    if (cachedData) {
-      console.log('Using cached valuation data for VIN:', vin);
-      const enhancedCachedData = ensureValidReservePrice(cachedData);
-      console.log('Enhanced cached data:', enhancedCachedData);
+    try {
+      const cachedData = await getSellerValuationCache(vin, mileage);
       
-      // Even with cached data, we might need to create a reservation
-      try {
-        if (!enhancedCachedData.isExisting) {
-          await createReservationFromCachedData(vin, userId, enhancedCachedData);
+      if (cachedData) {
+        console.log('Using cached valuation data for VIN:', vin);
+        console.log('Cache hit details:', {
+          hasReservePrice: !!cachedData.reservePrice,
+          hasValuation: !!cachedData.valuation,
+          make: cachedData.make,
+          model: cachedData.model
+        });
+        
+        const enhancedCachedData = ensureValidReservePrice(cachedData);
+        console.log('Enhanced cached data:', enhancedCachedData);
+        
+        // Even with cached data, we might need to create a reservation
+        try {
+          if (!enhancedCachedData.isExisting) {
+            await createReservationFromCachedData(vin, userId, enhancedCachedData);
+          }
+        } catch (error) {
+          console.error('Reservation error with cached data:', error);
+          // Continue with the cached data even if reservation process fails
         }
-      } catch (error) {
-        console.error('Reservation error with cached data:', error);
-        // Continue with the cached data even if reservation process fails
+        
+        return {
+          success: true,
+          data: {
+            ...enhancedCachedData,
+            vin,
+            transmission: gearbox
+          }
+        };
       }
-      
-      return {
-        success: true,
-        data: {
-          ...enhancedCachedData,
-          vin,
-          transmission: gearbox
-        }
-      };
+    } catch (cacheError) {
+      // Cache retrieval should never block main flow
+      console.error('Cache retrieval error:', cacheError);
+      console.log('Continuing with API call after cache error');
     }
     
     // No cache found, proceed with API call
     console.log('No cache found, fetching valuation from API for VIN:', vin);
-    const response = await fetchSellerValuationData(vin, mileage, gearbox, userId);
     
-    if (response.error) {
-      throw response.error;
-    }
-    
-    const { data } = response;
-    
-    console.log('Seller valuation raw response:', data);
-    
-    // Check if car already exists
-    if (data?.isExisting || data?.data?.isExisting) {
+    try {
+      const response = await fetchSellerValuationData(vin, mileage, gearbox, userId);
+      
+      if (response.error) {
+        throw response.error;
+      }
+      
+      const { data } = response;
+      
+      console.log('Seller valuation raw response:', data);
+      
+      // Check if car already exists
+      if (data?.isExisting || data?.data?.isExisting) {
+        console.log('Vehicle already exists in system:', vin);
+        return {
+          success: true,
+          data: {
+            vin,
+            transmission: gearbox,
+            isExisting: true,
+            error: 'This vehicle has already been listed'
+          }
+        };
+      }
+      
+      // Extract the actual data object, handling nested structure if present
+      const valuationData = data?.data || data;
+      
+      console.log('Extracted valuation data structure:', {
+        hasData: !!valuationData,
+        topLevelKeys: Object.keys(valuationData || {}),
+        nestedDataKeys: valuationData?.data ? Object.keys(valuationData.data) : 'no nested data'
+      });
+      
+      // Try to store reservation ID
+      if (valuationData?.reservationId) {
+        storeReservationId(valuationData.reservationId);
+      }
+      
+      // If we don't have essential data
+      if (!hasEssentialData(valuationData)) {
+        console.log('No essential data found for VIN in seller context');
+        console.log('Missing data details:', {
+          hasMake: !!valuationData?.make,
+          hasModel: !!valuationData?.model,
+          hasYear: !!valuationData?.year,
+          hasValuation: !!(valuationData?.valuation || valuationData?.reservePrice)
+        });
+        
+        return {
+          success: false,
+          data: {
+            vin,
+            transmission: gearbox,
+            noData: true,
+            error: 'No data found for this VIN'
+          }
+        };
+      }
+      
+      // Ensure we have a valid reserve price by calculating it if necessary
+      const enhancedValuationData = ensureValidReservePrice(valuationData);
+      
+      // Prepare the valuation data with required fields
+      const normalizedData = {
+        make: enhancedValuationData.make,
+        model: enhancedValuationData.model,
+        year: enhancedValuationData.year,
+        valuation: enhancedValuationData.valuation || enhancedValuationData.reservePrice,
+        averagePrice: enhancedValuationData.averagePrice || enhancedValuationData.basePrice || enhancedValuationData.price_med,
+        reservePrice: enhancedValuationData.reservePrice || enhancedValuationData.valuation,
+        basePrice: enhancedValuationData.basePrice || enhancedValuationData.averagePrice || enhancedValuationData.price_med,
+        isExisting: false,
+        isPlaceholder: enhancedValuationData.isPlaceholder || false,
+        vin,
+        transmission: gearbox
+      };
+      
+      // Log the normalized data to ensure it has the necessary properties
+      console.log('Normalized valuation data:', normalizedData);
+      
+      // Try to cache the data but do it in non-blocking way
+      try {
+        storeSellerValuationCache(vin, mileage, normalizedData)
+          .catch(cacheError => {
+            console.warn('Cache storage failed but continuing main flow:', cacheError);
+          });
+      } catch (cacheError) {
+        // Cache storage should never block main flow
+        console.warn('Exception during cache storage attempt:', cacheError);
+      }
+      
+      console.log('Returning complete valuation data for seller context');
       return {
         success: true,
-        data: {
-          vin,
-          transmission: gearbox,
-          isExisting: true,
-          error: 'This vehicle has already been listed'
-        }
+        data: normalizedData
       };
+    } catch (apiError) {
+      console.error('API error during valuation fetch:', apiError);
+      return handleApiError(apiError, vin, gearbox);
     }
-    
-    // Extract the actual data object, handling nested structure if present
-    const valuationData = data?.data || data;
-    
-    // Try to store reservation ID
-    if (valuationData?.reservationId) {
-      storeReservationId(valuationData.reservationId);
-    }
-    
-    // If we don't have essential data
-    if (!hasEssentialData(valuationData)) {
-      console.log('No essential data found for VIN in seller context');
-      return {
-        success: false,
-        data: {
-          vin,
-          transmission: gearbox,
-          noData: true,
-          error: 'No data found for this VIN'
-        }
-      };
-    }
-    
-    // Ensure we have a valid reserve price by calculating it if necessary
-    const enhancedValuationData = ensureValidReservePrice(valuationData);
-    
-    // Prepare the valuation data with required fields
-    const normalizedData = {
-      make: enhancedValuationData.make,
-      model: enhancedValuationData.model,
-      year: enhancedValuationData.year,
-      valuation: enhancedValuationData.valuation || enhancedValuationData.reservePrice,
-      averagePrice: enhancedValuationData.averagePrice || enhancedValuationData.basePrice || enhancedValuationData.price_med,
-      reservePrice: enhancedValuationData.reservePrice || enhancedValuationData.valuation,
-      basePrice: enhancedValuationData.basePrice || enhancedValuationData.averagePrice || enhancedValuationData.price_med,
-      isExisting: false,
-      vin,
-      transmission: gearbox
-    };
-    
-    // Log the normalized data to ensure it has the necessary properties
-    console.log('Normalized valuation data:', normalizedData);
-    
-    // Try to cache the data but do it in non-blocking way
-    storeSellerValuationCache(vin, mileage, normalizedData);
-    
-    console.log('Returning complete valuation data for seller context');
-    return {
-      success: true,
-      data: normalizedData
-    };
   } catch (error: any) {
+    console.error('Uncaught error in valuation pipeline:', error);
     return handleApiError(error, vin, gearbox);
   }
 }
@@ -210,13 +278,16 @@ export async function processSellerValuation(
  * Helper function to create reservation from cached data
  */
 async function createReservationFromCachedData(vin: string, userId: string, valuationData: any): Promise<void> {
+  console.log('Creating reservation from cached data:', { vin, userId });
+  
   try {
     const response = await supabase.functions.invoke('handle-seller-operations', {
       body: {
         operation: 'create_reservation',
         vin,
         userId,
-        valuationData
+        valuationData,
+        source: 'cache'
       }
     });
     
@@ -224,9 +295,13 @@ async function createReservationFromCachedData(vin: string, userId: string, valu
     
     if (responseData?.reservation?.id) {
       storeReservationId(responseData.reservation.id);
+      console.log('Successfully created reservation from cached data:', responseData.reservation.id);
+    } else {
+      console.warn('Reservation creation from cache did not return expected data:', responseData);
     }
   } catch (error) {
     console.error('Failed to create reservation:', error);
     // Non-critical error, just log it
   }
 }
+

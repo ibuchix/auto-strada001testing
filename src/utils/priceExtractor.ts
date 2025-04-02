@@ -44,6 +44,26 @@ export const extractPrice = (responseData: any): number | null => {
     }
   }
 
+  // New: Try finding average of available price values
+  const priceValues = [];
+  for (const [key, value] of Object.entries(responseData)) {
+    if (
+      (key.toLowerCase().includes('price') || 
+       key.toLowerCase().includes('value') ||
+       key.toLowerCase().includes('cost')) && 
+      typeof value === 'number' && 
+      value > 0
+    ) {
+      priceValues.push(value);
+    }
+  }
+  
+  if (priceValues.length > 0) {
+    const avgPrice = priceValues.reduce((sum, val) => sum + val, 0) / priceValues.length;
+    console.log('Calculated average price from', priceValues.length, 'values:', avgPrice);
+    return avgPrice;
+  }
+
   // Recursive search for any valid price field
   const findPrice = (obj: any, depth = 0): number | null => {
     if (!obj || typeof obj !== 'object' || depth > 4) return null;
@@ -136,3 +156,21 @@ export const calculateReservePrice = (basePrice: number): number => {
   
   return reservePrice;
 };
+
+/**
+ * Format price for display with appropriate currency symbol
+ */
+export const formatPrice = (price: number | undefined | null): string => {
+  if (price === undefined || price === null || isNaN(price)) {
+    return 'N/A';
+  }
+  
+  // Format as PLN with appropriate spacing
+  return new Intl.NumberFormat('pl-PL', { 
+    style: 'currency', 
+    currency: 'PLN',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(price);
+};
+

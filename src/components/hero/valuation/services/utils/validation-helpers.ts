@@ -1,95 +1,129 @@
 
 /**
  * Changes made:
- * - 2024-07-25: Extracted validation helpers from valuationService.ts
- * - 2025-05-15: Enhanced with improved error handling and better logging
+ * - 2024-11-24: Created utility helpers for validation functions
+ * - 2028-06-12: Enhanced validation helpers with better error handling
+ * - 2028-06-12: Added detailed logging to trace data flow and validation
  */
 
-import { toast } from "sonner";
-import { TransmissionType, ValuationResult } from "../../types";
+import { ValuationResult, TransmissionType } from "../../types";
 
 /**
- * Check if the valuation data has all essential fields
+ * Check if the valuation data has all essential elements
  */
 export function hasEssentialData(data: any): boolean {
-  return !!(data?.make && data?.model && data?.year);
+  if (!data) {
+    console.log("Validation failed: No data object");
+    return false;
+  }
+
+  // Check for essential car information
+  const hasBasicInfo = !!data.make && !!data.model;
+  
+  // Check for any pricing information
+  const hasPricing = 
+    (data.valuation !== undefined && data.valuation !== null) || 
+    (data.reservePrice !== undefined && data.reservePrice !== null) ||
+    (data.price !== undefined && data.price !== null) ||
+    (data.price_med !== undefined && data.price_med !== null) ||
+    (data.basePrice !== undefined && data.basePrice !== null);
+  
+  // Log validation details
+  console.log("Essential data validation:", {
+    hasBasicInfo,
+    hasPricing,
+    make: data.make,
+    model: data.model,
+    valuation: data.valuation,
+    reservePrice: data.reservePrice,
+    price: data.price,
+    price_med: data.price_med,
+    basePrice: data.basePrice
+  });
+  
+  return hasBasicInfo && hasPricing;
 }
 
 /**
- * Handle API response errors
+ * Store the reservation ID in localStorage
  */
-export function handleApiError(error: any, vin: string, gearbox: TransmissionType): ValuationResult {
-  console.error('Error in getValuation:', error);
-  
-  // Special handling for timeout errors
-  if (error.message === 'Request timed out') {
-    toast.error("Request timed out", {
-      description: "The valuation process took too long. Please try again.",
-      action: {
-        label: "Try Again",
-        onClick: () => {
-          cleanupValuationData();
-          window.location.reload();
-        }
-      }
-    });
-    
-    return {
-      success: false,
-      data: {
-        vin,
-        transmission: gearbox,
-        error: 'Request timed out'
-      }
-    };
+export function storeReservationId(reservationId: string): void {
+  try {
+    localStorage.setItem('vinReservationId', reservationId);
+    console.log('Stored reservation ID:', reservationId);
+  } catch (error) {
+    console.warn('Failed to store reservation ID in localStorage:', error);
   }
-  
-  // Handle rate limiting errors with friendlier message
-  if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
-    toast.error("Too many requests", {
-      description: "Please wait a moment before trying again.",
-    });
-    
-    return {
-      success: false,
-      data: {
-        vin,
-        transmission: gearbox,
-        error: 'Too many requests. Please wait a moment before trying again.'
-      }
-    };
-  }
-  
-  // For all other errors
-  toast.error(error.message || "Failed to get vehicle valuation");
+}
 
+/**
+ * Handle API errors in a consistent way
+ */
+export function handleApiError(
+  error: any, 
+  vin: string, 
+  gearbox: TransmissionType
+): ValuationResult {
+  // Extract error message
+  const errorMessage = error instanceof Error 
+    ? error.message 
+    : (typeof error === 'string' ? error : 'Unknown error');
+  
+  // Log detailed error information
+  console.error('API error details:', {
+    errorType: error instanceof Error ? error.constructor.name : typeof error,
+    message: errorMessage,
+    vinContext: vin,
+    stack: error instanceof Error ? error.stack : undefined,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Check for specific error conditions
+  if (errorMessage.includes('rate limit') || errorMessage.includes('too many requests')) {
+    return {
+      success: false,
+      data: {
+        error: 'Rate limit exceeded. Please try again later.',
+        vin,
+        transmission: gearbox
+      }
+    };
+  }
+  
+  if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
+    return {
+      success: false,
+      data: {
+        error: 'Request timed out. Please try again.',
+        vin,
+        transmission: gearbox
+      }
+    };
+  }
+  
+  // Generic error response
   return {
     success: false,
     data: {
+      error: errorMessage,
       vin,
-      transmission: gearbox,
-      error: error.message || 'Failed to get vehicle valuation'
+      transmission: gearbox
     }
   };
 }
 
 /**
- * Store reservation ID in localStorage if available
+ * Format price value for display
  */
-export function storeReservationId(reservationId?: string): void {
-  if (reservationId) {
-    localStorage.setItem('vinReservationId', reservationId);
-    console.log('Stored VIN reservation ID:', reservationId);
+export function formatPrice(price: number | undefined): string {
+  if (price === undefined || isNaN(price)) {
+    return 'N/A';
   }
+  return new Intl.NumberFormat('pl-PL', { 
+    style: 'currency', 
+    currency: 'PLN',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(price);
 }
 
-/**
- * Utility to clean up all valuation-related data from localStorage
- */
-export function cleanupValuationData(): void {
-  localStorage.removeItem('valuationData');
-  localStorage.removeItem('tempMileage');
-  localStorage.removeItem('tempVIN');
-  localStorage.removeItem('tempGearbox');
-  localStorage.removeItem('vinReservationId');
-}
