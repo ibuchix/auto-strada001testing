@@ -5,6 +5,7 @@
  * - Added loading state visualization
  * - Enhanced accessibility with proper ARIA attributes
  * - Fixed missing React import
+ * - 2024-06-18: Added default children to resolve type errors
  */
 
 import React from "react";
@@ -14,13 +15,13 @@ import { Loader2 } from "lucide-react";
 interface FormSubmitButtonProps extends ButtonProps {
   isSubmitting?: boolean;
   loadingText?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode; // Made optional with default value
 }
 
 export const FormSubmitButton = ({
   isSubmitting = false,
   loadingText = "Submitting...",
-  children,
+  children = "Submit", // Added default value
   className,
   ...props
 }: FormSubmitButtonProps) => {

@@ -7,6 +7,7 @@
  * - Fixed button text alignment
  * - Updated to match new visual hierarchy
  * - 2028-06-15: Added micro-interactions for button states
+ * - 2024-06-18: Added disabled prop to fix type errors
  */
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ export interface SaveButtonProps {
   className?: string;
   label?: string;
   showSuccessState?: boolean;
+  disabled?: boolean; // Added disabled prop
 }
 
 export const SaveButton = ({ 
@@ -27,7 +29,8 @@ export const SaveButton = ({
   isLoading = false, 
   className = '',
   label = 'Save Progress',
-  showSuccessState = false
+  showSuccessState = false,
+  disabled = false  // Added with default value
 }: SaveButtonProps) => {
   const isProcessing = isSaving || isLoading;
   const [showSuccess, setShowSuccess] = useState(false);
@@ -49,7 +52,7 @@ export const SaveButton = ({
       type="button" 
       variant="outline" 
       onClick={onClick} 
-      disabled={isProcessing}
+      disabled={isProcessing || disabled} // Use the disabled prop
       className={`flex items-center justify-center border-[#383B39] hover:bg-[#383B39]/10 text-[#383B39] min-w-36 group transition-all duration-300 ${className}`}
     >
       {isProcessing ? (

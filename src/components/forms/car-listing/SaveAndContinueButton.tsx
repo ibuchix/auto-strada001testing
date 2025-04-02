@@ -3,6 +3,7 @@
  * SaveAndContinueButton Component
  * Allows users to save their form progress and continue later
  * Enhanced with improved visual hierarchy and micro-interactions
+ * 2024-06-18: Updated prop types to fix compatibility with FormSubmissionButtons
  */
 
 import { useState, useEffect } from 'react';
@@ -12,19 +13,30 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 interface SaveAndContinueButtonProps {
-  onSave: () => Promise<void>;
+  onSave?: () => Promise<void>; // Changed from onSave to match FormSubmissionButtons
+  onClick?: () => Promise<void>; // Added onClick as an alternative to onSave
   carId?: string;
   isDisabled?: boolean;
+  disabled?: boolean; // Added for compatibility
+  isSaving?: boolean; // Added for compatibility
+  currentStep?: number; // Added for compatibility
 }
 
 export const SaveAndContinueButton = ({ 
   onSave, 
+  onClick,
   carId, 
-  isDisabled = false 
+  isDisabled = false,
+  disabled = false,
+  isSaving: externalIsSaving, // Accept external isSaving state
+  currentStep
 }: SaveAndContinueButtonProps) => {
   const [isSaving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const navigate = useNavigate();
+  
+  // Use external isSaving state if provided
+  const savingState = externalIsSaving !== undefined ? externalIsSaving : isSaving;
   
   useEffect(() => {
     // Reset success state after a delay
@@ -38,12 +50,16 @@ export const SaveAndContinueButton = ({
   }, [showSuccess]);
   
   const handleSaveAndExit = async () => {
-    if (isDisabled || isSaving) return;
+    if (isDisabled || disabled || savingState) return;
     
     try {
       setSaving(true);
-      // Save the form data
-      await onSave();
+      // Use the appropriate save function
+      if (onClick) {
+        await onClick();
+      } else if (onSave) {
+        await onSave();
+      }
       
       // Show success state
       setShowSuccess(true);
@@ -83,9 +99,9 @@ export const SaveAndContinueButton = ({
       variant="outline"
       className="flex items-center gap-2 border-[#383B39] hover:bg-[#383B39]/10 text-[#383B39] group transition-all duration-300"
       onClick={handleSaveAndExit}
-      disabled={isDisabled || isSaving}
+      disabled={isDisabled || disabled || savingState}
     >
-      {isSaving ? (
+      {savingState ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : showSuccess ? (
         <CheckCircle className="h-4 w-4 text-green-500 animate-scale-in" />
@@ -93,7 +109,7 @@ export const SaveAndContinueButton = ({
         <Save className="h-4 w-4 transition-transform group-hover:scale-110 duration-300" />
       )}
       <span>
-        {isSaving 
+        {savingState 
           ? "Saving..." 
           : showSuccess 
             ? "Saved!" 
