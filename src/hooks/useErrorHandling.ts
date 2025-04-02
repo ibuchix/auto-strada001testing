@@ -3,6 +3,7 @@
  * Created: 2025-12-01
  * Purpose: Provides a standardized way to handle errors in components
  * Updated: 2024-08-16: Integrated with centralized error context
+ * Updated: 2026-05-10: Enhanced error categorization and improved recovery options
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -23,7 +24,7 @@ import {
   createSubmissionError,
   createTimeoutError
 } from '../errors/factory';
-import { ErrorCategory } from '../errors/types';
+import { ErrorCategory, RecoveryType } from '../errors/types';
 import { useErrorContext } from '@/contexts/ErrorContext';
 import { logError } from '@/utils/errorLogger';
 
@@ -33,6 +34,7 @@ interface ErrorHandlingOptions {
   logErrors?: boolean;
   captureInState?: boolean;
   captureInContext?: boolean;
+  toastDuration?: number;
 }
 
 /**
@@ -44,19 +46,22 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
     focusOnErrors = true,
     logErrors = true,
     captureInState = true,
-    captureInContext = true
+    captureInContext = true,
+    toastDuration = 5000
   } = options;
   
   const errorContext = useErrorContext();
   const navigate = useNavigate();
   const [error, setError] = useState<BaseApplicationError | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [errorCount, setErrorCount] = useState(0);
   
   // Clean up on unmount
   useEffect(() => {
     return () => {
       setError(null);
       setFieldErrors({});
+      setErrorCount(0);
     };
   }, []);
   
@@ -78,14 +83,46 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
     }
     
     try {
+      // Track error count for retry logic
+      setErrorCount(prevCount => prevCount + 1);
+
+      // Convert to standard application error format
       const appError = errorToHandle instanceof BaseApplicationError
         ? errorToHandle
         : new BaseApplicationError({
             code: 'UNKNOWN_ERROR',
             message: errorToHandle instanceof Error ? errorToHandle.message : 'An unknown error occurred',
             category: ErrorCategory.UNKNOWN,
-            retryable: false
+            retryable: true
           });
+      
+      // Enhance error with better recovery options based on error count
+      if (errorCount > 2 && appError.retryable) {
+        // After multiple retries, suggest more drastic recovery options
+        if (!appError.recovery || appError.recovery.type === RecoveryType.FORM_RETRY) {
+          switch (appError.category) {
+            case ErrorCategory.NETWORK:
+              appError.recovery = {
+                type: RecoveryType.REFRESH,
+                label: 'Refresh Page',
+                action: () => window.location.reload()
+              };
+              break;
+            case ErrorCategory.VALIDATION:
+              // Keep validation as is, but add description
+              appError.description = `${appError.description || ''} Try checking all required fields.`;
+              break;
+            default:
+              appError.recovery = {
+                type: RecoveryType.CONTACT_SUPPORT,
+                label: 'Contact Support',
+                action: () => {
+                  window.location.href = 'mailto:support@autostrada.com?subject=Error%20in%20application';
+                }
+              };
+          }
+        }
+      }
       
       // Capture in the global error context if enabled
       if (captureInContext && errorContext) {
@@ -115,6 +152,7 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
         if (appError.recovery) {
           toast.error(appError.message, {
             description: appError.description,
+            duration: toastDuration,
             action: {
               label: appError.recovery.label,
               onClick: appError.recovery.action
@@ -122,7 +160,8 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
           });
         } else {
           toast.error(appError.message, {
-            description: appError.description
+            description: appError.description,
+            duration: toastDuration
           });
         }
       }
@@ -131,7 +170,7 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
       if (focusOnErrors && 
           appError instanceof ValidationError && 
           appError.metadata?.field && 
-          appError.recovery?.type === 'field_correction') {
+          appError.recovery?.type === RecoveryType.FIELD_CORRECTION) {
         const element = document.getElementById(appError.metadata.field as string);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth' });
@@ -150,7 +189,7 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
       
       return null;
     }
-  }, [showToast, focusOnErrors, logErrors, captureInState, captureInContext, errorContext]);
+  }, [showToast, focusOnErrors, logErrors, captureInState, captureInContext, errorContext, errorCount, toastDuration]);
   
   /**
    * Create common type of errors with preset handling
@@ -226,9 +265,17 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
     }
   }, [handleError, clearErrors]);
   
+  /**
+   * Reset error count
+   */
+  const resetErrorCount = useCallback(() => {
+    setErrorCount(0);
+  }, []);
+  
   return {
     error,
     fieldErrors,
+    errorCount,
     hasError: !!error,
     handleError,
     clearErrors,
@@ -237,6 +284,7 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
     withErrorHandling,
     getFieldError,
     hasFieldError,
+    resetErrorCount,
     createError: createErrors()
   };
 }

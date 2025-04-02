@@ -5,6 +5,7 @@
  * Changes made:
  * - 2025-11-05: Created as part of apiClientService refactoring
  * - Extracted error handling logic from monolithic apiClientService
+ * - 2026-05-10: Enhanced with better network detection and categorization
  */
 
 import { toast } from "sonner";
@@ -15,6 +16,7 @@ import {
   handleAppError
 } from "@/errors/factory";
 import { ApiRequestConfig, ApiResponse } from "../types/apiTypes";
+import { ApiError } from "@/services/errors/apiError";
 
 /**
  * Normalize errors into a consistent format
@@ -32,26 +34,121 @@ export function normalizeError<T>(error: any, config: ApiRequestConfig): ApiResp
     }
   }
   
-  // Detect error type
+  // Detect network connectivity issues
+  if (!navigator.onLine) {
+    const networkError = new ApiError(
+      "You are currently offline. Please check your internet connection.",
+      {
+        originalError: error,
+        statusCode: 0,
+        errorCode: 'OFFLINE',
+        isNetworkError: true,
+        category: 'network',
+        retryable: true
+      }
+    );
+    
+    return {
+      data: null,
+      error: networkError,
+      status: 0
+    };
+  }
+  
+  // Detect error type and create normalized ApiError
   let status = 500;
+  let category: 'network' | 'auth' | 'validation' | 'server' | 'unknown' = 'unknown';
+  let isNetworkError = false;
+  let errorCode = '';
   
   if (error.status) {
     status = error.status;
   } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
     status = 408; // Request Timeout
+    category = 'network';
+    isNetworkError = true;
+    errorCode = 'TIMEOUT';
   } else if (error.message?.includes('network') || error.message?.includes('connection')) {
     status = 0; // Network Error
+    category = 'network';
+    isNetworkError = true;
+    errorCode = 'NETWORK_ERROR';
   } else if (error.code === 'UNAUTHORIZED' || error.message?.includes('unauthorized')) {
     status = 401;
+    category = 'auth';
+    errorCode = 'UNAUTHORIZED';
   } else if (error.code === 'FORBIDDEN' || error.message?.includes('forbidden')) {
     status = 403;
+    category = 'auth';
+    errorCode = 'FORBIDDEN';
   } else if (error.code === 'NOT_FOUND' || error.message?.includes('not found')) {
     status = 404;
+    category = 'server';
+    errorCode = 'NOT_FOUND';
   }
+  
+  // Determine if error is retryable
+  const retryable = (
+    isNetworkError || 
+    status >= 500 || 
+    status === 408 || 
+    status === 429
+  );
+  
+  const apiError = new ApiError(error.message || 'An error occurred', {
+    originalError: error,
+    statusCode: status,
+    errorCode,
+    isNetworkError,
+    category,
+    retryable
+  });
   
   return {
     data: null,
-    error,
+    error: apiError,
     status
   };
+}
+
+/**
+ * Check if an error is likely due to network connectivity issues
+ */
+export function isNetworkError(error: any): boolean {
+  // Check for browser's online status
+  if (!navigator.onLine) {
+    return true;
+  }
+  
+  // Check common network error patterns
+  if (error instanceof ApiError) {
+    return error.isNetworkError;
+  }
+  
+  // Check error message
+  if (error.message) {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes('network') ||
+      message.includes('connection') ||
+      message.includes('internet') ||
+      message.includes('offline') ||
+      message.includes('timeout') ||
+      message.includes('timed out')
+    );
+  }
+  
+  // Check error code
+  if (error.code) {
+    return (
+      error.code === 'ECONNREFUSED' ||
+      error.code === 'ECONNRESET' ||
+      error.code === 'ETIMEDOUT' ||
+      error.code === 'ENETUNREACH' ||
+      error.code === 'NETWORK_ERROR'
+    );
+  }
+  
+  // Check status
+  return error.status === 0 || error.status === 408;
 }

@@ -1,60 +1,30 @@
 
 /**
- * Changes made:
- * - 2024-10-15: Created a dedicated hook for offline status management across the application
+ * Hook to detect online/offline status
+ * Created: 2026-05-10
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
+import { useState, useEffect } from 'react';
 
-/**
- * Hook to track and manage online/offline status throughout the application
- */
-export const useOfflineStatus = (options: {
-  showToasts?: boolean;
-  onOffline?: () => void;
-  onOnline?: () => void;
-} = {}) => {
-  const { showToasts = true, onOffline, onOnline } = options;
+export function useOfflineStatus() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  
-  const handleOnline = useCallback(() => {
-    setIsOffline(false);
-    if (showToasts) {
-      toast.success("You're back online", {
-        description: "Your changes will now be synchronized",
-        duration: 3000
-      });
-    }
-    if (onOnline) onOnline();
-  }, [showToasts, onOnline]);
-  
-  const handleOffline = useCallback(() => {
-    setIsOffline(true);
-    if (showToasts) {
-      toast.warning("You are offline", { 
-        description: "Your changes will be saved locally and synced when you're back online",
-        duration: 5000
-      });
-    }
-    if (onOffline) onOffline();
-  }, [showToasts, onOffline]);
-  
-  useEffect(() => {
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    // Set initial state
-    setIsOffline(!navigator.onLine);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [handleOnline, handleOffline]);
 
-  return {
-    isOffline,
-    isOnline: !isOffline
-  };
-};
+  useEffect(() => {
+    // Update network status
+    const handleStatusChange = () => {
+      setIsOffline(!navigator.onLine);
+    };
+
+    // Listen to the online status
+    window.addEventListener('online', handleStatusChange);
+    window.addEventListener('offline', handleStatusChange);
+
+    return () => {
+      // Cleanup event listeners
+      window.removeEventListener('online', handleStatusChange);
+      window.removeEventListener('offline', handleStatusChange);
+    };
+  }, []);
+
+  return { isOffline };
+}

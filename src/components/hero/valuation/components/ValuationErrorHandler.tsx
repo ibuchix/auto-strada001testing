@@ -1,10 +1,10 @@
-
 /**
  * Changes made:
  * - 2025-04-21: Created component for handling valuation errors extracted from ValuationResult
  * - 2026-04-15: Enhanced error feedback and added resilience for network issues
  * - 2027-06-20: Extracted from ValuationResult component as part of code refactoring
  * - 2024-08-15: Updated with consistent recovery paths and UI patterns
+ * - 2026-05-10: Improved offline detection and handling
  */
 
 import { useNavigate } from "react-router-dom";
@@ -39,6 +39,7 @@ export const ValuationErrorHandler = ({
   const navigate = useNavigate();
   const { isOffline } = useOfflineStatus();
   const [retryCount, setRetryCount] = useState(0);
+  const [lastRetryTime, setLastRetryTime] = useState<number | null>(null);
   
   // Extract error message regardless of error type
   const errorMsg = typeof valuationResult.error === 'string' 
@@ -53,16 +54,32 @@ export const ValuationErrorHandler = ({
     errorMsg.toLowerCase().includes('timeout') ||
     isOffline;
 
-  // Increment retry count when component mounts
+  // Load retry count from session storage when component mounts
   useEffect(() => {
     const storedCount = Number(sessionStorage.getItem('valuationRetryCount') || '0');
     setRetryCount(storedCount);
-    sessionStorage.setItem('valuationRetryCount', (storedCount + 1).toString());
+    
+    const storedTime = sessionStorage.getItem('valuationLastRetryTime');
+    setLastRetryTime(storedTime ? Number(storedTime) : null);
+    
+    // If it's been more than 5 minutes since the last retry, reset the counter
+    if (storedTime && Date.now() - Number(storedTime) > 5 * 60 * 1000) {
+      sessionStorage.removeItem('valuationRetryCount');
+      sessionStorage.removeItem('valuationLastRetryTime');
+      setRetryCount(0);
+      setLastRetryTime(null);
+    } else {
+      // Otherwise, increment the counter
+      const newCount = storedCount + 1;
+      sessionStorage.setItem('valuationRetryCount', newCount.toString());
+      sessionStorage.setItem('valuationLastRetryTime', Date.now().toString());
+    }
     
     return () => {
       // If component unmounts with successful close, reset the counter
       if (!valuationResult.error) {
         sessionStorage.removeItem('valuationRetryCount');
+        sessionStorage.removeItem('valuationLastRetryTime');
       }
     };
   }, [valuationResult.error]);
@@ -81,6 +98,7 @@ export const ValuationErrorHandler = ({
     
     // Clear retry counter
     sessionStorage.removeItem('valuationRetryCount');
+    sessionStorage.removeItem('valuationLastRetryTime');
     
     if (!isLoggedIn) {
       navigate('/auth');
@@ -116,7 +134,24 @@ export const ValuationErrorHandler = ({
         });
       }
       
-      onRetry();
+      // Add delay between retries to prevent hammering the service
+      if (lastRetryTime && Date.now() - lastRetryTime < 2000) {
+        toast.info("Please wait before retrying", {
+          description: "We're limiting requests to protect our services.",
+          duration: 2000
+        });
+        
+        // Wait a bit, then invoke retry
+        setTimeout(() => {
+          setLastRetryTime(Date.now());
+          sessionStorage.setItem('valuationLastRetryTime', Date.now().toString());
+          onRetry();
+        }, 2000);
+      } else {
+        setLastRetryTime(Date.now());
+        sessionStorage.setItem('valuationLastRetryTime', Date.now().toString());
+        onRetry();
+      }
     }
   };
 
@@ -151,6 +186,7 @@ export const ValuationErrorHandler = ({
       onRetry={getRecoveryAction()}
       showManualOption={true}
       onManualValuation={handleManualValuation}
+      isOffline={isOffline}
     />
   );
 };
