@@ -1,6 +1,9 @@
 
 /**
  * Client service for interacting with the valuation API
+ * 
+ * Changes made:
+ * - 2026-05-13: Fixed ApiError constructor usage to match interface
  */
 import { supabase } from "@/integrations/supabase/client";
 import { ApiError } from "../errors/apiError";
@@ -31,7 +34,10 @@ export async function getVehicleValuation(
     
     if (error) {
       console.error('Valuation API error:', error);
-      throw new ApiError('Failed to get vehicle valuation', error);
+      throw new ApiError({
+        message: 'Failed to get vehicle valuation',
+        originalError: error
+      });
     }
     
     return { 
@@ -78,7 +84,10 @@ export async function getSellerValuation(
     
     if (error) {
       console.error('Seller valuation API error:', error);
-      throw new ApiError('Failed to get seller valuation', error);
+      throw new ApiError({
+        message: 'Failed to get seller valuation',
+        originalError: error
+      });
     }
     
     if (!data.success) {

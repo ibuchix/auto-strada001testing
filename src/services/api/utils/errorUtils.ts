@@ -6,6 +6,7 @@
  * - 2025-11-05: Created as part of apiClientService refactoring
  * - Extracted error handling logic from monolithic apiClientService
  * - 2026-05-10: Enhanced with better network detection and categorization
+ * - 2026-05-13: Fixed constructor usage to match ApiError interface
  */
 
 import { toast } from "sonner";
@@ -36,17 +37,13 @@ export function normalizeError<T>(error: any, config: ApiRequestConfig): ApiResp
   
   // Detect network connectivity issues
   if (!navigator.onLine) {
-    const networkError = new ApiError(
-      "You are currently offline. Please check your internet connection.",
-      {
-        originalError: error,
-        statusCode: 0,
-        errorCode: 'OFFLINE',
-        isNetworkError: true,
-        category: 'network',
-        retryable: true
-      }
-    );
+    const networkError = new ApiError({
+      message: "You are currently offline. Please check your internet connection.",
+      originalError: error,
+      statusCode: 0,
+      errorCode: 'OFFLINE',
+      category: 'network'
+    });
     
     return {
       data: null,
@@ -57,7 +54,7 @@ export function normalizeError<T>(error: any, config: ApiRequestConfig): ApiResp
   
   // Detect error type and create normalized ApiError
   let status = 500;
-  let category: 'network' | 'auth' | 'validation' | 'server' | 'unknown' = 'unknown';
+  let category: 'network' | 'validation' | 'authentication' | 'server' | 'unknown' = 'unknown';
   let isNetworkError = false;
   let errorCode = '';
   
@@ -75,11 +72,11 @@ export function normalizeError<T>(error: any, config: ApiRequestConfig): ApiResp
     errorCode = 'NETWORK_ERROR';
   } else if (error.code === 'UNAUTHORIZED' || error.message?.includes('unauthorized')) {
     status = 401;
-    category = 'auth';
+    category = 'authentication';
     errorCode = 'UNAUTHORIZED';
   } else if (error.code === 'FORBIDDEN' || error.message?.includes('forbidden')) {
     status = 403;
-    category = 'auth';
+    category = 'authentication';
     errorCode = 'FORBIDDEN';
   } else if (error.code === 'NOT_FOUND' || error.message?.includes('not found')) {
     status = 404;
@@ -87,21 +84,12 @@ export function normalizeError<T>(error: any, config: ApiRequestConfig): ApiResp
     errorCode = 'NOT_FOUND';
   }
   
-  // Determine if error is retryable
-  const retryable = (
-    isNetworkError || 
-    status >= 500 || 
-    status === 408 || 
-    status === 429
-  );
-  
-  const apiError = new ApiError(error.message || 'An error occurred', {
+  const apiError = new ApiError({
+    message: error.message || 'An error occurred',
     originalError: error,
     statusCode: status,
     errorCode,
-    isNetworkError,
-    category,
-    retryable
+    category
   });
   
   return {
