@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2027-11-17: Fixed React hooks inconsistency by ensuring unconditional hook calls
@@ -11,6 +12,7 @@
  * - 2028-11-11: Fixed totalSteps reference error in calculateFormProgress function
  * - 2028-11-12: Refactored into smaller, more maintainable components and hooks
  * - 2028-11-14: Fixed TypeScript errors with form extension types
+ * - 2024-06-05: Removed FormProgress import that was causing build error
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -30,14 +32,13 @@ import { toast } from "sonner";
 import { FormDataProvider } from "./context/FormDataContext";
 import { FormErrorHandler } from "./FormErrorHandler";
 import { useNavigate } from "react-router-dom";
-import { FormProgress } from "./FormProgress";
-import { useStepNavigation } from "./hooks/useStepNavigation";
 import { LoadingState } from "./LoadingState";
 import { useFormInitialization } from "./hooks/useFormInitialization";
 import { useFormProgress } from "./hooks/useFormProgress";
 import { useValidationErrorTracking } from "./hooks/useValidationErrorTracking";
 import { useFilteredSteps } from "./hooks/useFilteredSteps";
 import { useFormDialogs } from "./hooks/useFormDialogs";
+import { FormProgressIndicator } from "./components/FormProgressIndicator";
 
 interface FormContentProps {
   session: Session;
@@ -253,13 +254,13 @@ export const FormContent = ({
               onOfflineStatusChange={persistence.setIsOffline}
             />
             
-            <FormProgress 
-              progress={progress}
+            <FormProgressIndicator 
               steps={formState.filteredStepsArray}
               currentStep={stepNavigation.currentStep}
-              onStepClick={(step) => stepNavigation.setCurrentStep(step)}
+              onStepChange={(step) => stepNavigation.setCurrentStep(step)}
+              visibleSections={visibleSections}
               completedSteps={completedStepsArray}
-              errorSteps={stepErrors}
+              validationErrors={stepErrors}
             />
             
             <StepForm
