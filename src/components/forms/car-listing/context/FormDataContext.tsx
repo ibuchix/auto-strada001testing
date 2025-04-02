@@ -11,15 +11,24 @@
  * - 2025-11-20: Optimized context implementation with better memoization
  * - 2025-11-20: Added performance optimization for context consumers
  * - 2025-11-20: Implemented equality checking to prevent unnecessary rerenders
+ * - 2025-11-21: Fixed TypeScript error with keyof parameter
+ * - 2025-11-21: Exposed form methods directly in context value for easier access
  */
 
 import React, { createContext, ReactNode, useContext, useMemo, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 
-// Strongly type the context shape
+// Enhanced context shape to expose common form methods directly
 interface FormDataContextValue {
   form: UseFormReturn<CarListingFormData>;
+  // Expose common form methods directly for convenient access
+  control: UseFormReturn<CarListingFormData>['control'];
+  watch: UseFormReturn<CarListingFormData>['watch'];
+  setValue: <T extends keyof CarListingFormData>(
+    name: T, 
+    value: CarListingFormData[T]
+  ) => void;
   getFormValues: () => CarListingFormData;
   setFormValue: <T extends keyof CarListingFormData>(
     name: T, 
@@ -56,6 +65,10 @@ export const FormDataProvider = ({ children, form }: FormDataProviderProps) => {
   // Deeply memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     form,
+    // Expose common form methods directly
+    control: form.control,
+    watch: form.watch,
+    setValue: form.setValue,
     getFormValues,
     setFormValue
   }), [form, getFormValues, setFormValue]);

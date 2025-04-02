@@ -3,6 +3,7 @@
  * Form Error Section component
  * - Extracted from FormContent.tsx to separate error display logic
  * - Fixed type mismatch between ValidationErrorDisplay and FormErrorSection props
+ * - 2025-11-21: Added proper type handling for validation errors
  */
 import { memo } from "react";
 import { ValidationErrorDisplay } from "../ValidationErrorDisplay";
