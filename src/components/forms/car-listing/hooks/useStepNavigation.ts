@@ -5,6 +5,7 @@
  * - Handles validation before proceeding
  * - Manages step completion state
  * - 2025-11-10: Fixed React hooks consistency issue by consolidating state
+ * - 2027-11-15: Fixed React hooks rendering error by ensuring unconditional hook calls
  */
 
 import { useState, useCallback, useMemo } from "react";
@@ -24,6 +25,14 @@ export const STEP_FIELD_MAPPINGS: Record<string, Array<keyof CarListingFormData>
   'service-history': ['serviceDocuments', 'lastServiceDate', 'serviceHistoryType']
 };
 
+interface StepNavigationState {
+  currentStep: number;
+  isNavigating: boolean;
+  validationErrors: Record<string, string>;
+  completedSteps: number[];
+  stepValidationErrors: Record<string, boolean>;
+}
+
 interface UseStepNavigationProps {
   form: UseFormReturn<CarListingFormData>;
   totalSteps: number;
@@ -42,17 +51,19 @@ export const useStepNavigation = ({
   saveProgress,
   filteredSteps
 }: UseStepNavigationProps) => {
-  // IMPORTANT: Consolidate all state into a single useState call to ensure consistent hook invocation
-  const [state, setState] = useState({
+  // Single consolidated useState call for all state values
+  // This ensures consistent hook invocation regardless of conditional branches
+  const [state, setState] = useState<StepNavigationState>({
     currentStep: initialStep,
     isNavigating: false,
-    validationErrors: {} as Record<string, string>,
-    completedSteps: [] as number[],
-    stepValidationErrors: {} as Record<string, boolean>
+    validationErrors: {},
+    completedSteps: [],
+    stepValidationErrors: {}
   });
   
   // Validate the fields for the current step
   const validateStepFields = useCallback(async (stepId: string) => {
+    // Safely handle cases where stepId might not exist in the mappings
     const fieldsToValidate = STEP_FIELD_MAPPINGS[stepId] || [];
     if (fieldsToValidate.length === 0) return true;
     
@@ -130,11 +141,28 @@ export const useStepNavigation = ({
     try {
       // Validate current step before proceeding to next step
       if (direction === 'next') {
+        // Add safety check for filteredSteps array
+        if (!filteredSteps || filteredSteps.length === 0) {
+          console.error('No filtered steps available for validation');
+          setState(prev => ({...prev, isNavigating: false}));
+          toast.error("Navigation error", { description: "Step configuration is invalid" });
+          return;
+        }
+
+        // Safely access current step index
+        if (state.currentStep < 0 || state.currentStep >= filteredSteps.length) {
+          console.error('Current step index out of bounds:', state.currentStep, 'max:', filteredSteps.length - 1);
+          setState(prev => ({...prev, isNavigating: false}));
+          toast.error("Navigation error", { description: "Invalid step index" });
+          return;
+        }
+
         const currentStepId = filteredSteps[state.currentStep]?.id;
         // Check if currentStepId exists before validating
         if (!currentStepId) {
           console.error('Invalid step ID');
           setState(prev => ({...prev, isNavigating: false}));
+          toast.error("Navigation error", { description: "Step configuration is invalid" });
           return;
         }
         
@@ -178,7 +206,13 @@ export const useStepNavigation = ({
       }
 
       // Save progress before navigation
-      await saveProgress();
+      try {
+        await saveProgress();
+      } catch (saveError) {
+        console.error('Error saving progress:', saveError);
+        // Continue navigation even if saving fails
+      }
+
       setState(prev => ({...prev, currentStep: newStep, isNavigating: false}));
       
     } catch (error) {

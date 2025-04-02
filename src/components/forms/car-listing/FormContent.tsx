@@ -20,6 +20,7 @@
  * - 2025-11-06: Fixed React hooks issue with conditional rendering
  * - 2025-11-07: Fixed TypeScript errors with STEP_FIELD_MAPPINGS import
  * - 2025-11-10: Fixed React hooks inconsistency in StepNavigation integration
+ * - 2025-11-15: Fixed hook rendering order issue causing blank screen
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -73,14 +74,18 @@ export const FormContent = ({
   onDraftError,
   retryCount = 0
 }: FormContentProps) => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [carId, setCarId] = useState<string>();
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [draftLoadError, setDraftLoadError] = useState<Error | null>(null);
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
-  // IMPORTANT: Create stepConfig state outside of conditionals
-  const [filteredStepsArray, setFilteredStepsArray] = useState<Array<any>>([]);
+  // Initialize ALL state first, before any conditional logic
+  const [formState, setFormState] = useState({
+    currentStep: 0,
+    lastSaved: null as Date | null,
+    carId: undefined as string | undefined,
+    isInitializing: true,
+    draftLoadError: null as Error | null,
+    showSaveDialog: false,
+    showSuccessDialog: false,
+    filteredStepsArray: [] as Array<any>
+  });
+  
   const form = useCarListingForm(session.user.id, draftId);
   const navigate = useNavigate();
 
@@ -88,14 +93,14 @@ export const FormContent = ({
   useEffect(() => {
     const initializeForm = async () => {
       try {
-        setIsInitializing(true);
+        setFormState(prev => ({ ...prev, isInitializing: true }));
         const defaults = await getFormDefaults();
         form.reset(defaults);
       } catch (error) {
         console.error("Failed to initialize form defaults:", error);
         toast.error("Failed to load form defaults");
       } finally {
-        setIsInitializing(false);
+        setFormState(prev => ({ ...prev, isInitializing: false }));
       }
     };
     
@@ -110,7 +115,7 @@ export const FormContent = ({
   // Handle draft error
   const handleDraftError = useCallback((error: Error) => {
     console.error("Draft loading error:", error);
-    setDraftLoadError(error);
+    setFormState(prev => ({ ...prev, draftLoadError: error }));
     
     if (onDraftError) {
       onDraftError(error);
@@ -124,9 +129,12 @@ export const FormContent = ({
     draftId,
     retryCount,
     onLoaded: (draft) => {
-      setCarId(draft.carId);
-      setLastSaved(draft.updatedAt);
-      setDraftLoadError(null);
+      setFormState(prev => ({ 
+        ...prev, 
+        carId: draft.carId, 
+        lastSaved: draft.updatedAt,
+        draftLoadError: null 
+      }));
     },
     onError: handleDraftError
   });
@@ -135,13 +143,12 @@ export const FormContent = ({
   const persistence = useFormPersistence({
     form,
     userId: session.user.id,
-    carId,
-    currentStep
+    carId: formState.carId,
+    currentStep: formState.currentStep
   });
 
   // Submission handling
   const {
-    showSuccessDialog,
     handleSubmit: handleFormSubmit,
     isSubmitting,
     setShowSuccessDialog
@@ -151,22 +158,28 @@ export const FormContent = ({
   const onSubmit = useCallback(
     async (data: CarListingFormData) => {
       try {
-        await handleFormSubmit(data, carId);
-        setLastSaved(new Date());
+        await handleFormSubmit(data, formState.carId);
+        setFormState(prev => ({ 
+          ...prev, 
+          lastSaved: new Date(),
+          showSuccessDialog: true
+        }));
       } catch (error) {
         console.error("Form submission error:", error);
       }
     },
-    [handleFormSubmit, carId]
+    [handleFormSubmit, formState.carId]
   );
 
   // Sync persistence state
   useEffect(() => {
-    if (persistence.lastSaved) setLastSaved(persistence.lastSaved);
+    if (persistence.lastSaved) {
+      setFormState(prev => ({ ...prev, lastSaved: persistence.lastSaved }));
+    }
   }, [persistence.lastSaved]);
 
   // Section visibility
-  const { visibleSections } = useSectionsVisibility(form, carId);
+  const { visibleSections } = useSectionsVisibility(form, formState.carId);
 
   // Handle errors during form loading
   const handleFormError = useCallback((error: Error) => {
@@ -199,7 +212,7 @@ export const FormContent = ({
         const formValues = form.getValues();
         saveToCache(CACHE_KEYS.TEMP_MILEAGE, formValues.mileage?.toString() || '');
         saveToCache(CACHE_KEYS.TEMP_VIN, formValues.vin || '');
-        saveToCache(CACHE_KEYS.FORM_STEP, currentStep.toString());
+        saveToCache(CACHE_KEYS.FORM_STEP, formState.currentStep.toString());
         
         console.log('Periodic save completed', new Date().toISOString());
       } catch (error) {
@@ -208,12 +221,12 @@ export const FormContent = ({
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [form, currentStep]);
+  }, [form, formState.currentStep]);
 
   // Effect to clear draft error when retryCount changes
   useEffect(() => {
     if (retryCount > 0) {
-      setDraftLoadError(null);
+      setFormState(prev => ({ ...prev, draftLoadError: null }));
     }
   }, [retryCount]);
 
@@ -222,14 +235,14 @@ export const FormContent = ({
     const filtered = formSteps.filter(step => {
       return step.sections.some(section => visibleSections.includes(section));
     });
-    setFilteredStepsArray(filtered);
+    setFormState(prev => ({ ...prev, filteredStepsArray: filtered }));
   }, [visibleSections]);
 
   // Handle save and continue action
   const handleSaveAndContinue = useCallback(async () => {
     try {
       await persistence.saveImmediately();
-      setShowSaveDialog(true);
+      setFormState(prev => ({ ...prev, showSaveDialog: true }));
     } catch (error) {
       console.error("Error saving progress:", error);
       toast.error("Failed to save progress", {
@@ -286,24 +299,39 @@ export const FormContent = ({
     return stepErrors;
   }, [form.formState.errors]);
 
+  // CRITICAL: Initialize step navigation BEFORE any conditional rendering
+  // This ensures the hook is called the same number of times regardless of render path
+  const stepNavigation = useStepNavigation({
+    form,
+    totalSteps: formState.filteredStepsArray.length || 1, // Ensure non-zero even before data loads
+    initialStep: formState.currentStep,
+    saveProgress: persistence.saveImmediately,
+    filteredSteps: formState.filteredStepsArray.length > 0 
+      ? formState.filteredStepsArray 
+      : [{ id: 'default', validate: () => true }] // Provide fallback when data isn't ready
+  });
+
+  // Update the step when step navigation changes
+  useEffect(() => {
+    setFormState(prev => {
+      if (prev.currentStep !== stepNavigation.currentStep) {
+        return { ...prev, currentStep: stepNavigation.currentStep };
+      }
+      return prev;
+    });
+  }, [stepNavigation.currentStep]);
+  
+  // Now handle conditional rendering AFTER all hooks have been called
+  
   // Show draft loading error if there is one
-  if (draftLoadError && !isInitializing) {
-    return <FormErrorHandler draftError={draftLoadError} />;
+  if (formState.draftLoadError && !formState.isInitializing) {
+    return <FormErrorHandler draftError={formState.draftLoadError} />;
   }
 
   // Show loading state when initializing or loading draft
-  if (isInitializing || isLoadingDraft) {
+  if (formState.isInitializing || isLoadingDraft) {
     return <LoadingState />;
   }
-
-  // Initialize step navigation EARLY and UNCONDITIONALLY to avoid hook ordering issues
-  const stepNavigation = useStepNavigation({
-    form,
-    totalSteps: filteredStepsArray.length,
-    initialStep: currentStep,
-    saveProgress: persistence.saveImmediately,
-    filteredSteps: filteredStepsArray
-  });
   
   const progress = calculateFormProgress();
   const stepErrors = getStepValidationErrors();
@@ -314,8 +342,8 @@ export const FormContent = ({
         <FormDataProvider form={form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <ProgressPreservation 
-              currentStep={currentStep}
-              lastSaved={lastSaved}
+              currentStep={formState.currentStep}
+              lastSaved={formState.lastSaved}
               onOfflineStatusChange={persistence.setIsOffline}
             />
             
@@ -323,18 +351,18 @@ export const FormContent = ({
             <FormProgress 
               progress={progress}
               steps={formSteps}
-              currentStep={currentStep}
-              onStepClick={setCurrentStep}
+              currentStep={formState.currentStep}
+              onStepClick={(step) => stepNavigation.setCurrentStep(step)}
               completedSteps={stepNavigation.completedSteps}
               errorSteps={stepErrors}
             />
             
             <StepForm
               form={form}
-              currentStep={currentStep}
-              setCurrentStep={setCurrentStep}
-              carId={carId}
-              lastSaved={lastSaved}
+              currentStep={formState.currentStep}
+              setCurrentStep={(step) => stepNavigation.setCurrentStep(step)}
+              carId={formState.carId}
+              lastSaved={formState.lastSaved}
               isOffline={persistence.isOffline}
               isSaving={persistence.isSaving || isSubmitting}
               saveProgress={persistence.saveImmediately}
@@ -344,17 +372,17 @@ export const FormContent = ({
 
           {/* Success dialog shown after form submission */}
           <SuccessDialog 
-            open={showSuccessDialog}
-            onOpenChange={(open) => !open && setShowSuccessDialog(false)}
-            lastSaved={lastSaved}
-            carId={carId}
+            open={formState.showSuccessDialog}
+            onOpenChange={(open) => !open && setFormState(prev => ({...prev, showSuccessDialog: false}))}
+            lastSaved={formState.lastSaved}
+            carId={formState.carId}
           />
           
           {/* Save progress dialog shown when user saves to continue later */}
           <SaveProgressDialog
-            open={showSaveDialog}
-            onOpenChange={(open) => !open && setShowSaveDialog(false)}
-            draftId={carId}
+            open={formState.showSaveDialog}
+            onOpenChange={(open) => !open && setFormState(prev => ({...prev, showSaveDialog: false}))}
+            draftId={formState.carId}
           />
         </FormDataProvider>
       </FormProvider>
