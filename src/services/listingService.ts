@@ -36,6 +36,7 @@ export const createCarListing = async (
       throw new Error("Your VIN reservation has expired. Please start the process again.");
     }
 
+    // Use the dedicated create-car-listing edge function
     const { data, error } = await supabase.functions.invoke('create-car-listing', {
       body: {
         valuationData,
