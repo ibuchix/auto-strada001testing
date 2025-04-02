@@ -13,10 +13,11 @@
  * - 2025-11-20: Implemented equality checking to prevent unnecessary rerenders
  * - 2025-11-21: Fixed TypeScript error with keyof parameter
  * - 2025-11-21: Exposed form methods directly in context value for easier access
+ * - 2025-11-22: Fixed type compatibility issues with React Hook Form setValue
  */
 
 import React, { createContext, ReactNode, useContext, useMemo, useCallback } from "react";
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, FieldPath, PathValue } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 
 // Enhanced context shape to expose common form methods directly
@@ -25,14 +26,11 @@ interface FormDataContextValue {
   // Expose common form methods directly for convenient access
   control: UseFormReturn<CarListingFormData>['control'];
   watch: UseFormReturn<CarListingFormData>['watch'];
-  setValue: <T extends keyof CarListingFormData>(
-    name: T, 
-    value: CarListingFormData[T]
-  ) => void;
+  setValue: UseFormReturn<CarListingFormData>['setValue'];
   getFormValues: () => CarListingFormData;
-  setFormValue: <T extends keyof CarListingFormData>(
+  setFormValue: <T extends FieldPath<CarListingFormData>>(
     name: T, 
-    value: CarListingFormData[T]
+    value: PathValue<CarListingFormData, T>
   ) => void;
 }
 
@@ -51,9 +49,9 @@ export const FormDataProvider = ({ children, form }: FormDataProviderProps) => {
     return form.getValues();
   }, [form]);
 
-  const setFormValue = useCallback(<T extends keyof CarListingFormData>(
+  const setFormValue = useCallback(<T extends FieldPath<CarListingFormData>>(
     name: T, 
-    value: CarListingFormData[T]
+    value: PathValue<CarListingFormData, T>
   ) => {
     form.setValue(name, value, { 
       shouldValidate: true,
@@ -95,12 +93,12 @@ export const useFormData = (): FormDataContextValue => {
 };
 
 // Access only form values without subscribing to all form changes
-export const useFormValues = <T extends keyof CarListingFormData>(fieldName?: T) => {
+export const useFormValues = <T extends FieldPath<CarListingFormData>>(fieldName?: T) => {
   const { form, getFormValues } = useFormData();
   
   return useMemo(() => {
     const values = getFormValues();
-    return fieldName ? values[fieldName] : values;
+    return fieldName ? values[fieldName as keyof CarListingFormData] : values;
   }, [getFormValues, fieldName, form.formState.submitCount]);
 };
 
