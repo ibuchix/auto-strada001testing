@@ -7,6 +7,7 @@
  * - 2024-11-24: Added fallback mechanisms for inconsistent API responses
  * - 2028-06-03: Improved error handling and data validation
  * - 2028-06-03: Added multiple fallback mechanisms for price extraction
+ * - 2028-06-10: Fixed TypeScript error with undefined vin variable in normalizeValuationData
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -73,7 +74,7 @@ export async function fetchSellerValuationData(
     console.log('Response data structure:', data.data ? Object.keys(data.data) : 'No data object');
     
     // Normalize the data to ensure consistent structure
-    const normalizedData = normalizeValuationData(data.data || data);
+    const normalizedData = normalizeValuationData(data.data || data, vin);
     
     // Check for valuation data
     if (normalizedData) {
@@ -102,8 +103,10 @@ export async function fetchSellerValuationData(
 
 /**
  * Normalize valuation data to ensure consistent structure
+ * @param data The data to normalize
+ * @param vinNumber The VIN associated with this valuation
  */
-function normalizeValuationData(data: any): any {
+function normalizeValuationData(data: any, vinNumber: string): any {
   if (!data) return null;
   
   // Handle nested data structure
@@ -204,7 +207,7 @@ function normalizeValuationData(data: any): any {
   try {
     localStorage.setItem('lastValuationData', JSON.stringify({
       timestamp: new Date().toISOString(),
-      vin,
+      vin: vinNumber,
       normalized: {
         make: result.make,
         model: result.model,
