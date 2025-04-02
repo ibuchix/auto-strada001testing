@@ -1,6 +1,8 @@
-
 /**
  * Changes made:
+ * - Added non-blocking cache operations
+ * - Improved error handling for cache failures
+ * - Made cache operations run in parallel with main flow
  * - 2024-03-19: Initial implementation of valuation service
  * - 2024-03-19: Added support for different contexts (home/seller)
  * - 2024-03-19: Enhanced error handling and response processing
@@ -17,6 +19,7 @@
 import { ValuationResult, TransmissionType } from "../types";
 import { processHomeValuation } from "./home-valuation";
 import { processSellerValuation } from "./seller-valuation";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Cleans up any stale valuation data from localStorage
@@ -39,23 +42,26 @@ export const getValuation = async (
   gearbox: string,
   context: 'home' | 'seller' = 'home'
 ): Promise<ValuationResult> => {
-  console.log(`Starting valuation for VIN: ${vin} in ${context} context`);
-  
-  // Add request tracking to localStorage to help with troubleshooting
-  try {
-    localStorage.setItem('lastValuationAttempt', JSON.stringify({
-      vin,
-      mileage,
-      gearbox,
-      context,
-      timestamp: new Date().toISOString()
-    }));
-  } catch (e) {
-    console.warn('Failed to store valuation attempt info:', e);
-    // Non-critical, continue with operation
-  }
+  // Generate a unique request ID for tracing this valuation request
+  const requestId = Math.random().toString(36).substring(2, 12);
   
   try {
+    console.log(`Starting valuation for VIN: ${vin} in ${context} context`);
+    
+    // Add request tracking to localStorage to help with troubleshooting
+    try {
+      localStorage.setItem('lastValuationAttempt', JSON.stringify({
+        vin,
+        mileage,
+        gearbox,
+        context,
+        timestamp: new Date().toISOString()
+      }));
+    } catch (e) {
+      console.warn('Failed to store valuation attempt info:', e);
+      // Non-critical, continue with operation
+    }
+    
     // Validate inputs before proceeding
     if (!vin || vin.length < 11 || vin.length > 17) {
       console.error('Invalid VIN format:', vin);
@@ -81,6 +87,67 @@ export const getValuation = async (
       };
     }
     
+    // Get user ID if logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    
+    if (!userId && context === "seller") {
+      throw new Error("Authentication required to get valuation as a seller");
+    }
+    
+    // Try to fetch from cache in parallel with main request
+    const cachePromise = fetchCachedValuation(vin, mileage);
+    
+    // Start main valuation request immediately (don't wait for cache)
+    const valuationPromise = supabase.functions.invoke("handle-seller-operations", {
+      body: {
+        operation: "get_valuation",
+        vin,
+        mileage,
+        gearbox,
+        userId: userId || "anonymous",
+        requestId
+      },
+    });
+    
+    // Race between cache and main request
+    const results = await Promise.allSettled([
+      cachePromise.catch(() => null), 
+      valuationPromise
+    ]);
+    
+    // Check if cache had a hit
+    if (results[0].status === 'fulfilled' && results[0].value) {
+      console.log('Using cached valuation data');
+      return {
+        success: true,
+        data: results[0].value
+      };
+    }
+    
+    // Otherwise use main request result
+    if (results[1].status !== 'fulfilled') {
+      throw new Error(results[1].reason || "Failed to get valuation");
+    }
+    
+    const { data, error } = results[1].value;
+    
+    if (error) {
+      throw new Error(error);
+    }
+    
+    if (!data || !data.success) {
+      const errorMessage = data?.error || "Failed to get vehicle valuation";
+      throw new Error(errorMessage);
+    }
+    
+    // If we have data to cache and it was a non-cache hit, store it asynchronously
+    if (data.data && !results[0].value) {
+      storeValuationInCache(vin, mileage, data.data).catch(err => {
+        console.warn('Failed to store valuation in cache:', err);
+      });
+    }
+    
     // Delegate to the appropriate context handler with timeout
     const timeoutPromise = new Promise<ValuationResult>((_, reject) => {
       setTimeout(() => {
@@ -93,12 +160,12 @@ export const getValuation = async (
     
     console.log(`Calling ${context} valuation processor with:`, { vin, mileage, transmissionType });
     
-    const valuationPromise = context === 'seller' 
-      ? processSellerValuation(vin, mileage, transmissionType)
-      : processHomeValuation(vin, mileage, transmissionType);
+    const valuationPromiseWithData = context === 'seller' 
+      ? processSellerValuation(vin, mileage, transmissionType, data.data)
+      : processHomeValuation(vin, mileage, transmissionType, data.data);
     
     // Race between the valuation and the timeout
-    return await Promise.race([valuationPromise, timeoutPromise]);
+    return await Promise.race([valuationPromiseWithData, timeoutPromise]);
   } catch (error: any) {
     console.error(`Valuation error for VIN ${vin}:`, error);
     
@@ -125,4 +192,54 @@ export const getValuation = async (
   }
 };
 
-// No duplicate export here - cleanupValuationData is already exported above
+/**
+ * Fetch cached valuation data - returns null if not found or error
+ * Non-blocking with timeout
+ */
+async function fetchCachedValuation(vin: string, mileage: number): Promise<any | null> {
+  try {
+    // Wrap in a timeout to ensure it doesn't block the main flow
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Cache lookup timed out')), 2000);
+    });
+    
+    const cachePromise = supabase.functions.invoke("handle-seller-operations", {
+      body: {
+        operation: "get_cached_valuation",
+        vin,
+        mileage
+      }
+    });
+    
+    // Race the cache lookup against the timeout
+    const { data } = await Promise.race([cachePromise, timeoutPromise]);
+    
+    if (data?.success && data?.data) {
+      return data.data;
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn("Cache lookup failed:", error.message);
+    return null;
+  }
+}
+
+/**
+ * Store valuation in cache asynchronously - fire and forget
+ */
+function storeValuationInCache(vin: string, mileage: number, valuationData: any): Promise<void> {
+  // Don't await this, should be non-blocking
+  return supabase.functions.invoke("handle-seller-operations", {
+    body: {
+      operation: "cache_valuation",
+      vin,
+      mileage,
+      valuation_data: valuationData
+    }
+  }).then(() => {
+    console.log("Valuation stored in cache");
+  }).catch(error => {
+    console.warn("Failed to store in cache:", error.message);
+  });
+}
