@@ -12,6 +12,7 @@
  * - 2026-04-15: Enhanced error resilience and improved visual feedback
  * - 2028-05-18: Fixed GeneralErrorHandler props
  * - 2028-06-02: Fixed zero price display issue and improved debugging
+ * - 2028-06-03: Added better debug logging for valuation data
  */
 
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,16 @@ export const ValuationDisplay = ({
       isLoading,
       hasError: !!error
     });
+    
+    // Add detailed debug information about the price value
+    if (reservePrice !== undefined && reservePrice !== null) {
+      console.log('Reserve price details:', {
+        asNumber: Number(reservePrice),
+        isNaN: isNaN(Number(reservePrice)),
+        isPositive: Number(reservePrice) > 0,
+        formatted: new Intl.NumberFormat('pl-PL').format(Number(reservePrice))
+      });
+    }
   }, [reservePrice, averagePrice, isLoading, error]);
 
   if (isLoading) {
@@ -77,15 +88,22 @@ export const ValuationDisplay = ({
     );
   }
 
-  // Log value for debugging
-  console.log('ValuationDisplay rendering with price:', 
-    reservePrice !== undefined && reservePrice !== null ? reservePrice : 'undefined/null');
-
-  // Show "No valuation available" if reserve price is undefined, null, NaN, 0, or negative
-  const hasValidPrice = reservePrice !== undefined && 
-                       reservePrice !== null && 
-                       !isNaN(Number(reservePrice)) && 
-                       Number(reservePrice) > 0;
+  // Improved validation of reserve price with more detailed logging
+  const hasValidPrice = (
+    reservePrice !== undefined && 
+    reservePrice !== null && 
+    !isNaN(Number(reservePrice)) && 
+    Number(reservePrice) > 0
+  );
+  
+  console.log('ValuationDisplay price validation:', {
+    hasValidPrice,
+    reservePrice,
+    isUndefined: reservePrice === undefined,
+    isNull: reservePrice === null,
+    isNaN: reservePrice !== undefined && reservePrice !== null ? isNaN(Number(reservePrice)) : 'N/A',
+    isPositive: reservePrice !== undefined && reservePrice !== null ? Number(reservePrice) > 0 : 'N/A'
+  });
                        
   if (!hasValidPrice) {
     console.warn('ValuationDisplay received invalid reserve price:', reservePrice);
@@ -113,8 +131,11 @@ export const ValuationDisplay = ({
     );
   }
 
-  // Convert to number and format
-  const formattedPrice = Math.max(0, Number(reservePrice)).toLocaleString();
+  // Ensure we have a positive number and format it
+  const priceValue = Math.max(0, Number(reservePrice));
+  const formattedPrice = new Intl.NumberFormat('pl-PL').format(priceValue);
+  
+  console.log('ValuationDisplay rendering with formatted price:', formattedPrice);
   
   return (
     <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
