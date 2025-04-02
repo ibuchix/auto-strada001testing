@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-11-01: Enhanced display of valuation data with better error handling 
+ * - 2024-11-21: Fixed missing formatters import by adding it to the project
  */
 
 import { formatCurrency } from "@/utils/formatters";

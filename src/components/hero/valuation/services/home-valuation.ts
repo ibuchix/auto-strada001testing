@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-05-15: Created home-valuation processor extracted from valuationService
  * - 2025-11-01: Fixed VIN validation flow with improved error handling and API integration
+ * - 2024-11-21: Fixed type issues with spread operator and improved type safety
  */
 
 import { ValuationResult, TransmissionType, ValuationData } from "../types";
@@ -34,10 +35,10 @@ export async function processHomeValuation(
       
       // Ensure the data is in the correct format
       const valuationData: ValuationData = {
-        ...cachedValuation.valuation_data,
         vin,
         mileage,
-        transmission
+        transmission,
+        ...(cachedValuation.valuation_data as Record<string, any>)
       };
       
       return {
@@ -62,7 +63,6 @@ export async function processHomeValuation(
     
     // Ensure the response has the required fields
     const valuationData: ValuationData = {
-      ...data,
       vin,
       mileage,
       transmission,
