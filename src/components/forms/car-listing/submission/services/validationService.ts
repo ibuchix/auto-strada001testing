@@ -9,6 +9,7 @@ import { validateFormData } from "../../utils/validation";
 import { validateCarListingServer, validateSubmissionRate } from "@/validation/serverValidation";
 import { ValidationError } from "../errors";
 import { validateExtendedCar } from "@/utils/validation/carSchema";
+import { ValidationErrorCode } from "@/errors/types";
 
 /**
  * Performs comprehensive validation for car listing submission
@@ -31,7 +32,7 @@ export const validateSubmission = async (
     ).join(', ');
     
     throw new ValidationError({
-      code: "SCHEMA_VALIDATION_ERROR",
+      code: ValidationErrorCode.SCHEMA_VALIDATION_ERROR,
       message: "Schema validation failed",
       description: errorMessages || "Some fields don't match the expected format"
     });
@@ -42,7 +43,7 @@ export const validateSubmission = async (
   
   if (clientErrors.length > 0) {
     throw new ValidationError({
-      code: "INCOMPLETE_FORM",
+      code: ValidationErrorCode.INCOMPLETE_FORM,
       message: "Please complete all required fields",
       description: "Some information is missing or incomplete"
     });
@@ -53,7 +54,7 @@ export const validateSubmission = async (
   
   if (!isAllowed) {
     throw new ValidationError({
-      code: "RATE_LIMIT_EXCEEDED",
+      code: ValidationErrorCode.RATE_LIMIT_EXCEEDED,
       message: "Submission limit reached",
       description: "You've reached the maximum number of submissions allowed in a 24-hour period"
     });
@@ -64,7 +65,7 @@ export const validateSubmission = async (
   
   if (!serverValidation.success) {
     throw new ValidationError({
-      code: "SERVER_VALIDATION_FAILED",
+      code: ValidationErrorCode.SERVER_VALIDATION_FAILED,
       message: "Validation failed",
       description: serverValidation.errors?.[0] || "Please check your submission and try again"
     });

@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Refactored for improved type safety and error handling
@@ -33,6 +34,7 @@ import {
   getCurrentIdempotencyKey, 
   cleanupIdempotencyKeys 
 } from "@/utils/idempotencyUtils";
+import { RecoveryType, ValidationErrorCode } from "@/errors/types";
 
 // Configuration constants
 const SUBMISSION_TIMEOUT = 30000;
@@ -102,7 +104,7 @@ export const useFormSubmission = (userId?: string) => {
     } catch (error: any) {
       console.error('Valuation data validation failed:', error);
       throw new ValidationError({
-        code: "MISSING_VALUATION",
+        code: ValidationErrorCode.MISSING_VALUATION,
         message: error.message || "Missing valuation data",
         description: error.description || "Please complete the vehicle valuation first",
         recovery: {
@@ -122,7 +124,7 @@ export const useFormSubmission = (userId?: string) => {
     } catch (error: any) {
       console.error('Mileage validation failed:', error);
       throw new ValidationError({
-        code: "REQUIRED_FIELD",
+        code: ValidationErrorCode.REQUIRED_FIELD,
         message: error.message || "Missing mileage data",
         description: error.description || "Please complete the vehicle valuation with mileage information",
         recovery: {
@@ -138,7 +140,7 @@ export const useFormSubmission = (userId?: string) => {
   const validateForm = useCallback((data: CarListingFormData) => {
     if (!userId) {
       throw new ValidationError({
-        code: "AUTHENTICATION_REQUIRED",
+        code: ValidationErrorCode.AUTHENTICATION_REQUIRED,
         message: "Authentication Required",
         description: "Please sign in to submit a listing",
         recovery: {
@@ -152,7 +154,7 @@ export const useFormSubmission = (userId?: string) => {
     const errors = validateFormData(data);
     if (errors.length > 0) {
       throw new ValidationError({
-        code: "INCOMPLETE_FORM",
+        code: ValidationErrorCode.INCOMPLETE_FORM,
         message: "Please complete all required fields",
         description: "Some information is missing or incomplete"
       });
@@ -379,4 +381,4 @@ export const useFormSubmission = (userId?: string) => {
 };
 
 // Import RecoveryType from errors/types
-import { RecoveryType } from "@/errors/types";
+// Already imported at the top now

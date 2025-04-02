@@ -11,7 +11,7 @@ import {
   SubmissionError, 
   BaseApplicationError 
 } from "@/errors/classes";
-import { RecoveryType } from "@/errors/types";
+import { RecoveryType, ValidationErrorCode, SubmissionErrorCode } from "@/errors/types";
 
 /**
  * Create a validation error for submission forms
@@ -22,7 +22,7 @@ export function createValidationError(
   action?: { label: string; onClick: () => void }
 ) {
   return new ValidationError({
-    code: "VALIDATION_ERROR",
+    code: ValidationErrorCode.VALIDATION_ERROR,
     message,
     description,
     recovery: action ? {
@@ -43,7 +43,7 @@ export function createSubmissionError(
   action?: { label: string; onClick: () => void }
 ) {
   return new SubmissionError({
-    code: "SUBMISSION_ERROR",
+    code: SubmissionErrorCode.SUBMISSION_ERROR,
     message,
     description,
     retryable,

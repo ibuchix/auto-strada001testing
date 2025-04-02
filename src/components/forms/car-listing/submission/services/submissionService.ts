@@ -21,6 +21,7 @@ import {
   isIdempotencyKeyUsed
 } from "@/utils/idempotencyUtils";
 import { validateExtendedCar } from "@/utils/validation/carSchema";
+import { SubmissionErrorCode } from "@/errors/types";
 
 // Import helper functions using dynamic imports for code splitting
 const getFormDataHelpers = () => import("../utils/dataPreparation");
@@ -46,7 +47,7 @@ export const submitCarListing = async (
 ) => {
   if (!data || !userId) {
     throw new SubmissionError({
-      code: "INVALID_INPUT",
+      code: SubmissionErrorCode.INVALID_INPUT,
       message: "Missing required submission data",
       description: "Please ensure all required fields are filled in",
       retryable: true
@@ -61,7 +62,7 @@ export const submitCarListing = async (
     ).join(', ');
     
     throw new SubmissionError({
-      code: "SCHEMA_VALIDATION_ERROR",
+      code: SubmissionErrorCode.SCHEMA_VALIDATION_ERROR,
       message: "Form data doesn't match expected schema",
       description: errorMessages || "Please check all fields for errors",
       retryable: true
@@ -75,7 +76,7 @@ export const submitCarListing = async (
   if (isIdempotencyKeyUsed(submissionKey)) {
     console.log(`Duplicate submission detected with key: ${submissionKey}`);
     throw new SubmissionError({
-      code: "DUPLICATE_SUBMISSION",
+      code: SubmissionErrorCode.DUPLICATE_SUBMISSION,
       message: "This form has already been submitted",
       description: "The system detected a duplicate submission. Please refresh the page if you need to submit again.",
       retryable: false
@@ -141,7 +142,7 @@ export const submitCarListing = async (
     if (error.code?.startsWith('23') || error.code?.startsWith('22')) {
       // Database constraint or data type errors
       throw new SubmissionError({
-        code: "DATABASE_CONSTRAINT",
+        code: SubmissionErrorCode.DATABASE_CONSTRAINT,
         message: "Database constraint violation",
         description: "There was an issue with some of your data. Please try again.",
         retryable: true
@@ -155,7 +156,7 @@ export const submitCarListing = async (
     
     // Generic error for other issues
     throw new SubmissionError({
-      code: "SUBMISSION_FAILED",
+      code: SubmissionErrorCode.SUBMISSION_FAILED,
       message: error.message || "Failed to submit listing",
       description: "There was an error processing your submission",
       retryable: true
