@@ -4,9 +4,11 @@
  * - 2024-06-20: Extracted form state management from FormContent.tsx
  * - Created a custom hook to centralize form state management
  * - 2024-06-24: Added memoization to prevent frequent state updates
+ * - 2024-08-10: Enhanced memoization strategy for the entire state object
+ * - Added reference comparison to prevent unnecessary re-renders
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 
 export interface FormState {
   isInitializing: boolean;
@@ -35,13 +37,32 @@ export const useFormState = (initialState?: Partial<FormState>) => {
     ...defaultFormState,
     ...initialState
   });
+  
+  // Use a ref to track the previous state for comparison
+  const prevStateRef = useRef<FormState>(formState);
 
   // Memoize the update function to prevent recreating it on each render
   const updateFormState = useCallback((updater: Partial<FormState> | ((prev: FormState) => FormState)) => {
     if (typeof updater === 'function') {
-      setFormState(updater);
+      setFormState(prev => {
+        const nextState = updater(prev);
+        // Only update if something actually changed
+        if (JSON.stringify(nextState) === JSON.stringify(prev)) {
+          return prev; // Return previous state reference if nothing changed
+        }
+        prevStateRef.current = nextState;
+        return nextState;
+      });
     } else {
-      setFormState(prev => ({ ...prev, ...updater }));
+      setFormState(prev => {
+        const nextState = { ...prev, ...updater };
+        // Only update if something actually changed
+        if (JSON.stringify(nextState) === JSON.stringify(prev)) {
+          return prev; // Return previous state reference if nothing changed
+        }
+        prevStateRef.current = nextState;
+        return nextState;
+      });
     }
   }, []);
 

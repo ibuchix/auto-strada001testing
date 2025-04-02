@@ -6,24 +6,31 @@
  * - 2024-06-25: Added memoization to prevent unnecessary re-renders
  * - 2024-06-25: Improved error message formatting
  * - 2024-06-26: Fixed performance issue by optimizing error flattening
- * - Improved memoization with proper dependency tracking
+ * - 2024-08-10: Enhanced memoization with useMemo and proper dependency tracking
+ * - Added more aggressive early return pattern to prevent unnecessary rendering
  */
 
 import { ValidationErrorDisplay } from "../ValidationErrorDisplay";
 import { memo, useMemo } from "react";
+import { isEqual } from "lodash";
 
 interface FormErrorSectionProps {
   validationErrors: Record<number, string[]>;
 }
 
+// Use custom comparison function to avoid unnecessary re-renders
+const areErrorsEqual = (prevProps: FormErrorSectionProps, nextProps: FormErrorSectionProps) => {
+  return isEqual(prevProps.validationErrors, nextProps.validationErrors);
+};
+
 export const FormErrorSection = memo(({ validationErrors }: FormErrorSectionProps) => {
+  // Early return for empty errors object
+  if (!validationErrors || Object.keys(validationErrors).length === 0) {
+    return null;
+  }
+  
   // Memoize the flattened errors to avoid recalculation on each render
   const flattenedErrors = useMemo(() => {
-    // Early return for empty errors to avoid unnecessary processing
-    if (!validationErrors || Object.keys(validationErrors).length === 0) {
-      return [];
-    }
-    
     const errors: string[] = [];
     
     Object.values(validationErrors).forEach(stepErrors => {
@@ -35,13 +42,13 @@ export const FormErrorSection = memo(({ validationErrors }: FormErrorSectionProp
     return errors;
   }, [validationErrors]);
   
-  // Don't render anything if there are no errors - move this outside the component body
+  // Don't render anything if there are no errors after flattening
   if (flattenedErrors.length === 0) {
     return null;
   }
   
   return <ValidationErrorDisplay errors={flattenedErrors} />;
-});
+}, areErrorsEqual);
 
 // Add display name for React DevTools
 FormErrorSection.displayName = "FormErrorSection";

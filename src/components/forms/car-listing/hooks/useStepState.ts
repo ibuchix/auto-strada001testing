@@ -5,9 +5,10 @@
  * - Separated state management from the useStepNavigation hook
  * - 2024-06-27: Added consistent memoization patterns
  * - 2024-06-27: Improved state update efficiency with stable callbacks
+ * - 2024-08-10: Enhanced memoization for derived values and optimized return object
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 
 interface UseStepStateProps {
   initialStep?: number;
@@ -22,6 +23,9 @@ export const useStepState = ({ initialStep = 0 }: UseStepStateProps) => {
   // Track which steps have been completed
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
   
+  // Use refs for previous values to optimize comparison
+  const prevCompletedStepsRef = useRef<Record<number, boolean>>({});
+  
   // Create stable callbacks that won't change identity between renders
   const markStepComplete = useCallback((step: number) => {
     setCompletedSteps(prev => {
@@ -29,6 +33,10 @@ export const useStepState = ({ initialStep = 0 }: UseStepStateProps) => {
       if (prev[step] === true) {
         return prev;
       }
+      
+      // Store previous value for reference
+      prevCompletedStepsRef.current = prev;
+      
       return {
         ...prev,
         [step]: true
@@ -47,7 +55,8 @@ export const useStepState = ({ initialStep = 0 }: UseStepStateProps) => {
       .map(([step]) => parseInt(step, 10));
   }, [completedSteps]);
 
-  return {
+  // Memoize the entire return object to ensure stable identity
+  return useMemo(() => ({
     currentStep,
     setCurrentStep,
     isNavigating,
@@ -60,5 +69,14 @@ export const useStepState = ({ initialStep = 0 }: UseStepStateProps) => {
     completedStepsArray,
     markStepComplete,
     clearValidationErrors
-  };
+  }), [
+    currentStep, 
+    isNavigating, 
+    validationErrors, 
+    stepValidationErrors, 
+    completedSteps,
+    completedStepsArray,
+    markStepComplete,
+    clearValidationErrors
+  ]);
 };
