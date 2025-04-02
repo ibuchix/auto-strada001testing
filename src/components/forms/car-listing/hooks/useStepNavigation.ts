@@ -4,6 +4,7 @@
  * - Centralizes navigation between form steps
  * - Handles validation before proceeding
  * - Manages step completion state
+ * - 2025-11-10: Fixed React hooks consistency issue by consolidating state
  */
 
 import { useState, useCallback, useMemo } from "react";
@@ -41,7 +42,7 @@ export const useStepNavigation = ({
   saveProgress,
   filteredSteps
 }: UseStepNavigationProps) => {
-  // Use a single state object to prevent conditional hook calls
+  // IMPORTANT: Consolidate all state into a single useState call to ensure consistent hook invocation
   const [state, setState] = useState({
     currentStep: initialStep,
     isNavigating: false,
@@ -130,6 +131,13 @@ export const useStepNavigation = ({
       // Validate current step before proceeding to next step
       if (direction === 'next') {
         const currentStepId = filteredSteps[state.currentStep]?.id;
+        // Check if currentStepId exists before validating
+        if (!currentStepId) {
+          console.error('Invalid step ID');
+          setState(prev => ({...prev, isNavigating: false}));
+          return;
+        }
+        
         const isValid = await validateStepFields(currentStepId);
         
         if (!isValid) {

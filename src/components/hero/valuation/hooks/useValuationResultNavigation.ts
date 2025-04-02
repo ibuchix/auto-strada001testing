@@ -9,9 +9,10 @@
  * - 2027-07-20: Fixed immediate loading feedback and direct URL navigation support
  * - 2027-07-22: Fixed TypeScript error by ensuring no return value used in conditionals
  * - 2027-07-27: Fixed loading state not being properly set and propagated
+ * - 2027-11-10: Fixed potential race condition with navigation attempts
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { ValuationData } from "../types";
 import { useValuationNavigation } from "./useValuationNavigation";
@@ -21,8 +22,9 @@ export const useValuationResultNavigation = () => {
   const { handleContinue, isLoggedIn } = useValuationNavigation();
   const [isLoading, setIsLoading] = useState(false);
   const [navigationAttempts, setNavigationAttempts] = useState(0);
-  const componentId = Math.random().toString(36).substring(2, 10);
+  const componentId = useRef(Math.random().toString(36).substring(2, 10)).current;
   const { isConnected } = useRealtime();
+  const navigationInProgress = useRef(false);
   
   // Prepare navigation data and store in localStorage
   const prepareNavigationData = (valuationData: ValuationData, mileage: number) => {
@@ -64,9 +66,17 @@ export const useValuationResultNavigation = () => {
     }
   };
   
-  // Enhanced continue handler - now with immediate loading state
+  // Enhanced continue handler - now with immediate loading state and race condition prevention
   const handleContinueClick = (normalizedResult: ValuationData) => {
     console.log('ValuationResult - handleContinueClick triggered');
+    
+    // Prevent multiple navigation attempts
+    if (navigationInProgress.current) {
+      console.log('ValuationResult - Navigation already in progress, ignoring duplicate click');
+      return;
+    }
+    
+    navigationInProgress.current = true;
     
     // Immediately set loading state for UI feedback
     setIsLoading(true);
@@ -121,6 +131,7 @@ export const useValuationResultNavigation = () => {
       timeoutId = setTimeout(() => {
         console.log('ValuationResult - Loading state timeout reached, resetting');
         setIsLoading(false);
+        navigationInProgress.current = false;
       }, 5000); // Reset loading state after 5 seconds if navigation doesn't happen
     }
     

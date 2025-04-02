@@ -19,6 +19,7 @@
  * - 2025-11-05: Fixed import issues for formSteps and FormProgress
  * - 2025-11-06: Fixed React hooks issue with conditional rendering
  * - 2025-11-07: Fixed TypeScript errors with STEP_FIELD_MAPPINGS import
+ * - 2025-11-10: Fixed React hooks inconsistency in StepNavigation integration
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -78,6 +79,8 @@ export const FormContent = ({
   const [isInitializing, setIsInitializing] = useState(true);
   const [draftLoadError, setDraftLoadError] = useState<Error | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  // IMPORTANT: Create stepConfig state outside of conditionals
+  const [filteredStepsArray, setFilteredStepsArray] = useState<Array<any>>([]);
   const form = useCarListingForm(session.user.id, draftId);
   const navigate = useNavigate();
 
@@ -119,11 +122,11 @@ export const FormContent = ({
     form,
     userId: session.user.id,
     draftId,
-    retryCount, // Pass the retryCount to trigger reloading when it changes
+    retryCount,
     onLoaded: (draft) => {
       setCarId(draft.carId);
       setLastSaved(draft.updatedAt);
-      setDraftLoadError(null); // Clear any previous errors on successful load
+      setDraftLoadError(null);
     },
     onError: handleDraftError
   });
@@ -152,7 +155,6 @@ export const FormContent = ({
         setLastSaved(new Date());
       } catch (error) {
         console.error("Form submission error:", error);
-        // Error is already handled by the useFormSubmission hook
       }
     },
     [handleFormSubmit, carId]
@@ -203,7 +205,7 @@ export const FormContent = ({
       } catch (error) {
         console.error('Periodic save failed:', error);
       }
-    }, 5000); // Save every 5 seconds as requested
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [form, currentStep]);
@@ -214,6 +216,14 @@ export const FormContent = ({
       setDraftLoadError(null);
     }
   }, [retryCount]);
+
+  // Update filtered steps based on visible sections
+  useEffect(() => {
+    const filtered = formSteps.filter(step => {
+      return step.sections.some(section => visibleSections.includes(section));
+    });
+    setFilteredStepsArray(filtered);
+  }, [visibleSections]);
 
   // Handle save and continue action
   const handleSaveAndContinue = useCallback(async () => {
@@ -286,12 +296,7 @@ export const FormContent = ({
     return <LoadingState />;
   }
 
-  // Get filtered steps for the stepper
-  const filteredStepsArray = formSteps.filter(step => {
-    return step.sections.some(section => visibleSections.includes(section));
-  });
-  
-  // Initialize step navigation - important: this must be called unconditionally
+  // Initialize step navigation EARLY and UNCONDITIONALLY to avoid hook ordering issues
   const stepNavigation = useStepNavigation({
     form,
     totalSteps: filteredStepsArray.length,
