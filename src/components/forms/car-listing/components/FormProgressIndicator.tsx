@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2028-11-15: Extracted from StepForm.tsx to create a reusable progress indicator component
+ * - 2024-06-05: Enhanced to be the single source of progress tracking in the form
  */
 
 import { FormStepper } from "../FormStepper";

@@ -2,9 +2,10 @@
 /**
  * MobileStepper Component
  * Renders a compact stepper view for mobile screens
- * Enhanced to show completion status more clearly
- * Added swipe gesture hint for better user experience
- * Added micro-interactions for better visual feedback
+ * - Enhanced to show completion status more clearly
+ * - Added swipe gesture hint for better user experience
+ * - Added micro-interactions for better visual feedback
+ * - 2024-06-05: Updated to be compatible with single progress indicator UI
  */
 
 import { cn } from '@/lib/utils';

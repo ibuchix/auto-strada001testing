@@ -161,7 +161,6 @@ export const StepForm = ({
         isSaving={navigationDisabled || isSaving}
         currentStep={currentStep + 1}
         totalSteps={totalSteps}
-        completionPercentage={completionPercentage}
       />
     </div>
   );
