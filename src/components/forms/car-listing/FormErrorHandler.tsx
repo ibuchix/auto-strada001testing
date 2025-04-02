@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2027-11-17: Created component to handle form errors with recovery options
+ * - 2027-11-18: Added onRetry prop for error recovery functionality
  */
 
 import React from 'react';
@@ -12,13 +13,18 @@ import { useNavigate } from "react-router-dom";
 
 interface FormErrorHandlerProps {
   draftError?: Error;
+  onRetry?: () => void;  // Added this prop to handle retries
 }
 
-export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({ draftError }) => {
+export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({ draftError, onRetry }) => {
   const navigate = useNavigate();
 
   const handleRefresh = () => {
-    window.location.reload();
+    if (onRetry) {
+      onRetry();
+    } else {
+      window.location.reload();
+    }
   };
 
   const handleStartOver = () => {

@@ -7,6 +7,7 @@
  * - 2027-11-17: Added safeguards to prevent component rendering with incomplete data
  * - 2027-11-17: Restructured component to follow React best practices
  * - 2027-11-17: Added proper fallbacks for all conditional data
+ * - 2027-11-19: Fixed TypeScript compatibility issues with hook return types
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -32,13 +33,19 @@ import { FormErrorHandler } from "./FormErrorHandler";
 import { useNavigate } from "react-router-dom";
 import { formSteps } from "./constants/formSteps";
 import { FormProgress } from "./FormProgress";
-import { useStepNavigation, STEP_FIELD_MAPPINGS } from "./hooks/useStepNavigation";
+import { useStepNavigation } from "./hooks/useStepNavigation";
 
 interface FormContentProps {
   session: Session;
   draftId?: string;
   onDraftError?: (error: Error) => void;
   retryCount?: number;
+}
+
+// Define StepConfig interface to match what useStepNavigation expects
+interface StepConfig {
+  id: string;
+  validate?: () => boolean;
 }
 
 const LoadingState = () => (
@@ -144,6 +151,18 @@ export const FormContent = ({
     }));
   }, [filteredSteps]);
 
+  // Create properly typed step config array for useStepNavigation
+  const typedStepConfigs = useMemo(() => {
+    return filteredSteps.map(step => {
+      return {
+        id: step.id,
+        validate: step.validate 
+          ? () => (step.validate ? step.validate(form.getValues()) : true)
+          : undefined
+      } as StepConfig;
+    });
+  }, [filteredSteps, form]);
+
   // CRITICAL: Initialize step navigation with stable values to prevent conditional hook calls
   // This is called unconditionally BEFORE any conditional rendering
   const stepNavigation = useStepNavigation({
@@ -154,7 +173,7 @@ export const FormContent = ({
       // Safe empty function to prevent null errors
       return true;
     },
-    filteredSteps: filteredSteps
+    filteredSteps: typedStepConfigs
   });
 
   // Form persistence - call unconditionally
@@ -167,7 +186,18 @@ export const FormContent = ({
 
   // Update step navigation with the actual save function after persistence is initialized
   useEffect(() => {
-    stepNavigation.updateSaveFunction(persistence.saveImmediately);
+    // Create a wrapper that ensures boolean return type
+    const saveWrapper = async () => {
+      try {
+        await persistence.saveImmediately();
+        return true;
+      } catch (error) {
+        console.error('Error in save wrapper:', error);
+        return false;
+      }
+    };
+    
+    stepNavigation.updateSaveFunction(saveWrapper);
   }, [stepNavigation, persistence.saveImmediately]);
 
   // Submission handling - call unconditionally
@@ -328,7 +358,7 @@ export const FormContent = ({
     // Map errors to steps
     Object.keys(formErrors).forEach(fieldName => {
       for (const [stepId, fields] of Object.entries(STEP_FIELD_MAPPINGS)) {
-        if (fields.includes(fieldName as keyof CarListingFormData)) {
+        if ((fields as string[]).includes(fieldName)) {
           stepErrors[stepId] = true;
           break;
         }
@@ -342,9 +372,19 @@ export const FormContent = ({
   const progress = calculateFormProgress();
   const stepErrors = getStepValidationErrors();
 
+  // Convert completedSteps from Record to array for compatibility with FormProgress
+  const completedStepsArray = useMemo(() => {
+    return Object.entries(stepNavigation.completedSteps).reduce((acc, [step, isCompleted]) => {
+      if (isCompleted) {
+        acc.push(parseInt(step, 10));
+      }
+      return acc;
+    }, [] as number[]);
+  }, [stepNavigation.completedSteps]);
+
   // Show draft loading error if there is one and initialization is complete
   if (formState.draftLoadError && !formState.isInitializing) {
-    return <FormErrorHandler draftError={formState.draftLoadError} />;
+    return <FormErrorHandler draftError={formState.draftLoadError} onRetry={() => setFormState(prev => ({ ...prev, draftLoadError: null }))} />;
   }
 
   // Show loading state when initializing or loading draft
@@ -369,7 +409,7 @@ export const FormContent = ({
               steps={formSteps}
               currentStep={stepNavigation.currentStep}
               onStepClick={(step) => stepNavigation.setCurrentStep(step)}
-              completedSteps={stepNavigation.completedSteps}
+              completedSteps={completedStepsArray}
               errorSteps={stepErrors}
             />
             
@@ -381,7 +421,10 @@ export const FormContent = ({
               lastSaved={formState.lastSaved}
               isOffline={persistence.isOffline}
               isSaving={persistence.isSaving || isSubmitting}
-              saveProgress={persistence.saveImmediately}
+              saveProgress={async () => {
+                await persistence.saveImmediately();
+                return true;
+              }}
               visibleSections={visibleSections}
             />
           </form>
@@ -405,3 +448,6 @@ export const FormContent = ({
     </ErrorBoundary>
   );
 };
+
+// Import STEP_FIELD_MAPPINGS for error tracking
+import { STEP_FIELD_MAPPINGS } from './hooks/useStepNavigation';

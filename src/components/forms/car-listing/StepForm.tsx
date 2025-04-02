@@ -10,6 +10,7 @@
  * - Added save and continue later functionality
  * - Added completion percentage calculation for progress indicator
  * - Added gesture-based navigation for mobile devices
+ * - 2027-11-19: Fixed TypeScript compatibility issues with useStepNavigation
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -32,7 +33,7 @@ interface StepFormProps {
   carId?: string;
   lastSaved: Date | null;
   isOffline: boolean;
-  saveProgress: () => Promise<void>;
+  saveProgress: () => Promise<boolean>;
   visibleSections: string[];
   isSaving?: boolean;
 }
@@ -55,7 +56,7 @@ export const StepForm = ({
   
   const totalSteps = filteredSteps.length;
   
-  // Use the step navigation hook
+  // Use the step navigation hook with type-safe wrappers
   const {
     currentStep,
     isNavigating,
@@ -70,8 +71,14 @@ export const StepForm = ({
     form,
     totalSteps,
     initialStep,
-    saveProgress,
-    filteredSteps
+    saveProgress: async () => {
+      await saveProgress();
+      return true;
+    },
+    filteredSteps: filteredSteps.map(step => ({
+      id: step.id,
+      validate: step.validate ? () => step.validate?.(form.getValues()) ?? true : undefined
+    }))
   });
 
   // Calculate overall form completion percentage
@@ -85,7 +92,7 @@ export const StepForm = ({
       const fieldsInStep = STEP_FIELD_MAPPINGS[step.id] || [];
       
       fieldsInStep.forEach(field => {
-        const fieldValue = formValues[field];
+        const fieldValue = formValues[field as keyof CarListingFormData];
         totalFields++;
         
         // Check if the field has a value
@@ -105,7 +112,7 @@ export const StepForm = ({
     });
     
     return totalFields > 0 ? (completedFields / totalFields) * 100 : 0;
-  }, [form, filteredSteps, completedSteps]);
+  }, [form, filteredSteps]);
 
   // Sync external state with internal state
   const handleStepChange = (step: number) => {
@@ -116,6 +123,16 @@ export const StepForm = ({
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
   
+  // Convert completedSteps from Record to array for compatibility
+  const completedStepsArray = useMemo(() => {
+    return Object.entries(completedSteps).reduce((acc, [step, isCompleted]) => {
+      if (isCompleted) {
+        acc.push(parseInt(step, 10));
+      }
+      return acc;
+    }, [] as number[]);
+  }, [completedSteps]);
+  
   return (
     <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6">
       <div className="mb-6">
@@ -124,7 +141,7 @@ export const StepForm = ({
           currentStep={currentStep} 
           onStepChange={handleStepChange}
           visibleSections={visibleSections}
-          completedSteps={completedSteps}
+          completedSteps={completedStepsArray}
           validationErrors={stepValidationErrors}
         />
       </div>

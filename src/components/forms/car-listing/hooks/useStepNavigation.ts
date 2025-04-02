@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2027-11-17: Refactored to use a single state object to prevent hook inconsistency
@@ -5,6 +6,8 @@
  * - 2027-11-17: Made hook calls unconditional
  * - 2027-11-17: Added ability to update save function after initialization
  * - 2027-11-17: Improved error handling and performance
+ * - 2027-11-19: Fixed TypeScript return types to ensure compatibility
+ * - 2027-11-19: Added validation errors tracking and step error handling
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -37,7 +40,9 @@ export const useStepNavigation = ({
     currentStep: initialStep,
     completedSteps: {} as Record<number, boolean>,
     isNavigating: false,
-    lastStepChange: Date.now()
+    lastStepChange: Date.now(),
+    validationErrors: [] as string[],
+    stepValidationErrors: {} as Record<string, boolean>
   });
   
   // Use a ref for the save progress function to avoid dependency issues
@@ -56,7 +61,13 @@ export const useStepNavigation = ({
       
       // If there's a custom validation function, use it
       if (currentStepConfig?.validate) {
-        return currentStepConfig.validate();
+        // If it needs form data, provide it
+        const validate = currentStepConfig.validate;
+        if (validate.length > 0) { // Check if validation function expects parameters
+          return validate(form.getValues());
+        } else {
+          return validate();
+        }
       }
       
       // Otherwise use default validation
@@ -65,7 +76,7 @@ export const useStepNavigation = ({
       console.error("Step validation error:", error);
       return false;
     }
-  }, [filteredSteps, state.currentStep]);
+  }, [filteredSteps, state.currentStep, form]);
 
   // Save progress with error handling
   const saveCurrentProgress = useCallback(async (): Promise<boolean> => {
@@ -137,6 +148,56 @@ export const useStepNavigation = ({
     }
   }, [state.currentStep, setCurrentStep]);
 
+  // Helper functions for compatibility with existing code
+  const handleNext = useCallback(async () => {
+    await nextStep();
+    return true;
+  }, [nextStep]);
+
+  const handlePrevious = useCallback(async () => {
+    await prevStep();
+    return true;
+  }, [prevStep]);
+
+  // Update validation errors
+  useEffect(() => {
+    const formErrors = form.formState.errors;
+    if (Object.keys(formErrors).length > 0) {
+      // Extract error messages
+      const errors: string[] = [];
+      Object.entries(formErrors).forEach(([field, error]) => {
+        if (error?.message) {
+          errors.push(`${field}: ${error.message}`);
+        }
+      });
+      
+      // Update validation errors state
+      setState(prev => ({ ...prev, validationErrors: errors }));
+      
+      // Track which steps have errors
+      const stepErrors: Record<string, boolean> = {};
+      Object.keys(formErrors).forEach(fieldName => {
+        for (const [stepId, fields] of Object.entries(STEP_FIELD_MAPPINGS)) {
+          if ((fields as string[]).includes(fieldName)) {
+            stepErrors[stepId] = true;
+            break;
+          }
+        }
+      });
+      
+      setState(prev => ({ 
+        ...prev, 
+        stepValidationErrors: stepErrors 
+      }));
+    } else {
+      setState(prev => ({ 
+        ...prev, 
+        validationErrors: [], 
+        stepValidationErrors: {} 
+      }));
+    }
+  }, [form.formState.errors]);
+
   return {
     currentStep: state.currentStep,
     setCurrentStep,
@@ -144,17 +205,23 @@ export const useStepNavigation = ({
     prevStep,
     completedSteps: state.completedSteps,
     isNavigating: state.isNavigating,
-    updateSaveFunction
+    updateSaveFunction,
+    // Add these for StepForm.tsx compatibility
+    validationErrors: state.validationErrors,
+    stepValidationErrors: state.stepValidationErrors,
+    handleNext,
+    handlePrevious,
+    navigationDisabled: state.isNavigating
   };
 };
 
 // Map of step IDs to form fields for validation tracking
-export const STEP_FIELD_MAPPINGS: Record<string, Array<keyof CarListingFormData>> = {
-  basic: ['make', 'model', 'year', 'mileage', 'vin'],
-  details: ['color', 'transmission', 'fuelType', 'bodyType'],
-  features: ['features'],
-  condition: ['condition', 'damageReports'],
-  pricing: ['price', 'reservePrice'],
-  photos: ['uploadedPhotos'],
-  seller: ['name', 'email', 'mobileNumber']
+export const STEP_FIELD_MAPPINGS: Record<string, Array<string>> = {
+  'vehicle-details': ['make', 'model', 'year', 'mileage', 'vin'],
+  'details': ['color', 'transmission', 'fuelType', 'bodyType'],
+  'features': ['features'],
+  'condition': ['condition', 'damageReports'],
+  'pricing': ['price', 'reservePrice'],
+  'photos': ['uploadedPhotos'],
+  'seller': ['name', 'email', 'mobileNumber']
 };

@@ -8,6 +8,7 @@
  * - Improved TypeScript typing
  * - Added proper handling of validation functions from formSteps
  * - Fixed validation function to use the correct data
+ * - 2027-11-19: Fixed TypeScript compatibility with validation functions
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -62,8 +63,13 @@ export const FormSections = ({
   // Add validation handler if configured
   if (currentStepConfig.validate) {
     componentProps.onValidate = async () => {
-      const formFields = form.getValues();
-      return currentStepConfig.validate!(formFields);
+      try {
+        const formFields = form.getValues();
+        return currentStepConfig.validate!(formFields);
+      } catch (error) {
+        console.error('Validation error:', error);
+        return false;
+      }
     };
   }
 

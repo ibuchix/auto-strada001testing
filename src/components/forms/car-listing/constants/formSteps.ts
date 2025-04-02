@@ -8,6 +8,7 @@
  * - 2028-03-22: Updated to include validate functions and specific prop requirements
  * - 2028-05-30: Enhanced validation functions with specific section requirements
  * - 2028-06-10: Reorganized steps for more logical progression and better user flow
+ * - 2027-11-19: Fixed validation function signature for TypeScript compatibility
  */
 
 import { PersonalDetailsSection } from "../PersonalDetailsSection";

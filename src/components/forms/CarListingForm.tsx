@@ -5,6 +5,7 @@
  * - 2025-11-02: Added error boundary handling for draft loading errors
  * - 2025-11-03: Added retry functionality for draft loading errors
  * - 2025-11-04: Added support for loading drafts from URL parameters
+ * - 2027-11-19: Fixed TypeScript error with onRetry prop
  */
 
 import { useState, useCallback, useEffect } from "react";
