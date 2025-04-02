@@ -1,5 +1,3 @@
 
-project_id = "sdvakfhmoaoucmhbhwvy"
-name = "get-vehicle-valuation"
-verify_jwt = false
-allowed_http_methods = ["POST", "OPTIONS"]
+# Config for the get-vehicle-valuation function
+# No auth required for this endpoint since it's used without authentication
