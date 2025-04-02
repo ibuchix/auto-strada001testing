@@ -12,6 +12,7 @@
  * - Added gesture-based navigation for mobile devices
  * - 2027-11-19: Fixed TypeScript compatibility issues with useStepNavigation
  * - 2027-11-20: Fixed type errors with validationErrors and Promise return types
+ * - 2027-11-21: Updated function return types and fixed validation errors type
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -134,6 +135,19 @@ export const StepForm = ({
     }, [] as number[]);
   }, [completedSteps]);
   
+  // Create wrapper functions to ensure proper return types
+  const handlePreviousWrapper = async (): Promise<void> => {
+    await handlePrevious();
+  };
+  
+  const handleNextWrapper = async (): Promise<void> => {
+    await handleNext();
+  };
+  
+  const saveProgressWrapper = async (): Promise<void> => {
+    await saveProgress();
+  };
+  
   return (
     <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6">
       <div className="mb-6">
@@ -162,14 +176,8 @@ export const StepForm = ({
       {/* Form content with swipe navigation */}
       <div className="form-container min-h-[400px] mb-10">
         <SwipeNavigation
-          onNext={() => {
-            handleNext();
-            return Promise.resolve();
-          }}
-          onPrevious={() => {
-            handlePrevious();
-            return Promise.resolve();
-          }}
+          onNext={handleNextWrapper}
+          onPrevious={handlePreviousWrapper}
           isFirstStep={isFirstStep}
           isLastStep={isLastStep}
           disabled={navigationDisabled || isSaving}
@@ -187,16 +195,10 @@ export const StepForm = ({
       <FormNavigationControls
         isFirstStep={isFirstStep}
         isLastStep={isLastStep}
-        onPrevious={() => {
-          handlePrevious();
-          return Promise.resolve();
-        }}
-        onNext={() => {
-          handleNext();
-          return Promise.resolve();
-        }}
+        onPrevious={handlePreviousWrapper}
+        onNext={handleNextWrapper}
         isNavigating={navigationDisabled || isSaving}
-        onSave={saveProgress}
+        onSave={saveProgressWrapper}
         carId={carId}
       />
       
@@ -204,7 +206,7 @@ export const StepForm = ({
       <FormFooter
         lastSaved={lastSaved}
         isOffline={isOffline}
-        onSave={saveProgress}
+        onSave={saveProgressWrapper}
         isSaving={navigationDisabled || isSaving}
         currentStep={currentStep + 1}
         totalSteps={totalSteps}
@@ -213,4 +215,3 @@ export const StepForm = ({
     </div>
   );
 };
-

@@ -4,13 +4,14 @@
  * - Shows field-specific error messages
  * - Provides easy navigation to error fields
  * - Visual indicators for error severity
+ * - 2027-11-21: Updated props interface to support string array or record format
  */
 
 import { AlertCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ValidationErrorDisplayProps {
-  validationErrors: Record<string, string>;
+  validationErrors: string[] | Record<string, string>;
   title?: string;
   onDismiss?: () => void;
 }
@@ -20,12 +21,22 @@ export const ValidationErrorDisplay = ({
   title = "Please correct the following errors:",
   onDismiss
 }: ValidationErrorDisplayProps) => {
-  if (Object.keys(validationErrors).length === 0) {
+  // Handle both array and record formats for validation errors
+  const hasErrors = Array.isArray(validationErrors) 
+    ? validationErrors.length > 0
+    : Object.keys(validationErrors).length > 0;
+    
+  if (!hasErrors) {
     return null;
   }
 
+  // Convert validation errors to array format if it's a record
+  const errorsArray = Array.isArray(validationErrors)
+    ? validationErrors
+    : Object.entries(validationErrors).map(([field, message]) => `${field}: ${message}`);
+
   // Get the count of errors
-  const errorCount = Object.keys(validationErrors).length;
+  const errorCount = errorsArray.length;
 
   return (
     <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
@@ -50,28 +61,35 @@ export const ValidationErrorDisplay = ({
             )}
           </div>
           <ul className="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
-            {Object.entries(validationErrors).map(([field, message]) => (
-              <li key={field} className="flex items-start">
-                <span className="inline-block h-4 w-4 flex-shrink-0" />
-                <button 
-                  type="button"
-                  className="text-left underline hover:text-red-800 focus:outline-none focus:text-red-900"
-                  onClick={() => {
-                    const element = document.getElementById(field);
-                    if (element) {
-                      // Scroll the element into view with offset
-                      const yOffset = -100; // 100px from the top
-                      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-                      window.scrollTo({ top: y, behavior: 'smooth' });
-                      // Focus after scrolling completes
-                      setTimeout(() => element.focus(), 500);
-                    }
-                  }}
-                >
-                  {message}
-                </button>
-              </li>
-            ))}
+            {errorsArray.map((error, index) => {
+              // Extract field name if the error is in format "field: message"
+              const match = error.match(/^([^:]+):\s*(.+)$/);
+              const field = match ? match[1] : '';
+              const message = match ? match[2] : error;
+              
+              return (
+                <li key={index} className="flex items-start">
+                  <span className="inline-block h-4 w-4 flex-shrink-0" />
+                  <button 
+                    type="button"
+                    className="text-left underline hover:text-red-800 focus:outline-none focus:text-red-900"
+                    onClick={() => {
+                      const element = document.getElementById(field);
+                      if (element) {
+                        // Scroll the element into view with offset
+                        const yOffset = -100; // 100px from the top
+                        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                        window.scrollTo({ top: y, behavior: 'smooth' });
+                        // Focus after scrolling completes
+                        setTimeout(() => element.focus(), 500);
+                      }
+                    }}
+                  >
+                    {message}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>

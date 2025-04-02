@@ -3,6 +3,7 @@
  * SwipeNavigation Component
  * Provides gesture-based navigation between form steps on mobile
  * Wraps form content and handles swipe gestures
+ * - 2027-11-21: Updated props interface for better type safety
  */
 import React from "react";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
@@ -10,8 +11,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SwipeNavigationProps {
   children: React.ReactNode;
-  onNext?: () => void;
-  onPrevious?: () => void;
+  onNext?: () => Promise<void>;
+  onPrevious?: () => Promise<void>;
   isFirstStep?: boolean;
   isLastStep?: boolean;
   disabled?: boolean;

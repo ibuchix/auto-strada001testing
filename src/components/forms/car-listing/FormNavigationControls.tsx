@@ -3,6 +3,7 @@
  * Form Navigation Controls
  * Provides navigation buttons for a multi-step form with improved visual hierarchy
  * Enhanced with micro-interactions for better user feedback
+ * - 2027-11-21: Updated props interface for better type safety
  */
 
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,8 @@ import { useState, useEffect } from "react";
 interface FormNavigationControlsProps {
   isFirstStep: boolean;
   isLastStep: boolean;
-  onPrevious: () => void;
-  onNext: () => void;
+  onPrevious: () => Promise<void>;
+  onNext: () => Promise<void>;
   isNavigating: boolean;
   onSave: () => Promise<void>;
   carId?: string;
@@ -55,7 +56,7 @@ export const FormNavigationControls = ({
           <Button
             type="button"
             variant="outline"
-            onClick={onPrevious}
+            onClick={() => onPrevious()}
             disabled={isNavigating}
             className={`flex items-center gap-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 group transition-all duration-300 ${isPrevActive ? 'animate-fade-in' : ''}`}
           >
@@ -75,7 +76,7 @@ export const FormNavigationControls = ({
         {!isLastStep ? (
           <Button
             type="button"
-            onClick={onNext}
+            onClick={() => onNext()}
             disabled={isNavigating}
             className={`flex items-center gap-2 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-medium px-6 group transition-all duration-300 ${isNextActive ? 'animate-fade-in' : ''}`}
           >
