@@ -1,42 +1,40 @@
 
 /**
  * Changes made:
- * - 2028-03-27: Extracted progress saving functionality from useStepNavigation
+ * - 2024-06-21: Created to manage step progress independently from navigation logic
+ * - Separated progress tracking from the useStepNavigation hook
  */
 
-import { useCallback, useRef } from "react";
-import { toast } from "sonner";
+import { useState, useCallback } from "react";
 
 interface UseStepProgressProps {
   initialSaveFunction?: () => Promise<boolean>;
 }
 
-export const useStepProgress = ({
-  initialSaveFunction
+export const useStepProgress = ({ 
+  initialSaveFunction 
 }: UseStepProgressProps) => {
-  // Use a ref for the save progress function to avoid dependency issues
-  const saveProgressRef = useRef<(() => Promise<boolean>) | undefined>(initialSaveFunction);
+  const [saveProgress, setSaveProgress] = useState<() => Promise<boolean>>(
+    initialSaveFunction || (async () => true)
+  );
   
-  // Method to update the save function after initialization
+  // Update the save function
   const updateSaveFunction = useCallback((newSaveFunction: () => Promise<boolean>) => {
-    saveProgressRef.current = newSaveFunction;
+    setSaveProgress(() => newSaveFunction);
   }, []);
 
-  // Save progress with error handling
+  // Save current progress
   const saveCurrentProgress = useCallback(async (): Promise<boolean> => {
-    if (!saveProgressRef.current) return true;
-    
     try {
-      return await saveProgressRef.current();
+      return await saveProgress();
     } catch (error) {
       console.error("Error saving progress:", error);
-      toast.error("Failed to save progress");
       return false;
     }
-  }, []);
+  }, [saveProgress]);
 
   return {
-    updateSaveFunction,
-    saveCurrentProgress
+    saveCurrentProgress,
+    updateSaveFunction
   };
 };

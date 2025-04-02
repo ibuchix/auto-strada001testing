@@ -1,82 +1,55 @@
 
 /**
  * Changes made:
- * - 2028-03-27: Extracted step state management from useStepNavigation
+ * - 2024-06-21: Created to manage step state independently from navigation logic
+ * - Separated state management from the useStepNavigation hook
  */
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 
-interface StepStateProps {
-  initialStep: number;
+interface UseStepStateProps {
+  initialStep?: number;
 }
 
-export const useStepState = ({ initialStep }: StepStateProps) => {
-  // Use a single state object to prevent hook inconsistencies
-  const [state, setState] = useState({
-    currentStep: initialStep,
-    completedSteps: {} as Record<number, boolean>,
-    isNavigating: false,
-    lastStepChange: Date.now(),
-    validationErrors: [] as string[],
-    stepValidationErrors: {} as Record<string, boolean>
-  });
+export const useStepState = ({ initialStep = 0 }: UseStepStateProps) => {
+  const [currentStep, setCurrentStep] = useState<number>(initialStep);
+  const [isNavigating, setNavigating] = useState<boolean>(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [stepValidationErrors, setStepValidationErrors] = useState<Record<number, string[]>>({});
   
-  const setCurrentStepState = (step: number) => {
-    setState(prev => ({
+  // Track which steps have been completed
+  const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
+  
+  const markStepComplete = useCallback((step: number) => {
+    setCompletedSteps(prev => ({
       ...prev,
-      currentStep: step
+      [step]: true
     }));
-  };
+  }, []);
   
-  const setNavigatingState = (isNavigating: boolean) => {
-    setState(prev => ({
-      ...prev,
-      isNavigating
-    }));
-  };
+  const clearValidationErrors = useCallback(() => {
+    setValidationErrors([]);
+  }, []);
   
-  const markStepComplete = (step: number) => {
-    setState(prev => ({
-      ...prev,
-      completedSteps: { ...prev.completedSteps, [step]: true }
-    }));
-  };
-  
-  const setValidationErrors = (errors: string[]) => {
-    setState(prev => ({ 
-      ...prev, 
-      validationErrors: errors
-    }));
-  };
-  
-  const setStepValidationErrors = (stepErrors: Record<string, boolean>) => {
-    setState(prev => ({ 
-      ...prev, 
-      stepValidationErrors: stepErrors 
-    }));
-  };
-  
-  const clearValidationErrors = () => {
-    setState(prev => ({ 
-      ...prev, 
-      validationErrors: [], 
-      stepValidationErrors: {} 
-    }));
-  };
+  // Get a memoized array of completed step numbers
+  const completedStepsArray = useMemo(() => {
+    return Object.entries(completedSteps)
+      .filter(([_, isCompleted]) => isCompleted)
+      .map(([step]) => parseInt(step, 10));
+  }, [completedSteps]);
 
   return {
-    currentStep: state.currentStep,
-    completedSteps: state.completedSteps,
-    isNavigating: state.isNavigating,
-    validationErrors: state.validationErrors,
-    stepValidationErrors: state.stepValidationErrors,
-    lastStepChange: state.lastStepChange,
-    setCurrentStep: setCurrentStepState,
-    setNavigating: setNavigatingState,
-    markStepComplete,
+    currentStep,
+    setCurrentStep,
+    isNavigating,
+    setNavigating,
+    validationErrors,
     setValidationErrors,
+    stepValidationErrors,
     setStepValidationErrors,
-    clearValidationErrors,
-    setState
+    completedSteps,
+    completedStepsArray,
+    markStepComplete,
+    clearValidationErrors
   };
 };

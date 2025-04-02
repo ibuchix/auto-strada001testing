@@ -16,6 +16,7 @@
  * - 2024-06-05: Added back useStepNavigation import to fix build error
  * - 2024-06-10: Major refactoring - extracted components into separate files for better maintainability
  * - 2024-06-20: Further refactoring - extracted more functionality into separate hooks and components
+ * - 2024-06-21: Fixed TypeScript error with FormErrorSection component
  */
 
 import { useNavigate } from "react-router-dom";
@@ -210,7 +211,7 @@ export const FormContent = ({
       />
       
       <FormErrorSection 
-        validationErrors={getStepValidationErrors()[stepNavigation.currentStep] || []}
+        validationErrors={stepNavigation.stepValidationErrors || {}}
       />
       
       <MainFormContent
