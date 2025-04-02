@@ -15,27 +15,28 @@
  * - 2024-06-05: Removed FormProgress import that was causing build error
  * - 2024-06-05: Added back useStepNavigation import to fix build error
  * - 2024-06-10: Major refactoring - extracted components into separate files for better maintainability
+ * - 2024-06-20: Further refactoring - extracted more functionality into separate hooks and components
  */
 
-import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Session } from "@supabase/supabase-js";
-import { StepForm } from "./StepForm";
 import { useCarListingForm } from "./hooks/useCarListingForm";
 import { useSectionsVisibility } from "./hooks/useSectionsVisibility";
 import { useFormPersistence } from "./hooks/useFormPersistence";
 import { useFormSubmission } from "./submission/useFormSubmission";
-import { ProgressPreservation } from "./submission/ProgressPreservation";
 import { useFormProgress } from "./hooks/useFormProgress";
 import { useValidationErrorTracking } from "./hooks/useValidationErrorTracking";
 import { useFilteredSteps } from "./hooks/useFilteredSteps";
 import { useFormDialogs } from "./hooks/useFormDialogs";
-import { FormProgressIndicator } from "./components/FormProgressIndicator";
 import { useStepNavigation } from "./hooks/useStepNavigation";
 import { FormContentLayout } from "./FormContentLayout";
 import { FormDialogs } from "./components/FormDialogs";
 import { useFormContentInit } from "./hooks/useFormContentInit";
-import { FormSubmissionButtons } from "./components/FormSubmissionButtons";
+import { useFormState } from "./hooks/useFormState";
+import { FormProgressSection } from "./components/FormProgressSection";
+import { FormErrorSection } from "./components/FormErrorSection";
+import { MainFormContent } from "./components/MainFormContent";
+import { useFormActions } from "./hooks/useFormActions";
 
 interface FormContentProps {
   session: Session;
@@ -54,17 +55,8 @@ export const FormContent = ({
   const navigate = useNavigate();
   
   // Form state management
-  const [formState, setFormState] = useState({
-    isInitializing: true,
-    currentStep: 0,
-    lastSaved: null as Date | null,
-    carId: undefined as string | undefined,
-    draftLoadError: null as Error | null,
-    filteredStepsArray: [] as Array<any>,
-    totalSteps: 1,
-    hasInitializedHooks: false
-  });
-
+  const { formState, updateFormState } = useFormState();
+  
   // Form initialization and draft loading
   const { 
     isLoadingDraft, 
@@ -83,11 +75,11 @@ export const FormContent = ({
 
   // Update carId and lastSaved from draft loading
   if (carId && carId !== formState.carId) {
-    setFormState(prev => ({ ...prev, carId }));
+    updateFormState({ carId });
   }
   
   if (lastSaved && lastSaved !== formState.lastSaved) {
-    setFormState(prev => ({ ...prev, lastSaved }));
+    updateFormState({ lastSaved });
   }
 
   // Dialog management
@@ -99,7 +91,7 @@ export const FormContent = ({
   // Form step filtering
   const { filteredSteps, typedStepConfigs } = useFilteredSteps({
     visibleSections,
-    setFormState
+    setFormState: updateFormState
   });
 
   // Step navigation
@@ -135,7 +127,15 @@ export const FormContent = ({
   stepNavigation.updateSaveFunction(saveWrapper);
 
   // Form submission
-  const { handleSubmit: handleFormSubmit, isSubmitting, setShowSuccessDialog } = useFormSubmission(session.user.id);
+  const { handleSubmit: handleFormSubmit, isSubmitting } = useFormSubmission(session.user.id);
+
+  // Form actions
+  const { onSubmit, handleSaveAndContinue, handleSave } = useFormActions({
+    handleFormSubmit,
+    saveImmediately: persistence.saveImmediately,
+    showSaveDialog: dialogActions.showSaveDialog,
+    showSuccessDialog: dialogActions.showSuccessDialog
+  });
 
   // Form progress calculation
   const { calculateFormProgress } = useFormProgress({
@@ -158,29 +158,6 @@ export const FormContent = ({
     .filter(([, isCompleted]) => isCompleted)
     .map(([step]) => parseInt(step, 10));
 
-  // Handle form submission
-  const onSubmit = useCallback(
-    async (data: import("@/types/forms").CarListingFormData) => {
-      try {
-        await handleFormSubmit(data, formState.carId);
-        dialogActions.showSuccessDialog();
-      } catch (error) {
-        console.error("Form submission error:", error);
-      }
-    },
-    [handleFormSubmit, formState.carId, dialogActions]
-  );
-
-  // Handle save and continue action
-  const handleSaveAndContinue = useCallback(async () => {
-    try {
-      await persistence.saveImmediately();
-      dialogActions.showSaveDialog();
-    } catch (error) {
-      console.error("Error saving progress:", error);
-    }
-  }, [persistence, dialogActions]);
-
   // Return loading or error state if needed
   if (draftError && !formState.isInitializing) {
     return <FormContentLayout 
@@ -189,7 +166,7 @@ export const FormContent = ({
       isLoadingDraft={isLoadingDraft}
       draftError={draftError}
       onDraftErrorRetry={resetDraftError}
-      onFormSubmit={onSubmit}
+      onFormSubmit={(data) => onSubmit(data, formState.carId)}
       onFormError={handleFormError}
     >
       <div>Error loading form</div>
@@ -203,7 +180,7 @@ export const FormContent = ({
       isLoadingDraft={isLoadingDraft}
       draftError={null}
       onDraftErrorRetry={resetDraftError}
-      onFormSubmit={onSubmit}
+      onFormSubmit={(data) => onSubmit(data, formState.carId)}
       onFormError={handleFormError}
     >
       <div>Loading form...</div>
@@ -218,47 +195,38 @@ export const FormContent = ({
       isLoadingDraft={isLoadingDraft}
       draftError={null}
       onDraftErrorRetry={resetDraftError}
-      onFormSubmit={onSubmit}
+      onFormSubmit={(data) => onSubmit(data, formState.carId)}
       onFormError={handleFormError}
     >
-      <ProgressPreservation 
+      <FormProgressSection
         currentStep={stepNavigation.currentStep}
         lastSaved={formState.lastSaved}
         onOfflineStatusChange={persistence.setIsOffline}
-      />
-      
-      <FormProgressIndicator 
         steps={formState.filteredStepsArray}
-        currentStep={stepNavigation.currentStep}
-        onStepChange={(step) => stepNavigation.setCurrentStep(step)}
         visibleSections={visibleSections}
         completedSteps={completedStepsArray}
         validationErrors={stepErrors}
+        onStepChange={(step) => stepNavigation.setCurrentStep(step)}
       />
       
-      <StepForm
+      <FormErrorSection 
+        validationErrors={getStepValidationErrors()[stepNavigation.currentStep] || []}
+      />
+      
+      <MainFormContent
         form={form}
         currentStep={stepNavigation.currentStep}
         setCurrentStep={(step) => stepNavigation.setCurrentStep(step)}
         carId={formState.carId}
         lastSaved={formState.lastSaved}
         isOffline={persistence.isOffline}
-        isSaving={persistence.isSaving || isSubmitting}
-        saveProgress={async () => {
-          await persistence.saveImmediately();
-          return true;
-        }}
-        visibleSections={visibleSections}
-      />
-      
-      <FormSubmissionButtons
-        isLastStep={stepNavigation.currentStep === formState.totalSteps - 1}
-        isSubmitting={isSubmitting}
         isSaving={persistence.isSaving}
-        isOffline={persistence.isOffline}
+        isSubmitting={isSubmitting}
+        saveProgress={saveWrapper}
+        visibleSections={visibleSections}
+        totalSteps={formState.totalSteps}
         onSaveAndContinue={handleSaveAndContinue}
-        onSave={() => persistence.saveImmediately()}
-        currentStep={stepNavigation.currentStep}
+        onSave={handleSave}
       />
 
       <FormDialogs 
