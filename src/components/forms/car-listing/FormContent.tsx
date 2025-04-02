@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2027-11-17: Fixed React hooks inconsistency by ensuring unconditional hook calls
@@ -26,10 +25,11 @@
  * - 2026-05-15: Updated import for refactored useFormPersistence hook
  * - 2028-06-28: Refactored into smaller components with better separation of concerns
  * - 2028-05-15: Added comprehensive error handling and debugging
- * - 2028-05-15: Wrapped critical sections in error boundaries
  * - 2028-05-15: Added detailed debugging logs for key state changes
+ * - 2028-05-15: Wrapped critical sections in error boundaries
  * - 2028-05-18: Fixed form initialization to prevent stuck loading state
  * - 2028-05-19: Fixed form context issue causing "form.formState is undefined" error
+ * - 2028-05-20: Added missing Alert component imports
  */
 
 import { useNavigate } from "react-router-dom";
@@ -57,6 +57,8 @@ import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 import { FormErrorProvider } from "./context/FormErrorContext";
 import { useDebugRender } from "./hooks/useDebugRender";
 import { LoadingState } from "./LoadingState";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface FormContentProps {
   session: Session;
