@@ -17,6 +17,7 @@
  * - 2024-06-10: Major refactoring - extracted components into separate files for better maintainability
  * - 2024-06-20: Further refactoring - extracted more functionality into separate hooks and components
  * - 2024-06-21: Fixed TypeScript error with FormErrorSection component
+ * - 2024-06-23: Fixed infinite re-render by consolidating progress tracking
  */
 
 import { useNavigate } from "react-router-dom";
@@ -38,6 +39,7 @@ import { FormProgressSection } from "./components/FormProgressSection";
 import { FormErrorSection } from "./components/FormErrorSection";
 import { MainFormContent } from "./components/MainFormContent";
 import { useFormActions } from "./hooks/useFormActions";
+import { useMemo } from "react";
 
 interface FormContentProps {
   session: Session;
@@ -76,11 +78,11 @@ export const FormContent = ({
 
   // Update carId and lastSaved from draft loading
   if (carId && carId !== formState.carId) {
-    updateFormState({ carId });
+    updateFormState(prev => ({ ...prev, carId }));
   }
   
   if (lastSaved && lastSaved !== formState.lastSaved) {
-    updateFormState({ lastSaved });
+    updateFormState(prev => ({ ...prev, lastSaved }));
   }
 
   // Dialog management
@@ -125,6 +127,8 @@ export const FormContent = ({
     }
   };
   
+  // Only update save function when dependencies change
+  // This helps prevent infinite loops
   stepNavigation.updateSaveFunction(saveWrapper);
 
   // Form submission
@@ -150,14 +154,16 @@ export const FormContent = ({
   // Validation error tracking
   const { getStepValidationErrors } = useValidationErrorTracking(form);
   
-  // Calculate progress and errors
-  const progress = calculateFormProgress();
-  const stepErrors = getStepValidationErrors();
+  // Calculate progress and errors - memoize to prevent recalculation on every render
+  const progress = useMemo(() => calculateFormProgress(), [calculateFormProgress]);
+  const stepErrors = useMemo(() => getStepValidationErrors(), [getStepValidationErrors]);
   
-  // Compute completed steps array
-  const completedStepsArray = Object.entries(stepNavigation.completedSteps)
-    .filter(([, isCompleted]) => isCompleted)
-    .map(([step]) => parseInt(step, 10));
+  // Compute completed steps array - memoize to prevent recalculation
+  const completedStepsArray = useMemo(() => {
+    return Object.entries(stepNavigation.completedSteps)
+      .filter(([, isCompleted]) => isCompleted)
+      .map(([step]) => parseInt(step, 10));
+  }, [stepNavigation.completedSteps]);
 
   // Return loading or error state if needed
   if (draftError && !formState.isInitializing) {
@@ -207,7 +213,7 @@ export const FormContent = ({
         visibleSections={visibleSections}
         completedSteps={completedStepsArray}
         validationErrors={stepErrors}
-        onStepChange={(step) => stepNavigation.setCurrentStep(step)}
+        onStepChange={stepNavigation.setCurrentStep}
       />
       
       <FormErrorSection 
@@ -217,7 +223,7 @@ export const FormContent = ({
       <MainFormContent
         form={form}
         currentStep={stepNavigation.currentStep}
-        setCurrentStep={(step) => stepNavigation.setCurrentStep(step)}
+        setCurrentStep={stepNavigation.setCurrentStep}
         carId={formState.carId}
         lastSaved={formState.lastSaved}
         isOffline={persistence.isOffline}

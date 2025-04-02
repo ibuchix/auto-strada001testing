@@ -7,9 +7,9 @@ import { useMemo } from "react";
 import { ValidationErrorDisplay } from "./ValidationErrorDisplay";
 import { FormNavigationControls } from "./FormNavigationControls";
 import { FormFooter } from "./FormFooter";
-import { FormProgressIndicator } from "./components/FormProgressIndicator";
 import { FormContainer } from "./components/FormContainer";
 import { useCompletionPercentage } from "./hooks/useCompletionPercentage";
+import { FormErrorSection } from "./components/FormErrorSection";
 
 interface StepFormProps {
   form: UseFormReturn<CarListingFormData>;
@@ -34,9 +34,12 @@ export const StepForm = ({
   visibleSections,
   isSaving = false
 }: StepFormProps) => {
-  const filteredSteps = formSteps.filter(step => {
-    return step.sections.some(section => visibleSections.includes(section));
-  });
+  // Filter steps based on visible sections
+  const filteredSteps = useMemo(() => {
+    return formSteps.filter(step => {
+      return step.sections.some(section => visibleSections.includes(section));
+    });
+  }, [visibleSections]);
   
   const totalSteps = filteredSteps.length;
   
@@ -64,6 +67,7 @@ export const StepForm = ({
     }))
   });
 
+  // Calculate completion percentage
   const completionPercentage = useCompletionPercentage({
     form,
     currentStep,
@@ -72,6 +76,7 @@ export const StepForm = ({
     filteredSteps
   });
 
+  // Handle step change and synchronize with external state
   const handleStepChange = (step: number) => {
     setCurrentStep(step);
     externalSetCurrentStep(step);
@@ -80,6 +85,7 @@ export const StepForm = ({
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
   
+  // Calculate completed steps array for progress display
   const completedStepsArray = useMemo(() => {
     return Object.entries(completedSteps).reduce((acc, [step, isCompleted]) => {
       if (isCompleted) {
@@ -101,9 +107,8 @@ export const StepForm = ({
     return formatted;
   }, [stepValidationErrors]);
   
-  // Enhanced wrapper functions to ensure proper async handling and debugging
-  const handlePreviousWrapper = async (): Promise<void> => {
-    console.log("Previous button clicked in StepForm");
+  // Enhanced wrapper functions for button handling
+  const handlePreviousWrapper = async () => {
     try {
       await handlePrevious();
     } catch (error) {
@@ -111,8 +116,7 @@ export const StepForm = ({
     }
   };
   
-  const handleNextWrapper = async (): Promise<void> => {
-    console.log("Next button clicked in StepForm");
+  const handleNextWrapper = async () => {
     try {
       await handleNext();
     } catch (error) {
@@ -120,8 +124,7 @@ export const StepForm = ({
     }
   };
   
-  const saveProgressWrapper = async (): Promise<void> => {
-    console.log("Save button clicked in StepForm");
+  const saveProgressWrapper = async () => {
     try {
       await saveProgress();
     } catch (error) {
@@ -131,17 +134,10 @@ export const StepForm = ({
   
   return (
     <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6">
-      <FormProgressIndicator
-        steps={filteredSteps}
-        currentStep={currentStep}
-        onStepChange={handleStepChange}
-        visibleSections={visibleSections}
-        completedSteps={completedStepsArray}
-        validationErrors={formattedValidationErrors}
-        description={filteredSteps[currentStep]?.description}
-      />
+      {/* We've removed FormProgressIndicator from here since it's now managed by FormContent */}
       
-      <ValidationErrorDisplay validationErrors={validationErrors} />
+      {/* Display validation errors */}
+      <FormErrorSection validationErrors={stepValidationErrors} />
       
       <FormContainer 
         form={form}

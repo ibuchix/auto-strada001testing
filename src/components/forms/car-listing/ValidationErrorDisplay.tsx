@@ -7,10 +7,12 @@
  * - 2027-11-21: Updated props interface to support string array or record format
  * - 2028-03-27: Fixed type definition for validationErrors to properly handle string arrays
  * - 2024-06-22: Updated interface to support various error formats consistently
+ * - 2024-06-23: Added strict type checking and memoization to prevent render loops
  */
 
 import { AlertCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useMemo } from "react";
 
 interface ValidationErrorDisplayProps {
   validationErrors: string[] | Record<string, string> | any;
@@ -23,28 +25,37 @@ export const ValidationErrorDisplay = ({
   title = "Please correct the following errors:",
   onDismiss
 }: ValidationErrorDisplayProps) => {
-  // Handle different formats of validation errors
-  const hasErrors = Array.isArray(validationErrors) 
-    ? validationErrors.length > 0
-    : typeof validationErrors === 'object' && validationErrors !== null
-      ? Object.keys(validationErrors).length > 0
-      : false;
+  // Convert validation errors to array format for consistent display - memoize to prevent rerenders
+  const { hasErrors, errorsArray } = useMemo(() => {
+    // Handle different formats of validation errors
+    const hasErrors = Array.isArray(validationErrors) 
+      ? validationErrors.length > 0
+      : typeof validationErrors === 'object' && validationErrors !== null
+        ? Object.keys(validationErrors).length > 0
+        : Boolean(validationErrors);
+      
+    if (!hasErrors) {
+      return { hasErrors: false, errorsArray: [] };
+    }
+
+    // Convert to array format
+    const errorsArray = Array.isArray(validationErrors)
+      ? validationErrors
+      : typeof validationErrors === 'object' && validationErrors !== null
+        ? Object.entries(validationErrors).map(([field, message]) => 
+            typeof message === 'string' 
+              ? `${field}: ${message}`
+              : Array.isArray(message) 
+                ? message.join(', ') 
+                : `${field}: Invalid format`)
+        : [String(validationErrors)];
+    
+    return { hasErrors, errorsArray };
+  }, [validationErrors]);
     
   if (!hasErrors) {
     return null;
   }
-
-  // Convert validation errors to array format for consistent display
-  const errorsArray = Array.isArray(validationErrors)
-    ? validationErrors
-    : typeof validationErrors === 'object' && validationErrors !== null
-      ? Object.entries(validationErrors).map(([field, message]) => 
-          typeof message === 'string' 
-            ? `${field}: ${message}`
-            : Array.isArray(message) 
-              ? message.join(', ') 
-              : `${field}: Invalid format`)
-      : [String(validationErrors)];
 
   // Get the count of errors
   const errorCount = errorsArray.length;
