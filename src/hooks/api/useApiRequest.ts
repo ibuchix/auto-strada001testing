@@ -1,285 +1,89 @@
 
 /**
- * Hook for making API requests with automatic loading state and error handling
+ * Combined API request hook with all HTTP methods
  * 
  * Changes made:
- * - 2025-11-05: Created new hook for simplified API interactions
- * - Integrated with apiClientService for automatic retries
- * - Added loading, success, and error states
- * - Implemented proper error handling with toast notifications
+ * - 2025-11-05: Created hook for simplified API interactions
+ * - 2025-11-05: Integrated with apiClientService for automatic retries
+ * - 2025-11-22: Refactored into smaller files for better maintainability
+ * - 2025-11-22: Split functionality into useApiCore and method-specific hooks
  */
 
-import { useState, useCallback } from 'react';
-import { apiClient } from '@/services/api/apiClientService';
-import { toast } from 'sonner';
+import { useCallback } from 'react';
+import { 
+  useGetRequest, 
+  usePostRequest, 
+  usePutRequest, 
+  useDeleteRequest,
+  useInvokeFunctionRequest 
+} from './useHttpMethods';
+import { UseApiCoreOptions } from './useApiCore';
 
-interface UseApiRequestOptions {
-  onSuccess?: (data: any) => void;
-  onError?: (error: any) => void;
-  showSuccessToast?: boolean;
-  showErrorToast?: boolean;
-  successMessage?: string;
-}
-
-export function useApiRequest(options: UseApiRequestOptions = {}) {
-  const {
-    onSuccess,
-    onError,
-    showSuccessToast = false,
-    showErrorToast = true,
-    successMessage = 'Operation completed successfully'
-  } = options;
+/**
+ * Hook combining all API request methods for easy access
+ */
+export function useApiRequest(options: UseApiCoreOptions = {}) {
+  // Initialize individual hooks
+  const getHook = useGetRequest(options);
+  const postHook = usePostRequest(options);
+  const putHook = usePutRequest(options);
+  const deleteHook = useDeleteRequest(options);
+  const functionHook = useInvokeFunctionRequest(options);
   
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [data, setData] = useState<any>(null);
+  // Synchronize loading state across hooks
+  const isLoading = 
+    getHook.isLoading || 
+    postHook.isLoading || 
+    putHook.isLoading || 
+    deleteHook.isLoading ||
+    functionHook.isLoading;
   
-  /**
-   * Execute a GET request
-   */
-  const get = useCallback(async <T,>(
-    endpoint: string,
-    config = {}
-  ) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await apiClient.get<T>(endpoint, config);
-      
-      if (response.error) {
-        throw response.error;
-      }
-      
-      setData(response.data);
-      
-      if (showSuccessToast) {
-        toast.success(successMessage);
-      }
-      
-      if (onSuccess) {
-        onSuccess(response.data);
-      }
-      
-      return response.data;
-    } catch (err: any) {
-      setError(err);
-      
-      if (showErrorToast) {
-        toast.error(err.message || 'An error occurred');
-      }
-      
-      if (onError) {
-        onError(err);
-      }
-      
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onSuccess, onError, showSuccessToast, showErrorToast, successMessage]);
+  // Use first error found
+  const error = 
+    getHook.error || 
+    postHook.error || 
+    putHook.error || 
+    deleteHook.error ||
+    functionHook.error;
+  
+  // Use most recent data
+  const data = 
+    functionHook.data || 
+    postHook.data || 
+    putHook.data || 
+    getHook.data || 
+    deleteHook.data;
   
   /**
-   * Execute a POST request
-   */
-  const post = useCallback(async <T,>(
-    endpoint: string,
-    data: any,
-    config = {}
-  ) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await apiClient.post<T>(endpoint, data, config);
-      
-      if (response.error) {
-        throw response.error;
-      }
-      
-      setData(response.data);
-      
-      if (showSuccessToast) {
-        toast.success(successMessage);
-      }
-      
-      if (onSuccess) {
-        onSuccess(response.data);
-      }
-      
-      return response.data;
-    } catch (err: any) {
-      setError(err);
-      
-      if (showErrorToast) {
-        toast.error(err.message || 'An error occurred');
-      }
-      
-      if (onError) {
-        onError(err);
-      }
-      
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onSuccess, onError, showSuccessToast, showErrorToast, successMessage]);
-  
-  /**
-   * Execute a PUT request
-   */
-  const put = useCallback(async <T,>(
-    endpoint: string,
-    data: any,
-    config = {}
-  ) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await apiClient.put<T>(endpoint, data, config);
-      
-      if (response.error) {
-        throw response.error;
-      }
-      
-      setData(response.data);
-      
-      if (showSuccessToast) {
-        toast.success(successMessage);
-      }
-      
-      if (onSuccess) {
-        onSuccess(response.data);
-      }
-      
-      return response.data;
-    } catch (err: any) {
-      setError(err);
-      
-      if (showErrorToast) {
-        toast.error(err.message || 'An error occurred');
-      }
-      
-      if (onError) {
-        onError(err);
-      }
-      
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onSuccess, onError, showSuccessToast, showErrorToast, successMessage]);
-  
-  /**
-   * Execute a DELETE request
-   */
-  const remove = useCallback(async <T,>(
-    endpoint: string,
-    config = {}
-  ) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await apiClient.delete<T>(endpoint, config);
-      
-      if (response.error) {
-        throw response.error;
-      }
-      
-      setData(response.data);
-      
-      if (showSuccessToast) {
-        toast.success(successMessage);
-      }
-      
-      if (onSuccess) {
-        onSuccess(response.data);
-      }
-      
-      return response.data;
-    } catch (err: any) {
-      setError(err);
-      
-      if (showErrorToast) {
-        toast.error(err.message || 'An error occurred');
-      }
-      
-      if (onError) {
-        onError(err);
-      }
-      
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onSuccess, onError, showSuccessToast, showErrorToast, successMessage]);
-  
-  /**
-   * Execute a Supabase Function with proper error handling
-   */
-  const invokeFunction = useCallback(async <T,>(
-    functionName: string,
-    functionData: any,
-    config = {}
-  ) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await apiClient.invokeFunction<T>(functionName, functionData, config);
-      
-      if (response.error) {
-        throw response.error;
-      }
-      
-      setData(response.data);
-      
-      if (showSuccessToast) {
-        toast.success(successMessage);
-      }
-      
-      if (onSuccess) {
-        onSuccess(response.data);
-      }
-      
-      return response.data;
-    } catch (err: any) {
-      setError(err);
-      
-      if (showErrorToast) {
-        toast.error(err.message || 'An error occurred');
-      }
-      
-      if (onError) {
-        onError(err);
-      }
-      
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onSuccess, onError, showSuccessToast, showErrorToast, successMessage]);
-  
-  /**
-   * Reset the request state
+   * Reset all request states
    */
   const reset = useCallback(() => {
-    setIsLoading(false);
-    setError(null);
-    setData(null);
-  }, []);
+    getHook.reset();
+    postHook.reset();
+    putHook.reset();
+    deleteHook.reset();
+    functionHook.reset();
+  }, [getHook.reset, postHook.reset, putHook.reset, deleteHook.reset, functionHook.reset]);
   
   return {
+    // State
     isLoading,
     error,
     data,
-    get,
-    post,
-    put,
-    delete: remove,
-    invokeFunction,
+    
+    // HTTP Methods
+    get: getHook.get,
+    post: postHook.post,
+    put: putHook.put,
+    delete: deleteHook.delete,
+    
+    // Supabase Functions
+    invokeFunction: functionHook.invokeFunction,
+    
+    // Utility methods
     reset
   };
 }
+
+// Re-export component types for convenience
+export type { UseApiCoreOptions };
