@@ -10,6 +10,7 @@
  * - 2027-11-19: Added validation errors tracking and step error handling
  * - 2027-11-20: Fixed validate function call with proper argument handling
  * - 2028-03-27: Refactored into smaller, more focused hooks
+ * - 2028-03-28: Fixed isValid variable reference error in finally block
  */
 
 import { useCallback, useEffect } from "react";
@@ -84,11 +85,13 @@ export const useStepNavigation = ({
     
     setNavigating(true);
     
+    let isValidStep = false; // Define a variable to track validation status
+    
     try {
       // Validate current step before navigation
-      const isValid = await validateCurrentStep();
+      isValidStep = await validateCurrentStep();
       
-      if (isValid) {
+      if (isValidStep) {
         // Save progress
         await saveCurrentProgress();
         
@@ -104,7 +107,7 @@ export const useStepNavigation = ({
       setNavigating(false);
       toast.error("An error occurred during navigation");
     } finally {
-      if (isValid) {
+      if (isValidStep) {
         setNavigating(false);
       }
     }
