@@ -1,3 +1,4 @@
+
 export const extractPrice = (responseData: any): number | null => {
   console.log('Extracting price from response:', JSON.stringify(responseData, null, 2));
 
