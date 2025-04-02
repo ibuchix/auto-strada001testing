@@ -1,4 +1,11 @@
 
+/**
+ * Changes made:
+ * - 2024-06-26: Added proper memoization to prevent unnecessary re-renders
+ * - Improved component performance with better conditional rendering
+ * - Added display name for better debugging
+ */
+
 import { memo } from 'react';
 import { AlertCircle } from "lucide-react";
 
