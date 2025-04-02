@@ -17,6 +17,7 @@
  * - 2025-11-03: Added support for retrying draft loading
  * - 2025-11-04: Added save and continue later functionality
  * - 2025-11-05: Fixed import issues for formSteps and FormProgress
+ * - 2025-11-06: Fixed React hooks issue with conditional rendering
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -40,10 +41,9 @@ import { FormDataProvider } from "./context/FormDataContext";
 import { saveToCache, CACHE_KEYS } from "@/services/offlineCacheService";
 import { FormErrorHandler } from "./FormErrorHandler";
 import { useNavigate } from "react-router-dom";
-import { STEP_FIELD_MAPPINGS } from "./hooks/useStepNavigation";
-import { useStepNavigation } from "./hooks/useStepNavigation";
 import { formSteps } from "./constants/formSteps";
 import { FormProgress } from "./FormProgress";
+import { useStepNavigation } from "./hooks/useStepNavigation";
 
 interface FormContentProps {
   session: Session;
@@ -285,15 +285,18 @@ export const FormContent = ({
     return <LoadingState />;
   }
 
-  // Get completed steps and error steps for progress display
-  const { completedSteps = [] } = useStepNavigation({
+  // Get filtered steps for the stepper
+  const filteredStepsArray = formSteps.filter(step => {
+    return step.sections.some(section => visibleSections.includes(section));
+  });
+  
+  // Initialize step navigation - important: this must be called unconditionally
+  const stepNavigation = useStepNavigation({
     form,
-    totalSteps: formSteps.length,
+    totalSteps: filteredStepsArray.length,
     initialStep: currentStep,
     saveProgress: persistence.saveImmediately,
-    filteredSteps: formSteps.filter(step => {
-      return step.sections.some(section => visibleSections.includes(section));
-    })
+    filteredSteps: filteredStepsArray
   });
   
   const progress = calculateFormProgress();
@@ -316,7 +319,7 @@ export const FormContent = ({
               steps={formSteps}
               currentStep={currentStep}
               onStepClick={setCurrentStep}
-              completedSteps={completedSteps}
+              completedSteps={stepNavigation.completedSteps}
               errorSteps={stepErrors}
             />
             
@@ -352,4 +355,3 @@ export const FormContent = ({
     </ErrorBoundary>
   );
 };
-

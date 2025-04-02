@@ -6,7 +6,7 @@
  * - Manages step completion state
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
@@ -34,14 +34,6 @@ interface UseStepNavigationProps {
   }>;
 }
 
-interface StepNavigationState {
-  currentStep: number;
-  isNavigating: boolean;
-  validationErrors: Record<string, string>;
-  completedSteps: number[];
-  stepValidationErrors: Record<string, boolean>;
-}
-
 export const useStepNavigation = ({
   form,
   totalSteps,
@@ -49,12 +41,13 @@ export const useStepNavigation = ({
   saveProgress,
   filteredSteps
 }: UseStepNavigationProps) => {
-  const [state, setState] = useState<StepNavigationState>({
+  // Use a single state object to prevent conditional hook calls
+  const [state, setState] = useState({
     currentStep: initialStep,
     isNavigating: false,
-    validationErrors: {},
-    completedSteps: [],
-    stepValidationErrors: {}
+    validationErrors: {} as Record<string, string>,
+    completedSteps: [] as number[],
+    stepValidationErrors: {} as Record<string, boolean>
   });
   
   // Validate the fields for the current step
@@ -207,7 +200,8 @@ export const useStepNavigation = ({
     }
   }, [totalSteps]);
 
-  return {
+  // Return memoized values to prevent unnecessary re-renders
+  return useMemo(() => ({
     currentStep: state.currentStep,
     isNavigating: state.isNavigating,
     validationErrors: state.validationErrors,
@@ -217,5 +211,10 @@ export const useStepNavigation = ({
     handleNext,
     setCurrentStep,
     navigationDisabled: state.isNavigating
-  };
+  }), [
+    state,
+    handlePrevious,
+    handleNext,
+    setCurrentStep
+  ]);
 };
