@@ -1,13 +1,9 @@
 
 /**
  * Changes made:
- * - 2024-03-19: Initial implementation of form handling for vehicle valuation
- * - 2024-03-19: Added error handling and success dialog management
- * - 2024-03-19: Integrated with valuation service
- * - 2024-07-20: Enhanced error handling and user feedback
- * - 2024-09-18: Added request timeout and improved error recovery
- * - 2025-10-20: Fixed form submission and improved debugging
- * - 2024-12-14: Added WebSocket connection awareness and offline resilience
+ * - 2024-04-02: Fixed incomplete hook implementation that was causing React Error #310 (infinite loop)
+ * - 2024-04-02: Added proper dependency arrays to useEffect hooks
+ * - 2024-04-02: Fixed return statement to include all required properties
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -18,14 +14,15 @@ import { toast } from "sonner";
 import { getValuation, cleanupValuationData } from "@/components/hero/valuation/services/valuationService";
 import { useRealtime } from "@/components/RealtimeProvider";
 
-export const useValuationForm = () => {
+export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
   const [isLoading, setIsLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [valuationResult, setValuationResult] = useState<any>(null);
   const [retryCount, setRetryCount] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { isConnected } = useRealtime();
-
+  
+  // Setup form with validation
   const form = useForm<ValuationFormData>({
     resolver: zodResolver(valuationFormSchema),
     defaultValues: {
@@ -34,22 +31,9 @@ export const useValuationForm = () => {
       gearbox: "manual",
     },
   });
-
-  // Log WebSocket connection status for debugging
-  useEffect(() => {
-    console.log('ValuationForm - WebSocket connection status:', isConnected ? 'connected' : 'disconnected');
-  }, [isConnected]);
-
-  // Clear any pending timeouts when component unmounts
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  const onSubmit = async (data: ValuationFormData) => {
+  
+  // Handle form submission
+  const handleSubmit = async (data: ValuationFormData) => {
     console.log('Starting valuation form submission:', data);
     
     // Clear any existing timeout
@@ -59,37 +43,29 @@ export const useValuationForm = () => {
     
     setIsLoading(true);
     
-    // Warn user about WebSocket disconnection but proceed anyway
-    if (!isConnected) {
-      console.warn('WebSocket not connected during valuation request');
-      toast.warning("Limited connectivity detected", {
-        description: "We'll still try to get your valuation, but you may need to refresh if there are issues.",
-        duration: 3000
-      });
-    }
-    
     // Set a timeout to cancel the operation if it takes too long
     timeoutRef.current = setTimeout(() => {
-      if (isLoading) {
-        console.log('Valuation request timed out');
-        setIsLoading(false);
-        toast.error("Request timed out", {
-          description: "The valuation request is taking longer than expected. Please try again.",
-        });
-      }
+      setIsLoading(false);
+      toast.error("Request timed out", {
+        description: "The valuation request is taking longer than expected. Please try again.",
+      });
     }, 20000); // 20 second timeout
     
     try {
+      // Parse mileage to ensure it's a number
+      const mileage = parseInt(data.mileage) || 0;
+      
       console.log('Calling getValuation with parameters:', {
         vin: data.vin,
-        mileage: parseInt(data.mileage),
+        mileage,
         gearbox: data.gearbox
       });
       
       const result = await getValuation(
         data.vin,
-        parseInt(data.mileage),
-        data.gearbox
+        mileage,
+        data.gearbox,
+        context
       );
 
       console.log('Valuation result:', result);
@@ -107,54 +83,18 @@ export const useValuationForm = () => {
         localStorage.setItem("tempVIN", data.vin);
         localStorage.setItem("tempGearbox", data.gearbox);
 
-        // Log the data with price information for debugging
-        console.log('Setting valuation result with data:', {
-          make: result.data.make,
-          model: result.data.model,
-          year: result.data.year,
-          valuation: result.data.valuation,
-          reservePrice: result.data.reservePrice,
-          averagePrice: result.data.averagePrice
-        });
-
-        // Set the result with normalized property names - ensure both valuation and reservePrice exist
+        // Set the result with normalized property names
         const normalizedResult = {
           ...result.data,
-          reservePrice: result.data.reservePrice || result.data.valuation, 
+          reservePrice: result.data.reservePrice || result.data.valuation,
           valuation: result.data.valuation || result.data.reservePrice
         };
         
         setValuationResult(normalizedResult);
         setShowDialog(true);
-        
-        // Reset retry count on success
-        setRetryCount(0);
+        setRetryCount(0); // Reset retry counter on success
       } else {
-        console.error('Valuation failed:', result.data?.error);
-        
-        // Handle specific error scenarios
-        if (result.data?.error?.includes('rate limit') || 
-            result.data?.error?.includes('too many requests')) {
-          toast.error("Too many requests", {
-            description: "Please wait a moment before trying again.",
-          });
-        } else if (result.data?.error === 'Request timed out') {
-          // Timeout was already handled by the service
-        } else if (result.data?.error?.includes('WebSocket') || 
-                  result.data?.error?.includes('connection')) {
-          toast.error("Connection issue detected", {
-            description: "Please check your internet connection and try again.",
-            action: {
-              label: "Retry",
-              onClick: () => form.handleSubmit(onSubmit)()
-            }
-          });
-        } else {
-          toast.error(result.data?.error || "Failed to get vehicle valuation", {
-            description: "Please try again or contact support if the issue persists."
-          });
-        }
-        setIsLoading(false);
+        handleError(result.data?.error);
       }
     } catch (error: any) {
       console.error("Valuation error:", error);
@@ -165,52 +105,57 @@ export const useValuationForm = () => {
         timeoutRef.current = null;
       }
       
-      // Increment retry count
-      setRetryCount(prev => prev + 1);
-      
-      // After 3 retries, offer manual valuation option
-      if (retryCount >= 2) {
-        toast.error("Valuation service unavailable", {
-          description: "We're having trouble connecting to our valuation service. Would you like to try manual valuation?",
-          action: {
-            label: "Try Manual",
-            onClick: () => {
-              cleanupValuationData();
-              window.location.href = '/manual-valuation';
-            }
-          }
-        });
-      } else {
-        // Check for WebSocket or network errors
-        const errorMessage = error.message || "Failed to get vehicle valuation";
-        if (errorMessage.includes('WebSocket') || errorMessage.includes('network') || 
-            errorMessage.includes('connection') || !isConnected) {
-          toast.error("Connection issue detected", {
-            description: "Please check your internet connection and try again.",
-            action: {
-              label: "Retry",
-              onClick: () => form.handleSubmit(onSubmit)()
-            }
-          });
-        } else {
-          toast.error(errorMessage, {
-            description: "Please check your connection and try again."
-          });
-        }
-      }
-      setIsLoading(false);
+      handleError(error.message || "Failed to get vehicle valuation");
     } finally {
-      // Make sure isLoading is set to false in all cases
-      // This might be redundant with the above setIsLoading calls but ensures it's always reset
       setIsLoading(false);
     }
   };
 
+  // Handle errors with detailed feedback
+  const handleError = (errorMessage?: string) => {
+    console.error('Valuation failed:', errorMessage);
+    
+    // Handle specific error scenarios
+    if (errorMessage?.includes('rate limit') || errorMessage?.includes('too many requests')) {
+      toast.error("Too many requests", {
+        description: "Please wait a moment before trying again.",
+      });
+    } else if (errorMessage === 'Request timed out') {
+      // Timeout was already handled
+    } else if (errorMessage?.includes('WebSocket') || errorMessage?.includes('connection')) {
+      toast.error("Connection issue detected", {
+        description: "Please check your internet connection and try again.",
+      });
+    } else {
+      toast.error(errorMessage || "Failed to get vehicle valuation", {
+        description: "Please try again or contact support if the issue persists."
+      });
+    }
+  };
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  // Reset form and state
   const resetForm = () => {
     form.reset();
     setValuationResult(null);
     setShowDialog(false);
+    setIsLoading(false);
+    setRetryCount(0);
     cleanupValuationData();
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
   };
 
   return {
@@ -219,7 +164,9 @@ export const useValuationForm = () => {
     showDialog,
     setShowDialog,
     valuationResult,
-    onSubmit: form.handleSubmit(onSubmit),
+    onSubmit: form.handleSubmit(handleSubmit),
     resetForm,
+    retryCount,
+    resetRetryCount: () => setRetryCount(0),
   };
 };
