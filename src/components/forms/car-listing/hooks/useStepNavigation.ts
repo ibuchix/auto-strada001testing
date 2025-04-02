@@ -13,9 +13,10 @@
  * - 2028-03-28: Fixed isValid variable reference error in finally block
  * - 2028-03-28: Fixed navigation logic to properly handle Next button click
  * - 2028-11-16: Fixed issue with Next button not working by ensuring proper validation flow
+ * - 2024-06-25: Improved component communication with better state management
  */
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
@@ -71,6 +72,9 @@ export const useStepNavigation = ({
     clearValidationErrors
   });
   
+  // Use a ref to track if a navigation is in progress to prevent race conditions
+  const navigationInProgress = useRef(false);
+  
   // Navigate to a specific step
   const setCurrentStep = useCallback(async (step: number) => {
     // Prevent invalid steps
@@ -80,11 +84,12 @@ export const useStepNavigation = ({
     }
     
     // Prevent navigation while already navigating
-    if (isNavigating) {
+    if (isNavigating || navigationInProgress.current) {
       console.warn("Navigation already in progress, please wait");
       return;
     }
     
+    navigationInProgress.current = true;
     setNavigating(true);
     
     try {
@@ -93,7 +98,7 @@ export const useStepNavigation = ({
         await saveCurrentProgress();
         markStepComplete(currentStep);
         setStepState(step);
-        setNavigating(false);
+        navigationInProgress.current = false;
         return;
       }
       
@@ -120,6 +125,7 @@ export const useStepNavigation = ({
         description: error instanceof Error ? error.message : "Unknown error"
       });
     } finally {
+      navigationInProgress.current = false;
       setNavigating(false);
     }
   }, [
@@ -179,7 +185,7 @@ export const useStepNavigation = ({
     stepValidationErrors,
     handleNext,
     handlePrevious,
-    navigationDisabled: isNavigating
+    navigationDisabled: isNavigating || navigationInProgress.current
   };
 };
 

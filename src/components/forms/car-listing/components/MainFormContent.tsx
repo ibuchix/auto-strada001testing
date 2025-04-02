@@ -4,16 +4,16 @@
  * - 2024-06-20: Extracted main form content from FormContent.tsx
  * - Created a standalone component for the form body and controls
  * - 2024-06-24: Added React.memo to prevent unnecessary rerenders
+ * - 2024-06-25: Updated to use FormDataContext instead of prop drilling
  */
 
 import { StepForm } from "../StepForm";
 import { FormSubmissionButtons } from "./FormSubmissionButtons";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
 import { memo, useMemo } from "react";
+import { useFormData } from "../context/FormDataContext";
+import { CarListingFormData } from "@/types/forms";
 
 interface MainFormContentProps {
-  form: UseFormReturn<CarListingFormData>;
   currentStep: number;
   setCurrentStep: (step: number) => void;
   carId?: string;
@@ -29,7 +29,6 @@ interface MainFormContentProps {
 }
 
 export const MainFormContent = memo(({
-  form,
   currentStep,
   setCurrentStep,
   carId,
@@ -43,6 +42,9 @@ export const MainFormContent = memo(({
   onSaveAndContinue,
   onSave
 }: MainFormContentProps) => {
+  // Get form from context instead of props
+  const form = useFormData();
+  
   // Memoize computed values
   const isLastStep = useMemo(() => currentStep === totalSteps - 1, [currentStep, totalSteps]);
   

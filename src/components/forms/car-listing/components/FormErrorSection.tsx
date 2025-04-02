@@ -1,63 +1,39 @@
 
 /**
  * Changes made:
- * - 2024-06-20: Extracted error handling from FormContent.tsx
- * - Created a dedicated component for error display and handling
- * - 2024-06-21: Fixed TypeScript typing to properly handle error object
- * - 2024-06-22: Updated interface to accept Record<number, string[]> for step validation errors
- * - 2024-06-23: Improved error type handling to prevent infinite renders
- * - 2024-06-24: Added React.memo and improved memoization to prevent rerenders
+ * - 2024-06-20: Extracted error section from FormContent.tsx
+ * - Created a standalone component for validation error display
+ * - 2024-06-25: Added memoization to prevent unnecessary re-renders
+ * - 2024-06-25: Improved error message formatting
  */
 
-import { useMemo, memo } from "react";
 import { ValidationErrorDisplay } from "../ValidationErrorDisplay";
+import { memo, useMemo } from "react";
 
 interface FormErrorSectionProps {
-  validationErrors: string[] | Record<string, string> | Record<number, string[]>;
+  validationErrors: Record<number, string[]>;
 }
 
 export const FormErrorSection = memo(({ validationErrors }: FormErrorSectionProps) => {
-  // Memoize error processing to prevent unnecessary rerenders
-  const processedErrors = useMemo(() => {
-    // Handle the case where validationErrors is empty or null
-    if (!validationErrors || (typeof validationErrors === 'object' && Object.keys(validationErrors).length === 0)) {
-      return null;
-    }
+  // Memoize the flattened errors to avoid recalculation on each render
+  const flattenedErrors = useMemo(() => {
+    const errors: string[] = [];
     
-    // Handle the case where validationErrors is an object with a numeric key
-    if (
-      typeof validationErrors === "object" && 
-      !Array.isArray(validationErrors) && 
-      Object.keys(validationErrors).length > 0
-    ) {
-      // Find the first key with errors
-      const firstKey = Object.keys(validationErrors)[0];
-      const currentStepErrors = validationErrors[firstKey];
-      
-      // If the errors are an array and it's empty, don't show anything
-      if (Array.isArray(currentStepErrors) && currentStepErrors.length === 0) {
-        return null;
+    Object.values(validationErrors).forEach(stepErrors => {
+      if (Array.isArray(stepErrors) && stepErrors.length > 0) {
+        errors.push(...stepErrors);
       }
-      
-      // Return the errors from the first key
-      return currentStepErrors || [];
-    }
+    });
     
-    // Handle the case where validationErrors is an array
-    if (Array.isArray(validationErrors) && validationErrors.length === 0) {
-      return null;
-    }
-    
-    return validationErrors;
+    return errors;
   }, [validationErrors]);
   
-  // If no errors to display, return null
-  if (!processedErrors) {
+  // Don't render anything if there are no errors
+  if (flattenedErrors.length === 0) {
     return null;
   }
   
-  // Pass the processed errors to the ValidationErrorDisplay component
-  return <ValidationErrorDisplay validationErrors={processedErrors} />;
+  return <ValidationErrorDisplay errors={flattenedErrors} />;
 });
 
 // Add display name for React DevTools
