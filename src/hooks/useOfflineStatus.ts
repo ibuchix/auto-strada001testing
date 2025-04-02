@@ -12,8 +12,8 @@ interface UseOfflineStatusOptions {
   showToasts?: boolean;
 }
 
-export function useOfflineStatus(options?: UseOfflineStatusOptions) {
-  const { showToasts = false } = options || {};
+export function useOfflineStatus(options: UseOfflineStatusOptions = {}) {
+  const { showToasts = false } = options;
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
