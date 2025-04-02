@@ -1,33 +1,16 @@
 
-/**
- * Changes made:
- * - Refactored to reduce component complexity and improve maintainability
- * - Extracted navigation logic into a custom hook
- * - Created separate components for validation errors and navigation controls
- * - Improved type safety and reduced redundancy
- * - Enhanced error handling with clearer user feedback
- * - Better organization of code with logical grouping
- * - Added save and continue later functionality
- * - Added completion percentage calculation for progress indicator
- * - Added gesture-based navigation for mobile devices
- * - 2027-11-19: Fixed TypeScript compatibility issues with useStepNavigation
- * - 2027-11-20: Fixed type errors with validationErrors and Promise return types
- * - 2027-11-21: Updated function return types and fixed validation errors type
- * - 2028-03-27: Updated to work with refactored step navigation hooks
- */
-
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { formSteps } from "./constants/formSteps";
 import { FormSections } from "./FormSections";
 import { FormStepper } from "./FormStepper";
-import { FormFooter } from "./FormFooter";
-import { ValidationErrorDisplay } from "./ValidationErrorDisplay";
-import { FormNavigationControls } from "./FormNavigationControls";
+import { SwipeNavigation } from "./SwipeNavigation";
 import { useStepNavigation } from "./hooks/useStepNavigation";
 import { useMemo } from "react";
 import { STEP_FIELD_MAPPINGS } from "./hooks/useStepValidation";
-import { SwipeNavigation } from "./SwipeNavigation";
+import { ValidationErrorDisplay } from "./ValidationErrorDisplay";
+import { FormNavigationControls } from "./FormNavigationControls";
+import { FormFooter } from "./FormFooter";
 
 interface StepFormProps {
   form: UseFormReturn<CarListingFormData>;
@@ -151,6 +134,7 @@ export const StepForm = ({
   
   return (
     <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6">
+      {/* Stepper is now the ONLY step indicator */}
       <div className="mb-6">
         <FormStepper 
           steps={filteredSteps} 
@@ -203,7 +187,7 @@ export const StepForm = ({
         carId={carId}
       />
       
-      {/* Progress indicator */}
+      {/* Progress footer */}
       <FormFooter
         lastSaved={lastSaved}
         isOffline={isOffline}
@@ -216,3 +200,4 @@ export const StepForm = ({
     </div>
   );
 };
+
