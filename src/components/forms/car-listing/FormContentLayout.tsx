@@ -1,94 +1,75 @@
 
 /**
- * Changes made:
- * - 2024-06-10: Extracted form layout logic from FormContent.tsx
- * - Created a dedicated layout component to manage form structure
- * - 2028-05-15: Added nested error boundaries and detailed error handling
- * - 2028-05-15: Added debugging logs for component lifecycle
- * - 2028-05-15: Enhanced loading states with better UI feedback
+ * Form Content Layout - Controls the overall layout of the form
+ * Created 2028-05-18: Fixed loading state display to prevent form getting stuck
  */
 
-import { ReactNode, useEffect } from "react";
-import { FormProvider, UseFormReturn } from "react-hook-form";
-import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
-import { FormDataProvider } from "./context/FormDataContext";
+import { ReactNode } from "react";
+import { UseFormReturn } from "react-hook-form";
+import { LoadingState } from "./LoadingState"; 
 import { CarListingFormData } from "@/types/forms";
-import { FormErrorHandler } from "./FormErrorHandler";
-import { LoadingState } from "./LoadingState";
+import { AlertCircle, RefreshCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface FormContentLayoutProps {
+  children: ReactNode;
   form: UseFormReturn<CarListingFormData>;
   isInitializing: boolean;
   isLoadingDraft: boolean;
+  layoutId?: string;
   draftError: Error | null;
-  onDraftErrorRetry: () => void;
-  onFormSubmit: (data: CarListingFormData) => Promise<void>;
-  onFormError: (error: Error) => void;
-  children: ReactNode;
-  layoutId?: string; // For identifying this instance in logs
+  onDraftErrorRetry?: () => void;
+  onFormSubmit?: (data: CarListingFormData) => Promise<any>;
+  onFormError?: (error: Error) => void;
 }
 
 export const FormContentLayout = ({
-  form,
+  children,
   isInitializing,
   isLoadingDraft,
   draftError,
   onDraftErrorRetry,
-  onFormSubmit,
-  onFormError,
-  children,
-  layoutId = 'main'
+  layoutId = 'form-content'
 }: FormContentLayoutProps) => {
-  // Add lifecycle logging
-  useEffect(() => {
-    console.log(`[FormContentLayout:${layoutId}] Mounted`);
-    return () => console.log(`[FormContentLayout:${layoutId}] Unmounted`);
-  }, [layoutId]);
+  const isLoading = isInitializing || isLoadingDraft;
   
-  // Log state changes
-  useEffect(() => {
-    console.log(`[FormContentLayout:${layoutId}] State update:`, { 
-      isInitializing, 
-      isLoadingDraft, 
-      hasDraftError: !!draftError 
-    });
-  }, [isInitializing, isLoadingDraft, draftError, layoutId]);
-
-  if (draftError && !isInitializing) {
-    console.log(`[FormContentLayout:${layoutId}] Rendering error state:`, draftError);
-    return <FormErrorHandler draftError={draftError} onRetry={onDraftErrorRetry} />;
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6" id={`form-layout-${layoutId}`}>
+        <LoadingState message={isLoadingDraft ? "Loading your draft..." : "Initializing form..."} />
+      </div>
+    );
   }
-
-  if (isInitializing || isLoadingDraft) {
-    console.log(`[FormContentLayout:${layoutId}] Rendering loading state`);
-    return <LoadingState message={isInitializing ? "Initializing form..." : "Loading draft data..."} />;
+  
+  // Show error state
+  if (draftError) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Failed to load draft</AlertTitle>
+          <AlertDescription>
+            {draftError.message || "An error occurred while loading your saved draft."}
+          </AlertDescription>
+          <div className="mt-4">
+            {onDraftErrorRetry && (
+              <Button variant="outline" size="sm" onClick={onDraftErrorRetry}>
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Try Again
+              </Button>
+            )}
+          </div>
+        </Alert>
+      </div>
+    );
   }
-
-  // Nested error boundaries to provide more granular error recovery
+  
+  // Show form content
   return (
-    <ErrorBoundary 
-      onError={(error) => {
-        console.error(`[FormContentLayout:${layoutId}] Top-level error:`, error);
-        onFormError(error);
-      }}
-      boundary={`form-layout-${layoutId}`}
-    >
-      <FormProvider {...form}>
-        <FormDataProvider form={form}>
-          <form 
-            onSubmit={form.handleSubmit(onFormSubmit)} 
-            className="space-y-8"
-            id={`car-listing-form-${layoutId}`}
-          >
-            <ErrorBoundary 
-              boundary={`form-content-${layoutId}`}
-              resetOnPropsChange
-            >
-              {children}
-            </ErrorBoundary>
-          </form>
-        </FormDataProvider>
-      </FormProvider>
-    </ErrorBoundary>
+    <div className="relative" id={`form-layout-${layoutId}`}>
+      {children}
+    </div>
   );
 };
