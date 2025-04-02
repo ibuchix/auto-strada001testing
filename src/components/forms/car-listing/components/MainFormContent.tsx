@@ -3,12 +3,14 @@
  * Changes made:
  * - 2024-06-20: Extracted main form content from FormContent.tsx
  * - Created a standalone component for the form body and controls
+ * - 2024-06-24: Added React.memo to prevent unnecessary rerenders
  */
 
 import { StepForm } from "../StepForm";
 import { FormSubmissionButtons } from "./FormSubmissionButtons";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
+import { memo, useMemo } from "react";
 
 interface MainFormContentProps {
   form: UseFormReturn<CarListingFormData>;
@@ -26,7 +28,7 @@ interface MainFormContentProps {
   onSave: () => Promise<void>;
 }
 
-export const MainFormContent = ({
+export const MainFormContent = memo(({
   form,
   currentStep,
   setCurrentStep,
@@ -41,7 +43,8 @@ export const MainFormContent = ({
   onSaveAndContinue,
   onSave
 }: MainFormContentProps) => {
-  const isLastStep = currentStep === totalSteps - 1;
+  // Memoize computed values
+  const isLastStep = useMemo(() => currentStep === totalSteps - 1, [currentStep, totalSteps]);
   
   return (
     <>
@@ -68,4 +71,7 @@ export const MainFormContent = ({
       />
     </>
   );
-};
+});
+
+// Add display name for React DevTools
+MainFormContent.displayName = "MainFormContent";

@@ -18,6 +18,7 @@
  * - 2024-06-20: Further refactoring - extracted more functionality into separate hooks and components
  * - 2024-06-21: Fixed TypeScript error with FormErrorSection component
  * - 2024-06-23: Fixed infinite re-render by consolidating progress tracking
+ * - 2024-06-24: Added proper memoization of state updates and callbacks to prevent loops
  */
 
 import { useNavigate } from "react-router-dom";
@@ -39,7 +40,7 @@ import { FormProgressSection } from "./components/FormProgressSection";
 import { FormErrorSection } from "./components/FormErrorSection";
 import { MainFormContent } from "./components/MainFormContent";
 import { useFormActions } from "./hooks/useFormActions";
-import { useMemo } from "react";
+import { useCallback, useMemo, useEffect } from "react";
 
 interface FormContentProps {
   session: Session;
@@ -76,14 +77,16 @@ export const FormContent = ({
     retryCount
   });
 
-  // Update carId and lastSaved from draft loading
-  if (carId && carId !== formState.carId) {
-    updateFormState(prev => ({ ...prev, carId }));
-  }
-  
-  if (lastSaved && lastSaved !== formState.lastSaved) {
-    updateFormState(prev => ({ ...prev, lastSaved }));
-  }
+  // Update carId and lastSaved from draft loading - use useEffect to prevent render-time updates
+  useEffect(() => {
+    if (carId && carId !== formState.carId) {
+      updateFormState(prev => ({ ...prev, carId }));
+    }
+    
+    if (lastSaved && lastSaved !== formState.lastSaved) {
+      updateFormState(prev => ({ ...prev, lastSaved }));
+    }
+  }, [carId, lastSaved, formState.carId, formState.lastSaved, updateFormState]);
 
   // Dialog management
   const { showSaveDialog, showSuccessDialog, actions: dialogActions } = useFormDialogs();
@@ -116,8 +119,8 @@ export const FormContent = ({
     currentStep: stepNavigation.currentStep
   });
 
-  // Update step navigation save function
-  const saveWrapper = async () => {
+  // Create a memoized save function to prevent recreation on every render
+  const saveWrapper = useCallback(async () => {
     try {
       await persistence.saveImmediately();
       return true;
@@ -125,11 +128,12 @@ export const FormContent = ({
       console.error('Error in save wrapper:', error);
       return false;
     }
-  };
+  }, [persistence]);
   
-  // Only update save function when dependencies change
-  // This helps prevent infinite loops
-  stepNavigation.updateSaveFunction(saveWrapper);
+  // Update step navigation save function - use useEffect to prevent render-time updates
+  useEffect(() => {
+    stepNavigation.updateSaveFunction(saveWrapper);
+  }, [stepNavigation, saveWrapper]);
 
   // Form submission
   const { handleSubmit: handleFormSubmit, isSubmitting } = useFormSubmission(session.user.id);
@@ -164,6 +168,19 @@ export const FormContent = ({
       .filter(([, isCompleted]) => isCompleted)
       .map(([step]) => parseInt(step, 10));
   }, [stepNavigation.completedSteps]);
+  
+  // Create memoized handlers for child components to prevent recreation on every render
+  const handleStepChange = useCallback((step: number) => {
+    stepNavigation.setCurrentStep(step);
+  }, [stepNavigation]);
+
+  const handleOfflineStatusChange = useCallback((status: boolean) => {
+    persistence.setIsOffline(status);
+  }, [persistence]);
+  
+  const handleFormSubmit2 = useCallback((data: any) => {
+    return onSubmit(data, formState.carId);
+  }, [onSubmit, formState.carId]);
 
   // Return loading or error state if needed
   if (draftError && !formState.isInitializing) {
@@ -173,7 +190,7 @@ export const FormContent = ({
       isLoadingDraft={isLoadingDraft}
       draftError={draftError}
       onDraftErrorRetry={resetDraftError}
-      onFormSubmit={(data) => onSubmit(data, formState.carId)}
+      onFormSubmit={handleFormSubmit2}
       onFormError={handleFormError}
     >
       <div>Error loading form</div>
@@ -187,7 +204,7 @@ export const FormContent = ({
       isLoadingDraft={isLoadingDraft}
       draftError={null}
       onDraftErrorRetry={resetDraftError}
-      onFormSubmit={(data) => onSubmit(data, formState.carId)}
+      onFormSubmit={handleFormSubmit2}
       onFormError={handleFormError}
     >
       <div>Loading form...</div>
@@ -202,18 +219,18 @@ export const FormContent = ({
       isLoadingDraft={isLoadingDraft}
       draftError={null}
       onDraftErrorRetry={resetDraftError}
-      onFormSubmit={(data) => onSubmit(data, formState.carId)}
+      onFormSubmit={handleFormSubmit2}
       onFormError={handleFormError}
     >
       <FormProgressSection
         currentStep={stepNavigation.currentStep}
         lastSaved={formState.lastSaved}
-        onOfflineStatusChange={persistence.setIsOffline}
+        onOfflineStatusChange={handleOfflineStatusChange}
         steps={formState.filteredStepsArray}
         visibleSections={visibleSections}
         completedSteps={completedStepsArray}
         validationErrors={stepErrors}
-        onStepChange={stepNavigation.setCurrentStep}
+        onStepChange={handleStepChange}
       />
       
       <FormErrorSection 
@@ -223,7 +240,7 @@ export const FormContent = ({
       <MainFormContent
         form={form}
         currentStep={stepNavigation.currentStep}
-        setCurrentStep={stepNavigation.setCurrentStep}
+        setCurrentStep={handleStepChange}
         carId={formState.carId}
         lastSaved={formState.lastSaved}
         isOffline={persistence.isOffline}

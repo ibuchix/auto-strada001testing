@@ -6,18 +6,24 @@
  * - 2024-06-21: Fixed TypeScript typing to properly handle error object
  * - 2024-06-22: Updated interface to accept Record<number, string[]> for step validation errors
  * - 2024-06-23: Improved error type handling to prevent infinite renders
+ * - 2024-06-24: Added React.memo and improved memoization to prevent rerenders
  */
 
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { ValidationErrorDisplay } from "../ValidationErrorDisplay";
 
 interface FormErrorSectionProps {
   validationErrors: string[] | Record<string, string> | Record<number, string[]>;
 }
 
-export const FormErrorSection = ({ validationErrors }: FormErrorSectionProps) => {
+export const FormErrorSection = memo(({ validationErrors }: FormErrorSectionProps) => {
   // Memoize error processing to prevent unnecessary rerenders
   const processedErrors = useMemo(() => {
+    // Handle the case where validationErrors is empty or null
+    if (!validationErrors || (typeof validationErrors === 'object' && Object.keys(validationErrors).length === 0)) {
+      return null;
+    }
+    
     // Handle the case where validationErrors is an object with a numeric key
     if (
       typeof validationErrors === "object" && 
@@ -52,4 +58,7 @@ export const FormErrorSection = ({ validationErrors }: FormErrorSectionProps) =>
   
   // Pass the processed errors to the ValidationErrorDisplay component
   return <ValidationErrorDisplay validationErrors={processedErrors} />;
-};
+});
+
+// Add display name for React DevTools
+FormErrorSection.displayName = "FormErrorSection";

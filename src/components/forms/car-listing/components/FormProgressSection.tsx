@@ -4,11 +4,14 @@
  * - 2024-06-20: Extracted progress section from FormContent.tsx
  * - Created a standalone component for progress visualization
  * - 2024-06-23: Fixed prop passing to prevent infinite re-renders
+ * - 2024-06-24: Added useMemo for step description to avoid recomputation
+ * - 2024-06-24: Added React.memo to prevent unnecessary rerenders
  */
 
 import { useMemo } from "react";
 import { FormProgressIndicator } from "./FormProgressIndicator";
 import { ProgressPreservation } from "../submission/ProgressPreservation";
+import { memo } from "react";
 
 interface FormProgressSectionProps {
   currentStep: number;
@@ -21,7 +24,7 @@ interface FormProgressSectionProps {
   onStepChange: (step: number) => void;
 }
 
-export const FormProgressSection = ({
+export const FormProgressSection = memo(({
   currentStep,
   lastSaved,
   onOfflineStatusChange,
@@ -55,4 +58,7 @@ export const FormProgressSection = ({
       />
     </>
   );
-};
+});
+
+// Add display name for React DevTools
+FormProgressSection.displayName = "FormProgressSection";

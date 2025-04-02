@@ -8,11 +8,12 @@
  * - 2028-03-27: Fixed type definition for validationErrors to properly handle string arrays
  * - 2024-06-22: Updated interface to support various error formats consistently
  * - 2024-06-23: Added strict type checking and memoization to prevent render loops
+ * - 2024-06-24: Added React.memo and useMemo to prevent needless rerenders
  */
 
 import { AlertCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMemo } from "react";
+import { useMemo, memo, useCallback } from "react";
 
 interface ValidationErrorDisplayProps {
   validationErrors: string[] | Record<string, string> | any;
@@ -20,7 +21,7 @@ interface ValidationErrorDisplayProps {
   onDismiss?: () => void;
 }
 
-export const ValidationErrorDisplay = ({ 
+export const ValidationErrorDisplay = memo(({ 
   validationErrors,
   title = "Please correct the following errors:",
   onDismiss
@@ -59,6 +60,19 @@ export const ValidationErrorDisplay = ({
 
   // Get the count of errors
   const errorCount = errorsArray.length;
+  
+  // Memoize error handling function
+  const handleErrorClick = useCallback((field: string) => {
+    const element = document.getElementById(field);
+    if (element) {
+      // Scroll the element into view with offset
+      const yOffset = -100; // 100px from the top
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+      // Focus after scrolling completes
+      setTimeout(() => element.focus(), 500);
+    }
+  }, []);
 
   return (
     <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
@@ -95,17 +109,7 @@ export const ValidationErrorDisplay = ({
                   <button 
                     type="button"
                     className="text-left underline hover:text-red-800 focus:outline-none focus:text-red-900"
-                    onClick={() => {
-                      const element = document.getElementById(field);
-                      if (element) {
-                        // Scroll the element into view with offset
-                        const yOffset = -100; // 100px from the top
-                        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-                        window.scrollTo({ top: y, behavior: 'smooth' });
-                        // Focus after scrolling completes
-                        setTimeout(() => element.focus(), 500);
-                      }
-                    }}
+                    onClick={() => handleErrorClick(field)}
                   >
                     {message}
                   </button>
@@ -117,4 +121,7 @@ export const ValidationErrorDisplay = ({
       </div>
     </div>
   );
-};
+});
+
+// Add display name for React DevTools
+ValidationErrorDisplay.displayName = "ValidationErrorDisplay";
