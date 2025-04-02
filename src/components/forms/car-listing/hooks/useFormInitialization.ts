@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2028-11-12: Extracted form initialization logic from FormContent.tsx
+ * - 2028-11-14: Fixed TypeScript error with loadInitialData property
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -11,8 +12,14 @@ import { getFormDefaults } from "./useFormDefaults";
 import { toast } from "sonner";
 import { saveToCache, CACHE_KEYS } from "@/services/offlineCacheService";
 
+// Extended type to include our custom properties
+interface ExtendedFormReturn extends UseFormReturn<CarListingFormData> {
+  loadInitialData?: () => void;
+  handleReset?: () => void;
+}
+
 interface UseFormInitializationProps {
-  form: UseFormReturn<CarListingFormData>;
+  form: ExtendedFormReturn;
   stepNavigation: {
     currentStep: number;
   };
@@ -37,18 +44,20 @@ export const useFormInitialization = ({ form, stepNavigation }: UseFormInitializ
       const defaults = await getFormDefaults();
       form.reset(defaults);
       
-      // Try to load initial data
-      try {
-        form.loadInitialData && form.loadInitialData();
-      } catch (error) {
-        console.error('Form initialization error:', error);
-        toast.error('Failed to load initial form data', {
-          description: 'Please refresh the page or try again later',
-          action: {
-            label: 'Retry',
-            onClick: () => window.location.reload()
-          }
-        });
+      // Try to load initial data if the method exists
+      if (form.loadInitialData) {
+        try {
+          form.loadInitialData();
+        } catch (error) {
+          console.error('Form initialization error:', error);
+          toast.error('Failed to load initial form data', {
+            description: 'Please refresh the page or try again later',
+            action: {
+              label: 'Retry',
+              onClick: () => window.location.reload()
+            }
+          });
+        }
       }
     } catch (error) {
       console.error("Failed to initialize form defaults:", error);
