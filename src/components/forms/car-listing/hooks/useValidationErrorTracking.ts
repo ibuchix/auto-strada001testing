@@ -1,34 +1,41 @@
 
 /**
- * Changes made:
- * - 2028-11-12: Extracted validation error tracking logic from FormContent.tsx
+ * Hook for tracking form validation errors
+ * - Extracted from FormContent.tsx to isolate validation error logic
  */
-
 import { useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { STEP_FIELD_MAPPINGS } from "./useStepValidation";
+import { STEP_FIELD_MAPPINGS } from "./useStepNavigation";
+import { formSteps } from "../constants/formSteps";
 
 export const useValidationErrorTracking = (form: UseFormReturn<CarListingFormData>) => {
-  // Get validation errors by step for progress tracking
+  // Maps form errors to steps for the form progress indicator
   const getStepValidationErrors = useCallback(() => {
     const formErrors = form.formState.errors;
-    const stepErrors: Record<string, boolean> = {};
+    if (!formErrors || Object.keys(formErrors).length === 0) {
+      return {};
+    }
+
+    // Create a map of step indices to error status
+    const errorMap: Record<string, boolean> = {};
     
-    // Map errors to steps
-    Object.keys(formErrors).forEach(fieldName => {
-      for (const [stepId, fields] of Object.entries(STEP_FIELD_MAPPINGS)) {
-        if ((fields as string[]).includes(fieldName)) {
-          stepErrors[stepId] = true;
-          break;
-        }
+    // For each form step, check if any of its fields have errors
+    formSteps.forEach((step, index) => {
+      const relevantFields = STEP_FIELD_MAPPINGS[step.id] || [];
+      
+      // If any field in this step has an error, mark the step as having an error
+      const hasStepError = relevantFields.some(field => 
+        Object.keys(formErrors).includes(field)
+      );
+      
+      if (hasStepError) {
+        errorMap[index] = true;
       }
     });
-    
-    return stepErrors;
+
+    return errorMap;
   }, [form.formState.errors]);
-  
-  return {
-    getStepValidationErrors
-  };
+
+  return { getStepValidationErrors };
 };

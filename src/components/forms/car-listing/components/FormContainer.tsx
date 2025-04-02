@@ -1,12 +1,10 @@
-
 /**
- * Changes made:
- * - 2028-11-15: Extracted from StepForm.tsx to create a reusable form container component
+ * Form Container component
+ * - Handles displaying the appropriate components for the current step
  */
-
+import { memo } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { SwipeNavigation } from "../SwipeNavigation";
 import { FormSections } from "../FormSections";
 
 interface FormContainerProps {
@@ -17,39 +15,33 @@ interface FormContainerProps {
   isFirstStep: boolean;
   isLastStep: boolean;
   navigationDisabled: boolean;
-  isSaving?: boolean;
+  isSaving: boolean;
   carId?: string;
   userId: string;
 }
 
-export const FormContainer = ({
+export const FormContainer = memo(({
   form,
   currentStep,
+  carId,
+  userId,
   onNext,
   onPrevious,
   isFirstStep,
   isLastStep,
   navigationDisabled,
-  isSaving = false,
-  carId,
-  userId
+  isSaving
 }: FormContainerProps) => {
   return (
-    <div className="form-container min-h-[400px] mb-10">
-      <SwipeNavigation
-        onNext={onNext}
-        onPrevious={onPrevious}
-        isFirstStep={isFirstStep}
-        isLastStep={isLastStep}
-        disabled={navigationDisabled || isSaving}
-      >
-        <FormSections 
-          form={form} 
-          currentStep={currentStep}
-          carId={carId}
-          userId={userId}
-        />
-      </SwipeNavigation>
+    <div className="form-container">
+      <FormSections
+        form={form}
+        currentStep={currentStep}
+        carId={carId}
+        userId={userId}
+      />
     </div>
   );
-};
+});
+
+FormContainer.displayName = 'FormContainer';

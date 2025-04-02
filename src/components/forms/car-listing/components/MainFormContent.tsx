@@ -1,17 +1,12 @@
 
 /**
- * Changes made:
- * - 2024-06-20: Extracted main form content from FormContent.tsx
- * - Created a standalone component for the form body and controls
- * - 2024-06-24: Added React.memo to prevent unnecessary rerenders
- * - 2024-06-25: Updated to use FormDataContext instead of prop drilling
+ * Main Form Content component
+ * - Extracted from FormContent.tsx to separate the main form rendering logic
  */
-
+import { memo } from "react";
 import { StepForm } from "../StepForm";
-import { FormSubmissionButtons } from "./FormSubmissionButtons";
-import { memo, useMemo } from "react";
-import { useFormData } from "../context/FormDataContext";
-import { CarListingFormData } from "@/types/forms";
+import { FormNavigationControls } from "../FormNavigationControls";
+import { FormFooter } from "../FormFooter";
 
 interface MainFormContentProps {
   currentStep: number;
@@ -42,38 +37,31 @@ export const MainFormContent = memo(({
   onSaveAndContinue,
   onSave
 }: MainFormContentProps) => {
-  // Get form from context instead of props
-  const form = useFormData();
-  
-  // Memoize computed values
-  const isLastStep = useMemo(() => currentStep === totalSteps - 1, [currentStep, totalSteps]);
-  
   return (
-    <>
-      <StepForm
-        form={form}
+    <div className="relative">
+      {/* Conditionally show submitting overlay if needed */}
+      {isSubmitting && (
+        <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 rounded-lg">
+          <div className="text-center p-4">
+            <div className="mb-2 animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p>Submitting your listing...</p>
+          </div>
+        </div>
+      )}
+      
+      <StepForm 
+        form={undefined} // This will be provided by context
         currentStep={currentStep}
         setCurrentStep={setCurrentStep}
         carId={carId}
         lastSaved={lastSaved}
         isOffline={isOffline}
-        isSaving={isSaving || isSubmitting}
         saveProgress={saveProgress}
         visibleSections={visibleSections}
-      />
-      
-      <FormSubmissionButtons
-        isLastStep={isLastStep}
-        isSubmitting={isSubmitting}
         isSaving={isSaving}
-        isOffline={isOffline}
-        onSaveAndContinue={onSaveAndContinue}
-        onSave={onSave}
-        currentStep={currentStep}
       />
-    </>
+    </div>
   );
 });
 
-// Add display name for React DevTools
-MainFormContent.displayName = "MainFormContent";
+MainFormContent.displayName = 'MainFormContent';

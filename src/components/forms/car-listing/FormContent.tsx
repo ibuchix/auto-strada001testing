@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2027-11-17: Fixed React hooks inconsistency by ensuring unconditional hook calls
@@ -23,6 +24,7 @@
  * - 2024-06-27: Added refs for values that shouldn't trigger effect reruns
  * - 2024-06-27: Optimized state updates to reduce render cycles
  * - 2026-05-15: Updated import for refactored useFormPersistence hook
+ * - 2028-06-28: Refactored into smaller components with better separation of concerns
  */
 
 import { useNavigate } from "react-router-dom";

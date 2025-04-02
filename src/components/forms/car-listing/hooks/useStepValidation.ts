@@ -1,30 +1,32 @@
 
 /**
  * Changes made:
- * - 2024-06-21: Created to manage step validation independently from navigation logic
- * - Separated validation logic from the useStepNavigation hook
+ * - 2024-06-21: Extracted validation logic from useStepNavigation
+ * - Separated form validation from navigation to improve maintainability
  */
 
 import { useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
+import { formSteps } from "../constants/formSteps";
 
-// Define step field mappings for validation
+// Maps step IDs to form field names for validation
 export const STEP_FIELD_MAPPINGS: Record<string, string[]> = {
-  "0": ["make", "model", "year", "vin"],
-  "1": ["name", "address", "mobileNumber"],
-  "2": ["isDamaged", "damageReports"],
-  "3": ["features"],
-  "4": ["serviceHistoryType", "serviceHistoryFiles"],
-  "5": ["seatMaterial", "numberOfKeys"],
-  "6": ["uploadedPhotos"],
-  "7": ["rimPhotosComplete"],
-  "8": ["sellerNotes"]
+  "vehicle-info": ["make", "model", "year", "mileage", "vin", "transmission"],
+  "vehicle-status": ["isDamaged", "hasWarningLights", "hasOutstandingFinance"],
+  "personal-details": ["name", "address", "mobileNumber"],
+  "features": ["features"],
+  "service-history": ["serviceHistoryType", "serviceHistoryFiles"],
+  "photos": ["uploadedPhotos", "mainPhoto"],
+  // Add mappings for other steps as needed
 };
 
 interface UseStepValidationProps {
   form: UseFormReturn<CarListingFormData>;
-  filteredSteps: { id: string; validate?: () => boolean }[];
+  filteredSteps: Array<{
+    id: string;
+    validate?: () => boolean;
+  }>;
   currentStep: number;
   setValidationErrors: (errors: string[]) => void;
   setStepValidationErrors: (errors: Record<number, string[]>) => void;
@@ -39,76 +41,64 @@ export const useStepValidation = ({
   setStepValidationErrors,
   clearValidationErrors
 }: UseStepValidationProps) => {
-  
-  // Process form errors to create field-specific error messages
+  // Process form errors and organize them by step
   const processFormErrors = useCallback(() => {
     const formErrors = form.formState.errors;
-    const errorMessages: Record<number, string[]> = {};
+    if (!formErrors || Object.keys(formErrors).length === 0) {
+      clearValidationErrors();
+      return;
+    }
     
-    // Map errors to steps
+    // Organize errors by step
+    const stepErrors: Record<number, string[]> = {};
+    const allErrorMessages: string[] = [];
+    
+    // Map field names to steps and collect error messages
     Object.entries(formErrors).forEach(([fieldName, error]) => {
-      for (let i = 0; i < filteredSteps.length; i++) {
-        const stepId = i.toString();
-        const fields = STEP_FIELD_MAPPINGS[stepId] || [];
+      const errorMessage = error?.message?.toString() || `Invalid ${fieldName}`;
+      allErrorMessages.push(errorMessage);
+      
+      // Find which step this field belongs to
+      filteredSteps.forEach((step, index) => {
+        const fieldsInStep = STEP_FIELD_MAPPINGS[step.id] || [];
         
-        if (fields.includes(fieldName) && error?.message) {
-          if (!errorMessages[i]) {
-            errorMessages[i] = [];
+        if (fieldsInStep.includes(fieldName)) {
+          if (!stepErrors[index]) {
+            stepErrors[index] = [];
           }
-          errorMessages[i].push(`${fieldName}: ${error.message}`);
+          stepErrors[index].push(errorMessage);
         }
-      }
+      });
     });
     
-    setStepValidationErrors(errorMessages);
-    
-    // Set current step validation errors
-    const currentStepErrors = errorMessages[currentStep] || [];
-    setValidationErrors(currentStepErrors);
-    
-  }, [form.formState.errors, filteredSteps, currentStep, setValidationErrors, setStepValidationErrors]);
-
+    setValidationErrors(allErrorMessages);
+    setStepValidationErrors(stepErrors);
+  }, [form.formState.errors, filteredSteps, clearValidationErrors, setValidationErrors, setStepValidationErrors]);
+  
   // Validate the current step
-  const validateCurrentStep = useCallback(async (): Promise<boolean> => {
-    clearValidationErrors();
-    
+  const validateCurrentStep = useCallback(async () => {
     try {
-      // Get validate function for current step
-      const stepConfig = filteredSteps[currentStep];
-      const validateFn = stepConfig?.validate;
+      const currentStepConfig = filteredSteps[currentStep];
+      if (!currentStepConfig) return true;
       
-      // If there's no validate function, treat as valid
-      if (!validateFn) {
-        return true;
+      // First check if there's a custom validation function for this step
+      if (currentStepConfig.validate) {
+        const isValid = currentStepConfig.validate();
+        if (!isValid) return false;
       }
       
-      // Run custom validation if provided
-      const isCustomValid = validateFn();
-      if (!isCustomValid) {
-        return false;
-      }
+      // Then perform form validation for the fields in this step
+      const fieldsInStep = STEP_FIELD_MAPPINGS[currentStepConfig.id] || [];
       
-      // Get fields for current step
-      const stepId = currentStep.toString();
-      const fields = STEP_FIELD_MAPPINGS[stepId] || [];
+      // Trigger validation only for fields in this step
+      const validationResult = await form.trigger(fieldsInStep as any);
       
-      if (fields.length === 0) {
-        return true;
-      }
-      
-      // Check field validation using form.trigger
-      const isValid = await form.trigger(fields as any);
-      
-      if (!isValid) {
-        processFormErrors();
-      }
-      
-      return isValid;
+      return validationResult;
     } catch (error) {
-      console.error("Step validation error:", error);
+      console.error("Validation error:", error);
       return false;
     }
-  }, [filteredSteps, currentStep, form, clearValidationErrors, processFormErrors]);
+  }, [filteredSteps, currentStep, form]);
 
   return {
     validateCurrentStep,

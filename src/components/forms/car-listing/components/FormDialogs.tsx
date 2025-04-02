@@ -1,12 +1,11 @@
 
 /**
- * Changes made:
- * - 2024-06-10: Extracted dialog components from FormContent.tsx
- * - Created a dedicated component for form dialogs
+ * Form Dialogs component
+ * - Extracted from FormContent.tsx to separate dialog management
  */
-
-import { SuccessDialog } from "../SuccessDialog";
-import { SaveProgressDialog } from "../SaveProgressDialog";
+import { memo } from "react";
+import { FormSaveDialog } from "../FormSaveDialog";
+import { FormSuccessDialog } from "../FormSuccessDialog";
 
 interface FormDialogsProps {
   showSuccessDialog: boolean;
@@ -17,7 +16,7 @@ interface FormDialogsProps {
   carId?: string;
 }
 
-export const FormDialogs = ({
+export const FormDialogs = memo(({
   showSuccessDialog,
   showSaveDialog,
   onSuccessDialogOpenChange,
@@ -27,18 +26,19 @@ export const FormDialogs = ({
 }: FormDialogsProps) => {
   return (
     <>
-      <SuccessDialog 
+      <FormSuccessDialog 
         open={showSuccessDialog}
         onOpenChange={onSuccessDialogOpenChange}
-        lastSaved={lastSaved}
         carId={carId}
       />
       
-      <SaveProgressDialog
+      <FormSaveDialog
         open={showSaveDialog}
         onOpenChange={onSaveDialogOpenChange}
-        draftId={carId}
+        lastSaved={lastSaved}
       />
     </>
   );
-};
+});
+
+FormDialogs.displayName = 'FormDialogs';

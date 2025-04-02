@@ -1,17 +1,10 @@
 
 /**
- * Changes made:
- * - 2024-06-20: Extracted progress section from FormContent.tsx
- * - Created a standalone component for progress visualization
- * - 2024-06-23: Fixed prop passing to prevent infinite re-renders
- * - 2024-06-24: Added useMemo for step description to avoid recomputation
- * - 2024-06-24: Added React.memo to prevent unnecessary rerenders
+ * Form Progress Section component
+ * - Extracted from FormContent.tsx to separate UI concerns
  */
-
-import { useMemo } from "react";
-import { FormProgressIndicator } from "./FormProgressIndicator";
-import { ProgressPreservation } from "../submission/ProgressPreservation";
 import { memo } from "react";
+import { FormProgressIndicator } from "../FormProgressIndicator";
 
 interface FormProgressSectionProps {
   currentStep: number;
@@ -34,31 +27,21 @@ export const FormProgressSection = memo(({
   validationErrors,
   onStepChange
 }: FormProgressSectionProps) => {
-  // Memoize description to prevent re-renders
-  const stepDescription = useMemo(() => {
-    return steps[currentStep]?.description || undefined;
-  }, [steps, currentStep]);
-
   return (
-    <>
-      <ProgressPreservation 
-        currentStep={currentStep}
-        lastSaved={lastSaved}
-        onOfflineStatusChange={onOfflineStatusChange}
-      />
-      
+    <div className="mb-8">
       <FormProgressIndicator 
-        steps={steps}
         currentStep={currentStep}
-        onStepChange={onStepChange}
+        totalSteps={steps.length}
+        steps={steps}
+        lastSaved={lastSaved}
+        onOfflineChange={onOfflineStatusChange}
         visibleSections={visibleSections}
         completedSteps={completedSteps}
         validationErrors={validationErrors}
-        description={stepDescription}
+        onStepChange={onStepChange}
       />
-    </>
+    </div>
   );
 });
 
-// Add display name for React DevTools
-FormProgressSection.displayName = "FormProgressSection";
+FormProgressSection.displayName = 'FormProgressSection';
