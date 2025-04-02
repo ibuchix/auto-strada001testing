@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Added missing imports (toast, UseFormReturn)
@@ -7,6 +6,7 @@
  * - Fixed references to these items
  * - Maintained integration with useFormDefaults
  * - Integrated with carSchema validation
+ * - 2028-11-14: Fixed TypeScript error by properly returning loadInitialData and handleReset
  */
 
 import { useForm, UseFormReturn } from "react-hook-form";
@@ -33,7 +33,13 @@ const safeParseNumber = (value: unknown, fallback: number): number => {
   return toNumberValue(value as string | number | null | undefined, fallback);
 };
 
-export const useCarListingForm = (userId: string, draftId?: string) => {
+// Extended form return type with our custom methods
+interface ExtendedFormReturn extends UseFormReturn<CarListingFormData> {
+  loadInitialData: () => void;
+  handleReset: () => void;
+}
+
+export const useCarListingForm = (userId: string, draftId?: string): ExtendedFormReturn => {
   const form = useForm<CarListingFormData>({
     defaultValues: getInitialFormValues(),
     resolver: zodResolver(carSchema.partial()),
@@ -74,7 +80,11 @@ export const useCarListingForm = (userId: string, draftId?: string) => {
     form.reset(getInitialFormValues());
   };
 
-  return { ...form, loadInitialData, handleReset };
+  return { 
+    ...form, 
+    loadInitialData, 
+    handleReset 
+  };
 };
 
 const defaultCarFormValues = {

@@ -6,6 +6,7 @@
  * - Enhanced validation handling with detailed error reporting
  * - Added optimized submission handling with loading state management
  * - Fixed TypeScript error with setValue for transmission field
+ * - 2028-11-14: Fixed TypeScript typing for extended form return type
  */
 
 import { useCallback } from "react";
@@ -25,12 +26,19 @@ type UseCarFormOptions = {
   onSubmitError?: (error: any) => void;
 };
 
+// Extended form return type with our custom methods
+interface ExtendedFormReturn {
+  loadInitialData: () => void;
+  handleReset: () => void;
+  [key: string]: any; // To allow spreading the remaining form properties
+}
+
 export function useCarForm({
   userId,
   draftId,
   onSubmitSuccess,
   onSubmitError
-}: UseCarFormOptions) {
+}: UseCarFormOptions): ExtendedFormReturn {
   const navigate = useNavigate();
   
   // Load initial form values

@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2027-11-17: Fixed React hooks inconsistency by ensuring unconditional hook calls
@@ -11,6 +10,7 @@
  * - 2028-11-10: Fixed progress percentage calculation to ignore default values
  * - 2028-11-11: Fixed totalSteps reference error in calculateFormProgress function
  * - 2028-11-12: Refactored into smaller, more maintainable components and hooks
+ * - 2028-11-14: Fixed TypeScript errors with form extension types
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -32,7 +32,6 @@ import { FormErrorHandler } from "./FormErrorHandler";
 import { useNavigate } from "react-router-dom";
 import { FormProgress } from "./FormProgress";
 import { useStepNavigation } from "./hooks/useStepNavigation";
-// Import newly created hooks and components
 import { LoadingState } from "./LoadingState";
 import { useFormInitialization } from "./hooks/useFormInitialization";
 import { useFormProgress } from "./hooks/useFormProgress";
@@ -47,7 +46,6 @@ interface FormContentProps {
   retryCount?: number;
 }
 
-// Define StepConfig interface to match what useStepNavigation expects
 interface StepConfig {
   id: string;
   validate?: () => boolean;
@@ -64,33 +62,22 @@ export const FormContent = ({
   onDraftError,
   retryCount = 0
 }: FormContentProps) => {
-  // Always initialize the form at the top level, unconditionally
   const form = useCarListingForm(session.user.id, draftId);
   const navigate = useNavigate();
   
-  // Use a single state object for all component state
   const [formState, setFormState] = useState({
-    // Form management
     isInitializing: true,
     currentStep: 0,
     lastSaved: null as Date | null,
     carId: undefined as string | undefined,
-    
-    // Error handling
     draftLoadError: null as Error | null,
-    
-    // Form structure
     filteredStepsArray: [] as Array<any>,
-    
-    // Safe fallbacks for conditional logic
     totalSteps: 1,
     hasInitializedHooks: false
   });
-  
-  // Dialog state management
+
   const { showSaveDialog, showSuccessDialog, actions: dialogActions } = useFormDialogs();
 
-  // Handle draft error
   const handleDraftError = useCallback((error: Error) => {
     console.error("Draft loading error:", error);
     setFormState(prev => ({ ...prev, draftLoadError: error }));
@@ -100,7 +87,6 @@ export const FormContent = ({
     }
   }, [onDraftError]);
 
-  // Draft loading - call unconditionally
   const { isLoading: isLoadingDraft, error } = useLoadDraft({
     form,
     userId: session.user.id,
@@ -117,39 +103,31 @@ export const FormContent = ({
     onError: handleDraftError
   });
 
-  // Section visibility - call unconditionally
   const { visibleSections } = useSectionsVisibility(form, formState.carId);
   
-  // Get filtered steps
   const { filteredSteps, typedStepConfigs } = useFilteredSteps({
     visibleSections,
     setFormState
   });
 
-  // CRITICAL: Initialize step navigation with stable values to prevent conditional hook calls
-  // This is called unconditionally BEFORE any conditional rendering
   const stepNavigation = useStepNavigation({
     form,
     totalSteps: formState.totalSteps,
     initialStep: formState.currentStep,
     saveProgress: async () => {
-      // Safe empty function to prevent null errors
       return true;
     },
     filteredSteps: typedStepConfigs
   });
 
-  // Form persistence - call unconditionally
   const persistence = useFormPersistence({
     form,
     userId: session.user.id,
     carId: formState.carId,
-    currentStep: stepNavigation.currentStep // Use the value from step navigation
+    currentStep: stepNavigation.currentStep
   });
 
-  // Update step navigation with the actual save function after persistence is initialized
   useEffect(() => {
-    // Create a wrapper that ensures boolean return type
     const saveWrapper = async () => {
       try {
         await persistence.saveImmediately();
@@ -163,20 +141,13 @@ export const FormContent = ({
     stepNavigation.updateSaveFunction(saveWrapper);
   }, [stepNavigation, persistence.saveImmediately]);
 
-  // Submission handling - call unconditionally
-  const {
-    handleSubmit: handleFormSubmit,
-    isSubmitting,
-    setShowSuccessDialog
-  } = useFormSubmission(session.user.id);
+  const { handleSubmit: handleFormSubmit, isSubmitting, setShowSuccessDialog } = useFormSubmission(session.user.id);
 
-  // Form initialization
   const { isInitializing, hasInitializedHooks } = useFormInitialization({ 
     form, 
     stepNavigation 
   });
   
-  // Update initialization state
   useEffect(() => {
     setFormState(prev => ({ 
       ...prev, 
@@ -185,7 +156,6 @@ export const FormContent = ({
     }));
   }, [isInitializing, hasInitializedHooks]);
 
-  // Update the step when step navigation changes
   useEffect(() => {
     if (stepNavigation.currentStep !== formState.currentStep) {
       setFormState(prev => ({
@@ -195,21 +165,18 @@ export const FormContent = ({
     }
   }, [stepNavigation.currentStep, formState.currentStep]);
 
-  // Sync persistence state
   useEffect(() => {
     if (persistence.lastSaved) {
       setFormState(prev => ({ ...prev, lastSaved: persistence.lastSaved }));
     }
   }, [persistence.lastSaved]);
 
-  // Effect to clear draft error when retryCount changes
   useEffect(() => {
     if (retryCount > 0) {
       setFormState(prev => ({ ...prev, draftLoadError: null }));
     }
   }, [retryCount]);
 
-  // Form submission handler
   const onSubmit = useCallback(
     async (data: import("@/types/forms").CarListingFormData) => {
       try {
@@ -226,7 +193,6 @@ export const FormContent = ({
     [handleFormSubmit, formState.carId, dialogActions]
   );
 
-  // Handle form error
   const handleFormError = useCallback((error: Error) => {
     console.error("Form error caught by boundary:", error);
     toast.error("An error occurred while loading the form", {
@@ -234,7 +200,6 @@ export const FormContent = ({
     });
   }, []);
 
-  // Handle save and continue action
   const handleSaveAndContinue = useCallback(async () => {
     try {
       await persistence.saveImmediately();
@@ -247,7 +212,6 @@ export const FormContent = ({
     }
   }, [persistence, dialogActions]);
 
-  // Calculate form progress
   const { calculateFormProgress } = useFormProgress({
     form,
     currentStep: formState.currentStep,
@@ -256,14 +220,11 @@ export const FormContent = ({
     totalSteps: formState.totalSteps
   });
 
-  // Track validation errors
   const { getStepValidationErrors } = useValidationErrorTracking(form);
   
-  // Calculate these values before the conditional rendering
   const progress = calculateFormProgress();
   const stepErrors = getStepValidationErrors();
 
-  // Convert completedSteps from Record to array for compatibility with FormProgress
   const completedStepsArray = useMemo(() => {
     return Object.entries(stepNavigation.completedSteps).reduce((acc, [step, isCompleted]) => {
       if (isCompleted) {
@@ -273,12 +234,10 @@ export const FormContent = ({
     }, [] as number[]);
   }, [stepNavigation.completedSteps]);
 
-  // Show draft loading error if there is one and initialization is complete
   if (formState.draftLoadError && !formState.isInitializing) {
     return <FormErrorHandler draftError={formState.draftLoadError} onRetry={() => setFormState(prev => ({ ...prev, draftLoadError: null }))} />;
   }
 
-  // Show loading state when initializing or loading draft
   if (formState.isInitializing || isLoadingDraft) {
     return <LoadingState />;
   }
@@ -294,7 +253,6 @@ export const FormContent = ({
               onOfflineStatusChange={persistence.setIsOffline}
             />
             
-            {/* Add FormProgress component showing completion status */}
             <FormProgress 
               progress={progress}
               steps={formState.filteredStepsArray}
@@ -320,7 +278,6 @@ export const FormContent = ({
             />
           </form>
 
-          {/* Success dialog shown after form submission */}
           <SuccessDialog 
             open={showSuccessDialog}
             onOpenChange={(open) => !open && dialogActions.hideSuccessDialog()}
@@ -328,7 +285,6 @@ export const FormContent = ({
             carId={formState.carId}
           />
           
-          {/* Save progress dialog shown when user saves to continue later */}
           <SaveProgressDialog
             open={showSaveDialog}
             onOpenChange={(open) => !open && dialogActions.hideSaveDialog()}
