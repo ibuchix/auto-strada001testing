@@ -2,6 +2,7 @@
 /**
  * Form Error Section component
  * - Extracted from FormContent.tsx to separate error display logic
+ * - Fixed type mismatch between ValidationErrorDisplay and FormErrorSection props
  */
 import { memo } from "react";
 import { ValidationErrorDisplay } from "../ValidationErrorDisplay";
@@ -20,8 +21,13 @@ export const FormErrorSection = memo(({
   
   if (!hasErrors) return null;
   
+  // Convert the Record<number, string[]> to a flat string[] for ValidationErrorDisplay
+  const flattenedErrors: string[] = Object.values(validationErrors)
+    .flat()
+    .filter(error => typeof error === 'string');
+  
   return (
-    <ValidationErrorDisplay errors={validationErrors} />
+    <ValidationErrorDisplay errors={flattenedErrors} />
   );
 });
 
