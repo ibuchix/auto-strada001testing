@@ -5,6 +5,7 @@
  * - 2024-11-23: Fixed Promise chain issue with proper Promise handling
  * - 2024-11-23: Added comprehensive logging for debugging
  * - 2024-11-24: Added type guards to fix TypeScript errors with JSON data
+ * - 2028-06-13: Updated storeSellerValuationCache to return a Promise for proper chain handling
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -81,28 +82,28 @@ export async function getSellerValuationCache(vin: string, mileage: number): Pro
 
 /**
  * Store seller valuation in cache
+ * @returns Promise that resolves when storage is complete
  */
-export function storeSellerValuationCache(vin: string, mileage: number, valuationData: any): void {
+export async function storeSellerValuationCache(vin: string, mileage: number, valuationData: any): Promise<void> {
   console.log('Storing in cache for VIN:', vin, 'with keys:', Object.keys(valuationData));
   
-  // Use Promise chain with proper error handling
-  Promise.resolve()
-    .then(() => {
-      return supabase
-        .from('vin_valuation_cache')
-        .upsert({
-          vin,
-          mileage,
-          valuation_data: valuationData
-        });
-    })
-    .then(({ error }) => {
-      if (error) {
-        throw error;
-      }
-      console.log('Valuation data cached successfully for VIN:', vin);
-    })
-    .catch(error => {
-      console.warn('Non-critical cache error:', error);
-    });
+  try {
+    const { error } = await supabase
+      .from('vin_valuation_cache')
+      .upsert({
+        vin,
+        mileage,
+        valuation_data: valuationData
+      });
+    
+    if (error) {
+      console.warn('Cache storage error:', error);
+      throw error;
+    }
+    
+    console.log('Valuation data cached successfully for VIN:', vin);
+  } catch (error) {
+    console.warn('Failed to store valuation in cache:', error);
+    throw error; // Re-throw to allow proper promise chain handling
+  }
 }

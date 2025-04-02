@@ -7,6 +7,7 @@
  * - 2024-11-24: Improved logging to track data through the pipeline
  * - 2028-06-12: Enhanced pipeline logging and fallback mechanisms
  * - 2028-06-12: Added data validation checks at multiple points in the process
+ * - 2028-06-13: Fixed Promise handling for cache storage to avoid void.catch error
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -250,7 +251,9 @@ export async function processSellerValuation(
       
       // Try to cache the data but do it in non-blocking way
       try {
-        storeSellerValuationCache(vin, mileage, normalizedData)
+        // FIX: Create a Promise and handle it properly to avoid void.catch error
+        Promise.resolve()
+          .then(() => storeSellerValuationCache(vin, mileage, normalizedData))
           .catch(cacheError => {
             console.warn('Cache storage failed but continuing main flow:', cacheError);
           });
@@ -304,4 +307,3 @@ async function createReservationFromCachedData(vin: string, userId: string, valu
     // Non-critical error, just log it
   }
 }
-
