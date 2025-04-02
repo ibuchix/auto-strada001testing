@@ -5,10 +5,12 @@
  * - 2024-11-23: Fixed Promise chain issue with proper Promise handling
  * - 2024-11-23: Added comprehensive logging for debugging
  * - 2024-11-24: Added type guards to fix TypeScript errors with JSON data
+ * - 2024-11-15: Implemented multiple cache storage methods with fallbacks
  * - 2028-06-13: Updated storeSellerValuationCache to return a Promise for proper chain handling
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { valuationCacheService } from "@/services/supabase/valuation/cacheService";
 
 // Define type for valuation data to help TypeScript
 interface ValuationData {
@@ -30,10 +32,23 @@ function isValuationData(obj: any): obj is ValuationData {
 }
 
 /**
- * Get cached seller valuation
+ * Get cached seller valuation with multiple fallback approaches
  */
 export async function getSellerValuationCache(vin: string, mileage: number): Promise<any | null> {
   console.log('Checking cache for VIN:', vin, 'with mileage:', mileage);
+  
+  // Method 1: Try using the optimized cache service first
+  try {
+    const cachedData = await valuationCacheService.getFromCache(vin, mileage);
+    if (cachedData) {
+      console.log('Cache service hit! Found valuation data');
+      return cachedData;
+    }
+  } catch (serviceError) {
+    console.warn('Cache service retrieval error:', serviceError);
+  }
+  
+  // Method 2: Try direct database access
   try {
     const { data: cachedValuation, error } = await supabase
       .from('vin_valuation_cache')
@@ -44,12 +59,9 @@ export async function getSellerValuationCache(vin: string, mileage: number): Pro
       .maybeSingle();
     
     if (error) {
-      console.warn('Cache retrieval error:', error);
-      return null;
-    }
-    
-    if (cachedValuation?.valuation_data) {
-      console.log('Cache hit! Found valuation data from:', cachedValuation.created_at);
+      console.warn('Direct cache retrieval error:', error);
+    } else if (cachedValuation?.valuation_data) {
+      console.log('Direct cache hit! Found valuation data from:', cachedValuation.created_at);
       console.log('Cache data structure:', Object.keys(cachedValuation.valuation_data));
       
       // Log important values from cache
@@ -71,22 +83,58 @@ export async function getSellerValuationCache(vin: string, mileage: number): Pro
       
       return cachedValuation.valuation_data;
     }
-    
-    console.log('Cache miss for VIN:', vin);
-    return null;
-  } catch (cacheError) {
-    console.warn('Cache retrieval error:', cacheError);
-    return null;
+  } catch (directError) {
+    console.warn('Direct cache retrieval error:', directError);
   }
+  
+  // Method 3: Try edge function as final fallback
+  try {
+    const { data: funcResult, error: funcError } = await supabase.functions.invoke(
+      'handle-seller-operations',
+      {
+        body: {
+          operation: 'get_cached_valuation',
+          vin,
+          mileage
+        }
+      }
+    );
+    
+    if (!funcError && funcResult && funcResult.success && funcResult.data) {
+      console.log('Edge function cache hit!');
+      return funcResult.data;
+    }
+    
+    if (funcError) {
+      console.warn('Edge function cache retrieval error:', funcError);
+    }
+  } catch (funcException) {
+    console.warn('Edge function cache exception:', funcException);
+  }
+  
+  console.log('Cache miss for VIN:', vin);
+  return null;
 }
 
 /**
- * Store seller valuation in cache
+ * Store seller valuation in cache with multiple fallback mechanisms
  * @returns Promise that resolves when storage is complete
  */
 export async function storeSellerValuationCache(vin: string, mileage: number, valuationData: any): Promise<void> {
   console.log('Storing in cache for VIN:', vin, 'with keys:', Object.keys(valuationData));
   
+  // Method 1: Try using the optimized cache service first
+  try {
+    const success = await valuationCacheService.storeInCache(vin, mileage, valuationData);
+    if (success) {
+      console.log('Valuation data cached successfully via cache service for VIN:', vin);
+      return;
+    }
+  } catch (serviceError) {
+    console.warn('Cache service storage error:', serviceError);
+  }
+  
+  // Method 2: Try direct database access
   try {
     const { error } = await supabase
       .from('vin_valuation_cache')
@@ -96,14 +144,39 @@ export async function storeSellerValuationCache(vin: string, mileage: number, va
         valuation_data: valuationData
       });
     
-    if (error) {
-      console.warn('Cache storage error:', error);
-      throw error;
+    if (!error) {
+      console.log('Valuation data cached successfully via direct insert for VIN:', vin);
+      return;
     }
     
-    console.log('Valuation data cached successfully for VIN:', vin);
-  } catch (error) {
-    console.warn('Failed to store valuation in cache:', error);
-    throw error; // Re-throw to allow proper promise chain handling
+    console.warn('Direct cache storage error:', error);
+  } catch (directError) {
+    console.warn('Direct cache storage exception:', directError);
   }
+  
+  // Method 3: Try edge function as final fallback
+  try {
+    const { data: funcResult, error: funcError } = await supabase.functions.invoke(
+      'handle-seller-operations',
+      {
+        body: {
+          operation: 'cache_valuation',
+          vin,
+          mileage,
+          valuation_data: valuationData
+        }
+      }
+    );
+    
+    if (!funcError) {
+      console.log('Valuation data cached successfully via edge function for VIN:', vin);
+      return;
+    }
+    
+    console.warn('Edge function cache storage error:', funcError);
+  } catch (funcException) {
+    console.warn('Edge function cache storage exception:', funcException);
+  }
+  
+  console.warn('Failed to store valuation in cache after trying all methods');
 }

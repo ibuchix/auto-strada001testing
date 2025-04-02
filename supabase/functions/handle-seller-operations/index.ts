@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-07-22: Refactored into smaller modules for better maintainability
+ * - 2024-11-15: Added cache operation handlers for improved fallback caching
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -12,6 +13,7 @@ import { handleReserveVinRequest } from "./handlers/reservation-handler.ts";
 import { handleCreateListingRequest } from "./handlers/listing-handler.ts";
 import { handleProxyBidsRequest } from "./handlers/proxy-bids-handler.ts";
 import { handleVinValidationRequest } from "./handlers/vin-validation-handler.ts";
+import { handleCacheValuationRequest, handleGetCachedValuationRequest } from "./handlers/cache-handler.ts";
 import { getSupabaseClient } from "../_shared/client.ts";
 
 // Main handler function
@@ -83,6 +85,16 @@ serve(async (req) => {
       case "process_proxy_bids":
         logOperation('process_proxy_bids_start', { requestId, carId: data.carId });
         result = await handleProxyBidsRequest(supabase, data, requestId);
+        break;
+        
+      case "cache_valuation":
+        logOperation('cache_valuation_start', { requestId, vin: data.vin });
+        result = await handleCacheValuationRequest(supabase, data, requestId);
+        break;
+        
+      case "get_cached_valuation":
+        logOperation('get_cached_valuation_start', { requestId, vin: data.vin });
+        result = await handleGetCachedValuationRequest(supabase, data, requestId);
         break;
     }
     

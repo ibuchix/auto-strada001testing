@@ -5,6 +5,7 @@
  * - 2024-09-20: Added error handling and cache expiration
  * - 2024-09-21: Optimized cache retrieval with fallback mechanisms
  * - 2024-10-15: Extracted from main valuation service
+ * - 2024-11-15: Implemented multiple cache storage methods with fallbacks
  * - 2025-04-28: Fixed TypeScript errors with method calls
  * - 2025-05-01: Fixed PostgrestError handling in error methods
  * - 2025-05-16: Fixed RPC function type errors using "as any" casting
@@ -17,7 +18,7 @@ import { PostgrestError } from "@supabase/supabase-js";
 
 export class ValuationCacheService extends ValuationServiceBase {
   /**
-   * Store valuation data in cache
+   * Store valuation data in cache with multiple fallback mechanisms
    */
   async storeInCache(vin: string, mileage: number, valuationData: ValuationData): Promise<boolean> {
     try {
@@ -44,24 +45,57 @@ export class ValuationCacheService extends ValuationServiceBase {
         console.warn('Exception in RPC cache storage:', rpcException);
       }
       
-      // Fallback to direct insert
-      const { error } = await this.supabase
-        .from('vin_valuation_cache')
-        .upsert({
-          vin,
-          mileage,
-          valuation_data: valuationData as Json,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select();
-      
-      if (error) {
-        this.handleCacheError(error instanceof PostgrestError ? error.message : String(error), "Failed to store valuation in cache");
-        return false;
+      // Fallback 1: Direct insert
+      try {
+        const { error } = await this.supabase
+          .from('vin_valuation_cache')
+          .upsert({
+            vin,
+            mileage,
+            valuation_data: valuationData as Json,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select();
+        
+        if (!error) {
+          console.log('Successfully stored valuation in cache via direct insert');
+          return true;
+        }
+        
+        console.warn('Direct cache storage failed:', error);
+      } catch (directException) {
+        console.warn('Exception in direct cache storage:', directException);
       }
       
-      return true;
+      // Fallback 2: Edge function
+      try {
+        console.log('Attempting to store valuation via edge function fallback');
+        const { data: funcData, error: funcError } = await this.supabase.functions.invoke(
+          'handle-seller-operations',
+          {
+            body: {
+              operation: 'cache_valuation',
+              vin,
+              mileage,
+              valuation_data: valuationData
+            }
+          }
+        );
+        
+        if (!funcError) {
+          console.log('Successfully stored valuation in cache via edge function');
+          return true;
+        }
+        
+        console.warn('Edge function cache storage failed:', funcError);
+      } catch (funcException) {
+        console.warn('Exception in edge function cache storage:', funcException);
+      }
+      
+      // If we reach here, all storage methods failed
+      this.handleCacheError('All cache storage methods failed', "Failed to store valuation in cache");
+      return false;
     } catch (error: any) {
       this.handleCacheError(error instanceof PostgrestError ? error.message : String(error), "Failed to store valuation in cache");
       return false;
@@ -69,7 +103,7 @@ export class ValuationCacheService extends ValuationServiceBase {
   }
   
   /**
-   * Get valuation data from cache
+   * Get valuation data from cache with multiple fallback methods
    */
   async getFromCache(vin: string, mileage: number): Promise<ValuationData | null> {
     try {
@@ -93,25 +127,52 @@ export class ValuationCacheService extends ValuationServiceBase {
         console.warn('Exception in RPC cache retrieval:', rpcException);
       }
       
-      // Fallback to direct query
-      const { data, error } = await this.supabase
-        .from('vin_valuation_cache')
-        .select('valuation_data')
-        .eq('vin', vin)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (error) {
-        this.handleCacheError(error instanceof PostgrestError ? error.message : String(error), "Failed to retrieve valuation from cache");
-        return null;
+      // Fallback 1: Direct query
+      try {
+        const { data, error } = await this.supabase
+          .from('vin_valuation_cache')
+          .select('valuation_data')
+          .eq('vin', vin)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (!error && data && data.valuation_data) {
+          console.log('Successfully retrieved valuation from cache via direct query');
+          return data.valuation_data as ValuationData;
+        }
+        
+        console.warn('Direct cache retrieval failed:', error || 'No data found');
+      } catch (directException) {
+        console.warn('Exception in direct cache retrieval:', directException);
       }
       
-      if (!data || !data.valuation_data) {
-        return null;
+      // Fallback 2: Edge function
+      try {
+        console.log('Attempting to retrieve valuation via edge function fallback');
+        const { data: funcData, error: funcError } = await this.supabase.functions.invoke(
+          'handle-seller-operations',
+          {
+            body: {
+              operation: 'get_cached_valuation',
+              vin,
+              mileage
+            }
+          }
+        );
+        
+        if (!funcError && funcData && funcData.data) {
+          console.log('Successfully retrieved valuation from cache via edge function');
+          return funcData.data as ValuationData;
+        }
+        
+        console.warn('Edge function cache retrieval failed:', funcError || 'No data returned');
+      } catch (funcException) {
+        console.warn('Exception in edge function cache retrieval:', funcException);
       }
       
-      return data.valuation_data as ValuationData;
+      console.log('No cached valuation found after trying all methods');
+      return null;
     } catch (error: any) {
       this.handleCacheError(error instanceof PostgrestError ? error.message : String(error), "Failed to retrieve valuation from cache");
       return null;
