@@ -40,7 +40,7 @@ export const useFormSubmission = (userId: string) => {
     setTransactionStatus(null);
   };
   
-  const handleSubmit = async (data: CarListingFormData, carId?: string) => {
+  const handleSubmit = async (data: CarListingFormData, carId?: string): Promise<void> => {
     setIsSubmitting(true);
     setError(null);
     setTransactionStatus(TransactionStatus.PENDING);
@@ -57,7 +57,7 @@ export const useFormSubmission = (userId: string) => {
         setIsSubmitting(false);
         setError("Validation failed");
         setTransactionStatus(TransactionStatus.ERROR);
-        return false;
+        return;
       }
       
       // Add required fields
@@ -75,8 +75,6 @@ export const useFormSubmission = (userId: string) => {
       
       // Navigate to success page or dashboard
       navigate("/dashboard");
-      
-      return true;
     } catch (error) {
       console.error("Error submitting car listing:", error);
       setTransactionStatus(TransactionStatus.ERROR);
@@ -106,8 +104,6 @@ export const useFormSubmission = (userId: string) => {
           { description: "Please try again later." }
         );
       }
-      
-      return false;
     } finally {
       setIsSubmitting(false);
     }
