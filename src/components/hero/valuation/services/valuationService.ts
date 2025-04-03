@@ -1,138 +1,135 @@
 
 /**
  * Changes made:
- * - 2024-04-03: Enhanced debug logging with detailed information at each step
- * - 2024-04-03: Added performance tracking with timestamps
- * - 2024-04-03: Improved error handling with more contextual information
- * - 2024-04-03: Standardized parameter logging including VIN and mileage
+ * - Enhanced error handling with better logging
+ * - Added correlation ID support for request tracing
+ * - Updated API calls to use the improved cache functions
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { fetchHomeValuation, fetchSellerValuation } from "./api/valuation-api";
-import { generateRequestId, logDetailedError, createPerformanceTracker, logApiCall } from "./api/utils/debug-utils";
-import { TransmissionType } from "../types";
+import { getCachedValuation, storeValuationInCache } from "./api/cache-api";
+import { generateRequestId, logApiCall } from "./api/utils/debug-utils";
 
-/**
- * Get valuation for a vehicle 
- * @param vin - Vehicle Identification Number
- * @param mileage - Vehicle mileage
- * @param gearbox - Transmission type
- */
 export async function getValuation(
   vin: string,
   mileage: number,
-  gearbox: TransmissionType
+  gearbox: string,
+  correlationId?: string
 ) {
+  const startTime = performance.now();
   const requestId = generateRequestId();
-  const perfTracker = createPerformanceTracker('valuation_service', requestId);
+  correlationId = correlationId || crypto.randomUUID();
+  
+  console.log(`[ValuationService][${requestId}] Processing valuation request:`, {
+    vin,
+    mileage,
+    gearbox,
+    correlationId,
+    timestamp: new Date().toISOString()
+  });
   
   try {
-    console.log(`[ValuationService][${requestId}] Getting valuation for vehicle:`, { 
-      vin, 
-      mileage, 
-      gearbox,
-      timestamp: new Date().toISOString()
-    });
+    // First check cache
+    const apiCall = logApiCall('cache_check', { vin, mileage, correlationId }, requestId);
+    const cachedData = await getCachedValuation(vin, mileage);
     
-    // Check if user is authenticated
-    const { data: sessionData } = await supabase.auth.getSession();
-    const isAuthenticated = !!sessionData?.session?.user;
-    
-    perfTracker.checkpoint('auth_check');
-    
-    console.log(`[ValuationService][${requestId}] Authentication status:`, { 
-      isAuthenticated, 
-      userId: sessionData?.session?.user?.id || null,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Use different API calls based on authentication status
-    let result;
-    if (isAuthenticated && sessionData.session?.user?.id) {
-      console.log(`[ValuationService][${requestId}] Using authenticated endpoint`);
-      result = await fetchSellerValuation(vin, mileage, gearbox, sessionData.session.user.id);
-    } else {
-      console.log(`[ValuationService][${requestId}] Using public endpoint`);
-      result = await fetchHomeValuation(vin, mileage, gearbox);
+    if (cachedData) {
+      const result = {
+        success: true,
+        data: {
+          ...cachedData,
+          vin,
+          mileage,
+          transmission: gearbox,
+          fromCache: true
+        }
+      };
+      
+      apiCall.complete(result);
+      return result;
     }
     
-    perfTracker.checkpoint('api_response');
+    apiCall.complete({ cacheResult: 'miss' });
     
-    // Handle API response
-    if (result.error) {
-      console.error(`[ValuationService][${requestId}] API error:`, { 
-        error: result.error.message,
-        stack: result.error.stack,
+    // No cache hit, call the edge function
+    console.log(`[ValuationService][${requestId}] Cache miss, fetching from edge function`);
+    const functionCall = logApiCall('edge_function', { vin, mileage, correlationId }, requestId);
+    
+    const { data: functionResult, error } = await supabase.functions.invoke('handle-car-listing', {
+      body: { 
+        vin, 
+        mileage, 
+        gearbox,
+        correlationId
+      }
+    });
+    
+    if (error) {
+      const errorResult = functionCall.complete(null, error);
+      
+      console.error(`[ValuationService][${requestId}] Edge function error:`, {
+        message: error.message,
+        details: error.details,
+        correlationId,
+        elapsedMs: (performance.now() - startTime).toFixed(2),
         timestamp: new Date().toISOString()
       });
       
-      return { 
-        success: false, 
-        error: result.error.message,
-        data: { error: result.error.message } 
+      return {
+        success: false,
+        data: { error: error.message, correlationId }
       };
     }
     
-    // Add detailed logging for data structure
-    const responseData = result.data || {};
-    console.log(`[ValuationService][${requestId}] Valuation data received:`, { 
-      make: responseData.make,
-      model: responseData.model,
-      year: responseData.year,
-      hasValuation: !!responseData.valuation,
-      hasReservePrice: !!responseData.reservePrice,
-      propertiesCount: Object.keys(responseData).length,
-      timestamp: new Date().toISOString()
-    });
+    // Function executed successfully
+    functionCall.complete(functionResult);
     
-    perfTracker.complete('success', { 
-      dataReceived: true,
-      sourceType: isAuthenticated ? 'authenticated' : 'public'
-    });
+    // Store the result in the cache to avoid future API calls
+    if (functionResult) {
+      const cacheStore = logApiCall('cache_store', { vin, mileage, correlationId }, requestId);
+      
+      try {
+        await storeValuationInCache(vin, mileage, functionResult);
+        cacheStore.complete({ success: true });
+      } catch (cacheError) {
+        cacheStore.complete(null, cacheError);
+        // Log but don't fail the operation due to cache errors
+        console.warn(`[ValuationService][${requestId}] Cache storage failed:`, {
+          error: cacheError.message,
+          correlationId,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
     
-    return { 
-      success: true, 
-      data: responseData 
+    console.log(`[ValuationService][${requestId}] Valuation completed in ${(performance.now() - startTime).toFixed(2)}ms`);
+    
+    return {
+      success: true,
+      data: {
+        ...functionResult,
+        vin,
+        mileage,
+        transmission: gearbox
+      }
     };
-  } catch (error: any) {
-    console.error(`[ValuationService][${requestId}] Error getting valuation:`, { 
-      error: error.message,
+  } catch (error) {
+    console.error(`[ValuationService][${requestId}] Unhandled error:`, {
+      message: error.message,
       stack: error.stack,
-      vin, 
-      mileage,
+      correlationId,
+      elapsedMs: (performance.now() - startTime).toFixed(2),
       timestamp: new Date().toISOString()
     });
     
-    perfTracker.complete('failure', { 
-      errorMessage: error.message,
-      errorType: error.constructor?.name
-    });
-    
-    return { 
-      success: false, 
-      error: error.message,
-      data: { error: error.message } 
+    return {
+      success: false,
+      data: { error: error.message, correlationId }
     };
   }
 }
 
-/**
- * Clean up valuation data from localStorage
- */
-export function cleanupValuationData(): void {
-  const startTime = performance.now();
-  
-  try {
-    console.log('[ValuationService] Cleaning up valuation data');
-    localStorage.removeItem('valuationData');
-    localStorage.removeItem('tempMileage');
-    localStorage.removeItem('tempVIN');
-    localStorage.removeItem('tempGearbox');
-    localStorage.removeItem('valuationTimestamp');
-    
-    const duration = performance.now() - startTime;
-    console.log(`[ValuationService] Cleanup completed in ${duration.toFixed(2)}ms`);
-  } catch (error) {
-    console.error('[ValuationService] Error during cleanup:', error);
-  }
+// Clean up any temporary data if needed
+export function cleanupValuationData() {
+  // Nothing to clean up at the moment
 }

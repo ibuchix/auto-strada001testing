@@ -1,230 +1,229 @@
 
 /**
- * Cache handler for handle-seller-operations edge function
- * Provides cache storage and retrieval capabilities
- * 
- * Changes made:
- * - Enhanced error handling to isolate cache failures from main flow
- * - Made cache operations non-blocking with Promise.race for timeout protection
- * - Added exponential backoff for retries
- * - Improved logging for better debugging
+ * Handler for cache-related operations
  */
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { logOperation } from '../../_shared/index.ts';
+import { logOperation } from '../../_shared/logging.ts';
+import { cacheValidation, getCachedValidation } from '../cache.ts';
 
-// Cache operation timeout (ms)
-const CACHE_OPERATION_TIMEOUT = 3000;
+export interface CacheResult {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
 
-/**
- * Executes a cache operation with timeout protection
- * Makes cache operations non-blocking for the main flow
- */
-async function executeCacheOperation<T>(
-  operationName: string,
-  operation: () => Promise<T>,
-  fallback: T,
-  requestId: string,
-  timeoutMs = CACHE_OPERATION_TIMEOUT
-): Promise<T> {
-  try {
-    // Create a timeout promise that resolves with the fallback value
-    const timeoutPromise = new Promise<T>((resolve) => {
-      setTimeout(() => {
-        logOperation(`${operationName}_timeout`, { requestId }, 'warn');
-        resolve(fallback);
-      }, timeoutMs);
-    });
-
-    // Race the operation against the timeout
-    return await Promise.race([
-      operation(),
-      timeoutPromise
-    ]);
-  } catch (error) {
-    logOperation(`${operationName}_error`, { 
-      requestId, 
-      error: error.message,
-      stack: error.stack 
-    }, 'warn');
+export async function handleCacheOperations(
+  supabase: SupabaseClient,
+  operation: string,
+  requestData: any,
+  requestId: string
+): Promise<CacheResult> {
+  const { vin, mileage } = requestData;
+  
+  // Validate required fields
+  if (!vin) {
+    logOperation('cache_operation_error', {
+      requestId,
+      operation,
+      error: 'Missing VIN parameter'
+    }, 'error');
     
-    return fallback;
+    return {
+      success: false,
+      error: "VIN is required"
+    };
   }
-}
-
-/**
- * Handle cache valuation request
- * Stores valuation data in cache without blocking the main flow
- */
-export async function handleCacheValuationRequest(
-  supabase: SupabaseClient,
-  data: {
-    vin: string;
-    mileage: number;
-    valuation_data: any;
-  },
-  requestId: string
-): Promise<{ success: boolean; error?: string }> {
-  const { vin, mileage, valuation_data } = data;
   
-  logOperation('cache_valuation_request', { 
-    requestId, 
-    vin, 
-    mileage 
-  });
-  
-  // Return immediately to the main flow that the request was accepted
-  // The actual caching happens asynchronously
-  const cacheResult = executeCacheOperation<{ success: boolean; error?: string }>(
-    'cache_valuation',
-    async () => {
-      try {
-        // Try to store in cache table
-        const { error } = await supabase
-          .from('vin_valuation_cache')
-          .upsert({
-            vin,
-            mileage,
-            valuation_data,
-            created_at: new Date().toISOString()
-          });
-        
-        if (error) {
-          logOperation('cache_valuation_error', { 
-            requestId, 
-            vin, 
-            error: error.message 
+  try {
+    // Handle different cache operations
+    switch (operation) {
+      case 'cache_valuation': {
+        // Make sure we have valuation data
+        if (!requestData.valuation_data) {
+          logOperation('cache_operation_error', {
+            requestId,
+            operation,
+            error: 'Missing valuation_data parameter'
           }, 'error');
           
           return {
             success: false,
-            error: `Failed to cache valuation: ${error.message}`
+            error: "Valuation data is required"
           };
         }
         
-        logOperation('cache_valuation_success', { 
-          requestId, 
-          vin 
-        });
+        // Handle in-memory cache
+        cacheValidation(vin, requestData.valuation_data, mileage);
         
-        return {
-          success: true
-        };
-      } catch (error) {
-        logOperation('cache_valuation_exception', { 
-          requestId, 
-          error: error.message,
-          stack: error.stack
-        }, 'error');
-        
-        return {
-          success: false,
-          error: `Exception in cache valuation: ${error.message}`
-        };
-      }
-    },
-    { success: false, error: 'Cache operation timed out' },
-    requestId
-  );
-
-  // Return immediate success even if cache operation is still running
-  // This ensures main valuation flow isn't blocked
-  return { 
-    success: true 
-  };
-}
-
-/**
- * Handle get cached valuation request
- * Retrieves valuation data from cache with timeout protection
- */
-export async function handleGetCachedValuationRequest(
-  supabase: SupabaseClient,
-  data: {
-    vin: string;
-    mileage: number;
-  },
-  requestId: string
-): Promise<{ success: boolean; data?: any; error?: string }> {
-  const { vin, mileage } = data;
-  
-  logOperation('get_cached_valuation_request', { 
-    requestId, 
-    vin, 
-    mileage 
-  });
-  
-  return executeCacheOperation<{ success: boolean; data?: any; error?: string }>(
-    'get_cached_valuation',
-    async () => {
-      try {
-        // Calculate mileage range (±5%)
-        const mileageLower = Math.floor(mileage * 0.95);
-        const mileageUpper = Math.ceil(mileage * 1.05);
-        
-        // Retrieve from cache table with mileage flexibility
-        const { data: cacheData, error } = await supabase
-          .from('vin_valuation_cache')
-          .select('valuation_data, created_at, mileage')
-          .eq('vin', vin)
-          .gte('mileage', mileageLower)
-          .lte('mileage', mileageUpper)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (error) {
-          logOperation('get_cached_valuation_error', { 
-            requestId, 
-            vin, 
-            error: error.message 
-          }, 'error');
+        // Also store in database for persistence
+        try {
+          const { error } = await supabase.rpc(
+            'store_vin_valuation_cache',
+            {
+              p_vin: vin,
+              p_mileage: mileage || 0,
+              p_valuation_data: requestData.valuation_data,
+              p_log_id: requestId
+            }
+          );
           
-          return {
-            success: false,
-            error: `Failed to retrieve cached valuation: ${error.message}`
-          };
-        }
-        
-        if (!cacheData || !cacheData.valuation_data) {
-          logOperation('get_cached_valuation_miss', { 
-            requestId, 
+          if (error) {
+            logOperation('db_cache_store_error', {
+              requestId,
+              vin,
+              error: error.message
+            }, 'warn');
+            
+            // Try direct insertion/update as fallback
+            const { error: directError } = await supabase
+              .from('vin_valuation_cache')
+              .upsert({
+                vin,
+                mileage: mileage || 0, 
+                valuation_data: requestData.valuation_data
+              });
+              
+            if (directError) {
+              logOperation('direct_cache_store_error', {
+                requestId,
+                vin,
+                error: directError.message
+              }, 'warn');
+            }
+          }
+        } catch (dbError) {
+          // Log but continue since we already stored in memory cache
+          logOperation('db_cache_store_exception', {
+            requestId,
             vin,
-            mileageRange: `${mileageLower}-${mileageUpper}`
-          });
-          
-          return {
-            success: false,
-            error: 'No cached valuation found'
-          };
+            error: dbError.message
+          }, 'warn');
         }
         
-        logOperation('get_cached_valuation_hit', { 
-          requestId, 
-          vin, 
-          created_at: cacheData.created_at,
-          mileage: cacheData.mileage
+        logOperation('cache_store_complete', {
+          requestId,
+          vin,
+          mileage
         });
         
         return {
           success: true,
-          data: cacheData.valuation_data
-        };
-      } catch (error) {
-        logOperation('get_cached_valuation_exception', { 
-          requestId, 
-          error: error.message,
-          stack: error.stack
-        }, 'error');
-        
-        return {
-          success: false,
-          error: `Exception in get cached valuation: ${error.message}`
+          data: { cached: true }
         };
       }
-    },
-    { success: false, error: 'Cache retrieval timed out' },
-    requestId,
-    2000 // Shorter timeout for read operations
-  );
+        
+      case 'get_cached_valuation': {
+        // Check in-memory cache first
+        const memoryCache = getCachedValidation(vin, mileage);
+        
+        if (memoryCache) {
+          logOperation('memory_cache_hit', {
+            requestId,
+            vin
+          });
+          
+          return {
+            success: true,
+            data: memoryCache
+          };
+        }
+        
+        // Try database cache
+        try {
+          const { data, error } = await supabase.rpc(
+            'get_vin_valuation_cache',
+            {
+              p_vin: vin,
+              p_mileage: mileage || 0,
+              p_log_id: requestId
+            }
+          );
+          
+          if (!error && data) {
+            // Store in memory cache for faster future access
+            cacheValidation(vin, data, mileage);
+            
+            logOperation('db_cache_hit', {
+              requestId,
+              vin
+            });
+            
+            return {
+              success: true,
+              data
+            };
+          }
+          
+          // Try direct query if RPC failed
+          if (error) {
+            logOperation('rpc_cache_error', {
+              requestId,
+              vin,
+              error: error.message
+            }, 'warn');
+            
+            const { data: directData, error: directError } = await supabase
+              .from('vin_valuation_cache')
+              .select('valuation_data')
+              .eq('vin', vin)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+              
+            if (!directError && directData?.valuation_data) {
+              // Store in memory cache
+              cacheValidation(vin, directData.valuation_data, mileage);
+              
+              logOperation('direct_db_cache_hit', {
+                requestId,
+                vin
+              });
+              
+              return {
+                success: true,
+                data: directData.valuation_data
+              };
+            }
+          }
+        } catch (dbError) {
+          logOperation('db_cache_query_exception', {
+            requestId,
+            vin,
+            error: dbError.message
+          }, 'warn');
+        }
+        
+        // No cache hit anywhere
+        logOperation('cache_miss', {
+          requestId,
+          vin
+        });
+        
+        return {
+          success: true,
+          data: null
+        };
+      }
+        
+      default:
+        return {
+          success: false,
+          error: "Unknown cache operation"
+        };
+    }
+  } catch (error) {
+    logOperation('cache_handler_error', {
+      requestId,
+      operation,
+      vin,
+      error: error.message,
+      stack: error.stack
+    }, 'error');
+    
+    return {
+      success: false,
+      error: `Error handling cache operation: ${error.message}`
+    };
+  }
 }

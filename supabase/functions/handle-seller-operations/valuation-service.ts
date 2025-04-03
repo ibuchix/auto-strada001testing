@@ -1,267 +1,213 @@
+// This file contains service functions for fetching vehicle valuations
 
-/**
- * Enhanced with detailed debug logging
- */
-import { logOperation } from '../_shared/logging.ts';
-import md5 from 'https://esm.sh/js-md5@0.8.3';
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
+import { logOperation, logError } from '../_shared/logging.ts';
+import { getCachedValidation, cacheValidation } from './cache.ts';
 
-interface ValuationResult {
+export interface ValuationResult {
   success: boolean;
-  data?: Record<string, any>;
+  data?: any;
   error?: string;
   errorCode?: string;
 }
 
-/**
- * Fetch vehicle valuation from external API
- */
+// Fetch vehicle valuation from external API
 export async function fetchVehicleValuation(
   vin: string,
   mileage: number,
   gearbox: string,
   requestId: string
 ): Promise<ValuationResult> {
-  const startTime = performance.now();
   try {
-    // Log API call with detailed context
-    logOperation('external_api_request_start', { 
+    // Check if data is in cache first
+    const cachedData = await getCachedValidation(vin, mileage);
+    if (cachedData) {
+      logOperation('using_cached_validation', { 
+        requestId, 
+        vin 
+      });
+      return {
+        success: true,
+        data: cachedData
+      };
+    }
+    
+    // Get API credentials 
+    const apiId = Deno.env.get("CAR_API_ID");
+    const apiSecret = Deno.env.get("CAR_API_SECRET");
+    
+    if (!apiId || !apiSecret) {
+      logOperation('missing_api_credentials', { 
+        requestId, 
+        vin 
+      }, 'error');
+      return {
+        success: false,
+        error: "API credentials are missing",
+        errorCode: "MISSING_CREDENTIALS"
+      };
+    }
+    
+    // Calculate checksum (md5 hash of API ID + API Secret + VIN)
+    const input = `${apiId}${apiSecret}${vin}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    const hashBuffer = await crypto.subtle.digest('MD5', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    // Construct API URL and make request
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    
+    logOperation('external_api_request', { 
       requestId, 
-      vin, 
+      vin,
       mileage,
       gearbox,
-      service: 'autoiso',
-      timestamp: new Date().toISOString()
+      url: apiUrl
     });
     
-    // Get API credentials
-    const apiId = 'AUTOSTRA'; // Use the provided API ID
-    const apiSecretKey = Deno.env.get('CAR_API_SECRET') || '';
+    // Set a reasonable timeout for the fetch operation
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     
-    if (!apiSecretKey) {
-      logOperation('api_credentials_missing', {
-        requestId,
-        missingKey: 'CAR_API_SECRET',
-        timestamp: new Date().toISOString()
-      }, 'error');
-      throw new Error('API secret key not found in environment variables');
-    }
-    
-    // Calculate checksum according to the API requirements
-    const checksumStartTime = performance.now();
-    const checksum = md5(apiId + apiSecretKey + vin);
-    const checksumDuration = performance.now() - checksumStartTime;
-    
-    logOperation('checksum_calculated', {
-      requestId,
-      vin,
-      duration: checksumDuration.toFixed(2) + 'ms',
-      timestamp: new Date().toISOString()
-    });
-    
-    // Construct the API URL with proper parameters
-    const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-    
-    // Log the actual request URL (without sensitive data)
-    logOperation('api_request_details', {
-      requestId,
-      vin,
-      endpoint: 'getVinValuation',
-      parameters: {
-        mileage,
-        currency: 'PLN'
-      },
-      timestamp: new Date().toISOString()
-    });
-    
-    // Make the API request with timing
-    const fetchStartTime = performance.now();
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Autostrada-Edge-Function/1.0'
+    try {
+      const response = await fetch(apiUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        logOperation('api_response_error', { 
+          requestId, 
+          vin,
+          status: response.status,
+          statusText: response.statusText
+        }, 'error');
+        
+        return {
+          success: false,
+          error: `API responded with status: ${response.status}`,
+          errorCode: "API_ERROR"
+        };
       }
-    });
-    const fetchDuration = performance.now() - fetchStartTime;
-    
-    // Log API response status with timing info
-    logOperation('external_api_response', { 
-      requestId, 
-      vin, 
-      status: response.status,
-      statusText: response.statusText,
-      duration: fetchDuration.toFixed(2) + 'ms',
-      timestamp: new Date().toISOString()
-    });
-    
-    // Check for success
-    if (!response.ok) {
-      logOperation('api_response_error', {
-        requestId,
+      
+      const valuationData = await response.json();
+      
+      if (!valuationData || valuationData.error) {
+        logOperation('api_returned_error', { 
+          requestId, 
+          vin,
+          error: valuationData?.error || "Unknown error"
+        }, 'error');
+        
+        return {
+          success: false,
+          error: valuationData?.error || "Failed to get valuation",
+          errorCode: "API_DATA_ERROR"
+        };
+      }
+      
+      // Extract valuation from results and calculate reserve price
+      let valuation = valuationData.valuation;
+      let reservePrice = calculateReservePrice(valuation);
+      
+      const vehicleData = {
+        make: valuationData.make,
+        model: valuationData.model,
+        year: valuationData.year,
+        transmission: gearbox,
+        valuation: valuation,
+        reservePrice: reservePrice,
+        averagePrice: valuationData.price_med || valuation
+      };
+      
+      // Store in cache for future use
+      await cacheValidation(vin, mileage, vehicleData);
+      
+      logOperation('api_request_success', { 
+        requestId, 
         vin,
-        status: response.status,
-        statusText: response.statusText,
-        timestamp: new Date().toISOString()
+        make: vehicleData.make,
+        model: vehicleData.model,
+        year: vehicleData.year
+      });
+      
+      return {
+        success: true,
+        data: vehicleData
+      };
+    } catch (fetchError) {
+      // Check for timeout
+      if (fetchError.name === 'AbortError') {
+        logOperation('api_request_timeout', { 
+          requestId, 
+          vin 
+        }, 'error');
+        
+        return {
+          success: false,
+          error: "Request timed out",
+          errorCode: "TIMEOUT"
+        };
+      }
+      
+      // Other fetch errors
+      logOperation('api_request_error', { 
+        requestId, 
+        vin,
+        error: fetchError.message 
       }, 'error');
       
       return {
         success: false,
-        error: `API error: ${response.status} ${response.statusText}`,
-        errorCode: 'API_ERROR'
+        error: `Network error: ${fetchError.message}`,
+        errorCode: "NETWORK_ERROR"
       };
     }
-    
-    // Parse the response as JSON with timing
-    const parseStartTime = performance.now();
-    const data = await response.json();
-    const parseDuration = performance.now() - parseStartTime;
-    
-    logOperation('api_response_parsed', {
-      requestId,
-      vin,
-      parseTime: parseDuration.toFixed(2) + 'ms',
-      dataFormat: typeof data,
-      hasError: !!data.error,
-      hasSuccess: !!data.success,
-      responseSize: JSON.stringify(data).length,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Check for API-level errors
-    if (data.error || !data.success) {
-      logOperation('api_returned_error', {
-        requestId,
-        vin,
-        error: data.error,
-        timestamp: new Date().toISOString()
-      }, 'error');
-      
-      return {
-        success: false,
-        error: data.error || 'API returned error',
-        errorCode: 'API_DATA_ERROR'
-      };
-    }
-    
-    // Calculate base price
-    const calculationStartTime = performance.now();
-    const basePrice = calculateBasePrice(data);
-    const reservePrice = calculateReservePrice(basePrice);
-    const calculationDuration = performance.now() - calculationStartTime;
-    
-    logOperation('price_calculation', {
-      requestId,
-      vin,
-      basePrice,
-      reservePrice,
-      calculationTime: calculationDuration.toFixed(2) + 'ms',
-      timestamp: new Date().toISOString()
-    });
-    
-    // Enhance the data with our calculations and ensure consistent property names
-    const enhancedData = {
-      ...data,
-      basePrice,
-      reservePrice,
-      valuation: reservePrice, // Add both property names for consistency
-      averagePrice: basePrice, // Add averagePrice for consistency
-      transmission: gearbox, // Store the transmission type from user input
-      vin, // Include VIN in the data for reference
-      mileage // Include mileage in the data for reference
-    };
-    
-    // Log the final data structure for debugging
-    logOperation('valuation_successful', {
-      requestId,
-      vin,
-      dataKeys: Object.keys(enhancedData),
-      make: enhancedData.make,
-      model: enhancedData.model,
-      year: enhancedData.year,
-      basePrice: enhancedData.basePrice,
-      reservePrice: enhancedData.reservePrice,
-      totalDuration: (performance.now() - startTime).toFixed(2) + 'ms',
-      timestamp: new Date().toISOString()
-    });
-    
-    return {
-      success: true,
-      data: enhancedData
-    };
   } catch (error) {
-    // Log detailed error information
-    logOperation('valuation_api_error', { 
+    // General error handling
+    logOperation('valuation_service_error', { 
       requestId, 
-      vin, 
+      vin,
       error: error.message,
-      stack: error.stack,
-      errorType: error.constructor.name,
-      duration: (performance.now() - startTime).toFixed(2) + 'ms',
-      timestamp: new Date().toISOString()
+      stack: error.stack
     }, 'error');
     
     return {
       success: false,
-      error: `Valuation service error: ${error.message}`,
-      errorCode: 'VALUATION_SERVICE_ERROR'
+      error: `Internal error: ${error.message}`,
+      errorCode: "INTERNAL_ERROR"
     };
   }
 }
 
-/**
- * Calculate base price from API data
- */
-function calculateBasePrice(data: any): number {
-  // Extract price values, defaulting to 0 if not present
-  const priceMin = Number(data.price_min) || 0;
-  const priceMed = Number(data.price_med) || 0;
-  
-  // Calculate base price as the average of min and median
-  return (priceMin + priceMed) / 2;
-}
-
-/**
- * Calculate reserve price based on specified formula
- * Base price minus (base price times percentage)
- */
+// Calculate reserve price based on valuation and price tiers
 function calculateReservePrice(basePrice: number): number {
-  // Determine the percentage based on price tier
-  let percentage = 0;
-  
-  if (basePrice <= 15000) {
-    percentage = 0.65;
-  } else if (basePrice <= 20000) {
-    percentage = 0.46;
-  } else if (basePrice <= 30000) {
-    percentage = 0.37;
-  } else if (basePrice <= 50000) {
-    percentage = 0.27;
-  } else if (basePrice <= 60000) {
-    percentage = 0.27;
-  } else if (basePrice <= 70000) {
-    percentage = 0.22;
-  } else if (basePrice <= 80000) {
-    percentage = 0.23;
-  } else if (basePrice <= 100000) {
-    percentage = 0.24;
-  } else if (basePrice <= 130000) {
-    percentage = 0.20;
-  } else if (basePrice <= 160000) {
-    percentage = 0.185;
-  } else if (basePrice <= 200000) {
-    percentage = 0.22;
-  } else if (basePrice <= 250000) {
-    percentage = 0.17;
-  } else if (basePrice <= 300000) {
-    percentage = 0.18;
-  } else if (basePrice <= 400000) {
-    percentage = 0.18;
-  } else if (basePrice <= 500000) {
-    percentage = 0.16;
-  } else {
-    percentage = 0.145; // 500,001+
+  if (!basePrice || isNaN(basePrice)) {
+    return 0;
   }
   
-  // Calculate and round to the nearest whole number
-  return Math.round(basePrice - (basePrice * percentage));
+  let percentageDiscount;
+  
+  // Determine percentage based on price tier
+  if (basePrice <= 15000) percentageDiscount = 0.65;
+  else if (basePrice <= 20000) percentageDiscount = 0.46;
+  else if (basePrice <= 30000) percentageDiscount = 0.37;
+  else if (basePrice <= 50000) percentageDiscount = 0.27;
+  else if (basePrice <= 60000) percentageDiscount = 0.27;
+  else if (basePrice <= 70000) percentageDiscount = 0.22;
+  else if (basePrice <= 80000) percentageDiscount = 0.23;
+  else if (basePrice <= 100000) percentageDiscount = 0.24;
+  else if (basePrice <= 130000) percentageDiscount = 0.20;
+  else if (basePrice <= 160000) percentageDiscount = 0.185;
+  else if (basePrice <= 200000) percentageDiscount = 0.22;
+  else if (basePrice <= 250000) percentageDiscount = 0.17;
+  else if (basePrice <= 300000) percentageDiscount = 0.18;
+  else if (basePrice <= 400000) percentageDiscount = 0.18;
+  else if (basePrice <= 500000) percentageDiscount = 0.16;
+  else percentageDiscount = 0.145;
+  
+  // Apply formula: PriceX – (PriceX x PercentageY)
+  const reservePrice = Math.round(basePrice - (basePrice * percentageDiscount));
+  return reservePrice;
 }

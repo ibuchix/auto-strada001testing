@@ -6,6 +6,7 @@
  * - 2025-12-23: Fixed TypeScript errors with spread operator on non-object types
  * - 2025-12-23: Fixed TypeScript errors with property access on dynamic objects
  * - 2026-04-10: Added strict type checking and proper data normalization
+ * - 2026-04-03: Updated to use new security definer functions with correlation IDs
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -18,11 +19,14 @@ export async function getCachedValuation(vin: string, mileage: number): Promise<
   console.log('Checking cache for VIN:', vin);
   
   try {
+    // Generate a correlation ID for tracing this request through logs
+    const correlationId = crypto.randomUUID();
+    
     // First try using the security definer function (most reliable approach)
     const { data: funcData, error: funcError } = await supabase.rpc('get_vin_valuation_cache', {
       p_vin: vin,
       p_mileage: mileage,
-      p_log_id: crypto.randomUUID()
+      p_log_id: correlationId
     });
     
     if (!funcError && funcData) {
@@ -126,6 +130,9 @@ export async function storeValuationInCache(
   console.log('Attempting to cache valuation data for VIN:', vin);
   
   try {
+    // Generate a correlation ID for tracing this operation
+    const correlationId = crypto.randomUUID();
+    
     // Ensure we're storing a proper object
     const normalizedData = typeof data === 'object' && data !== null ? 
       { ...data } : { valuation: data };
@@ -134,7 +141,8 @@ export async function storeValuationInCache(
     const { error: funcError } = await supabase.rpc('store_vin_valuation_cache', {
       p_vin: vin,
       p_mileage: mileage,
-      p_valuation_data: normalizedData
+      p_valuation_data: normalizedData,
+      p_log_id: correlationId
     });
     
     if (!funcError) {
@@ -150,7 +158,8 @@ export async function storeValuationInCache(
         operation: 'cache_valuation',
         vin,
         mileage,
-        valuation_data: normalizedData
+        valuation_data: normalizedData,
+        correlation_id: correlationId
       }
     });
     
@@ -177,8 +186,17 @@ export async function fetchHomeValuation(
 ) {
   console.log('Fetching home valuation from API for:', { vin, mileage, gearbox });
   
+  // Generate a correlation ID for this request
+  const correlationId = crypto.randomUUID();
+  
   return await supabase.functions.invoke('get-vehicle-valuation', {
-    body: { vin, mileage, gearbox, context: 'home' },
+    body: { 
+      vin, 
+      mileage, 
+      gearbox, 
+      context: 'home',
+      correlation_id: correlationId
+    },
   });
 }
 
@@ -193,13 +211,17 @@ export async function fetchSellerValuation(
 ) {
   console.log('Fetching seller valuation from API for:', { vin, mileage, gearbox, userId });
   
+  // Generate a correlation ID for this request
+  const correlationId = crypto.randomUUID();
+  
   return await supabase.functions.invoke('handle-seller-operations', {
     body: {
       operation: 'validate_vin',
       vin,
       mileage,
       gearbox,
-      userId
+      userId,
+      correlation_id: correlationId
     }
   });
 }

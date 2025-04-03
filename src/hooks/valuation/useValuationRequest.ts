@@ -7,6 +7,7 @@
  * - 2024-04-03: Updated function signature in getValuation call to remove unnecessary context parameter
  * - 2024-04-03: Enhanced debug logging for performance tracking and troubleshooting
  * - 2024-04-03: Added request IDs and timing information for better traceability
+ * - 2024-04-03: Added correlation IDs for tracking requests through the system
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
@@ -45,7 +46,11 @@ export const useValuationRequest = ({
 
   // Generate a unique request ID for tracing
   const getRequestId = useCallback(() => {
-    const id = Math.random().toString(36).substring(2, 9);
+    // Generate using crypto for better uniqueness when available
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID ? 
+      crypto.randomUUID().substring(0, 8) : 
+      Math.random().toString(36).substring(2, 9);
+    
     requestIdRef.current = id;
     return id;
   }, []);
@@ -128,11 +133,17 @@ export const useValuationRequest = ({
     const startTime = performance.now();
     requestStartTimeRef.current = startTime;
     
+    // Generate a correlation ID for tracing through the system
+    const correlationId = typeof crypto !== 'undefined' && crypto.randomUUID ?
+      crypto.randomUUID() : 
+      `${requestId}-${Date.now()}`;
+    
     console.log(`[ValuationRequest][${requestId}] Starting valuation request:`, {
       vin: data.vin,
       mileage: data.mileage,
       gearbox: data.gearbox,
       timestamp: new Date().toISOString(),
+      correlationId,
       isConnected
     });
     
@@ -171,6 +182,7 @@ export const useValuationRequest = ({
         vin: data.vin,
         mileage,
         gearbox: data.gearbox,
+        correlationId,
         timestamp: new Date().toISOString()
       });
       
@@ -180,7 +192,8 @@ export const useValuationRequest = ({
         getValuation(
           data.vin,
           mileage,
-          data.gearbox
+          data.gearbox,
+          correlationId
         ),
         TimeoutDurations.LONG,
         "Valuation request timed out"
@@ -192,6 +205,7 @@ export const useValuationRequest = ({
         error: result.error || null,
         dataSize: result.data ? JSON.stringify(result.data).length : 0,
         duration: `${valuationDuration.toFixed(2)}ms`,
+        correlationId,
         timestamp: new Date().toISOString()
       });
 
@@ -211,6 +225,7 @@ export const useValuationRequest = ({
         localStorage.setItem("tempGearbox", data.gearbox);
         localStorage.setItem("valuationTimestamp", new Date().toISOString());
         localStorage.setItem("valuationRequestId", requestId);
+        localStorage.setItem("correlationId", correlationId);
         
         logTiming('localStorage storage', storageStartTime);
 
@@ -223,6 +238,7 @@ export const useValuationRequest = ({
           reservePrice: result.data.reservePrice,
           averagePrice: result.data.averagePrice,
           processingTime: `${(performance.now() - startTime).toFixed(2)}ms`,
+          correlationId,
           timestamp: new Date().toISOString()
         });
 

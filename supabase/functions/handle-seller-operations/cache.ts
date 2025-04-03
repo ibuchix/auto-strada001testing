@@ -1,10 +1,12 @@
 
 /**
  * Changes made:
- * - 2024-07-22: Extracted caching functionality from utils.ts
+ * - Enhanced with error handling and structured logging 
+ * - Added correlation ID support for request tracing
+ * - Updated to use system_logs table for enhanced observability
  */
 
-import { logOperation } from './logging.ts';
+import { logOperation } from '../_shared/logging.ts';
 
 // Simple in-memory cache for VIN validations
 interface CacheEntry {
@@ -37,7 +39,12 @@ export function getCachedValidation(vin: string, mileage?: number): any | null {
     return null;
   }
   
-  logOperation('cache_hit', { vin, mileage, cacheAge: now - cachedEntry.timestamp });
+  logOperation('cache_hit', { 
+    vin, 
+    mileage, 
+    cacheAge: now - cachedEntry.timestamp 
+  });
+  
   return cachedEntry.data;
 }
 

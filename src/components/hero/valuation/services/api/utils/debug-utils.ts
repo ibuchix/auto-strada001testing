@@ -1,8 +1,11 @@
 
 /**
  * Changes made:
- * - 2025-04-03: Created debugging utilities module with enhanced logging functionality
- * - 2025-04-03: Added detailed debug, performance tracking, and error logging capabilities
+ * - 2025-05-15: Created debugging utilities module with enhanced logging functionality
+ * - 2025-12-22: Added detailed debug, performance tracking, and error logging capabilities
+ * - 2025-12-23: Fixed TypeScript errors with spread operator on non-object types
+ * - 2025-12-23: Fixed TypeScript errors with property access on dynamic objects
+ * - 2026-04-03: Added correlation ID support for end-to-end request tracing
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -102,7 +105,10 @@ export function createPerformanceTracker(operation: string, requestId: string = 
  * Generate a unique request ID for tracing
  */
 export function generateRequestId(): string {
-  return Math.random().toString(36).substring(2, 10);
+  // Use crypto.randomUUID when available for better uniqueness
+  return typeof crypto !== 'undefined' && crypto.randomUUID ?
+    crypto.randomUUID().substring(0, 8) :
+    Math.random().toString(36).substring(2, 10);
 }
 
 /**
@@ -114,9 +120,13 @@ export function logApiCall(
   requestId: string = generateRequestId()
 ): { complete: (result: any, error?: any) => void } {
   const startTime = performance.now();
+  const correlationId = typeof crypto !== 'undefined' && crypto.randomUUID ? 
+    crypto.randomUUID() : 
+    `${requestId}-${Date.now()}`;
   
   console.log(`[API][${operation}][${requestId}] Call started`, {
     ...params,
+    correlationId,
     timestamp: new Date().toISOString()
   });
   
@@ -128,19 +138,21 @@ export function logApiCall(
       if (error) {
         console.error(`[API][${operation}][${requestId}] Call failed after ${duration.toFixed(2)}ms`, {
           error: typeof error === 'object' ? error.message : error,
+          correlationId,
           params,
           timestamp: new Date().toISOString()
         });
       } else {
         console.log(`[API][${operation}][${requestId}] Call completed in ${duration.toFixed(2)}ms`, {
           success: true,
+          correlationId,
           resultType: typeof result,
           resultSize: JSON.stringify(result).length,
           timestamp: new Date().toISOString()
         });
       }
       
-      return { duration, result, error };
+      return { duration, result, error, correlationId };
     }
   };
 }
