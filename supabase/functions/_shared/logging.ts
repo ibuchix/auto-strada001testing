@@ -80,7 +80,7 @@ export function logRequest(
   method: string,
   path: string,
   body?: any
-): { complete: (status: number, responseSize: number = 0) => void } {
+): { complete: (status: number, responseSize?: number) => void } {
   const startTime = performance.now();
   
   logOperation('request_received', {
@@ -93,7 +93,7 @@ export function logRequest(
   });
   
   return {
-    complete: (status: number, responseSize: number = 0) => {
+    complete: (status: number, responseSize = 0) => {
       const endTime = performance.now();
       const duration = endTime - startTime;
       
