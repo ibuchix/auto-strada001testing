@@ -1,18 +1,16 @@
+
 /**
  * Updated FormSections component
- * - Added proper typings for props
- * - Fixed type issues with form prop
+ * - Updated to use FormDataContext
+ * - Removed direct form prop dependency
  */
 import { memo } from "react";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { useFormData } from "./context/FormDataContext";
 
-interface FormSectionsProps {
-  form: UseFormReturn<CarListingFormData>;
-  // Add any other props needed
-}
-
-export const FormSections = memo(({ form }: FormSectionsProps) => {
+export const FormSections = memo(() => {
+  // Get form from context instead of props
+  const { form } = useFormData();
+  
   return (
     <div className="form-sections">
       {/* Form section content goes here */}

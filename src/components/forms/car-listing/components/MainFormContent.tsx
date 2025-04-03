@@ -3,11 +3,10 @@
  * Main Form Content component
  * - Extracted from FormContent.tsx to separate the main form rendering logic
  * - Updated 2025-04-02: Fixed form context usage to prevent undefined form errors
+ * - Updated 2025-04-03: Fixed props passing to work with FormDataProvider
  */
 import { memo } from "react";
 import { StepForm } from "../StepForm";
-import { FormNavigationControls } from "../FormNavigationControls";
-import { FormFooter } from "../FormFooter";
 import { useFormData } from "../context/FormDataContext";
 
 interface MainFormContentProps {
@@ -39,7 +38,7 @@ export const MainFormContent = memo(({
   onSaveAndContinue,
   onSave
 }: MainFormContentProps) => {
-  // Get form from context instead of expecting it as a prop
+  // Get form from context
   const { form } = useFormData();
   
   return (
@@ -55,7 +54,7 @@ export const MainFormContent = memo(({
       )}
       
       <StepForm 
-        form={form} // Pass form from context
+        form={form}
         currentStep={currentStep}
         setCurrentStep={setCurrentStep}
         carId={carId}

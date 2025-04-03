@@ -3,6 +3,7 @@
  * Form Data Context
  * - Provides form data and methods throughout the form components
  * - Resolves TypeScript errors with form prop passing
+ * - Updated to expose common form methods directly for easier access
  */
 import React, { createContext, useContext, ReactNode } from "react";
 import { UseFormReturn } from "react-hook-form";
@@ -15,6 +16,14 @@ interface FormDataContextType {
     isSubmitting: boolean;
     isValid: boolean;
   };
+  // Add direct access to common form methods
+  control: UseFormReturn<CarListingFormData>["control"];
+  watch: UseFormReturn<CarListingFormData>["watch"];
+  setValue: UseFormReturn<CarListingFormData>["setValue"];
+  getValues: UseFormReturn<CarListingFormData>["getValues"];
+  trigger: UseFormReturn<CarListingFormData>["trigger"];
+  clearErrors: UseFormReturn<CarListingFormData>["clearErrors"];
+  setError: UseFormReturn<CarListingFormData>["setError"];
 }
 
 const FormDataContext = createContext<FormDataContextType | undefined>(undefined);
@@ -30,7 +39,15 @@ export const FormDataProvider = ({
     <FormDataContext.Provider
       value={{
         form,
-        formState: form.formState
+        formState: form.formState,
+        // Expose form methods directly
+        control: form.control,
+        watch: form.watch.bind(form),
+        setValue: form.setValue.bind(form),
+        getValues: form.getValues.bind(form),
+        trigger: form.trigger.bind(form),
+        clearErrors: form.clearErrors.bind(form),
+        setError: form.setError.bind(form),
       }}
     >
       {children}

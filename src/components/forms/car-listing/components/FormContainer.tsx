@@ -3,12 +3,9 @@
  * Form Container component
  * - Handles displaying the appropriate components for the current step
  * - Updated to support consolidated multi-step steps
- * - Fixed TypeScript error by accessing form from context instead of props
+ * - Uses FormDataContext instead of direct form prop
  */
 import { memo, useMemo } from "react";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
-import { FormSections } from "../FormSections";
 import { formSteps } from "../constants/formSteps";
 import { VehicleDetailsSection } from "../sections/VehicleDetailsSection";
 import { PhotoUploadSection } from "../PhotoUploadSection";
@@ -55,19 +52,19 @@ export const FormContainer = memo(({
   
   // Map of component renderers by section ID
   const sectionRenderers = useMemo(() => ({
-    'vehicle-details': () => <VehicleDetailsSection form={form} />,
-    'photos': () => <PhotoUploadSection form={form} carId={carId} />,
-    'rims': () => <RimPhotosSection form={form} carId={carId} />,
-    'vehicle-status': () => <VehicleStatusSection form={form} />,
-    'features': () => <FeaturesSection form={form} />,
-    'damage': () => <DamageSection form={form} />,
-    'warning-lights': () => <WarningLightsSection form={form} carId={carId} />,
-    'service-history': () => <ServiceHistorySection form={form} carId={carId} />,
-    'additional-info': () => <AdditionalInfoSection form={form} />,
-    'personal-details': () => <PersonalDetailsSection form={form} />,
-    'finance-details': () => <FinanceDetailsSection form={form} />,
-    'seller-notes': () => <SellerNotesSection form={form} />
-  }), [form, carId]);
+    'vehicle-details': () => <VehicleDetailsSection />,
+    'photos': () => <PhotoUploadSection carId={carId} />,
+    'rims': () => <RimPhotosSection carId={carId} />,
+    'vehicle-status': () => <VehicleStatusSection />,
+    'features': () => <FeaturesSection />,
+    'damage': () => <DamageSection />,
+    'warning-lights': () => <WarningLightsSection carId={carId} />,
+    'service-history': () => <ServiceHistorySection carId={carId} />,
+    'additional-info': () => <AdditionalInfoSection />,
+    'personal-details': () => <PersonalDetailsSection />,
+    'finance-details': () => <FinanceDetailsSection />,
+    'seller-notes': () => <SellerNotesSection />
+  }), [carId]);
   
   // Based on the current step's sections, render the appropriate components
   const renderSections = () => {

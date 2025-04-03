@@ -10,6 +10,7 @@ import { FormFooter } from "./FormFooter";
 import { FormContainer } from "./components/FormContainer";
 import { useCompletionPercentage } from "./hooks/useCompletionPercentage";
 import { FormErrorSection } from "./components/FormErrorSection";
+import { FormDataProvider } from "./context/FormDataContext";
 
 interface StepFormProps {
   form: UseFormReturn<CarListingFormData>;
@@ -150,28 +151,30 @@ export const StepForm = ({
       {/* Display validation errors */}
       <FormErrorSection validationErrors={stepValidationErrors} />
       
-      <FormContainer 
-        form={form}
-        currentStep={currentStep}
-        onNext={handleNextWrapper}
-        onPrevious={handlePreviousWrapper}
-        isFirstStep={isFirstStep}
-        isLastStep={isLastStep}
-        navigationDisabled={navigationDisabled}
-        isSaving={isSaving}
-        carId={carId}
-        userId={form.watch("seller_id") as string}
-      />
+      {/* Wrap the content with FormDataProvider to provide form context to all children */}
+      <FormDataProvider form={form}>
+        <FormContainer 
+          currentStep={currentStep}
+          onNext={handleNextWrapper}
+          onPrevious={handlePreviousWrapper}
+          isFirstStep={isFirstStep}
+          isLastStep={isLastStep}
+          navigationDisabled={navigationDisabled}
+          isSaving={isSaving}
+          carId={carId}
+          userId={form.watch("seller_id") as string}
+        />
       
-      <FormNavigationControls
-        isFirstStep={isFirstStep}
-        isLastStep={isLastStep}
-        onPrevious={handlePreviousWrapper}
-        onNext={handleNextWrapper}
-        isNavigating={navigationDisabled || isSaving}
-        onSave={saveProgressWrapper}
-        carId={carId}
-      />
+        <FormNavigationControls
+          isFirstStep={isFirstStep}
+          isLastStep={isLastStep}
+          onPrevious={handlePreviousWrapper}
+          onNext={handleNextWrapper}
+          isNavigating={navigationDisabled || isSaving}
+          onSave={saveProgressWrapper}
+          carId={carId}
+        />
+      </FormDataProvider>
       
       <FormFooter
         lastSaved={lastSaved}

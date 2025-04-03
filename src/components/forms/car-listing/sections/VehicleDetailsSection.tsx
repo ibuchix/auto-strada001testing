@@ -1,9 +1,8 @@
 
 /**
  * Changes made:
- * - 2025-08-19: Created new component using FormDataProvider
- * - 2025-11-21: Fixed use of context methods (control, watch, setValue)
- * - This component demonstrates how to use the useFormData hook
+ * - Updated to use the useFormData hook correctly with the exposed methods
+ * - This component demonstrates how to use the useFormData hook methods directly
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -16,7 +15,7 @@ import { toast } from "sonner";
 
 export const VehicleDetailsSection = () => {
   const [isLoading, setIsLoading] = useState(false);
-  // Use the form context directly with properly exposed methods
+  // Use the form context with directly exposed methods
   const { control, watch, setValue } = useFormData();
   
   // Example of watching specific form values

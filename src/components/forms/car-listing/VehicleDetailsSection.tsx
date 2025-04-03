@@ -1,9 +1,8 @@
 
 /**
  * Changes made:
- * - Updated to use the useVehicleDetailsSection custom hook
- * - Simplified component with extracted logic
- * - Improved code organization and readability
+ * - Updated to use the useFormData custom hook
+ * - Simplified component by removing direct form dependency
  */
 
 import { useState } from "react";
@@ -12,17 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useVehicleDetailsSection } from "./hooks/useVehicleDetailsSection";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
 import { FormSection } from "./FormSection";
 import { Search } from "lucide-react";
+import { useFormData } from "./context/FormDataContext";
 
-interface VehicleDetailsSectionProps {
-  form: UseFormReturn<CarListingFormData>;
-}
-
-export const VehicleDetailsSection = ({ form }: VehicleDetailsSectionProps) => {
+export const VehicleDetailsSection = () => {
   const [vinValue, setVinValue] = useState("");
+  const { form } = useFormData();
   
   const {
     isLoading,
