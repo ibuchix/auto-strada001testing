@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-04-02: Fixed incomplete hook implementation that was causing React Error #310 (infinite loop)

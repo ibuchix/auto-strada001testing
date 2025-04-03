@@ -2,7 +2,7 @@
 /**
  * Enhanced with detailed debug logging
  */
-import { logOperation } from './_shared/logging.ts';
+import { logOperation } from '../_shared/logging.ts';
 import md5 from 'https://esm.sh/js-md5@0.8.3';
 
 interface ValuationResult {
