@@ -3,9 +3,11 @@
  * Promise Tracking Hook
  * Tracks the status of promises to help with debugging
  * Created: 2025-04-05
+ * Updated: 2025-04-06 - Enhanced with better timeout handling and error recovery
  */
 
 import { useState, useRef, useCallback } from "react";
+import { TimeoutDurations } from "@/utils/timeoutUtils";
 
 interface PromiseTrackRecord {
   id: string;
@@ -14,16 +16,43 @@ interface PromiseTrackRecord {
   endTime?: number;
   status: 'pending' | 'resolved' | 'rejected';
   error?: any;
+  duration?: number;
 }
 
 export const usePromiseTracking = (trackerName: string = 'default') => {
   const [promises, setPromises] = useState<Record<string, PromiseTrackRecord>>({});
   const instanceId = useRef(Math.random().toString(36).substring(2, 8)).current;
   
-  // Track a promise
+  // Clean up old promises automatically to prevent memory leaks
+  const cleanupOldPromises = useCallback(() => {
+    const now = performance.now();
+    const CLEANUP_THRESHOLD = 60000; // 60 seconds
+    
+    setPromises(prev => {
+      const newPromises = { ...prev };
+      let cleanedCount = 0;
+      
+      Object.entries(newPromises).forEach(([id, promise]) => {
+        // Remove completed promises older than threshold
+        if (promise.endTime && (now - promise.endTime > CLEANUP_THRESHOLD)) {
+          delete newPromises[id];
+          cleanedCount++;
+        }
+      });
+      
+      if (cleanedCount > 0) {
+        console.log(`[PromiseTracker][${instanceId}][${trackerName}] Cleaned up ${cleanedCount} old promises`);
+      }
+      
+      return newPromises;
+    });
+  }, [instanceId, trackerName]);
+  
+  // Track a promise with timeout protection
   const trackPromise = useCallback(<T>(
     promiseFunc: () => Promise<T>,
-    name: string
+    name: string,
+    timeoutMs: number = TimeoutDurations.MEDIUM
   ): Promise<T> => {
     const id = Math.random().toString(36).substring(2, 10);
     const startTime = performance.now();
@@ -46,8 +75,22 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
       [id]: trackRecord
     }));
     
-    // Execute the promise
-    return promiseFunc()
+    // Clean up old promises
+    cleanupOldPromises();
+    
+    // Create a timeout promise
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        const timeoutError = new Error(`Promise "${name}" timed out after ${timeoutMs}ms`);
+        reject(timeoutError);
+      }, timeoutMs);
+    });
+    
+    // Execute the promise with timeout protection
+    return Promise.race([
+      promiseFunc(),
+      timeoutPromise
+    ])
       .then(result => {
         const endTime = performance.now();
         const duration = endTime - startTime;
@@ -58,7 +101,8 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
           [id]: {
             ...prev[id],
             endTime,
-            status: 'resolved'
+            status: 'resolved',
+            duration
           }
         }));
         
@@ -72,6 +116,9 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
         const endTime = performance.now();
         const duration = endTime - startTime;
         
+        // Determine if this was a timeout error
+        const isTimeoutError = error.message && error.message.includes('timed out after');
+        
         // Update record on rejection
         setPromises(prev => ({
           ...prev,
@@ -79,18 +126,27 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
             ...prev[id],
             endTime,
             status: 'rejected',
-            error
+            error,
+            duration
           }
         }));
         
-        console.error(`[PromiseTracker][${instanceId}][${trackerName}] Rejected "${name}" (${id}) in ${duration.toFixed(2)}ms:`, {
-          error,
-          timestamp: new Date().toISOString()
-        });
+        // Special handling for timeout errors
+        if (isTimeoutError) {
+          console.error(`[PromiseTracker][${instanceId}][${trackerName}] TIMEOUT "${name}" (${id}) after ${duration.toFixed(2)}ms:`, {
+            error,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          console.error(`[PromiseTracker][${instanceId}][${trackerName}] Rejected "${name}" (${id}) in ${duration.toFixed(2)}ms:`, {
+            error,
+            timestamp: new Date().toISOString()
+          });
+        }
         
         throw error;
       });
-  }, [instanceId, trackerName]);
+  }, [instanceId, trackerName, cleanupOldPromises]);
   
   // Get all pending promises
   const getPendingPromises = useCallback(() => {
@@ -100,6 +156,11 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
   // Get all completed promises (resolved or rejected)
   const getCompletedPromises = useCallback(() => {
     return Object.values(promises).filter(p => p.status !== 'pending');
+  }, [promises]);
+  
+  // Get all failed promises
+  const getFailedPromises = useCallback(() => {
+    return Object.values(promises).filter(p => p.status === 'rejected');
   }, [promises]);
   
   // Clear completed promises from tracking
@@ -120,7 +181,9 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
     promises,
     getPendingPromises,
     getCompletedPromises,
+    getFailedPromises,
     clearCompletedPromises,
-    hasPendingPromises: Object.values(promises).some(p => p.status === 'pending')
+    hasPendingPromises: Object.values(promises).some(p => p.status === 'pending'),
+    hasFailedPromises: Object.values(promises).some(p => p.status === 'rejected')
   };
 };

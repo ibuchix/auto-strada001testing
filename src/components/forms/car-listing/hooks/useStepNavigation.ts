@@ -15,6 +15,7 @@
  * - 2028-11-16: Fixed issue with Next button not working by ensuring proper validation flow
  * - 2024-06-25: Improved component communication with better state management
  * - 2025-04-05: Enhanced logging for navigation debugging and fixed race conditions
+ * - 2025-04-06: Fixed navigation lock with improved reset mechanism and timeout protection
  */
 
 import { useCallback, useEffect, useRef } from "react";
@@ -24,6 +25,8 @@ import { toast } from "sonner";
 import { useStepState } from "./useStepState";
 import { useStepValidation, STEP_FIELD_MAPPINGS } from "./useStepValidation";
 import { useStepProgress } from "./useStepProgress";
+import { usePromiseTracking } from "./usePromiseTracking";
+import { TimeoutDurations } from "@/utils/timeoutUtils";
 
 interface StepConfig {
   id: string;
@@ -84,42 +87,103 @@ export const useStepNavigation = ({
     clearValidationErrors
   });
   
-  // Use a ref to track if a navigation is in progress to prevent race conditions
-  const navigationInProgress = useRef(false);
+  // Use promise tracking for navigation operations
+  const { trackPromise } = usePromiseTracking('stepNavigation');
   
-  // Timeout ref to enforce navigation timeout safety
-  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Use a ref to track if a navigation is in progress to prevent race conditions
+  // Instead of just a boolean, store an object with timestamp and request ID for better debugging
+  const navigationInProgress = useRef<{
+    active: boolean;
+    timestamp: number;
+    requestId: string;
+    timeoutId?: NodeJS.Timeout;
+  }>({
+    active: false,
+    timestamp: 0,
+    requestId: ''
+  });
+  
+  // Function to safely reset navigation lock with logging
+  const resetNavigationLock = useCallback((requestId: string, reason: string) => {
+    const wasActive = navigationInProgress.current.active;
+    const duration = navigationInProgress.current.timestamp 
+      ? Date.now() - navigationInProgress.current.timestamp 
+      : 0;
+    
+    // Clear any existing timeout first
+    if (navigationInProgress.current.timeoutId) {
+      clearTimeout(navigationInProgress.current.timeoutId);
+    }
+    
+    // Reset the navigation lock
+    navigationInProgress.current = {
+      active: false,
+      timestamp: 0,
+      requestId: ''
+    };
+    
+    // Only log if we actually cleared an active lock
+    if (wasActive) {
+      console.log(`[StepNavigation][${instanceId}] Reset navigation lock:`, {
+        requestId,
+        reason,
+        wasLocked: wasActive,
+        durationMs: duration,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Always ensure UI navigation state is reset
+    setNavigating(false);
+  }, [instanceId, setNavigating]);
   
   // Reset navigation state in case of stuck state
   useEffect(() => {
     // Safety check to reset navigation state if stuck
     const safetyInterval = setInterval(() => {
-      if (navigationInProgress.current) {
-        const timeElapsed = Date.now() - (navigationInProgress.current as any);
-        if (timeElapsed > 10000) { // 10 seconds
-          console.warn(`[StepNavigation][${instanceId}] Navigation state stuck for ${timeElapsed}ms, resetting`);
-          navigationInProgress.current = false;
-          setNavigating(false);
+      if (navigationInProgress.current.active) {
+        const timeElapsed = Date.now() - navigationInProgress.current.timestamp;
+        if (timeElapsed > TimeoutDurations.MEDIUM) { // 10 seconds
+          console.warn(`[StepNavigation][${instanceId}] Navigation state stuck for ${timeElapsed}ms, forcibly resetting`, {
+            requestId: navigationInProgress.current.requestId,
+            startedAt: new Date(navigationInProgress.current.timestamp).toISOString(),
+            currentTime: new Date().toISOString()
+          });
+          
+          // Force reset the navigation lock
+          resetNavigationLock(navigationInProgress.current.requestId, 'timeout-watchdog');
+          
+          // Show a toast to inform the user
+          toast.error("Navigation timed out", {
+            description: "Please try again",
+            id: "navigation-timeout-error"
+          });
         }
       }
     }, 5000); // Check every 5 seconds
     
-    return () => clearInterval(safetyInterval);
-  }, [instanceId, setNavigating]);
-  
-  // Clear any lingering timeouts when component unmounts
-  useEffect(() => {
     return () => {
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current);
+      clearInterval(safetyInterval);
+      
+      // Ensure we clear any active navigation lock on unmount
+      if (navigationInProgress.current.active) {
+        resetNavigationLock('unmount', 'component-unmounted');
       }
     };
-  }, []);
+  }, [instanceId, resetNavigationLock]);
   
   // Navigate to a specific step
   const setCurrentStep = useCallback(async (step: number) => {
-    const navStartTime = performance.now();
     const navRequestId = Math.random().toString(36).substring(2, 8);
+    const navStartTime = performance.now();
+    
+    console.log(`[StepNavigation][${instanceId}][${navRequestId}] setCurrentStep called:`, {
+      requestedStep: step,
+      currentStep,
+      isNavigating,
+      navigationLockActive: navigationInProgress.current.active,
+      timestamp: new Date().toISOString()
+    });
     
     // Prevent invalid steps
     if (step < 0 || step >= totalSteps) {
@@ -128,52 +192,69 @@ export const useStepNavigation = ({
     }
     
     // Prevent navigation while already navigating
-    if (isNavigating || navigationInProgress.current) {
-      console.warn(`[StepNavigation][${instanceId}][${navRequestId}] Navigation already in progress, please wait`);
-      toast.info("Please wait", { description: "Navigation already in progress" });
+    if (isNavigating || navigationInProgress.current.active) {
+      console.warn(`[StepNavigation][${instanceId}][${navRequestId}] Navigation already in progress, please wait`, {
+        existingRequestId: navigationInProgress.current.requestId,
+        existingTimestamp: navigationInProgress.current.timestamp > 0 
+          ? new Date(navigationInProgress.current.timestamp).toISOString()
+          : 'none'
+      });
+      
+      toast.info("Please wait", { 
+        description: "Navigation already in progress",
+        id: "navigation-in-progress"
+      });
       return;
     }
     
-    console.log(`[StepNavigation][${instanceId}][${navRequestId}] Starting navigation from step ${currentStep} to ${step}`);
+    // Set navigation flags to prevent double-navigation with enhanced tracking
+    navigationInProgress.current = {
+      active: true,
+      timestamp: Date.now(),
+      requestId: navRequestId
+    };
     
-    // Set navigation flags to prevent double-navigation
-    navigationInProgress.current = Date.now() as any;
+    // Set UI state
     setNavigating(true);
     
-    // Set a timeout to forcibly reset navigation state if it gets stuck
-    if (navigationTimeoutRef.current) {
-      clearTimeout(navigationTimeoutRef.current);
-    }
+    console.log(`[StepNavigation][${instanceId}][${navRequestId}] Starting navigation from step ${currentStep} to ${step}`);
     
-    navigationTimeoutRef.current = setTimeout(() => {
-      if (navigationInProgress.current) {
+    // Set a timeout to forcibly reset navigation state if it gets stuck
+    navigationInProgress.current.timeoutId = setTimeout(() => {
+      if (navigationInProgress.current.active && navigationInProgress.current.requestId === navRequestId) {
         console.error(`[StepNavigation][${instanceId}][${navRequestId}] Navigation timeout reached, forcing reset`);
-        navigationInProgress.current = false;
-        setNavigating(false);
+        resetNavigationLock(navRequestId, 'timeout-reached');
+        
         toast.error("Navigation timed out", {
-          description: "Please try again"
+          description: "Please try again",
+          id: "navigation-timeout"
         });
       }
-    }, 10000); // 10 second timeout
+    }, TimeoutDurations.MEDIUM); // 10 second timeout
     
     try {
       // For back navigation, we don't need to validate
       if (step < currentStep) {
         console.log(`[StepNavigation][${instanceId}][${navRequestId}] Back navigation from ${currentStep} to ${step}, skipping validation`);
         
-        try {
-          await saveCurrentProgress();
-          console.log(`[StepNavigation][${instanceId}][${navRequestId}] Successfully saved progress during back navigation`);
-        } catch (saveError) {
-          console.error(`[StepNavigation][${instanceId}][${navRequestId}] Error saving progress during back navigation:`, saveError);
-          // Continue anyway - back navigation should work even if save fails
-        }
+        // Track the save progress promise
+        await trackPromise(
+          async () => {
+            try {
+              await saveCurrentProgress();
+              console.log(`[StepNavigation][${instanceId}][${navRequestId}] Successfully saved progress during back navigation`);
+            } catch (saveError) {
+              console.error(`[StepNavigation][${instanceId}][${navRequestId}] Error saving progress during back navigation:`, saveError);
+              // Continue anyway - back navigation should work even if save fails
+            }
+          },
+          'saveProgressBackNav'
+        );
         
         markStepComplete(currentStep);
         setStepState(step);
         
         console.log(`[StepNavigation][${instanceId}][${navRequestId}] Back navigation completed successfully in ${(performance.now() - navStartTime).toFixed(2)}ms`);
-        navigationInProgress.current = false;
         return;
       }
       
@@ -182,7 +263,12 @@ export const useStepNavigation = ({
       
       let isValidStep = false;
       try {
-        isValidStep = await validateCurrentStep();
+        // Track the validation promise
+        isValidStep = await trackPromise(
+          () => validateCurrentStep(),
+          'validateStep'
+        );
+        
         console.log(`[StepNavigation][${instanceId}][${navRequestId}] Validation result:`, { isValidStep });
       } catch (validationError) {
         console.error(`[StepNavigation][${instanceId}][${navRequestId}] Validation error:`, validationError);
@@ -193,7 +279,13 @@ export const useStepNavigation = ({
         // Save progress
         try {
           console.log(`[StepNavigation][${instanceId}][${navRequestId}] Saving progress before navigation`);
-          await saveCurrentProgress();
+          
+          // Track the save progress promise
+          await trackPromise(
+            () => saveCurrentProgress(),
+            'saveProgressForwardNav'
+          );
+          
           console.log(`[StepNavigation][${instanceId}][${navRequestId}] Successfully saved progress`);
         } catch (saveError) {
           console.error(`[StepNavigation][${instanceId}][${navRequestId}] Error saving progress:`, saveError);
@@ -214,27 +306,41 @@ export const useStepNavigation = ({
         const errorFieldNames = Object.keys(form.formState.errors);
         console.log(`[StepNavigation][${instanceId}][${navRequestId}] Fields with errors:`, errorFieldNames);
         
-        toast.error("Please fix errors before continuing", {
-          id: "validation-error",
-          duration: 3000
-        });
+        // Map field names to step fields for better error messaging
+        const currentStepId = filteredSteps[currentStep]?.id;
+        const fieldsInCurrentStep = currentStepId ? STEP_FIELD_MAPPINGS[currentStepId] || [] : [];
+        
+        // Find errors specifically in the current step's fields
+        const currentStepErrors = errorFieldNames.filter(field => 
+          fieldsInCurrentStep.includes(field)
+        );
+        
+        // Show more specific toast message based on field errors
+        if (currentStepErrors.length > 0) {
+          toast.error(`Please fix errors in: ${currentStepErrors.join(', ')}`, {
+            id: "validation-error",
+            duration: 5000
+          });
+        } else {
+          toast.error("Please fix form errors before continuing", {
+            id: "validation-error-generic",
+            duration: 3000
+          });
+        }
       }
     } catch (error) {
       console.error(`[StepNavigation][${instanceId}][${navRequestId}] Navigation error:`, error);
       toast.error("An error occurred during navigation", {
-        description: error instanceof Error ? error.message : "Unknown error"
+        description: error instanceof Error ? error.message : "Unknown error",
+        id: "navigation-error"
       });
     } finally {
-      // Always clean up navigation state
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current);
-        navigationTimeoutRef.current = null;
-      }
+      // This must ALWAYS execute to prevent stuck navigation state
+      const navEndTime = performance.now();
+      console.log(`[StepNavigation][${instanceId}][${navRequestId}] Navigation attempt finished in ${(navEndTime - navStartTime).toFixed(2)}ms`);
       
-      navigationInProgress.current = false;
-      setNavigating(false);
-      
-      console.log(`[StepNavigation][${instanceId}][${navRequestId}] Navigation attempt finished in ${(performance.now() - navStartTime).toFixed(2)}ms`);
+      // Always reset the navigation lock at the end
+      resetNavigationLock(navRequestId, 'operation-complete');
     }
   }, [
     totalSteps, 
@@ -246,7 +352,10 @@ export const useStepNavigation = ({
     setNavigating,
     currentStep,
     instanceId,
-    form.formState.errors
+    form.formState.errors,
+    filteredSteps,
+    resetNavigationLock,
+    trackPromise
   ]);
 
   // Navigate to next step
@@ -308,7 +417,7 @@ export const useStepNavigation = ({
     stepValidationErrors,
     handleNext,
     handlePrevious,
-    navigationDisabled: isNavigating || navigationInProgress.current
+    navigationDisabled: isNavigating || navigationInProgress.current.active
   };
 };
 

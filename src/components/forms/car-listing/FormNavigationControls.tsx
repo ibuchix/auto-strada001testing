@@ -8,13 +8,16 @@
  * - 2028-03-28: Fixed navigation button handling to prevent errors and provide better feedback
  * - 2028-11-16: Fixed Next button functionality by improving error handling and event flow
  * - 2025-04-05: Added extensive logging for debugging navigation issues
+ * - 2025-04-06: Fixed navigation lock issues with improved error handling and button state management
  */
 
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { SaveAndContinueButton } from "./SaveAndContinueButton";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { usePromiseTracking } from "./hooks/usePromiseTracking";
+import { TimeoutDurations } from "@/utils/timeoutUtils";
 
 interface FormNavigationControlsProps {
   isFirstStep: boolean;
@@ -38,7 +41,19 @@ export const FormNavigationControls = ({
   const [isNextActive, setIsNextActive] = useState(false);
   const [isPrevActive, setIsPrevActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const requestId = Math.random().toString(36).substring(2, 8);
+  const requestId = useRef(Math.random().toString(36).substring(2, 8)).current;
+  
+  // Use promise tracking hook to monitor navigation promises
+  const { trackPromise } = usePromiseTracking('navigationControls');
+  
+  // Track button clicks to prevent double-clicking
+  const buttonClickTimestamps = useRef<Record<string, number>>({
+    next: 0,
+    previous: 0
+  });
+  
+  // Process state timeouts for safety
+  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Animation effect when navigating
   useEffect(() => {
@@ -56,12 +71,42 @@ export const FormNavigationControls = ({
     }
   }, [isNavigating]);
 
+  // Reset processing state after timeout to prevent UI getting stuck
+  useEffect(() => {
+    if (isProcessing) {
+      processingTimeoutRef.current = setTimeout(() => {
+        console.log(`[NavControls][${requestId}] Forcing reset of processing state after timeout`);
+        setIsProcessing(false);
+      }, TimeoutDurations.MEDIUM); // 10 seconds max processing time
+    }
+    
+    return () => {
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
+    };
+  }, [isProcessing, requestId]);
+  
   // Handle next button click with enhanced logging and error handling
   const handleNextClick = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent default form submission
     
+    // Generate unique ID for this click
+    const clickId = Math.random().toString(36).substring(2, 6);
     const clickTimestamp = new Date().toISOString();
-    console.log(`[NavControls][${requestId}] Next button clicked at ${clickTimestamp}, current states:`, {
+    
+    // Throttle clicks - prevent multiple clicks within 1 second
+    const now = Date.now();
+    if (now - buttonClickTimestamps.current.next < 1000) {
+      console.log(`[NavControls][${requestId}] Next button clicked too quickly, ignoring`);
+      return;
+    }
+    
+    // Update click timestamp
+    buttonClickTimestamps.current.next = now;
+    
+    console.log(`[NavControls][${requestId}][${clickId}] Next button clicked at ${clickTimestamp}, current states:`, {
       isProcessing,
       isNavigating,
       isNextActive,
@@ -69,45 +114,40 @@ export const FormNavigationControls = ({
     });
     
     if (isProcessing || isNavigating) {
-      console.log(`[NavControls][${requestId}] Navigation already in progress, ignoring click`);
+      console.log(`[NavControls][${requestId}][${clickId}] Navigation already in progress, ignoring click`);
       toast.info("Please wait...", { description: "Navigation already in progress" });
       return;
     }
     
     try {
-      console.log(`[NavControls][${requestId}] Starting next navigation, setting isProcessing to true`);
+      console.log(`[NavControls][${requestId}][${clickId}] Starting next navigation, setting isProcessing to true`);
       setIsProcessing(true);
       
       const startTime = performance.now();
       
-      // Add a timeout safety net
-      const timeoutPromise = new Promise<void>((_, reject) => {
-        setTimeout(() => reject(new Error("Navigation timeout")), 10000);
-      });
-      
-      // Try to navigate with timeout protection
-      await Promise.race([
-        onNext(),
-        timeoutPromise
-      ]);
+      // Use trackPromise to better monitor the navigation promise
+      await trackPromise(
+        () => onNext(),
+        `nextNavigation-${clickId}`
+      );
       
       const endTime = performance.now();
-      console.log(`[NavControls][${requestId}] Navigation completed successfully in ${(endTime-startTime).toFixed(2)}ms`);
+      console.log(`[NavControls][${requestId}][${clickId}] Navigation completed successfully in ${(endTime-startTime).toFixed(2)}ms`);
     } catch (error) {
-      console.error(`[NavControls][${requestId}] Error navigating to next step:`, error);
+      console.error(`[NavControls][${requestId}][${clickId}] Error navigating to next step:`, error);
       
       // Show user-friendly error message
       toast.error("Navigation failed", { 
         description: error instanceof Error ? error.message : "Please try again" 
       });
-      
-      // Force reset the navigation state after error
-      setTimeout(() => {
-        console.log(`[NavControls][${requestId}] Forcibly resetting navigation state after error`);
-        setIsProcessing(false);
-      }, 500);
     } finally {
-      console.log(`[NavControls][${requestId}] Navigation attempt completed, resetting isProcessing`);
+      // Clear any processing timeout
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
+      
+      console.log(`[NavControls][${requestId}][${clickId}] Navigation attempt completed, resetting isProcessing`);
       setIsProcessing(false);
     }
   };
@@ -116,8 +156,21 @@ export const FormNavigationControls = ({
   const handlePreviousClick = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent default form submission
     
+    // Generate unique ID for this click
+    const clickId = Math.random().toString(36).substring(2, 6);
     const clickTimestamp = new Date().toISOString();
-    console.log(`[NavControls][${requestId}] Previous button clicked at ${clickTimestamp}, current states:`, {
+    
+    // Throttle clicks - prevent multiple clicks within 1 second
+    const now = Date.now();
+    if (now - buttonClickTimestamps.current.previous < 1000) {
+      console.log(`[NavControls][${requestId}] Previous button clicked too quickly, ignoring`);
+      return;
+    }
+    
+    // Update click timestamp
+    buttonClickTimestamps.current.previous = now;
+    
+    console.log(`[NavControls][${requestId}][${clickId}] Previous button clicked at ${clickTimestamp}, current states:`, {
       isProcessing,
       isNavigating,
       isPrevActive,
@@ -125,27 +178,39 @@ export const FormNavigationControls = ({
     });
     
     if (isProcessing || isNavigating) {
-      console.log(`[NavControls][${requestId}] Navigation already in progress, ignoring click`);
+      console.log(`[NavControls][${requestId}][${clickId}] Navigation already in progress, ignoring click`);
       toast.info("Please wait...", { description: "Navigation already in progress" });
       return;
     }
     
     try {
-      console.log(`[NavControls][${requestId}] Starting previous navigation, setting isProcessing to true`);
+      console.log(`[NavControls][${requestId}][${clickId}] Starting previous navigation, setting isProcessing to true`);
       setIsProcessing(true);
       
       const startTime = performance.now();
-      await onPrevious();
+      
+      // Use trackPromise for better monitoring
+      await trackPromise(
+        () => onPrevious(),
+        `prevNavigation-${clickId}`
+      );
+      
       const endTime = performance.now();
       
-      console.log(`[NavControls][${requestId}] Previous navigation completed successfully in ${(endTime-startTime).toFixed(2)}ms`);
+      console.log(`[NavControls][${requestId}][${clickId}] Previous navigation completed successfully in ${(endTime-startTime).toFixed(2)}ms`);
     } catch (error) {
-      console.error(`[NavControls][${requestId}] Error navigating to previous step:`, error);
+      console.error(`[NavControls][${requestId}][${clickId}] Error navigating to previous step:`, error);
       toast.error("Navigation failed", { 
         description: "Could not go back to previous step" 
       });
     } finally {
-      console.log(`[NavControls][${requestId}] Previous navigation attempt completed, resetting isProcessing`);
+      // Clear any processing timeout
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
+      
+      console.log(`[NavControls][${requestId}][${clickId}] Previous navigation attempt completed, resetting isProcessing`);
       setIsProcessing(false);
     }
   };
@@ -182,7 +247,7 @@ export const FormNavigationControls = ({
             className={`flex items-center gap-2 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-medium px-6 group transition-all duration-300 ${isNextActive ? 'animate-fade-in' : ''}`}
             data-testid="next-button"
           >
-            Next
+            {isProcessing ? "Processing..." : "Next"}
             <ChevronRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
           </Button>
         ) : (
@@ -191,7 +256,7 @@ export const FormNavigationControls = ({
             disabled={isNavigating || isProcessing}
             className={`flex items-center gap-2 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-medium px-6 group transition-all duration-300 ${isNextActive ? 'animate-fade-in' : ''}`}
           >
-            Submit
+            {isProcessing ? "Processing..." : "Submit"}
             <ChevronRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
           </Button>
         )}
