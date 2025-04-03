@@ -5,6 +5,7 @@
  * - 2024-04-02: Added proper dependency arrays to useEffect hooks
  * - 2024-04-02: Fixed return statement to include all required properties
  * - 2024-04-03: Fixed TypeScript errors by removing unnecessary context parameter
+ * - 2024-04-03: Enhanced logging with timestamps and detailed execution information
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -22,6 +23,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
   const [retryCount, setRetryCount] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { isConnected } = useRealtime();
+  const requestIdRef = useRef<string>(Math.random().toString(36).substring(2, 10));
   
   // Setup form with validation
   const form = useForm<ValuationFormData>({
@@ -33,9 +35,30 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
     },
   });
   
+  // Log initial setup for debugging
+  useEffect(() => {
+    console.log(`[ValuationForm][${requestIdRef.current}] Initialized with context:`, {
+      context,
+      isConnected,
+      timestamp: new Date().toISOString()
+    });
+    
+    return () => {
+      console.log(`[ValuationForm][${requestIdRef.current}] Unmounting`);
+      cleanupValuationData();
+    };
+  }, [context, isConnected]);
+  
   // Handle form submission
   const handleSubmit = async (data: ValuationFormData) => {
-    console.log('Starting valuation form submission:', data);
+    const startTime = performance.now();
+    console.log(`[ValuationForm][${requestIdRef.current}] Starting valuation form submission:`, {
+      vin: data.vin,
+      mileage: data.mileage,
+      gearbox: data.gearbox,
+      context,
+      timestamp: new Date().toISOString()
+    });
     
     // Clear any existing timeout
     if (timeoutRef.current) {
@@ -47,6 +70,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
     // Set a timeout to cancel the operation if it takes too long
     timeoutRef.current = setTimeout(() => {
       setIsLoading(false);
+      console.warn(`[ValuationForm][${requestIdRef.current}] Request timed out after 20 seconds`);
       toast.error("Request timed out", {
         description: "The valuation request is taking longer than expected. Please try again.",
       });
@@ -56,10 +80,11 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
       // Parse mileage to ensure it's a number
       const mileage = parseInt(data.mileage) || 0;
       
-      console.log('Calling getValuation with parameters:', {
+      console.log(`[ValuationForm][${requestIdRef.current}] Calling getValuation with parameters:`, {
         vin: data.vin,
         mileage,
-        gearbox: data.gearbox
+        gearbox: data.gearbox,
+        timestamp: new Date().toISOString()
       });
       
       const result = await getValuation(
@@ -68,7 +93,13 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         data.gearbox
       );
 
-      console.log('Valuation result:', result);
+      console.log(`[ValuationForm][${requestIdRef.current}] Valuation result:`, {
+        success: result.success,
+        errorPresent: !!result.error,
+        dataSize: result.data ? JSON.stringify(result.data).length : 0,
+        processingTime: `${(performance.now() - startTime).toFixed(2)}ms`,
+        timestamp: new Date().toISOString()
+      });
 
       // Clear timeout since we got a response
       if (timeoutRef.current) {
@@ -82,6 +113,18 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         localStorage.setItem("tempMileage", data.mileage);
         localStorage.setItem("tempVIN", data.vin);
         localStorage.setItem("tempGearbox", data.gearbox);
+        localStorage.setItem("valuationTimestamp", new Date().toISOString());
+
+        // Log successful result with key data points
+        console.log(`[ValuationForm][${requestIdRef.current}] Successful valuation:`, {
+          make: result.data.make,
+          model: result.data.model,
+          year: result.data.year,
+          valuation: result.data.valuation || result.data.reservePrice,
+          reservePrice: result.data.reservePrice || result.data.valuation,
+          totalTime: `${(performance.now() - startTime).toFixed(2)}ms`,
+          timestamp: new Date().toISOString()
+        });
 
         // Set the result with normalized property names
         const normalizedResult = {
@@ -94,10 +137,19 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         setShowDialog(true);
         setRetryCount(0); // Reset retry counter on success
       } else {
+        console.error(`[ValuationForm][${requestIdRef.current}] Valuation failed:`, {
+          error: result.error || result.data?.error,
+          timestamp: new Date().toISOString()
+        });
         handleError(result.data?.error);
       }
     } catch (error: any) {
-      console.error("Valuation error:", error);
+      console.error(`[ValuationForm][${requestIdRef.current}] Valuation error:`, {
+        message: error.message,
+        stack: error.stack,
+        processingTime: `${(performance.now() - startTime).toFixed(2)}ms`,
+        timestamp: new Date().toISOString()
+      });
       
       // Clear timeout since we got a response
       if (timeoutRef.current) {
@@ -107,13 +159,19 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
       
       handleError(error.message || "Failed to get vehicle valuation");
     } finally {
+      const totalDuration = performance.now() - startTime;
+      console.log(`[ValuationForm][${requestIdRef.current}] Request completed in ${totalDuration.toFixed(2)}ms`);
       setIsLoading(false);
     }
   };
 
   // Handle errors with detailed feedback
   const handleError = (errorMessage?: string) => {
-    console.error('Valuation failed:', errorMessage);
+    console.error(`[ValuationForm][${requestIdRef.current}] Valuation failed:`, {
+      error: errorMessage,
+      retryCount,
+      timestamp: new Date().toISOString()
+    });
     
     // Handle specific error scenarios
     if (errorMessage?.includes('rate limit') || errorMessage?.includes('too many requests')) {
@@ -151,6 +209,10 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
     setIsLoading(false);
     setRetryCount(0);
     cleanupValuationData();
+    
+    console.log(`[ValuationForm][${requestIdRef.current}] Form reset`, {
+      timestamp: new Date().toISOString()
+    });
     
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);

@@ -6,6 +6,7 @@
  * - 2024-12-21: Optimized with memoization and better resource management
  * - 2024-04-03: Updated function signature in getValuation call to remove unnecessary context parameter
  * - 2024-04-03: Enhanced debug logging for performance tracking and troubleshooting
+ * - 2024-04-03: Added request IDs and timing information for better traceability
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
@@ -60,7 +61,8 @@ export const useValuationRequest = ({
   const handleApiError = useCallback((errorMessage?: string) => {
     console.error(`[ValuationRequest][${requestIdRef.current}] Valuation failed:`, {
       error: errorMessage,
-      processingTime: performance.now() - requestStartTimeRef.current
+      processingTime: performance.now() - requestStartTimeRef.current,
+      timestamp: new Date().toISOString()
     });
     
     // Handle specific error scenarios
@@ -90,7 +92,8 @@ export const useValuationRequest = ({
       message: error.message,
       type: error.constructor?.name,
       stack: error.stack,
-      processingTime: performance.now() - requestStartTimeRef.current
+      processingTime: performance.now() - requestStartTimeRef.current,
+      timestamp: new Date().toISOString()
     });
     
     // Clear timeout since we got a response
@@ -167,7 +170,8 @@ export const useValuationRequest = ({
       console.log(`[ValuationRequest][${requestId}] Calling getValuation with parameters:`, {
         vin: data.vin,
         mileage,
-        gearbox: data.gearbox
+        gearbox: data.gearbox,
+        timestamp: new Date().toISOString()
       });
       
       // Use withTimeout utility to handle timeout in a more structured way
@@ -218,7 +222,8 @@ export const useValuationRequest = ({
           valuation: result.data.valuation,
           reservePrice: result.data.reservePrice,
           averagePrice: result.data.averagePrice,
-          processingTime: performance.now() - startTime
+          processingTime: `${(performance.now() - startTime).toFixed(2)}ms`,
+          timestamp: new Date().toISOString()
         });
 
         // Set the result with normalized property names - ensure both valuation and reservePrice exist

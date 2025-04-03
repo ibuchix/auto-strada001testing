@@ -7,10 +7,12 @@
  * - 2025-11-10: Updated to use consolidated handle-seller-operations function
  * - 2025-12-01: Updated to use dedicated get-vehicle-valuation endpoint
  * - 2025-11-01: Fixed direct function invocation with proper error handling
+ * - 2025-04-03: Enhanced debugging with detailed logging and performance metrics
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { TransmissionType } from "../../types";
+import { generateRequestId, createPerformanceTracker } from "./utils/debug-utils";
 
 // Define response type for better type safety
 interface ValuationResponse {
@@ -36,9 +38,19 @@ export async function fetchHomeValuation(
   mileage: number,
   gearbox: TransmissionType
 ): Promise<ValuationResponse> {
-  console.log('Fetching home valuation from API for:', { vin, mileage, gearbox });
+  const requestId = generateRequestId();
+  const perfTracker = createPerformanceTracker('home_valuation_api', requestId);
+  
+  console.log(`[HomeValuationAPI][${requestId}] Fetching valuation for:`, { 
+    vin, 
+    mileage, 
+    gearbox,
+    timestamp: new Date().toISOString()
+  });
   
   try {
+    perfTracker.checkpoint('api_call_start');
+    
     // Use the direct edge function
     const { data, error } = await supabase.functions.invoke<any>(
       'handle-car-listing',
@@ -51,28 +63,82 @@ export async function fetchHomeValuation(
       }
     );
     
+    perfTracker.checkpoint('api_call_complete');
+    
     if (error) {
-      console.error('Edge function error:', error);
+      console.error(`[HomeValuationAPI][${requestId}] Edge function error:`, {
+        message: error.message,
+        name: error.name,
+        code: error.code,
+        details: error.details,
+        timestamp: new Date().toISOString()
+      });
+      
+      perfTracker.complete('failure', { 
+        errorType: 'edge_function_error',
+        message: error.message
+      });
+      
       throw new Error(`API error: ${error.message}`);
     }
     
     // Check if the data is in the expected format
     if (!data) {
-      console.error('No data returned from edge function');
+      console.error(`[HomeValuationAPI][${requestId}] No data returned from edge function`, {
+        timestamp: new Date().toISOString()
+      });
+      
+      perfTracker.complete('failure', { 
+        errorType: 'missing_data',
+        message: 'No valuation data returned'
+      });
+      
       throw new Error('No valuation data returned');
     }
     
-    console.log('Received valuation data:', data);
+    console.log(`[HomeValuationAPI][${requestId}] Received valuation data:`, {
+      make: data.make,
+      model: data.model,
+      year: data.year,
+      hasValuation: !!data.valuation,
+      hasReservePrice: !!data.reservePrice,
+      propertiesCount: Object.keys(data).length,
+      timestamp: new Date().toISOString()
+    });
     
     // Calculate reserve price if not provided
     if (data && data.valuation && !data.reservePrice) {
       data.reservePrice = calculateReservePrice(data.valuation);
-      console.log('Calculated reserve price:', data.reservePrice);
+      console.log(`[HomeValuationAPI][${requestId}] Calculated reserve price:`, { 
+        reservePrice: data.reservePrice,
+        baseValue: data.valuation,
+        timestamp: new Date().toISOString()
+      });
     }
+    
+    perfTracker.complete('success', {
+      dataReceived: true,
+      withCalculation: !!(data && data.valuation && !data.reservePrice),
+      processingTimeMs: perfTracker.checkpoint('processing_complete'),
+      timestamp: new Date().toISOString()
+    });
     
     return { data };
   } catch (error: any) {
-    console.error('Error fetching valuation:', error);
+    console.error(`[HomeValuationAPI][${requestId}] Error fetching valuation:`, {
+      message: error.message,
+      stack: error.stack,
+      vin,
+      mileage,
+      timestamp: new Date().toISOString()
+    });
+    
+    perfTracker.complete('error', {
+      errorType: error.constructor?.name,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+    
     return { error: error instanceof Error ? error : new Error(error.message || 'Unknown error') };
   }
 }
@@ -86,9 +152,20 @@ export async function fetchSellerValuation(
   gearbox: TransmissionType,
   userId: string
 ): Promise<ValuationResponse> {
-  console.log('Fetching seller valuation from API for:', { vin, mileage, gearbox, userId });
+  const requestId = generateRequestId();
+  const perfTracker = createPerformanceTracker('seller_valuation_api', requestId);
+  
+  console.log(`[SellerValuationAPI][${requestId}] Fetching valuation for:`, { 
+    vin, 
+    mileage, 
+    gearbox, 
+    userId,
+    timestamp: new Date().toISOString()
+  });
   
   try {
+    perfTracker.checkpoint('api_call_start');
+    
     // Use the handle-seller-operations edge function
     const { data: response, error } = await supabase.functions.invoke<any>(
       'handle-seller-operations',
@@ -103,27 +180,85 @@ export async function fetchSellerValuation(
       }
     );
     
+    perfTracker.checkpoint('api_call_complete');
+    
     if (error) {
-      console.error('Edge function error:', error);
+      console.error(`[SellerValuationAPI][${requestId}] Edge function error:`, {
+        message: error.message,
+        name: error.name,
+        code: error.code,
+        details: error.details,
+        timestamp: new Date().toISOString()
+      });
+      
+      perfTracker.complete('failure', { 
+        errorType: 'edge_function_error',
+        message: error.message
+      });
+      
       throw new Error(`API error: ${error.message}`);
     }
     
     // Handle specific error format from this endpoint
     if (!response.success) {
-      console.error('API response indicates failure:', response.error);
+      console.error(`[SellerValuationAPI][${requestId}] API response indicates failure:`, {
+        error: response.error,
+        code: response.errorCode,
+        timestamp: new Date().toISOString()
+      });
+      
+      perfTracker.complete('failure', { 
+        errorType: 'api_response_failure',
+        message: response.error
+      });
+      
       throw new Error(response.error || 'Failed to validate vehicle');
     }
     
-    console.log('Received seller valuation data:', response.data);
+    console.log(`[SellerValuationAPI][${requestId}] Received seller valuation data:`, {
+      make: response.data?.make,
+      model: response.data?.model,
+      year: response.data?.year,
+      hasValuation: !!response.data?.valuation,
+      hasReservePrice: !!response.data?.reservePrice,
+      propertiesCount: response.data ? Object.keys(response.data).length : 0,
+      timestamp: new Date().toISOString()
+    });
     
     // Calculate reserve price if not provided
     if (response.data && response.data.valuation && !response.data.reservePrice) {
       response.data.reservePrice = calculateReservePrice(response.data.valuation);
+      console.log(`[SellerValuationAPI][${requestId}] Calculated reserve price:`, {
+        reservePrice: response.data.reservePrice,
+        baseValue: response.data.valuation,
+        timestamp: new Date().toISOString()
+      });
     }
+    
+    perfTracker.complete('success', { 
+      dataReceived: true,
+      withCalculation: !!(response.data && response.data.valuation && !response.data.reservePrice),
+      processingTimeMs: perfTracker.checkpoint('processing_complete'),
+      timestamp: new Date().toISOString()
+    });
     
     return { data: response.data };
   } catch (error: any) {
-    console.error('Error fetching seller valuation:', error);
+    console.error(`[SellerValuationAPI][${requestId}] Error fetching seller valuation:`, {
+      message: error.message,
+      stack: error.stack,
+      vin,
+      mileage,
+      userId,
+      timestamp: new Date().toISOString()
+    });
+    
+    perfTracker.complete('error', {
+      errorType: error.constructor?.name,
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+    
     return { error: error instanceof Error ? error : new Error(error.message || 'Unknown error') };
   }
 }

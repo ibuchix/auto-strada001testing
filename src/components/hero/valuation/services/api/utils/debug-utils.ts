@@ -1,7 +1,8 @@
 
 /**
  * Changes made:
- * - 2025-04-27: Created debugging utilities module extracted from cache-api.ts
+ * - 2025-04-03: Created debugging utilities module with enhanced logging functionality
+ * - 2025-04-03: Added detailed debug, performance tracking, and error logging capabilities
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +18,8 @@ export async function getSessionDebugInfo(): Promise<any> {
       return {
         status: 'error',
         message: error.message,
-        error: error
+        error: error,
+        timestamp: new Date().toISOString()
       };
     }
     
@@ -51,6 +53,94 @@ export function logDetailedError(error: any, context: string): void {
     details: error.details,
     hint: error.hint,
     code: error.code,
-    stackTrace: new Error().stack
+    stackTrace: new Error().stack,
+    timestamp: new Date().toISOString()
   });
+}
+
+/**
+ * Performance tracking utility for timing operations
+ */
+export function createPerformanceTracker(operation: string, requestId: string = generateRequestId()) {
+  const startTime = performance.now();
+  const checkpoints: Record<string, number> = {};
+  
+  console.log(`[${operation}][${requestId}] Started at ${new Date().toISOString()}`);
+  
+  return {
+    requestId,
+    
+    checkpoint: (name: string) => {
+      const time = performance.now();
+      const elapsed = time - startTime;
+      checkpoints[name] = elapsed;
+      
+      console.log(`[${operation}][${requestId}] Checkpoint '${name}': ${elapsed.toFixed(2)}ms`);
+      return elapsed;
+    },
+    
+    complete: (status: 'success' | 'failure', details: Record<string, any> = {}) => {
+      const endTime = performance.now();
+      const totalDuration = endTime - startTime;
+      
+      console.log(`[${operation}][${requestId}] Completed with status: ${status}`, {
+        durationMs: totalDuration.toFixed(2),
+        checkpoints: Object.entries(checkpoints).map(([name, time]) => ({
+          name,
+          timeMs: time.toFixed(2)
+        })),
+        ...details,
+        timestamp: new Date().toISOString()
+      });
+      
+      return totalDuration;
+    }
+  };
+}
+
+/**
+ * Generate a unique request ID for tracing
+ */
+export function generateRequestId(): string {
+  return Math.random().toString(36).substring(2, 10);
+}
+
+/**
+ * Log API call information with performance metrics
+ */
+export function logApiCall(
+  operation: string, 
+  params: Record<string, any>, 
+  requestId: string = generateRequestId()
+): { complete: (result: any, error?: any) => void } {
+  const startTime = performance.now();
+  
+  console.log(`[API][${operation}][${requestId}] Call started`, {
+    ...params,
+    timestamp: new Date().toISOString()
+  });
+  
+  return {
+    complete: (result: any, error?: any) => {
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      
+      if (error) {
+        console.error(`[API][${operation}][${requestId}] Call failed after ${duration.toFixed(2)}ms`, {
+          error: typeof error === 'object' ? error.message : error,
+          params,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        console.log(`[API][${operation}][${requestId}] Call completed in ${duration.toFixed(2)}ms`, {
+          success: true,
+          resultType: typeof result,
+          resultSize: JSON.stringify(result).length,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      return { duration, result, error };
+    }
+  };
 }

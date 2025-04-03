@@ -10,6 +10,8 @@ interface LogContext {
   timestamp?: string;
   duration?: string;
   requestId?: string;
+  vin?: string;
+  mileage?: number;
   [key: string]: any;
 }
 
@@ -78,7 +80,7 @@ export function logRequest(
   method: string,
   path: string,
   body?: any
-): void {
+): { complete: (status: number, responseSize: number = 0) => void } {
   const startTime = performance.now();
   
   logOperation('request_received', {

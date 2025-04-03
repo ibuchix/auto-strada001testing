@@ -1,31 +1,30 @@
 
 /**
- * Changes made:
- * - 2024-12-20: Created valuation types file extracted from useValuationForm
+ * Types for valuation hooks
+ * Created: 2024-04-03
  */
 
-import { ValuationFormData } from "@/types/validation";
-
-export interface UseValuationFormResult {
-  form: any;
-  isLoading: boolean;
-  showDialog: boolean;
-  setShowDialog: (show: boolean) => void;
-  valuationResult: any;
-  onSubmit: (e: React.FormEvent) => void;
-  resetForm: () => void;
-}
-
 export interface UseValuationRequestProps {
-  onSuccess: (result: any) => void;
-  onError: (error: any) => void;
-  setIsLoading: (loading: boolean) => void;
+  onSuccess: (data: any) => void;
+  onError: (error: Error) => void;
+  setIsLoading: (isLoading: boolean) => void;
 }
 
-export interface UseValuationStateProps {
-  initialState?: {
-    isLoading?: boolean;
-    showDialog?: boolean;
-    valuationResult?: any;
-  };
+export interface ValuationData {
+  make?: string;
+  model?: string;
+  year?: number;
+  valuation?: number;
+  reservePrice?: number;
+  averagePrice?: number;
+  vin?: string;
+  mileage?: number;
+  transmission?: string;
+  [key: string]: any;
+}
+
+export interface ValuationRequestConfig {
+  requestId?: string;
+  timeout?: number;
+  withCache?: boolean;
 }
