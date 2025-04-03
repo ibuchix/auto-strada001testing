@@ -13,6 +13,7 @@
  * - Optimized function execution paths for faster performance
  * - Implemented memoization patterns for expensive operations
  * - Added idempotency key support to prevent duplicate submissions
+ * - Fixed import for validateFormData function
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";

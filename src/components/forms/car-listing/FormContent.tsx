@@ -59,6 +59,8 @@ import { useDebugRender } from "./hooks/useDebugRender";
 import { LoadingState } from "./LoadingState";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { CarListingFormData } from "@/types/forms";
 
 interface FormContentProps {
   session: Session;

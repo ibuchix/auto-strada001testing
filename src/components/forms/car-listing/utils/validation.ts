@@ -4,6 +4,7 @@
  * - Enhanced to support severity levels and multi-section steps
  * - Added support for non-critical warnings vs. blocking errors
  * - 2025-04-03: Updated to match the consolidated 3-step form structure
+ * - 2025-04-04: Fixed export of EnhancedValidationResult type
  */
 import { CarListingFormData } from "@/types/forms";
 
@@ -16,6 +17,14 @@ export enum ValidationSeverity {
 
 // Define the shape of a validation error
 export interface ValidationError {
+  field: string;
+  message: string;
+  severity: ValidationSeverity;
+  recoverable: boolean;
+}
+
+// Enhanced validation result with severity
+export interface EnhancedValidationResult {
   field: string;
   message: string;
   severity: ValidationSeverity;
@@ -224,4 +233,57 @@ export const getWarnings = (errors: ValidationError[]): ValidationError[] => {
     error.severity === ValidationSeverity.WARNING || 
     (error.severity === ValidationSeverity.CRITICAL && error.recoverable)
   );
+};
+
+// Export a function to validate the entire form data
+export const validateFormData = (data: CarListingFormData): ValidationError[] => {
+  const errors: ValidationError[] = [];
+  
+  // Basic required field validation
+  if (!data.make?.trim()) {
+    errors.push({
+      field: 'make',
+      message: 'Vehicle make is required',
+      severity: ValidationSeverity.CRITICAL,
+      recoverable: false
+    });
+  }
+  
+  if (!data.model?.trim()) {
+    errors.push({
+      field: 'model',
+      message: 'Vehicle model is required',
+      severity: ValidationSeverity.CRITICAL,
+      recoverable: false
+    });
+  }
+  
+  if (!data.year || data.year < 1886) {
+    errors.push({
+      field: 'year',
+      message: 'Please enter a valid year',
+      severity: ValidationSeverity.CRITICAL,
+      recoverable: false
+    });
+  }
+  
+  if (!data.mileage && data.mileage !== 0) {
+    errors.push({
+      field: 'mileage',
+      message: 'Mileage is required',
+      severity: ValidationSeverity.CRITICAL,
+      recoverable: false
+    });
+  }
+  
+  if (!data.vin?.trim()) {
+    errors.push({
+      field: 'vin',
+      message: 'VIN is required',
+      severity: ValidationSeverity.CRITICAL,
+      recoverable: false
+    });
+  }
+  
+  return errors;
 };

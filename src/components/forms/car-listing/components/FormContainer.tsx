@@ -2,7 +2,8 @@
 /**
  * Form Container component
  * - Handles displaying the appropriate components for the current step
- * - Updated to support consolidated multi-section steps
+ * - Updated to support consolidated multi-step steps
+ * - Fixed TypeScript error by accessing form from context instead of props
  */
 import { memo, useMemo } from "react";
 import { UseFormReturn } from "react-hook-form";
@@ -21,9 +22,9 @@ import { AdditionalInfoSection } from "../AdditionalInfoSection";
 import { PersonalDetailsSection } from "../PersonalDetailsSection";
 import { FinanceDetailsSection } from "../FinanceDetailsSection";
 import { SellerNotesSection } from "../SellerNotesSection";
+import { useFormData } from "../context/FormDataContext";
 
 interface FormContainerProps {
-  form: UseFormReturn<CarListingFormData>;
   currentStep: number;
   onNext: () => Promise<void>;
   onPrevious: () => Promise<void>;
@@ -36,7 +37,6 @@ interface FormContainerProps {
 }
 
 export const FormContainer = memo(({
-  form,
   currentStep,
   carId,
   userId,
@@ -47,6 +47,9 @@ export const FormContainer = memo(({
   navigationDisabled,
   isSaving
 }: FormContainerProps) => {
+  // Get form from context instead of props
+  const { form } = useFormData();
+  
   // Get the current step configuration
   const currentStepConfig = formSteps[currentStep];
   

@@ -2,6 +2,7 @@
 /**
  * Validation service for car listing submissions
  * Combines client and server validation with schema validation
+ * - Fixed import for validateFormData function
  */
 
 import { CarListingFormData } from "@/types/forms";

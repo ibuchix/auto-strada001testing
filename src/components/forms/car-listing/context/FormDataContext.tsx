@@ -1,123 +1,47 @@
 
 /**
- * Changes made:
- * - Updated to use explicit CarListingFormData type
- * - Fixed type compatibility issue with Partial
- * - 2025-08-04: Fixed type issues with the form context
- * - 2025-08-18: Added useMemo for context value to prevent unnecessary re-renders
- * - 2025-08-18: Enhanced error message for better developer experience
- * - 2025-08-18: Added display name for better DevTools experience
- * - 2025-08-18: Improved return type for useFormData hook
- * - 2025-11-20: Optimized context implementation with better memoization
- * - 2025-11-20: Added performance optimization for context consumers
- * - 2025-11-20: Implemented equality checking to prevent unnecessary rerenders
- * - 2025-11-21: Fixed TypeScript error with keyof parameter
- * - 2025-11-21: Exposed form methods directly in context value for easier access
- * - 2025-11-22: Fixed type compatibility issues with React Hook Form setValue
+ * Form Data Context
+ * - Provides form data and methods throughout the form components
+ * - Resolves TypeScript errors with form prop passing
  */
-
-import React, { createContext, ReactNode, useContext, useMemo, useCallback } from "react";
-import { UseFormReturn, FieldPath, PathValue } from "react-hook-form";
+import React, { createContext, useContext, ReactNode } from "react";
+import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 
-// Enhanced context shape to expose common form methods directly
-interface FormDataContextValue {
+interface FormDataContextType {
   form: UseFormReturn<CarListingFormData>;
-  // Expose common form methods directly for convenient access
-  control: UseFormReturn<CarListingFormData>['control'];
-  watch: UseFormReturn<CarListingFormData>['watch'];
-  setValue: UseFormReturn<CarListingFormData>['setValue'];
-  getFormValues: () => CarListingFormData;
-  setFormValue: <T extends FieldPath<CarListingFormData>>(
-    name: T, 
-    value: PathValue<CarListingFormData, T>
-  ) => void;
+  formState: {
+    isDirty: boolean;
+    isSubmitting: boolean;
+    isValid: boolean;
+  };
 }
 
-// Create context with safe default value
-const FormDataContext = createContext<FormDataContextValue | null>(null);
+const FormDataContext = createContext<FormDataContextType | undefined>(undefined);
 
-// Provider component with prop types
-interface FormDataProviderProps {
+export const FormDataProvider = ({
+  children,
+  form
+}: {
   children: ReactNode;
   form: UseFormReturn<CarListingFormData>;
-}
-
-export const FormDataProvider = ({ children, form }: FormDataProviderProps) => {
-  // Create stable callbacks that won't change identity between renders
-  const getFormValues = useCallback(() => {
-    return form.getValues();
-  }, [form]);
-
-  const setFormValue = useCallback(<T extends FieldPath<CarListingFormData>>(
-    name: T, 
-    value: PathValue<CarListingFormData, T>
-  ) => {
-    form.setValue(name, value, { 
-      shouldValidate: true,
-      shouldDirty: true,
-      shouldTouch: true
-    });
-  }, [form]);
-
-  // Deeply memoize context value to prevent unnecessary re-renders
-  const contextValue = useMemo(() => ({
-    form,
-    // Expose common form methods directly
-    control: form.control,
-    watch: form.watch,
-    setValue: form.setValue,
-    getFormValues,
-    setFormValue
-  }), [form, getFormValues, setFormValue]);
-
+}) => {
   return (
-    <FormDataContext.Provider value={contextValue}>
+    <FormDataContext.Provider
+      value={{
+        form,
+        formState: form.formState
+      }}
+    >
       {children}
     </FormDataContext.Provider>
   );
 };
 
-// Enhanced hook with better error messaging and type safety
-export const useFormData = (): FormDataContextValue => {
+export const useFormData = () => {
   const context = useContext(FormDataContext);
-  
-  if (!context) {
-    throw new Error(
-      "useFormData must be used within a FormDataProvider. " +
-      "Wrap your component tree with <FormDataProvider>."
-    );
+  if (context === undefined) {
+    throw new Error("useFormData must be used within a FormDataProvider");
   }
-  
   return context;
 };
-
-// Access only form values without subscribing to all form changes
-export const useFormValues = <T extends FieldPath<CarListingFormData>>(fieldName?: T) => {
-  const { form, getFormValues } = useFormData();
-  
-  return useMemo(() => {
-    const values = getFormValues();
-    return fieldName ? values[fieldName as keyof CarListingFormData] : values;
-  }, [getFormValues, fieldName, form.formState.submitCount]);
-};
-
-// Access only form state without subscribing to value changes
-export const useFormState = () => {
-  const { form } = useFormData();
-  
-  return useMemo(() => ({
-    isDirty: form.formState.isDirty,
-    isValid: form.formState.isValid,
-    isSubmitting: form.formState.isSubmitting,
-    errors: form.formState.errors
-  }), [
-    form.formState.isDirty,
-    form.formState.isValid,
-    form.formState.isSubmitting,
-    form.formState.errors
-  ]);
-};
-
-// Add display name for better DevTools experience
-FormDataContext.displayName = "FormDataContext";

@@ -3,6 +3,7 @@
  * Changes made:
  * - Removed diagnostic-related code
  * - Fixed type issues
+ * - Updated validation error structure to match ValidationError type
  */
 
 import { useState, useEffect } from "react";
@@ -10,6 +11,7 @@ import { PhotoUpload } from "./PhotoUpload";
 import { FormValidationSummary } from "../validation/FormValidationSummary";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { ValidationError, ValidationSeverity } from "../utils/validation";
 
 interface RequiredPhotosProps {
   isUploading: boolean;
@@ -139,11 +141,13 @@ export const RequiredPhotos = ({
   ];
   
   // Generate validation errors for displaying in summary
-  const validationErrors = requiredPhotos
+  const validationErrors: ValidationError[] = requiredPhotos
     .filter(photo => !uploadedPhotos[photo.id])
     .map(photo => ({
       field: `photo_${photo.id}`,
-      message: `${photo.title} photo is required`
+      message: `${photo.title} photo is required`,
+      severity: ValidationSeverity.CRITICAL,
+      recoverable: false
     }));
 
   return (
