@@ -5,6 +5,7 @@
  * - Updated to support consolidated multi-step steps
  * - Uses FormDataContext instead of direct form prop
  * - 2025-04-03: Fixed section component props to use FormDataContext
+ * - 2025-04-03: Removed form prop from components that now use FormDataContext
  */
 import { memo, useMemo } from "react";
 import { formSteps } from "../constants/formSteps";
@@ -45,7 +46,7 @@ export const FormContainer = memo(({
   navigationDisabled,
   isSaving
 }: FormContainerProps) => {
-  // Get form from context instead of props
+  // Get form from context
   const { form } = useFormData();
   
   // Get the current step configuration
@@ -58,12 +59,12 @@ export const FormContainer = memo(({
     'rims': () => <RimPhotosSection carId={carId} />,
     'vehicle-status': () => <VehicleStatusSection />,
     'features': () => <FeaturesSection />,
-    'damage': () => <DamageSection />,
+    'damage': () => <DamageSection carId={carId} />,
     'warning-lights': () => <WarningLightsSection carId={carId} />,
     'service-history': () => <ServiceHistorySection carId={carId} />,
     'additional-info': () => <AdditionalInfoSection />,
     'personal-details': () => <PersonalDetailsSection />,
-    'finance-details': () => <FinanceDetailsSection />,
+    'finance-details': () => <FinanceDetailsSection carId={carId} />,
     'seller-notes': () => <SellerNotesSection />
   }), [carId]);
   

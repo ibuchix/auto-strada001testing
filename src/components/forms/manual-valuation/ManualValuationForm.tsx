@@ -1,14 +1,20 @@
 
+/**
+ * Changes made:
+ * - Updated imports to use special components for manual valuation
+ * - Fixed component props to pass form to components that need it
+ */
+
 import { Form } from "@/components/ui/form";
 import { VehicleDetailsSection } from "./VehicleDetailsSection";
 import { ConditionSection } from "./ConditionSection";
 import { PhotoUploadSection } from "./PhotoUploadSection";
 import { ContactSection } from "./ContactSection";
-import { FeaturesSection } from "../car-listing/FeaturesSection";
 import { ServiceHistorySection } from "./components/ServiceHistorySection";
-import { AdditionalInfoSection } from "../car-listing/AdditionalInfoSection";
-import { SellerNotesSection } from "../car-listing/SellerNotesSection";
-import { VehicleStatusSection } from "../car-listing/VehicleStatusSection";
+import { SellerNotesSection as CarListingSellerNotesSection } from "../car-listing/SellerNotesSection";
+import { VehicleStatusSection } from "./components/VehicleStatusSection";
+import { FeaturesSection as CarListingFeaturesSection } from "../car-listing/FeaturesSection";
+import { AdditionalInfoSection as CarListingAdditionalInfoSection } from "../car-listing/AdditionalInfoSection";
 import { FormHeader } from "./components/FormHeader";
 import { SubmitButton } from "./components/SubmitButton";
 import { useManualValuationForm } from "./hooks/useManualValuationForm";
@@ -26,16 +32,18 @@ export const ManualValuationForm = () => {
 
             <div className="space-y-8">
               <VehicleDetailsSection form={form} />
-              <VehicleStatusSection />
+              <VehicleStatusSection form={form} />
               <ConditionSection form={form} />
-              <FeaturesSection />
-              <ServiceHistorySection />
-              <AdditionalInfoSection />
+              <FormDataProvider form={form}>
+                <FeaturesSection />
+                <ServiceHistorySection />
+                <AdditionalInfoSection />
+                <SellerNotesSection />
+              </FormDataProvider>
               <PhotoUploadSection 
                 form={form} 
                 onProgressUpdate={setUploadProgress}
               />
-              <SellerNotesSection />
               <ContactSection form={form} />
             </div>
 
@@ -46,3 +54,8 @@ export const ManualValuationForm = () => {
     </FormDataProvider>
   );
 };
+
+// Add components used only in this file
+const FeaturesSection = () => <CarListingFeaturesSection />;
+const AdditionalInfoSection = () => <CarListingAdditionalInfoSection />;
+const SellerNotesSection = () => <CarListingSellerNotesSection />;

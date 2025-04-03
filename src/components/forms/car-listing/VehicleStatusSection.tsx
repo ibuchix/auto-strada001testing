@@ -5,21 +5,18 @@
  * - Reorganized into logical groupings
  * - Fixed FormSection usage by adding required title prop
  * - Improved accessibility with better labeling
+ * - Updated to use FormDataContext instead of requiring form prop
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormDescription } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
 import { FormSection } from "./FormSection";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useFormData } from "./context/FormDataContext";
 
-interface VehicleStatusSectionProps {
-  form: UseFormReturn<CarListingFormData>;
-}
-
-export const VehicleStatusSection = ({ form }: VehicleStatusSectionProps) => {
+export const VehicleStatusSection = () => {
+  const { form } = useFormData();
   const isDamaged = form.watch("isDamaged");
   
   return (

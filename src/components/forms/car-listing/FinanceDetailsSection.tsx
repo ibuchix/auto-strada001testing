@@ -4,25 +4,25 @@
  * - 2024-06-10: Created new component for finance details
  * - This component is conditionally shown based on vehicle having outstanding finance
  * - Fixed FormSection usage by adding required title prop
+ * - Updated to use FormDataContext instead of requiring form prop
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
 import { FormSection } from "./FormSection";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
+import { useFormData } from "./context/FormDataContext";
 
 interface FinanceDetailsSectionProps {
-  form: UseFormReturn<CarListingFormData>;
   carId?: string;
 }
 
-export const FinanceDetailsSection = ({ form, carId }: FinanceDetailsSectionProps) => {
+export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => {
+  const { form } = useFormData();
   const [showFinanceFields, setShowFinanceFields] = useState(false);
   const hasOutstandingFinance = form.watch("hasOutstandingFinance");
 

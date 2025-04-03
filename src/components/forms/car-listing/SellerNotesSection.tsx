@@ -4,27 +4,26 @@
  * - Updated to use typed StepComponentProps
  * - Added validation support
  * - Enhanced form field with better error messages
+ * - Updated to use FormDataContext instead of requiring form prop
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useFormData } from "./context/FormDataContext";
 
 interface SellerNotesSectionProps {
-  form: UseFormReturn<CarListingFormData>;
   userId?: string;
   onValidate?: () => Promise<boolean>;
 }
 
 export const SellerNotesSection = ({ 
-  form, 
   onValidate 
 }: SellerNotesSectionProps) => {
   const [isSaving, setIsSaving] = useState(false);
+  const { form } = useFormData();
 
   const handleSaveNotes = async () => {
     try {

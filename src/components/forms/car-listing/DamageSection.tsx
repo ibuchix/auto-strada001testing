@@ -4,6 +4,7 @@
  * - Updated to use the useDamageSection custom hook
  * - Simplified component with extracted logic
  * - Improved code organization and readability
+ * - Updated to use FormDataContext instead of requiring form prop
  */
 
 import { Button } from "@/components/ui/button";
@@ -12,16 +13,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData, DamageType } from "@/types/forms";
+import { DamageType } from "@/types/forms";
 import { useDamageSection } from "./hooks/useDamageSection";
+import { useFormData } from "./context/FormDataContext";
 
 interface DamageSectionProps {
-  form: UseFormReturn<CarListingFormData>;
   carId?: string;
 }
 
-export const DamageSection = ({ form, carId }: DamageSectionProps) => {
+export const DamageSection = ({ carId }: DamageSectionProps) => {
+  const { form } = useFormData();
+  
   const {
     isDamaged,
     damageReports,

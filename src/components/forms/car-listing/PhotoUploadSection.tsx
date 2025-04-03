@@ -1,3 +1,4 @@
+
 /**
  * Component for uploading photos to a car listing
  * Changes made:
@@ -5,6 +6,7 @@
  * - Extracted AdditionalPhotosUploader and CurrentPhotosDisplay into separate files
  * - Improved error handling and user feedback
  * - Enhanced mobile experience with better spacing and touch targets
+ * - Updated to use FormDataContext instead of requiring form prop
  */
 import React, { useState } from 'react';
 import { usePhotoUpload } from './photo-upload/usePhotoUpload';
@@ -14,17 +16,21 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { UseFormReturn } from 'react-hook-form';
-import { CarListingFormData } from '@/types/forms';
 import { CurrentPhotosDisplay } from './photo-upload/CurrentPhotosDisplay';
 import { AdditionalPhotosUploader } from './photo-upload/AdditionalPhotosUploader';
 import { PhotoUploadError, PhotoUploadSectionProps } from './photo-upload/types';
+import { useFormData } from './context/FormDataContext';
+
+interface PhotoUploadProps {
+  carId?: string;
+  onValidate?: () => Promise<boolean>;
+}
 
 export const PhotoUploadSection = ({ 
-  form, 
   carId, 
   onValidate 
-}: PhotoUploadSectionProps) => {
+}: PhotoUploadProps) => {
+  const { form } = useFormData();
   const [savingProgress, setSavingProgress] = useState(false);
   const [uploadError, setUploadError] = useState<PhotoUploadError | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);

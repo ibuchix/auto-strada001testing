@@ -6,19 +6,16 @@
  * - Better input focus and blur handling
  * - Added responsive grid layout for desktop/mobile
  * - Optimized input spacing for touch devices
+ * - Updated to use FormDataContext instead of requiring form prop
  */
 
 import { FormInput } from "../common/FormInput";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useFormData } from "./context/FormDataContext";
 
-interface PersonalDetailsSectionProps {
-  form: UseFormReturn<CarListingFormData>;
-}
-
-export const PersonalDetailsSection = ({ form }: PersonalDetailsSectionProps) => {
+export const PersonalDetailsSection = () => {
   const isMobile = useIsMobile();
+  const { form } = useFormData();
   
   return (
     <div className={`${isMobile ? 'space-y-6' : 'space-y-6 md:grid md:grid-cols-2 md:gap-6 md:space-y-0'}`}>

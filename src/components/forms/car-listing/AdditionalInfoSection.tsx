@@ -1,13 +1,15 @@
+
+/**
+ * Changes made:
+ * - Updated to use FormDataContext instead of requiring form prop
+ */
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { useFormData } from "./context/FormDataContext";
 
-interface AdditionalInfoSectionProps {
-  form: UseFormReturn<CarListingFormData>;
-}
-
-export const AdditionalInfoSection = ({ form }: AdditionalInfoSectionProps) => {
+export const AdditionalInfoSection = () => {
+  const { form } = useFormData();
+  
   return (
     <div className="space-y-4">
       <FormField

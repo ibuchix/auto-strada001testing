@@ -1,15 +1,16 @@
 
+/**
+ * Changes made:
+ * - Updated to use FormDataContext instead of requiring form prop
+ */
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { useFormData } from "./context/FormDataContext";
 
-interface FeaturesSectionProps {
-  form: UseFormReturn<CarListingFormData>;
-}
-
-export const FeaturesSection = ({ form }: FeaturesSectionProps) => {
+export const FeaturesSection = () => {
+  const { form } = useFormData();
+  
   const features = {
     satNav: "Satellite Navigation",
     panoramicRoof: "Panoramic Roof",
