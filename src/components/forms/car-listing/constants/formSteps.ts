@@ -9,6 +9,7 @@
  * - 2028-05-30: Enhanced validation functions with specific section requirements
  * - 2028-06-10: Reorganized steps for more logical progression and better user flow
  * - 2027-11-19: Fixed validation function signature for TypeScript compatibility
+ * - 2025-04-03: Consolidated multi-step form into 3 essential steps for better UX
  */
 
 import { PersonalDetailsSection } from "../PersonalDetailsSection";
@@ -37,154 +38,88 @@ export type FormStep = {
 };
 
 export const formSteps: FormStep[] = [
-  // Step 1: Basic vehicle information
+  // Step 1: Basic Vehicle Information & Photos
   {
     id: 'vehicle-details',
-    title: 'Vehicle Details',
-    sections: ['vehicle-details'],
+    title: 'Vehicle Details & Photos',
+    sections: ['vehicle-details', 'photos', 'rims'],
     component: VehicleDetailsSection,
-    requiredProps: ['form'],
-    description: 'Basic information about your vehicle',
-    validate: (data: CarListingFormData) => 
-      Boolean(data.make?.trim()) && 
-      Boolean(data.model?.trim()) && 
-      Boolean(data.year) && 
-      Boolean(data.mileage)
+    requiredProps: ['form', 'carId'],
+    description: 'Vehicle information and required photos',
+    validate: (data: CarListingFormData) => {
+      // Validate basic vehicle information
+      const hasBasicInfo = Boolean(data.make?.trim()) && 
+                          Boolean(data.model?.trim()) && 
+                          Boolean(data.year) && 
+                          Boolean(data.mileage) &&
+                          Boolean(data.vin);
+      
+      // Validate photos
+      const hasPhotos = Array.isArray(data.uploadedPhotos) && 
+                        data.uploadedPhotos.length >= 3;
+      
+      // Validate rim photos if vehicle is registered in Poland
+      const rimPhotosRequired = data.isRegisteredInPoland === true;
+      const hasRimPhotos = data.rimPhotosComplete === true;
+      
+      return hasBasicInfo && hasPhotos && (!rimPhotosRequired || hasRimPhotos);
+    }
   },
   
-  // Step 2: Vehicle status and condition
+  // Step 2: Vehicle Condition & Features
   {
-    id: 'vehicle-status',
-    title: 'Vehicle Status',
-    sections: ['vehicle-status', 'damage', 'warning-lights'],
+    id: 'vehicle-condition',
+    title: 'Vehicle Condition & Features',
+    sections: ['vehicle-status', 'features', 'damage', 'warning-lights', 'service-history', 'additional-info'],
     component: VehicleStatusSection,
-    requiredProps: ['form'],
-    description: 'Current status and condition of your vehicle',
+    requiredProps: ['form', 'carId'],
+    description: 'Condition, features, and history details',
     validate: (data: CarListingFormData) => {
       // Check if status fields have been filled
-      const statusFields = data.isDamaged !== undefined && 
+      const hasStatusInfo = data.isDamaged !== undefined && 
                           data.isRegisteredInPoland !== undefined;
-                          
+      
+      // Validate features
+      const hasFeatures = data.features ? Object.values(data.features).some(Boolean) : false;
+      
       // If vehicle is damaged, require damage description
       if (data.isDamaged && !data.damageDescription?.trim()) {
         return false;
       }
       
-      return statusFields;
+      // Validate service history
+      const hasServiceHistory = Boolean(data.serviceHistoryType);
+      
+      // Validate additional information
+      const hasAdditionalInfo = Boolean(data.numberOfKeys);
+      
+      return hasStatusInfo && hasFeatures && hasServiceHistory && hasAdditionalInfo;
     }
   },
   
-  // Step 3: Features and specifications
+  // Step 3: Seller Information & Terms
   {
-    id: 'features',
-    title: 'Vehicle Features',
-    sections: ['features'],
-    component: FeaturesSection,
-    requiredProps: ['form'],
-    description: 'Features and specifications of your vehicle',
-    validate: (data: CarListingFormData) => 
-      data.features ? Object.values(data.features).some(Boolean) : false
-  },
-  
-  // Step 4: Service history and maintenance
-  {
-    id: 'service-history',
-    title: 'Service History',
-    sections: ['service-history'],
-    component: ServiceHistorySection,
-    description: 'Service history and maintenance records',
-    requiredProps: ['form', 'carId'],
-    validate: (data: CarListingFormData) => 
-      Boolean(data.serviceHistoryType)
-  },
-  
-  // Step 5: Additional information
-  {
-    id: 'additional-info',
-    title: 'Additional Details',
-    sections: ['additional-info'],
-    component: AdditionalInfoSection,
-    requiredProps: ['form'],
-    description: 'Additional details about your vehicle',
-    validate: (data: CarListingFormData) => 
-      Boolean(data.seatMaterial) && 
-      Boolean(data.numberOfKeys)
-  },
-  
-  // Step 6: Vehicle condition details
-  {
-    id: 'rims',
-    title: 'Vehicle Condition',
-    sections: ['rims'],
-    component: RimPhotosSection,
-    description: 'Detailed condition information including wheels',
-    requiredProps: ['form', 'carId'],
-    validate: (data: CarListingFormData) => {
-      // If vehicle is registered, require rim photos 
-      // If not registered, this section is optional
-      if (data.isRegisteredInPoland) {
-        return Boolean(data.frontLeftRimPhoto) && 
-               Boolean(data.frontRightRimPhoto) && 
-               Boolean(data.rearLeftRimPhoto) && 
-               Boolean(data.rearRightRimPhoto);
-      }
-      return true;
-    }
-  },
-  
-  // Step 7: Photos of the vehicle
-  {
-    id: 'photos',
-    title: 'Vehicle Photos',
-    sections: ['photos'],
-    component: PhotoUploadSection,
-    requiredProps: ['form', 'carId'],
-    description: 'Upload photos of your vehicle',
-    validate: (data: CarListingFormData) => 
-      Array.isArray(data.uploadedPhotos) && 
-      data.uploadedPhotos.length >= 3
-  },
-  
-  // Step 8: Financial information (if applicable)
-  {
-    id: 'finance',
-    title: 'Finance Details',
-    sections: ['finance-details'],
-    component: FinanceDetailsSection,
-    requiredProps: ['form'],
-    description: 'Financial information about your vehicle',
-    validate: (data: CarListingFormData) => {
-      // Only require finance details if hasOutstandingFinance is true
-      if (data.hasOutstandingFinance) {
-        return Boolean(data.financeAmount) && Boolean(data.financeProvider);
-      }
-      return true;
-    }
-  },
-  
-  // Step 9: Seller details
-  {
-    id: 'personal-details',
-    title: 'Seller Details',
-    sections: ['personal-details'],
+    id: 'seller-details',
+    title: 'Seller Details & Terms',
+    sections: ['personal-details', 'finance-details', 'seller-notes'],
     component: PersonalDetailsSection,
     requiredProps: ['form'],
-    description: 'Your contact information',
-    validate: (data: CarListingFormData) => 
-      Boolean(data.name?.trim()) && 
-      Boolean(data.address?.trim()) && 
-      Boolean(data.mobileNumber?.trim())
-  },
-  
-  // Step 10: Final notes and submission
-  {
-    id: 'notes',
-    title: 'Seller Notes',
-    sections: ['seller-notes'],
-    component: SellerNotesSection,
-    requiredProps: ['form'],
-    description: 'Additional notes for potential buyers',
-    validate: (data: CarListingFormData) => 
-      Boolean(data.sellerNotes?.trim())
+    description: 'Your information and selling terms',
+    validate: (data: CarListingFormData) => {
+      // Validate seller details
+      const hasPersonalDetails = Boolean(data.name?.trim()) && 
+                                Boolean(data.address?.trim()) && 
+                                Boolean(data.mobileNumber?.trim());
+      
+      // Validate finance details if applicable
+      const financeValid = data.hasOutstandingFinance 
+        ? Boolean(data.financeAmount) && Boolean(data.financeProvider)
+        : true;
+      
+      // Validate seller notes
+      const hasNotes = Boolean(data.sellerNotes?.trim());
+      
+      return hasPersonalDetails && financeValid && hasNotes;
+    }
   }
 ];
