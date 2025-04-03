@@ -7,6 +7,7 @@
  * - 2024-07-30: Added transaction reset functionality exposure
  * - 2024-08-14: Enhanced error handling and reset functionality
  * - 2025-04-03: Fixed TypeScript errors with missing properties from useFormSubmission
+ * - 2025-04-03: Updated TransactionStatus usage to proper enum values
  */
 
 import { createContext, useContext } from "react";
@@ -40,7 +41,7 @@ export const FormSubmissionProvider = ({ children, userId }: FormSubmissionProvi
       value={{
         isSubmitting,
         error,
-        transactionStatus: transactionStatus as TransactionStatus,
+        transactionStatus,
         showSuccessDialog,
         setShowSuccessDialog,
         handleSubmit,

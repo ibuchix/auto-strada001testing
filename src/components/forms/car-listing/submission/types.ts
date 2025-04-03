@@ -1,6 +1,6 @@
 
 import { ReactNode } from "react";
-import { TransactionStatus } from "@/services/supabase/transactionService";
+import { TransactionStatus } from "@/services/supabase/transactions/types";
 import { CarListingFormData } from "@/types/forms";
 
 export interface FormSubmissionProviderProps {

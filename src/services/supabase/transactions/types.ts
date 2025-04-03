@@ -3,6 +3,7 @@
  * Simplified transaction system types
  * - Removed diagnostic-specific fields
  * - Streamlined for core functionality
+ * - 2025-04-03: Fixed TransactionStatus type to be properly typed as an enum
  */
 
 // Define transaction types to categorize different operations

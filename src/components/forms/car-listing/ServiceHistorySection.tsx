@@ -9,21 +9,23 @@
  * - 2027-08-04: Added conditional rendering for document upload based on service history type
  * - 2027-08-16: Refactored into smaller components for better maintainability
  * - 2025-11-05: Updated to use ServiceHistoryFile type for proper typing
+ * - 2025-04-03: Updated to use FormDataContext instead of requiring form prop
  */
 
-import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData, ServiceHistoryFile } from "@/types/forms";
 import { ServiceHistoryTypeSelector } from "./service-history/ServiceHistoryTypeSelector";
 import { DocumentUploader } from "./service-history/DocumentUploader";
 import { DocumentList } from "./service-history/DocumentList";
 import { useDocumentUpload } from "./service-history/useDocumentUpload";
+import { useFormData } from "./context/FormDataContext";
 
 interface ServiceHistorySectionProps {
-  form: UseFormReturn<CarListingFormData>;
   carId?: string;
 }
 
-export const ServiceHistorySection = ({ form, carId }: ServiceHistorySectionProps) => {
+export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => {
+  const { form } = useFormData();
+  
   const serviceHistoryType = form.watch('serviceHistoryType');
   const uploadedFiles = form.watch('serviceHistoryFiles') || [];
   

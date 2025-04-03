@@ -6,20 +6,21 @@
  * - 2024-03-19: Implemented success notifications
  * - 2027-08-12: Updated PhotoUpload props to use title and description instead of label
  * - 2028-05-30: Fixed type issues with onUpload function return type
+ * - 2025-04-03: Updated to use FormDataContext instead of requiring form prop
  */
 
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
 import { Card } from "@/components/ui/card";
 import { PhotoUpload } from "./photo-upload/PhotoUpload";
 import { toast } from "sonner";
+import { useFormData } from "./context/FormDataContext";
 
 interface WarningLightsSectionProps {
-  form: UseFormReturn<CarListingFormData>;
   carId?: string;
 }
 
-export const WarningLightsSection = ({ form, carId }: WarningLightsSectionProps) => {
+export const WarningLightsSection = ({ carId }: WarningLightsSectionProps) => {
+  const { form } = useFormData();
+  
   const handleWarningLightPhotoUpload = async (file: File): Promise<string | null> => {
     if (!carId) {
       toast.error("Please save the form first before uploading warning light photos");

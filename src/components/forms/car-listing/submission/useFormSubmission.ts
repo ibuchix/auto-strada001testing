@@ -2,6 +2,7 @@
 /**
  * Updated submission hook with proper type returns for FormSubmissionProvider
  * - 2025-04-03: Added missing properties for FormSubmissionContextType
+ * - 2025-04-03: Fixed TransactionStatus enum usage to use proper type
  */
 
 import { useState } from "react";
@@ -42,7 +43,7 @@ export const useFormSubmission = (userId: string) => {
   const handleSubmit = async (data: CarListingFormData, carId?: string) => {
     setIsSubmitting(true);
     setError(null);
-    setTransactionStatus("pending");
+    setTransactionStatus(TransactionStatus.PENDING);
     
     try {
       // Validate the form data before submitting
@@ -55,7 +56,7 @@ export const useFormSubmission = (userId: string) => {
         });
         setIsSubmitting(false);
         setError("Validation failed");
-        setTransactionStatus("error");
+        setTransactionStatus(TransactionStatus.ERROR);
         return false;
       }
       
@@ -70,7 +71,7 @@ export const useFormSubmission = (userId: string) => {
       
       // Show success message
       toast.success("Car listing submitted successfully!");
-      setTransactionStatus("success");
+      setTransactionStatus(TransactionStatus.SUCCESS);
       
       // Navigate to success page or dashboard
       navigate("/dashboard");
@@ -78,7 +79,7 @@ export const useFormSubmission = (userId: string) => {
       return true;
     } catch (error) {
       console.error("Error submitting car listing:", error);
-      setTransactionStatus("error");
+      setTransactionStatus(TransactionStatus.ERROR);
       
       if (error instanceof ValidationError) {
         setError(error.message);
