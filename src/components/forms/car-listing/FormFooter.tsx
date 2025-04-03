@@ -1,69 +1,86 @@
 
 /**
  * Form Footer Component
- * Displays form save status, offline status, and step progress
- * - 2024-06-05: Removed duplicate progress indicator to simplify UI
- * - Improved layout and visual feedback
+ * Provides status information and saving controls for multi-step forms
+ * Created: 2025-04-05
  */
 
 import { Button } from "@/components/ui/button";
-import { formatDistanceToNow } from "date-fns";
-import { Save, WifiOff } from "lucide-react";
+import { Save } from "lucide-react";
+import { format } from "date-fns";
 
-export interface FormFooterProps {
+interface FormFooterProps {
   lastSaved: Date | null;
   isOffline: boolean;
   onSave: () => Promise<void>;
   isSaving: boolean;
   currentStep: number;
   totalSteps: number;
-  completionPercentage?: number;
 }
 
-export const FormFooter = ({ 
-  lastSaved, 
-  isOffline, 
-  onSave, 
+export const FormFooter = ({
+  lastSaved,
+  isOffline,
+  onSave,
   isSaving,
   currentStep,
   totalSteps
 }: FormFooterProps) => {
+  // Handle manual save
+  const handleSave = async () => {
+    try {
+      await onSave();
+    } catch (error) {
+      console.error("Error saving form:", error);
+    }
+  };
+  
+  // Format last saved timestamp
+  const getLastSavedText = () => {
+    if (!lastSaved) {
+      return "Not saved yet";
+    }
+    
+    try {
+      return `Last saved: ${format(lastSaved, "HH:mm:ss")}`;
+    } catch (e) {
+      console.error("Date formatting error:", e);
+      return "Last saved recently";
+    }
+  };
+  
   return (
-    <div className="pt-3 border-t">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-sm text-gray-500">
-        <div className="flex items-center gap-2 mb-2 sm:mb-0">
-          {isOffline && (
-            <div className="flex items-center text-amber-600 gap-1">
-              <WifiOff className="h-4 w-4" />
-              <span>Offline Mode</span>
-            </div>
-          )}
-          
-          {lastSaved && (
-            <div className="text-gray-500">
-              Last saved: {formatDistanceToNow(lastSaved, { addSuffix: true })}
-            </div>
-          )}
-          
-          {!lastSaved && !isOffline && (
-            <div className="text-gray-400">Unsaved changes</div>
-          )}
-          
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-2 text-xs"
-            onClick={onSave}
-            disabled={isSaving || isOffline}
-          >
-            <Save className="h-3 w-3 mr-1" />
-            {isSaving ? "Saving..." : "Save now"}
-          </Button>
+    <div className="flex flex-wrap items-center justify-between text-sm text-gray-500 pt-2">
+      <div className="flex items-center space-x-2">
+        <span className="font-medium">Step {currentStep} of {totalSteps}</span>
+        <div className="w-[200px] h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-green-500 transition-all duration-300"
+            style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+          />
         </div>
+        <span>(Step {currentStep} of {totalSteps})</span>
+      </div>
+      
+      <div className="flex items-center mt-2 sm:mt-0">
+        {isOffline && (
+          <span className="text-orange-500 mr-2 font-medium">
+            Offline Mode
+          </span>
+        )}
         
-        <div className="text-xs text-right">
-          Step {currentStep} of {totalSteps}
-        </div>
+        <span className="mr-2">{getLastSavedText()}</span>
+        
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleSave}
+          disabled={isSaving || isOffline}
+          className="flex items-center space-x-1 text-xs"
+        >
+          <Save className="h-3 w-3" />
+          <span>{isSaving ? "Saving..." : "Save"}</span>
+        </Button>
       </div>
     </div>
   );

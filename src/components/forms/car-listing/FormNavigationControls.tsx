@@ -7,12 +7,14 @@
  * - 2028-03-27: Updated function signatures to match required return types
  * - 2028-03-28: Fixed navigation button handling to prevent errors and provide better feedback
  * - 2028-11-16: Fixed Next button functionality by improving error handling and event flow
+ * - 2025-04-05: Added extensive logging for debugging navigation issues
  */
 
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Save } from "lucide-react";
 import { SaveAndContinueButton } from "./SaveAndContinueButton";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 interface FormNavigationControlsProps {
   isFirstStep: boolean;
@@ -36,6 +38,7 @@ export const FormNavigationControls = ({
   const [isNextActive, setIsNextActive] = useState(false);
   const [isPrevActive, setIsPrevActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const requestId = Math.random().toString(36).substring(2, 8);
   
   // Animation effect when navigating
   useEffect(() => {
@@ -53,44 +56,96 @@ export const FormNavigationControls = ({
     }
   }, [isNavigating]);
 
-  // Handle next button click with loading state
+  // Handle next button click with enhanced logging and error handling
   const handleNextClick = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent default form submission
     
+    const clickTimestamp = new Date().toISOString();
+    console.log(`[NavControls][${requestId}] Next button clicked at ${clickTimestamp}, current states:`, {
+      isProcessing,
+      isNavigating,
+      isNextActive,
+      timestamp: clickTimestamp
+    });
+    
     if (isProcessing || isNavigating) {
-      console.log("Navigation already in progress, ignoring click");
+      console.log(`[NavControls][${requestId}] Navigation already in progress, ignoring click`);
+      toast.info("Please wait...", { description: "Navigation already in progress" });
       return;
     }
     
     try {
-      console.log("Next button clicked, setting isProcessing to true");
+      console.log(`[NavControls][${requestId}] Starting next navigation, setting isProcessing to true`);
       setIsProcessing(true);
-      await onNext();
+      
+      const startTime = performance.now();
+      
+      // Add a timeout safety net
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(() => reject(new Error("Navigation timeout")), 10000);
+      });
+      
+      // Try to navigate with timeout protection
+      await Promise.race([
+        onNext(),
+        timeoutPromise
+      ]);
+      
+      const endTime = performance.now();
+      console.log(`[NavControls][${requestId}] Navigation completed successfully in ${(endTime-startTime).toFixed(2)}ms`);
     } catch (error) {
-      console.error("Error navigating to next step:", error);
+      console.error(`[NavControls][${requestId}] Error navigating to next step:`, error);
+      
+      // Show user-friendly error message
+      toast.error("Navigation failed", { 
+        description: error instanceof Error ? error.message : "Please try again" 
+      });
+      
+      // Force reset the navigation state after error
+      setTimeout(() => {
+        console.log(`[NavControls][${requestId}] Forcibly resetting navigation state after error`);
+        setIsProcessing(false);
+      }, 500);
     } finally {
-      console.log("Navigation completed, setting isProcessing to false");
+      console.log(`[NavControls][${requestId}] Navigation attempt completed, resetting isProcessing`);
       setIsProcessing(false);
     }
   };
   
-  // Handle previous button click
+  // Handle previous button click with enhanced logging
   const handlePreviousClick = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent default form submission
     
+    const clickTimestamp = new Date().toISOString();
+    console.log(`[NavControls][${requestId}] Previous button clicked at ${clickTimestamp}, current states:`, {
+      isProcessing,
+      isNavigating,
+      isPrevActive,
+      timestamp: clickTimestamp
+    });
+    
     if (isProcessing || isNavigating) {
-      console.log("Navigation already in progress, ignoring click");
+      console.log(`[NavControls][${requestId}] Navigation already in progress, ignoring click`);
+      toast.info("Please wait...", { description: "Navigation already in progress" });
       return;
     }
     
     try {
-      console.log("Previous button clicked, setting isProcessing to true");
+      console.log(`[NavControls][${requestId}] Starting previous navigation, setting isProcessing to true`);
       setIsProcessing(true);
+      
+      const startTime = performance.now();
       await onPrevious();
+      const endTime = performance.now();
+      
+      console.log(`[NavControls][${requestId}] Previous navigation completed successfully in ${(endTime-startTime).toFixed(2)}ms`);
     } catch (error) {
-      console.error("Error navigating to previous step:", error);
+      console.error(`[NavControls][${requestId}] Error navigating to previous step:`, error);
+      toast.error("Navigation failed", { 
+        description: "Could not go back to previous step" 
+      });
     } finally {
-      console.log("Navigation completed, setting isProcessing to false");
+      console.log(`[NavControls][${requestId}] Previous navigation attempt completed, resetting isProcessing`);
       setIsProcessing(false);
     }
   };
@@ -125,6 +180,7 @@ export const FormNavigationControls = ({
             onClick={handleNextClick}
             disabled={isNavigating || isProcessing}
             className={`flex items-center gap-2 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-medium px-6 group transition-all duration-300 ${isNextActive ? 'animate-fade-in' : ''}`}
+            data-testid="next-button"
           >
             Next
             <ChevronRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
