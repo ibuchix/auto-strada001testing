@@ -30,7 +30,6 @@ export interface ValuationRequestConfig {
   withCache?: boolean;
 }
 
-// Added missing types
 export interface UseValuationStateProps {
   initialState?: {
     isLoading?: boolean;

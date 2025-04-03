@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2025-05-15: Extracted API calls from valuationService.ts
@@ -8,6 +9,7 @@
  * - 2025-11-01: Fixed direct function invocation with proper error handling
  * - 2025-04-03: Enhanced debugging with detailed logging and performance metrics
  * - 2025-04-04: Fixed perfTracker completion status types
+ * - 2025-04-04: Changed "error" to "failure" in perfTracker.complete calls
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -133,7 +135,7 @@ export async function fetchHomeValuation(
       timestamp: new Date().toISOString()
     });
     
-    perfTracker.complete('error', {
+    perfTracker.complete('failure', {
       errorType: error.constructor?.name,
       message: error.message,
       timestamp: new Date().toISOString()
@@ -253,7 +255,7 @@ export async function fetchSellerValuation(
       timestamp: new Date().toISOString()
     });
     
-    perfTracker.complete('error', {
+    perfTracker.complete('failure', {
       errorType: error.constructor?.name,
       message: error.message,
       timestamp: new Date().toISOString()

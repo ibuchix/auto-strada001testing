@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-04-02: Fixed incomplete hook implementation that was causing React Error #310 (infinite loop)
@@ -6,6 +7,7 @@
  * - 2024-04-03: Fixed TypeScript errors by removing unnecessary context parameter
  * - 2024-04-03: Enhanced logging with timestamps and detailed execution information
  * - 2024-04-04: Fixed error property access
+ * - 2024-04-04: Added safe error handling with optional chaining
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -95,7 +97,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
 
       console.log(`[ValuationForm][${requestIdRef.current}] Valuation result:`, {
         success: result.success,
-        errorPresent: !!result.error,
+        errorPresent: result.data && 'error' in result.data,
         dataSize: result.data ? JSON.stringify(result.data).length : 0,
         processingTime: `${(performance.now() - startTime).toFixed(2)}ms`,
         timestamp: new Date().toISOString()
@@ -137,11 +139,17 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         setShowDialog(true);
         setRetryCount(0); // Reset retry counter on success
       } else {
+        // Check if error exists in the data object using safe property access
+        const errorMessage = result.data && typeof result.data === 'object' && 'error' in result.data
+          ? result.data.error
+          : 'Valuation failed';
+          
         console.error(`[ValuationForm][${requestIdRef.current}] Valuation failed:`, {
-          error: result.data?.error || 'Unknown error',
+          error: errorMessage,
           timestamp: new Date().toISOString()
         });
-        handleError(result.data?.error || 'Valuation failed');
+        
+        handleError(errorMessage);
       }
     } catch (error: any) {
       console.error(`[ValuationForm][${requestIdRef.current}] Valuation error:`, {

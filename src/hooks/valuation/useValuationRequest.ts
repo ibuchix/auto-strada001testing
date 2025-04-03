@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-12-20: Created valuation request hook extracted from useValuationForm
@@ -9,6 +8,7 @@
  * - 2024-04-03: Added request IDs and timing information for better traceability
  * - 2024-04-03: Added correlation IDs for tracking requests through the system
  * - 2024-04-04: Fixed error property access
+ * - 2024-04-04: Added proper type checking for result data
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
@@ -203,7 +203,7 @@ export const useValuationRequest = ({
 
       console.log(`[ValuationRequest][${requestId}] Valuation result received:`, {
         success: result.success,
-        error: result.error || null,
+        error: result.data && typeof result.data === 'object' && 'error' in result.data ? result.data.error : null,
         dataSize: result.data ? JSON.stringify(result.data).length : 0,
         duration: `${valuationDuration.toFixed(2)}ms`,
         correlationId,
@@ -252,7 +252,12 @@ export const useValuationRequest = ({
         
         onSuccess(normalizedResult);
       } else {
-        handleApiError(result.data?.error || 'Unknown valuation error');
+        // Check if error exists in the result data using safe property access
+        const errorMessage = result.data && typeof result.data === 'object' && 'error' in result.data
+          ? result.data.error
+          : 'Unknown valuation error';
+          
+        handleApiError(errorMessage);
       }
     } catch (error: any) {
       handleRequestError(error);
