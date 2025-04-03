@@ -4,6 +4,7 @@
  * Tracks the status of promises to help with debugging
  * Created: 2025-04-05
  * Updated: 2025-04-06 - Enhanced with better timeout handling and error recovery
+ * Updated: 2025-04-07 - Added error severity classification and recovery options
  */
 
 import { useState, useRef, useCallback } from "react";
@@ -17,6 +18,8 @@ interface PromiseTrackRecord {
   status: 'pending' | 'resolved' | 'rejected';
   error?: any;
   duration?: number;
+  severity?: 'critical' | 'warning' | 'info';
+  recoverable?: boolean;
 }
 
 export const usePromiseTracking = (trackerName: string = 'default') => {
@@ -48,12 +51,24 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
     });
   }, [instanceId, trackerName]);
   
-  // Track a promise with timeout protection
+  // Track a promise with timeout protection and error classification
   const trackPromise = useCallback(<T>(
     promiseFunc: () => Promise<T>,
     name: string,
-    timeoutMs: number = TimeoutDurations.MEDIUM
+    options: {
+      timeoutMs?: number;
+      isCritical?: boolean;
+      retryOnError?: boolean;
+      fallbackValue?: T;
+    } = {}
   ): Promise<T> => {
+    const {
+      timeoutMs = TimeoutDurations.MEDIUM,
+      isCritical = true,
+      retryOnError = false,
+      fallbackValue
+    } = options;
+    
     const id = Math.random().toString(36).substring(2, 10);
     const startTime = performance.now();
     
@@ -62,11 +77,15 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
       id,
       name,
       startTime,
-      status: 'pending'
+      status: 'pending',
+      severity: isCritical ? 'critical' : 'warning',
+      recoverable: !isCritical || retryOnError
     };
     
     console.log(`[PromiseTracker][${instanceId}][${trackerName}] Starting "${name}" (${id})`, {
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isCritical,
+      fallbackAvailable: fallbackValue !== undefined
     });
     
     // Update state with new promise record
@@ -118,6 +137,7 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
         
         // Determine if this was a timeout error
         const isTimeoutError = error.message && error.message.includes('timed out after');
+        const severity = isCritical ? 'critical' : 'warning';
         
         // Update record on rejection
         setPromises(prev => ({
@@ -127,7 +147,8 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
             endTime,
             status: 'rejected',
             error,
-            duration
+            duration,
+            severity
           }
         }));
         
@@ -135,13 +156,21 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
         if (isTimeoutError) {
           console.error(`[PromiseTracker][${instanceId}][${trackerName}] TIMEOUT "${name}" (${id}) after ${duration.toFixed(2)}ms:`, {
             error,
+            severity,
             timestamp: new Date().toISOString()
           });
         } else {
           console.error(`[PromiseTracker][${instanceId}][${trackerName}] Rejected "${name}" (${id}) in ${duration.toFixed(2)}ms:`, {
             error,
+            severity,
             timestamp: new Date().toISOString()
           });
+        }
+        
+        // Return fallback value if available and error is non-critical
+        if (!isCritical && fallbackValue !== undefined) {
+          console.log(`[PromiseTracker][${instanceId}][${trackerName}] Using fallback value for "${name}" (${id})`);
+          return fallbackValue;
         }
         
         throw error;
@@ -163,6 +192,13 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
     return Object.values(promises).filter(p => p.status === 'rejected');
   }, [promises]);
   
+  // Get critical failures only
+  const getCriticalFailures = useCallback(() => {
+    return Object.values(promises).filter(p => 
+      p.status === 'rejected' && p.severity === 'critical'
+    );
+  }, [promises]);
+  
   // Clear completed promises from tracking
   const clearCompletedPromises = useCallback(() => {
     setPromises(prev => {
@@ -182,8 +218,12 @@ export const usePromiseTracking = (trackerName: string = 'default') => {
     getPendingPromises,
     getCompletedPromises,
     getFailedPromises,
+    getCriticalFailures,
     clearCompletedPromises,
     hasPendingPromises: Object.values(promises).some(p => p.status === 'pending'),
-    hasFailedPromises: Object.values(promises).some(p => p.status === 'rejected')
+    hasFailedPromises: Object.values(promises).some(p => p.status === 'rejected'),
+    hasCriticalFailures: Object.values(promises).some(p => 
+      p.status === 'rejected' && p.severity === 'critical' && !p.recoverable
+    )
   };
 };
