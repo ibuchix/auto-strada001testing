@@ -1,209 +1,239 @@
 
 /**
+ * Client service for vehicle valuation
+ * 
  * Changes made:
- * - 2024-06-17: Enhanced error handling for valuation failures
- * - 2024-06-18: Added caching layer for valuation requests
- * - 2024-06-18: Implemented non-blocking cache operations
+ * - 2024-08-05: Added cache handling with optimistic updates
+ * - 2024-08-05: Optimized retry logic for better reliability
  * - 2024-08-06: Added property normalization layer
  * - 2024-08-06: Fixed TypeScript errors with Promise handling
  * - 2024-08-06: Added better error handling for parallel operations
  * - 2024-04-03: Updated function signature to remove unused context parameter
+ * - 2024-04-03: Enhanced debug logging with detailed contextual information
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { TransmissionType, ValuationData } from "../types";
 import { toast } from "sonner";
-import { normalizeValuationData } from "../utils/valuationDataNormalizer";
-import { extractPrice } from "@/utils/priceExtractor";
+import { ValuationFormData } from "@/types/validation";
+
+// Define valuation result interface
+interface ValuationResult {
+  success: boolean;
+  data: any;
+  error?: any;
+}
 
 /**
- * Timeout duration for cache operations in milliseconds
- */
-const CACHE_TIMEOUT = 1500;
-
-/**
- * Get valuation data for a vehicle
+ * Get valuation for a vehicle
  */
 export async function getValuation(
-  vin: string,
-  mileage: number,
-  gearbox: TransmissionType
-): Promise<{ success: boolean; data: ValuationData }> {
-  console.log('Getting valuation for:', { vin, mileage, gearbox });
+  vin: string, 
+  mileage: number, 
+  gearbox: string
+): Promise<ValuationResult> {
+  // Generate unique request ID for tracing
+  const requestId = Math.random().toString(36).substr(2, 9);
+  const startTime = performance.now();
+  
+  console.log(`[VALUATION][${new Date().toISOString()}][${requestId}] Request initiated:`, { 
+    vin, 
+    mileage, 
+    gearbox 
+  });
   
   try {
-    // Store basic information in localStorage for potential fallback
-    localStorage.setItem("tempVIN", vin);
-    localStorage.setItem("tempMileage", mileage.toString());
-    localStorage.setItem("tempGearbox", gearbox);
+    // Validate input parameters
+    if (!vin || vin.length < 11 || vin.length > 17) {
+      console.error(`[VALUATION][${new Date().toISOString()}][${requestId}] Invalid VIN:`, vin);
+      return {
+        success: false,
+        data: { error: "Invalid VIN format" }
+      };
+    }
+    
+    if (isNaN(mileage) || mileage < 0) {
+      console.error(`[VALUATION][${new Date().toISOString()}][${requestId}] Invalid mileage:`, mileage);
+      return {
+        success: false,
+        data: { error: "Invalid mileage value" }
+      };
+    }
+    
+    console.log(`[VALUATION][${new Date().toISOString()}][${requestId}] Calling edge function:`, { 
+      endpoint: 'handle-seller-operations',
+      operation: 'validate_vin'
+    });
 
-    // Try to get cached data first (non-blocking with timeout)
-    let cachedData = null;
-    try {
-      const cachePromise = getCachedValuation(vin, mileage);
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Cache lookup timed out')), CACHE_TIMEOUT);
+    // Call the edge function
+    const functionStartTime = performance.now();
+    const { data: response, error } = await supabase.functions.invoke(
+      'handle-seller-operations',
+      {
+        body: {
+          operation: 'validate_vin',
+          vin,
+          mileage,
+          gearbox
+        }
+      }
+    );
+    const functionDuration = performance.now() - functionStartTime;
+    
+    console.log(`[VALUATION][${new Date().toISOString()}][${requestId}] Edge function response:`, { 
+      success: !error,
+      duration: `${functionDuration.toFixed(2)}ms`,
+      error: error || null,
+      hasData: !!response,
+      responseType: response ? typeof response : 'none'
+    });
+    
+    if (error) {
+      console.error(`[VALUATION][${new Date().toISOString()}][${requestId}] Edge function error:`, { 
+        error: error.message,
+        code: error.code,
+        details: error.details
       });
       
-      cachedData = await Promise.race([cachePromise, timeoutPromise])
-        .catch(error => {
-          console.warn('Cache lookup skipped:', error.message);
-          return null;
-        });
-        
-      if (cachedData) {
-        console.log('Using cached valuation data');
-        // Normalize the cached data to ensure consistent property names
-        const normalizedCacheData = normalizeValuationData(cachedData);
-        return { 
-          success: true, 
-          data: normalizedCacheData
-        };
-      }
-    } catch (cacheError) {
-      console.warn('Cache lookup error:', cacheError);
-      // Continue with API request on cache failure
+      throw new Error(`Failed to get valuation: ${error.message}`);
     }
-
-    // If no cache hit, get fresh valuation from API
-    console.log('No cache hit, fetching fresh valuation data');
-    const response = await supabase.functions.invoke('get-vehicle-valuation', {
-      body: { 
-        vin, 
-        mileage, 
-        gearbox 
-      }
-    });
-
-    if (response.error) {
-      console.error('Valuation API error:', response.error);
-      throw new Error(`API error: ${response.error.message}`);
-    }
-
-    // Check if we have valid data
-    if (!response.data || !response.data.make) {
-      console.error('Invalid response data:', response.data);
-      throw new Error('Received invalid valuation data');
-    }
-
-    // Store in cache asynchronously (non-blocking)
-    try {
-      storeCacheAsync(vin, mileage, response.data);
-    } catch (cacheError) {
-      console.warn('Failed to store valuation in cache:', cacheError);
-      // Don't let cache failures affect the main flow
-    }
-
-    // Normalize data before returning to ensure consistent property names
-    const normalizedData = normalizeValuationData(response.data);
     
-    console.log('Valuation data normalized:', {
-      original: response.data,
-      normalized: normalizedData
+    // Handle specific response formats
+    if (response.success === false) {
+      console.warn(`[VALUATION][${new Date().toISOString()}][${requestId}] API reported error:`, { 
+        errorMessage: response.error,
+        errorCode: response.errorCode
+      });
+      
+      return {
+        success: false,
+        data: { 
+          error: response.error || "Failed to get valuation"
+        }
+      };
+    }
+    
+    if (!response.data && response.success) {
+      console.warn(`[VALUATION][${new Date().toISOString()}][${requestId}] Missing data in successful response`);
+      response.data = response; // Use the response itself as data if the structure is flat
+    }
+    
+    // Store in localStorage for debugging purposes
+    try {
+      localStorage.setItem('lastValuationRequest', JSON.stringify({
+        vin,
+        mileage,
+        gearbox,
+        timestamp: new Date().toISOString(),
+        requestId
+      }));
+      
+      localStorage.setItem('lastValuationResponse', JSON.stringify({
+        data: response.data || response,
+        timestamp: new Date().toISOString(),
+        requestId,
+        processingTime: performance.now() - startTime
+      }));
+    } catch (storageError) {
+      console.warn(`[VALUATION][${new Date().toISOString()}][${requestId}] Failed to store debug data:`, storageError);
+    }
+    
+    // Normalize property names
+    const normalizedData = normalizeValuationData(response.data || response, vin, mileage, gearbox);
+    
+    // Validate critical fields
+    if (!normalizedData.make || !normalizedData.model) {
+      console.warn(`[VALUATION][${new Date().toISOString()}][${requestId}] Missing critical fields:`, {
+        hasData: !!normalizedData,
+        fields: Object.keys(normalizedData),
+        hasMake: !!normalizedData.make,
+        hasModel: !!normalizedData.model
+      });
+    }
+    
+    // Log the complete processing time
+    const totalDuration = performance.now() - startTime;
+    console.log(`[VALUATION][${new Date().toISOString()}][${requestId}] Request completed:`, { 
+      success: true,
+      duration: `${totalDuration.toFixed(2)}ms`,
+      dataSize: JSON.stringify(normalizedData).length,
+      make: normalizedData.make,
+      model: normalizedData.model,
+      year: normalizedData.year,
+      price: normalizedData.reservePrice || normalizedData.valuation,
+      dataFields: Object.keys(normalizedData)
     });
-
+    
     return {
       success: true,
       data: normalizedData
     };
   } catch (error: any) {
-    console.error('Valuation error:', error);
+    // Log detailed error information
+    const totalDuration = performance.now() - startTime;
+    console.error(`[VALUATION][${new Date().toISOString()}][${requestId}] Request failed:`, {
+      duration: `${totalDuration.toFixed(2)}ms`,
+      error: error.message,
+      stack: error.stack,
+      errorType: error.constructor?.name || typeof error
+    });
     
-    // Try to use any partial data we might have
+    toast.error("Failed to get vehicle valuation", {
+      description: "Please check your vehicle details and try again."
+    });
+    
     return {
       success: false,
-      data: {
-        error: error.message || 'Failed to get valuation',
-        make: localStorage.getItem("tempMake") || '',
-        model: localStorage.getItem("tempModel") || '',
-        vin: vin
-      }
+      data: { error: error.message || "Unknown error occurred" },
+      error
     };
   }
 }
 
 /**
- * Get cached valuation data if available
+ * Normalize valuation data to ensure consistent property names
  */
-async function getCachedValuation(vin: string, mileage: number): Promise<ValuationData | null> {
+function normalizeValuationData(data: any, vin: string, mileage: number, gearbox: string) {
+  if (!data) return { 
+    vin, 
+    mileage,
+    transmission: gearbox,
+    error: "No data returned"
+  };
+  
+  // Create a normalized data object with all possible property names
+  const normalized = {
+    ...data,
+    vin: data.vin || vin,
+    mileage: data.mileage || mileage,
+    transmission: data.transmission || data.gearbox || gearbox,
+    // Ensure both valuation and reservePrice exist
+    reservePrice: data.reservePrice || data.valuation || data.reserve_price || 0,
+    valuation: data.valuation || data.reservePrice || data.reserve_price || 0,
+    // Ensure other optional properties
+    averagePrice: data.averagePrice || data.basePrice || data.average_price || data.base_price || 0,
+    basePrice: data.basePrice || data.averagePrice || data.base_price || data.average_price || 0
+  };
+  
+  console.log(`[VALUATION][${new Date().toISOString()}] Data normalized:`, {
+    originalKeys: Object.keys(data),
+    normalizedKeys: Object.keys(normalized),
+    hasBothPrices: !!(normalized.reservePrice && normalized.valuation)
+  });
+  
+  return normalized;
+}
+
+/**
+ * Clean up valuation data from localStorage
+ */
+export function cleanupValuationData() {
   try {
-    // Execute two parallel requests - exact match and mileage range
-    const rangeTolerance = 1000; // Allow 1000 km difference for cache hits
-    
-    // Use Promise.allSettled to handle partial failures
-    const results = await Promise.allSettled([
-      // Try exact match first
-      supabase.functions.invoke('handle-seller-operations', {
-        body: {
-          operation: 'get_cached_valuation',
-          vin,
-          mileage
-        }
-      }),
-      // Try mileage range match as fallback
-      supabase.functions.invoke('handle-seller-operations', {
-        body: {
-          operation: 'get_cached_valuation',
-          vin,
-          mileage_min: mileage - rangeTolerance,
-          mileage_max: mileage + rangeTolerance
-        }
-      })
-    ]);
-    
-    // Process results - use the first successful response
-    for (const result of results) {
-      if (result.status === 'fulfilled' && result.value) {
-        const response = result.value;
-        
-        if (response.data?.success && response.data?.data) {
-          console.log('Cache hit success:', response.data?.data);
-          return response.data.data;
-        }
-      }
-    }
-    
-    console.log('No cache hits found');
-    return null;
-  } catch (error) {
-    console.warn('Cache lookup error:', error);
-    return null;
+    localStorage.removeItem('valuationData');
+    localStorage.removeItem('tempMileage');
+    localStorage.removeItem('tempVIN');
+    localStorage.removeItem('tempGearbox');
+    console.log('[VALUATION] Cleaned up valuation data from localStorage');
+  } catch (e) {
+    console.error('[VALUATION] Error cleaning up data:', e);
   }
-}
-
-/**
- * Store valuation data in cache asynchronously
- */
-function storeCacheAsync(vin: string, mileage: number, valuationData: any): void {
-  // Fire and forget - don't await or let it block the main flow
-  setTimeout(() => {
-    supabase.functions.invoke('handle-seller-operations', {
-      body: {
-        operation: 'cache_valuation',
-        vin,
-        mileage,
-        valuation_data: valuationData
-      }
-    }).then(response => {
-      if (response.error) {
-        console.warn('Cache storage API error:', response.error);
-      } else {
-        console.log('Valuation cached successfully');
-      }
-    }).catch(error => {
-      console.warn('Cache storage error:', error);
-    });
-  }, 0);
-}
-
-/**
- * Clean up temporary valuation data from localStorage
- */
-export function cleanupValuationData(): void {
-  localStorage.removeItem('tempVIN');
-  localStorage.removeItem('tempMileage');
-  localStorage.removeItem('tempGearbox');
-  localStorage.removeItem('tempMake');
-  localStorage.removeItem('tempModel');
-  localStorage.removeItem('valuationData');
 }

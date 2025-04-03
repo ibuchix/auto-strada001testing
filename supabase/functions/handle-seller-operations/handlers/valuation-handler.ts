@@ -3,7 +3,7 @@ import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { ValuationRequest } from '../schema-validation.ts';
 import { checkExistingEntities, validateVinInput } from '../services/validation-service.ts';
 import { fetchVehicleValuation } from '../valuation-service.ts';
-import { logOperation } from '../../_shared/index.ts';
+import { logOperation, createPerformanceTracker } from '../../_shared/logging.ts';
 
 export async function handleValuationRequest(
   supabase: SupabaseClient,
@@ -15,20 +15,47 @@ export async function handleValuationRequest(
   error?: string;
   errorCode?: string;
 }> {
+  // Create performance tracker for monitoring execution times
+  const perfTracker = createPerformanceTracker(requestId, 'valuation_request');
+  
   try {
     const { vin, mileage, gearbox, userId } = data;
     
-    // Log operation start
-    logOperation('valuation_request_start', { requestId, vin, mileage, gearbox, userId });
+    // Log operation start with detailed context
+    logOperation('valuation_request_start', { 
+      requestId, 
+      vin, 
+      mileage, 
+      gearbox, 
+      userId,
+      timestamp: new Date().toISOString()
+    });
     
     // Validate inputs
     validateVinInput(vin, mileage, userId);
+    perfTracker.checkpoint('input_validation');
     
     // Check for existing data
+    const existingCheckStartTime = performance.now();
     const existingCheck = await checkExistingEntities(supabase, vin, userId, mileage, requestId);
+    perfTracker.checkpoint('existing_check');
+    
+    logOperation('existing_entities_check', { 
+      requestId, 
+      vin,
+      isExistingReservation: existingCheck.isExistingReservation,
+      isExistingVehicle: existingCheck.isExistingVehicle,
+      executionTimeMs: (performance.now() - existingCheckStartTime).toFixed(2),
+      timestamp: new Date().toISOString()
+    });
     
     if (existingCheck.isExistingReservation) {
-      logOperation('using_existing_reservation', { requestId, vin });
+      logOperation('using_existing_reservation', { 
+        requestId, 
+        vin,
+        timestamp: new Date().toISOString(),
+        dataFields: existingCheck.data ? Object.keys(existingCheck.data) : []
+      });
       
       // Ensure data has consistent property names
       if (existingCheck.data) {
@@ -40,6 +67,12 @@ export async function handleValuationRequest(
         }
       }
       
+      perfTracker.complete('success', { 
+        source: 'existing_reservation', 
+        vin, 
+        mileage 
+      });
+      
       return {
         success: true,
         data: existingCheck.data
@@ -47,7 +80,17 @@ export async function handleValuationRequest(
     }
     
     if (existingCheck.isExistingVehicle) {
-      logOperation('vehicle_already_exists', { requestId, vin });
+      logOperation('vehicle_already_exists', { 
+        requestId, 
+        vin,
+        timestamp: new Date().toISOString()
+      });
+      
+      perfTracker.complete('failure', { 
+        reason: 'vehicle_already_exists', 
+        vin 
+      });
+      
       return {
         success: false,
         data: existingCheck.data,
@@ -59,7 +102,16 @@ export async function handleValuationRequest(
     // Try to get cached valuation first (non-blocking)
     let cachedValuationResult = null;
     try {
+      // Log cache lookup attempt
+      logOperation('cache_lookup_start', { 
+        requestId, 
+        vin,
+        mileage,
+        timestamp: new Date().toISOString()
+      });
+      
       // Attempt to get cached valuation with a timeout to avoid blocking main flow
+      const cacheStartTime = performance.now();
       const cachePromise = supabase.functions.invoke('handle-seller-operations', {
         body: {
           operation: 'get_cached_valuation',
@@ -78,13 +130,24 @@ export async function handleValuationRequest(
         .catch(error => {
           logOperation('cache_lookup_skip', { 
             requestId, 
-            reason: error.message 
+            reason: error.message,
+            duration: (performance.now() - cacheStartTime).toFixed(2) + 'ms',
+            timestamp: new Date().toISOString()
           }, 'info');
           return null;
         });
       
+      perfTracker.checkpoint('cache_lookup');
+      
       if (cacheResult?.data?.success && cacheResult?.data?.data) {
-        logOperation('using_cached_valuation', { requestId, vin });
+        logOperation('using_cached_valuation', { 
+          requestId, 
+          vin,
+          cacheLookupTimeMs: (performance.now() - cacheStartTime).toFixed(2),
+          dataKeys: Object.keys(cacheResult.data.data),
+          timestamp: new Date().toISOString()
+        });
+        
         cachedValuationResult = cacheResult.data.data;
         
         // Ensure consistent property names in cached data
@@ -98,14 +161,54 @@ export async function handleValuationRequest(
       // Log but continue with regular valuation flow
       logOperation('cache_lookup_error', { 
         requestId, 
-        error: cacheError.message 
+        error: cacheError.message,
+        stack: cacheError.stack,
+        timestamp: new Date().toISOString()
       }, 'warn');
     }
     
     // Use cached data if available or fetch from external service
-    const valuationResult = cachedValuationResult || (await fetchVehicleValuation(vin, mileage, gearbox, requestId));
+    let valuationResult;
+    if (cachedValuationResult) {
+      valuationResult = {
+        success: true,
+        data: cachedValuationResult
+      };
+      perfTracker.checkpoint('using_cached_data');
+    } else {
+      // Log external API request start
+      logOperation('external_valuation_start', { 
+        requestId, 
+        vin,
+        mileage,
+        gearbox,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Time the external API call
+      const apiStartTime = performance.now();
+      valuationResult = await fetchVehicleValuation(vin, mileage, gearbox, requestId);
+      const apiCallDuration = performance.now() - apiStartTime;
+      
+      perfTracker.checkpoint('external_api_call');
+      
+      // Log external API result
+      logOperation('external_valuation_result', { 
+        requestId, 
+        vin,
+        success: valuationResult.success,
+        error: valuationResult.error || null,
+        durationMs: apiCallDuration.toFixed(2),
+        timestamp: new Date().toISOString()
+      });
+    }
     
     if (!valuationResult.success) {
+      perfTracker.complete('failure', { 
+        reason: valuationResult.errorCode || 'valuation_error', 
+        error: valuationResult.error 
+      });
+      
       return {
         success: false,
         error: valuationResult.error || 'Failed to get valuation',
@@ -125,6 +228,13 @@ export async function handleValuationRequest(
     
     // Store in cache asynchronously - don't await, fire and forget
     if (!cachedValuationResult) {
+      // Log cache store attempt
+      logOperation('cache_store_start', { 
+        requestId, 
+        vin,
+        timestamp: new Date().toISOString()
+      }, 'debug');
+      
       // Fire and forget - don't block the main flow
       supabase.functions.invoke('handle-seller-operations', {
         body: {
@@ -137,13 +247,22 @@ export async function handleValuationRequest(
         // Just log the error, don't let it affect the main flow
         logOperation('cache_store_error', { 
           requestId, 
-          error: error.message 
+          error: error.message,
+          timestamp: new Date().toISOString()
         }, 'warn');
       });
     }
     
     // Store in VIN reservations if not already present - also async
     try {
+      // Log reservation attempt
+      logOperation('creating_vin_reservation', { 
+        requestId, 
+        vin,
+        userId,
+        timestamp: new Date().toISOString()
+      }, 'debug');
+      
       // Fire and forget - don't await the result
       supabase
         .from('vin_reservations')
@@ -160,7 +279,8 @@ export async function handleValuationRequest(
             logOperation('reservation_store_error', { 
               requestId, 
               vin, 
-              error: result.error.message 
+              error: result.error.message,
+              timestamp: new Date().toISOString()
             }, 'warn');
           }
         })
@@ -168,7 +288,8 @@ export async function handleValuationRequest(
           logOperation('reservation_store_exception', { 
             requestId, 
             vin, 
-            error: error.message 
+            error: error.message,
+            timestamp: new Date().toISOString()
           }, 'warn');
         });
     } catch (reservationError) {
@@ -176,15 +297,24 @@ export async function handleValuationRequest(
       logOperation('reservation_store_exception', { 
         requestId, 
         vin, 
-        error: reservationError.message 
+        error: reservationError.message,
+        timestamp: new Date().toISOString()
       }, 'warn');
     }
+    
+    perfTracker.complete('success', { 
+      source: cachedValuationResult ? 'cache' : 'external_api',
+      vin,
+      hasData: !!valuationResult.data,
+      dataFields: valuationResult.data ? Object.keys(valuationResult.data) : []
+    });
     
     logOperation('valuation_request_complete', { 
       requestId, 
       vin,
       success: true,
-      fromCache: !!cachedValuationResult
+      fromCache: !!cachedValuationResult,
+      timestamp: new Date().toISOString()
     });
     
     return {
@@ -192,10 +322,16 @@ export async function handleValuationRequest(
       data: valuationResult.data
     };
   } catch (error) {
+    perfTracker.complete('error', { 
+      errorType: error.constructor?.name,
+      errorMessage: error.message
+    });
+    
     logOperation('valuation_request_error', { 
       requestId, 
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
+      timestamp: new Date().toISOString()
     }, 'error');
     
     return {
