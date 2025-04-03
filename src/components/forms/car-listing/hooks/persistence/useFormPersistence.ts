@@ -15,7 +15,7 @@ import { saveProgress } from "./saveUtils";
 import { useChangeDetection } from "./useChangeDetection";
 
 // Debounce time in milliseconds
-const AUTO_SAVE_INTERVAL = TimeoutDurations.STANDARD; // 5 seconds
+const AUTO_SAVE_INTERVAL = TimeoutDurations.MEDIUM; // 10 seconds - changed from STANDARD
 const SAVE_DEBOUNCE = 500; // 0.5 seconds
 
 export const useFormPersistence = ({

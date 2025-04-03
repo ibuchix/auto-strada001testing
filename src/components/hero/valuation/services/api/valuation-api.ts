@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-05-15: Extracted API calls from valuationService.ts
@@ -8,6 +7,7 @@
  * - 2025-12-01: Updated to use dedicated get-vehicle-valuation endpoint
  * - 2025-11-01: Fixed direct function invocation with proper error handling
  * - 2025-04-03: Enhanced debugging with detailed logging and performance metrics
+ * - 2025-04-04: Fixed perfTracker completion status types
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -74,7 +74,7 @@ export async function fetchHomeValuation(
         timestamp: new Date().toISOString()
       });
       
-      perfTracker.complete('failure', { 
+      perfTracker.complete('failure', {
         errorType: 'edge_function_error',
         message: error.message
       });
@@ -88,7 +88,7 @@ export async function fetchHomeValuation(
         timestamp: new Date().toISOString()
       });
       
-      perfTracker.complete('failure', { 
+      perfTracker.complete('failure', {
         errorType: 'missing_data',
         message: 'No valuation data returned'
       });
@@ -191,7 +191,7 @@ export async function fetchSellerValuation(
         timestamp: new Date().toISOString()
       });
       
-      perfTracker.complete('failure', { 
+      perfTracker.complete('failure', {
         errorType: 'edge_function_error',
         message: error.message
       });
@@ -207,7 +207,7 @@ export async function fetchSellerValuation(
         timestamp: new Date().toISOString()
       });
       
-      perfTracker.complete('failure', { 
+      perfTracker.complete('failure', {
         errorType: 'api_response_failure',
         message: response.error
       });

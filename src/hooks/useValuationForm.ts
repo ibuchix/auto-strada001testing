@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-04-02: Fixed incomplete hook implementation that was causing React Error #310 (infinite loop)
@@ -6,6 +5,7 @@
  * - 2024-04-02: Fixed return statement to include all required properties
  * - 2024-04-03: Fixed TypeScript errors by removing unnecessary context parameter
  * - 2024-04-03: Enhanced logging with timestamps and detailed execution information
+ * - 2024-04-04: Fixed error property access
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -138,10 +138,10 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         setRetryCount(0); // Reset retry counter on success
       } else {
         console.error(`[ValuationForm][${requestIdRef.current}] Valuation failed:`, {
-          error: result.error || result.data?.error,
+          error: result.data?.error || 'Unknown error',
           timestamp: new Date().toISOString()
         });
-        handleError(result.data?.error);
+        handleError(result.data?.error || 'Valuation failed');
       }
     } catch (error: any) {
       console.error(`[ValuationForm][${requestIdRef.current}] Valuation error:`, {

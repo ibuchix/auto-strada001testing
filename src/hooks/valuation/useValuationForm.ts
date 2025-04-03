@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-12-20: Refactored from original useValuationForm into smaller composable hooks
+ * - 2024-04-04: Fixed type imports
  */
 
 import { useForm } from "react-hook-form";

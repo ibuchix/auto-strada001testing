@@ -8,6 +8,7 @@
  * - 2024-04-03: Enhanced debug logging for performance tracking and troubleshooting
  * - 2024-04-03: Added request IDs and timing information for better traceability
  * - 2024-04-03: Added correlation IDs for tracking requests through the system
+ * - 2024-04-04: Fixed error property access
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
@@ -251,7 +252,7 @@ export const useValuationRequest = ({
         
         onSuccess(normalizedResult);
       } else {
-        handleApiError(result.data?.error);
+        handleApiError(result.data?.error || 'Unknown valuation error');
       }
     } catch (error: any) {
       handleRequestError(error);

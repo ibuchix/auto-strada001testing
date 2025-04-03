@@ -2,10 +2,12 @@
 /**
  * Timeout utilities for API calls and operations
  * Created: 2024-04-03
+ * Updated: 2024-04-04 - Added STANDARD duration
  */
 
 export const TimeoutDurations = {
   SHORT: 5000,   // 5 seconds
+  STANDARD: 5000, // 5 seconds (same as SHORT for now)
   MEDIUM: 10000, // 10 seconds
   LONG: 20000,   // 20 seconds
   EXTENDED: 30000 // 30 seconds

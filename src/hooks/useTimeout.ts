@@ -1,9 +1,9 @@
-
 /**
  * Changes made:
  * - 2024-08-17: Created reusable timeout hook with automatic cleanup
  * - 2024-08-19: Refactored to use standardized timeouts from timeoutUtils
  * - 2024-08-19: Enhanced type safety with proper TypeScript generics for callback arguments
+ * - 2024-04-04: Fixed TimeoutDurations usage
  */
 
 import { useRef, useEffect, useCallback } from 'react';
@@ -19,7 +19,7 @@ import { TimeoutDurations } from '@/utils/timeoutUtils';
  */
 export const useTimeout = (
   callback: () => void,
-  duration: number = TimeoutDurations.STANDARD,
+  duration: number = TimeoutDurations.MEDIUM,
   dependencies: any[] = []
 ) => {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);

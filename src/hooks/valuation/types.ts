@@ -2,6 +2,7 @@
 /**
  * Types for valuation hooks
  * Created: 2024-04-03
+ * Updated: 2024-04-04 - Added missing types
  */
 
 export interface UseValuationRequestProps {
@@ -27,4 +28,23 @@ export interface ValuationRequestConfig {
   requestId?: string;
   timeout?: number;
   withCache?: boolean;
+}
+
+// Added missing types
+export interface UseValuationStateProps {
+  initialState?: {
+    isLoading?: boolean;
+    showDialog?: boolean;
+    valuationResult?: any;
+  };
+}
+
+export interface UseValuationFormResult {
+  form: any;
+  isLoading: boolean;
+  showDialog: boolean;
+  setShowDialog: (show: boolean) => void;
+  valuationResult: any;
+  onSubmit: (e: any) => void;
+  resetForm: () => void;
 }
