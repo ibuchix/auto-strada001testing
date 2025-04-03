@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getValuation } from './services/valuationService';
@@ -19,8 +20,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
       const result = await getValuation(
         formData.vin,
         Number(formData.mileage),
-        formData.gearbox,
-        context
+        formData.gearbox
       );
       
       if (result.data.isExisting && context === 'seller') {

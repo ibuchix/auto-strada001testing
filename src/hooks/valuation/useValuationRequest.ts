@@ -1,9 +1,9 @@
-
 /**
  * Changes made:
  * - 2024-12-20: Created valuation request hook extracted from useValuationForm
  * - 2024-08-17: Refactored to use standardized timeout utilities
  * - 2024-12-21: Optimized with memoization and better resource management
+ * - 2024-04-03: Updated function signature in getValuation call to remove unnecessary context parameter
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";

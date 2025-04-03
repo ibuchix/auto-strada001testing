@@ -7,6 +7,7 @@
  * - 2024-08-06: Added property normalization layer
  * - 2024-08-06: Fixed TypeScript errors with Promise handling
  * - 2024-08-06: Added better error handling for parallel operations
+ * - 2024-04-03: Updated function signature to remove unused context parameter
  */
 
 import { supabase } from "@/integrations/supabase/client";

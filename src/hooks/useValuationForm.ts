@@ -1,9 +1,9 @@
-
 /**
  * Changes made:
  * - 2024-04-02: Fixed incomplete hook implementation that was causing React Error #310 (infinite loop)
  * - 2024-04-02: Added proper dependency arrays to useEffect hooks
  * - 2024-04-02: Fixed return statement to include all required properties
+ * - 2024-04-03: Fixed TypeScript errors by removing unnecessary context parameter
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -64,8 +64,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
       const result = await getValuation(
         data.vin,
         mileage,
-        data.gearbox,
-        context
+        data.gearbox
       );
 
       console.log('Valuation result:', result);
