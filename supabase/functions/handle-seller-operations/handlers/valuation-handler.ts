@@ -29,6 +29,17 @@ export async function handleValuationRequest(
     
     if (existingCheck.isExistingReservation) {
       logOperation('using_existing_reservation', { requestId, vin });
+      
+      // Ensure data has consistent property names
+      if (existingCheck.data) {
+        // Make sure both valuation and reservePrice exist (for backwards compatibility)
+        if (existingCheck.data.valuation !== undefined && existingCheck.data.reservePrice === undefined) {
+          existingCheck.data.reservePrice = existingCheck.data.valuation;
+        } else if (existingCheck.data.reservePrice !== undefined && existingCheck.data.valuation === undefined) {
+          existingCheck.data.valuation = existingCheck.data.reservePrice;
+        }
+      }
+      
       return {
         success: true,
         data: existingCheck.data
@@ -75,6 +86,13 @@ export async function handleValuationRequest(
       if (cacheResult?.data?.success && cacheResult?.data?.data) {
         logOperation('using_cached_valuation', { requestId, vin });
         cachedValuationResult = cacheResult.data.data;
+        
+        // Ensure consistent property names in cached data
+        if (cachedValuationResult.valuation !== undefined && cachedValuationResult.reservePrice === undefined) {
+          cachedValuationResult.reservePrice = cachedValuationResult.valuation;
+        } else if (cachedValuationResult.reservePrice !== undefined && cachedValuationResult.valuation === undefined) {
+          cachedValuationResult.valuation = cachedValuationResult.reservePrice;
+        }
       }
     } catch (cacheError) {
       // Log but continue with regular valuation flow
@@ -93,6 +111,16 @@ export async function handleValuationRequest(
         error: valuationResult.error || 'Failed to get valuation',
         errorCode: valuationResult.errorCode || 'VALUATION_ERROR'
       };
+    }
+    
+    // Ensure consistent property names in API response
+    if (valuationResult.data) {
+      // Make sure both valuation and reservePrice exist
+      if (valuationResult.data.valuation !== undefined && valuationResult.data.reservePrice === undefined) {
+        valuationResult.data.reservePrice = valuationResult.data.valuation;
+      } else if (valuationResult.data.reservePrice !== undefined && valuationResult.data.valuation === undefined) {
+        valuationResult.data.valuation = valuationResult.data.reservePrice;
+      }
     }
     
     // Store in cache asynchronously - don't await, fire and forget

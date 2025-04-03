@@ -79,15 +79,17 @@ export async function fetchVehicleValuation(
       };
     }
     
-    // Calculate reserve price
+    // Calculate base price
     const basePrice = calculateBasePrice(data);
     const reservePrice = calculateReservePrice(basePrice);
     
-    // Enhance the data with our calculations
+    // Enhance the data with our calculations and ensure consistent property names
     const enhancedData = {
       ...data,
       basePrice,
       reservePrice,
+      valuation: reservePrice, // Add both property names for consistency
+      averagePrice: basePrice, // Add averagePrice for consistency
       transmission: gearbox, // Store the transmission type from user input
       vin // Include VIN in the data for reference
     };

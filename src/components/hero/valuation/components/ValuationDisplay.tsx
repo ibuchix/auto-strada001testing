@@ -15,7 +15,7 @@
  * - 2028-06-03: Added better debug logging for valuation data
  * - 2028-06-14: Enhanced error resilience with comprehensive null/undefined checks
  * - 2028-06-14: Added detailed debug view toggle for troubleshooting
- * - 2028-06-14: Improved visual feedback during processing states
+ * - 2024-08-06: Added property name normalization to handle inconsistent API responses
  */
 
 import { Button } from "@/components/ui/button";
@@ -219,4 +219,4 @@ export const ValuationDisplay = ({
       )}
     </div>
   );
-};
+}

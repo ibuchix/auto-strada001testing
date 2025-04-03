@@ -1,5 +1,6 @@
 /**
  * Created: 2028-06-14
+ * Modified: 2024-08-06
  * Utility functions to normalize and validate valuation data
  */
 
@@ -36,15 +37,13 @@ export function normalizeValuationData(data: any): ValuationData {
       ? data.transmission as TransmissionType 
       : 'manual' as TransmissionType,
       
-    // Handle valuation values
-    // Use the first available price value for reserve price (priority order)
-    reservePrice: data.reservePrice || data.valuation || 0,
+    // Handle valuation values with consistent property names
+    // Ensure both valuation and reservePrice properties exist with fallbacks
+    valuation: data.valuation ?? data.reservePrice ?? data.price ?? data.basePrice ?? 0,
+    reservePrice: data.reservePrice ?? data.valuation ?? data.price ?? data.basePrice ?? 0,
     
-    // Use the first available price value for valuation (priority order)
-    valuation: data.valuation || data.reservePrice || 0,
-    
-    // Use the first available price value for average price (priority order)
-    averagePrice: data.averagePrice || data.basePrice || data.price_med || 0,
+    // Handle average price with fallbacks
+    averagePrice: data.averagePrice ?? data.basePrice ?? data.price_med ?? 0,
     
     // Other properties
     isExisting: !!data.isExisting,
@@ -52,6 +51,7 @@ export function normalizeValuationData(data: any): ValuationData {
     noData: !!data.noData
   };
   
+  console.log('Normalized result:', normalized);
   return normalized;
 }
 
@@ -70,8 +70,8 @@ export function validateValuationData(data: any): boolean {
   
   // Check if we have either valuation or reservePrice
   const hasPriceData = Boolean(
-    ((data.reservePrice || data.reservePrice === 0) && Number(data.reservePrice) >= 0) || 
-    ((data.valuation || data.valuation === 0) && Number(data.valuation) >= 0)
+    ((data.reservePrice !== undefined) && Number(data.reservePrice) >= 0) || 
+    ((data.valuation !== undefined) && Number(data.valuation) >= 0)
   );
   
   const isValid = hasBasicData && hasPriceData;
