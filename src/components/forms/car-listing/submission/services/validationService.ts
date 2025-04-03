@@ -3,6 +3,7 @@
  * Validation service for car listing submissions
  * Combines client and server validation with schema validation
  * - Fixed import for validation utils
+ * - 2025-04-03: Added internal validateFormData function to fix import error
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -11,7 +12,7 @@ import { ValidationError } from "../errors";
 import { validateExtendedCar } from "@/utils/validation/carSchema";
 import { ValidationErrorCode } from "@/errors/types";
 
-// Create a simple validation function to replace the missing import
+// Create local validateFormData function instead of importing it
 const validateFormData = (data: CarListingFormData): string[] => {
   const errors: string[] = [];
   

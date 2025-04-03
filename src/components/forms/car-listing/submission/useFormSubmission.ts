@@ -1,6 +1,7 @@
 
 /**
- * Updated submission hook to use updated validation import
+ * Updated submission hook with proper type returns for FormSubmissionProvider
+ * - 2025-04-03: Added missing properties for FormSubmissionContextType
  */
 
 import { useState } from "react";
@@ -11,6 +12,7 @@ import { validateSubmission } from "./services/validationService";
 import { submitCarListing } from "./services/submissionService";
 import { ValidationError } from "./errors";
 import { ValidationErrorCode } from "@/errors/types";
+import { TransactionStatus } from "@/services/supabase/transactions/types";
 
 // Create a simple validation function to replace the missing import
 const validateFormData = (data: CarListingFormData): string[] => {
@@ -28,9 +30,19 @@ const validateFormData = (data: CarListingFormData): string[] => {
 export const useFormSubmission = (userId: string) => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  
+  const resetTransaction = () => {
+    setError(null);
+    setTransactionStatus(null);
+  };
   
   const handleSubmit = async (data: CarListingFormData, carId?: string) => {
     setIsSubmitting(true);
+    setError(null);
+    setTransactionStatus("pending");
     
     try {
       // Validate the form data before submitting
@@ -42,6 +54,8 @@ export const useFormSubmission = (userId: string) => {
           description: clientSideErrors.join(", ")
         });
         setIsSubmitting(false);
+        setError("Validation failed");
+        setTransactionStatus("error");
         return false;
       }
       
@@ -56,6 +70,7 @@ export const useFormSubmission = (userId: string) => {
       
       // Show success message
       toast.success("Car listing submitted successfully!");
+      setTransactionStatus("success");
       
       // Navigate to success page or dashboard
       navigate("/dashboard");
@@ -63,8 +78,10 @@ export const useFormSubmission = (userId: string) => {
       return true;
     } catch (error) {
       console.error("Error submitting car listing:", error);
+      setTransactionStatus("error");
       
       if (error instanceof ValidationError) {
+        setError(error.message);
         switch (error.code) {
           case ValidationErrorCode.SCHEMA_VALIDATION_ERROR:
             toast.error("Form validation failed", { description: error.description });
@@ -82,6 +99,7 @@ export const useFormSubmission = (userId: string) => {
             toast.error("An error occurred", { description: error.description });
         }
       } else {
+        setError("Unknown error");
         toast.error(
           "Failed to submit car listing", 
           { description: "Please try again later." }
@@ -94,5 +112,13 @@ export const useFormSubmission = (userId: string) => {
     }
   };
   
-  return { handleSubmit, isSubmitting };
+  return { 
+    handleSubmit, 
+    isSubmitting, 
+    error, 
+    transactionStatus,
+    showSuccessDialog, 
+    setShowSuccessDialog,
+    resetTransaction 
+  };
 };

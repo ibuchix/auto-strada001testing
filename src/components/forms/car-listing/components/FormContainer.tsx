@@ -4,6 +4,7 @@
  * - Handles displaying the appropriate components for the current step
  * - Updated to support consolidated multi-step steps
  * - Uses FormDataContext instead of direct form prop
+ * - 2025-04-03: Fixed section component props to use FormDataContext
  */
 import { memo, useMemo } from "react";
 import { formSteps } from "../constants/formSteps";

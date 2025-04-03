@@ -1,6 +1,7 @@
 
 /**
  * Updated FormErrorSection to work with fixed validation types
+ * - 2025-04-03: Fixed import issues with EnhancedValidationResult
  */
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";

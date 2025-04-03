@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Removed diagnostic-related code
@@ -146,7 +145,7 @@ export const RequiredPhotos = ({
     .map(photo => ({
       field: `photo_${photo.id}`,
       message: `${photo.title} photo is required`,
-      severity: ValidationSeverity.CRITICAL,
+      severity: "error",
       recoverable: false
     }));
 

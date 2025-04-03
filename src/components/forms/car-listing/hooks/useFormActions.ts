@@ -5,6 +5,7 @@
  * - Created a custom hook to manage form actions (save, submit)
  * - 2024-08-10: Enhanced memoization for action handlers
  * - Added stable function references for form actions
+ * - 2025-04-03: Fixed return type of handleFormSubmit to be Promise<void> instead of Promise<boolean>
  */
 
 import { useCallback, useMemo } from "react";

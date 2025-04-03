@@ -1,6 +1,7 @@
 
 /**
  * Validation utilities for car listings
+ * - 2025-04-03: Fixed ValidationSeverity export as type instead of enum
  */
 
 import { CarListingFormData } from "@/types/forms";
