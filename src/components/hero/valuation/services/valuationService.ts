@@ -5,6 +5,7 @@
  * - Added correlation ID support for request tracing
  * - Updated API calls to use the improved cache functions
  * - 2024-04-04: Fixed spread operator issue by checking for null values
+ * - 2024-04-04: Added null/undefined object protection for all spreads
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -38,7 +39,7 @@ export async function getValuation(
       const result = {
         success: true,
         data: {
-          ...(cachedData || {}), // Ensure cachedData is an object before spreading
+          ...(cachedData && typeof cachedData === 'object' ? cachedData : {}), // Ensure cachedData is an object before spreading
           vin,
           mileage,
           transmission: gearbox,
@@ -108,7 +109,7 @@ export async function getValuation(
     return {
       success: true,
       data: {
-        ...(functionResult || {}), // Ensure functionResult is an object before spreading
+        ...(functionResult && typeof functionResult === 'object' ? functionResult : {}), // Ensure functionResult is an object before spreading
         vin,
         mileage,
         transmission: gearbox
