@@ -9,9 +9,10 @@
  * - 2025-11-29: Fixed validateCar import path
  * - 2025-12-01: Updated to use correct import for validateCar
  * - 2025-12-03: Fixed type issue with transmission property
+ * - 2025-12-05: Fixed type issue with features property
  */
 
-import { CarListingFormData, CarEntity } from '@/types/forms';
+import { CarListingFormData, CarEntity, CarFeatures } from '@/types/forms';
 import { validateCar } from '@/utils/validation/carSchema';
 import { toast } from 'sonner';
 
@@ -24,6 +25,19 @@ export const prepareCarData = (
   valuationData: any,
   userId: string
 ): Partial<CarEntity> => {
+  // Prepare a proper CarFeatures object with all required properties
+  const carFeatures: CarFeatures = {
+    satNav: formData.features?.satNav || false,
+    panoramicRoof: formData.features?.panoramicRoof || false,
+    reverseCamera: formData.features?.reverseCamera || false,
+    heatedSeats: formData.features?.heatedSeats || false,
+    upgradedSound: formData.features?.upgradedSound || false,
+    bluetooth: formData.features?.bluetooth || false,
+    sunroof: formData.features?.sunroof || false,
+    alloyWheels: formData.features?.alloyWheels || false,
+    ...(formData.features || {})
+  };
+  
   // Basic data preparation
   const preparedData = {
     // Seller information
@@ -43,7 +57,7 @@ export const prepareCarData = (
     price: formData.price ? Number(formData.price) : undefined,
     
     // Features and condition
-    features: formData.features || {},
+    features: carFeatures,
     is_damaged: formData.isDamaged || false,
     is_registered_in_poland: formData.isRegisteredInPoland || false,
     has_private_plate: formData.hasPrivatePlate || false,
