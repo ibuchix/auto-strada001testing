@@ -6,6 +6,7 @@
  * Updated: 2025-04-06 - Fixed type issue with fallback prop
  * Updated: 2025-04-07 - Fixed ReactNode type issues with fallback function
  * Updated: 2025-04-08 - Fixed FallbackFunction type compatibility with ReactNode
+ * Updated: 2025-04-09 - Fixed fallback function execution and return type
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
@@ -15,8 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 
-// Explicitly type the fallback function
-type FallbackFunction = (error: AppError, resetError: () => void) => React.ReactNode;
+// Explicitly type the fallback function to return ReactNode
+type FallbackFunction = (error: AppError, resetError: () => void) => ReactNode;
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -66,7 +67,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       // Use custom fallback if provided
       if (this.props.fallback) {
         if (typeof this.props.fallback === 'function' && this.state.error) {
-          // Execute the function to get a ReactNode instead of returning the function itself
+          // Safely execute the function with proper typing
           const fallbackFn = this.props.fallback as FallbackFunction;
           return fallbackFn(this.state.error, this.resetError);
         }

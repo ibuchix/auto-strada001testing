@@ -1,95 +1,28 @@
 
 /**
- * Error context for application-wide error management
- * Created: 2025-04-05
- * Updated: 2025-04-05 - Fixed TypeScript type issues
+ * ErrorContext.tsx
+ * 
+ * Context for application-wide error handling
+ * Updated: 2025-04-06 - Fixed read-only property issues and type assignments
+ * Updated: 2025-04-07 - Added captureError method and fixed type issues
+ * Updated: 2025-04-09 - Refactored to use centralized store
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { AppError } from './classes';
-import { createErrorFromUnknown } from './factory';
-import { RecoveryAction } from './types';
+import { useErrorStore } from '@/hooks/store/useErrorStore';
+import { AppError } from '@/errors/classes';
+import { ErrorInfo } from 'react';
 
-interface ErrorContextType {
+interface ErrorContextValue {
   errors: AppError[];
-  lastError: AppError | null;
+  addError: (error: AppError) => void;
   clearErrors: () => void;
   clearError: (id: string) => void;
   captureError: (error: unknown) => AppError;
-  hasErrors: boolean;
+  handleComponentError: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
-const ErrorContext = createContext<ErrorContextType | null>(null);
-
-interface ErrorProviderProps {
-  children: ReactNode;
-  showToasts?: boolean;
-}
-
-export const ErrorProvider: React.FC<ErrorProviderProps> = ({ 
-  children, 
-  showToasts = true 
-}) => {
-  const [errors, setErrors] = useState<AppError[]>([]);
-  const navigate = useNavigate();
-
-  const clearErrors = useCallback(() => {
-    setErrors([]);
-  }, []);
-
-  const clearError = useCallback((id: string) => {
-    setErrors(prev => prev.filter(error => error.id !== id));
-  }, []);
-
-  const captureError = useCallback((errorData: unknown): AppError => {
-    const error = createErrorFromUnknown(errorData);
-    
-    // Add to our errors list
-    setErrors(prev => [error, ...prev]);
-    
-    // Show toast notification if enabled
-    if (showToasts) {
-      const toastOptions: any = {
-        description: error.message
-      };
-      
-      // Add action button if recovery is available
-      if (error.recovery) {
-        toastOptions.action = {
-          label: error.recovery.label,
-          onClick: () => {
-            if (error.recovery?.handler) {
-              error.recovery.handler();
-            } else if (error.recovery?.action === RecoveryAction.NAVIGATE && error.recovery.route) {
-              navigate(error.recovery.route);
-            }
-          }
-        };
-      }
-      
-      toast.error(getToastTitleFromError(error), toastOptions);
-    }
-    
-    return error;
-  }, [navigate, showToasts]);
-
-  return (
-    <ErrorContext.Provider
-      value={{
-        errors,
-        lastError: errors.length > 0 ? errors[0] : null,
-        clearErrors,
-        clearError,
-        captureError,
-        hasErrors: errors.length > 0
-      }}
-    >
-      {children}
-    </ErrorContext.Provider>
-  );
-};
+const ErrorContext = createContext<ErrorContextValue | null>(null);
 
 export const useErrorContext = () => {
   const context = useContext(ErrorContext);
@@ -99,25 +32,45 @@ export const useErrorContext = () => {
   return context;
 };
 
-// Helper function to get a user-friendly toast title
-function getToastTitleFromError(error: AppError): string {
-  switch (error.category) {
-    case 'validation':
-      return 'Validation Error';
-    case 'network':
-      return 'Network Error';
-    case 'authentication':
-      return 'Authentication Required';
-    case 'authorization':
-      return 'Access Denied';
-    case 'server':
-      return 'Server Error';
-    case 'business':
-      if (error.code === 'valuation_error') {
-        return 'Valuation Error';
-      }
-      return 'Operation Failed';
-    default:
-      return 'Error';
-  }
+interface ErrorProviderProps {
+  children: ReactNode;
 }
+
+export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
+  // Use our new store for error management
+  const {
+    errors,
+    addError,
+    clearErrors,
+    clearError,
+    captureError,
+    handleError
+  } = useErrorStore();
+
+  // Handler for React component errors
+  const handleComponentError = useCallback((error: Error, errorInfo: ErrorInfo) => {
+    console.error('Component error caught:', error, errorInfo);
+    const appError = captureError(error);
+    
+    // Log error info separately (not included in AppError)
+    console.error('Component stack:', errorInfo.componentStack);
+    
+    return appError;
+  }, [captureError]);
+
+  // Create context value from store
+  const contextValue: ErrorContextValue = {
+    errors,
+    addError,
+    clearErrors,
+    clearError,
+    captureError,
+    handleComponentError
+  };
+
+  return (
+    <ErrorContext.Provider value={contextValue}>
+      {children}
+    </ErrorContext.Provider>
+  );
+};
