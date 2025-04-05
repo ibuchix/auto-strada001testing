@@ -218,3 +218,18 @@ export const validateFormSchema = async (
     return [];
   }
 };
+
+/**
+ * Get schema validation diagnostics - only used in development
+ */
+export const getSchemaValidationDiagnostics = (): Record<string, any> => {
+  if (process.env.NODE_ENV === 'production') {
+    return {}; // Return empty object in production
+  }
+  
+  return {
+    timestamp: new Date().toISOString(),
+    rpcCacheStatus: { ...rpcFunctionAvailableCache },
+    environment: process.env.NODE_ENV
+  };
+};

@@ -1,101 +1,78 @@
 
 /**
  * Shared logging utilities for edge functions
- * Simplified with reduced verbosity for production
  */
 
-export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'trace';
-
-interface LogContext {
-  timestamp?: string;
-  requestId?: string;
-  [key: string]: any;
-}
+// Production environment detection
+const isProduction = Deno.env.get("ENVIRONMENT") === "production";
 
 /**
- * Structured logging with level-appropriate details
+ * Log operations with severity-based details
  */
-export function logOperation(
-  operation: string, 
-  details: Record<string, any>, 
-  level: LogLevel = 'info'
-): void {
-  const timestamp = details.timestamp || new Date().toISOString();
-  const requestId = details.requestId || 'no-id';
+export function logOperation(operation: string, details: Record<string, any>, level: 'info' | 'warn' | 'error' = 'info'): void {
+  const timestamp = new Date().toISOString();
   
-  // Basic structured log data
-  const logData = {
-    timestamp,
-    operation,
-    requestId
-  };
+  // In production, only log warnings and errors with minimal details
+  if (isProduction && level === 'info') {
+    return;
+  }
   
-  // Create a concise log message
-  const logMessage = `[${level.toUpperCase()}][${requestId}] ${operation}`;
+  // Simplified log data for production
+  const logData = isProduction ? 
+    { operation, ...details } : 
+    { timestamp, operation, ...details };
   
   switch (level) {
     case 'info':
-      console.log(logMessage);
+      console.log(`[INFO] ${operation}`);
       break;
     case 'warn':
-      console.warn(logMessage);
+      console.warn(`[WARN] ${operation}`, JSON.stringify(logData));
       break;
     case 'error':
-      // For errors, include more details
-      console.error(logMessage, JSON.stringify({
-        ...logData,
-        ...(details.error ? { error: details.error } : {})
-      }));
-      break;
-    case 'debug':
-    case 'trace':
-      // Only output these in non-production
-      if (Deno.env.get("ENVIRONMENT") !== "production") {
-        console.log(logMessage, JSON.stringify(details));
-      }
+      console.error(`[ERROR] ${operation}`, JSON.stringify(logData));
       break;
   }
 }
 
 /**
- * Shorthand for error logging
+ * Create a performance tracker for timing operations
  */
-export function logError(
-  operation: string, 
-  details: Record<string, any>
-): void {
-  logOperation(operation, {
-    ...details,
-    timestamp: details.timestamp || new Date().toISOString()
-  }, 'error');
+export function createPerformanceTracker(requestId: string, operation: string) {
+  const startTime = performance.now();
+  const checkpoints: Record<string, number> = {};
+  
+  return {
+    checkpoint: (name: string): number => {
+      const checkpointTime = performance.now();
+      const timeFromStart = checkpointTime - startTime;
+      checkpoints[name] = timeFromStart;
+      
+      // Only log in non-production
+      if (!isProduction) {
+        console.log(`[PERF][${requestId}][${operation}] Checkpoint ${name}: ${timeFromStart.toFixed(2)}ms`);
+      }
+      
+      return timeFromStart;
+    },
+    complete: (status: 'success' | 'failure' | 'error', data?: Record<string, any>): void => {
+      const endTime = performance.now();
+      const totalTime = endTime - startTime;
+      
+      if (!isProduction || status !== 'success') {
+        console.log(`[PERF][${requestId}][${operation}] Complete (${status}): ${totalTime.toFixed(2)}ms`, 
+          data ? JSON.stringify(data) : '');
+      }
+    }
+  };
 }
 
 /**
- * Logs request information for debugging (simplified)
+ * Log errors while preserving stack traces
  */
-export function logRequest(
-  requestId: string,
-  method: string,
-  path: string
-): { complete: (status: number) => void } {
-  const startTime = performance.now();
-  
-  logOperation('request_received', {
-    requestId,
-    method,
-    path
-  });
-  
-  return {
-    complete: (status: number) => {
-      const endTime = performance.now();
-      const duration = endTime - startTime;
-      
-      logOperation('response_sent', {
-        requestId,
-        status,
-        duration: duration.toFixed(2) + 'ms'
-      });
-    }
-  };
+export function logError(context: string, error: Error): void {
+  console.error(`[ERROR] ${context}:`, error.message);
+  if (error.stack) {
+    console.error(error.stack);
+  }
 }

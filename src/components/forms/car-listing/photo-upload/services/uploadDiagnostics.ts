@@ -1,102 +1,81 @@
 
 /**
- * Service for tracking upload attempts and diagnostics
- * Simplified for production with minimal logging
+ * Upload diagnostics service for tracking upload attempts
+ * Simplified for better performance in production
  */
 
-type UploadAttempt = {
+export interface UploadAttempt {
   id: string;
+  timestamp: string;
   filename: string;
   fileSize: number;
   fileType: string;
-  uploadPath: string;
   success: boolean;
-  timestamp: string;
+  uploadPath: string;
   error?: string;
-};
+  responseData?: {
+    filePath?: string;
+    [key: string]: any;
+  };
+}
 
-// In-memory storage for upload attempts (only in development)
-const uploadAttempts: Record<string, UploadAttempt> = {};
+// In-memory storage for upload attempts (limited capacity)
+const uploadAttempts: UploadAttempt[] = [];
+const MAX_ATTEMPTS = 100;
 
 /**
- * Logs an upload attempt and returns an ID for tracking
+ * Log a new upload attempt
  */
-export const logUploadAttempt = (attempt: Omit<UploadAttempt, 'id' | 'timestamp'>): string => {
-  // Generate a simple ID for the attempt
-  const id = Math.random().toString(36).substring(2, 15);
+export const logUploadAttempt = (data: Omit<UploadAttempt, 'id' | 'timestamp'>): string => {
+  // Skip in production to improve performance
+  if (process.env.NODE_ENV === 'production') {
+    return '';
+  }
   
-  if (process.env.NODE_ENV !== 'production') {
-    // Only store attempts in development
-    uploadAttempts[id] = {
-      ...attempt,
-      id,
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log(`[Upload] Attempt ${id}:`, {
-      filename: attempt.filename,
-      fileSize: attempt.fileSize
-    });
+  const id = `upload-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+  
+  const attempt: UploadAttempt = {
+    id,
+    timestamp: new Date().toISOString(),
+    ...data
+  };
+  
+  // Add to the beginning (most recent first)
+  uploadAttempts.unshift(attempt);
+  
+  // Limit the number of stored attempts
+  if (uploadAttempts.length > MAX_ATTEMPTS) {
+    uploadAttempts.pop();
   }
   
   return id;
 };
 
 /**
- * Updates an existing upload attempt with results
+ * Update an existing upload attempt
  */
-export const updateUploadAttempt = (id: string, update: Partial<UploadAttempt>): void => {
+export const updateUploadAttempt = (id: string, updates: Partial<UploadAttempt>): void => {
+  // Skip in production to improve performance
   if (process.env.NODE_ENV === 'production') {
-    // In production, only log errors
-    if (!update.success) {
-      console.error(`[Upload] Failed: ${update.error}`, {
-        id
-      });
-    }
     return;
   }
   
-  if (!uploadAttempts[id]) {
-    console.warn(`[Upload] Attempt ${id} not found`);
-    return;
-  }
-  
-  uploadAttempts[id] = {
-    ...uploadAttempts[id],
-    ...update,
-    timestamp: new Date().toISOString()
-  };
-  
-  if (update.success) {
-    console.log(`[Upload] Attempt ${id} completed successfully`);
-  } else {
-    console.error(`[Upload] Attempt ${id} failed: ${update.error}`);
+  const index = uploadAttempts.findIndex(attempt => attempt.id === id);
+  if (index !== -1) {
+    uploadAttempts[index] = { ...uploadAttempts[index], ...updates };
   }
 };
 
 /**
- * Gets upload statistics for analysis (development only)
+ * Get all upload attempts for debugging
  */
-export const getUploadStats = (): { 
-  total: number;
-  success: number;
-  failed: number;
-  averageSize: number;
-} => {
-  if (process.env.NODE_ENV === 'production') {
-    // Return empty stats in production
-    return { total: 0, success: 0, failed: 0, averageSize: 0 };
-  }
-  
-  const attempts = Object.values(uploadAttempts);
-  const total = attempts.length;
-  const success = attempts.filter(a => a.success).length;
-  const totalSize = attempts.reduce((sum, a) => sum + a.fileSize, 0);
-  
-  return {
-    total,
-    success,
-    failed: total - success,
-    averageSize: total > 0 ? totalSize / total : 0
-  };
+export const getUploadAttempts = (): UploadAttempt[] => {
+  return [...uploadAttempts];
+};
+
+/**
+ * Clear all upload attempts
+ */
+export const clearUploadAttempts = (): void => {
+  uploadAttempts.length = 0;
 };

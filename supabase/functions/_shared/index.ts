@@ -9,31 +9,8 @@ export const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Log severity types
-type LogSeverity = 'info' | 'warn' | 'error';
-
-/**
- * Standardized operation logging with timestamp and optional severity
- */
-export function logOperation(
-  operation: string, 
-  details: Record<string, any>,
-  severity: LogSeverity = 'info'
-): void {
-  const timestamp = new Date().toISOString();
-  const detailsWithTimestamp = { timestamp, ...details };
-  
-  switch (severity) {
-    case 'warn':
-      console.warn(`[${timestamp}] [${operation}]`, detailsWithTimestamp);
-      break;
-    case 'error':
-      console.error(`[${timestamp}] [${operation}]`, detailsWithTimestamp);
-      break;
-    default:
-      console.log(`[${timestamp}] [${operation}]`, detailsWithTimestamp);
-  }
-}
+// Export logging utilities
+export { logOperation, createPerformanceTracker, logError } from './logging.ts';
 
 /**
  * Custom error for validation failures
@@ -110,4 +87,43 @@ export function isValidVin(vin: string): boolean {
  */
 export function isValidMileage(mileage: number): boolean {
   return !isNaN(mileage) && mileage >= 0 && mileage <= 1000000;
+}
+
+/**
+ * Calculate reserve price based on valuation
+ */
+export function calculateReservePrice(basePrice: number, requestId?: string): number {
+  if (!basePrice || isNaN(basePrice)) {
+    return 0;
+  }
+  
+  let percentageDiscount;
+  
+  // Determine percentage based on price tier
+  if (basePrice <= 15000) percentageDiscount = 0.65;
+  else if (basePrice <= 20000) percentageDiscount = 0.46;
+  else if (basePrice <= 30000) percentageDiscount = 0.37;
+  else if (basePrice <= 50000) percentageDiscount = 0.27;
+  else if (basePrice <= 60000) percentageDiscount = 0.27;
+  else if (basePrice <= 70000) percentageDiscount = 0.22;
+  else if (basePrice <= 80000) percentageDiscount = 0.23;
+  else if (basePrice <= 100000) percentageDiscount = 0.24;
+  else if (basePrice <= 130000) percentageDiscount = 0.20;
+  else if (basePrice <= 160000) percentageDiscount = 0.185;
+  else if (basePrice <= 200000) percentageDiscount = 0.22;
+  else if (basePrice <= 250000) percentageDiscount = 0.17;
+  else if (basePrice <= 300000) percentageDiscount = 0.18;
+  else if (basePrice <= 400000) percentageDiscount = 0.18;
+  else if (basePrice <= 500000) percentageDiscount = 0.16;
+  else percentageDiscount = 0.145;
+  
+  // Apply formula: PriceX – (PriceX x PercentageY)
+  const reservePrice = Math.round(basePrice - (basePrice * percentageDiscount));
+  
+  // Log calculation in non-production
+  if (Deno.env.get("ENVIRONMENT") !== "production" && requestId) {
+    console.log(`[${requestId}] Calculated reserve price: ${reservePrice} from base price: ${basePrice} with discount: ${percentageDiscount}`);
+  }
+  
+  return reservePrice;
 }
