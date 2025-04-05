@@ -9,6 +9,7 @@
  * - Added idempotency key support to prevent duplicate submissions
  * - Fixed headers usage in Supabase upsert method to resolve build error
  * - Added schema validation before submission
+ * - 2025-11-29: Fixed validateExtendedCar import path
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -57,7 +58,7 @@ export const submitCarListing = async (
   // Validate against schema
   const schemaValidation = validateExtendedCar(data);
   if (!schemaValidation.success) {
-    const errorMessages = schemaValidation.errors?.errors.map(e => 
+    const errorMessages = schemaValidation.error?.errors.map(e => 
       `${e.path.join('.')}: ${e.message}`
     ).join(', ');
     

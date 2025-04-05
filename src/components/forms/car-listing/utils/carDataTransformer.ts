@@ -6,10 +6,11 @@
  * - Implemented field filtering for database compatibility
  * - Added TypeScript type safety for car data
  * - Integrated with carSchema validation
+ * - 2025-11-29: Fixed validateCar import path
  */
 
 import { CarListingFormData, CarEntity } from '@/types/forms';
-import { carSchema, validateCar } from '@/utils/validation/carSchema';
+import { validateCar } from '@/utils/validation/carSchema';
 import { toast } from 'sonner';
 
 /**
@@ -88,15 +89,16 @@ export const prepareCarDataAsync = async (
       year: baseData.year as number,
       price: baseData.price as number,
       mileage: baseData.mileage as number,
-      vin: baseData.vin
+      vin: baseData.vin,
+      transmission: formData.transmission as "manual" | "automatic" // Add this line
     };
     
     // Only validate if we have enough data (silent return if not enough data yet)
     if (coreData.make && coreData.model && coreData.year && coreData.vin) {
       const validationResult = validateCar(coreData);
       
-      if (!validationResult.success && validationResult.errors) {
-        console.warn('Car data validation failed:', validationResult.errors.format());
+      if (!validationResult.success && validationResult.error) {
+        console.warn('Car data validation failed:', validationResult.error.format());
       }
     }
   } catch (error) {

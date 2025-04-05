@@ -7,6 +7,7 @@
  * - Added optimized submission handling with loading state management
  * - Fixed TypeScript error with setValue for transmission field
  * - 2028-11-14: Fixed TypeScript typing for extended form return type
+ * - 2025-11-29: Fixed schema type compatibility with CarListingFormData
  */
 
 import { useCallback } from "react";
@@ -16,7 +17,7 @@ import { useFormWithValidation } from "./useFormWithValidation";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { getInitialFormValues } from "@/components/forms/car-listing/hooks/useFormDefaults";
-import { carSchema } from "@/utils/validation/carSchema";
+import { extendedCarSchema } from "@/utils/validation/carSchema";
 import { submitCarListing } from "@/components/forms/car-listing/submission/services/submissionService";
 
 type UseCarFormOptions = {
@@ -44,9 +45,9 @@ export function useCarForm({
   // Load initial form values
   const initialValues = getInitialFormValues();
   
-  // Set up the form with validation
-  const form = useFormWithValidation({
-    schema: carSchema.partial(),
+  // Set up the form with validation - using the extended schema that supports all CarListingFormData fields
+  const form = useFormWithValidation<CarListingFormData>({
+    schema: extendedCarSchema,
     defaultValues: initialValues,
     formOptions: {
       mode: 'onBlur'

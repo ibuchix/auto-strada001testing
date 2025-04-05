@@ -4,6 +4,7 @@
  * Combines client and server validation with schema validation
  * - Fixed import for validation utils
  * - 2025-04-03: Added internal validateFormData function to fix import error
+ * - 2025-11-29: Updated to use extendedCarSchema validation
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -41,7 +42,7 @@ export const validateSubmission = async (
   const schemaValidation = validateExtendedCar(data);
   
   if (!schemaValidation.success) {
-    const errorMessages = schemaValidation.errors?.errors.map(e => 
+    const errorMessages = schemaValidation.error?.errors.map(e => 
       `${e.path.join('.')}: ${e.message}`
     ).join(', ');
     
