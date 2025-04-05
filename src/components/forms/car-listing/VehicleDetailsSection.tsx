@@ -1,10 +1,9 @@
-
 /**
  * Changes made:
- * - Enhanced auto-fill functionality to use the standardized VIN validation data
- * - Improved auto-fill button with better state handling and feedback
- * - Fixed type conversion issues for numeric values
- * - Added better error handling and loading states
+ * - Updated to use the refactored useVehicleDetailsSection hook
+ * - Added consistent error handling for the auto-fill functionality
+ * - Improved loading state handling
+ * - Enhanced user feedback with clearer status messages
  */
 
 import { useState } from "react";
