@@ -1,6 +1,8 @@
+
 /**
  * Valuation state slice for the central store
  * Created: 2025-04-15
+ * Updated: 2025-04-16 - Fixed TypeScript typing for the setValuationField action
  */
 
 import { StateCreator } from 'zustand';
@@ -32,7 +34,7 @@ export interface ValuationState {
 
 // Define valuation actions
 export interface ValuationActions {
-  setValuationField: (field: keyof ValuationState, value: any) => void;
+  setValuationField: <K extends keyof ValuationState>(field: K, value: ValuationState[K]) => void;
   setValuationResult: (result: ValuationResult | null) => void;
   resetValuation: () => void;
 }
@@ -65,7 +67,8 @@ export const createValuationSlice: StateCreator<
   
   // Actions
   setValuationField: (field, value) => set((state) => {
-    state[field] = value;
+    // Use type assertion to fix the TypeScript error
+    (state[field] as any) = value;
   }),
   
   setValuationResult: (result) => set((state) => {
