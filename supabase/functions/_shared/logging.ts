@@ -3,76 +3,88 @@
  * Shared logging utilities for edge functions
  */
 
-// Production environment detection
-const isProduction = Deno.env.get("ENVIRONMENT") === "production";
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /**
- * Log operations with severity-based details
+ * Log an operation with context for easier tracing
  */
-export function logOperation(operation: string, details: Record<string, any>, level: 'info' | 'warn' | 'error' = 'info'): void {
+export function logOperation(
+  operation: string, 
+  context: Record<string, any> = {}, 
+  level: LogLevel = 'info'
+): void {
   const timestamp = new Date().toISOString();
+  const logData = {
+    timestamp,
+    operation,
+    ...context
+  };
   
-  // In production, only log warnings and errors with minimal details
-  if (isProduction && level === 'info') {
-    return;
-  }
-  
-  // Simplified log data for production
-  const logData = isProduction ? 
-    { operation, ...details } : 
-    { timestamp, operation, ...details };
-  
+  // Use appropriate console method based on level
   switch (level) {
-    case 'info':
-      console.log(`[INFO] ${operation}`);
+    case 'debug':
+      console.debug(JSON.stringify(logData));
       break;
     case 'warn':
-      console.warn(`[WARN] ${operation}`, JSON.stringify(logData));
+      console.warn(JSON.stringify(logData));
       break;
     case 'error':
-      console.error(`[ERROR] ${operation}`, JSON.stringify(logData));
+      console.error(JSON.stringify(logData));
       break;
+    default:
+      console.log(JSON.stringify(logData));
   }
 }
 
 /**
- * Create a performance tracker for timing operations
+ * Create a performance tracker to log execution times
  */
 export function createPerformanceTracker(requestId: string, operation: string) {
   const startTime = performance.now();
   const checkpoints: Record<string, number> = {};
   
   return {
-    checkpoint: (name: string): number => {
-      const checkpointTime = performance.now();
-      const timeFromStart = checkpointTime - startTime;
-      checkpoints[name] = timeFromStart;
+    checkpoint: (name: string): void => {
+      const time = performance.now();
+      const durationFromStart = time - startTime;
+      checkpoints[name] = durationFromStart;
       
-      // Only log in non-production
-      if (!isProduction) {
-        console.log(`[PERF][${requestId}][${operation}] Checkpoint ${name}: ${timeFromStart.toFixed(2)}ms`);
-      }
-      
-      return timeFromStart;
+      logOperation(`perf_${operation}_checkpoint`, {
+        requestId,
+        checkpoint: name,
+        durationMs: durationFromStart.toFixed(2)
+      }, 'debug');
     },
-    complete: (status: 'success' | 'failure' | 'error', data?: Record<string, any>): void => {
+    
+    complete: (status: 'success' | 'failure' | 'error', details: Record<string, any> = {}): void => {
       const endTime = performance.now();
-      const totalTime = endTime - startTime;
+      const totalDuration = endTime - startTime;
       
-      if (!isProduction || status !== 'success') {
-        console.log(`[PERF][${requestId}][${operation}] Complete (${status}): ${totalTime.toFixed(2)}ms`, 
-          data ? JSON.stringify(data) : '');
-      }
+      logOperation(`perf_${operation}_complete`, {
+        requestId,
+        status,
+        totalDurationMs: totalDuration.toFixed(2),
+        checkpoints,
+        ...details
+      });
     }
   };
 }
 
 /**
- * Log errors while preserving stack traces
+ * Log an error with standardized format
  */
-export function logError(context: string, error: Error): void {
-  console.error(`[ERROR] ${context}:`, error.message);
-  if (error.stack) {
-    console.error(error.stack);
-  }
+export function logError(
+  operation: string, 
+  error: Error | unknown, 
+  context: Record<string, any> = {}
+): void {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorStack = error instanceof Error ? error.stack : undefined;
+  
+  logOperation(`error_${operation}`, {
+    errorMessage,
+    errorStack,
+    ...context
+  }, 'error');
 }

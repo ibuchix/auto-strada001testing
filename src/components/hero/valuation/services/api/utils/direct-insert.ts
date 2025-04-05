@@ -1,82 +1,102 @@
 
 /**
- * Changes made:
- * - 2025-04-27: Created direct database interaction module extracted from cache-api.ts
+ * Utility functions for direct database inserts via Supabase
+ * Extracted to improve maintainability and reduce code duplication
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { ValuationData } from "../../../types";
+import { toast } from "sonner";
 import { logDetailedError } from "./debug-utils";
 
 /**
- * Helper function to attempt direct insert into cache table
- * Only used as a fallback when the security definer function fails
+ * Insert a single value record directly to the database
  */
-export async function attemptDirectInsert(
-  vin: string,
-  mileage: number,
-  valuationData: ValuationData
+export async function insertSingleValue(
+  table: string,
+  data: Record<string, any>,
+  onSuccess?: () => void,
+  onError?: (error: any) => void
 ): Promise<boolean> {
   try {
-    console.log('Starting direct insert fallback for VIN:', vin);
+    const { error } = await supabase
+      .from(table)
+      .insert(data)
+      .single();
     
-    // Try to find existing entry first
-    const { data: existingData, error: selectError } = await supabase
-      .from('vin_valuation_cache')
-      .select('id')
-      .eq('vin', vin)
-      .maybeSingle();
+    if (error) {
+      // Fix: Convert error object to string message before passing to logDetailedError
+      logDetailedError(`Failed to insert data into ${table}`, error.message);
       
-    if (selectError) {
-      logDetailedError(selectError, 'checking existing cache entry');
+      if (onError) {
+        onError(error);
+      } else {
+        toast.error(`Failed to save data: ${error.message}`);
+      }
       return false;
     }
     
-    if (existingData) {
-      console.log('Found existing cache entry, will update. ID:', existingData.id);
-      
-      // Update existing record
-      const { error } = await supabase
-        .from('vin_valuation_cache')
-        .update({
-          mileage,
-          valuation_data: valuationData,
-          created_at: new Date().toISOString()
-        })
-        .eq('id', existingData.id);
-        
-      if (error) {
-        logDetailedError(error, 'updating valuation cache');
-        return false;
-      } else {
-        console.log('Successfully updated existing cache entry via direct update');
-        return true;
-      }
-    } else {
-      console.log('No existing cache entry found, will insert new one');
-      
-      // Insert new record
-      const { error } = await supabase
-        .from('vin_valuation_cache')
-        .insert([
-          {
-            vin,
-            mileage,
-            valuation_data: valuationData
-          }
-        ]);
-        
-      if (error) {
-        logDetailedError(error, 'inserting valuation cache');
-        return false;
-      } else {
-        console.log('Successfully inserted new cache entry via direct insert');
-        return true;
-      }
+    if (onSuccess) {
+      onSuccess();
     }
+    
+    return true;
   } catch (error) {
-    console.error('Failed to store valuation in cache via direct insert:', error);
-    console.error('Stack trace:', new Error().stack);
+    logDetailedError(`Exception inserting data into ${table}`, 
+      error instanceof Error ? error.message : String(error));
+    
+    if (onError) {
+      onError(error);
+    } else {
+      toast.error("Failed to save data due to an unexpected error");
+    }
+    
+    return false;
+  }
+}
+
+/**
+ * Upsert a record (insert or update) directly to the database
+ */
+export async function upsertValue(
+  table: string,
+  data: Record<string, any>,
+  onConflict: string = 'id',
+  onSuccess?: () => void,
+  onError?: (error: any) => void
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from(table)
+      .upsert(data, { onConflict })
+      .single();
+    
+    if (error) {
+      // Fix: Convert error object to string message before passing to logDetailedError
+      logDetailedError(`Failed to upsert data in ${table}`, error.message);
+      
+      if (onError) {
+        onError(error);
+      } else {
+        toast.error(`Failed to update data: ${error.message}`);
+      }
+      return false;
+    }
+    
+    if (onSuccess) {
+      onSuccess();
+    }
+    
+    return true;
+  } catch (error) {
+    logDetailedError(`Exception upserting data in ${table}`, 
+      error instanceof Error ? error.message : String(error));
+    
+    if (onError) {
+      onError(error);
+    } else {
+      toast.error("Failed to update data due to an unexpected error");
+    }
+    
     return false;
   }
 }
