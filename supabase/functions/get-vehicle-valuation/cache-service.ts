@@ -3,10 +3,10 @@
  * Service for caching valuation results
  * 
  * Changes:
- * - Fixed import path to use correct absolute path format
+ * - Fixed import path to use correct relative path format
  */
-import { createSupabaseClient } from "../../_shared/client.ts";
-import { logOperation } from "../../_shared/logging.ts";
+import { createSupabaseClient } from "../_shared/client.ts";
+import { logOperation } from "../_shared/logging.ts";
 
 /**
  * Check if valuation is already in cache
