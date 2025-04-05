@@ -1,10 +1,12 @@
+
 /**
  * Changes made:
  * - 2024-08-16: Created structured logging utility for application errors
+ * - 2025-04-05: Fixed TypeScript type issues with ErrorCode
  */
 
-import { BaseApplicationError } from '@/errors/classes';
-import { ErrorCategory } from '@/errors/types';
+import { AppError } from '@/errors/classes';
+import { ErrorCategory, ErrorCode } from '@/errors/types';
 
 // Interface for log entry structure
 export interface ErrorLogEntry {
@@ -54,11 +56,11 @@ export function logError(
     addToStorage 
   } = { ...DEFAULT_OPTIONS, ...options };
   
-  // Normalize error to BaseApplicationError
-  const appError = error instanceof BaseApplicationError 
+  // Normalize error to AppError
+  const appError = error instanceof AppError 
     ? error 
-    : new BaseApplicationError({
-        code: 'UNKNOWN_ERROR',
+    : new AppError({
+        code: ErrorCode.UNKNOWN_ERROR,
         message: error instanceof Error 
           ? error.message 
           : String(error || 'Unknown error'),

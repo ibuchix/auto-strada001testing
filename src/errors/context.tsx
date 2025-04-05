@@ -2,6 +2,7 @@
 /**
  * Error context for application-wide error management
  * Created: 2025-04-05
+ * Updated: 2025-04-05 - Fixed TypeScript type issues
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';

@@ -4,16 +4,17 @@
  * - 2024-08-25: Created dedicated component for handling authentication errors
  * - 2024-11-16: Enhanced to handle RLS permission issues
  * - 2024-08-15: Updated with consistent recovery paths and UI patterns
+ * - 2025-04-05: Fixed TypeScript type issues
  */
 
 import { useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
-import { BaseApplicationError, AuthenticationError } from "@/errors/classes";
+import { AppError, AuthenticationError } from "@/errors/classes";
 
 interface AuthErrorHandlerProps {
-  error?: string | BaseApplicationError | null;
+  error?: string | AppError | null;
   onRetry?: () => void;
   showSignIn?: boolean;
   isRlsError?: boolean;
@@ -41,11 +42,11 @@ export const AuthErrorHandler = ({
   // Extract error details
   const errorMessage = typeof error === 'string' 
     ? error 
-    : error instanceof BaseApplicationError 
+    : error instanceof AppError 
       ? error.message 
       : 'Authentication error';
   
-  const errorDescription = typeof error !== 'string' && error instanceof BaseApplicationError
+  const errorDescription = typeof error !== 'string' && error instanceof AppError
     ? error.description
     : isRlsError
       ? "You don't have permission to access this resource. This may be due to Row Level Security policies."
@@ -53,10 +54,14 @@ export const AuthErrorHandler = ({
 
   // Use recovery action from error if available
   const recoveryAction = customAction || (
-    error instanceof BaseApplicationError && error.recovery
+    typeof error !== 'string' && error instanceof AppError && error.recovery
       ? {
           label: error.recovery.label,
-          onClick: error.recovery.action
+          onClick: () => {
+            if (error.recovery?.handler) {
+              error.recovery.handler();
+            }
+          }
         }
       : undefined
   );

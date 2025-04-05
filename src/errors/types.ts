@@ -2,7 +2,7 @@
 /**
  * Centralized error type definitions
  * Created: 2025-04-05
- * Updated: 2025-04-05 - Added additional error types for validation and submission
+ * Updated: 2025-04-05 - Added backward compatibility types and fixed enum references
  */
 
 export enum ErrorSeverity {
@@ -60,20 +60,44 @@ export enum ErrorCode {
   
   // Unknown/general errors
   UNKNOWN_ERROR = 'unknown_error',
-  UNEXPECTED_ERROR = 'unexpected_error'
+  UNEXPECTED_ERROR = 'unexpected_error',
+  
+  // Extended validation codes for backward compatibility
+  VALIDATION_ERROR = 'validation_error',
+  SCHEMA_VALIDATION_ERROR = 'schema_validation_error',
+  INCOMPLETE_FORM = 'incomplete_form',
+  RATE_LIMIT_EXCEEDED = 'rate_limit_exceeded',
+  SERVER_VALIDATION_FAILED = 'server_validation_failed',
+  MISSING_VALUATION = 'missing_valuation',
+  
+  // Extended submission codes for backward compatibility
+  INVALID_INPUT = 'invalid_input',
+  DUPLICATE_SUBMISSION = 'duplicate_submission',
+  DATABASE_CONSTRAINT = 'database_constraint',
+  SUBMISSION_FAILED = 'submission_failed'
 }
 
 // For backward compatibility with existing code
 export enum ValidationErrorCode {
-  VALIDATION_ERROR = 'validation_error',
-  REQUIRED_FIELD = 'required_field',
-  INVALID_FORMAT = 'invalid_format',
-  INVALID_VALUE = 'invalid_value',
-  INVALID_VIN = 'invalid_vin'
+  VALIDATION_ERROR = ErrorCode.VALIDATION_ERROR,
+  REQUIRED_FIELD = ErrorCode.REQUIRED_FIELD,
+  INVALID_FORMAT = ErrorCode.INVALID_FORMAT,
+  INVALID_VALUE = ErrorCode.INVALID_VALUE,
+  INVALID_VIN = ErrorCode.INVALID_VIN,
+  SCHEMA_VALIDATION_ERROR = ErrorCode.SCHEMA_VALIDATION_ERROR,
+  INCOMPLETE_FORM = ErrorCode.INCOMPLETE_FORM,
+  RATE_LIMIT_EXCEEDED = ErrorCode.RATE_LIMIT_EXCEEDED,
+  SERVER_VALIDATION_FAILED = ErrorCode.SERVER_VALIDATION_FAILED,
+  MISSING_VALUATION = ErrorCode.MISSING_VALUATION
 }
 
 export enum SubmissionErrorCode {
-  SUBMISSION_ERROR = 'submission_error'
+  SUBMISSION_ERROR = ErrorCode.SUBMISSION_ERROR,
+  INVALID_INPUT = ErrorCode.INVALID_INPUT, 
+  SCHEMA_VALIDATION_ERROR = ErrorCode.SCHEMA_VALIDATION_ERROR,
+  DUPLICATE_SUBMISSION = ErrorCode.DUPLICATE_SUBMISSION,
+  DATABASE_CONSTRAINT = ErrorCode.DATABASE_CONSTRAINT,
+  SUBMISSION_FAILED = ErrorCode.SUBMISSION_FAILED
 }
 
 export enum RecoveryAction {
@@ -103,6 +127,7 @@ export interface ErrorMetadata {
   originalError?: any;
   details?: Record<string, any>;
   path?: string;
+  field?: string; // Added for field validation errors
   [key: string]: any;
 }
 
@@ -126,3 +151,7 @@ export interface SerializedAppError {
   timestamp: number;
   id: string;
 }
+
+// Additional compatibility types
+export type ErrorHandler = (error: unknown) => void;
+export type ErrorCallback = (error: any) => void;

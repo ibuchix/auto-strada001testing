@@ -3,7 +3,7 @@
  * General Error Handler Component
  * Created 2028-05-15: Provides consistent error handling UI
  * Updated 2028-05-18: Added support for category prop
- * Updated 2025-04-05: Fixed ErrorCategory references
+ * Updated 2025-04-05: Fixed ErrorCategory references and TypeScript type issues
  */
 
 import React from "react";
@@ -12,6 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCcw } from "lucide-react";
 import { ErrorCategory } from "@/errors/types";
+import { AppError } from "@/errors/classes";
 
 interface GeneralErrorHandlerProps {
   error: Error | unknown;
@@ -106,6 +107,10 @@ export const GeneralErrorHandler = ({
 
 // Helper to determine error category from error object
 function determineErrorCategory(error: unknown): ErrorCategory {
+  if (error instanceof AppError) {
+    return error.category;
+  }
+  
   if (error && typeof error === 'object') {
     if ('category' in error && typeof error.category === 'string') {
       // If the error already has a category property, use it

@@ -5,6 +5,7 @@
  * - 2027-06-20: Extracted from ValuationResult component as part of code refactoring
  * - 2024-08-15: Updated with consistent recovery paths and UI patterns
  * - 2026-05-10: Improved offline detection and handling
+ * - 2025-04-05: Fixed TypeScript type issues
  */
 
 import { useNavigate } from "react-router-dom";
@@ -13,11 +14,11 @@ import { ErrorDialog } from "./ErrorDialog";
 import { ExistingVehicleDialog } from "./dialogs/ExistingVehicleDialog";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { useState, useEffect } from "react";
-import { BaseApplicationError } from "@/errors/classes";
+import { AppError } from "@/errors/classes";
 
 interface ValuationErrorHandlerProps {
   valuationResult: {
-    error?: string | BaseApplicationError;
+    error?: string | AppError;
     isExisting?: boolean;
     vin?: string;
     transmission?: string;
@@ -44,7 +45,7 @@ export const ValuationErrorHandler = ({
   // Extract error message regardless of error type
   const errorMsg = typeof valuationResult.error === 'string' 
     ? valuationResult.error 
-    : valuationResult.error instanceof BaseApplicationError 
+    : valuationResult.error instanceof AppError 
       ? valuationResult.error.message 
       : '';
   
@@ -155,12 +156,12 @@ export const ValuationErrorHandler = ({
     }
   };
 
-  // Use recovery action from BaseApplicationError if available
+  // Use recovery action from AppError if available
   const getRecoveryAction = () => {
     if (typeof valuationResult.error !== 'string' && 
-        valuationResult.error instanceof BaseApplicationError && 
-        valuationResult.error.recovery) {
-      return valuationResult.error.recovery.action;
+        valuationResult.error instanceof AppError && 
+        valuationResult.error.recovery?.handler) {
+      return valuationResult.error.recovery.handler;
     }
     return handleRetry;
   };

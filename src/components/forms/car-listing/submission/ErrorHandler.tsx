@@ -5,6 +5,7 @@
  * - 2024-08-20: Enhanced error display and action handling
  * - 2024-08-15: Updated to use consistent recovery paths and UI patterns
  * - 2026-05-10: Added network detection and improved offline handling
+ * - 2025-04-05: Fixed TypeScript type issues
  */
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,12 +13,12 @@ import { AlertCircle, WifiOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { BaseApplicationError } from "@/errors/classes";
+import { AppError } from "@/errors/classes";
 import { RecoveryType } from "@/errors/types";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 
 interface ErrorHandlerProps {
-  error: string | BaseApplicationError;
+  error: string | AppError;
   description?: string;
   onRetry?: () => void;
   onDismiss?: () => void;
@@ -39,31 +40,41 @@ export const ErrorHandler = ({
   // Normalize error object to extract messages and actions
   const errorMessage = typeof error === 'string' 
     ? error 
-    : error instanceof BaseApplicationError 
+    : error instanceof AppError 
       ? error.message 
       : 'An error occurred';
   
   const errorDescription = typeof error === 'string'
     ? description
-    : error instanceof BaseApplicationError
+    : error instanceof AppError
       ? error.description || description
       : description;
 
-  const recoveryAction = actionFn || 
-    (error instanceof BaseApplicationError && error.recovery?.action) || 
-    onRetry;
+  const handleRecoveryAction = () => {
+    if (typeof error !== 'string' && error instanceof AppError && error.recovery?.handler) {
+      error.recovery.handler();
+      return;
+    }
     
+    if (actionFn) {
+      actionFn();
+      return;
+    }
+    
+    if (onRetry) {
+      onRetry();
+      return;
+    }
+    
+    handleDefaultAction();
+  };
+  
   const recoveryLabel = actionLabel || 
-    (error instanceof BaseApplicationError && error.recovery?.label) || 
+    (typeof error !== 'string' && error instanceof AppError && error.recovery?.label) || 
     (onRetry ? "Try again" : "Resolve");
 
   // Enhanced default action with intelligence about error type
   const handleDefaultAction = () => {
-    if (recoveryAction) {
-      recoveryAction();
-      return;
-    }
-    
     // If we're offline, offer to reload the page
     if (isOffline) {
       toast.warning("You appear to be offline", {
@@ -117,7 +128,7 @@ export const ErrorHandler = ({
           }
         });
       }
-    } else if (error instanceof BaseApplicationError) {
+    } else if (error instanceof AppError) {
       // Handle based on error category if available
       if (error.category === 'authentication') {
         navigate('/auth');
@@ -173,13 +184,13 @@ export const ErrorHandler = ({
           <Button 
             variant="outline" 
             size="sm"
-            onClick={handleDefaultAction}
+            onClick={handleRecoveryAction}
             className="text-[#DC143C] border-[#DC143C] hover:bg-[#DC143C]/10"
           >
             {recoveryLabel}
           </Button>
           
-          {actionLabel && onRetry && recoveryAction !== onRetry && (
+          {actionLabel && onRetry && actionFn !== onRetry && (
             <Button 
               variant="ghost" 
               size="sm"

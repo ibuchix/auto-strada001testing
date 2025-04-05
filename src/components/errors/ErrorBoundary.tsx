@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       // Use custom fallback if provided
       if (this.props.fallback) {
         if (typeof this.props.fallback === 'function' && this.state.error) {
-          return this.props.fallback(this.state.error, this.resetError);
+          return this.props.fallback(this.state.error, this.resetError) as ReactNode;
         }
         return this.props.fallback;
       }

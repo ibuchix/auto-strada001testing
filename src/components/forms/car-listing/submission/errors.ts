@@ -4,14 +4,21 @@
  * - 2024-06-07: Created initial error module for submission handling
  * - 2024-08-14: Updated to use standard application error architecture
  * - 2024-08-15: Fixed TypeScript errors with RecoveryType
+ * - 2025-04-05: Fixed enum compatibility and type issues
  */
 
 import { 
   ValidationError, 
   SubmissionError, 
-  BaseApplicationError 
+  AppError
 } from "@/errors/classes";
-import { RecoveryType, ValidationErrorCode, SubmissionErrorCode } from "@/errors/types";
+import { 
+  RecoveryType, 
+  ValidationErrorCode, 
+  SubmissionErrorCode, 
+  ErrorCode,
+  RecoveryAction
+} from "@/errors/types";
 
 /**
  * Create a validation error for submission forms
@@ -22,13 +29,14 @@ export function createValidationError(
   action?: { label: string; onClick: () => void }
 ) {
   return new ValidationError({
-    code: ValidationErrorCode.VALIDATION_ERROR,
     message,
+    code: ErrorCode.VALIDATION_ERROR,
     description,
     recovery: action ? {
-      type: RecoveryType.FORM_RETRY,
+      action: RecoveryAction.RETRY,
       label: action.label,
-      action: action.onClick
+      handler: action.onClick,
+      type: RecoveryType.FORM_RETRY
     } : undefined
   });
 }
@@ -43,14 +51,15 @@ export function createSubmissionError(
   action?: { label: string; onClick: () => void }
 ) {
   return new SubmissionError({
-    code: SubmissionErrorCode.SUBMISSION_ERROR,
     message,
+    code: ErrorCode.SUBMISSION_ERROR,
     description,
     retryable,
     recovery: action ? {
-      type: RecoveryType.FORM_RETRY,
+      action: RecoveryAction.RETRY,
       label: action.label,
-      action: action.onClick
+      handler: action.onClick,
+      type: RecoveryType.FORM_RETRY
     } : undefined
   });
 }
@@ -69,11 +78,11 @@ export interface SubmissionErrorType {
 }
 
 /**
- * Convert a generic error to a BaseApplicationError
+ * Convert a generic error to a AppError
  * @deprecated Use error factory instead
  */
-export function normalizeError(error: any): BaseApplicationError {
-  if (error instanceof BaseApplicationError) {
+export function normalizeError(error: any): AppError {
+  if (error instanceof AppError) {
     return error;
   }
 
@@ -100,3 +109,6 @@ export function normalizeError(error: any): BaseApplicationError {
 
 // Export these types to fix imports in useFormSubmission
 export { ValidationError, SubmissionError };
+
+// Create type-safe aliases for backward compatibility
+export type BaseApplicationError = AppError;

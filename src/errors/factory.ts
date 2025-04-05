@@ -2,12 +2,11 @@
 /**
  * Error factory functions
  * Created: 2025-04-05
+ * Updated: 2025-04-05 - Fixed TypeScript type issues and enum references
  */
 
-import { useNavigate } from 'react-router-dom';
 import { 
   AppError,
-  BaseApplicationError,
   ValidationError,
   NetworkError,
   AuthenticationError,
@@ -148,6 +147,7 @@ export function createFieldError(
     code?: ErrorCode;
     focus?: boolean;
     details?: Record<string, any>;
+    description?: string;
   } = {}
 ): ValidationError {
   return new ValidationError({
@@ -159,7 +159,8 @@ export function createFieldError(
       action: RecoveryAction.RETRY,
       label: 'Fix Field',
       type: RecoveryType.FIELD_CORRECTION
-    }
+    },
+    description: options.description
   });
 }
 
@@ -172,6 +173,7 @@ export function createFormError(
     code?: ErrorCode;
     details?: Record<string, any>;
     recovery?: ErrorRecovery;
+    description?: string;
   } = {}
 ): ValidationError {
   return new ValidationError({
@@ -182,7 +184,8 @@ export function createFormError(
       action: RecoveryAction.RETRY,
       label: 'Check Form',
       type: RecoveryType.FORM_RETRY
-    }
+    },
+    description: options.description
   });
 }
 
@@ -197,6 +200,7 @@ export function createNetworkError(
     details?: Record<string, any>;
     recovery?: ErrorRecovery;
     description?: string;
+    timeout?: number;
   } = {}
 ): NetworkError {
   return new NetworkError({
@@ -209,7 +213,8 @@ export function createNetworkError(
       label: 'Try Again',
       type: RecoveryType.REFRESH
     },
-    description: options.description
+    description: options.description,
+    timeout: options.timeout
   });
 }
 
@@ -222,6 +227,7 @@ export function createTimeoutError(
     code?: ErrorCode;
     details?: Record<string, any>;
     recovery?: ErrorRecovery;
+    timeout?: number;
   } = {}
 ): NetworkError {
   return new NetworkError({
@@ -232,7 +238,8 @@ export function createTimeoutError(
       action: RecoveryAction.RETRY,
       label: 'Try Again',
       type: RecoveryType.REFRESH
-    }
+    },
+    timeout: options.timeout
   });
 }
 
@@ -289,7 +296,7 @@ export function createSubmissionError(
       type: RecoveryType.FORM_RETRY
     },
     description: options.description,
-    retryable: options.retryable !== false // Default to true if not specified
+    retryable: options.retryable
   });
 }
 

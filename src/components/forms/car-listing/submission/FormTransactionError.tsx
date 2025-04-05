@@ -4,16 +4,17 @@
  * - 2024-06-07: Created FormTransactionError component to display form submission errors
  * - 2024-08-14: Updated to work with the new error architecture
  * - 2024-08-15: Enhanced recovery paths and UI feedback patterns
+ * - 2025-04-05: Fixed TypeScript errors with error handling
  */
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BaseApplicationError } from "@/errors/classes";
+import { AppError } from "@/errors/classes";
 import { RecoveryType } from "@/errors/types";
 
 interface FormTransactionErrorProps {
-  error: string | BaseApplicationError;
+  error: string | AppError;
   onRetry?: () => void;
 }
 
@@ -21,22 +22,28 @@ export const FormTransactionError = ({
   error, 
   onRetry 
 }: FormTransactionErrorProps) => {
-  // Extract error details, handling both string and BaseApplicationError types
+  // Extract error details, handling both string and AppError types
   const errorMessage = typeof error === 'string' 
     ? error 
-    : error instanceof BaseApplicationError 
+    : error instanceof AppError 
       ? error.message 
       : 'An error occurred';
   
-  const errorDescription = error instanceof BaseApplicationError 
+  const errorDescription = error instanceof AppError 
     ? error.description 
     : undefined;
 
-  const retryAction = onRetry || (error instanceof BaseApplicationError && error.recovery?.action);
+  const handleRetryAction = () => {
+    if (error instanceof AppError && error.recovery?.handler) {
+      error.recovery.handler();
+    } else if (onRetry) {
+      onRetry();
+    }
+  };
   
   // Get recovery label based on recovery type for better user context
   const getRecoveryLabel = () => {
-    if (!(error instanceof BaseApplicationError) || !error.recovery) {
+    if (!(error instanceof AppError) || !error.recovery) {
       return 'Try again';
     }
     
@@ -77,12 +84,12 @@ export const FormTransactionError = ({
           </AlertDescription>
         )}
         
-        {retryAction && (
+        {(onRetry || (error instanceof AppError && error.recovery?.handler)) && (
           <div className="mt-2">
             <Button 
               variant="outline" 
               size="sm"
-              onClick={retryAction}
+              onClick={handleRetryAction}
               className="text-[#DC143C] border-[#DC143C] hover:bg-[#DC143C]/10"
             >
               {getRecoveryLabel()}

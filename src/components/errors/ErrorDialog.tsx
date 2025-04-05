@@ -2,6 +2,7 @@
 /**
  * ErrorDialog component for modal error display
  * Created: 2025-04-05
+ * Updated: 2025-04-05 - Fixed TypeScript type issues
  */
 
 import React from 'react';

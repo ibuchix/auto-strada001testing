@@ -2,6 +2,7 @@
 /**
  * Centralized error classes
  * Created: 2025-04-05
+ * Updated: 2025-04-05 - Fixed TypeScript type errors and export compatibility
  */
 
 import { 
@@ -10,7 +11,8 @@ import {
   ErrorSeverity, 
   ErrorMetadata, 
   ErrorRecovery,
-  SerializedAppError
+  SerializedAppError,
+  RecoveryAction
 } from './types';
 
 /**
@@ -85,10 +87,60 @@ export class AppError extends Error {
       id: serialized.id
     });
   }
+  
+  /**
+   * Update the error's properties
+   */
+  public withRecovery(recovery: ErrorRecovery): AppError {
+    const newError = new AppError({
+      message: this.message,
+      code: this.code,
+      category: this.category,
+      severity: this.severity,
+      metadata: this.metadata,
+      recovery,
+      description: this.description,
+      retryable: this.retryable,
+      id: this.id
+    });
+    return newError;
+  }
+  
+  public withDescription(description: string): AppError {
+    const newError = new AppError({
+      message: this.message,
+      code: this.code,
+      category: this.category,
+      severity: this.severity,
+      metadata: this.metadata,
+      recovery: this.recovery,
+      description,
+      retryable: this.retryable,
+      id: this.id
+    });
+    return newError;
+  }
+  
+  public withRetryable(retryable: boolean): AppError {
+    const newError = new AppError({
+      message: this.message,
+      code: this.code,
+      category: this.category,
+      severity: this.severity,
+      metadata: this.metadata,
+      recovery: this.recovery,
+      description: this.description,
+      retryable,
+      id: this.id
+    });
+    return newError;
+  }
 }
 
-// Alias BaseApplicationError to AppError for backward compatibility
+// Export BaseApplicationError as an alias to AppError for backward compatibility
 export const BaseApplicationError = AppError;
+// Also export it as a type alias
+export type BaseApplicationError = AppError;
 
 /**
  * Validation error class
@@ -133,13 +185,17 @@ export class NetworkError extends AppError {
     metadata?: ErrorMetadata;
     recovery?: ErrorRecovery;
     description?: string;
+    timeout?: number;
   }) {
     super({
       message: params.message,
       code: params.code || ErrorCode.NETWORK_UNAVAILABLE,
       category: ErrorCategory.NETWORK,
       severity: params.severity || ErrorSeverity.ERROR,
-      metadata: params.metadata,
+      metadata: { 
+        ...params.metadata,
+        timeout: params.timeout 
+      },
       recovery: params.recovery,
       description: params.description
     });
@@ -185,7 +241,6 @@ export class AuthorizationError extends AppError {
     super({
       message: params.message,
       code: params.code || ErrorCode.UNAUTHORIZED,
-      category: ErrorCategory.AUTHORIZATION,
       severity: params.severity || ErrorSeverity.ERROR,
       metadata: params.metadata,
       recovery: params.recovery,
@@ -264,6 +319,13 @@ export class SubmissionError extends BusinessError {
       description: params.description
     });
     
-    this.retryable = params.retryable !== false; // Default to true if not specified
+    // Use withRetryable to create a new instance with retryable set
+    if (params.retryable !== undefined) {
+      return this.withRetryable(params.retryable);
+    }
   }
 }
+
+// Re-export all error types
+export { AppError as ApplicationError };
+export { ValidationError, NetworkError, AuthenticationError, AuthorizationError, ServerError, BusinessError, SubmissionError };
