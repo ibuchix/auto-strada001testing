@@ -1,8 +1,8 @@
 
 /**
  * Shared utility for generating checksums
+ * Updated to use built-in Deno crypto instead of external module
  */
-import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
 
 /**
  * Generate a checksum for the valuation API
@@ -13,5 +13,14 @@ import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
  */
 export function generateChecksum(apiId: string, apiSecret: string, vin: string): string {
   const data = `${apiId}${apiSecret}${vin}`;
-  return createHash("md5").update(data).toString();
+  const encoder = new TextEncoder();
+  const dataEncoded = encoder.encode(data);
+  
+  // Use the built-in crypto API to create an MD5 hash
+  const hashBuffer = crypto.subtle.digestSync("MD5", dataEncoded);
+  
+  // Convert the hash buffer to a hex string
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
