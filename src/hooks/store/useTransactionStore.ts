@@ -2,6 +2,7 @@
 /**
  * Hook for accessing transaction state from the central store
  * Created: 2025-04-09
+ * Updated: 2025-04-15 - Updated to use refactored store
  */
 
 import { useStore } from '@/store';
@@ -17,13 +18,14 @@ export interface TransactionOptions {
 }
 
 export const useTransactionStore = () => {
-  const {
-    transactions: { currentTransaction, transactionCount, transactions },
-    startTransaction,
-    completeTransaction,
-    failTransaction,
-    resetTransaction
-  } = useStore();
+  // Access transaction-related state from the store
+  const currentTransaction = useStore(state => state.currentTransaction);
+  const transactionCount = useStore(state => state.transactionCount);
+  const transactions = useStore(state => state.transactions);
+  const startTransaction = useStore(state => state.startTransaction);
+  const completeTransaction = useStore(state => state.completeTransaction);
+  const failTransaction = useStore(state => state.failTransaction);
+  const resetTransaction = useStore(state => state.resetTransaction);
 
   // Enhanced start transaction with toast
   const beginTransaction = useCallback((name: string, options: TransactionOptions = {}) => {

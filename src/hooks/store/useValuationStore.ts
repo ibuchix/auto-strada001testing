@@ -2,6 +2,7 @@
 /**
  * Hooks for accessing valuation state from the central store
  * Created: 2025-04-09
+ * Updated: 2025-04-15 - Updated to use refactored store
  */
 
 import { useStore } from '@/store';
@@ -13,23 +14,21 @@ import { getValuation, cleanupValuationData } from '@/components/hero/valuation/
 // A specialized hook for valuation operations
 export const useValuationStore = () => {
   // Extract valuation-related parts from the store
-  const {
-    valuation: {
-      vin,
-      mileage,
-      gearbox,
-      isLoading,
-      dialogOpen,
-      showManualForm,
-      valuationResult,
-      retryCount,
-      error
-    },
-    setValuationField,
-    setValuationResult,
-    resetValuation,
-    captureError,
-  } = useStore();
+  const vin = useStore(state => state.vin);
+  const mileage = useStore(state => state.mileage);
+  const gearbox = useStore(state => state.gearbox);
+  const isLoading = useStore(state => state.isLoading);
+  const dialogOpen = useStore(state => state.dialogOpen);
+  const showManualForm = useStore(state => state.showManualForm);
+  const valuationResult = useStore(state => state.valuationResult);
+  const retryCount = useStore(state => state.retryCount);
+  const error = useStore(state => state.error);
+  
+  // Actions
+  const setValuationField = useStore(state => state.setValuationField);
+  const setValuationResult = useStore(state => state.setValuationResult);
+  const resetValuation = useStore(state => state.resetValuation);
+  const captureError = useStore(state => state.captureError);
 
   // Helper setters
   const setVin = useCallback((value: string) => {
