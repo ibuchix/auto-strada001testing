@@ -9,6 +9,7 @@
  * Updated: 2025-04-09 - Fixed fallback function execution and return type
  * Updated: 2025-04-10 - Fixed fallback function type and execution issues
  * Updated: 2025-04-11 - Fixed render method return type for complete type compatibility
+ * Updated: 2025-04-12 - Fixed fallback prop type handling to ensure proper ReactNode returns
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
@@ -70,13 +71,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       if (this.props.fallback) {
         // Handle fallback function
         if (typeof this.props.fallback === 'function' && this.state.error) {
-          // Explicitly cast the function to our defined FallbackFunction type
+          // Explicitly cast the function to our defined FallbackFunction type and call it
           const fallbackFn = this.props.fallback as FallbackFunction;
-          // Execute the function to get a ReactNode and return it
           return fallbackFn(this.state.error, this.resetError);
         }
         // If not a function, it must be a ReactNode already
-        return this.props.fallback;
+        return this.props.fallback as Exclude<typeof this.props.fallback, FallbackFunction>;
       }
       
       // Default fallback UI
