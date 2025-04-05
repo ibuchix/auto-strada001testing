@@ -2,6 +2,7 @@
 /**
  * ValuationPriceDisplay Component
  * - Added 2025-04-05: Created component to display valuation price information
+ * - Updated 2025-04-05: Fixed formatCurrency usage
  */
 
 import { formatCurrency } from "@/utils/formatters";
@@ -22,13 +23,13 @@ export const ValuationPriceDisplay = ({
       <div className="flex flex-col gap-3">
         <div>
           <h3 className="text-sm font-medium text-gray-500">Estimated Value</h3>
-          <p className="text-2xl font-bold text-secondary">{formatCurrency(reservePrice, 'PLN')}</p>
+          <p className="text-2xl font-bold text-secondary">{formatCurrency(reservePrice)}</p>
         </div>
         
         {showAveragePrice && averagePrice && (
           <div>
             <h3 className="text-sm font-medium text-gray-500">Market Average</h3>
-            <p className="text-xl font-semibold text-gray-700">{formatCurrency(averagePrice, 'PLN')}</p>
+            <p className="text-xl font-semibold text-gray-700">{formatCurrency(averagePrice)}</p>
           </div>
         )}
       </div>
