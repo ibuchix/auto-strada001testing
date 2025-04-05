@@ -3,49 +3,52 @@ import { corsHeaders } from "./cors.ts";
 
 /**
  * Format a successful response
- * @param data The data to include in the response
- * @returns Response object with the data
+ * @param data Any data to return in the response
+ * @param status HTTP status code (default 200)
+ * @returns Formatted Response object
  */
-export function formatSuccessResponse(data: any): Response {
+export function formatSuccessResponse(data: any, status = 200): Response {
   return new Response(
     JSON.stringify({
       success: true,
-      data
+      data,
+      timestamp: new Date().toISOString()
     }),
     {
+      status,
       headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      },
-      status: 200
+        ...corsHeaders,
+        "Content-Type": "application/json"
+      }
     }
   );
 }
 
 /**
  * Format an error response
- * @param message The error message
- * @param status The HTTP status code
- * @param errorCode Optional error code for client handling
- * @returns Response object with the error
+ * @param message Error message
+ * @param status HTTP status code (default 400)
+ * @param errorCode Optional error code identifier
+ * @returns Formatted Response object
  */
 export function formatErrorResponse(
-  message: string,
-  status: number = 400,
-  errorCode: string = "GENERAL_ERROR"
+  message: string, 
+  status = 400, 
+  errorCode = "GENERAL_ERROR"
 ): Response {
   return new Response(
     JSON.stringify({
       success: false,
       error: message,
-      errorCode
+      errorCode,
+      timestamp: new Date().toISOString()
     }),
     {
+      status,
       headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      },
-      status
+        ...corsHeaders,
+        "Content-Type": "application/json"
+      }
     }
   );
 }

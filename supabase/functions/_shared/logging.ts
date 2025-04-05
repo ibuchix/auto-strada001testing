@@ -1,29 +1,32 @@
 
 /**
- * Shared logging utilities for all edge functions
- */
-
-/**
  * Log an operation with structured data
- * @param operation The operation name
- * @param data The data to log
- * @param level The log level (info, warn, error)
+ * @param operation Name of the operation being performed
+ * @param data Additional data to include in the log
+ * @param level Log level (default 'info')
  */
-export function logOperation(operation: string, data: Record<string, any>, level: 'info' | 'warn' | 'error' = 'info'): void {
+export function logOperation(
+  operation: string, 
+  data: Record<string, any>, 
+  level: 'info' | 'warn' | 'error' | 'debug' = 'info'
+): void {
   const logData = {
-    timestamp: new Date().toISOString(),
     operation,
-    ...data
+    ...data,
+    timestamp: new Date().toISOString()
   };
-
-  // Use the appropriate console method based on the level
+  
   switch (level) {
-    case 'warn':
-      console.warn(JSON.stringify(logData));
-      break;
     case 'error':
       console.error(JSON.stringify(logData));
       break;
+    case 'warn':
+      console.warn(JSON.stringify(logData));
+      break;
+    case 'debug':
+      console.debug(JSON.stringify(logData));
+      break;
+    case 'info':
     default:
       console.log(JSON.stringify(logData));
   }

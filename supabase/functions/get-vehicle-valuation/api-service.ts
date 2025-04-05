@@ -1,88 +1,153 @@
 
-/**
- * Service for interacting with the external valuation API
- * 
- * Changes:
- * - Fixed import path to use correct relative path format for Deno
- */
-import { generateChecksum } from "../_shared/checksum.ts";
 import { logOperation } from "../_shared/logging.ts";
+import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 
 /**
- * Fetch valuation data from the external API
- * @param vin Vehicle identification number
+ * Fetch valuation data from external API
+ * 
+ * @param vin Vehicle Identification Number
  * @param mileage Vehicle mileage
- * @param requestId Request ID for tracking
+ * @param requestId For logging
  * @returns Valuation result
  */
 export async function fetchExternalValuation(vin: string, mileage: number, requestId: string): Promise<any> {
   try {
-    const apiId = 'AUTOSTRA';
-    const apiSecret = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
-    const checksum = generateChecksum(apiId, apiSecret, vin);
+    // Get API credentials from environment variables
+    const apiId = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
+    const apiSecret = Deno.env.get('CAR_API_SECRET');
     
-    // Log request details
-    logOperation('api_request', { 
-      requestId, 
-      vin, 
-      mileage, 
-      apiId 
-    });
-    
-    // Construct API URL
-    const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-    
-    // Set timeout of 15 seconds
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    
-    // Fetch data from API
-    const response = await fetch(url, {
-      method: 'GET',
-      signal: controller.signal
-    });
-    
-    // Clear timeout
-    clearTimeout(timeoutId);
-    
-    // Handle response
-    if (!response.ok) {
-      throw new Error(`API responded with status ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    // Check if API returned an error
-    if (data.error) {
+    if (!apiSecret) {
+      logOperation('api_missing_secret', { requestId }, 'error');
       return {
         success: false,
-        error: data.error,
-        errorCode: data.errorCode || 'API_ERROR'
+        error: "Missing API credentials",
+        errorCode: "CONFIGURATION_ERROR"
       };
     }
     
-    // Log success
-    logOperation('api_success', { 
+    // Calculate checksum
+    const input = `${apiId}${apiSecret}${vin}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    const hashBuffer = await crypto.subtle.digest('MD5', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    // Construct API URL
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    
+    logOperation('api_request_start', { 
       requestId, 
-      dataSize: JSON.stringify(data).length 
+      vin,
+      mileage
     });
     
-    return {
-      success: true,
-      data
-    };
-  } catch (err) {
-    // Log error
-    logOperation('api_error', { 
+    // Set timeout for API request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
+    try {
+      // Make API request
+      const response = await fetch(apiUrl, { 
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Autostrada/1.0'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const responseText = await response.text();
+        logOperation('api_response_error', { 
+          requestId, 
+          status: response.status,
+          statusText: response.statusText,
+          responseText
+        }, 'error');
+        
+        return {
+          success: false,
+          error: `API responded with status: ${response.status}`,
+          errorCode: "API_ERROR"
+        };
+      }
+      
+      const valuationData = await response.json();
+      
+      logOperation('api_response_success', { 
+        requestId, 
+        dataSize: JSON.stringify(valuationData).length
+      });
+      
+      // Check if the API returned valid data
+      if (!valuationData || Object.keys(valuationData).length < 3) {
+        logOperation('api_invalid_data', { 
+          requestId, 
+          dataFields: Object.keys(valuationData)
+        }, 'error');
+        
+        return {
+          success: false,
+          error: "Insufficient data returned from valuation API",
+          errorCode: "INVALID_RESPONSE"
+        };
+      }
+      
+      // Check if the API returned an error
+      if (valuationData.error) {
+        logOperation('api_business_error', { 
+          requestId, 
+          error: valuationData.error
+        }, 'error');
+        
+        return {
+          success: false,
+          error: valuationData.error || "Failed to get valuation",
+          errorCode: "BUSINESS_ERROR"
+        };
+      }
+      
+      return {
+        success: true,
+        data: valuationData
+      };
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      
+      if (fetchError.name === 'AbortError') {
+        logOperation('api_timeout', { requestId }, 'error');
+        return {
+          success: false,
+          error: "Valuation API request timed out",
+          errorCode: "TIMEOUT"
+        };
+      }
+      
+      logOperation('api_fetch_error', { 
+        requestId, 
+        error: fetchError.message,
+        stack: fetchError.stack
+      }, 'error');
+      
+      return {
+        success: false,
+        error: `API fetch error: ${fetchError.message}`,
+        errorCode: "NETWORK_ERROR"
+      };
+    }
+  } catch (error) {
+    logOperation('api_general_error', { 
       requestId, 
-      error: err.message,
-      stack: err.stack
+      error: error.message,
+      stack: error.stack
     }, 'error');
     
     return {
       success: false,
-      error: err.message,
-      errorCode: err.name === 'AbortError' ? 'TIMEOUT' : 'API_ERROR'
+      error: `General error: ${error.message}`,
+      errorCode: "GENERAL_ERROR"
     };
   }
 }
