@@ -1,12 +1,12 @@
 
 /**
  * Changes made:
- * - Enhanced localStorage storage with consistent data structure
- * - Added standardized data format for vehicle information
- * - Implemented utility functions for data storage and retrieval
+ * - 2025-04-06: Updated to use the centralized vehicle data service
+ * - Simplified storage functions by delegating to vehicleDataService
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { VehicleData, storeVehicleData, getVehicleData, clearVehicleData } from '@/services/vehicleDataService';
 
 export interface VinValidationRequest {
   vin: string;
@@ -14,19 +14,7 @@ export interface VinValidationRequest {
   userId?: string;
 }
 
-export interface VehicleData {
-  vin: string;
-  mileage: number;
-  make?: string;
-  model?: string;
-  year?: number;
-  transmission?: 'manual' | 'automatic';
-  engineCapacity?: number;
-  cached?: boolean;
-  reservePrice?: number;
-  valuation?: number;
-  averagePrice?: number;
-}
+export type { VehicleData };
 
 export interface VinValidationResponse {
   success: boolean;
@@ -44,64 +32,26 @@ export interface VinValidationResponse {
 
 /**
  * Store validation data in localStorage with a standardized structure
+ * Now delegates to the centralized vehicle data service
  */
 export function storeValidationData(data: VehicleData) {
-  if (!data || !data.vin) {
-    console.error('Cannot store invalid validation data', data);
-    return false;
-  }
-
-  try {
-    // Store the complete data object
-    localStorage.setItem('valuationData', JSON.stringify(data));
-    
-    // Also store individual fields for backward compatibility
-    if (data.vin) localStorage.setItem('tempVIN', data.vin);
-    if (data.mileage) localStorage.setItem('tempMileage', data.mileage.toString());
-    if (data.transmission) localStorage.setItem('tempGearbox', data.transmission);
-    
-    // Store timestamp
-    localStorage.setItem('valuationTimestamp', new Date().toISOString());
-    
-    console.log('Stored validation data in localStorage:', data);
-    return true;
-  } catch (error) {
-    console.error('Failed to store validation data:', error);
-    return false;
-  }
+  return storeVehicleData(data);
 }
 
 /**
  * Retrieve validation data from localStorage
+ * Now delegates to the centralized vehicle data service
  */
 export function getStoredValidationData(): VehicleData | null {
-  try {
-    const dataString = localStorage.getItem('valuationData');
-    if (!dataString) return null;
-    
-    const data = JSON.parse(dataString);
-    
-    // Ensure the data has the expected structure
-    if (!data.vin) {
-      console.warn('Retrieved validation data is missing VIN');
-    }
-    
-    return data as VehicleData;
-  } catch (error) {
-    console.error('Failed to retrieve validation data:', error);
-    return null;
-  }
+  return getVehicleData();
 }
 
 /**
  * Clear validation data from localStorage
+ * Now delegates to the centralized vehicle data service
  */
 export function clearValidationData() {
-  localStorage.removeItem('valuationData');
-  localStorage.removeItem('tempVIN');
-  localStorage.removeItem('tempMileage');
-  localStorage.removeItem('tempGearbox');
-  localStorage.removeItem('valuationTimestamp');
+  clearVehicleData();
 }
 
 /**
@@ -127,7 +77,7 @@ export async function validateVin(params: VinValidationRequest): Promise<VinVali
       };
     }
     
-    // If successful, store the data in localStorage using our standardized format
+    // If successful, store the data using our standardized storage service
     if (data) {
       const vehicleData: VehicleData = {
         vin: params.vin,
