@@ -1,103 +1,85 @@
 
 /**
- * Simple caching mechanism for edge functions
+ * Simple in-memory cache implementation for edge functions
  */
-import { logOperation } from './logging.ts';
 
-// Simple in-memory cache (will reset when function goes cold)
-interface CacheEntry {
-  data: any;
-  timestamp: number;
-}
-
-const CACHE_SIZE_LIMIT = 100;
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes cache lifetime
-
+// Simple memory cache with expiration
 class MemoryCache {
-  private cache = new Map<string, CacheEntry>();
+  private cache: Map<string, { value: any, expiry: number }> = new Map();
+  private readonly DEFAULT_TTL = 10 * 60 * 1000; // 10 minutes in ms
   
   /**
-   * Get item from cache
-   * @param key Cache key
-   * @returns Cached data or null if not found or expired
+   * Set a value in the cache with optional TTL
+   */
+  set(key: string, value: any, ttl: number = this.DEFAULT_TTL): void {
+    const expiry = Date.now() + ttl;
+    this.cache.set(key, { value, expiry });
+    
+    // Cleanup expired items occasionally (1% chance on writes)
+    if (Math.random() < 0.01) {
+      this.cleanup();
+    }
+  }
+  
+  /**
+   * Get a value from the cache
    */
   get(key: string): any | null {
-    const entry = this.cache.get(key);
+    const item = this.cache.get(key);
     
-    if (!entry) {
+    // Return null if item doesn't exist or is expired
+    if (!item || item.expiry < Date.now()) {
+      if (item) {
+        // Clean up expired item
+        this.cache.delete(key);
+      }
       return null;
     }
     
-    const now = Date.now();
-    
-    // Check if entry is expired
-    if (now - entry.timestamp > CACHE_TTL) {
-      this.delete(key);
-      return null;
-    }
-    
-    logOperation('cache_hit', { key, ageMs: now - entry.timestamp });
-    return entry.data;
+    return item.value;
   }
   
   /**
-   * Set item in cache
-   * @param key Cache key
-   * @param data Data to cache
-   * @param ttl Optional custom TTL in ms
+   * Check if a key exists and is not expired
    */
-  set(key: string, data: any, ttl?: number): void {
-    // Prune if at capacity
-    if (this.cache.size >= CACHE_SIZE_LIMIT) {
-      this.prune();
-    }
-    
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now()
-    });
-    
-    logOperation('cache_set', { key, size: JSON.stringify(data).length });
+  has(key: string): boolean {
+    const item = this.cache.get(key);
+    return !!(item && item.expiry >= Date.now());
   }
   
   /**
-   * Delete item from cache
-   * @param key Cache key
+   * Remove an item from the cache
    */
   delete(key: string): void {
     this.cache.delete(key);
   }
   
   /**
-   * Clear all cache entries
+   * Clear all items from the cache
    */
   clear(): void {
     this.cache.clear();
-    logOperation('cache_cleared', { count: this.cache.size });
   }
   
   /**
-   * Remove expired entries from cache
+   * Remove all expired items from the cache
    */
-  prune(): void {
+  cleanup(): void {
     const now = Date.now();
-    let prunedCount = 0;
-    
-    for (const [key, entry] of this.cache.entries()) {
-      if (now - entry.timestamp > CACHE_TTL) {
+    for (const [key, item] of this.cache.entries()) {
+      if (item.expiry < now) {
         this.cache.delete(key);
-        prunedCount++;
       }
     }
-    
-    if (prunedCount > 0) {
-      logOperation('cache_pruned', { 
-        prunedCount, 
-        remainingEntries: this.cache.size 
-      });
-    }
+  }
+  
+  /**
+   * Get the number of items in the cache
+   */
+  size(): number {
+    return this.cache.size;
   }
 }
 
-// Singleton instance
+// Export a singleton instance of the cache
 export const memoryCache = new MemoryCache();

@@ -1,7 +1,7 @@
 
 /**
- * Simplified debugging utilities for API calls
- * Only outputs detailed logs in development environment
+ * Updated debugging utilities for API calls
+ * Added more robust utility functions for production/development differentiation
  */
 
 // Environment check to disable debugging in production
@@ -47,4 +47,77 @@ export const createPerformanceTracker = (operation: string, requestId: string) =
       }
     }
   };
+};
+
+/**
+ * Log API calls with performance tracking
+ * Only detailed in development environment
+ */
+export const logApiCall = (name: string, params: Record<string, any>, requestId: string) => {
+  const startTime = performance.now();
+  
+  // Only log detailed info in development
+  if (isDevelopment) {
+    console.log(`[API][${requestId}][${name}] Started`, params);
+  }
+  
+  return {
+    complete: (result: any = null, error: any = null) => {
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      
+      if (isDevelopment) {
+        if (error) {
+          console.error(`[API][${requestId}][${name}] Failed after ${duration.toFixed(2)}ms:`, error);
+        } else {
+          console.log(`[API][${requestId}][${name}] Completed in ${duration.toFixed(2)}ms`);
+        }
+      }
+      
+      return result || error;
+    }
+  };
+};
+
+/**
+ * Log detailed error information
+ * Only logs full details in development
+ */
+export const logDetailedError = (message: string, error: any): void => {
+  if (!isDevelopment) {
+    // In production, log minimal info
+    console.error(`Error: ${message}`);
+    return;
+  }
+  
+  console.error(`[ERROR] ${message}:`, error);
+  if (error && error.stack) {
+    console.error(error.stack);
+  }
+};
+
+/**
+ * Get session debug information for troubleshooting
+ * Returns minimal info in production
+ */
+export const getSessionDebugInfo = async (): Promise<Record<string, any>> => {
+  if (!isDevelopment) {
+    return { environment: 'production' };
+  }
+  
+  try {
+    const sessionInfo = {
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      environment: process.env.NODE_ENV,
+      hasLocalStorage: typeof localStorage !== 'undefined',
+      hasSessionStorage: typeof sessionStorage !== 'undefined',
+      connectionType: (navigator as any).connection ? (navigator as any).connection.effectiveType : 'unknown'
+    };
+    
+    return sessionInfo;
+  } catch (error) {
+    console.error('Error getting session debug info:', error);
+    return { error: 'Failed to get session info' };
+  }
 };

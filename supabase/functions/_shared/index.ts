@@ -90,6 +90,22 @@ export function isValidMileage(mileage: number): boolean {
 }
 
 /**
+ * Get a Supabase client with Service Role permissions
+ */
+export function getSupabaseClient() {
+  const { createClient } = require('https://esm.sh/@supabase/supabase-js@2.7.1');
+  return createClient(
+    Deno.env.get('SUPABASE_URL') || '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+    {
+      auth: {
+        persistSession: false
+      }
+    }
+  );
+}
+
+/**
  * Calculate reserve price based on valuation
  */
 export function calculateReservePrice(basePrice: number, requestId?: string): number {

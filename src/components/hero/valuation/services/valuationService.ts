@@ -6,11 +6,12 @@
  * - Updated API calls to use the improved cache functions
  * - 2024-04-04: Fixed spread operator issue by checking for null values
  * - 2024-04-04: Added null/undefined object protection for all spreads
+ * - 2025-05-08: Fixed missing utility function imports
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { getCachedValuation, storeValuationInCache } from "./api/cache-api";
-import { generateRequestId, logApiCall } from "./api/utils/debug-utils";
+import { generateRequestId, createPerformanceTracker } from "./api/utils/debug-utils";
 
 export async function getValuation(
   vin: string,
@@ -32,8 +33,11 @@ export async function getValuation(
   
   try {
     // First check cache
-    const apiCall = logApiCall('cache_check', { vin, mileage, correlationId }, requestId);
+    const tracker = createPerformanceTracker('valuation', requestId);
+    tracker.checkpoint('start');
+    
     const cachedData = await getCachedValuation(vin, mileage);
+    tracker.checkpoint('cache-check');
     
     if (cachedData) {
       const result = {
@@ -47,15 +51,13 @@ export async function getValuation(
         }
       };
       
-      apiCall.complete(result);
+      tracker.complete('success', { fromCache: true });
       return result;
     }
     
-    apiCall.complete({ cacheResult: 'miss' });
-    
     // No cache hit, call the edge function
     console.log(`[ValuationService][${requestId}] Cache miss, fetching from edge function`);
-    const functionCall = logApiCall('edge_function', { vin, mileage, correlationId }, requestId);
+    tracker.checkpoint('edge-function-start');
     
     const { data: functionResult, error } = await supabase.functions.invoke('handle-car-listing', {
       body: { 
@@ -66,9 +68,9 @@ export async function getValuation(
       }
     });
     
+    tracker.checkpoint('edge-function-complete');
+    
     if (error) {
-      const errorResult = functionCall.complete(null, error);
-      
       console.error(`[ValuationService][${requestId}] Edge function error:`, {
         message: error.message,
         details: error.details,
@@ -77,24 +79,23 @@ export async function getValuation(
         timestamp: new Date().toISOString()
       });
       
+      tracker.complete('failure', { error: error.message });
+      
       return {
         success: false,
         data: { error: error.message, correlationId }
       };
     }
     
-    // Function executed successfully
-    functionCall.complete(functionResult);
-    
     // Store the result in the cache to avoid future API calls
     if (functionResult) {
-      const cacheStore = logApiCall('cache_store', { vin, mileage, correlationId }, requestId);
+      tracker.checkpoint('cache-store-start');
       
       try {
         await storeValuationInCache(vin, mileage, functionResult);
-        cacheStore.complete({ success: true });
+        tracker.checkpoint('cache-store-complete');
       } catch (cacheError) {
-        cacheStore.complete(null, cacheError);
+        tracker.checkpoint('cache-store-failed');
         // Log but don't fail the operation due to cache errors
         console.warn(`[ValuationService][${requestId}] Cache storage failed:`, {
           error: cacheError.message,
@@ -105,6 +106,8 @@ export async function getValuation(
     }
     
     console.log(`[ValuationService][${requestId}] Valuation completed in ${(performance.now() - startTime).toFixed(2)}ms`);
+    
+    tracker.complete('success');
     
     return {
       success: true,

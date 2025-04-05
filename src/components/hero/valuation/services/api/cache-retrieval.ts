@@ -3,11 +3,12 @@
  * Changes made:
  * - 2025-04-27: Created cache retrieval module extracted from cache-api.ts
  * - 2026-04-10: Fixed type handling and data normalization
+ * - 2026-05-02: Fixed missing utility function imports
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { ValuationData } from "../../types";
-import { getSessionDebugInfo, logDetailedError } from "./utils/debug-utils";
+import { createPerformanceTracker, logDetailedError } from "./utils/debug-utils";
 
 const CACHE_EXPIRY_DAYS = 30; // Cache validity period in days
 
@@ -22,9 +23,8 @@ export async function getCachedValuation(
 
   try {
     // Debug information about the current session
-    const sessionInfo = await getSessionDebugInfo();
-    console.log('Session info when checking cache:', sessionInfo);
-
+    const requestTracker = createPerformanceTracker('cache-retrieval', 'cache-' + Date.now());
+    
     // Query the database for cached valuations
     const { data, error } = await supabase
       .from('vin_valuation_cache')
@@ -36,8 +36,10 @@ export async function getCachedValuation(
       .order('created_at', { ascending: false })
       .limit(1);
 
+    requestTracker.checkpoint('db-query-complete');
+
     if (error) {
-      logDetailedError(error, 'fetching cached valuation');
+      logDetailedError('Error fetching cached valuation', error);
       return null;
     }
 
@@ -59,6 +61,7 @@ export async function getCachedValuation(
     }
 
     console.log('Found valid cache for VIN:', vin, 'created on:', cachedEntry.created_at);
+    requestTracker.checkpoint('cache-validation');
     
     // Normalize the cached data to ensure it matches ValuationData interface
     const cachedData = cachedEntry.valuation_data;
@@ -98,9 +101,11 @@ export async function getCachedValuation(
       normalizedData.basePrice = Number(normalizedData.basePrice);
     }
     
+    requestTracker.complete('success');
     return normalizedData as ValuationData;
   } catch (error) {
     console.error('Unexpected error in getCachedValuation:', error);
+    logDetailedError('Unexpected error in getCachedValuation', error);
     return null;
   }
 }

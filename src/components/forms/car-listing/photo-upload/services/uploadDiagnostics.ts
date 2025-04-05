@@ -2,6 +2,9 @@
 /**
  * Upload diagnostics service for tracking upload attempts
  * Simplified for better performance in production
+ * 
+ * Changes:
+ * - 2025-05-08: Added responseData to UploadAttempt interface
  */
 
 export interface UploadAttempt {

@@ -7,11 +7,12 @@
  * - 2024-11-15: Implemented multiple cache storage methods with fallbacks
  * - 2024-07-05: Fixed edge function error handling in fallback cache storage
  * - 2024-07-07: Completely isolated cache errors to prevent blocking main user flow
+ * - 2025-05-08: Fixed missing utility function imports
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { logDetailedError } from "./utils/debug-utils";
+import { createPerformanceTracker, logDetailedError } from "./utils/debug-utils";
 import { valuationCacheService } from "@/services/supabase/valuation/cacheService";
 
 /**
@@ -24,11 +25,15 @@ export const storeValuationInCache = async (
   data: any
 ): Promise<boolean> => {
   console.log("Caching valuation data for VIN:", vin);
+  const requestId = `cache-${Date.now().toString(36)}`;
+  const tracker = createPerformanceTracker('cache-storage', requestId);
   
   try {
     // Use the cache service which employs multiple fallback mechanisms
     try {
+      tracker.checkpoint('cache-service-start');
       const success = await valuationCacheService.storeInCache(vin, mileage, data);
+      tracker.checkpoint('cache-service-complete');
       
       if (!success) {
         // If the main approach failed, try fallback but don't let it block
@@ -44,11 +49,13 @@ export const storeValuationInCache = async (
       });
     }
     
+    tracker.complete('success');
     // Always return true - cache operations should never block the main flow
     return true;
   } catch (error) {
     console.error("Error in cache storage flow:", error);
     logDetailedError("Exception in cache storage flow", error);
+    tracker.complete('failure');
     
     // Always return true even on error - caching is non-critical
     return true;
