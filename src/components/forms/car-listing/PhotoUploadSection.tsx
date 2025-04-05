@@ -7,9 +7,10 @@
  * - Improved error handling and user feedback
  * - Enhanced mobile experience with better spacing and touch targets
  * - Updated to use FormDataContext instead of requiring form prop
+ * - Updated import path for usePhotoUpload from hooks directory
  */
 import React, { useState } from 'react';
-import { usePhotoUpload } from './photo-upload/usePhotoUpload';
+import { usePhotoUpload } from './photo-upload/hooks';
 import { FormSection } from './FormSection';
 import { SaveButton } from './SaveButton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
