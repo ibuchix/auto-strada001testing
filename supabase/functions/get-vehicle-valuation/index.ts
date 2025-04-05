@@ -1,12 +1,9 @@
-
 /**
  * Edge function for getting vehicle valuations
  * This function calls the external valuation API and handles caching
  * 
  * Changes:
- * - Refactored into modular components for better maintainability
- * - Separated API service, caching, and price calculation into dedicated modules
- * - Improved error handling and logging
+ * - Updated import paths to use correct relative path format
  */
 
 import { corsHeaders, handleCorsOptions } from "../_shared/cors.ts";
