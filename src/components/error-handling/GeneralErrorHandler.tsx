@@ -3,13 +3,14 @@
  * General Error Handler Component
  * Created 2028-05-15: Provides consistent error handling UI
  * Updated 2028-05-18: Added support for category prop
+ * Updated 2025-04-05: Fixed ErrorCategory references
  */
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCcw } from "lucide-react";
 import { ErrorCategory } from "@/errors/types";
 
 interface GeneralErrorHandlerProps {
@@ -67,7 +68,7 @@ export const GeneralErrorHandler = ({
       case ErrorCategory.NETWORK:
         window.location.reload();
         break;
-      case ErrorCategory.PERMISSION:
+      case ErrorCategory.AUTHORIZATION:
         navigate('/');
         break;
       default:
@@ -94,7 +95,7 @@ export const GeneralErrorHandler = ({
             onClick={handleErrorAction}
             className="flex items-center gap-2"
           >
-            <RefreshCw size={14} />
+            <RefreshCcw size={14} />
             {primaryAction?.label || getActionLabel(errorCategory)}
           </Button>
         </div>
@@ -120,7 +121,7 @@ function determineErrorCategory(error: unknown): ErrorCategory {
         return ErrorCategory.NETWORK;
       }
       if (errorName.includes('permission') || errorName.includes('forbidden')) {
-        return ErrorCategory.PERMISSION;
+        return ErrorCategory.AUTHORIZATION;
       }
       if (errorName.includes('validation')) {
         return ErrorCategory.VALIDATION;
@@ -142,12 +143,12 @@ function determineErrorCategory(error: unknown): ErrorCategory {
       if (errorMsg.includes('permission') || 
           errorMsg.includes('access') || 
           errorMsg.includes('denied')) {
-        return ErrorCategory.PERMISSION;
+        return ErrorCategory.AUTHORIZATION;
       }
     }
   }
   
-  return ErrorCategory.GENERAL;
+  return ErrorCategory.UNKNOWN;
 }
 
 // Get appropriate action label based on error category
@@ -157,7 +158,7 @@ function getActionLabel(category: ErrorCategory): string {
       return 'Sign In';
     case ErrorCategory.NETWORK:
       return 'Reload';
-    case ErrorCategory.PERMISSION:
+    case ErrorCategory.AUTHORIZATION:
       return 'Go Home';
     case ErrorCategory.VALIDATION:
       return 'Review';

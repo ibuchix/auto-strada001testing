@@ -24,6 +24,8 @@ export class AppError extends Error {
   public readonly recovery?: ErrorRecovery;
   public readonly timestamp: number;
   public readonly id: string;
+  public readonly description?: string;
+  public readonly retryable?: boolean;
   
   constructor(params: {
     message: string;
@@ -33,6 +35,8 @@ export class AppError extends Error {
     metadata?: ErrorMetadata;
     recovery?: ErrorRecovery;
     id?: string;
+    description?: string;
+    retryable?: boolean;
   }) {
     super(params.message);
     
@@ -44,6 +48,8 @@ export class AppError extends Error {
     this.recovery = params.recovery;
     this.timestamp = Date.now();
     this.id = params.id || crypto.randomUUID();
+    this.description = params.description;
+    this.retryable = params.retryable;
     
     // Ensure instanceof checks work correctly
     Object.setPrototypeOf(this, new.target.prototype);
@@ -81,6 +87,9 @@ export class AppError extends Error {
   }
 }
 
+// Alias BaseApplicationError to AppError for backward compatibility
+export const BaseApplicationError = AppError;
+
 /**
  * Validation error class
  */
@@ -92,6 +101,7 @@ export class ValidationError extends AppError {
     severity?: ErrorSeverity;
     metadata?: ErrorMetadata;
     recovery?: ErrorRecovery;
+    description?: string;
   }) {
     super({
       message: params.message,
@@ -102,7 +112,8 @@ export class ValidationError extends AppError {
         ...params.metadata,
         field: params.field
       },
-      recovery: params.recovery
+      recovery: params.recovery,
+      description: params.description
     });
   }
   
@@ -121,6 +132,7 @@ export class NetworkError extends AppError {
     severity?: ErrorSeverity;
     metadata?: ErrorMetadata;
     recovery?: ErrorRecovery;
+    description?: string;
   }) {
     super({
       message: params.message,
@@ -128,7 +140,8 @@ export class NetworkError extends AppError {
       category: ErrorCategory.NETWORK,
       severity: params.severity || ErrorSeverity.ERROR,
       metadata: params.metadata,
-      recovery: params.recovery
+      recovery: params.recovery,
+      description: params.description
     });
   }
 }
@@ -143,6 +156,7 @@ export class AuthenticationError extends AppError {
     severity?: ErrorSeverity;
     metadata?: ErrorMetadata;
     recovery?: ErrorRecovery;
+    description?: string;
   }) {
     super({
       message: params.message,
@@ -150,7 +164,8 @@ export class AuthenticationError extends AppError {
       category: ErrorCategory.AUTHENTICATION,
       severity: params.severity || ErrorSeverity.ERROR,
       metadata: params.metadata,
-      recovery: params.recovery
+      recovery: params.recovery,
+      description: params.description
     });
   }
 }
@@ -165,6 +180,7 @@ export class AuthorizationError extends AppError {
     severity?: ErrorSeverity;
     metadata?: ErrorMetadata;
     recovery?: ErrorRecovery;
+    description?: string;
   }) {
     super({
       message: params.message,
@@ -172,7 +188,8 @@ export class AuthorizationError extends AppError {
       category: ErrorCategory.AUTHORIZATION,
       severity: params.severity || ErrorSeverity.ERROR,
       metadata: params.metadata,
-      recovery: params.recovery
+      recovery: params.recovery,
+      description: params.description
     });
   }
 }
@@ -187,6 +204,7 @@ export class ServerError extends AppError {
     severity?: ErrorSeverity;
     metadata?: ErrorMetadata;
     recovery?: ErrorRecovery;
+    description?: string;
   }) {
     super({
       message: params.message,
@@ -194,7 +212,8 @@ export class ServerError extends AppError {
       category: ErrorCategory.SERVER,
       severity: params.severity || ErrorSeverity.ERROR,
       metadata: params.metadata,
-      recovery: params.recovery
+      recovery: params.recovery,
+      description: params.description
     });
   }
 }
@@ -209,6 +228,7 @@ export class BusinessError extends AppError {
     severity?: ErrorSeverity;
     metadata?: ErrorMetadata;
     recovery?: ErrorRecovery;
+    description?: string;
   }) {
     super({
       message: params.message,
@@ -216,7 +236,34 @@ export class BusinessError extends AppError {
       category: ErrorCategory.BUSINESS,
       severity: params.severity || ErrorSeverity.ERROR,
       metadata: params.metadata,
-      recovery: params.recovery
+      recovery: params.recovery,
+      description: params.description
     });
+  }
+}
+
+/**
+ * Submission error for form submissions
+ */
+export class SubmissionError extends BusinessError {
+  constructor(params: {
+    message: string;
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    metadata?: ErrorMetadata;
+    recovery?: ErrorRecovery;
+    description?: string;
+    retryable?: boolean;
+  }) {
+    super({
+      message: params.message,
+      code: params.code || ErrorCode.SUBMISSION_ERROR,
+      severity: params.severity || ErrorSeverity.ERROR,
+      metadata: params.metadata,
+      recovery: params.recovery,
+      description: params.description
+    });
+    
+    this.retryable = params.retryable !== false; // Default to true if not specified
   }
 }

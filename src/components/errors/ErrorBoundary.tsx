@@ -2,6 +2,7 @@
 /**
  * ErrorBoundary component for catching and displaying unhandled errors
  * Created: 2025-04-05
+ * Updated: 2025-04-05 - Fixed TypeScript errors with render method
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
@@ -54,7 +55,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     });
   };
 
-  render() {
+  render(): ReactNode {
     if (this.state.hasError) {
       // Use custom fallback if provided
       if (this.props.fallback) {

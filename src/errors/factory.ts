@@ -7,19 +7,108 @@
 import { useNavigate } from 'react-router-dom';
 import { 
   AppError,
+  BaseApplicationError,
   ValidationError,
   NetworkError,
   AuthenticationError,
   AuthorizationError,
   ServerError,
-  BusinessError
+  BusinessError,
+  SubmissionError
 } from './classes';
 import { 
   ErrorCode, 
+  ErrorCategory,
   ErrorSeverity, 
   RecoveryAction,
-  ErrorRecovery
+  ErrorRecovery,
+  RecoveryType
 } from './types';
+
+/**
+ * Create an error from an unknown error source
+ */
+export function createErrorFromUnknown(error: unknown): AppError {
+  // If it's already an AppError, return it
+  if (error instanceof AppError) {
+    return error;
+  }
+  
+  // Handle standard Error objects
+  if (error instanceof Error) {
+    return new AppError({
+      message: error.message,
+      code: ErrorCode.UNEXPECTED_ERROR,
+      category: determineErrorCategory(error),
+      metadata: {
+        originalError: error,
+        stack: error.stack
+      }
+    });
+  }
+  
+  // Handle string errors
+  if (typeof error === 'string') {
+    return new AppError({
+      message: error,
+      code: ErrorCode.UNEXPECTED_ERROR,
+      category: ErrorCategory.UNKNOWN
+    });
+  }
+  
+  // Handle objects with status and messages (like HTTP errors)
+  if (error && typeof error === 'object' && 'status' in error) {
+    let category = ErrorCategory.SERVER;
+    let code = ErrorCode.SERVER_ERROR;
+    const status = Number(error.status);
+    
+    // Determine category and code based on status
+    if (status === 401 || status === 403) {
+      category = ErrorCategory.AUTHENTICATION;
+      code = status === 401 ? ErrorCode.UNAUTHENTICATED : ErrorCode.UNAUTHORIZED;
+    } else if (status === 404) {
+      category = ErrorCategory.BUSINESS;
+      code = ErrorCode.RESOURCE_NOT_FOUND;
+    } else if (status >= 400 && status < 500) {
+      category = ErrorCategory.CLIENT;
+      code = ErrorCode.INVALID_OPERATION;
+    }
+    
+    let message = 'An error occurred';
+    if ('message' in error && error.message && typeof error.message === 'string') {
+      message = error.message;
+    }
+    
+    return new AppError({
+      message,
+      code,
+      category,
+      metadata: {
+        originalError: error,
+        status
+      }
+    });
+  }
+  
+  // Fallback for any other type
+  return new AppError({
+    message: 'An unknown error occurred',
+    code: ErrorCode.UNKNOWN_ERROR,
+    category: ErrorCategory.UNKNOWN,
+    metadata: {
+      originalError: error
+    }
+  });
+}
+
+/**
+ * Handle application errors with standardized approach
+ */
+export function handleAppError(error: unknown): AppError {
+  const appError = createErrorFromUnknown(error);
+  console.error(`[ERROR][${appError.category}][${appError.code}]`, appError.message, appError);
+  return appError;
+}
 
 /**
  * Create a validation error with standardized recovery
@@ -32,6 +121,7 @@ export function createValidationError(
     severity?: ErrorSeverity;
     details?: Record<string, any>;
     recovery?: ErrorRecovery;
+    description?: string;
   } = {}
 ): ValidationError {
   return new ValidationError({
@@ -43,6 +133,55 @@ export function createValidationError(
     recovery: options.recovery || {
       action: RecoveryAction.RETRY,
       label: 'Try Again'
+    },
+    description: options.description
+  });
+}
+
+/**
+ * Create a field validation error
+ */
+export function createFieldError(
+  field: string,
+  message: string,
+  options: {
+    code?: ErrorCode;
+    focus?: boolean;
+    details?: Record<string, any>;
+  } = {}
+): ValidationError {
+  return new ValidationError({
+    message,
+    code: options.code || ErrorCode.INVALID_VALUE,
+    field,
+    metadata: { details: options.details },
+    recovery: {
+      action: RecoveryAction.RETRY,
+      label: 'Fix Field',
+      type: RecoveryType.FIELD_CORRECTION
+    }
+  });
+}
+
+/**
+ * Create a form validation error
+ */
+export function createFormError(
+  message: string,
+  options: {
+    code?: ErrorCode;
+    details?: Record<string, any>;
+    recovery?: ErrorRecovery;
+  } = {}
+): ValidationError {
+  return new ValidationError({
+    message,
+    code: options.code || ErrorCode.INVALID_VALUE,
+    metadata: { details: options.details },
+    recovery: options.recovery || {
+      action: RecoveryAction.RETRY,
+      label: 'Check Form',
+      type: RecoveryType.FORM_RETRY
     }
   });
 }
@@ -57,6 +196,7 @@ export function createNetworkError(
     severity?: ErrorSeverity;
     details?: Record<string, any>;
     recovery?: ErrorRecovery;
+    description?: string;
   } = {}
 ): NetworkError {
   return new NetworkError({
@@ -67,7 +207,31 @@ export function createNetworkError(
     recovery: options.recovery || {
       action: RecoveryAction.RETRY,
       label: 'Try Again',
-      handler: () => window.location.reload()
+      type: RecoveryType.REFRESH
+    },
+    description: options.description
+  });
+}
+
+/**
+ * Create a timeout error
+ */
+export function createTimeoutError(
+  message: string = 'Request timed out',
+  options: {
+    code?: ErrorCode;
+    details?: Record<string, any>;
+    recovery?: ErrorRecovery;
+  } = {}
+): NetworkError {
+  return new NetworkError({
+    message,
+    code: options.code || ErrorCode.REQUEST_TIMEOUT,
+    metadata: { details: options.details },
+    recovery: options.recovery || {
+      action: RecoveryAction.RETRY,
+      label: 'Try Again',
+      type: RecoveryType.REFRESH
     }
   });
 }
@@ -75,13 +239,14 @@ export function createNetworkError(
 /**
  * Create an authentication error with standardized recovery
  */
-export function createAuthenticationError(
+export function createAuthError(
   message: string = 'Authentication required',
   options: {
     code?: ErrorCode;
     severity?: ErrorSeverity;
     details?: Record<string, any>;
     recovery?: ErrorRecovery;
+    description?: string;
   } = {}
 ): AuthenticationError {
   return new AuthenticationError({
@@ -92,149 +257,75 @@ export function createAuthenticationError(
     recovery: options.recovery || {
       action: RecoveryAction.AUTHENTICATE,
       label: 'Sign In',
-      route: '/auth'
-    }
+      route: '/auth',
+      type: RecoveryType.SIGN_IN
+    },
+    description: options.description
   });
 }
 
 /**
- * Create an authorization error with standardized recovery
+ * Create a submission error
  */
-export function createAuthorizationError(
-  message: string = 'You do not have permission to perform this action',
-  options: {
-    code?: ErrorCode;
-    severity?: ErrorSeverity;
-    details?: Record<string, any>;
-    recovery?: ErrorRecovery;
-  } = {}
-): AuthorizationError {
-  return new AuthorizationError({
-    message,
-    code: options.code || ErrorCode.UNAUTHORIZED,
-    severity: options.severity || ErrorSeverity.ERROR,
-    metadata: { details: options.details },
-    recovery: options.recovery || {
-      action: RecoveryAction.NAVIGATE,
-      label: 'Go Home',
-      route: '/'
-    }
-  });
-}
-
-/**
- * Create a server error with standardized recovery
- */
-export function createServerError(
-  message: string = 'Server error occurred',
-  options: {
-    code?: ErrorCode;
-    severity?: ErrorSeverity;
-    details?: Record<string, any>;
-    recovery?: ErrorRecovery;
-  } = {}
-): ServerError {
-  return new ServerError({
-    message,
-    code: options.code || ErrorCode.SERVER_ERROR,
-    severity: options.severity || ErrorSeverity.ERROR,
-    metadata: { details: options.details },
-    recovery: options.recovery || {
-      action: RecoveryAction.CONTACT_SUPPORT,
-      label: 'Contact Support',
-      handler: () => {
-        window.location.href = 'mailto:support@autostrada.com?subject=Server%20Error';
-      }
-    }
-  });
-}
-
-/**
- * Create a business logic error with standardized recovery
- */
-export function createBusinessError(
+export function createSubmissionError(
   message: string,
   options: {
     code?: ErrorCode;
     severity?: ErrorSeverity;
     details?: Record<string, any>;
     recovery?: ErrorRecovery;
+    description?: string;
+    retryable?: boolean;
   } = {}
-): BusinessError {
-  return new BusinessError({
+): SubmissionError {
+  return new SubmissionError({
     message,
-    code: options.code || ErrorCode.INVALID_OPERATION,
-    severity: options.severity,
-    metadata: { details: options.details },
-    recovery: options.recovery
-  });
-}
-
-/**
- * Create a valuation error with standardized recovery
- */
-export function createValuationError(
-  message: string,
-  options: {
-    code?: ErrorCode;
-    severity?: ErrorSeverity;
-    details?: Record<string, any>;
-    recovery?: ErrorRecovery;
-  } = {}
-): BusinessError {
-  return new BusinessError({
-    message,
-    code: options.code || ErrorCode.VALUATION_ERROR,
+    code: options.code || ErrorCode.SUBMISSION_ERROR,
     severity: options.severity || ErrorSeverity.ERROR,
     metadata: { details: options.details },
     recovery: options.recovery || {
-      action: RecoveryAction.MANUAL_RESOLUTION,
-      label: 'Try Manual Valuation',
-      route: '/manual-valuation'
-    }
+      action: RecoveryAction.RETRY,
+      label: 'Try Again',
+      type: RecoveryType.FORM_RETRY
+    },
+    description: options.description,
+    retryable: options.retryable !== false // Default to true if not specified
   });
 }
 
 /**
- * Create an error from unknown type
+ * Determine error category based on error content
  */
-export function createErrorFromUnknown(
-  error: unknown, 
-  defaultMessage: string = 'An unexpected error occurred'
-): AppError {
-  if (error instanceof AppError) {
-    return error;
+function determineErrorCategory(error: Error): ErrorCategory {
+  const errorName = error.name.toLowerCase();
+  const errorMessage = error.message.toLowerCase();
+  
+  if (errorName.includes('network') || 
+      errorMessage.includes('network') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('offline')) {
+    return ErrorCategory.NETWORK;
   }
   
-  if (error instanceof Error) {
-    return new AppError({
-      message: error.message,
-      code: ErrorCode.UNEXPECTED_ERROR,
-      metadata: { originalError: error }
-    });
+  if (errorName.includes('auth') || 
+      errorMessage.includes('auth') ||
+      errorMessage.includes('login') ||
+      errorMessage.includes('permission')) {
+    return ErrorCategory.AUTHENTICATION;
   }
   
-  // Handle network errors
-  if (typeof error === 'object' && error !== null) {
-    if ('status' in error && (error.status === 0 || error.status === 408)) {
-      return createNetworkError(
-        typeof error.message === 'string' ? error.message : 'Network request failed',
-        { code: ErrorCode.REQUEST_TIMEOUT }
-      );
-    }
-    
-    if ('message' in error && typeof error.message === 'string') {
-      return new AppError({
-        message: error.message,
-        code: ErrorCode.UNEXPECTED_ERROR,
-        metadata: { originalError: error }
-      });
-    }
+  if (errorName.includes('valid') || 
+      errorMessage.includes('valid') ||
+      errorMessage.includes('required') ||
+      errorMessage.includes('invalid')) {
+    return ErrorCategory.VALIDATION;
   }
   
-  return new AppError({
-    message: typeof error === 'string' ? error : defaultMessage,
-    code: ErrorCode.UNEXPECTED_ERROR,
-    metadata: { originalError: error }
-  });
+  if (errorName.includes('server') || 
+      errorMessage.includes('server') ||
+      errorMessage.includes('500')) {
+    return ErrorCategory.SERVER;
+  }
+  
+  return ErrorCategory.UNKNOWN;
 }
