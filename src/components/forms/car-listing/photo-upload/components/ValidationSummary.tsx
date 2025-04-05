@@ -1,9 +1,13 @@
 
 /**
  * A component to display validation summary for photo uploads
+ * - 2025-04-05: Styled with brand colors and improved visual hierarchy
+ * - 2025-04-05: Added motion effects for better user experience
+ * - 2025-04-05: Improved content organization and responsive layout
  */
 import { AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 interface ValidationSummaryProps {
   isValid: boolean;
@@ -18,33 +22,59 @@ export const ValidationSummary = ({
 }: ValidationSummaryProps) => {
   if (isValid) {
     return (
-      <Alert className="bg-green-50 border-green-200 mb-6">
-        <CheckCircle className="h-4 w-4 text-green-600" />
-        <AlertTitle className="text-green-700">All required photos uploaded</AlertTitle>
-        <AlertDescription className="text-green-600">
+      <Alert 
+        className="bg-success/10 border-success/20 mb-6 transition-all duration-300 transform hover:border-success/30"
+      >
+        <CheckCircle className="h-4 w-4 text-success animate-pulse" />
+        <AlertTitle className="text-success font-kanit">All required photos uploaded</AlertTitle>
+        <AlertDescription className="text-success/80 font-kanit">
           You've successfully uploaded all required photos. You can proceed to the next step.
         </AlertDescription>
       </Alert>
     );
   }
 
+  // Get completion status text based on percentage
+  const getCompletionStatus = () => {
+    if (completionPercentage === 0) return "Not started";
+    if (completionPercentage < 30) return "Just started";
+    if (completionPercentage < 60) return "In progress";
+    if (completionPercentage < 90) return "Almost there";
+    return "Nearly complete";
+  };
+
   return (
-    <Alert variant="destructive" className="mb-6">
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle>Missing required photos</AlertTitle>
-      <AlertDescription>
-        <div className="space-y-2">
-          <p>Please upload the following required photos:</p>
-          <ul className="list-disc pl-5">
+    <Alert 
+      variant="destructive" 
+      className="mb-6 bg-primary/10 border-primary/20 hover:border-primary/30 transition-all duration-300"
+    >
+      <AlertCircle className="h-4 w-4 text-primary animate-pulse" />
+      <AlertTitle className="text-primary font-oswald">Missing required photos</AlertTitle>
+      <AlertDescription className="text-subtitle">
+        <div className="space-y-3">
+          <p className="font-kanit">Please upload the following required photos:</p>
+          <ul className="list-disc pl-5 space-y-1 text-sm">
             {missingPhotoTitles.map((title, index) => (
-              <li key={index}>{title}</li>
+              <li key={index} className="text-primary/90">{title}</li>
             ))}
           </ul>
-          <p className="text-sm mt-2">
-            Progress: {completionPercentage}% complete
-          </p>
+          <div className="text-xs pt-1 border-t border-primary/10 mt-2 flex justify-between items-center">
+            <span className="text-subtitle">
+              {getCompletionStatus()} - {completionPercentage}% complete
+            </span>
+            
+            <span className={cn(
+              "px-2 py-0.5 rounded-full",
+              completionPercentage > 70 
+                ? "bg-amber-500/10 text-amber-600" 
+                : "bg-primary/10 text-primary/80"
+            )}>
+              {missingPhotoTitles.length} remaining
+            </span>
+          </div>
         </div>
       </AlertDescription>
     </Alert>
   );
 };
+

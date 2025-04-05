@@ -1,30 +1,19 @@
 
 /**
- * Component for displaying a section of related photos (exterior, interior, etc.)
- * Changes made:
- * - Added a single required indicator at the section level instead of individual photos
- * - Updated styling to match brand guidelines
- * - Improved visual hierarchy with brand fonts
- * - Enhanced card layout with consistent spacing
- * - Added better responsive design for photo grid
+ * Component for displaying a section of photo uploads
+ * - 2025-04-05: Created to provide better section organization
+ * - 2025-04-05: Enhanced with better visual styling and animations
  */
 import { LucideIcon } from "lucide-react";
 import { PhotoUpload } from "../PhotoUpload";
 import { PhotoValidationIndicator } from "../../validation/PhotoValidationIndicator";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-export interface PhotoItem {
-  id: string;
-  title: string;
-  description: string;
-}
 
 interface PhotoSectionProps {
   title: string;
   description: string;
   icon: LucideIcon;
-  photos: PhotoItem[];
+  photos: { id: string; title: string; description: string; required: boolean }[];
   uploadedPhotos: Record<string, boolean>;
   activeUploads: Record<string, boolean>;
   progress?: number;
@@ -47,88 +36,68 @@ export const PhotoSection = ({
   onUploadError,
   onUploadRetry
 }: PhotoSectionProps) => {
-  // Check if all photos in this section are required (for our styling)
-  const allPhotosRequired = true;
-
-  // Calculate upload completion for this section
-  const totalPhotos = photos.length;
-  const uploadedCount = photos.filter(photo => uploadedPhotos[photo.id]).length;
-  const isComplete = uploadedCount === totalPhotos;
+  // Check if all photos in this section are required
+  const allPhotosRequired = photos.every(photo => photo.required);
+  
+  // Check if all required photos are uploaded
+  const allRequiredUploaded = photos
+    .filter(photo => photo.required)
+    .every(photo => uploadedPhotos[photo.id]);
   
   return (
-    <div className="space-y-6">
-      <div className="border-b border-accent pb-3 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Icon className={cn(
-              "h-6 w-6",
-              isComplete ? "text-success" : "text-primary"
-            )} />
-            <h4 className="font-oswald font-semibold text-lg text-body">{title}</h4>
+    <div className="space-y-5 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-full bg-accent/80 flex items-center justify-center">
+            <Icon className="h-4 w-4 text-primary" />
           </div>
-          
-          {allPhotosRequired && (
-            <Badge 
-              className={cn(
-                "font-medium py-1 px-3",
-                isComplete 
-                  ? "bg-success hover:bg-success text-white" 
-                  : "bg-primary hover:bg-primary text-white"
-              )}
-            >
-              {isComplete ? "Complete" : "Required"}
-            </Badge>
-          )}
+          <h3 className="text-lg font-oswald text-dark">{title}</h3>
         </div>
-        <p className="text-sm text-subtitle mt-2 ml-9 font-kanit">
-          {description}
-        </p>
-        {!isComplete && (
-          <p className="text-xs text-primary/80 mt-1 ml-9 font-kanit">
-            {uploadedCount} of {totalPhotos} photos uploaded
-          </p>
+        
+        {allPhotosRequired && (
+          <PhotoValidationIndicator
+            isUploaded={allRequiredUploaded}
+            isRequired={true}
+            photoType={title}
+            hideRequiredLabel={!allRequiredUploaded}
+          />
         )}
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <p className="text-sm text-subtitle">{description}</p>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {photos.map((photo) => (
-          <div key={photo.id} className="space-y-1">
+          <div key={photo.id} className={cn(
+            "transition-all duration-500 transform",
+            uploadedPhotos[photo.id] ? "scale-100 opacity-100" : "hover:scale-[1.02]"
+          )}>
             <PhotoUpload
               id={photo.id}
               title={photo.title}
               description={photo.description}
-              isUploading={activeUploads[photo.id] || false}
-              isUploaded={uploadedPhotos[photo.id]}
+              isUploading={!!activeUploads[photo.id]}
+              isRequired={photo.required}
+              isUploaded={!!uploadedPhotos[photo.id]}
               progress={progress}
-              isRequired={true}
-              onUpload={async (file) => {
-                try {
-                  const url = await onFileSelect(file, photo.id);
-                  if (url) {
-                    onPhotoUploaded(photo.id);
-                  } else {
-                    onUploadError(photo.id, "Upload failed");
-                  }
-                  return url;
-                } catch (error: any) {
-                  onUploadError(photo.id, error.message || "Upload failed");
-                  return null;
-                }
-              }}
+              onFileSelect={(file) => 
+                onFileSelect(file, photo.id)
+                  .then((result) => {
+                    if (result) {
+                      onPhotoUploaded(photo.id);
+                    }
+                    return result;
+                  })
+                  .catch((error) => {
+                    onUploadError(photo.id, error.message || "Upload failed");
+                    return null;
+                  })
+              }
             />
-            {/* Hide individual validation indicators - we show section level instead */}
-            {false && !uploadedPhotos[photo.id] && (
-              <PhotoValidationIndicator 
-                isUploaded={uploadedPhotos[photo.id]}
-                isRequired={true}
-                photoType={photo.title}
-                onRetry={() => onUploadRetry(photo.id)}
-                hideRequiredLabel={true}
-              />
-            )}
           </div>
         ))}
       </div>
     </div>
   );
 };
+

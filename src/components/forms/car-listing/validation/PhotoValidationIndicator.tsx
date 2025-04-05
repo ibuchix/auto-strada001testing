@@ -8,6 +8,7 @@
  * - 2025-04-05: Added retry functionality for required photos
  * - 2025-04-05: Added option to hide required label for section-level required indicators
  * - 2025-04-05: Updated with brand styling and improved visual hierarchy
+ * - 2025-04-05: Added animations and hover effects
  */
 import { CheckCircle, XCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -36,8 +37,10 @@ export const PhotoValidationIndicator = ({
   if (isUploaded) {
     return (
       <Tooltip content={`${photoType} successfully uploaded`}>
-        <Badge className="bg-success hover:bg-success/90 flex items-center gap-1 text-white">
-          <CheckCircle className="h-3 w-3" />
+        <Badge 
+          className="bg-success hover:bg-success/90 flex items-center gap-1 text-white transition-all duration-300 animate-fade-in shadow-sm group"
+        >
+          <CheckCircle className="h-3 w-3 transition-transform duration-300 group-hover:scale-110" />
           <span className="font-kanit text-xs">Uploaded</span>
         </Badge>
       </Tooltip>
@@ -49,7 +52,7 @@ export const PhotoValidationIndicator = ({
       <Tooltip content={`${photoType} is required before submission`}>
         <Badge 
           className={cn(
-            "flex items-center gap-1 cursor-pointer text-white",
+            "flex items-center gap-1 cursor-pointer text-white shadow-sm transition-all duration-300 animate-fade-in group",
             onRetry 
               ? "bg-amber-500 hover:bg-amber-600" 
               : "bg-primary hover:bg-primary/90"
@@ -57,9 +60,9 @@ export const PhotoValidationIndicator = ({
           onClick={onRetry}
         >
           {onRetry ? (
-            <RefreshCw className="h-3 w-3" />
+            <RefreshCw className="h-3 w-3 transition-transform duration-300 group-hover:rotate-45" />
           ) : (
-            <AlertCircle className="h-3 w-3" />
+            <AlertCircle className="h-3 w-3 transition-transform duration-300 group-hover:scale-110" />
           )}
           <span className="font-kanit text-xs">Required</span>
         </Badge>
@@ -69,3 +72,4 @@ export const PhotoValidationIndicator = ({
 
   return null;
 };
+
