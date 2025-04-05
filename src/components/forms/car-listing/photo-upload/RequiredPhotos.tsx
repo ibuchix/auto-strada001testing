@@ -6,6 +6,8 @@
  * - Integrated with onValidationChange callback for form integration
  * - Maintained all original functionality while adding validation
  * - Restyled to match brand guidelines with a single required indicator per section
+ * - Enhanced visual styling with cards and brand colors
+ * - Improved spacing and typography
  */
 
 import { Separator } from "@/components/ui/separator";
@@ -61,7 +63,12 @@ export const RequiredPhotos = ({
 
   return (
     <div className="space-y-8">
-      <h3 className="text-xl font-kanit font-semibold text-body">Required Photos</h3>
+      <div className="border-b border-accent pb-4">
+        <h3 className="text-2xl font-kanit font-semibold text-body">Required Photos</h3>
+        <p className="text-subtitle mt-1 text-sm">
+          Please upload clear photos of your vehicle to help dealers assess its condition
+        </p>
+      </div>
       
       {/* Validation summary and progress indicator */}
       <PhotoUploadProgress
@@ -72,7 +79,7 @@ export const RequiredPhotos = ({
         onValidationChange={onValidationChange}
       />
       
-      <Card className="p-5 shadow-sm border-accent">
+      <Card className="p-5 shadow-sm border-accent bg-gradient-to-br from-white to-accent/30">
         {/* Exterior photos section */}
         <PhotoSection
           title="Exterior Photos"
@@ -89,7 +96,7 @@ export const RequiredPhotos = ({
         />
       </Card>
       
-      <Card className="p-5 shadow-sm border-accent">
+      <Card className="p-5 shadow-sm border-accent bg-gradient-to-br from-white to-accent/30">
         {/* Interior photos section */}
         <PhotoSection
           title="Interior Photos"

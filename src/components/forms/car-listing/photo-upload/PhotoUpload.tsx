@@ -5,6 +5,9 @@
  * - Removed diagnostic-related code
  * - Enhanced with better progress indication and confirmation
  * - Added retry functionality for failed uploads
+ * - Improved visual styling with brand colors and better state indicators
+ * - Added subtle gradient backgrounds and consistent spacing
+ * - Enhanced distinction between uploaded/not uploaded states
  */
 
 import { useState } from "react";
@@ -13,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, ImageIcon, AlertTriangle, RefreshCw, Check } from "lucide-react";
 import { UploadProgress } from "../UploadProgress";
 import { PhotoValidationIndicator } from "../validation/PhotoValidationIndicator";
+import { cn } from "@/lib/utils";
 
 export interface PhotoUploadProps {
   id: string;
@@ -127,25 +131,38 @@ export const PhotoUpload = ({
 
   return (
     <div className="space-y-2">
-      <Card className={`overflow-hidden transition-all ${showUploadedState ? 'border-green-500' : ''}`}>
+      <Card 
+        className={cn(
+          "overflow-hidden transition-all duration-300 h-full border",
+          showUploadedState 
+            ? "border-success bg-gradient-to-br from-green-50 to-white shadow-sm" 
+            : "border-accent hover:border-accent/80 hover:shadow-sm"
+        )}
+      >
         <CardContent className="p-3">
-          <div className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-center">
+          <div className={cn(
+            "flex flex-col items-center justify-center p-4 rounded-lg text-center h-full",
+            showUploadedState 
+              ? "bg-gradient-to-br from-green-50 to-white" 
+              : "bg-gradient-to-br from-gray-50 to-white border border-dashed border-gray-200"
+          )}>
             <div className="mb-4">
               {showUploadedState ? (
-                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <Check className="h-6 w-6 text-green-600" />
+                <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
+                  <Check className="h-6 w-6 text-success" />
                 </div>
               ) : (
-                <ImageIcon className="h-12 w-12 text-gray-400" />
+                <div className="h-12 w-12 rounded-full bg-accent flex items-center justify-center">
+                  <ImageIcon className="h-6 w-6 text-primary" />
+                </div>
               )}
             </div>
             
             <div className="space-y-1">
-              <h3 className="text-sm font-medium">
+              <h3 className="text-sm font-medium font-oswald">
                 {displayTitle}
-                {isRequired && <span className="text-red-500 ml-1">*</span>}
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-subtitle">
                 {showUploadedState ? "Photo successfully uploaded" : displayDescription}
               </p>
             </div>
@@ -155,7 +172,7 @@ export const PhotoUpload = ({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full"
+                  className="w-full font-kanit border-accent hover:bg-accent/20 hover:text-primary transition-all"
                   disabled={externalIsUploading || disabled}
                 >
                   <label
@@ -180,7 +197,7 @@ export const PhotoUpload = ({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full bg-green-50 text-green-600 border-green-200 hover:bg-green-100"
+                  className="w-full bg-success/5 text-success border-success/20 hover:bg-success/10 font-kanit"
                   onClick={() => {
                     // Reset uploaded state to allow re-upload
                     setLocalIsUploaded(false);
@@ -203,7 +220,7 @@ export const PhotoUpload = ({
             )}
             
             {error && (
-              <div className="mt-2 flex items-start gap-1.5 text-xs text-red-500">
+              <div className="mt-2 flex items-start gap-1.5 text-xs text-primary">
                 <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
                 <span>{error}</span>
               </div>
