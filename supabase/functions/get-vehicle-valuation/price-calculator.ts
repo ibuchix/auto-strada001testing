@@ -1,98 +1,82 @@
 
 /**
- * Price calculator for vehicle valuations
- * Handles all reserve price calculations based on business rules
- * Updated with improved validation and performance optimizations
+ * Service for calculating reserve prices based on valuation
  */
-
 import { logOperation } from "../_shared/logging.ts";
 
-/**
- * Price tier configuration defining percentage reductions for different price ranges
- */
+// Defines the price tiers and corresponding discount percentages
 interface PriceTier {
-  maxPrice: number;
-  percentageReduction: number;
+  min: number;
+  max: number;
+  percentage: number;
 }
 
-/**
- * Array of price tiers with their corresponding percentage reductions
- * Ordered from lowest to highest price range
- */
+// Define the price tiers with their respective discount percentages
 const PRICE_TIERS: PriceTier[] = [
-  { maxPrice: 15000, percentageReduction: 0.65 },    // 65%
-  { maxPrice: 20000, percentageReduction: 0.46 },    // 46%
-  { maxPrice: 30000, percentageReduction: 0.37 },    // 37%
-  { maxPrice: 50000, percentageReduction: 0.27 },    // 27%
-  { maxPrice: 60000, percentageReduction: 0.27 },    // 27%
-  { maxPrice: 70000, percentageReduction: 0.22 },    // 22%
-  { maxPrice: 80000, percentageReduction: 0.23 },    // 23%
-  { maxPrice: 100000, percentageReduction: 0.24 },   // 24%
-  { maxPrice: 130000, percentageReduction: 0.20 },   // 20%
-  { maxPrice: 160000, percentageReduction: 0.185 },  // 18.5%
-  { maxPrice: 200000, percentageReduction: 0.22 },   // 22%
-  { maxPrice: 250000, percentageReduction: 0.17 },   // 17%
-  { maxPrice: 300000, percentageReduction: 0.18 },   // 18%
-  { maxPrice: 400000, percentageReduction: 0.18 },   // 18%
-  { maxPrice: 500000, percentageReduction: 0.16 },   // 16%
+  { min: 0, max: 15000, percentage: 0.65 },
+  { min: 15001, max: 20000, percentage: 0.46 },
+  { min: 20001, max: 30000, percentage: 0.37 },
+  { min: 30001, max: 50000, percentage: 0.27 },
+  { min: 50001, max: 60000, percentage: 0.27 },
+  { min: 60001, max: 70000, percentage: 0.22 },
+  { min: 70001, max: 80000, percentage: 0.23 },
+  { min: 80001, max: 100000, percentage: 0.24 },
+  { min: 100001, max: 130000, percentage: 0.20 },
+  { min: 130001, max: 160000, percentage: 0.185 },
+  { min: 160001, max: 200000, percentage: 0.22 },
+  { min: 200001, max: 250000, percentage: 0.17 },
+  { min: 250001, max: 300000, percentage: 0.18 },
+  { min: 300001, max: 400000, percentage: 0.18 },
+  { min: 400001, max: 500000, percentage: 0.16 },
+  { min: 500001, max: Number.MAX_SAFE_INTEGER, percentage: 0.145 }
 ];
 
-// Default percentage reduction for prices above the highest tier
-const DEFAULT_PERCENTAGE_REDUCTION = 0.145;  // 14.5%
-
 /**
- * Calculate the reserve price based on the base price and pricing tiers
- * @param basePrice The base price of the vehicle
- * @param requestId The request ID for logging
- * @returns The calculated reserve price
+ * Calculate the reserve price based on the base price
+ * @param basePrice The base price (average of min and median)
+ * @param requestId Request ID for tracking
+ * @returns Calculated reserve price
  */
 export function calculateReservePrice(basePrice: number, requestId: string): number {
-  // Validate input
-  if (typeof basePrice !== 'number' || isNaN(basePrice)) {
-    const error = `Invalid base price: ${basePrice}`;
-    logOperation('calculate_reserve_price_error', { 
-      requestId, 
-      error
-    }, 'error');
-    return 0;
-  }
-  
-  // Handle negative or zero prices
-  if (basePrice <= 0) {
-    logOperation('calculate_reserve_price_warning', { 
-      requestId, 
-      basePrice,
-      message: "Non-positive base price provided"
-    }, 'warn');
-    return 0;
-  }
-
-  // Log the calculation request
-  logOperation('calculate_reserve_price', { 
-    requestId, 
-    basePrice
-  });
-  
-  // Find the applicable tier
-  let percentageReduction = DEFAULT_PERCENTAGE_REDUCTION;
-  
-  for (const tier of PRICE_TIERS) {
-    if (basePrice <= tier.maxPrice) {
-      percentageReduction = tier.percentageReduction;
-      break;
+  try {
+    // Input validation
+    if (typeof basePrice !== 'number' || isNaN(basePrice) || basePrice < 0) {
+      logOperation('price_calculation_error', {
+        requestId,
+        error: 'Invalid base price',
+        basePrice
+      }, 'error');
+      return 0;
     }
+    
+    // Find the appropriate tier based on the base price
+    const tier = PRICE_TIERS.find(t => basePrice >= t.min && basePrice <= t.max);
+    
+    // Default to the highest tier if no match is found
+    const percentage = tier ? tier.percentage : PRICE_TIERS[PRICE_TIERS.length - 1].percentage;
+    
+    // Calculate reserve price: PriceX – ( PriceX x PercentageY)
+    const reservePrice = Math.round(basePrice - (basePrice * percentage));
+    
+    // Log the calculation
+    logOperation('price_calculation', {
+      requestId,
+      basePrice,
+      percentage,
+      reservePrice,
+      tier: tier ? `${tier.min}-${tier.max}` : '500001+'
+    });
+    
+    return reservePrice;
+  } catch (err) {
+    // Log error and return 0
+    logOperation('price_calculation_error', {
+      requestId,
+      error: err.message,
+      stack: err.stack,
+      basePrice
+    }, 'error');
+    
+    return 0;
   }
-  
-  // Calculate reserve price: basePrice - (basePrice * percentageReduction)
-  const reservePrice = Math.round(basePrice * (1 - percentageReduction));
-  
-  // Log result for traceability
-  logOperation('reserve_price_calculated', { 
-    requestId, 
-    basePrice,
-    percentageReduction,
-    reservePrice
-  });
-  
-  return reservePrice;
 }

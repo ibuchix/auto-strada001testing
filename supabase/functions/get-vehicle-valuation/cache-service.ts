@@ -1,128 +1,126 @@
 
 /**
- * Cache service for vehicle valuations
- * Handles memory and database caching operations
+ * Service for caching valuation results
  */
-
+import { createSupabaseClient } from "../_shared/client.ts";
 import { logOperation } from "../_shared/logging.ts";
-import { memoryCache } from "../_shared/cache.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { Database } from "../_shared/database.types.ts";
-
-// Supabase client setup
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 
 /**
- * Check if a valuation is in cache (memory or database)
+ * Check if valuation is already in cache
  * @param vin Vehicle identification number
  * @param mileage Vehicle mileage
- * @param requestId Request ID for logging
- * @returns Cached data or null if not found
+ * @param requestId Request ID for tracking
+ * @returns Cached result or null
  */
 export async function checkCache(vin: string, mileage: number, requestId: string): Promise<any> {
-  // Check memory cache first (fastest)
-  const cacheKey = `valuation:${vin}:${mileage}`;
-  const cachedResult = memoryCache.get(cacheKey);
-  
-  if (cachedResult) {
-    logOperation('valuation_cache_hit', { 
+  try {
+    // Log cache check
+    logOperation('cache_check', { 
       requestId, 
       vin, 
-      cacheKey,
-      source: 'memory'
+      mileage 
     });
-    return cachedResult;
-  }
-  
-  // Not in memory cache, try database cache
-  try {
-    const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
     
-    const { data: dbCache, error: dbError } = await supabase
+    // Create Supabase client
+    const supabase = createSupabaseClient();
+    
+    // Query cache table
+    const { data, error } = await supabase
       .from('vin_valuation_cache')
-      .select('valuation_data')
+      .select('*')
       .eq('vin', vin)
       .eq('mileage', mileage)
-      .maybeSingle();
+      .single();
     
-    if (dbError) {
-      logOperation('db_cache_error', { 
-        requestId, 
-        vin, 
-        error: dbError.message 
-      }, 'warn');
+    // Handle query error
+    if (error) {
+      if (error.code !== 'PGRST116') { // Not found error code
+        logOperation('cache_error', { 
+          requestId, 
+          error: error.message,
+          code: error.code
+        }, 'error');
+      }
       return null;
     }
     
-    if (dbCache?.valuation_data) {
-      // Found in database cache, store in memory cache for next time
-      logOperation('valuation_cache_hit', { 
+    // Cache hit
+    if (data) {
+      logOperation('cache_hit', { 
         requestId, 
         vin, 
-        source: 'database'
+        mileage,
+        cacheId: data.id
       });
       
-      // Store in memory cache for future requests
-      memoryCache.set(cacheKey, dbCache.valuation_data);
-      
-      return dbCache.valuation_data;
+      return data.valuation_data;
     }
     
-    // Not found in any cache
-    return null;
-  } catch (error) {
-    logOperation('cache_check_error', { 
+    // Cache miss
+    logOperation('cache_miss', { 
       requestId, 
       vin, 
-      error: error.message 
-    }, 'warn');
+      mileage 
+    });
+    
+    return null;
+  } catch (err) {
+    // Log error and continue with API request
+    logOperation('cache_error', { 
+      requestId, 
+      error: err.message,
+      stack: err.stack
+    }, 'error');
+    
     return null;
   }
 }
 
 /**
- * Store valuation data in caches (memory and database)
+ * Store valuation result in cache
  * @param vin Vehicle identification number
  * @param mileage Vehicle mileage
- * @param data Valuation data to cache
- * @param requestId Request ID for logging
+ * @param valuationData Valuation data to store
+ * @param requestId Request ID for tracking
  */
-export async function storeInCache(vin: string, mileage: number, data: any, requestId: string): Promise<void> {
-  // Store in memory cache
-  const cacheKey = `valuation:${vin}:${mileage}`;
-  memoryCache.set(cacheKey, data);
-  
-  // Store in database cache
+export async function storeInCache(vin: string, mileage: number, valuationData: any, requestId: string): Promise<void> {
   try {
-    const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    const { error: dbError } = await supabase
-      .from('vin_valuation_cache')
-      .upsert({
-        vin,
-        mileage,
-        valuation_data: data
-      });
-    
-    if (dbError) {
-      logOperation('db_cache_store_error', { 
-        requestId, 
-        vin, 
-        error: dbError.message 
-      }, 'warn');
-    } else {
-      logOperation('cache_stored', { 
-        requestId, 
-        vin,
-        locations: ['memory', 'database']
-      });
-    }
-  } catch (error) {
-    logOperation('cache_store_error', { 
+    // Log cache store attempt
+    logOperation('cache_store', { 
       requestId, 
       vin, 
-      error: error.message 
-    }, 'warn');
+      mileage 
+    });
+    
+    // Create Supabase client
+    const supabase = createSupabaseClient();
+    
+    // Insert into cache table
+    const { error } = await supabase
+      .from('vin_valuation_cache')
+      .insert({
+        vin,
+        mileage,
+        valuation_data: valuationData
+      });
+    
+    // Handle insert error
+    if (error) {
+      throw error;
+    }
+    
+    // Log success
+    logOperation('cache_store_success', { 
+      requestId, 
+      vin, 
+      mileage 
+    });
+  } catch (err) {
+    // Log error but don't fail the request
+    logOperation('cache_store_error', { 
+      requestId, 
+      error: err.message,
+      stack: err.stack
+    }, 'error');
   }
 }

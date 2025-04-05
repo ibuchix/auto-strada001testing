@@ -9,7 +9,7 @@
  * - Improved error handling and logging
  */
 
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 import { logOperation } from "../_shared/logging.ts";
 import { formatSuccessResponse, formatErrorResponse } from "../_shared/response-formatter.ts";
 
@@ -22,7 +22,7 @@ import { calculateReservePrice } from "./price-calculator.ts";
 Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders, status: 204 });
+    return handleCorsOptions();
   }
 
   // Get request ID for tracing

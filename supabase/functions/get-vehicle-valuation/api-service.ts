@@ -1,93 +1,85 @@
 
 /**
- * API service for vehicle valuations
- * Handles all external API communication
+ * Service for interacting with the external valuation API
  */
-
-import { logOperation } from "../_shared/logging.ts";
 import { generateChecksum } from "../_shared/checksum.ts";
-
-// Define API constants
-const API_ID = Deno.env.get("CAR_API_ID") || "AUTOSTRA";
-const API_SECRET = Deno.env.get("CAR_API_SECRET") || "";
+import { logOperation } from "../_shared/logging.ts";
 
 /**
- * Fetches valuation data from the external API
+ * Fetch valuation data from the external API
  * @param vin Vehicle identification number
  * @param mileage Vehicle mileage
- * @param requestId Request ID for logging
- * @returns Object with success flag and data or error message
+ * @param requestId Request ID for tracking
+ * @returns Valuation result
  */
-export async function fetchExternalValuation(vin: string, mileage: number, requestId: string) {
+export async function fetchExternalValuation(vin: string, mileage: number, requestId: string): Promise<any> {
   try {
-    // Generate checksum for API authentication
-    const checksum = generateChecksum(API_ID, API_SECRET, vin);
+    const apiId = 'AUTOSTRA';
+    const apiSecret = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
+    const checksum = generateChecksum(apiId, apiSecret, vin);
+    
+    // Log request details
+    logOperation('api_request', { 
+      requestId, 
+      vin, 
+      mileage, 
+      apiId 
+    });
     
     // Construct API URL
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
     
-    logOperation('api_request', { 
-      requestId,
-      url: apiUrl
-    });
+    // Set timeout of 15 seconds
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
-    // Call external API with retry
-    const response = await fetch(apiUrl, {
+    // Fetch data from API
+    const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
+      signal: controller.signal
     });
     
+    // Clear timeout
+    clearTimeout(timeoutId);
+    
+    // Handle response
     if (!response.ok) {
-      const errorText = await response.text();
-      logOperation('api_error', { 
-        requestId, 
-        status: response.status,
-        error: errorText
-      }, 'error');
-      
+      throw new Error(`API responded with status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Check if API returned an error
+    if (data.error) {
       return {
         success: false,
-        error: `API returned error status: ${response.status}`,
-        errorCode: "API_ERROR",
-        details: errorText
+        error: data.error,
+        errorCode: data.errorCode || 'API_ERROR'
       };
     }
     
-    const apiData = await response.json();
-    
+    // Log success
     logOperation('api_success', { 
       requestId, 
-      responseSize: JSON.stringify(apiData).length
+      dataSize: JSON.stringify(data).length 
     });
-    
-    // Extract and validate the essential data
-    if (!apiData.make || !apiData.model) {
-      return {
-        success: false,
-        error: "Missing essential vehicle data in API response",
-        errorCode: "VALIDATION_ERROR"
-      };
-    }
     
     return {
       success: true,
-      data: apiData
+      data
     };
-    
-  } catch (error) {
-    logOperation('api_exception', { 
+  } catch (err) {
+    // Log error
+    logOperation('api_error', { 
       requestId, 
-      error: error.message,
-      stack: error.stack
+      error: err.message,
+      stack: err.stack
     }, 'error');
     
     return {
       success: false,
-      error: "Failed to get valuation: " + error.message,
-      errorCode: "API_EXCEPTION"
+      error: err.message,
+      errorCode: err.name === 'AbortError' ? 'TIMEOUT' : 'API_ERROR'
     };
   }
 }
