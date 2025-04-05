@@ -1,158 +1,222 @@
 
 /**
- * Error classes for structured error handling
- * Created: 2025-12-01
- * Updated: 2028-05-18: Added missing error classes and fixed extension
- * Updated: 2028-05-20: Added missing properties used across the application
+ * Centralized error classes
+ * Created: 2025-04-05
  */
 
-import { ErrorCategory, RecoveryAction, ValidationErrorCode, AuthErrorCode, SubmissionErrorCode, NetworkErrorCode } from './types';
+import { 
+  ErrorCategory, 
+  ErrorCode, 
+  ErrorSeverity, 
+  ErrorMetadata, 
+  ErrorRecovery,
+  SerializedAppError
+} from './types';
 
-interface BaseErrorOptions {
-  message: string;
-  code?: string;
-  category?: ErrorCategory;
-  description?: string;
-  recovery?: RecoveryAction;
-  retryable?: boolean;
-  metadata?: Record<string, any>;
-  id?: string;
-}
-
-export class BaseApplicationError extends Error {
-  code: string;
-  category: ErrorCategory;
-  description?: string;
-  recovery?: RecoveryAction;
-  retryable: boolean;
-  metadata?: Record<string, any>;
-  id: string;
-
-  constructor({ 
-    message, 
-    code = 'UNKNOWN_ERROR', 
-    category = ErrorCategory.GENERAL,
-    description,
-    recovery,
-    retryable = true,
-    metadata,
-    id
-  }: BaseErrorOptions) {
-    super(message);
-    this.code = code;
-    this.category = category;
-    this.description = description;
-    this.recovery = recovery;
-    this.retryable = retryable;
-    this.metadata = metadata || {};
-    this.id = id || crypto.randomUUID();
+/**
+ * Base application error class
+ */
+export class AppError extends Error {
+  public readonly code: ErrorCode;
+  public readonly category: ErrorCategory;
+  public readonly severity: ErrorSeverity;
+  public readonly metadata: ErrorMetadata;
+  public readonly recovery?: ErrorRecovery;
+  public readonly timestamp: number;
+  public readonly id: string;
+  
+  constructor(params: {
+    message: string;
+    code: ErrorCode;
+    category?: ErrorCategory;
+    severity?: ErrorSeverity;
+    metadata?: ErrorMetadata;
+    recovery?: ErrorRecovery;
+    id?: string;
+  }) {
+    super(params.message);
     
-    // Ensure instanceof works correctly
-    Object.setPrototypeOf(this, new.target.prototype);
     this.name = this.constructor.name;
+    this.code = params.code;
+    this.category = params.category || ErrorCategory.UNKNOWN;
+    this.severity = params.severity || ErrorSeverity.ERROR;
+    this.metadata = params.metadata || {};
+    this.recovery = params.recovery;
+    this.timestamp = Date.now();
+    this.id = params.id || crypto.randomUUID();
+    
+    // Ensure instanceof checks work correctly
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+  
+  /**
+   * Serialize error for logging or transmission
+   */
+  public serialize(): SerializedAppError {
+    return {
+      message: this.message,
+      code: this.code,
+      category: this.category,
+      severity: this.severity,
+      metadata: this.metadata,
+      recovery: this.recovery,
+      timestamp: this.timestamp,
+      id: this.id
+    };
+  }
+  
+  /**
+   * Create error from serialized form
+   */
+  public static deserialize(serialized: SerializedAppError): AppError {
+    return new AppError({
+      message: serialized.message,
+      code: serialized.code,
+      category: serialized.category,
+      severity: serialized.severity,
+      metadata: serialized.metadata,
+      recovery: serialized.recovery,
+      id: serialized.id
+    });
   }
 }
 
-interface ValidationErrorOptions extends BaseErrorOptions {
-  code?: ValidationErrorCode;
-}
-
-export class ValidationError extends BaseApplicationError {
-  constructor(options: ValidationErrorOptions) {
+/**
+ * Validation error class
+ */
+export class ValidationError extends AppError {
+  constructor(params: {
+    message: string;
+    code?: ErrorCode;
+    field?: string;
+    severity?: ErrorSeverity;
+    metadata?: ErrorMetadata;
+    recovery?: ErrorRecovery;
+  }) {
     super({
-      ...options,
+      message: params.message,
+      code: params.code || ErrorCode.INVALID_VALUE,
       category: ErrorCategory.VALIDATION,
-      code: options.code || ValidationErrorCode.INVALID_FORMAT
+      severity: params.severity || ErrorSeverity.WARNING,
+      metadata: {
+        ...params.metadata,
+        field: params.field
+      },
+      recovery: params.recovery
     });
   }
-}
-
-interface FieldValidationErrorOptions extends ValidationErrorOptions {
-  field: string;
-}
-
-export class FieldValidationError extends ValidationError {
-  field: string;
   
-  constructor({ field, ...options }: FieldValidationErrorOptions) {
-    super({
-      ...options,
-      code: options.code || ValidationErrorCode.REQUIRED_FIELD
-    });
-    this.field = field;
+  get field(): string | undefined {
+    return this.metadata.field;
   }
 }
 
-interface FormValidationErrorOptions extends ValidationErrorOptions {
-  fields?: string[];
-}
-
-export class FormValidationError extends ValidationError {
-  fields?: string[];
-  
-  constructor({ fields, ...options }: FormValidationErrorOptions) {
+/**
+ * Network error class
+ */
+export class NetworkError extends AppError {
+  constructor(params: {
+    message: string;
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    metadata?: ErrorMetadata;
+    recovery?: ErrorRecovery;
+  }) {
     super({
-      ...options,
-      code: options.code || ValidationErrorCode.INCOMPLETE_FORM
-    });
-    this.fields = fields;
-  }
-}
-
-interface SubmissionErrorOptions extends BaseErrorOptions {
-  code?: SubmissionErrorCode;
-}
-
-export class SubmissionError extends BaseApplicationError {
-  constructor(options: SubmissionErrorOptions) {
-    super({
-      ...options,
-      category: ErrorCategory.SUBMISSION,
-      code: options.code || SubmissionErrorCode.SERVER_ERROR
-    });
-  }
-}
-
-interface NetworkErrorOptions extends BaseErrorOptions {
-  code?: NetworkErrorCode;
-}
-
-export class NetworkError extends BaseApplicationError {
-  constructor(options: NetworkErrorOptions) {
-    super({
-      ...options,
+      message: params.message,
+      code: params.code || ErrorCode.NETWORK_UNAVAILABLE,
       category: ErrorCategory.NETWORK,
-      code: options.code || NetworkErrorCode.CONNECTION_LOST
+      severity: params.severity || ErrorSeverity.ERROR,
+      metadata: params.metadata,
+      recovery: params.recovery
     });
   }
 }
 
-interface TimeoutErrorOptions extends NetworkErrorOptions {
-  timeout?: number;
-}
-
-export class TimeoutError extends NetworkError {
-  timeout?: number;
-  
-  constructor({ timeout, ...options }: TimeoutErrorOptions) {
+/**
+ * Authentication error class
+ */
+export class AuthenticationError extends AppError {
+  constructor(params: {
+    message: string;
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    metadata?: ErrorMetadata;
+    recovery?: ErrorRecovery;
+  }) {
     super({
-      ...options,
-      code: NetworkErrorCode.TIMEOUT
-    });
-    this.timeout = timeout;
-  }
-}
-
-interface AuthenticationErrorOptions extends BaseErrorOptions {
-  code?: AuthErrorCode;
-}
-
-export class AuthenticationError extends BaseApplicationError {
-  constructor(options: AuthenticationErrorOptions) {
-    super({
-      ...options,
+      message: params.message,
+      code: params.code || ErrorCode.UNAUTHENTICATED,
       category: ErrorCategory.AUTHENTICATION,
-      code: options.code || AuthErrorCode.UNAUTHENTICATED
+      severity: params.severity || ErrorSeverity.ERROR,
+      metadata: params.metadata,
+      recovery: params.recovery
+    });
+  }
+}
+
+/**
+ * Authorization error class
+ */
+export class AuthorizationError extends AppError {
+  constructor(params: {
+    message: string;
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    metadata?: ErrorMetadata;
+    recovery?: ErrorRecovery;
+  }) {
+    super({
+      message: params.message,
+      code: params.code || ErrorCode.UNAUTHORIZED,
+      category: ErrorCategory.AUTHORIZATION,
+      severity: params.severity || ErrorSeverity.ERROR,
+      metadata: params.metadata,
+      recovery: params.recovery
+    });
+  }
+}
+
+/**
+ * Server error class
+ */
+export class ServerError extends AppError {
+  constructor(params: {
+    message: string;
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    metadata?: ErrorMetadata;
+    recovery?: ErrorRecovery;
+  }) {
+    super({
+      message: params.message,
+      code: params.code || ErrorCode.SERVER_ERROR,
+      category: ErrorCategory.SERVER,
+      severity: params.severity || ErrorSeverity.ERROR,
+      metadata: params.metadata,
+      recovery: params.recovery
+    });
+  }
+}
+
+/**
+ * Business logic error class
+ */
+export class BusinessError extends AppError {
+  constructor(params: {
+    message: string;
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    metadata?: ErrorMetadata;
+    recovery?: ErrorRecovery;
+  }) {
+    super({
+      message: params.message,
+      code: params.code || ErrorCode.INVALID_OPERATION,
+      category: ErrorCategory.BUSINESS,
+      severity: params.severity || ErrorSeverity.ERROR,
+      metadata: params.metadata,
+      recovery: params.recovery
     });
   }
 }

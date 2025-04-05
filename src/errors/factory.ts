@@ -1,181 +1,240 @@
 
 /**
- * Error factory for creating standardized error objects
- * Created: 2025-12-01
- * Updated: 2028-05-15: Enhanced with new error types
- * Updated: 2028-05-18: Fixed RecoveryAction property names
+ * Error factory functions
+ * Created: 2025-04-05
  */
 
-import {
-  ErrorCategory,
-  RecoveryType,
-  ValidationErrorCode,
-  SubmissionErrorCode,
-  AuthErrorCode,
-  NetworkErrorCode
-} from './types';
-import {
-  BaseApplicationError,
+import { useNavigate } from 'react-router-dom';
+import { 
+  AppError,
   ValidationError,
-  FieldValidationError,
-  FormValidationError,
-  SubmissionError,
   NetworkError,
-  TimeoutError,
-  AuthenticationError
+  AuthenticationError,
+  AuthorizationError,
+  ServerError,
+  BusinessError
 } from './classes';
+import { 
+  ErrorCode, 
+  ErrorSeverity, 
+  RecoveryAction,
+  ErrorRecovery
+} from './types';
 
 /**
- * Creates a field validation error
+ * Create a validation error with standardized recovery
  */
-export function createFieldError(field: string, message: string, options: {
-  code?: ValidationErrorCode;
-  description?: string;
-  focus?: boolean;
-} = {}) {
-  const focusAction = options.focus !== false ? () => {
-    const element = document.getElementById(field);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => element.focus(), 100);
-    }
-  } : () => {};
-
-  return new FieldValidationError({
-    field,
+export function createValidationError(
+  message: string,
+  options: {
+    code?: ErrorCode;
+    field?: string;
+    severity?: ErrorSeverity;
+    details?: Record<string, any>;
+    recovery?: ErrorRecovery;
+  } = {}
+): ValidationError {
+  return new ValidationError({
     message,
-    code: options.code || ValidationErrorCode.INVALID_FORMAT,
-    description: options.description,
-    recovery: {
-      type: RecoveryType.FIELD_CORRECTION,
-      label: 'Fix Field',
-      fieldId: field,  // Changed from 'field' to 'fieldId'
-      action: focusAction
+    code: options.code || ErrorCode.INVALID_VALUE,
+    field: options.field,
+    severity: options.severity,
+    metadata: { details: options.details },
+    recovery: options.recovery || {
+      action: RecoveryAction.RETRY,
+      label: 'Try Again'
     }
   });
 }
 
 /**
- * Creates a form validation error
+ * Create a network error with standardized recovery
  */
-export function createFormError(message: string, options: {
-  code?: ValidationErrorCode;
-  description?: string;
-  fields?: string[];
-} = {}) {
-  return new FormValidationError({
-    message,
-    code: options.code || ValidationErrorCode.INCOMPLETE_FORM,
-    description: options.description,
-    fields: options.fields,
-    recovery: {
-      type: RecoveryType.FORM_RETRY,
-      label: 'Review Form',
-      action: () => window.scrollTo(0, 0)
-    }
-  });
-}
-
-/**
- * Creates a network error
- */
-export function createNetworkError(message: string, options: {
-  description?: string;
-  retryAction?: () => void;
-} = {}) {
+export function createNetworkError(
+  message: string = 'Network connection error',
+  options: {
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    details?: Record<string, any>;
+    recovery?: ErrorRecovery;
+  } = {}
+): NetworkError {
   return new NetworkError({
     message,
-    description: options.description,
-    recovery: {
-      type: RecoveryType.REFRESH,
+    code: options.code || ErrorCode.NETWORK_UNAVAILABLE,
+    severity: options.severity || ErrorSeverity.ERROR,
+    metadata: { details: options.details },
+    recovery: options.recovery || {
+      action: RecoveryAction.RETRY,
       label: 'Try Again',
-      action: options.retryAction || (() => window.location.reload())
+      handler: () => window.location.reload()
     }
   });
 }
 
 /**
- * Creates a timeout error
+ * Create an authentication error with standardized recovery
  */
-export function createTimeoutError(message: string, options: {
-  description?: string;
-  timeout?: number;
-  retryAction?: () => void;
-} = {}) {
-  return new TimeoutError({
-    message,
-    description: options.description || 'The request timed out',
-    timeout: options.timeout,
-    recovery: {
-      type: RecoveryType.FORM_RETRY,
-      label: 'Try Again',
-      action: options.retryAction || (() => window.location.reload())
-    }
-  });
-}
-
-/**
- * Creates an authentication error
- */
-export function createAuthError(message: string, options: {
-  code?: AuthErrorCode;
-  description?: string;
-} = {}) {
+export function createAuthenticationError(
+  message: string = 'Authentication required',
+  options: {
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    details?: Record<string, any>;
+    recovery?: ErrorRecovery;
+  } = {}
+): AuthenticationError {
   return new AuthenticationError({
-    code: options.code || AuthErrorCode.UNAUTHENTICATED,
     message,
-    description: options.description,
-    recovery: {
-      type: RecoveryType.SIGN_IN,
+    code: options.code || ErrorCode.UNAUTHENTICATED,
+    severity: options.severity || ErrorSeverity.ERROR,
+    metadata: { details: options.details },
+    recovery: options.recovery || {
+      action: RecoveryAction.AUTHENTICATE,
       label: 'Sign In',
-      action: () => {
-        window.location.href = '/auth';
+      route: '/auth'
+    }
+  });
+}
+
+/**
+ * Create an authorization error with standardized recovery
+ */
+export function createAuthorizationError(
+  message: string = 'You do not have permission to perform this action',
+  options: {
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    details?: Record<string, any>;
+    recovery?: ErrorRecovery;
+  } = {}
+): AuthorizationError {
+  return new AuthorizationError({
+    message,
+    code: options.code || ErrorCode.UNAUTHORIZED,
+    severity: options.severity || ErrorSeverity.ERROR,
+    metadata: { details: options.details },
+    recovery: options.recovery || {
+      action: RecoveryAction.NAVIGATE,
+      label: 'Go Home',
+      route: '/'
+    }
+  });
+}
+
+/**
+ * Create a server error with standardized recovery
+ */
+export function createServerError(
+  message: string = 'Server error occurred',
+  options: {
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    details?: Record<string, any>;
+    recovery?: ErrorRecovery;
+  } = {}
+): ServerError {
+  return new ServerError({
+    message,
+    code: options.code || ErrorCode.SERVER_ERROR,
+    severity: options.severity || ErrorSeverity.ERROR,
+    metadata: { details: options.details },
+    recovery: options.recovery || {
+      action: RecoveryAction.CONTACT_SUPPORT,
+      label: 'Contact Support',
+      handler: () => {
+        window.location.href = 'mailto:support@autostrada.com?subject=Server%20Error';
       }
     }
   });
 }
 
 /**
- * Creates a submission error
+ * Create a business logic error with standardized recovery
  */
-export function createSubmissionError(message: string, options: {
-  code?: SubmissionErrorCode;
-  description?: string;
-  retryable?: boolean;
-  retryAction?: () => void;
-} = {}) {
-  return new SubmissionError({
-    code: options.code || SubmissionErrorCode.SERVER_ERROR,
+export function createBusinessError(
+  message: string,
+  options: {
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    details?: Record<string, any>;
+    recovery?: ErrorRecovery;
+  } = {}
+): BusinessError {
+  return new BusinessError({
     message,
-    description: options.description,
-    retryable: options.retryable ?? true,
-    recovery: options.retryable !== false ? {
-      type: RecoveryType.FORM_RETRY,
-      label: 'Try Again',
-      action: options.retryAction || (() => window.location.reload())
-    } : undefined
+    code: options.code || ErrorCode.INVALID_OPERATION,
+    severity: options.severity,
+    metadata: { details: options.details },
+    recovery: options.recovery
   });
 }
 
 /**
- * Handles an error by applying consistent behavior based on error type
+ * Create a valuation error with standardized recovery
  */
-export function handleAppError(error: Error | BaseApplicationError | unknown): void {
-  console.error('Application error:', error);
+export function createValuationError(
+  message: string,
+  options: {
+    code?: ErrorCode;
+    severity?: ErrorSeverity;
+    details?: Record<string, any>;
+    recovery?: ErrorRecovery;
+  } = {}
+): BusinessError {
+  return new BusinessError({
+    message,
+    code: options.code || ErrorCode.VALUATION_ERROR,
+    severity: options.severity || ErrorSeverity.ERROR,
+    metadata: { details: options.details },
+    recovery: options.recovery || {
+      action: RecoveryAction.MANUAL_RESOLUTION,
+      label: 'Try Manual Valuation',
+      route: '/manual-valuation'
+    }
+  });
+}
+
+/**
+ * Create an error from unknown type
+ */
+export function createErrorFromUnknown(
+  error: unknown, 
+  defaultMessage: string = 'An unexpected error occurred'
+): AppError {
+  if (error instanceof AppError) {
+    return error;
+  }
   
-  // Convert unknown errors to BaseApplicationError
-  const appError = error instanceof BaseApplicationError
-    ? error
-    : new BaseApplicationError({
-        code: 'UNKNOWN_ERROR',
-        message: error instanceof Error ? error.message : 'An unknown error occurred',
-        category: ErrorCategory.UNKNOWN,
-        retryable: false
+  if (error instanceof Error) {
+    return new AppError({
+      message: error.message,
+      code: ErrorCode.UNEXPECTED_ERROR,
+      metadata: { originalError: error }
+    });
+  }
+  
+  // Handle network errors
+  if (typeof error === 'object' && error !== null) {
+    if ('status' in error && (error.status === 0 || error.status === 408)) {
+      return createNetworkError(
+        typeof error.message === 'string' ? error.message : 'Network request failed',
+        { code: ErrorCode.REQUEST_TIMEOUT }
+      );
+    }
+    
+    if ('message' in error && typeof error.message === 'string') {
+      return new AppError({
+        message: error.message,
+        code: ErrorCode.UNEXPECTED_ERROR,
+        metadata: { originalError: error }
       });
+    }
+  }
   
-  // Log all errors (could be expanded to send to monitoring service)
-  console.error(`[${appError.category}] [${appError.code}]: ${appError.message}`, appError);
-  
-  // This function implementation would normally show toasts or UI notifications
-  // It's kept minimal here to focus on the error type additions
+  return new AppError({
+    message: typeof error === 'string' ? error : defaultMessage,
+    code: ErrorCode.UNEXPECTED_ERROR,
+    metadata: { originalError: error }
+  });
 }

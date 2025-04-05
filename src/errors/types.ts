@@ -1,85 +1,100 @@
 
 /**
- * Updated 2028-05-15: Added additional error types and codes for better error handling
- * Updated 2028-05-18: Added INVALID_VIN error code and fixed RecoveryAction field property
- * Updated 2028-05-20: Added missing error codes to match actual usage in the codebase
+ * Centralized error type definitions
+ * Created: 2025-04-05
  */
+
+export enum ErrorSeverity {
+  INFO = 'info',
+  WARNING = 'warning',
+  ERROR = 'error',
+  CRITICAL = 'critical'
+}
 
 export enum ErrorCategory {
   VALIDATION = 'validation',
-  SUBMISSION = 'submission',
   NETWORK = 'network',
   AUTHENTICATION = 'authentication',
-  PERMISSION = 'permission',
-  GENERAL = 'general',
+  AUTHORIZATION = 'authorization',
+  SERVER = 'server',
+  CLIENT = 'client',
+  BUSINESS = 'business',
   UNKNOWN = 'unknown'
 }
 
-export enum RecoveryType {
-  FORM_RETRY = 'form_retry',
-  FIELD_CORRECTION = 'field_correction',
-  NAVIGATE = 'navigate',
-  SIGN_IN = 'sign_in',
-  REFRESH = 'refresh',
-  CONTACT_SUPPORT = 'contact_support',
-  CUSTOM = 'custom'
-}
-
-export interface RecoveryAction {
-  type: RecoveryType;
-  label: string;
-  action: () => void;
-  fieldId?: string; // For field-specific recovery
-  route?: string; // For navigation-based recovery
-}
-
-// Added error codes for each error category
-export enum ValidationErrorCode {
+export enum ErrorCode {
+  // Validation errors
   REQUIRED_FIELD = 'required_field',
   INVALID_FORMAT = 'invalid_format',
-  EXCEEDS_MAX = 'exceeds_max',
-  BELOW_MIN = 'below_min',
-  PATTERN_MISMATCH = 'pattern_mismatch',
-  DUPLICATE_VALUE = 'duplicate_value',
-  MISSING_VALUATION = 'missing_valuation',
-  INCOMPLETE_FORM = 'incomplete_form',
+  INVALID_VALUE = 'invalid_value',
   INVALID_VIN = 'invalid_vin',
-  // Added missing validation error codes
-  VALIDATION_ERROR = 'VALIDATION_ERROR',
-  SCHEMA_VALIDATION_ERROR = 'SCHEMA_VALIDATION_ERROR',
-  RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
-  SERVER_VALIDATION_FAILED = 'SERVER_VALIDATION_FAILED',
-  AUTHENTICATION_REQUIRED = 'AUTHENTICATION_REQUIRED'
-}
-
-export enum SubmissionErrorCode {
-  SERVER_ERROR = 'server_error',
-  CONFLICT = 'conflict',
-  RATE_LIMITED = 'rate_limited',
-  VALIDATION_FAILED = 'validation_failed',
-  MISSING_FIELD = 'missing_field',
-  UNAUTHORIZED = 'unauthorized',
-  TRANSACTION_FAILED = 'transaction_failed',
-  // Added missing submission error codes
-  SUBMISSION_ERROR = 'SUBMISSION_ERROR',
-  INVALID_INPUT = 'INVALID_INPUT',
-  SCHEMA_VALIDATION_ERROR = 'SCHEMA_VALIDATION_ERROR',
-  DUPLICATE_SUBMISSION = 'DUPLICATE_SUBMISSION',
-  DATABASE_CONSTRAINT = 'DATABASE_CONSTRAINT',
-  SUBMISSION_FAILED = 'SUBMISSION_FAILED'
-}
-
-export enum AuthErrorCode {
+  
+  // Network errors
+  NETWORK_UNAVAILABLE = 'network_unavailable',
+  REQUEST_TIMEOUT = 'request_timeout',
+  API_UNREACHABLE = 'api_unreachable',
+  
+  // Authentication errors
   UNAUTHENTICATED = 'unauthenticated',
-  UNAUTHORIZED = 'unauthorized',
-  TOKEN_EXPIRED = 'token_expired',
+  SESSION_EXPIRED = 'session_expired',
   INVALID_CREDENTIALS = 'invalid_credentials',
-  ACCOUNT_LOCKED = 'account_locked'
+  
+  // Authorization errors
+  UNAUTHORIZED = 'unauthorized',
+  INSUFFICIENT_PERMISSIONS = 'insufficient_permissions',
+  
+  // Server errors
+  SERVER_ERROR = 'server_error',
+  DATABASE_ERROR = 'database_error',
+  SERVICE_UNAVAILABLE = 'service_unavailable',
+  
+  // Business logic errors
+  DUPLICATE_ENTRY = 'duplicate_entry',
+  INVALID_OPERATION = 'invalid_operation',
+  RESOURCE_NOT_FOUND = 'resource_not_found',
+  VALUATION_ERROR = 'valuation_error',
+  SUBMISSION_ERROR = 'submission_error',
+  
+  // Unknown/general errors
+  UNKNOWN_ERROR = 'unknown_error',
+  UNEXPECTED_ERROR = 'unexpected_error'
 }
 
-export enum NetworkErrorCode {
-  CONNECTION_LOST = 'connection_lost',
-  TIMEOUT = 'timeout',
-  SERVER_UNREACHABLE = 'server_unreachable',
-  API_ERROR = 'api_error'
+export enum RecoveryAction {
+  RETRY = 'retry',
+  REFRESH = 'refresh',
+  NAVIGATE = 'navigate',
+  AUTHENTICATE = 'authenticate',
+  CONTACT_SUPPORT = 'contact_support',
+  DISMISS = 'dismiss',
+  MANUAL_RESOLUTION = 'manual_resolution'
+}
+
+export interface ErrorMetadata {
+  correlationId?: string;
+  timestamp?: number;
+  source?: string;
+  originalError?: any;
+  details?: Record<string, any>;
+  path?: string;
+  [key: string]: any;
+}
+
+export interface ErrorRecovery {
+  action: RecoveryAction;
+  label: string;
+  handler?: () => void;
+  route?: string;
+  data?: any;
+}
+
+export interface SerializedAppError {
+  message: string;
+  code: ErrorCode;
+  category: ErrorCategory;
+  severity: ErrorSeverity;
+  metadata?: ErrorMetadata;
+  recovery?: ErrorRecovery;
+  timestamp: number;
+  id: string;
 }
