@@ -4,9 +4,10 @@
  * This function calls the external valuation API and handles caching
  * 
  * Changes:
- * - Updated import paths to use correct relative path format
+ * - Fixed import paths to use correct relative path format for Deno
  */
 
+// Fix the import paths to use proper relative paths
 import { corsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 import { logOperation } from "../_shared/logging.ts";
 import { formatSuccessResponse, formatErrorResponse } from "../_shared/response-formatter.ts";
