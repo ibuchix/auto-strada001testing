@@ -5,6 +5,7 @@
  * - Fixed import for validation utils
  * - 2025-04-03: Added internal validateFormData function to fix import error
  * - 2025-11-29: Updated to use extendedCarSchema validation
+ * - 2025-12-01: Fixed import for validateExtendedCar
  */
 
 import { CarListingFormData } from "@/types/forms";

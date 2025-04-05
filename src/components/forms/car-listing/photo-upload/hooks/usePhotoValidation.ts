@@ -1,113 +1,83 @@
 
 /**
- * Enhanced usePhotoValidation hook with additional functionality
- * - Added isSaving, savePhotos, and validatePhotoSection properties
- * - 2025-11-29: Made compatible with usePhotoSection.ts
+ * Hook to handle photo validation
+ * Provides functionality to validate photos against requirements
  */
-import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
-import { UseFormReturn } from 'react-hook-form';
-import { CarListingFormData } from '@/types/forms';
-import { allRequiredPhotos } from '../data/requiredPhotoData';
+import { useState, useCallback } from "react";
+import { UseFormReturn } from "react-hook-form";
+import { CarListingFormData } from "@/types/forms";
+import { toast } from "sonner";
 
-interface UsePhotoValidationProps {
-  uploadedPhotos: Record<string, boolean>;
-  onValidationChange?: (isValid: boolean) => void;
-  form?: UseFormReturn<CarListingFormData>;
-  carId?: string;
-}
-
-export const usePhotoValidation = ({ 
-  uploadedPhotos, 
-  onValidationChange,
-  form,
-  carId
-}: UsePhotoValidationProps) => {
-  const [isValid, setIsValid] = useState(false);
-  const [missingPhotos, setMissingPhotos] = useState<string[]>([]);
+export const usePhotoValidation = (form: UseFormReturn<CarListingFormData>) => {
   const [isSaving, setIsSaving] = useState(false);
+  const [missingPhotos, setMissingPhotos] = useState<string[]>([]);
 
-  // Validate if all required photos are uploaded
-  useEffect(() => {
-    const requiredPhotoIds = allRequiredPhotos.map(photo => photo.id);
-    const missingPhotoIds = requiredPhotoIds.filter(id => !uploadedPhotos[id]);
-    
-    setMissingPhotos(missingPhotoIds);
-    const valid = missingPhotoIds.length === 0;
-    setIsValid(valid);
-    
-    if (onValidationChange) {
-      onValidationChange(valid);
-    }
+  // Get all photo URLs from the form
+  const photos = form.watch('uploadedPhotos') || [];
+  
+  // Check if we have the minimum required photos (3)
+  const isValid = photos.length >= 3;
 
-    // Update form if available
-    if (form) {
-      form.setValue('photoValidationPassed', valid, { 
-        shouldValidate: true,
-        shouldDirty: true 
+  // Function to validate photos
+  const validatePhotos = useCallback(() => {
+    if (!isValid) {
+      // Show error message for missing photos
+      toast.error("Please upload at least 3 photos", {
+        description: "Photos are required to proceed"
       });
+      return false;
     }
-  }, [uploadedPhotos, onValidationChange, form]);
+    return true;
+  }, [isValid]);
 
-  // Get missing photo titles for user-friendly messaging
+  // Function to validate the photo section
+  const validatePhotoSection = useCallback(() => {
+    const valid = validatePhotos();
+    if (valid) {
+      form.setValue('photoValidationPassed', true);
+    }
+    return valid;
+  }, [validatePhotos, form]);
+
+  // Function to get user-friendly titles for missing photo types
   const getMissingPhotoTitles = useCallback(() => {
-    return missingPhotos.map(id => {
-      const photo = allRequiredPhotos.find(p => p.id === id);
-      return photo ? photo.title : id;
+    return missingPhotos.map(p => {
+      // Convert camelCase or snake_case to readable format
+      return p
+        .replace(/([A-Z])/g, ' $1') // Add spaces before capital letters
+        .replace(/_/g, ' ') // Replace underscores with spaces
+        .replace(/^\w/, c => c.toUpperCase()); // Capitalize first letter
     });
   }, [missingPhotos]);
 
-  // Validate and show feedback to the user
-  const validatePhotos = useCallback((): boolean => {
-    if (isValid) {
-      return true;
-    }
-    
-    const missingTitles = getMissingPhotoTitles();
-    
-    toast.error('Missing required photos', {
-      description: `Please upload the following photos: ${missingTitles.join(', ')}`,
-      duration: 5000
-    });
-    
-    return false;
-  }, [isValid, getMissingPhotoTitles]);
-
-  // Save photos to server/database
-  const savePhotos = useCallback(async (): Promise<boolean> => {
-    if (!validatePhotos()) {
-      return false;
-    }
-
+  // Save photos to form
+  const savePhotos = useCallback(async () => {
     setIsSaving(true);
     try {
-      // Placeholder for actual save logic
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success('Photos saved successfully');
-      return true;
-    } catch (error: any) {
+      // Mark photos as validated if we have enough
+      if (photos.length >= 3) {
+        form.setValue('photoValidationPassed', true);
+        return true;
+      } else {
+        toast.error("Not enough photos", {
+          description: "Please upload at least 3 photos"
+        });
+        return false;
+      }
+    } catch (error) {
       console.error('Error saving photos:', error);
-      toast.error('Failed to save photos', {
-        description: error.message || 'Please try again'
-      });
+      toast.error("Failed to save photos");
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [validatePhotos]);
-
-  // Full section validation
-  const validatePhotoSection = useCallback((): boolean => {
-    return validatePhotos();
-  }, [validatePhotos]);
+  }, [photos, form]);
 
   return {
     isValid,
     missingPhotos,
     getMissingPhotoTitles,
     validatePhotos,
-    // Additional properties needed by usePhotoSection
     isSaving,
     savePhotos,
     validatePhotoSection

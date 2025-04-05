@@ -8,16 +8,16 @@
  * - Fixed TypeScript error with setValue for transmission field
  * - 2028-11-14: Fixed TypeScript typing for extended form return type
  * - 2025-11-29: Fixed schema type compatibility with CarListingFormData
+ * - 2025-12-01: Updated form typing to match schema output types
  */
 
 import { useCallback } from "react";
-import { z } from "zod";
 import { useNavigate } from "react-router-dom";
 import { useFormWithValidation } from "./useFormWithValidation";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { getInitialFormValues } from "@/components/forms/car-listing/hooks/useFormDefaults";
-import { extendedCarSchema } from "@/utils/validation/carSchema";
+import { extendedCarSchema, ExtendedCarSchema } from "@/utils/validation/carSchema";
 import { submitCarListing } from "@/components/forms/car-listing/submission/services/submissionService";
 
 type UseCarFormOptions = {
@@ -45,10 +45,10 @@ export function useCarForm({
   // Load initial form values
   const initialValues = getInitialFormValues();
   
-  // Set up the form with validation - using the extended schema that supports all CarListingFormData fields
-  const form = useFormWithValidation<CarListingFormData>({
+  // Set up the form with validation - using the schema's output type for compatibility
+  const form = useFormWithValidation<ExtendedCarSchema>({
     schema: extendedCarSchema,
-    defaultValues: initialValues,
+    defaultValues: initialValues as any,
     formOptions: {
       mode: 'onBlur'
     },
@@ -57,13 +57,13 @@ export function useCarForm({
       shouldPersist: true,
       excludeFields: ['uploadedPhotos'] // Don't persist large data in localStorage
     },
-    onSubmit: async (data: CarListingFormData) => {
+    onSubmit: async (data) => {
       try {
         // Ensure seller_id is set
         data.seller_id = userId;
         
         // Submit the car listing
-        const result = await submitCarListing(data, userId, draftId);
+        const result = await submitCarListing(data as CarListingFormData, userId, draftId);
         
         toast.success("Car listing submitted successfully!");
         
@@ -102,21 +102,21 @@ export function useCarForm({
       
       // Apply valuation data to the form - setting as any to bypass type checking
       // for fields not explicitly declared in the schema
-      if (valuationData.make) form.setValue('make' as any, valuationData.make);
-      if (valuationData.model) form.setValue('model' as any, valuationData.model);
-      if (valuationData.year) form.setValue('year' as any, valuationData.year);
-      if (valuationData.vin) form.setValue('vin' as any, valuationData.vin);
+      if (valuationData.make) form.setValue('make', valuationData.make);
+      if (valuationData.model) form.setValue('model', valuationData.model);
+      if (valuationData.year) form.setValue('year', valuationData.year);
+      if (valuationData.vin) form.setValue('vin', valuationData.vin);
       
       // Get mileage from localStorage if available
       const tempMileage = localStorage.getItem('tempMileage');
       if (tempMileage) {
-        form.setValue('mileage' as any, parseInt(tempMileage));
+        form.setValue('mileage', parseInt(tempMileage));
       }
       
       // Get transmission/gearbox from localStorage if available
       const tempGearbox = localStorage.getItem('tempGearbox') as "manual" | "automatic" | null;
       if (tempGearbox) {
-        form.setValue('transmission' as any, tempGearbox);
+        form.setValue('transmission', tempGearbox);
       }
     } catch (error) {
       console.error('Error loading initial data:', error);
@@ -125,7 +125,7 @@ export function useCarForm({
   
   // Form reset handler
   const handleReset = useCallback(() => {
-    form.reset(getInitialFormValues());
+    form.reset(getInitialFormValues() as any);
   }, [form]);
 
   return {

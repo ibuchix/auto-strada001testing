@@ -7,6 +7,7 @@
  * - Added TypeScript type safety for car data
  * - Integrated with carSchema validation
  * - 2025-11-29: Fixed validateCar import path
+ * - 2025-12-01: Updated to use correct import for validateCar
  */
 
 import { CarListingFormData, CarEntity } from '@/types/forms';

@@ -1,11 +1,14 @@
+
 /**
  * Validation schema for car listings
  * Added photo validation requirements
  * Added extended car validation functions
+ * 2025-11-29: Fixed type compatibility with CarListingFormData
  */
 import { z } from "zod";
 import { CarListingFormData } from "@/types/forms";
 
+// Base car schema for core validation
 export const carSchema = z.object({
   make: z.string().min(1, "Make is required"),
   model: z.string().min(1, "Model is required"),
@@ -30,7 +33,7 @@ export const carSchema = z.object({
 // Extended schema for complete car validation
 export const extendedCarSchema = carSchema.extend({
   // Additional fields from CarListingFormData
-  features: z.any(), // Allow any for features object
+  features: z.any().optional(), // Allow any for features object
   damageReports: z.array(z.any()).optional(),
   name: z.string().optional(),
   address: z.string().optional(),
@@ -50,7 +53,11 @@ export const extendedCarSchema = carSchema.extend({
   // Allow any other fields
 }).passthrough();
 
+// Type alias for the basic car schema
 export type CarSchema = z.infer<typeof carSchema>;
+
+// Type alias for the extended car schema
+export type ExtendedCarSchema = z.infer<typeof extendedCarSchema>;
 
 // Validation function to check if all required photos are present
 export const validateRequiredPhotos = (formData: Partial<CarSchema>): boolean => {
@@ -63,6 +70,6 @@ export const validateCar = (data: any) => {
 };
 
 // Extended validation for complete car form data
-export const validateExtendedCar = (data: CarListingFormData) => {
+export const validateExtendedCar = (data: Partial<CarListingFormData>) => {
   return extendedCarSchema.safeParse(data);
 };
