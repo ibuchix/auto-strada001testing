@@ -4,6 +4,7 @@
  * - 2025-04-05: Styled with brand colors and improved visual hierarchy
  * - 2025-04-05: Added motion effects for better user experience
  * - 2025-04-05: Improved content organization and responsive layout
+ * - 2025-04-06: Updated to match app design language and typography
  */
 import { AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -23,7 +24,7 @@ export const ValidationSummary = ({
   if (isValid) {
     return (
       <Alert 
-        className="bg-success/10 border-success/20 mb-6 transition-all duration-300 transform hover:border-success/30"
+        className="bg-success/10 border-success/20 mb-6 transition-all duration-300 transform hover:border-success/30 shadow-sm"
       >
         <CheckCircle className="h-4 w-4 text-success animate-pulse" />
         <AlertTitle className="text-success font-kanit">All required photos uploaded</AlertTitle>
@@ -46,7 +47,7 @@ export const ValidationSummary = ({
   return (
     <Alert 
       variant="destructive" 
-      className="mb-6 bg-primary/10 border-primary/20 hover:border-primary/30 transition-all duration-300"
+      className="mb-6 bg-primary/10 border-primary/20 hover:border-primary/30 transition-all duration-300 shadow-sm"
     >
       <AlertCircle className="h-4 w-4 text-primary animate-pulse" />
       <AlertTitle className="text-primary font-oswald">Missing required photos</AlertTitle>
@@ -59,12 +60,12 @@ export const ValidationSummary = ({
             ))}
           </ul>
           <div className="text-xs pt-1 border-t border-primary/10 mt-2 flex justify-between items-center">
-            <span className="text-subtitle">
+            <span className="text-subtitle font-kanit">
               {getCompletionStatus()} - {completionPercentage}% complete
             </span>
             
             <span className={cn(
-              "px-2 py-0.5 rounded-full",
+              "px-2 py-0.5 rounded-full font-kanit",
               completionPercentage > 70 
                 ? "bg-amber-500/10 text-amber-600" 
                 : "bg-primary/10 text-primary/80"
@@ -77,4 +78,3 @@ export const ValidationSummary = ({
     </Alert>
   );
 };
-

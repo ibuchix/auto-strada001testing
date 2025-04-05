@@ -4,6 +4,7 @@
  * - 2025-04-05: Enhanced with better visual styling and clearer status indicators
  * - 2025-04-05: Added animations for state transitions and improved progress feedback
  * - 2025-04-05: Integrated brand colors for validation states
+ * - 2025-04-06: Harmonized styling with app design language
  */
 import React, { useEffect, useState } from "react";
 import { Progress } from "@/components/ui/progress";
@@ -83,7 +84,7 @@ export const PhotoUploadProgress = ({
   const uploadedCount = Object.values(uploadedPhotos).filter(Boolean).length;
   
   return (
-    <div className="space-y-4 transition-all duration-300">
+    <div className="space-y-4 transition-all duration-300 p-4 border border-accent rounded-md bg-accent/5">
       {/* Progress bar */}
       <div className="space-y-2.5">
         <div className="flex justify-between text-sm items-center">
@@ -134,4 +135,3 @@ export const PhotoUploadProgress = ({
     </div>
   );
 };
-

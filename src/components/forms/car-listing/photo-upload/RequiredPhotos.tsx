@@ -10,6 +10,7 @@
  * - Enhanced visual styling with cards and brand colors
  * - Improved spacing and typography
  * - 2025-04-05: Updated to handle the non-optional required property in PhotoItem
+ * - 2025-04-06: Harmonized with app design system
  */
 
 import { Separator } from "@/components/ui/separator";
@@ -81,39 +82,35 @@ export const RequiredPhotos = ({
         onValidationChange={onValidationChange}
       />
       
-      <Card className="p-5 shadow-sm border-accent bg-gradient-to-br from-white to-accent/30">
-        {/* Exterior photos section */}
-        <PhotoSection
-          title="Exterior Photos"
-          description="Please provide clear photos of all exterior angles of your vehicle in good lighting."
-          icon={Camera}
-          photos={exteriorPhotos}
-          uploadedPhotos={uploadedPhotos}
-          activeUploads={activeUploads}
-          progress={progress}
-          onFileSelect={handleFileUpload}
-          onPhotoUploaded={handlePhotoUploaded}
-          onUploadError={handleUploadError}
-          onUploadRetry={handleUploadRetry}
-        />
-      </Card>
+      {/* Exterior photos section */}
+      <PhotoSection
+        title="Exterior Photos"
+        description="Please provide clear photos of all exterior angles of your vehicle in good lighting."
+        icon={Camera}
+        photos={exteriorPhotos}
+        uploadedPhotos={uploadedPhotos}
+        activeUploads={activeUploads}
+        progress={progress}
+        onFileSelect={handleFileUpload}
+        onPhotoUploaded={handlePhotoUploaded}
+        onUploadError={handleUploadError}
+        onUploadRetry={handleUploadRetry}
+      />
       
-      <Card className="p-5 shadow-sm border-accent bg-gradient-to-br from-white to-accent/30">
-        {/* Interior photos section */}
-        <PhotoSection
-          title="Interior Photos"
-          description="Please provide clear photos of the interior, dashboard, and current odometer reading."
-          icon={CameraIcon}
-          photos={interiorPhotos}
-          uploadedPhotos={uploadedPhotos}
-          activeUploads={activeUploads}
-          progress={progress}
-          onFileSelect={handleFileUpload}
-          onPhotoUploaded={handlePhotoUploaded}
-          onUploadError={handleUploadError}
-          onUploadRetry={handleUploadRetry}
-        />
-      </Card>
+      {/* Interior photos section */}
+      <PhotoSection
+        title="Interior Photos"
+        description="Please provide clear photos of the interior, dashboard, and current odometer reading."
+        icon={CameraIcon}
+        photos={interiorPhotos}
+        uploadedPhotos={uploadedPhotos}
+        activeUploads={activeUploads}
+        progress={progress}
+        onFileSelect={handleFileUpload}
+        onPhotoUploaded={handlePhotoUploaded}
+        onUploadError={handleUploadError}
+        onUploadRetry={handleUploadRetry}
+      />
     </div>
   );
 };
