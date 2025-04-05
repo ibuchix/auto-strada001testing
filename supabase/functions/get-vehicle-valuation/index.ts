@@ -5,12 +5,13 @@
  * 
  * Changes:
  * - Fixed import paths to use correct relative path format for Deno
+ * - Ensured all imports have consistent path resolution
  */
 
-// Fix the import paths to use proper relative paths
-import { corsHeaders, handleCorsOptions } from "../_shared/cors.ts";
-import { logOperation } from "../_shared/logging.ts";
-import { formatSuccessResponse, formatErrorResponse } from "../_shared/response-formatter.ts";
+// Import shared utilities with explicit path format
+import { corsHeaders, handleCorsOptions } from "../../_shared/cors.ts";
+import { logOperation } from "../../_shared/logging.ts";
+import { formatSuccessResponse, formatErrorResponse } from "../../_shared/response-formatter.ts";
 
 // Import our service modules
 import { fetchExternalValuation } from "./api-service.ts";
