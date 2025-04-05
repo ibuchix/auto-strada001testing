@@ -6,16 +6,18 @@
  * - Added photo angle descriptions and visual indicators
  * - Improved validation feedback for required photos
  * - Added section descriptions for different photo categories
+ * - Enhanced progress indication with loading states and clearer feedback
  */
 
 import { useState, useEffect } from "react";
 import { PhotoUpload } from "./PhotoUpload";
 import { FormValidationSummary } from "../validation/FormValidationSummary";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle, Camera } from "lucide-react";
-import { ValidationError, ValidationSeverity } from "../utils/validation";
+import { AlertCircle, CheckCircle, Camera, CameraIcon } from "lucide-react";
+import { ValidationError } from "../utils/validation";
 import { PhotoValidationIndicator } from "../validation/PhotoValidationIndicator";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 
 interface RequiredPhotosProps {
   isUploading: boolean;
@@ -43,6 +45,7 @@ export const RequiredPhotos = ({
   
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
   const [recoveryAttempted, setRecoveryAttempted] = useState(false);
+  const [activeUploads, setActiveUploads] = useState<Record<string, boolean>>({});
 
   // Check for any previously uploaded photos in localStorage
   useEffect(() => {
@@ -92,6 +95,13 @@ export const RequiredPhotos = ({
         return newErrors;
       });
     }
+    
+    // Remove from active uploads
+    setActiveUploads(prev => {
+      const newUploads = { ...prev };
+      delete newUploads[type];
+      return newUploads;
+    });
   };
   
   const handleUploadError = (type: string, error: string) => {
@@ -99,6 +109,24 @@ export const RequiredPhotos = ({
       ...prev,
       [type]: error
     }));
+    
+    // Remove from active uploads
+    setActiveUploads(prev => {
+      const newUploads = { ...prev };
+      delete newUploads[type];
+      return newUploads;
+    });
+  };
+
+  const handleUploadRetry = (type: string) => {
+    // Clear any errors for this photo
+    if (uploadErrors[type]) {
+      setUploadErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[type];
+        return newErrors;
+      });
+    }
   };
 
   // Get completion percentage
@@ -176,32 +204,28 @@ export const RequiredPhotos = ({
       {/* Validation summary and progress indicator */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
+          <div className="text-sm font-medium">Photo Upload Progress</div>
           <div className="text-sm text-gray-600">
-            {validationErrors.length === 0 ? (
-              <span className="flex items-center text-green-600">
-                <CheckCircle className="mr-1 h-4 w-4" />
-                All required photos uploaded
-              </span>
-            ) : (
-              <span>
-                {completionPercentage}% complete ({requiredPhotos.length - validationErrors.length}/{requiredPhotos.length})
-              </span>
-            )}
+            {completionPercentage}% complete ({requiredPhotos.length - validationErrors.length}/{requiredPhotos.length})
           </div>
         </div>
         
-        {validationErrors.length > 0 ? (
-          <FormValidationSummary 
-            errors={validationErrors} 
-          />
-        ) : (
-          <Alert className="bg-green-50 border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="ml-2 text-green-700">
-              All required photos have been uploaded. You can proceed to the next step.
-            </AlertDescription>
-          </Alert>
-        )}
+        <Progress value={completionPercentage} className="h-2" />
+        
+        <div className="mt-4">
+          {validationErrors.length > 0 ? (
+            <FormValidationSummary 
+              errors={validationErrors} 
+            />
+          ) : (
+            <Alert className="bg-green-50 border-green-200">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="ml-2 text-green-700">
+                All required photos have been uploaded. You can proceed to the next step.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
       </div>
       
       {/* Exterior photos section */}
@@ -220,12 +244,18 @@ export const RequiredPhotos = ({
                 id={photo.id}
                 title={photo.title}
                 description={photo.description}
-                isUploading={isUploading}
+                isUploading={activeUploads[photo.id] || false}
                 isUploaded={uploadedPhotos[photo.id]}
                 progress={progress}
                 isRequired={true}
                 onUpload={async (file) => {
                   try {
+                    // Set as active upload
+                    setActiveUploads(prev => ({
+                      ...prev,
+                      [photo.id]: true
+                    }));
+                    
                     const url = await onFileSelect(file, photo.id);
                     if (url) {
                       handlePhotoUploaded(photo.id);
@@ -243,6 +273,7 @@ export const RequiredPhotos = ({
                 isUploaded={uploadedPhotos[photo.id]}
                 isRequired={true}
                 photoType={photo.title}
+                onRetry={() => handleUploadRetry(photo.id)}
               />
             </div>
           ))}
@@ -254,7 +285,7 @@ export const RequiredPhotos = ({
       {/* Interior photos section */}
       <div className="space-y-4">
         <div className="flex items-center space-x-2">
-          <Camera className="h-5 w-5 text-gray-600" />
+          <CameraIcon className="h-5 w-5 text-gray-600" />
           <h4 className="font-medium">Interior Photos</h4>
         </div>
         <p className="text-sm text-gray-500 mb-3">
@@ -267,12 +298,18 @@ export const RequiredPhotos = ({
                 id={photo.id}
                 title={photo.title}
                 description={photo.description}
-                isUploading={isUploading}
+                isUploading={activeUploads[photo.id] || false}
                 isUploaded={uploadedPhotos[photo.id]}
                 progress={progress}
                 isRequired={true}
                 onUpload={async (file) => {
                   try {
+                    // Set as active upload
+                    setActiveUploads(prev => ({
+                      ...prev,
+                      [photo.id]: true
+                    }));
+                    
                     const url = await onFileSelect(file, photo.id);
                     if (url) {
                       handlePhotoUploaded(photo.id);
@@ -290,6 +327,7 @@ export const RequiredPhotos = ({
                 isUploaded={uploadedPhotos[photo.id]}
                 isRequired={true}
                 photoType={photo.title}
+                onRetry={() => handleUploadRetry(photo.id)}
               />
             </div>
           ))}

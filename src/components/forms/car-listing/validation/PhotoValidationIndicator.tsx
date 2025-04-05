@@ -5,8 +5,9 @@
  * - 2028-09-21: Fixed tooltip implementation
  * - 2025-04-05: Enhanced with improved visual styling and clearer status messages
  * - 2025-04-05: Fixed tooltip component usage to match the correct API
+ * - 2025-04-05: Added retry functionality for required photos
  */
-import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip } from "@/components/ui/tooltip";
 
@@ -45,7 +46,11 @@ export const PhotoValidationIndicator = ({
           className="bg-amber-500 hover:bg-amber-600 flex items-center gap-1 cursor-pointer"
           onClick={onRetry}
         >
-          <AlertCircle className="h-3 w-3" />
+          {onRetry ? (
+            <RefreshCw className="h-3 w-3" />
+          ) : (
+            <AlertCircle className="h-3 w-3" />
+          )}
           <span>Required</span>
         </Badge>
       </Tooltip>
