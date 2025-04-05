@@ -53,6 +53,7 @@
     "dotenv": "^16.4.7",
     "embla-carousel-autoplay": "^8.5.1",
     "embla-carousel-react": "^8.3.0",
+    "immer": "^10.1.1",
     "input-otp": "^1.2.4",
     "jest": "^29.7.0",
     "js-md5": "^0.8.3",
