@@ -3,11 +3,20 @@
  * Component for displaying a section of photo uploads
  * - 2025-04-05: Created to provide better section organization
  * - 2025-04-05: Enhanced with better visual styling and animations
+ * - 2025-04-05: Added PhotoItem interface and exported it for use in other files
  */
 import { LucideIcon } from "lucide-react";
 import { PhotoUpload } from "../PhotoUpload";
 import { PhotoValidationIndicator } from "../../validation/PhotoValidationIndicator";
 import { cn } from "@/lib/utils";
+
+// Export this interface so it can be used in requiredPhotoData.ts
+export interface PhotoItem {
+  id: string;
+  title: string;
+  description: string;
+  required?: boolean;
+}
 
 interface PhotoSectionProps {
   title: string;
@@ -100,4 +109,3 @@ export const PhotoSection = ({
     </div>
   );
 };
-
