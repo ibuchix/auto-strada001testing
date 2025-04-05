@@ -2,6 +2,7 @@
 /**
  * Form Progress Indicator component
  * - Extracted from FormProgressSection.tsx to separate UI concerns
+ * - 2025-04-09: Added progress prop for completion percentage display
  */
 
 import { FormStepper } from "../FormStepper";
@@ -17,6 +18,7 @@ interface FormProgressIndicatorProps {
   description?: string;
   lastSaved?: Date | null;
   onOfflineChange?: (status: boolean) => void;
+  progress?: number; // Added progress prop
 }
 
 export const FormProgressIndicator = ({
@@ -29,7 +31,8 @@ export const FormProgressIndicator = ({
   validationErrors,
   description,
   lastSaved,
-  onOfflineChange
+  onOfflineChange,
+  progress // Add to destructuring
 }: FormProgressIndicatorProps) => {
   return (
     <>
