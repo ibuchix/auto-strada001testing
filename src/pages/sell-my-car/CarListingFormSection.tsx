@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-04-12: Added support for direct navigation from valuation
  * - 2025-04-12: Enhanced data loading reliability
+ * - 2025-04-05: Simplified component and removed unnecessary logging
  */
 
 import { CarListingForm } from "@/components/forms/CarListingForm";
@@ -25,17 +26,14 @@ export const CarListingFormSection = ({
   const fromLocationState = location.state?.fromValuation;
   const hasValuationData = fromValuation || fromLocationState;
   
-  // Log component mount for debugging
   useEffect(() => {
-    console.log('CarListingFormSection mounted', {
-      pageId,
-      renderCount,
-      fromValuation,
-      fromLocationState,
-      hasLocationState: !!location.state,
-      timestamp: new Date().toISOString()
-    });
-  }, [pageId, renderCount, fromValuation, fromLocationState, location.state]);
+    // Check for valuation data to help with debugging if needed
+    const hasLocalStorageData = !!localStorage.getItem('valuationData');
+    
+    if (hasValuationData && !hasLocalStorageData) {
+      console.warn('Navigation from valuation detected but no valuation data found in localStorage');
+    }
+  }, [fromValuation, fromLocationState, hasValuationData]);
 
   return (
     <PageLayout>

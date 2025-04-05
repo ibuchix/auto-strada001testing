@@ -1,9 +1,8 @@
 
 /**
  * DirectNavigationButton
- * - Created 2025-04-12: A simplified navigation button for more reliable form transitions
- * - Provides direct and reliable navigation from valuation to form with minimal state dependencies
- * - Uses direct URL navigation as a fallback for maximum reliability
+ * - Created 2025-04-12: A simplified navigation button for reliable form transitions
+ * - Updated 2025-04-05: Consolidated navigation logic to a single approach
  */
 
 import { Button } from "@/components/ui/button";
@@ -37,18 +36,12 @@ export const DirectNavigationButton = ({
     // Set loading state immediately for user feedback
     setIsNavigating(true);
     
-    // Log the navigation attempt
-    console.log('DirectNavigationButton: Starting navigation', {
-      isLoggedIn,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Store data in localStorage (always do this regardless of navigation method)
+    // Store data in localStorage for access in the car listing form
     try {
       // Store the complete valuation data
       localStorage.setItem("valuationData", JSON.stringify(valuationData));
       
-      // Also store individual fields for maximum compatibility with existing code
+      // Store individual fields for maximum compatibility with existing code
       if (valuationData.make) localStorage.setItem("tempMake", valuationData.make);
       if (valuationData.model) localStorage.setItem("tempModel", valuationData.model);
       if (valuationData.year) localStorage.setItem("tempYear", valuationData.year.toString());
@@ -56,11 +49,11 @@ export const DirectNavigationButton = ({
       if (valuationData.mileage) localStorage.setItem("tempMileage", valuationData.mileage.toString());
       if (valuationData.transmission) localStorage.setItem("tempGearbox", valuationData.transmission);
       
-      // Add timestamp and navigation metadata
+      // Add timestamp
       localStorage.setItem("navigationTimestamp", new Date().toISOString());
     } catch (error) {
       console.error('Failed to store valuation data:', error);
-      // Continue anyway - this is just a backup
+      // Continue anyway - navigation is still possible
     }
     
     // Show a loading toast for user feedback
@@ -73,9 +66,7 @@ export const DirectNavigationButton = ({
     const targetUrl = isLoggedIn ? '/sell-my-car' : '/auth';
     
     // Use direct URL navigation for maximum reliability
-    setTimeout(() => {
-      window.location.href = `${targetUrl}?from=valuation&direct=true`;
-    }, 100);
+    window.location.href = `${targetUrl}?from=valuation&direct=true`;
   }, [isNavigating, isLoggedIn, valuationData]);
 
   return (

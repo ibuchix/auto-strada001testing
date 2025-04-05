@@ -4,6 +4,7 @@
  * - Removed diagnostic-related code
  * - 2025-04-12: Added direct navigation handling from valuation
  * - 2025-04-12: Improved loading performance and reliability
+ * - 2025-04-05: Simplified navigation handling and removed excessive logging
  */
 
 import { useEffect, useState } from "react";
@@ -26,45 +27,15 @@ const SellMyCar = () => {
     handleRetrySellerVerification
   } = useSellerCarListingValidation();
 
-  // Log page load and navigation method
+  // Mark initialization as complete after a short delay
+  // This helps ensure any loading states have time to update
   useEffect(() => {
-    const pageLoadTime = performance.now();
-    
-    console.log('SellMyCar page loaded', { 
-      isValid, 
-      isLoading, 
-      fromValuation, 
-      directNavigation,
-      valuationData: localStorage.getItem('valuationData') ? 'present' : 'missing',
-      timestamp: new Date().toISOString(),
-      loadTime: `${Math.round(pageLoadTime)}ms`
-    });
-    
-    // Mark initialization as complete after a short delay
-    // This helps ensure any loading states have time to update
     const timer = setTimeout(() => {
       setInitComplete(true);
     }, 100);
     
     return () => clearTimeout(timer);
-  }, [isValid, isLoading, fromValuation, directNavigation]);
-
-  // Handle case when navigating directly from valuation
-  useEffect(() => {
-    if (fromValuation && directNavigation) {
-      console.log('Direct navigation from valuation detected', {
-        timestamp: new Date().toISOString()
-      });
-      
-      // Check for valuation data
-      const valuationData = localStorage.getItem('valuationData');
-      if (valuationData) {
-        console.log('Valuation data found in localStorage', {
-          dataSize: valuationData.length
-        });
-      }
-    }
-  }, [fromValuation, directNavigation]);
+  }, []);
 
   return (
     <PageStateManager

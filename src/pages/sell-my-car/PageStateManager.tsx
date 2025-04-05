@@ -4,9 +4,10 @@
  * - Removed diagnostic-related code
  * - 2025-04-12: Added support for direct navigation from valuation
  * - 2025-04-12: Enhanced reliability for form loading
+ * - 2025-04-05: Simplified state management and removed unnecessary logic
  */
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { CarListingFormSection } from "./CarListingFormSection";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
@@ -34,19 +35,6 @@ export const PageStateManager = ({
   fromValuation = false,
   directNavigation = false
 }: PageStateManagerProps) => {
-  // State to track page rendering and initialization
-  const [pageLoadState, setPageLoadState] = useState<{
-    initialLoadComplete: boolean;
-    loadTime: Date;
-    pageId: string;
-    renderCount: number;
-  }>({
-    initialLoadComplete: false,
-    loadTime: new Date(),
-    pageId: Math.random().toString(36).substring(2, 10),
-    renderCount: 0
-  });
-
   // Handle direct navigation from valuation
   useEffect(() => {
     if (fromValuation && directNavigation && !isLoading && !error) {
@@ -96,14 +84,13 @@ export const PageStateManager = ({
     // Valid state - render the form
     return (
       <CarListingFormSection 
-        pageId={pageLoadState.pageId}
-        renderCount={pageLoadState.renderCount}
+        pageId="main-listing-form"
+        renderCount={1}
         fromValuation={fromValuation}
       />
     );
   }
 
-  // Debug logging
   return (
     <>
       {renderPageContent()}

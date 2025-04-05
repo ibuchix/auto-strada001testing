@@ -3,10 +3,10 @@
  * ValuationContent Component
  * - Added 2025-04-12: Updated to use DirectNavigationButton for more reliable navigation
  * - Simplified navigation flow for more consistent user experience
+ * - Updated 2025-04-05: Removed redundant navigation mechanisms
  */
 
 import { Button } from "@/components/ui/button";
-import { ContinueButton } from "./buttons/ContinueButton";
 import { DirectNavigationButton } from "./buttons/DirectNavigationButton";
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
 import { CarDetailsSection } from "./CarDetailsSection";
@@ -92,17 +92,7 @@ export const ValuationContent = ({
             Cancel
           </Button>
           
-          {/* Use both buttons for maximum reliability */}
-          <div className="hidden">
-            {/* Original button - hidden but still functional for backward compatibility */}
-            <ContinueButton 
-              isLoggedIn={isLoggedIn} 
-              onClick={onContinue} 
-              isLoading={isLoading} 
-            />
-          </div>
-          
-          {/* New direct navigation button - primary interaction point */}
+          {/* Only using one navigation button for simplicity and reliability */}
           <DirectNavigationButton
             isLoggedIn={isLoggedIn}
             valuationData={valuationData}
