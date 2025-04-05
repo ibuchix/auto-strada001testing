@@ -1,36 +1,25 @@
 
 /**
- * Changes made:
- * - 2024-08-16: Created centralized error context for global error handling
- * - 2024-08-16: Implemented structured logging and recovery options
+ * ErrorContext.tsx
+ * 
+ * Context for application-wide error handling
+ * Updated: 2025-04-06 - Fixed read-only property issues and type assignments
  */
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { AppError } from '@/errors/classes';
+import { ErrorCode, RecoveryAction } from '@/errors/types';
 import { toast } from 'sonner';
-import { BaseApplicationError } from '@/errors/classes';
-import { ErrorCategory } from '@/errors/types';
-import { handleAppError } from '@/errors/factory';
 
-// Define interfaces for the context
-interface ErrorContextType {
-  lastError: BaseApplicationError | null;
-  errors: BaseApplicationError[];
-  captureError: (error: unknown) => BaseApplicationError | null;
-  clearError: (id?: string) => void;
-  clearAllErrors: () => void;
-  hasActiveErrors: boolean;
+interface ErrorContextValue {
+  errors: AppError[];
+  addError: (error: AppError) => void;
+  clearErrors: () => void;
+  clearError: (id: string) => void;
 }
 
-interface ErrorProviderProps {
-  children: ReactNode;
-  enableLogging?: boolean;
-  enableToasts?: boolean;
-}
+const ErrorContext = createContext<ErrorContextValue | null>(null);
 
-// Create the context
-const ErrorContext = createContext<ErrorContextType | null>(null);
-
-// Custom hook to use the error context
 export const useErrorContext = () => {
   const context = useContext(ErrorContext);
   if (!context) {
@@ -39,123 +28,81 @@ export const useErrorContext = () => {
   return context;
 };
 
-// Error Provider component
-export const ErrorProvider: React.FC<ErrorProviderProps> = ({ 
-  children, 
-  enableLogging = true, 
-  enableToasts = true 
-}) => {
-  const [errors, setErrors] = useState<BaseApplicationError[]>([]);
-  const [lastError, setLastError] = useState<BaseApplicationError | null>(null);
+interface ErrorProviderProps {
+  children: React.ReactNode;
+}
 
-  // Format error for structured logging
-  const formatErrorForLogging = (error: BaseApplicationError): Record<string, any> => {
-    return {
-      timestamp: new Date().toISOString(),
-      errorId: error.id || 'unknown',
-      code: error.code,
-      category: error.category,
-      message: error.message,
-      description: error.description,
-      metadata: error.metadata,
-      stackTrace: error.stack,
-    };
-  };
+export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
+  const [errors, setErrors] = useState<AppError[]>([]);
 
-  // Structured logging function
-  const logError = useCallback((error: BaseApplicationError) => {
-    if (!enableLogging) return;
+  const addError = useCallback((error: AppError) => {
+    setErrors(prev => [error, ...prev]);
     
-    const formattedError = formatErrorForLogging(error);
-    
-    // Log to console with structured format
-    console.error(
-      `[ERROR][${error.category}][${error.code}] ${error.message}`, 
-      formattedError
-    );
-    
-    // Here you could add external logging service integration
-    // e.g., Sentry, LogRocket, etc.
-  }, [enableLogging]);
-
-  // Capture and process an error
-  const captureError = useCallback((errorData: unknown): BaseApplicationError | null => {
-    if (!errorData) return null;
-    
-    // Convert to BaseApplicationError if needed
-    const error = errorData instanceof BaseApplicationError 
-      ? errorData 
-      : new BaseApplicationError({
-          code: 'UNKNOWN_ERROR',
-          message: errorData instanceof Error ? errorData.message : String(errorData),
-          category: ErrorCategory.UNKNOWN,
-        });
-    
-    // Generate unique ID if not present
-    if (!error.id) {
-      error.id = crypto.randomUUID();
+    // Optionally show a toast for each error
+    if (error.message) {
+      const toastOptions: any = {
+        description: error.description
+      };
+      
+      if (error.recovery && error.recovery.handler) {
+        toastOptions.action = {
+          label: error.recovery.label,
+          onClick: error.recovery.handler
+        };
+      }
+      
+      toast.error(error.message, toastOptions);
     }
+  }, []);
+
+  const captureError = useCallback((errorData: unknown): AppError => {
+    // Convert to AppError if it's not already
+    let error: AppError;
+    
+    if (errorData instanceof AppError) {
+      error = errorData;
+    } else if (errorData instanceof Error) {
+      // Create a new AppError with the Error's properties
+      error = new AppError({
+        message: errorData.message,
+        code: ErrorCode.UNKNOWN_ERROR,
+        stack: errorData.stack
+      });
+    } else {
+      // Create a generic error for anything else
+      error = new AppError({
+        message: String(errorData),
+        code: ErrorCode.UNKNOWN_ERROR
+      });
+    }
+    
+    // Generate a unique ID for this error instance if it doesn't have one
+    const errorWithId = error.id ? error : new AppError({
+      ...error.serialize(),
+      id: crypto.randomUUID()
+    });
     
     // Add the error to our state
-    setErrors(prev => [...prev, error]);
-    setLastError(error);
+    addError(errorWithId);
     
-    // Log the error
-    logError(error);
-    
-    // Show toast notification if enabled
-    if (enableToasts) {
-      if (error.recovery) {
-        toast.error(error.message, {
-          description: error.description,
-          action: {
-            label: error.recovery.label,
-            onClick: error.recovery.action
-          }
-        });
-      } else {
-        toast.error(error.message, {
-          description: error.description
-        });
-      }
-    }
-    
-    return error;
-  }, [logError, enableToasts]);
+    return errorWithId;
+  }, [addError]);
 
-  // Remove a specific error by ID
-  const clearError = useCallback((id?: string) => {
-    if (!id) {
-      if (lastError) {
-        setErrors(prev => prev.filter(error => error.id !== lastError.id));
-        setLastError(null);
-      }
-      return;
-    }
-    
-    setErrors(prev => prev.filter(error => error.id !== id));
-    
-    // If we're clearing the last error, reset it
-    if (lastError?.id === id) {
-      setLastError(null);
-    }
-  }, [lastError]);
-
-  // Clear all errors
-  const clearAllErrors = useCallback(() => {
+  const clearErrors = useCallback(() => {
     setErrors([]);
-    setLastError(null);
+  }, []);
+
+  const clearError = useCallback((id: string) => {
+    setErrors(prev => prev.filter(error => error.id !== id));
   }, []);
 
   return (
     <ErrorContext.Provider
       value={{
-        lastError,
         errors,
-        captureError,
-        clearError,
-        clearAllErrors,
-        hasActiveErrors: errors.length > 0
+        addError: captureError,
+        clearErrors,
+        clearError
       }}
     >
       {children}

@@ -3,6 +3,7 @@
  * Updated submission hook with proper type returns for FormSubmissionProvider
  * - 2025-04-03: Added missing properties for FormSubmissionContextType
  * - 2025-04-03: Fixed TransactionStatus enum usage to use proper type
+ * - 2025-04-06: Fixed error code type comparisons
  */
 
 import { useState } from "react";
@@ -12,7 +13,7 @@ import { CarListingFormData } from "@/types/forms";
 import { validateSubmission } from "./services/validationService";
 import { submitCarListing } from "./services/submissionService";
 import { ValidationError } from "./errors";
-import { ValidationErrorCode } from "@/errors/types";
+import { ErrorCode } from "@/errors/types";
 import { TransactionStatus } from "@/services/supabase/transactions/types";
 
 // Create a simple validation function to replace the missing import
@@ -81,17 +82,19 @@ export const useFormSubmission = (userId: string) => {
       
       if (error instanceof ValidationError) {
         setError(error.message);
+        
+        // Use direct comparisons with ErrorCode enum for proper TypeScript checking
         switch (error.code) {
-          case ValidationErrorCode.SCHEMA_VALIDATION_ERROR:
+          case ErrorCode.SCHEMA_VALIDATION_ERROR:
             toast.error("Form validation failed", { description: error.description });
             break;
-          case ValidationErrorCode.INCOMPLETE_FORM:
+          case ErrorCode.INCOMPLETE_FORM:
             toast.error("Form incomplete", { description: error.description });
             break;
-          case ValidationErrorCode.RATE_LIMIT_EXCEEDED:
+          case ErrorCode.RATE_LIMIT_EXCEEDED:
             toast.error("Submission limit reached", { description: error.description });
             break;
-          case ValidationErrorCode.SERVER_VALIDATION_FAILED:
+          case ErrorCode.SERVER_VALIDATION_FAILED:
             toast.error("Validation failed", { description: error.description });
             break;
           default:

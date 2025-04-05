@@ -3,6 +3,7 @@
  * Centralized error classes
  * Created: 2025-04-05
  * Updated: 2025-04-05 - Fixed TypeScript type errors and export compatibility
+ * Updated: 2025-04-06 - Fixed redeclaration errors and property mutability
  */
 
 import { 
@@ -92,7 +93,7 @@ export class AppError extends Error {
    * Update the error's properties
    */
   public withRecovery(recovery: ErrorRecovery): AppError {
-    const newError = new AppError({
+    return new AppError({
       message: this.message,
       code: this.code,
       category: this.category,
@@ -103,11 +104,10 @@ export class AppError extends Error {
       retryable: this.retryable,
       id: this.id
     });
-    return newError;
   }
   
   public withDescription(description: string): AppError {
-    const newError = new AppError({
+    return new AppError({
       message: this.message,
       code: this.code,
       category: this.category,
@@ -118,11 +118,10 @@ export class AppError extends Error {
       retryable: this.retryable,
       id: this.id
     });
-    return newError;
   }
   
   public withRetryable(retryable: boolean): AppError {
-    const newError = new AppError({
+    return new AppError({
       message: this.message,
       code: this.code,
       category: this.category,
@@ -133,7 +132,6 @@ export class AppError extends Error {
       retryable,
       id: this.id
     });
-    return newError;
   }
 }
 
@@ -241,6 +239,7 @@ export class AuthorizationError extends AppError {
     super({
       message: params.message,
       code: params.code || ErrorCode.UNAUTHORIZED,
+      category: ErrorCategory.AUTHORIZATION,
       severity: params.severity || ErrorSeverity.ERROR,
       metadata: params.metadata,
       recovery: params.recovery,
@@ -321,11 +320,22 @@ export class SubmissionError extends BusinessError {
     
     // Use withRetryable to create a new instance with retryable set
     if (params.retryable !== undefined) {
-      return this.withRetryable(params.retryable);
+      return this.withRetryable(params.retryable) as SubmissionError;
     }
   }
 }
 
-// Re-export all error types
+// Re-export all error types for backward compatibility - but do it as a namespaced object
+export const ApplicationErrors = {
+  AppError,
+  ValidationError,
+  NetworkError,
+  AuthenticationError, 
+  AuthorizationError, 
+  ServerError, 
+  BusinessError, 
+  SubmissionError
+};
+
+// Export AppError with alias ApplicationError for backward compatibility
 export { AppError as ApplicationError };
-export { ValidationError, NetworkError, AuthenticationError, AuthorizationError, ServerError, BusinessError, SubmissionError };

@@ -1,16 +1,18 @@
+
 /**
  * Hook for handling application errors in React components
  * Created: 2025-12-01
  * Purpose: Provides a standardized way to handle errors in components
  * Updated: 2024-08-16: Integrated with centralized error context
  * Updated: 2026-05-10: Enhanced error categorization and improved recovery options
+ * Updated: 2025-04-06: Fixed read-only property issues and type assignments
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { 
-  BaseApplicationError,
+  AppError,
   ValidationError,
   SubmissionError,
   AuthenticationError
@@ -24,7 +26,7 @@ import {
   createSubmissionError,
   createTimeoutError
 } from '../errors/factory';
-import { ErrorCategory, RecoveryType } from '../errors/types';
+import { ErrorCategory, ErrorCode, RecoveryType } from '../errors/types';
 import { useErrorContext } from '@/contexts/ErrorContext';
 import { logError } from '@/utils/errorLogger';
 
@@ -52,7 +54,7 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
   
   const errorContext = useErrorContext();
   const navigate = useNavigate();
-  const [error, setError] = useState<BaseApplicationError | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [errorCount, setErrorCount] = useState(0);
   
@@ -87,80 +89,85 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
       setErrorCount(prevCount => prevCount + 1);
 
       // Convert to standard application error format
-      const appError = errorToHandle instanceof BaseApplicationError
-        ? errorToHandle
-        : new BaseApplicationError({
-            code: 'UNKNOWN_ERROR',
-            message: errorToHandle instanceof Error ? errorToHandle.message : 'An unknown error occurred',
-            category: ErrorCategory.UNKNOWN,
-            retryable: true
-          });
+      let appError: AppError;
+      if (errorToHandle instanceof AppError) {
+        appError = errorToHandle;
+      } else {
+        appError = new AppError({
+          code: ErrorCode.UNKNOWN_ERROR,
+          message: errorToHandle instanceof Error ? errorToHandle.message : 'An unknown error occurred',
+          category: ErrorCategory.UNKNOWN,
+          retryable: true
+        });
+      }
       
-      // Enhance error with better recovery options based on error count
+      // Create a new error with enhanced recovery options based on error count
+      let enhancedError = appError;
       if (errorCount > 2 && appError.retryable) {
         // After multiple retries, suggest more drastic recovery options
         if (!appError.recovery || appError.recovery.type === RecoveryType.FORM_RETRY) {
-          switch (appError.category) {
-            case ErrorCategory.NETWORK:
-              appError.recovery = {
-                type: RecoveryType.REFRESH,
-                label: 'Refresh Page',
-                action: () => window.location.reload()
-              };
-              break;
-            case ErrorCategory.VALIDATION:
-              // Keep validation as is, but add description
-              appError.description = `${appError.description || ''} Try checking all required fields.`;
-              break;
-            default:
-              appError.recovery = {
-                type: RecoveryType.CONTACT_SUPPORT,
-                label: 'Contact Support',
-                action: () => {
-                  window.location.href = 'mailto:support@autostrada.com?subject=Error%20in%20application';
-                }
-              };
+          if (appError.category === ErrorCategory.NETWORK) {
+            enhancedError = appError.withRecovery({
+              type: RecoveryType.REFRESH,
+              label: 'Refresh Page',
+              action: RecoveryType.REFRESH,
+              handler: () => window.location.reload()
+            });
+          } else if (appError.category === ErrorCategory.VALIDATION) {
+            // For validation errors, create a new error with updated description
+            enhancedError = appError.withDescription(
+              `${appError.description || ''} Try checking all required fields.`
+            );
+          } else {
+            enhancedError = appError.withRecovery({
+              type: RecoveryType.CONTACT_SUPPORT,
+              label: 'Contact Support',
+              action: RecoveryType.CONTACT_SUPPORT,
+              handler: () => {
+                window.location.href = 'mailto:support@autostrada.com?subject=Error%20in%20application';
+              }
+            });
           }
         }
       }
       
       // Capture in the global error context if enabled
       if (captureInContext && errorContext) {
-        errorContext.captureError(appError);
+        errorContext.captureError(enhancedError);
       }
       
       // Log error if enabled
       if (logErrors) {
-        logError(appError);
+        logError(enhancedError);
       }
       
       // Store in state if enabled
       if (captureInState) {
-        setError(appError);
+        setError(enhancedError);
         
         // For field validation errors, also update fieldErrors state
-        if (appError instanceof ValidationError && appError.metadata?.field) {
+        if (enhancedError instanceof ValidationError && enhancedError.metadata?.field) {
           setFieldErrors(prev => ({
             ...prev,
-            [appError.metadata.field]: appError.message
+            [enhancedError.metadata.field]: enhancedError.message
           }));
         }
       }
       
       // Show toast if enabled
       if (showToast) {
-        if (appError.recovery) {
-          toast.error(appError.message, {
-            description: appError.description,
+        if (enhancedError.recovery) {
+          toast.error(enhancedError.message, {
+            description: enhancedError.description,
             duration: toastDuration,
             action: {
-              label: appError.recovery.label,
-              onClick: appError.recovery.action
+              label: enhancedError.recovery.label,
+              onClick: enhancedError.recovery.handler
             }
           });
         } else {
-          toast.error(appError.message, {
-            description: appError.description,
+          toast.error(enhancedError.message, {
+            description: enhancedError.description,
             duration: toastDuration
           });
         }
@@ -168,17 +175,17 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
       
       // Handle field focus if it's a field error and focus is enabled
       if (focusOnErrors && 
-          appError instanceof ValidationError && 
-          appError.metadata?.field && 
-          appError.recovery?.type === RecoveryType.FIELD_CORRECTION) {
-        const element = document.getElementById(appError.metadata.field as string);
+          enhancedError instanceof ValidationError && 
+          enhancedError.metadata?.field && 
+          enhancedError.recovery?.type === RecoveryType.FIELD_CORRECTION) {
+        const element = document.getElementById(enhancedError.metadata.field as string);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth' });
           setTimeout(() => element.focus(), 100);
         }
       }
       
-      return appError;
+      return enhancedError;
     } catch (handlerError) {
       console.error('Error in error handler:', handlerError);
       

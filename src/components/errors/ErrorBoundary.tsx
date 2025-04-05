@@ -3,6 +3,7 @@
  * ErrorBoundary component for catching and displaying unhandled errors
  * Created: 2025-04-05
  * Updated: 2025-04-05 - Fixed TypeScript errors with render method
+ * Updated: 2025-04-06 - Fixed type issue with fallback prop
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
@@ -60,7 +61,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       // Use custom fallback if provided
       if (this.props.fallback) {
         if (typeof this.props.fallback === 'function' && this.state.error) {
-          return this.props.fallback(this.state.error, this.resetError) as ReactNode;
+          // Cast the function result to ReactNode to satisfy TypeScript
+          return (this.props.fallback as (error: AppError, resetError: () => void) => ReactNode)(
+            this.state.error, 
+            this.resetError
+          );
         }
         return this.props.fallback;
       }

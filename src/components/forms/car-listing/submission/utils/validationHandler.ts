@@ -6,10 +6,11 @@
  * - 2024-08-14: Updated to use standard application error architecture
  * - 2024-08-15: Refactored to use the new error factory for consistency
  * - 2028-05-16: Updated imports for ValidationErrorCode
+ * - 2025-04-06: Fixed error code usage to address TypeScript errors
  */
 
 import { createFieldError, createFormError } from "@/errors/factory";
-import { ValidationErrorCode, RecoveryType } from "@/errors/types";
+import { ErrorCode } from "@/errors/types";
 
 /**
  * Validates that valuation data exists in localStorage
@@ -19,7 +20,7 @@ export const validateValuationData = () => {
   
   if (!valuationDataStr) {
     throw createFormError("Missing valuation data", { 
-      code: ValidationErrorCode.MISSING_VALUATION,
+      code: ErrorCode.MISSING_VALUATION,
       description: "Please complete the vehicle valuation process first."
     });
   }
@@ -30,7 +31,7 @@ export const validateValuationData = () => {
     // Check for minimum required fields
     if (!valuationData.make || !valuationData.model || !valuationData.year) {
       throw createFormError("Incomplete valuation data", {
-        code: ValidationErrorCode.INCOMPLETE_FORM,
+        code: ErrorCode.INCOMPLETE_FORM,
         description: "The vehicle valuation data is incomplete. Please restart the valuation process."
       });
     }
@@ -39,7 +40,7 @@ export const validateValuationData = () => {
   } catch (error) {
     console.error("Error parsing valuation data:", error);
     throw createFormError("Invalid valuation data", {
-      code: ValidationErrorCode.INVALID_FORMAT,
+      code: ErrorCode.INVALID_FORMAT,
       description: "The stored valuation data is invalid. Please restart the valuation process."
     });
   }
@@ -53,7 +54,7 @@ export const validateMileageData = () => {
   
   if (!mileageStr) {
     throw createFormError("Missing mileage information", {
-      code: ValidationErrorCode.REQUIRED_FIELD,
+      code: ErrorCode.REQUIRED_FIELD,
       description: "Please complete the vehicle valuation with mileage information first."
     });
   }
@@ -63,7 +64,7 @@ export const validateMileageData = () => {
     
     if (isNaN(mileage) || mileage <= 0) {
       throw createFieldError("mileage", "Invalid mileage value", {
-        code: ValidationErrorCode.INVALID_FORMAT,
+        code: ErrorCode.INVALID_FORMAT,
         description: "The mileage must be a positive number."
       });
     }
@@ -72,7 +73,7 @@ export const validateMileageData = () => {
   } catch (error) {
     console.error("Error parsing mileage data:", error);
     throw createFieldError("mileage", "Invalid mileage format", {
-      code: ValidationErrorCode.INVALID_FORMAT,
+      code: ErrorCode.INVALID_FORMAT,
       description: "The mileage value is in an invalid format."
     });
   }

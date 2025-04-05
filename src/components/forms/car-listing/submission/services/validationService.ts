@@ -6,13 +6,14 @@
  * - 2025-04-03: Added internal validateFormData function to fix import error
  * - 2025-11-29: Updated to use extendedCarSchema validation
  * - 2025-12-01: Fixed import for validateExtendedCar
+ * - 2025-04-06: Updated error code usage to fix TypeScript errors
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { validateCarListingServer, validateSubmissionRate } from "@/validation/serverValidation";
 import { ValidationError } from "../errors";
 import { validateExtendedCar } from "@/utils/validation/carSchema";
-import { ValidationErrorCode } from "@/errors/types";
+import { ErrorCode } from "@/errors/types";
 
 // Create local validateFormData function instead of importing it
 const validateFormData = (data: CarListingFormData): string[] => {
@@ -48,7 +49,7 @@ export const validateSubmission = async (
     ).join(', ');
     
     throw new ValidationError({
-      code: ValidationErrorCode.SCHEMA_VALIDATION_ERROR,
+      code: ErrorCode.SCHEMA_VALIDATION_ERROR,
       message: "Schema validation failed",
       description: errorMessages || "Some fields don't match the expected format"
     });
@@ -59,7 +60,7 @@ export const validateSubmission = async (
   
   if (clientErrors.length > 0) {
     throw new ValidationError({
-      code: ValidationErrorCode.INCOMPLETE_FORM,
+      code: ErrorCode.INCOMPLETE_FORM,
       message: "Please complete all required fields",
       description: "Some information is missing or incomplete"
     });
@@ -70,7 +71,7 @@ export const validateSubmission = async (
   
   if (!isAllowed) {
     throw new ValidationError({
-      code: ValidationErrorCode.RATE_LIMIT_EXCEEDED,
+      code: ErrorCode.RATE_LIMIT_EXCEEDED,
       message: "Submission limit reached",
       description: "You've reached the maximum number of submissions allowed in a 24-hour period"
     });
@@ -81,7 +82,7 @@ export const validateSubmission = async (
   
   if (!serverValidation.success) {
     throw new ValidationError({
-      code: ValidationErrorCode.SERVER_VALIDATION_FAILED,
+      code: ErrorCode.SERVER_VALIDATION_FAILED,
       message: "Validation failed",
       description: serverValidation.errors?.[0] || "Please check your submission and try again"
     });

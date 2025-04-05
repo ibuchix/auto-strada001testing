@@ -3,6 +3,7 @@
  * Centralized error type definitions
  * Created: 2025-04-05
  * Updated: 2025-04-05 - Added backward compatibility types and fixed enum references
+ * Updated: 2025-04-06 - Fixed enum inheritance and type assignments
  */
 
 export enum ErrorSeverity {
@@ -77,28 +78,9 @@ export enum ErrorCode {
   SUBMISSION_FAILED = 'submission_failed'
 }
 
-// For backward compatibility with existing code
-export enum ValidationErrorCode {
-  VALIDATION_ERROR = ErrorCode.VALIDATION_ERROR,
-  REQUIRED_FIELD = ErrorCode.REQUIRED_FIELD,
-  INVALID_FORMAT = ErrorCode.INVALID_FORMAT,
-  INVALID_VALUE = ErrorCode.INVALID_VALUE,
-  INVALID_VIN = ErrorCode.INVALID_VIN,
-  SCHEMA_VALIDATION_ERROR = ErrorCode.SCHEMA_VALIDATION_ERROR,
-  INCOMPLETE_FORM = ErrorCode.INCOMPLETE_FORM,
-  RATE_LIMIT_EXCEEDED = ErrorCode.RATE_LIMIT_EXCEEDED,
-  SERVER_VALIDATION_FAILED = ErrorCode.SERVER_VALIDATION_FAILED,
-  MISSING_VALUATION = ErrorCode.MISSING_VALUATION
-}
-
-export enum SubmissionErrorCode {
-  SUBMISSION_ERROR = ErrorCode.SUBMISSION_ERROR,
-  INVALID_INPUT = ErrorCode.INVALID_INPUT, 
-  SCHEMA_VALIDATION_ERROR = ErrorCode.SCHEMA_VALIDATION_ERROR,
-  DUPLICATE_SUBMISSION = ErrorCode.DUPLICATE_SUBMISSION,
-  DATABASE_CONSTRAINT = ErrorCode.DATABASE_CONSTRAINT,
-  SUBMISSION_FAILED = ErrorCode.SUBMISSION_FAILED
-}
+// These are now just type aliases that refer to the main ErrorCode enum
+export type ValidationErrorCode = ErrorCode;
+export type SubmissionErrorCode = ErrorCode;
 
 export enum RecoveryAction {
   RETRY = 'retry',
@@ -132,7 +114,7 @@ export interface ErrorMetadata {
 }
 
 export interface ErrorRecovery {
-  action: RecoveryAction;
+  action: RecoveryAction | string;
   label: string;
   handler?: () => void;
   route?: string;
