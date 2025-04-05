@@ -5,8 +5,8 @@
  * Changes:
  * - Fixed import path to use correct relative path format
  */
-import { generateChecksum } from "../../_shared/checksum.ts";
-import { logOperation } from "../../_shared/logging.ts";
+import { generateChecksum } from "../_shared/checksum.ts";
+import { logOperation } from "../_shared/logging.ts";
 
 /**
  * Fetch valuation data from the external API
