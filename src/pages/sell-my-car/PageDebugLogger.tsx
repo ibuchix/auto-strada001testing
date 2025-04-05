@@ -1,2 +1,3 @@
 
-// File intentionally emptied as part of diagnostics removal
+// Debug functionality removed to improve performance in production
+export {};

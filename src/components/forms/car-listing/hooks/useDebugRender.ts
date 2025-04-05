@@ -1,7 +1,7 @@
 
 /**
  * Debug hook to track component renders
- * Created 2028-05-15: Helps identify unnecessary renders and performance issues
+ * Simplified for better performance in production
  */
 
 import { useRef, useEffect } from "react";
@@ -16,6 +16,14 @@ export const useDebugRender = (
   componentName: string,
   options: DebugOptions = {}
 ) => {
+  // Skip all debugging in production by default
+  if (process.env.NODE_ENV === 'production' && options.enabled !== true) {
+    return {
+      renderCount: 0,
+      debugLog: () => {}
+    };
+  }
+  
   const { 
     enabled = process.env.NODE_ENV !== 'production',
     trackProps = false,
@@ -50,12 +58,6 @@ export const useDebugRender = (
       
       prevDeps.current = { ...trackDeps };
     }
-    
-    return () => {
-      if (renderCount.current === 1) {
-        console.log(`[${componentName}] Unmounted after ${renderCount.current} render`);
-      }
-    };
   });
   
   return {

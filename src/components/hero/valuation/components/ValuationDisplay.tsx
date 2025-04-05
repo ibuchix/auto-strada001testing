@@ -1,30 +1,17 @@
 
 /**
  * Changes made:
- * - 2024-03-19: Added support for server-calculated reserve price with client fallback
- * - 2024-03-19: Improved loading and error states
- * - 2024-03-19: Added proper type checking for price values
- * - 2024-07-20: Enhanced error display with clearer messages and retry option
- * - 2024-08-02: Removed average price display to prevent sellers from seeing it
- * - 2025-10-20: Fixed reserve price display and improved property handling
- * - 2024-12-14: Fixed price rendering and added better debugging for valuation issues
- * - 2026-04-10: Added strict type checking and proper null/undefined handling
- * - 2026-04-15: Enhanced error resilience and improved visual feedback
- * - 2028-05-18: Fixed GeneralErrorHandler props
- * - 2028-06-02: Fixed zero price display issue and improved debugging
- * - 2028-06-03: Added better debug logging for valuation data
- * - 2028-06-14: Enhanced error resilience with comprehensive null/undefined checks
- * - 2028-06-14: Added detailed debug view toggle for troubleshooting
- * - 2024-08-06: Added property name normalization to handle inconsistent API responses
+ * - 2025-04-06: Removed excessive debug logging
+ * - 2025-04-06: Simplified component with environment-aware debugging
+ * - 2025-04-06: Improved error resilience and visual feedback
  */
 
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle, Info, Bug } from "lucide-react";
-import { useEffect, useState } from "react";
+import { RefreshCw, AlertCircle, Info } from "lucide-react";
+import { useState } from "react";
 import { GeneralErrorHandler } from "@/components/error-handling/GeneralErrorHandler";
 import { ErrorCategory } from "@/errors/types";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { Tooltip } from "@/components/ui/tooltip";
 
 interface ValuationDisplayProps {
   reservePrice: number | undefined | null;
@@ -42,35 +29,8 @@ export const ValuationDisplay = ({
   onRetry
 }: ValuationDisplayProps) => {
   const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const isDevMode = process.env.NODE_ENV === 'development';
   
-  // Debug log props on mount and when they change
-  useEffect(() => {
-    console.log('ValuationDisplay mounted/updated with props:', {
-      reservePrice: reservePrice !== undefined ? reservePrice : 'undefined',
-      reservePriceType: reservePrice !== undefined ? typeof reservePrice : 'undefined',
-      reservePriceValue: reservePrice,
-      averagePrice: averagePrice !== undefined ? averagePrice : 'undefined',
-      isLoading,
-      hasError: !!error
-    });
-    
-    // Add detailed debug information about the price value
-    if (reservePrice !== undefined && reservePrice !== null) {
-      console.log('Reserve price details:', {
-        asNumber: Number(reservePrice),
-        isNaN: isNaN(Number(reservePrice)),
-        isPositive: Number(reservePrice) > 0,
-        formatted: new Intl.NumberFormat('pl-PL').format(Number(reservePrice))
-      });
-    } else {
-      console.log('Reserve price validation failed:', {
-        isUndefined: reservePrice === undefined,
-        isNull: reservePrice === null,
-        rawValue: reservePrice
-      });
-    }
-  }, [reservePrice, averagePrice, isLoading, error]);
-
   // Enhanced loading state with more visual feedback
   if (isLoading) {
     return (
@@ -102,25 +62,15 @@ export const ValuationDisplay = ({
     );
   }
 
-  // Enhanced validation of reserve price with more detailed logging
+  // Enhanced validation of reserve price
   const hasValidPrice = (
     reservePrice !== undefined && 
     reservePrice !== null && 
     !isNaN(Number(reservePrice)) && 
     Number(reservePrice) > 0
   );
-  
-  console.log('ValuationDisplay price validation:', {
-    hasValidPrice,
-    reservePrice,
-    isUndefined: reservePrice === undefined,
-    isNull: reservePrice === null,
-    isNaN: reservePrice !== undefined && reservePrice !== null ? isNaN(Number(reservePrice)) : 'N/A',
-    isPositive: reservePrice !== undefined && reservePrice !== null ? Number(reservePrice) > 0 : 'N/A'
-  });
                        
   if (!hasValidPrice) {
-    console.warn('ValuationDisplay received invalid reserve price:', reservePrice);
     return (
       <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
         <p className="text-sm text-subtitle mb-2">Valuation</p>
@@ -144,33 +94,6 @@ export const ValuationDisplay = ({
             Try Again
           </Button>
         )}
-        
-        {/* Debug information toggle for troubleshooting */}
-        <div className="mt-4 pt-2 border-t border-gray-200">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs text-subtitle flex items-center gap-1"
-            onClick={() => setShowDebugInfo(!showDebugInfo)}
-          >
-            <Bug className="h-3 w-3" />
-            {showDebugInfo ? "Hide Details" : "Technical Details"}
-          </Button>
-          
-          {showDebugInfo && (
-            <div className="mt-2 p-2 bg-gray-100 rounded text-left overflow-auto max-h-40 text-xs">
-              <pre>
-                {JSON.stringify({
-                  reservePrice,
-                  reservePriceType: typeof reservePrice,
-                  isNull: reservePrice === null,
-                  isUndefined: reservePrice === undefined,
-                  averagePrice
-                }, null, 2)}
-              </pre>
-            </div>
-          )}
-        </div>
       </div>
     );
   }
@@ -178,8 +101,6 @@ export const ValuationDisplay = ({
   // Ensure we have a positive number and format it
   const priceValue = Math.max(0, Number(reservePrice));
   const formattedPrice = new Intl.NumberFormat('pl-PL').format(priceValue);
-  
-  console.log('ValuationDisplay rendering with formatted price:', formattedPrice);
   
   return (
     <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
@@ -189,19 +110,16 @@ export const ValuationDisplay = ({
       </p>
       
       {/* Debug toggle button - only visible in development */}
-      {process.env.NODE_ENV === 'development' && (
+      {isDevMode && (
         <div className="mt-4 pt-2 border-t border-gray-200">
-          <Tooltip content="Technical debugging information">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-subtitle flex items-center gap-1"
-              onClick={() => setShowDebugInfo(!showDebugInfo)}
-            >
-              <Bug className="h-3 w-3" />
-              {showDebugInfo ? "Hide Debug" : "Show Debug"}
-            </Button>
-          </Tooltip>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-subtitle flex items-center gap-1"
+            onClick={() => setShowDebugInfo(!showDebugInfo)}
+          >
+            {showDebugInfo ? "Hide Debug" : "Show Debug"}
+          </Button>
           
           {showDebugInfo && (
             <div className="mt-2 p-2 bg-gray-100 rounded text-left overflow-auto max-h-40 text-xs">

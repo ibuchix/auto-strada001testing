@@ -1,22 +1,19 @@
 
 /**
  * Shared logging utilities for edge functions
- * Enhanced with structured logging and performance tracking
+ * Simplified with reduced verbosity for production
  */
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'trace';
 
 interface LogContext {
   timestamp?: string;
-  duration?: string;
   requestId?: string;
-  vin?: string;
-  mileage?: number;
   [key: string]: any;
 }
 
 /**
- * Structured logging with enhanced details
+ * Structured logging with level-appropriate details
  */
 export function logOperation(
   operation: string, 
@@ -24,36 +21,38 @@ export function logOperation(
   level: LogLevel = 'info'
 ): void {
   const timestamp = details.timestamp || new Date().toISOString();
-  
-  // Ensure requestId is included in the log entry if available
   const requestId = details.requestId || 'no-id';
   
-  // Format the log entry with consistent structure
+  // Basic structured log data
   const logData = {
     timestamp,
     operation,
-    requestId,
-    ...details
+    requestId
   };
   
-  // Create a log message with key information for quick scanning
-  const logMessage = `[${level.toUpperCase()}][${timestamp}][${requestId}] ${operation}`;
+  // Create a concise log message
+  const logMessage = `[${level.toUpperCase()}][${requestId}] ${operation}`;
   
   switch (level) {
     case 'info':
-      console.log(logMessage, JSON.stringify(logData));
+      console.log(logMessage);
       break;
     case 'warn':
-      console.warn(logMessage, JSON.stringify(logData));
+      console.warn(logMessage);
       break;
     case 'error':
-      console.error(logMessage, JSON.stringify(logData));
+      // For errors, include more details
+      console.error(logMessage, JSON.stringify({
+        ...logData,
+        ...(details.error ? { error: details.error } : {})
+      }));
       break;
     case 'debug':
-      console.debug(logMessage, JSON.stringify(logData));
-      break;
     case 'trace':
-      console.log(`[TRACE][${timestamp}][${requestId}] ${operation}`, JSON.stringify(logData));
+      // Only output these in non-production
+      if (Deno.env.get("ENVIRONMENT") !== "production") {
+        console.log(logMessage, JSON.stringify(details));
+      }
       break;
   }
 }
@@ -63,96 +62,40 @@ export function logOperation(
  */
 export function logError(
   operation: string, 
-  details: Record<string, any>, 
-  level: LogLevel = 'error'
+  details: Record<string, any>
 ): void {
   logOperation(operation, {
     ...details,
     timestamp: details.timestamp || new Date().toISOString()
-  }, level);
+  }, 'error');
 }
 
 /**
- * Logs request information for debugging
+ * Logs request information for debugging (simplified)
  */
 export function logRequest(
   requestId: string,
   method: string,
-  path: string,
-  body?: any
-): { complete: (status: number, responseSize?: number) => void } {
+  path: string
+): { complete: (status: number) => void } {
   const startTime = performance.now();
   
   logOperation('request_received', {
     requestId,
     method,
-    path,
-    bodySize: body ? JSON.stringify(body).length : 0,
-    timestamp: new Date().toISOString(),
-    headers: 'Available in request object'
+    path
   });
   
   return {
-    complete: (status: number, responseSize = 0) => {
+    complete: (status: number) => {
       const endTime = performance.now();
       const duration = endTime - startTime;
       
       logOperation('response_sent', {
         requestId,
         status,
-        bodySize: responseSize,
-        duration: duration.toFixed(2) + 'ms',
-        timestamp: new Date().toISOString()
+        duration: duration.toFixed(2) + 'ms'
       });
-    }
-  };
-}
-
-/**
- * Performance tracker utility for timing operations
- */
-export function createPerformanceTracker(requestId: string, operation: string) {
-  const startTime = performance.now();
-  const checkpoints: Record<string, number> = {};
-  
-  logOperation(`${operation}_started`, {
-    requestId,
-    startTime: new Date().toISOString()
-  });
-  
-  return {
-    checkpoint: (name: string) => {
-      const time = performance.now();
-      const elapsed = time - startTime;
-      checkpoints[name] = elapsed;
-      
-      logOperation(`${operation}_checkpoint`, {
-        requestId,
-        checkpoint: name,
-        elapsedMs: elapsed.toFixed(2),
-        timestamp: new Date().toISOString()
-      }, 'debug');
-      
-      return elapsed;
-    },
-    
-    complete: (result: 'success' | 'failure' = 'success', details: Record<string, any> = {}) => {
-      const endTime = performance.now();
-      const totalDuration = endTime - startTime;
-      
-      logOperation(`${operation}_completed`, {
-        requestId,
-        result,
-        durationMs: totalDuration.toFixed(2),
-        checkpoints: Object.entries(checkpoints).map(([name, time]) => ({
-          name,
-          timeMs: time.toFixed(2)
-        })),
-        ...details,
-        timestamp: new Date().toISOString()
-      });
-      
-      return totalDuration;
     }
   };
 }

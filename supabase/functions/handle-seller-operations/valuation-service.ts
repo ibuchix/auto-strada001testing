@@ -23,10 +23,7 @@ export async function fetchVehicleValuation(
     // Check if data is in cache first
     const cachedData = await getCachedValidation(vin, mileage);
     if (cachedData) {
-      logOperation('using_cached_validation', { 
-        requestId, 
-        vin 
-      });
+      logOperation('using_cached_validation', { requestId, vin });
       return {
         success: true,
         data: cachedData
@@ -38,10 +35,7 @@ export async function fetchVehicleValuation(
     const apiSecret = Deno.env.get("CAR_API_SECRET");
     
     if (!apiId || !apiSecret) {
-      logOperation('missing_api_credentials', { 
-        requestId, 
-        vin 
-      }, 'error');
+      logOperation('missing_api_credentials', { requestId, vin }, 'error');
       return {
         success: false,
         error: "API credentials are missing",
@@ -60,13 +54,7 @@ export async function fetchVehicleValuation(
     // Construct API URL and make request
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
     
-    logOperation('external_api_request', { 
-      requestId, 
-      vin,
-      mileage,
-      gearbox,
-      url: apiUrl
-    });
+    logOperation('external_api_request', { requestId, vin, mileage, gearbox });
     
     // Set a reasonable timeout for the fetch operation
     const controller = new AbortController();
@@ -79,7 +67,6 @@ export async function fetchVehicleValuation(
       if (!response.ok) {
         logOperation('api_response_error', { 
           requestId, 
-          vin,
           status: response.status,
           statusText: response.statusText
         }, 'error');
@@ -96,7 +83,6 @@ export async function fetchVehicleValuation(
       if (!valuationData || valuationData.error) {
         logOperation('api_returned_error', { 
           requestId, 
-          vin,
           error: valuationData?.error || "Unknown error"
         }, 'error');
         
@@ -126,10 +112,8 @@ export async function fetchVehicleValuation(
       
       logOperation('api_request_success', { 
         requestId, 
-        vin,
         make: vehicleData.make,
-        model: vehicleData.model,
-        year: vehicleData.year
+        model: vehicleData.model
       });
       
       return {
@@ -139,10 +123,7 @@ export async function fetchVehicleValuation(
     } catch (fetchError) {
       // Check for timeout
       if (fetchError.name === 'AbortError') {
-        logOperation('api_request_timeout', { 
-          requestId, 
-          vin 
-        }, 'error');
+        logOperation('api_request_timeout', { requestId }, 'error');
         
         return {
           success: false,
@@ -154,7 +135,6 @@ export async function fetchVehicleValuation(
       // Other fetch errors
       logOperation('api_request_error', { 
         requestId, 
-        vin,
         error: fetchError.message 
       }, 'error');
       
@@ -168,9 +148,7 @@ export async function fetchVehicleValuation(
     // General error handling
     logOperation('valuation_service_error', { 
       requestId, 
-      vin,
-      error: error.message,
-      stack: error.stack
+      error: error.message
     }, 'error');
     
     return {

@@ -1,8 +1,7 @@
 
 /**
  * Service for tracking upload attempts and diagnostics
- * - Logs upload attempts for analytics and debugging
- * - Provides a way to update attempt status
+ * Simplified for production with minimal logging
  */
 
 type UploadAttempt = {
@@ -14,10 +13,9 @@ type UploadAttempt = {
   success: boolean;
   timestamp: string;
   error?: string;
-  responseData?: any;
 };
 
-// In-memory storage for upload attempts
+// In-memory storage for upload attempts (only in development)
 const uploadAttempts: Record<string, UploadAttempt> = {};
 
 /**
@@ -27,14 +25,20 @@ export const logUploadAttempt = (attempt: Omit<UploadAttempt, 'id' | 'timestamp'
   // Generate a simple ID for the attempt
   const id = Math.random().toString(36).substring(2, 15);
   
-  // Store the attempt with timestamp
-  uploadAttempts[id] = {
-    ...attempt,
-    id,
-    timestamp: new Date().toISOString()
-  };
+  if (process.env.NODE_ENV !== 'production') {
+    // Only store attempts in development
+    uploadAttempts[id] = {
+      ...attempt,
+      id,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log(`[Upload] Attempt ${id}:`, {
+      filename: attempt.filename,
+      fileSize: attempt.fileSize
+    });
+  }
   
-  console.log(`[Upload Diagnostics] Logged attempt ${id}:`, uploadAttempts[id]);
   return id;
 };
 
@@ -42,8 +46,18 @@ export const logUploadAttempt = (attempt: Omit<UploadAttempt, 'id' | 'timestamp'
  * Updates an existing upload attempt with results
  */
 export const updateUploadAttempt = (id: string, update: Partial<UploadAttempt>): void => {
+  if (process.env.NODE_ENV === 'production') {
+    // In production, only log errors
+    if (!update.success) {
+      console.error(`[Upload] Failed: ${update.error}`, {
+        id
+      });
+    }
+    return;
+  }
+  
   if (!uploadAttempts[id]) {
-    console.warn(`[Upload Diagnostics] Attempt ${id} not found`);
+    console.warn(`[Upload] Attempt ${id} not found`);
     return;
   }
   
@@ -53,11 +67,15 @@ export const updateUploadAttempt = (id: string, update: Partial<UploadAttempt>):
     timestamp: new Date().toISOString()
   };
   
-  console.log(`[Upload Diagnostics] Updated attempt ${id}:`, uploadAttempts[id]);
+  if (update.success) {
+    console.log(`[Upload] Attempt ${id} completed successfully`);
+  } else {
+    console.error(`[Upload] Attempt ${id} failed: ${update.error}`);
+  }
 };
 
 /**
- * Gets upload statistics for analysis
+ * Gets upload statistics for analysis (development only)
  */
 export const getUploadStats = (): { 
   total: number;
@@ -65,6 +83,11 @@ export const getUploadStats = (): {
   failed: number;
   averageSize: number;
 } => {
+  if (process.env.NODE_ENV === 'production') {
+    // Return empty stats in production
+    return { total: 0, success: 0, failed: 0, averageSize: 0 };
+  }
+  
   const attempts = Object.values(uploadAttempts);
   const total = attempts.length;
   const success = attempts.filter(a => a.success).length;

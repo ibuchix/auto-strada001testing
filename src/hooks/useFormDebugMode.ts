@@ -1,7 +1,7 @@
 
 /**
  * Changes made:
- * - 2028-06-01: Created hook for enabling form debugging and testing features
+ * - 2025-04-06: Simplified debug mode hook to prevent unnecessary logging in production
  */
 
 import { useEffect, useState } from 'react';
@@ -9,15 +9,23 @@ import { useLocalStorage } from './useLocalStorage';
 
 /**
  * Debug mode features and settings for form development and testing
+ * Disabled by default in production
  */
 export const useFormDebugMode = () => {
+  // In production, debug is always false regardless of localStorage
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   const [isDebugModeEnabled, setIsDebugModeEnabled] = useLocalStorage('formDebugMode', false);
   const [showDebugPanel, setShowDebugPanel] = useLocalStorage('showDebugPanel', false);
   const [isKeypressListenerActive, setIsKeypressListenerActive] = useState(false);
   
-  // Track key combinations for enabling debug mode
+  // Never enable debug in production
+  const actualDebugEnabled = isProduction ? false : isDebugModeEnabled;
+  const actualDebugPanel = isProduction ? false : showDebugPanel;
+  
+  // Only set up keystroke listener in development
   useEffect(() => {
-    if (isKeypressListenerActive) return;
+    if (isProduction || isKeypressListenerActive) return;
     
     const keys: Record<string, boolean> = {};
     
@@ -29,10 +37,8 @@ export const useFormDebugMode = () => {
         setIsDebugModeEnabled(!isDebugModeEnabled);
         setShowDebugPanel(!isDebugModeEnabled);
         
-        console.log(`%c[DEBUG MODE ${!isDebugModeEnabled ? 'ENABLED' : 'DISABLED'}]`, 
-          'background: #333; color: #bada55; padding: 2px 4px; border-radius: 2px;',
-          'Press CTRL+SHIFT+D to toggle debug mode'
-        );
+        // Only log in development
+        console.log(`[DEBUG MODE ${!isDebugModeEnabled ? 'ENABLED' : 'DISABLED'}]`);
         
         // Clear keys to prevent repeated triggers
         Object.keys(keys).forEach(key => {
@@ -54,36 +60,21 @@ export const useFormDebugMode = () => {
       window.removeEventListener('keyup', handleKeyUp);
       setIsKeypressListenerActive(false);
     };
-  }, [isDebugModeEnabled, setIsDebugModeEnabled, setShowDebugPanel, isKeypressListenerActive]);
-  
-  // Log debug mode status to console
-  useEffect(() => {
-    if (isDebugModeEnabled) {
-      console.log(
-        '%c[FORM DEBUG MODE ENABLED]',
-        'background: #333; color: #bada55; padding: 2px 4px; border-radius: 2px;',
-        'Debug panels and diagnostic logging are now active.'
-      );
-    }
-  }, [isDebugModeEnabled]);
+  }, [isDebugModeEnabled, setIsDebugModeEnabled, setShowDebugPanel, isKeypressListenerActive, isProduction]);
   
   return {
-    isDebugModeEnabled,
-    setIsDebugModeEnabled,
-    showDebugPanel,
-    setShowDebugPanel
+    isDebugModeEnabled: actualDebugEnabled,
+    setIsDebugModeEnabled: isProduction ? () => {} : setIsDebugModeEnabled,
+    showDebugPanel: actualDebugPanel,
+    setShowDebugPanel: isProduction ? () => {} : setShowDebugPanel
   };
 };
 
 /**
- * Initialize debug mode globally
+ * Initialize debug mode globally - does nothing in production
  */
 export const initializeDebugMode = () => {
-  if (localStorage.getItem('formDebugMode') === 'true') {
-    console.log(
-      '%c[FORM DEBUG MODE ACTIVE]',
-      'background: #333; color: #bada55; padding: 2px 4px; border-radius: 2px;',
-      'Press CTRL+SHIFT+D to toggle debug mode'
-    );
+  if (process.env.NODE_ENV !== 'production' && localStorage.getItem('formDebugMode') === 'true') {
+    console.log('[FORM DEBUG MODE ACTIVE] Press CTRL+SHIFT+D to toggle debug mode');
   }
 };
