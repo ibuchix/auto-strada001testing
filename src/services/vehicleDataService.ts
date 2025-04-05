@@ -1,10 +1,10 @@
-
 /**
  * Changes made:
  * - 2025-04-06: Created centralized vehicle data service
- * - Implements standardized storage/retrieval of vehicle data
- * - Handles type validation and format conversion
- * - Supports backward compatibility with legacy storage formats
+ * - 2025-04-06: Implements standardized storage/retrieval of vehicle data
+ * - 2025-04-06: Handles type validation and format conversion
+ * - 2025-04-06: Supports backward compatibility with legacy storage formats
+ * - 2025-04-06: Enhanced applyVehicleDataToForm with better type conversion and debugging
  */
 
 import { toast } from "sonner";
@@ -163,7 +163,10 @@ export function migrateLegacyData(): void {
 migrateLegacyData();
 
 /**
- * Apply vehicle data to a form
+ * Apply vehicle data to a form with improved error handling and type conversion
+ * @param form The react-hook-form instance
+ * @param showToast Whether to show toast notifications
+ * @returns Boolean indicating success
  */
 export function applyVehicleDataToForm(form: any, showToast: boolean = true): boolean {
   try {
@@ -174,22 +177,56 @@ export function applyVehicleDataToForm(form: any, showToast: boolean = true): bo
           description: "Please complete a VIN check first to auto-fill details"
         });
       }
+      console.error('No valid vehicle data found for auto-fill');
       return false;
     }
     
     console.log('Applying vehicle data to form:', data);
     
     // Apply available fields with proper type handling
-    if (data.make) form.setValue('make', data.make);
-    if (data.model) form.setValue('model', data.model);
-    if (data.year) form.setValue('year', toNumberValue(data.year));
-    if (data.mileage) form.setValue('mileage', toNumberValue(data.mileage));
-    if (data.vin) form.setValue('vin', data.vin);
-    if (data.transmission) form.setValue('transmission', data.transmission);
+    if (data.make) {
+      console.log(`Setting make to: ${data.make}`);
+      form.setValue('make', data.make);
+    }
+    
+    if (data.model) {
+      console.log(`Setting model to: ${data.model}`);
+      form.setValue('model', data.model);
+    }
+    
+    if (data.year) {
+      const yearValue = toNumberValue(data.year);
+      console.log(`Setting year to: ${yearValue} (original: ${data.year})`);
+      form.setValue('year', yearValue);
+    }
+    
+    if (data.mileage) {
+      const mileageValue = toNumberValue(data.mileage);
+      console.log(`Setting mileage to: ${mileageValue} (original: ${data.mileage})`);
+      form.setValue('mileage', mileageValue);
+    }
+    
+    if (data.vin) {
+      console.log(`Setting VIN to: ${data.vin}`);
+      form.setValue('vin', data.vin);
+    }
+    
+    if (data.transmission) {
+      console.log(`Setting transmission to: ${data.transmission}`);
+      form.setValue('transmission', data.transmission);
+    }
+    
+    // Try to set engineCapacity if available
+    if (data.engineCapacity) {
+      const engineValue = toNumberValue(data.engineCapacity);
+      console.log(`Setting engineCapacity to: ${engineValue} (original: ${data.engineCapacity})`);
+      form.setValue('engineCapacity', engineValue);
+    }
     
     if (showToast) {
+      const carDescription = `${data.year || ''} ${data.make || ''} ${data.model || ''}`.trim();
       toast.success("Vehicle details auto-filled", {
-        description: `Successfully populated data for ${data.year || ''} ${data.make || ''} ${data.model || ''}`.trim()
+        description: `Successfully populated data for ${carDescription || 'vehicle'}`
       });
     }
     
