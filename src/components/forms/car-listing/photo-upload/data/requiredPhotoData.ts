@@ -2,6 +2,7 @@
 /**
  * Data for required photo sections
  * - 2025-04-05: Updated to use imported PhotoItem interface
+ * - 2025-04-05: Ensured all required properties are correctly set
  */
 import { PhotoItem } from "../components/PhotoSection";
 

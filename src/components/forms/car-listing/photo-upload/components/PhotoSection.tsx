@@ -4,6 +4,7 @@
  * - 2025-04-05: Created to provide better section organization
  * - 2025-04-05: Enhanced with better visual styling and animations
  * - 2025-04-05: Added PhotoItem interface and exported it for use in other files
+ * - 2025-04-05: Updated PhotoItem interface to make required property non-optional
  */
 import { LucideIcon } from "lucide-react";
 import { PhotoUpload } from "../PhotoUpload";
@@ -15,14 +16,14 @@ export interface PhotoItem {
   id: string;
   title: string;
   description: string;
-  required?: boolean;
+  required: boolean; // Changed from optional to required
 }
 
 interface PhotoSectionProps {
   title: string;
   description: string;
   icon: LucideIcon;
-  photos: { id: string; title: string; description: string; required: boolean }[];
+  photos: PhotoItem[];
   uploadedPhotos: Record<string, boolean>;
   activeUploads: Record<string, boolean>;
   progress?: number;

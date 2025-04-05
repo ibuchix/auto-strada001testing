@@ -4,10 +4,12 @@
  * - Added validation to ensure all required photos are uploaded
  * - Added ValidationSummary component to display validation status
  * - Integrated with onValidationChange callback for form integration
+ * - Updated to display validation errors when trying to proceed
  * - Maintained all original functionality while adding validation
  * - Restyled to match brand guidelines with a single required indicator per section
  * - Enhanced visual styling with cards and brand colors
  * - Improved spacing and typography
+ * - 2025-04-05: Updated to handle the non-optional required property in PhotoItem
  */
 
 import { Separator } from "@/components/ui/separator";
