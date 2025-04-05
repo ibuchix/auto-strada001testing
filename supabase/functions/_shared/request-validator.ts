@@ -1,8 +1,10 @@
 
 /**
  * Request validation utilities for edge functions
+ * 
+ * Updated: Using consistent Zod version
  */
-import { z } from "https://esm.sh/zod@3.22.2";
+import { z } from "https://esm.sh/zod@3.22.4";
 import { formatErrorResponse } from "./response-formatter.ts";
 
 /**

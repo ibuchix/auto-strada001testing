@@ -1,8 +1,10 @@
 
 /**
  * Shared utility for creating a Supabase client
+ * 
+ * Updated: Using consistent Supabase client version across all functions
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 /**
  * Create a Supabase client for edge functions
@@ -17,4 +19,12 @@ export function createSupabaseClient() {
   }
   
   return createClient(supabaseUrl, supabaseServiceKey);
+}
+
+/**
+ * Get a Supabase client instance
+ * Shorthand for createSupabaseClient
+ */
+export function getSupabaseClient() {
+  return createSupabaseClient();
 }

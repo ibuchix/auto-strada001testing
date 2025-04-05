@@ -2,9 +2,10 @@
 /**
  * Changes made:
  * - 2024-07-22: Created dedicated handler for proxy bids requests
+ * - 2025-04-05: Updated to use consistent Supabase client version
  */
 
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { logOperation } from "../../_shared/index.ts";
 
 /**

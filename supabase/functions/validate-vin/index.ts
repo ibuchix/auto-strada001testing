@@ -6,6 +6,8 @@
  * 1. Checking format validity
  * 2. Verifying if the vehicle already exists in the database
  * 3. Fetching valuation data when needed
+ * 
+ * Updated: Using consistent module versions and imports
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -20,7 +22,7 @@ import {
   isValidVin,
   isValidMileage
 } from "../_shared/index.ts";
-import { z } from "https://esm.sh/zod@3.22.2";
+import { z } from "https://esm.sh/zod@3.22.4";
 
 // Input validation schema
 const validateVinSchema = z.object({
