@@ -3,6 +3,7 @@
  * Form Progress Section component
  * - Extracted from FormContent.tsx to separate UI concerns
  * - 2025-04-08: Added progress prop to fix type errors
+ * - 2025-04-09: Improved props passing and fixed progress indicator
  */
 import { memo } from "react";
 import { FormProgressIndicator } from "./FormProgressIndicator";
@@ -42,6 +43,7 @@ export const FormProgressSection = memo(({
         lastSaved={lastSaved}
         onOfflineChange={onOfflineStatusChange}
         totalSteps={steps.length}
+        progress={progress}
       />
     </div>
   );
