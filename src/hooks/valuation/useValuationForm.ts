@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-12-20: Refactored from original useValuationForm into smaller composable hooks
  * - 2024-04-04: Fixed type imports
+ * - 2025-04-06: Fixed property naming to match useValuationState hook
  */
 
 import { useForm } from "react-hook-form";
@@ -32,8 +33,8 @@ export const useValuationForm = (): UseValuationFormResult => {
   const {
     isLoading,
     setIsLoading,
-    showDialog,
-    setShowDialog,
+    dialogOpen, // Fixed: using dialogOpen instead of showDialog
+    setDialogOpen, // Fixed: using setDialogOpen instead of setShowDialog
     valuationResult,
     setValuationResult,
     resetState
@@ -46,7 +47,7 @@ export const useValuationForm = (): UseValuationFormResult => {
   const { executeRequest } = useValuationRequest({
     onSuccess: (result) => {
       setValuationResult(result);
-      setShowDialog(true);
+      setDialogOpen(true); // Fixed: using setDialogOpen
       resetRetryCount();
     },
     onError: (error) => {
@@ -70,8 +71,8 @@ export const useValuationForm = (): UseValuationFormResult => {
   return {
     form,
     isLoading,
-    showDialog,
-    setShowDialog,
+    showDialog: dialogOpen, // Fixed: mapping dialogOpen to showDialog for API consistency
+    setShowDialog: setDialogOpen, // Fixed: mapping setDialogOpen to setShowDialog
     valuationResult,
     onSubmit: form.handleSubmit(onSubmit),
     resetForm,

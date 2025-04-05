@@ -1,9 +1,11 @@
+
 /**
  * Changes made:
  * - 2025-04-05: Completely rewritten for centralized state management
  * - Combined functionality from multiple separate state hooks
  * - Eliminated redundant state tracking
  * - Simplified loading and error states
+ * - 2025-04-06: Fixed property names for consistent naming conventions
  */
 
 import { useState, useCallback } from "react";
@@ -73,6 +75,9 @@ export const useValuationState = (customInitialState?: Partial<ValuationState>) 
     setState(prev => ({ ...prev, dialogOpen }));
   }, []);
   
+  // Alias for setDialogOpen to maintain backward compatibility
+  const setShowDialog = setDialogOpen;
+  
   const setShowManualForm = useCallback((showManualForm: boolean) => {
     setState(prev => ({ ...prev, showManualForm }));
   }, []);
@@ -139,6 +144,7 @@ export const useValuationState = (customInitialState?: Partial<ValuationState>) 
     setGearbox,
     setIsLoading,
     setDialogOpen,
+    setShowDialog, // Add the alias
     setShowManualForm,
     setValuationResult,
     setError,

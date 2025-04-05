@@ -3,6 +3,7 @@
  * ValuationContent Component
  * - Updated 2025-04-05: Simplified navigation flow with single Button component
  * - Removed redundant navigation mechanisms for clarity and reliability
+ * - Updated 2025-04-06: Fixed TypeScript prop interface to include onContinue
  */
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ interface ValuationContentProps {
   error?: string;
   onRetry?: () => void;
   onClose: () => void;
+  onContinue: () => void; // Added missing prop
 }
 
 export const ValuationContent = ({
@@ -42,7 +44,8 @@ export const ValuationContent = ({
   isLoading,
   error,
   onRetry,
-  onClose
+  onClose,
+  onContinue  // Added missing prop
 }: ValuationContentProps) => {
   const valuationData = {
     make,
@@ -93,6 +96,7 @@ export const ValuationContent = ({
             valuationData={valuationData}
             buttonText={isLoggedIn ? "List This Car" : "Sign Up to List Your Car"}
             isDisabled={isLoading}
+            onContinue={onContinue}  // Pass the onContinue prop
           />
         </div>
       </div>

@@ -5,6 +5,7 @@
  * - Added improved form state management with validation
  * - Optimized for better performance with memoization
  * - Integrated with useFormWithValidation for consistent patterns
+ * - 2025-04-06: Fixed property naming to match useValuationState hook
  */
 
 import { useState, useCallback } from "react";
@@ -39,8 +40,8 @@ export function useEnhancedValuationForm(context: 'home' | 'seller' = 'home') {
   const {
     isLoading,
     setIsLoading,
-    showDialog,
-    setShowDialog,
+    dialogOpen, // Fixed: using dialogOpen instead of showDialog
+    setDialogOpen, // Fixed: using setDialogOpen instead of setShowDialog
     valuationResult,
     setValuationResult,
     resetState
@@ -53,7 +54,7 @@ export function useEnhancedValuationForm(context: 'home' | 'seller' = 'home') {
   const { executeRequest } = useValuationRequest({
     onSuccess: (result) => {
       setValuationResult(result);
-      setShowDialog(true);
+      setDialogOpen(true); // Fixed: using setDialogOpen
       resetRetryCount();
     },
     onError: handleError,
@@ -86,7 +87,7 @@ export function useEnhancedValuationForm(context: 'home' | 'seller' = 'home') {
 
   // Handle continue action (e.g., after successful valuation)
   const handleContinue = useCallback(() => {
-    setShowDialog(false);
+    setDialogOpen(false); // Fixed: using setDialogOpen
     if (context === 'seller') {
       navigate('/sell-my-car', { 
         state: { 
@@ -95,7 +96,7 @@ export function useEnhancedValuationForm(context: 'home' | 'seller' = 'home') {
         } 
       });
     }
-  }, [context, navigate, valuationResult, setShowDialog]);
+  }, [context, navigate, valuationResult, setDialogOpen]);
 
   // Reset form and state
   const resetForm = useCallback(() => {
@@ -107,8 +108,8 @@ export function useEnhancedValuationForm(context: 'home' | 'seller' = 'home') {
   return {
     form,
     isLoading,
-    showDialog,
-    setShowDialog,
+    showDialog: dialogOpen, // Fixed: mapping dialogOpen to showDialog for API consistency
+    setShowDialog: setDialogOpen, // Fixed: mapping setDialogOpen to setShowDialog
     valuationResult,
     onSubmit: form.handleSubmitWithFeedback,
     handleContinue,
