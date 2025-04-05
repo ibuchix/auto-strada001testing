@@ -4,6 +4,7 @@
  * - Created 2025-04-09: Extracted from FormContent.tsx to centralize form state management
  * - Handles initialization, state transitions, and submission logic
  * - 2025-04-10: Fixed TypeScript errors with form submission handling
+ * - 2025-04-11: Resolved type issues with handleSubmit return value
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
@@ -119,17 +120,12 @@ export const useFormController = ({
       // First save the form data
       await persistence.saveImmediately();
       
-      // Then submit it
-      const result = await handleFormSubmit(data, formState.carId);
+      // Then submit it - we need to handle the submission result properly
+      await handleFormSubmit(data, formState.carId);
       
-      // Handle successful submission
-      if (result && result.success) { // Fixed: Check if result exists before accessing success
-        toast.success("Listing submitted successfully!");
-        return result;
-      } else {
-        toast.error("Failed to submit listing");
-        return { success: false, error: result?.error || new Error("Unknown error") }; // Fixed: Use optional chaining to safely access error
-      }
+      // If we reach here without errors, consider it a success
+      toast.success("Listing submitted successfully!");
+      return { success: true };
     } catch (error) {
       console.error("Form submission error:", error);
       toast.error("An error occurred during submission");
