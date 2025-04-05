@@ -1,22 +1,20 @@
 
 /**
  * Changes made:
- * - Fixed type issues
- * - Removed diagnostic-related code
- * - Enhanced with better progress indication and confirmation
- * - Added retry functionality for failed uploads
- * - Improved visual styling with brand colors and better state indicators
- * - Added subtle gradient backgrounds and consistent spacing
- * - Enhanced distinction between uploaded/not uploaded states
+ * - 2025-04-05: Refactored into smaller components for better maintainability
+ * - 2025-04-05: Extracted UploadButton, ChangePhotoButton, PhotoUploadError, and PhotoStatusIcon
+ * - 2025-04-05: Improved code organization and readability
  */
 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Upload, ImageIcon, AlertTriangle, RefreshCw, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { UploadProgress } from "../UploadProgress";
 import { PhotoValidationIndicator } from "../validation/PhotoValidationIndicator";
-import { cn } from "@/lib/utils";
+import { UploadButton } from "./components/UploadButton";
+import { ChangePhotoButton } from "./components/ChangePhotoButton";
+import { PhotoUploadError } from "./components/PhotoUploadError";
+import { PhotoStatusIcon } from "./components/PhotoStatusIcon";
 
 export interface PhotoUploadProps {
   id: string;
@@ -25,7 +23,7 @@ export interface PhotoUploadProps {
   label?: string; // For backward compatibility
   isUploading: boolean;
   isRequired?: boolean;
-  isUploaded?: boolean; // Made optional to fix type error
+  isUploaded?: boolean;
   disabled?: boolean;
   progress?: number;
   onFileSelect?: (file: File) => Promise<void>;
@@ -88,10 +86,6 @@ export const PhotoUpload = ({
     }
   };
 
-  const handleProgressUpdate = (progress: number) => {
-    setLocalUploadProgress(progress);
-  };
-
   const handleRetry = () => {
     // Reset error state
     setError(null);
@@ -147,15 +141,7 @@ export const PhotoUpload = ({
               : "bg-gradient-to-br from-gray-50 to-white border border-dashed border-gray-200"
           )}>
             <div className="mb-4">
-              {showUploadedState ? (
-                <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
-                  <Check className="h-6 w-6 text-success" />
-                </div>
-              ) : (
-                <div className="h-12 w-12 rounded-full bg-accent flex items-center justify-center">
-                  <ImageIcon className="h-6 w-6 text-primary" />
-                </div>
-              )}
+              <PhotoStatusIcon isUploaded={showUploadedState} />
             </div>
             
             <div className="space-y-1">
@@ -168,44 +154,17 @@ export const PhotoUpload = ({
             </div>
             
             <div className="mt-4 w-full">
-              {!showUploadedState && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full font-kanit border-accent hover:bg-accent/20 hover:text-primary transition-all"
-                  disabled={externalIsUploading || disabled}
-                >
-                  <label
-                    htmlFor={`file-upload-${id}`}
-                    className="flex items-center justify-center w-full cursor-pointer"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    <span>Upload</span>
-                    <input
-                      id={`file-upload-${id}`}
-                      type="file"
-                      className="hidden"
-                      onChange={handleFileChange}
-                      accept="image/*"
-                      disabled={externalIsUploading || disabled}
-                    />
-                  </label>
-                </Button>
-              )}
-              
-              {showUploadedState && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full bg-success/5 text-success border-success/20 hover:bg-success/10 font-kanit"
-                  onClick={() => {
-                    // Reset uploaded state to allow re-upload
-                    setLocalIsUploaded(false);
-                  }}
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  <span>Change Photo</span>
-                </Button>
+              {!showUploadedState ? (
+                <UploadButton 
+                  id={id}
+                  isUploading={externalIsUploading}
+                  disabled={disabled}
+                  onChange={handleFileChange}
+                />
+              ) : (
+                <ChangePhotoButton 
+                  onClick={() => setLocalIsUploaded(false)} 
+                />
               )}
             </div>
             
@@ -219,12 +178,7 @@ export const PhotoUpload = ({
               </div>
             )}
             
-            {error && (
-              <div className="mt-2 flex items-start gap-1.5 text-xs text-primary">
-                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+            <PhotoUploadError error={error || ""} />
           </div>
         </CardContent>
       </Card>
