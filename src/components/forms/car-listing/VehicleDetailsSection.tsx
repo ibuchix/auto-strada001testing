@@ -1,10 +1,8 @@
-
 /**
  * Changes made:
- * - Enhanced auto-fill functionality to use VIN validation data
- * - Added localStorage retrieval of validation data
- * - Improved error handling and feedback
- * - Updated to use the useFormData custom hook
+ * - Enhanced auto-fill functionality to use the standardized VIN validation data
+ * - Updated to use the new handleAutoFill function from useVehicleDetailsSection
+ * - Improved error handling and loading states
  */
 
 import { useState } from "react";
@@ -17,6 +15,7 @@ import { FormSection } from "./FormSection";
 import { Search, RefreshCw } from "lucide-react";
 import { useFormData } from "./context/FormDataContext";
 import { toast } from "sonner";
+import { getStoredValidationData } from "@/services/supabase/valuation/vinValidationService";
 
 export const VehicleDetailsSection = () => {
   const [vinValue, setVinValue] = useState("");
@@ -28,42 +27,25 @@ export const VehicleDetailsSection = () => {
     availableModels,
     yearOptions,
     handleVinLookup,
-    validateVehicleDetails
+    handleAutoFill
   } = useVehicleDetailsSection(form);
   
-  const handleAutoFill = async () => {
+  const performAutoFill = async () => {
     try {
       setIsAutoFilling(true);
       
-      // Retrieve valuation data from localStorage
-      const valuationDataString = localStorage.getItem('valuationData');
-      if (!valuationDataString) {
+      // Check if we have data in localStorage
+      const validationData = getStoredValidationData();
+      if (!validationData) {
         toast.error("No vehicle data found", {
           description: "Please complete a VIN check first to auto-fill details"
         });
         return;
       }
+
+      // Call the hook's auto-fill function
+      handleAutoFill();
       
-      const valuationData = JSON.parse(valuationDataString);
-      
-      // Fill in form fields with validation data
-      if (valuationData.vin) form.setValue('vin', valuationData.vin);
-      if (valuationData.make) form.setValue('make', valuationData.make);
-      if (valuationData.model) form.setValue('model', valuationData.model);
-      if (valuationData.year) form.setValue('year', parseInt(valuationData.year));
-      if (valuationData.mileage) form.setValue('mileage', parseInt(valuationData.mileage));
-      
-      // Try to get transmission from localStorage or set default
-      const gearbox = localStorage.getItem('tempGearbox');
-      if (gearbox) {
-        form.setValue('transmission', gearbox as 'manual' | 'automatic');
-      } else if (valuationData.transmission) {
-        form.setValue('transmission', valuationData.transmission);
-      }
-      
-      toast.success("Vehicle details auto-filled", {
-        description: "Details have been filled from your VIN check"
-      });
     } catch (error) {
       console.error("Error auto-filling data:", error);
       toast.error("Failed to auto-fill vehicle details", {
@@ -107,8 +89,8 @@ export const VehicleDetailsSection = () => {
           <Button 
             type="button" 
             variant="outline" 
-            onClick={handleAutoFill}
-            disabled={isAutoFilling}
+            onClick={performAutoFill}
+            disabled={isAutoFilling || isLoading}
             className="flex items-center"
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${isAutoFilling ? 'animate-spin' : ''}`} />

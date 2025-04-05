@@ -1,21 +1,26 @@
 
 /**
  * Changes made:
- * - Enhanced handleVinLookup to utilize the validation API
- * - Added logic to store validation results in localStorage
- * - Updated to work with both direct form usage and form context
+ * - Enhanced handleVinLookup to utilize the validation API with standardized data storage
+ * - Updated localStorage access to use the new utility functions
+ * - Improved error handling and messaging
  */
 
 import { useState, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
-import { validateVin } from "@/services/supabase/valuation/vinValidationService";
+import { 
+  validateVin, 
+  getStoredValidationData, 
+  VehicleData 
+} from "@/services/supabase/valuation/vinValidationService";
 
 export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>) => {
   const [isLoading, setIsLoading] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [yearOptions, setYearOptions] = useState<number[]>([]);
+  const [storedVehicleData, setStoredVehicleData] = useState<VehicleData | null>(null);
   
   // Watch make field to update models when it changes
   const make = form.watch("make");
@@ -25,6 +30,15 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: currentYear - 1969 }, (_, i) => currentYear - i);
     setYearOptions(years);
+  }, []);
+  
+  // Load stored validation data if available
+  useEffect(() => {
+    const data = getStoredValidationData();
+    if (data) {
+      setStoredVehicleData(data);
+      console.log('Loaded stored vehicle data:', data);
+    }
   }, []);
   
   // Update available models when make changes
@@ -88,9 +102,9 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
         return;
       }
       
-      // Store the validation data in localStorage
+      // Store locally for auto-fill operations
       if (response.data) {
-        localStorage.setItem('valuationData', JSON.stringify(response.data));
+        setStoredVehicleData(response.data);
         
         // Auto-fill form with fetched data
         if (response.data.make) form.setValue('make', response.data.make);
@@ -98,6 +112,7 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
         if (response.data.year) form.setValue('year', parseInt(response.data.year.toString()));
         if (response.data.mileage) form.setValue('mileage', parseInt(response.data.mileage.toString()));
         if (response.data.vin) form.setValue('vin', response.data.vin);
+        if (response.data.transmission) form.setValue('transmission', response.data.transmission);
         
         toast.success('VIN lookup successful!', {
           description: `Found: ${response.data.year} ${response.data.make} ${response.data.model}`
@@ -110,6 +125,39 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
       toast.error('Failed to lookup VIN information');
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Auto-fill form with stored vehicle data
+  const handleAutoFill = () => {
+    const data = getStoredValidationData();
+    
+    if (!data) {
+      toast.error("No vehicle data found", {
+        description: "Please complete a VIN check first to auto-fill details"
+      });
+      return;
+    }
+    
+    try {
+      console.log('Auto-filling with data:', data);
+      
+      // Fill in all available fields
+      if (data.make) form.setValue('make', data.make);
+      if (data.model) form.setValue('model', data.model);
+      if (data.year) form.setValue('year', typeof data.year === 'number' ? data.year : parseInt(data.year.toString()));
+      if (data.mileage) form.setValue('mileage', typeof data.mileage === 'number' ? data.mileage : parseInt(data.mileage.toString()));
+      if (data.vin) form.setValue('vin', data.vin);
+      if (data.transmission) form.setValue('transmission', data.transmission);
+      
+      toast.success("Vehicle details auto-filled", {
+        description: `Successfully populated data for ${data.year} ${data.make} ${data.model}`
+      });
+    } catch (error) {
+      console.error('Error during auto-fill:', error);
+      toast.error('Failed to auto-fill vehicle details', {
+        description: 'Please try again or enter details manually'
+      });
     }
   };
   
@@ -143,6 +191,8 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
     availableModels,
     yearOptions,
     validateVehicleDetails,
-    handleVinLookup
+    handleVinLookup,
+    handleAutoFill,
+    storedVehicleData
   };
 };
