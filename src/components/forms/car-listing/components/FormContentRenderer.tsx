@@ -6,10 +6,12 @@
  * - 2025-04-07: Extracted from FormContent.tsx to separate rendering logic
  * - 2025-04-07: Added proper error handling and fallbacks 
  * - 2025-04-07: Improved performance with memoization
+ * - 2025-04-08: Fixed import issues and type errors
  */
 import { memo } from "react";
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
-import { Alert, AlertCircle, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 import { FormProgressSection } from "./FormProgressSection";
 import { FormErrorSection } from "./FormErrorSection";
 import { MainFormContent } from "./MainFormContent";
@@ -78,7 +80,6 @@ export const FormContentRenderer = memo(({
         completedSteps={completedSteps}
         validationErrors={stepErrors}
         onStepChange={setCurrentStep}
-        progress={progress}
       />
       
       <FormErrorSection 

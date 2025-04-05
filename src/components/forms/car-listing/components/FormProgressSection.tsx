@@ -2,6 +2,7 @@
 /**
  * Form Progress Section component
  * - Extracted from FormContent.tsx to separate UI concerns
+ * - 2025-04-08: Added progress prop to fix type errors
  */
 import { memo } from "react";
 import { FormProgressIndicator } from "./FormProgressIndicator";
@@ -15,6 +16,7 @@ interface FormProgressSectionProps {
   completedSteps: number[];
   validationErrors: Record<string, boolean>;
   onStepChange: (step: number) => void;
+  progress?: number;
 }
 
 export const FormProgressSection = memo(({
@@ -25,20 +27,21 @@ export const FormProgressSection = memo(({
   visibleSections,
   completedSteps,
   validationErrors,
-  onStepChange
+  onStepChange,
+  progress
 }: FormProgressSectionProps) => {
   return (
     <div className="mb-8">
       <FormProgressIndicator 
-        currentStep={currentStep}
-        totalSteps={steps.length}
-        steps={steps}
-        lastSaved={lastSaved}
-        onOfflineChange={onOfflineStatusChange}
+        steps={steps} 
+        currentStep={currentStep} 
+        onStepChange={onStepChange}
         visibleSections={visibleSections}
         completedSteps={completedSteps}
         validationErrors={validationErrors}
-        onStepChange={onStepChange}
+        lastSaved={lastSaved}
+        onOfflineChange={onOfflineStatusChange}
+        totalSteps={steps.length}
       />
     </div>
   );
