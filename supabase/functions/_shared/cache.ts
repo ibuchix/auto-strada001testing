@@ -1,85 +1,76 @@
 
 /**
- * Simple in-memory cache implementation for edge functions
+ * Simple memory cache implementation for edge functions
  */
 
-// Simple memory cache with expiration
+// Define the cache entry type
+interface CacheEntry {
+  value: any;
+  expiresAt: number | null;
+}
+
+// Create a class for the memory cache
 class MemoryCache {
-  private cache: Map<string, { value: any, expiry: number }> = new Map();
-  private readonly DEFAULT_TTL = 10 * 60 * 1000; // 10 minutes in ms
-  
-  /**
-   * Set a value in the cache with optional TTL
-   */
-  set(key: string, value: any, ttl: number = this.DEFAULT_TTL): void {
-    const expiry = Date.now() + ttl;
-    this.cache.set(key, { value, expiry });
-    
-    // Cleanup expired items occasionally (1% chance on writes)
-    if (Math.random() < 0.01) {
-      this.cleanup();
-    }
-  }
+  private cache: Map<string, CacheEntry> = new Map();
   
   /**
    * Get a value from the cache
+   * @param key The cache key
+   * @returns The cached value or undefined if not found or expired
    */
-  get(key: string): any | null {
-    const item = this.cache.get(key);
+  get(key: string): any {
+    const entry = this.cache.get(key);
     
-    // Return null if item doesn't exist or is expired
-    if (!item || item.expiry < Date.now()) {
-      if (item) {
-        // Clean up expired item
-        this.cache.delete(key);
-      }
-      return null;
+    if (!entry) {
+      return undefined;
     }
     
-    return item.value;
+    // Check if the entry has expired
+    if (entry.expiresAt && entry.expiresAt < Date.now()) {
+      this.delete(key);
+      return undefined;
+    }
+    
+    return entry.value;
   }
   
   /**
-   * Check if a key exists and is not expired
+   * Set a value in the cache
+   * @param key The cache key
+   * @param value The value to store
+   * @param ttlMs Time to live in milliseconds (null for no expiration)
    */
-  has(key: string): boolean {
-    const item = this.cache.get(key);
-    return !!(item && item.expiry >= Date.now());
+  set(key: string, value: any, ttlMs: number | null = null): void {
+    const expiresAt = ttlMs ? Date.now() + ttlMs : null;
+    
+    this.cache.set(key, {
+      value,
+      expiresAt
+    });
   }
   
   /**
-   * Remove an item from the cache
+   * Delete a value from the cache
+   * @param key The cache key
    */
   delete(key: string): void {
     this.cache.delete(key);
   }
   
   /**
-   * Clear all items from the cache
+   * Clear all values from the cache
    */
   clear(): void {
     this.cache.clear();
   }
   
   /**
-   * Remove all expired items from the cache
-   */
-  cleanup(): void {
-    const now = Date.now();
-    for (const [key, item] of this.cache.entries()) {
-      if (item.expiry < now) {
-        this.cache.delete(key);
-      }
-    }
-  }
-  
-  /**
-   * Get the number of items in the cache
+   * Get the number of entries in the cache
    */
   size(): number {
     return this.cache.size;
   }
 }
 
-// Export a singleton instance of the cache
+// Create and export a singleton instance
 export const memoryCache = new MemoryCache();

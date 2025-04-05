@@ -1,75 +1,51 @@
 
-/**
- * Standardized response formatting for edge functions
- */
 import { corsHeaders } from "./cors.ts";
 
 /**
- * Standard success response
+ * Format a successful response
+ * @param data The data to include in the response
+ * @returns Response object with the data
  */
-export function formatSuccessResponse(data: any, status: number = 200): Response {
+export function formatSuccessResponse(data: any): Response {
   return new Response(
     JSON.stringify({
       success: true,
       data
     }),
     {
-      status,
       headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      }
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      },
+      status: 200
     }
   );
 }
 
 /**
- * Standard error response
+ * Format an error response
+ * @param message The error message
+ * @param status The HTTP status code
+ * @param errorCode Optional error code for client handling
+ * @returns Response object with the error
  */
 export function formatErrorResponse(
-  error: string | Error,
+  message: string,
   status: number = 400,
-  code?: string,
-  details?: any
+  errorCode: string = "GENERAL_ERROR"
 ): Response {
-  const errorMessage = error instanceof Error ? error.message : error;
-  const errorCode = code || (error instanceof Error && 'code' in error ? (error as any).code : undefined);
-  
   return new Response(
     JSON.stringify({
       success: false,
-      error: errorMessage,
-      ...(errorCode && { code: errorCode }),
-      ...(details && { details })
+      error: message,
+      errorCode
     }),
     {
-      status,
       headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      }
-    }
-  );
-}
-
-/**
- * Format response for server errors
- */
-export function formatServerErrorResponse(error: Error): Response {
-  console.error('Internal server error:', error);
-  
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error: "Internal server error",
-      details: error.message
-    }),
-    {
-      status: 500,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      }
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      },
+      status
     }
   );
 }
