@@ -1,6 +1,10 @@
 
 /**
  * Hook to manage the state and functions for required photos uploading
+ * Changes made:
+ * - Added validation integration with onValidationChange callback
+ * - Enhanced state persistence with localStorage
+ * - Added detailed logging for debugging
  */
 import { useState, useEffect } from "react";
 import { ValidationError } from "../../utils/validation";

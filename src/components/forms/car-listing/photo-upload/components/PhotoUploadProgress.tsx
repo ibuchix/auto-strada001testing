@@ -1,51 +1,60 @@
 
 /**
- * Component for displaying photo upload progress
+ * Component for displaying photo upload progress and validation status
  */
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, CheckCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FormValidationSummary } from "../../validation/FormValidationSummary";
 import { ValidationError } from "../../utils/validation";
+import { ValidationSummary } from "./ValidationSummary";
+import { allRequiredPhotos } from "../data/requiredPhotoData";
+import { usePhotoValidation } from "../hooks/usePhotoValidation";
 
 interface PhotoUploadProgressProps {
   completionPercentage: number;
   totalPhotos: number;
-  validationErrors: ValidationError[];
+  uploadedPhotos: Record<string, boolean>;
+  validationErrors?: ValidationError[];
+  onValidationChange?: (isValid: boolean) => void;
 }
 
 export const PhotoUploadProgress = ({
   completionPercentage,
   totalPhotos,
-  validationErrors
+  uploadedPhotos,
+  validationErrors,
+  onValidationChange
 }: PhotoUploadProgressProps) => {
-  const completedPhotos = totalPhotos - validationErrors.length;
+  const { 
+    isValid, 
+    getMissingPhotoTitles 
+  } = usePhotoValidation({ 
+    uploadedPhotos,
+    onValidationChange 
+  });
+
+  const missingPhotoTitles = getMissingPhotoTitles();
   
   return (
-    <div className="mb-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-medium">Photo Upload Progress</div>
-        <div className="text-sm text-gray-600">
-          {completionPercentage}% complete ({completedPhotos}/{totalPhotos})
+    <div className="space-y-4">
+      {/* Progress bar */}
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm text-muted-foreground">
+          <span>Photo Upload Progress</span>
+          <span>{completionPercentage}%</span>
         </div>
+        <Progress value={completionPercentage} className="h-2" />
+        <p className="text-sm text-muted-foreground">
+          {Object.values(uploadedPhotos).filter(Boolean).length} of {totalPhotos} photos uploaded
+        </p>
       </div>
-      
-      <Progress value={completionPercentage} className="h-2" />
-      
-      <div className="mt-4">
-        {validationErrors.length > 0 ? (
-          <FormValidationSummary 
-            errors={validationErrors} 
-          />
-        ) : (
-          <Alert className="bg-green-50 border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="ml-2 text-green-700">
-              All required photos have been uploaded. You can proceed to the next step.
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
+
+      {/* Validation summary */}
+      {(isValid || missingPhotoTitles.length > 0) && (
+        <ValidationSummary
+          isValid={isValid}
+          missingPhotoTitles={missingPhotoTitles}
+          completionPercentage={completionPercentage}
+        />
+      )}
     </div>
   );
 };

@@ -1,10 +1,10 @@
 
 /**
  * Changes made:
- * - Refactored into smaller, more focused components
- * - Extracted photo sections, progress indicator, and state management
- * - Improved validation feedback for required photos
- * - Maintained all original functionality while reducing file size
+ * - Added validation to ensure all required photos are uploaded
+ * - Added ValidationSummary component to display validation status
+ * - Integrated with onValidationChange callback for form integration
+ * - Maintained all original functionality while adding validation
  */
 
 import { Separator } from "@/components/ui/separator";
@@ -65,7 +65,9 @@ export const RequiredPhotos = ({
       <PhotoUploadProgress
         completionPercentage={completionPercentage}
         totalPhotos={allRequiredPhotos.length}
+        uploadedPhotos={uploadedPhotos}
         validationErrors={validationErrors}
+        onValidationChange={onValidationChange}
       />
       
       {/* Exterior photos section */}

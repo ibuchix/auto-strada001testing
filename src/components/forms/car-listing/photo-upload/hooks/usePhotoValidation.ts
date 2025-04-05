@@ -1,72 +1,66 @@
 
 /**
- * Changes made:
- * - Created specialized hook for photo validation
- * - Extracted from usePhotoSection.ts for better maintainability
- * - Handles validation logic and saving photos
+ * Hook for validating required photos in the car listing form
+ * Ensures all required photos are uploaded before proceeding
  */
-import { useState, useCallback } from "react";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
-import { toast } from "sonner";
+import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
+import { allRequiredPhotos } from '../data/requiredPhotoData';
 
-export const usePhotoValidation = (
-  form: UseFormReturn<CarListingFormData>,
-  carId?: string
-) => {
-  const [isSaving, setIsSaving] = useState(false);
-  
-  // Save photos to the server
-  const savePhotos = useCallback(async () => {
-    if (!carId) {
-      toast.error('Cannot save photos without a car ID');
-      return;
+interface UsePhotoValidationProps {
+  uploadedPhotos: Record<string, boolean>;
+  onValidationChange?: (isValid: boolean) => void;
+}
+
+export const usePhotoValidation = ({ 
+  uploadedPhotos, 
+  onValidationChange 
+}: UsePhotoValidationProps) => {
+  const [isValid, setIsValid] = useState(false);
+  const [missingPhotos, setMissingPhotos] = useState<string[]>([]);
+
+  // Validate if all required photos are uploaded
+  useEffect(() => {
+    const requiredPhotoIds = allRequiredPhotos.map(photo => photo.id);
+    const missingPhotoIds = requiredPhotoIds.filter(id => !uploadedPhotos[id]);
+    
+    setMissingPhotos(missingPhotoIds);
+    const valid = missingPhotoIds.length === 0;
+    setIsValid(valid);
+    
+    if (onValidationChange) {
+      onValidationChange(valid);
+    }
+  }, [uploadedPhotos, onValidationChange]);
+
+  // Get missing photo titles for user-friendly messaging
+  const getMissingPhotoTitles = useCallback(() => {
+    return missingPhotos.map(id => {
+      const photo = allRequiredPhotos.find(p => p.id === id);
+      return photo ? photo.title : id;
+    });
+  }, [missingPhotos]);
+
+  // Validate and show feedback to the user
+  const validatePhotos = useCallback((): boolean => {
+    if (isValid) {
+      return true;
     }
     
-    const photos = form.watch('uploadedPhotos') || [];
+    const missingTitles = getMissingPhotoTitles();
     
-    if (photos.length === 0) {
-      toast.error('Please upload at least one photo before saving');
-      return;
-    }
+    toast.error('Missing required photos', {
+      description: `Please upload the following photos: ${missingTitles.join(', ')}`,
+      duration: 5000
+    });
     
-    setIsSaving(true);
-    
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // In a real implementation, this would send the URLs to the server
-      toast.success('Photos saved successfully');
-    } catch (error) {
-      console.error('Error saving photos:', error);
-      toast.error('Failed to save photos');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [carId, form]);
-  
-  // Validate the photo section
-  const validatePhotoSection = useCallback(() => {
-    const currentPhotos = form.getValues('uploadedPhotos') || [];
-    
-    if (currentPhotos.length < 3) {
-      toast.error('Please upload at least 3 photos of your vehicle');
-      return false;
-    }
-    
-    const mainPhoto = form.getValues('mainPhoto');
-    if (!mainPhoto) {
-      // If no main photo is selected, set the first one
-      form.setValue('mainPhoto', currentPhotos[0], { shouldValidate: true });
-    }
-    
-    return true;
-  }, [form]);
+    return false;
+  }, [isValid, getMissingPhotoTitles]);
 
   return {
-    isSaving,
-    savePhotos,
-    validatePhotoSection
+    isValid,
+    missingPhotos,
+    getMissingPhotoTitles,
+    validatePhotos
   };
 };
