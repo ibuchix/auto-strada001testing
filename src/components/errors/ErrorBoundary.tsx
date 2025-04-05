@@ -67,7 +67,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       if (this.props.fallback) {
         if (typeof this.props.fallback === 'function' && this.state.error) {
           // Execute the function to get a ReactNode instead of returning the function itself
-          return (this.props.fallback as FallbackFunction)(this.state.error, this.resetError);
+          const fallbackFn = this.props.fallback as FallbackFunction;
+          return fallbackFn(this.state.error, this.resetError);
         }
         return this.props.fallback;
       }
