@@ -3,10 +3,16 @@
  * Component for displaying photo upload validation states
  * - 2027-08-12: Created component to provide better upload validation feedback
  * - 2028-09-21: Fixed tooltip implementation
+ * - 2025-04-05: Enhanced with improved visual styling and clearer status messages
  */
 import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface PhotoValidationIndicatorProps {
   isUploaded: boolean;
@@ -27,26 +33,40 @@ export const PhotoValidationIndicator = ({
 
   if (isUploaded) {
     return (
-      <Tooltip content={`${photoType} successfully uploaded`}>
-        <Badge className="bg-green-500 hover:bg-green-600 flex items-center gap-1">
-          <CheckCircle className="h-3 w-3" />
-          <span>Uploaded</span>
-        </Badge>
-      </Tooltip>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge className="bg-green-500 hover:bg-green-600 flex items-center gap-1">
+              <CheckCircle className="h-3 w-3" />
+              <span>Uploaded</span>
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{photoType} successfully uploaded</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
   if (isRequired && !isUploaded) {
     return (
-      <Tooltip content={`${photoType} is required before submission`}>
-        <Badge 
-          className="bg-amber-500 hover:bg-amber-600 flex items-center gap-1 cursor-pointer"
-          onClick={onRetry}
-        >
-          <AlertCircle className="h-3 w-3" />
-          <span>Required</span>
-        </Badge>
-      </Tooltip>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge 
+              className="bg-amber-500 hover:bg-amber-600 flex items-center gap-1 cursor-pointer"
+              onClick={onRetry}
+            >
+              <AlertCircle className="h-3 w-3" />
+              <span>Required</span>
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{photoType} is required before submission</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
