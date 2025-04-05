@@ -1,6 +1,11 @@
 
 /**
  * Hook to handle validation of vehicle details
+ * 
+ * Changes made:
+ * - 2025-04-07: Created validation hook for vehicle details
+ * - 2025-04-07: Added field validation with detailed error messages
+ * - 2025-04-07: Implemented centralized validation for forms
  */
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";

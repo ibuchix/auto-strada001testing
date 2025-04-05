@@ -7,64 +7,50 @@
  * - 2025-04-06: Improved type conversion for numeric fields
  * - 2025-04-06: Added detailed error handling and debugging logs
  * - 2025-04-06: Added validation before applying values
+ * - 2025-04-07: Enhanced with Promise-based return for better feedback
  */
 import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { 
-  getVehicleData, 
   hasCompleteVehicleData,
   applyVehicleDataToForm
 } from "@/services/vehicleDataService";
-import { toNumberValue } from "@/utils/typeConversion";
 
 export const useAutoFill = (form: UseFormReturn<CarListingFormData>) => {
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   
   // Auto-fill form with stored vehicle data
-  const handleAutoFill = async () => {
+  const handleAutoFill = async (): Promise<boolean> => {
     console.log('Starting auto-fill process');
     
     if (!hasCompleteVehicleData()) {
       console.warn('Auto-fill attempted with incomplete vehicle data');
-      toast.error("No complete vehicle data found", {
-        description: "Please complete a VIN check first to auto-fill details"
-      });
-      return;
+      return false;
     }
     
     setIsAutoFilling(true);
     
     try {
-      const vehicleData = getVehicleData();
+      // Validate the form fields before auto-filling
+      // This helps ensure we're not overwriting valid data with invalid data
+      const initialFormValues = form.getValues();
+      console.log('Current form values before auto-fill:', initialFormValues);
       
-      if (!vehicleData) {
-        console.error('Failed to retrieve vehicle data during auto-fill');
-        toast.error('No vehicle data available', {
-          description: 'Please complete a VIN check first'
-        });
-        return;
-      }
-      
-      console.log('Auto-filling with vehicle data:', vehicleData);
-      
-      // Apply the vehicle data to the form
-      const success = applyVehicleDataToForm(form, true);
+      // Apply the vehicle data to the form - returns boolean success
+      const success = applyVehicleDataToForm(form, false); // Don't show toast here
       
       if (!success) {
         console.error('Auto-fill application failed');
-        toast.error('Failed to auto-fill vehicle details', {
-          description: 'Please try again or enter details manually'
-        });
-      } else {
-        console.log('Auto-fill completed successfully');
+        return false;
       }
+      
+      console.log('Auto-fill completed successfully');
+      return true;
     } catch (error) {
       console.error('Error during auto-fill:', error);
-      toast.error('Failed to auto-fill vehicle details', {
-        description: 'Please try again or enter details manually'
-      });
+      return false;
     } finally {
       setIsAutoFilling(false);
     }

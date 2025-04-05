@@ -1,11 +1,9 @@
 
 /**
  * Changes made:
- * - Completely refactored into smaller, more focused hooks
- * - Each functionality is now in its own dedicated hook
- * - Improved organization and maintainability
- * - Enhanced error handling for VIN validation and auto-fill
- * - Improved typing throughout
+ * - Enhanced integration with vehicle data handling hooks
+ * - Improved promise handling for auto-fill functionality
+ * - Added better error reporting and validation
  */
 
 import { useEffect } from "react";
@@ -18,7 +16,7 @@ import {
   useAutoFill,
   useValidation
 } from "./vehicle-details";
-import { getStoredValidationData } from "@/services/supabase/valuation/vinValidationService";
+import { getVehicleData } from "@/services/vehicleDataService";
 
 export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>) => {
   // Watch make field to update models when it changes
@@ -38,21 +36,21 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
   } = useVinLookup(form);
   
   // Use the auto-fill hook
-  const { handleAutoFill } = useAutoFill(form);
+  const { handleAutoFill, isAutoFilling } = useAutoFill(form);
   
   // Use the validation hook
   const { validateVehicleDetails } = useValidation(form);
   
-  // Load stored validation data if available
+  // Load stored vehicle data if available
   useEffect(() => {
-    const data = getStoredValidationData();
+    const data = getVehicleData();
     if (data) {
       console.log('Loaded stored vehicle data:', data);
     }
   }, []);
   
   return {
-    isLoading: isLoading || isLookupLoading,
+    isLoading: isLoading || isLookupLoading || isAutoFilling,
     availableModels,
     yearOptions,
     validateVehicleDetails,

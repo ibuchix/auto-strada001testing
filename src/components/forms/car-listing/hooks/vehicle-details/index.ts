@@ -1,7 +1,8 @@
 
 /**
- * Vehicle details hooks index
+ * Export all vehicle detail related hooks
  */
+
 export { useModelOptions } from './useModelOptions';
 export { useYearOptions } from './useYearOptions';
 export { useVinLookup } from './useVinLookup';

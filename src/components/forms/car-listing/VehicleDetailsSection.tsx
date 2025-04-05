@@ -1,9 +1,10 @@
+
 /**
  * Changes made:
- * - Updated to use the refactored useVehicleDetailsSection hook
- * - Added consistent error handling for the auto-fill functionality
- * - Improved loading state handling
- * - Enhanced user feedback with clearer status messages
+ * - Updated to use the centralized vehicle data service for auto-fill
+ * - Improved error handling and user feedback during auto-fill
+ * - Added validation before applying auto-fill data
+ * - Enhanced loading states for better user experience
  */
 
 import { useState } from "react";
@@ -16,7 +17,7 @@ import { FormSection } from "./FormSection";
 import { Search, RefreshCw } from "lucide-react";
 import { useFormData } from "./context/FormDataContext";
 import { toast } from "sonner";
-import { getStoredValidationData } from "@/services/supabase/valuation/vinValidationService";
+import { hasCompleteVehicleData } from "@/services/vehicleDataService";
 
 export const VehicleDetailsSection = () => {
   const [vinValue, setVinValue] = useState("");
@@ -35,18 +36,26 @@ export const VehicleDetailsSection = () => {
     try {
       setIsAutoFilling(true);
       
-      // Check if we have data in localStorage
-      const validationData = getStoredValidationData();
-      if (!validationData) {
-        toast.error("No vehicle data found", {
+      // Validate that we have complete vehicle data before attempting auto-fill
+      if (!hasCompleteVehicleData()) {
+        toast.error("Incomplete vehicle data", {
           description: "Please complete a VIN check first to auto-fill details"
         });
         return;
       }
-
-      // Call the hook's auto-fill function
-      handleAutoFill();
       
+      // Call the hook's auto-fill function
+      const success = await handleAutoFill();
+      
+      if (success) {
+        toast.success("Vehicle details auto-filled", {
+          description: "Successfully populated form with vehicle data"
+        });
+      } else {
+        toast.error("Auto-fill failed", {
+          description: "Could not apply vehicle data to the form"
+        });
+      }
     } catch (error) {
       console.error("Error auto-filling data:", error);
       toast.error("Failed to auto-fill vehicle details", {
@@ -78,7 +87,7 @@ export const VehicleDetailsSection = () => {
               disabled={isLoading || vinValue.length !== 17}
               variant="default"
             >
-              <Search className="mr-2 h-4 w-4" />
+              <Search className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               {isLoading ? 'Looking up...' : 'Lookup'}
             </Button>
           </div>
