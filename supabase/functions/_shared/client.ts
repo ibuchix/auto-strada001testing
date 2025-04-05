@@ -1,14 +1,20 @@
 
 /**
- * Shared Supabase client for edge functions
+ * Shared utility for creating a Supabase client
  */
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { Database } from "./database.types.ts";
-
-export const createSupabaseClient = () => {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+/**
+ * Create a Supabase client for edge functions
+ * @returns Supabase client
+ */
+export function createSupabaseClient() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
   
-  return createClient<Database>(supabaseUrl, supabaseAnonKey);
-};
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+  
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
