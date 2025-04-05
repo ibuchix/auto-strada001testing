@@ -1,9 +1,9 @@
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { ValuationRequest } from './schema-validation.ts';
 import { checkExistingEntities, validateVinInput } from './services/validation-service.ts';
 import { fetchVehicleValuation } from './valuation-service.ts';
-import { logOperation } from './utils.ts';
+import { logOperation } from '../_shared/logging.ts';
 
 export async function handleGetValuation(
   supabase: SupabaseClient,
@@ -56,6 +56,31 @@ export async function handleGetValuation(
       };
     }
     
+    // Ensure critical fields exist and are standardized
+    const processedData = {
+      ...valuationResult.data,
+      make: valuationResult.data.make || '',
+      model: valuationResult.data.model || '',
+      year: valuationResult.data.year || valuationResult.data.productionYear,
+      transmission: gearbox || valuationResult.data.transmission || 'manual',
+      mileage: mileage,
+      vin: vin,
+      // Ensure consistent naming for price fields
+      valuation: valuationResult.data.reservePrice || valuationResult.data.valuation,
+      reservePrice: valuationResult.data.reservePrice || valuationResult.data.valuation,
+      averagePrice: valuationResult.data.basePrice || valuationResult.data.averagePrice
+    };
+    
+    // Log the processed data structure
+    logOperation('processed_valuation_data', { 
+      requestId, 
+      vin,
+      dataFields: Object.keys(processedData),
+      hasMake: !!processedData.make,
+      hasModel: !!processedData.model,
+      hasYear: !!processedData.year
+    });
+    
     // Store in cache
     try {
       const { error: cacheError } = await supabase
@@ -63,7 +88,7 @@ export async function handleGetValuation(
         .upsert({
           vin,
           mileage,
-          valuation_data: valuationResult.data
+          valuation_data: processedData
         });
       
       if (cacheError) {
@@ -88,7 +113,7 @@ export async function handleGetValuation(
         .insert({
           vin,
           user_id: userId,
-          valuation_data: valuationResult.data,
+          valuation_data: processedData,
           // Will expire after 24 hours (handled by default value in table)
         })
         .onConflict('vin')
@@ -117,7 +142,7 @@ export async function handleGetValuation(
     
     return {
       success: true,
-      data: valuationResult.data
+      data: processedData
     };
   } catch (error) {
     logOperation('valuation_request_error', { 

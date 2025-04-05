@@ -11,6 +11,7 @@
  * - 2024-03-19: Fixed valuation data being passed incorrectly
  * - 2024-08-05: Enhanced error handling and improved manual valuation flow
  * - 2026-04-15: Improved resilience for partial data and enhanced UI feedback
+ * - 2025-04-08: Added ability to use partial data when essential fields are available
  */
 
 import { useNavigate } from "react-router-dom";
@@ -21,6 +22,7 @@ import { ValuationContent } from "./ValuationContent";
 import { useValuationContinue } from "../hooks/useValuationContinue";
 import { useState, useEffect } from "react";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
+import { ValuationErrorHandler } from "./ValuationErrorHandler";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -86,53 +88,21 @@ export const ValuationResult = ({
     valuationResult.reservePrice !== undefined
   );
 
-  if (hasError && valuationResult.isExisting) {
-    return <ExistingVehicleDialog onClose={onClose} onRetry={onRetry} />;
-  }
-
-  // Handle missing essential data as an error case
-  const hasMissingData = !hasError && (
+  // Handle missing essential data - defer to error handler which can handle partial data
+  const hasMissingEssentialData = !hasError && (
     !valuationResult.make || 
     !valuationResult.model || 
     !valuationResult.year
   );
 
-  if (hasError || valuationResult.noData || hasMissingData) {
-    // Prepare the appropriate error message
-    let errorMessage = valuationResult.error || 
-      "No data found for this VIN. Would you like to proceed with manual valuation?";
-    
-    if (hasMissingData) {
-      errorMessage = "Incomplete vehicle data received. Please try again or proceed with manual valuation.";
-    }
-    
+  if (hasError || valuationResult.noData || hasMissingEssentialData) {
     return (
-      <ErrorDialog 
-        error={errorMessage}
+      <ValuationErrorHandler 
+        valuationResult={valuationResult}
+        mileage={mileage}
+        isLoggedIn={isLoggedIn}
         onClose={onClose}
         onRetry={onRetry}
-        showManualOption={true}
-        onManualValuation={() => {
-          // Store the VIN and other data in localStorage for the manual form
-          if (valuationResult.vin) {
-            localStorage.setItem('tempVIN', valuationResult.vin);
-          }
-          if (mileage) {
-            localStorage.setItem('tempMileage', mileage.toString());
-          }
-          if (valuationResult.transmission) {
-            localStorage.setItem('tempGearbox', valuationResult.transmission);
-          }
-          
-          if (!isLoggedIn) {
-            navigate('/auth');
-            toast.info("Please sign in first", {
-              description: "Create an account or sign in to continue with manual valuation.",
-            });
-          } else {
-            navigate('/manual-valuation');
-          }
-        }}
       />
     );
   }

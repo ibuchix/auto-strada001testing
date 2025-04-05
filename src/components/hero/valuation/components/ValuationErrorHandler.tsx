@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2025-04-21: Created component for handling valuation errors extracted from ValuationResult
@@ -6,6 +7,7 @@
  * - 2024-08-15: Updated with consistent recovery paths and UI patterns
  * - 2026-05-10: Improved offline detection and handling
  * - 2025-04-05: Fixed TypeScript type issues
+ * - 2025-04-08: Added fallbacks for partial data to prevent unnecessary errors
  */
 
 import { useNavigate } from "react-router-dom";
@@ -23,6 +25,9 @@ interface ValuationErrorHandlerProps {
     vin?: string;
     transmission?: string;
     noData?: boolean;
+    make?: string;
+    model?: string;
+    year?: number;
   };
   mileage: number;
   isLoggedIn: boolean;
@@ -55,6 +60,13 @@ export const ValuationErrorHandler = ({
     errorMsg.toLowerCase().includes('timeout') ||
     isOffline;
 
+  // Check if we have partial but usable data
+  const hasPartialData = !!(
+    valuationResult.make && 
+    valuationResult.model && 
+    valuationResult.year
+  );
+
   // Load retry count from session storage when component mounts
   useEffect(() => {
     const storedCount = Number(sessionStorage.getItem('valuationRetryCount') || '0');
@@ -84,6 +96,50 @@ export const ValuationErrorHandler = ({
       }
     };
   }, [valuationResult.error]);
+  
+  // If we have partial data that's actually usable, bypass the error and use what we have
+  if (hasPartialData && valuationResult.noData && !valuationResult.isExisting) {
+    console.log('Salvaging partial data for:', {
+      make: valuationResult.make,
+      model: valuationResult.model,
+      year: valuationResult.year
+    });
+    
+    // Store the partial data
+    const partialData = {
+      make: valuationResult.make,
+      model: valuationResult.model,
+      year: valuationResult.year,
+      vin: valuationResult.vin || '',
+      transmission: valuationResult.transmission || 'manual',
+      mileage: mileage
+    };
+    
+    localStorage.setItem('valuationData', JSON.stringify(partialData));
+    if (valuationResult.vin) localStorage.setItem('tempVIN', valuationResult.vin);
+    localStorage.setItem('tempMileage', mileage.toString());
+    if (valuationResult.transmission) localStorage.setItem('tempGearbox', valuationResult.transmission);
+    
+    // Show toast about using partial data
+    toast.info("Using partial vehicle data", {
+      description: "Some data was found for this vehicle. You can proceed with listing.",
+    });
+    
+    // Close current dialog
+    onClose();
+    
+    // Redirect to sell page with the partial data
+    if (isLoggedIn) {
+      navigate('/sell-my-car?from=valuation');
+    } else {
+      navigate('/auth');
+      toast.info("Please sign in first", {
+        description: "Create an account or sign in to proceed with your listing.",
+      });
+    }
+    
+    return null;
+  }
   
   const handleManualValuation = () => {
     // Store the VIN and other data in localStorage for the manual form
