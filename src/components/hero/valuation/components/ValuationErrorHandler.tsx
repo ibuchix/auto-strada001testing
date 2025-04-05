@@ -8,6 +8,7 @@
  * - 2026-05-10: Improved offline detection and handling
  * - 2025-04-05: Fixed TypeScript type issues
  * - 2025-04-08: Added fallbacks for partial data to prevent unnecessary errors
+ * - 2025-04-10: Improved error message display and retry handling for VIN not found
  */
 
 import { useNavigate } from "react-router-dom";
@@ -60,6 +61,11 @@ export const ValuationErrorHandler = ({
     errorMsg.toLowerCase().includes('timeout') ||
     isOffline;
 
+  // Check if this is a "No data found" error specifically
+  const isNoDataError = errorMsg.toLowerCase().includes('no data found') ||
+    errorMsg.toLowerCase().includes('no vehicle data') ||
+    valuationResult.noData;
+
   // Check if we have partial but usable data
   const hasPartialData = !!(
     valuationResult.make && 
@@ -88,6 +94,16 @@ export const ValuationErrorHandler = ({
       sessionStorage.setItem('valuationLastRetryTime', Date.now().toString());
     }
     
+    // Log the error and retry count
+    console.log('Valuation error handled:', {
+      error: errorMsg,
+      isNoDataError,
+      isNetworkError,
+      hasPartialData,
+      retryCount: storedCount,
+      timestamp: new Date().toISOString()
+    });
+    
     return () => {
       // If component unmounts with successful close, reset the counter
       if (!valuationResult.error) {
@@ -95,7 +111,7 @@ export const ValuationErrorHandler = ({
         sessionStorage.removeItem('valuationLastRetryTime');
       }
     };
-  }, [valuationResult.error]);
+  }, [valuationResult.error, errorMsg, isNoDataError, isNetworkError, hasPartialData]);
   
   // If we have partial data that's actually usable, bypass the error and use what we have
   if (hasPartialData && valuationResult.noData && !valuationResult.isExisting) {
@@ -222,18 +238,26 @@ export const ValuationErrorHandler = ({
     return handleRetry;
   };
 
-  // Prepare the error message for other errors or no data
-  let errorMessage = errorMsg || 
-    "No data found for this VIN. Would you like to proceed with manual valuation?";
-    
-  // If we're offline, provide a clearer error message
-  if (isOffline) {
-    errorMessage = "You appear to be offline. Please check your internet connection and try again, or proceed with manual valuation.";
+  // Prepare the error message based on error type
+  let errorMessage = '';
+  
+  if (isNoDataError) {
+    errorMessage = "No data found for this VIN. Would you like to proceed with manual valuation?";
+    // For repeated "no data" errors, give more context
+    if (retryCount >= 2) {
+      errorMessage = "This VIN doesn't appear to be in our database. This could be because the vehicle is rare, very new, or there might be an issue with the VIN format. You can proceed with manual valuation instead.";
+    }
+  } else if (isNetworkError) {
+    errorMessage = "You appear to be offline or we're having trouble connecting to our services. Please check your internet connection and try again, or proceed with manual valuation.";
+  } else if (errorMsg) {
+    errorMessage = errorMsg;
+  } else {
+    errorMessage = "An unexpected error occurred. Would you like to try again or proceed with manual valuation?";
   }
   
   // For repeated retries, suggest manual valuation more strongly
   if (retryCount >= 3) {
-    errorMessage = "We're having trouble retrieving the valuation. This could be due to high demand or temporary service issues. We recommend proceeding with manual valuation.";
+    errorMessage = "We're having trouble retrieving the valuation after multiple attempts. This could be due to high demand or temporary service issues. We recommend proceeding with manual valuation.";
   }
   
   return (

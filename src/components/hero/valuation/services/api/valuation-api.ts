@@ -10,6 +10,7 @@
  * - 2025-04-03: Enhanced debugging with detailed logging and performance metrics
  * - 2025-04-04: Fixed perfTracker completion status types
  * - 2025-04-04: Changed "error" to "failure" in perfTracker.complete calls
+ * - 2025-04-05: Fixed empty response handling and added more detailed error logs
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -98,6 +99,22 @@ export async function fetchHomeValuation(
       throw new Error('No valuation data returned');
     }
     
+    // Handle case where API returns empty data or error field
+    if (data.error || (Object.keys(data).length === 0)) {
+      console.error(`[HomeValuationAPI][${requestId}] API returned error or empty data:`, {
+        error: data.error || 'Empty response',
+        dataKeys: Object.keys(data),
+        timestamp: new Date().toISOString()
+      });
+      
+      perfTracker.complete('failure', {
+        errorType: 'api_data_error',
+        message: data.error || 'Empty or invalid response from valuation API'
+      });
+      
+      throw new Error(data.error || 'No data found for this VIN');
+    }
+    
     console.log(`[HomeValuationAPI][${requestId}] Received valuation data:`, {
       make: data.make,
       model: data.model,
@@ -114,6 +131,17 @@ export async function fetchHomeValuation(
       console.log(`[HomeValuationAPI][${requestId}] Calculated reserve price:`, { 
         reservePrice: data.reservePrice,
         baseValue: data.valuation,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Ensure minimum required fields are present
+    if (!data.make || !data.model) {
+      console.warn(`[HomeValuationAPI][${requestId}] Incomplete vehicle data received:`, {
+        hasMake: !!data.make,
+        hasModel: !!data.model,
+        hasYear: !!data.year,
+        dataKeys: Object.keys(data),
         timestamp: new Date().toISOString()
       });
     }
@@ -202,19 +230,37 @@ export async function fetchSellerValuation(
     }
     
     // Handle specific error format from this endpoint
-    if (!response.success) {
+    if (!response || !response.success) {
       console.error(`[SellerValuationAPI][${requestId}] API response indicates failure:`, {
-        error: response.error,
-        code: response.errorCode,
+        error: response?.error || 'No success response received',
+        code: response?.errorCode,
+        hasResponse: !!response,
+        responseKeys: response ? Object.keys(response) : [],
         timestamp: new Date().toISOString()
       });
       
       perfTracker.complete('failure', {
         errorType: 'api_response_failure',
-        message: response.error
+        message: response?.error || 'Failed to validate vehicle'
       });
       
-      throw new Error(response.error || 'Failed to validate vehicle');
+      throw new Error(response?.error || 'Failed to validate vehicle');
+    }
+    
+    // Check if data is missing or invalid
+    if (!response.data || Object.keys(response.data).length === 0) {
+      console.error(`[SellerValuationAPI][${requestId}] Missing data in successful response:`, {
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : [],
+        timestamp: new Date().toISOString()
+      });
+      
+      perfTracker.complete('failure', {
+        errorType: 'missing_data',
+        message: 'No data found in the successful response'
+      });
+      
+      throw new Error('No data found for this VIN');
     }
     
     console.log(`[SellerValuationAPI][${requestId}] Received seller valuation data:`, {

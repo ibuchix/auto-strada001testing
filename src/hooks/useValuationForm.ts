@@ -8,6 +8,7 @@
  * - 2024-04-03: Enhanced logging with timestamps and detailed execution information
  * - 2024-04-04: Fixed error property access
  * - 2024-04-04: Added safe error handling with optional chaining
+ * - 2025-04-10: Added VIN validation and improved error handling
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -17,6 +18,7 @@ import { ValuationFormData, valuationFormSchema } from "@/types/validation";
 import { toast } from "sonner";
 import { getValuation, cleanupValuationData } from "@/components/hero/valuation/services/valuationService";
 import { useRealtime } from "@/components/RealtimeProvider";
+import { isValidVIN, normalizeVIN, getVINErrorMessage } from "@/utils/vinValidation";
 
 export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
   const [isLoading, setIsLoading] = useState(false);
@@ -54,13 +56,25 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
   // Handle form submission
   const handleSubmit = async (data: ValuationFormData) => {
     const startTime = performance.now();
+    const normalizedVin = normalizeVIN(data.vin);
+    
     console.log(`[ValuationForm][${requestIdRef.current}] Starting valuation form submission:`, {
-      vin: data.vin,
+      vin: normalizedVin,
+      original_vin: data.vin,
       mileage: data.mileage,
       gearbox: data.gearbox,
       context,
       timestamp: new Date().toISOString()
     });
+    
+    // Validate VIN format first
+    const vinErrorMessage = getVINErrorMessage(normalizedVin);
+    if (vinErrorMessage) {
+      toast.error("Invalid VIN", {
+        description: vinErrorMessage
+      });
+      return;
+    }
     
     // Clear any existing timeout
     if (timeoutRef.current) {
@@ -83,14 +97,14 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
       const mileage = parseInt(data.mileage) || 0;
       
       console.log(`[ValuationForm][${requestIdRef.current}] Calling getValuation with parameters:`, {
-        vin: data.vin,
+        vin: normalizedVin,
         mileage,
         gearbox: data.gearbox,
         timestamp: new Date().toISOString()
       });
       
       const result = await getValuation(
-        data.vin,
+        normalizedVin,
         mileage,
         data.gearbox
       );
@@ -99,6 +113,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         success: result.success,
         errorPresent: result.data && 'error' in result.data,
         dataSize: result.data ? JSON.stringify(result.data).length : 0,
+        dataFields: result.data ? Object.keys(result.data) : [],
         processingTime: `${(performance.now() - startTime).toFixed(2)}ms`,
         timestamp: new Date().toISOString()
       });
@@ -109,11 +124,29 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         timeoutRef.current = null;
       }
 
-      if (result.success) {
+      if (result.success && result.data && !result.data.error) {
+        // Verify minimum data presence
+        if (!result.data.make && !result.data.model) {
+          console.warn(`[ValuationForm][${requestIdRef.current}] Missing critical data in response:`, {
+            dataFields: Object.keys(result.data),
+            timestamp: new Date().toISOString()
+          });
+          
+          // Handle as a "no data found" error
+          setValuationResult({
+            noData: true,
+            error: "No data found for this VIN",
+            vin: normalizedVin,
+            transmission: data.gearbox
+          });
+          setShowDialog(true);
+          return;
+        }
+      
         // Store the valuation data in localStorage
         localStorage.setItem("valuationData", JSON.stringify(result.data));
         localStorage.setItem("tempMileage", data.mileage);
-        localStorage.setItem("tempVIN", data.vin);
+        localStorage.setItem("tempVIN", normalizedVin);
         localStorage.setItem("tempGearbox", data.gearbox);
         localStorage.setItem("valuationTimestamp", new Date().toISOString());
 
@@ -132,7 +165,8 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         const normalizedResult = {
           ...result.data,
           reservePrice: result.data.reservePrice || result.data.valuation,
-          valuation: result.data.valuation || result.data.reservePrice
+          valuation: result.data.valuation || result.data.reservePrice,
+          vin: normalizedVin
         };
         
         setValuationResult(normalizedResult);
@@ -140,16 +174,29 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         setRetryCount(0); // Reset retry counter on success
       } else {
         // Check if error exists in the data object using safe property access
-        const errorMessage = result.data && typeof result.data === 'object' && 'error' in result.data
-          ? result.data.error
-          : 'Valuation failed';
-          
+        let errorMessage = "Valuation failed";
+        
+        if (result.data && typeof result.data === 'object') {
+          if ('error' in result.data) {
+            errorMessage = result.data.error;
+          } else if (Object.keys(result.data).length === 0) {
+            errorMessage = "No data found for this VIN";
+          }
+        }
+        
         console.error(`[ValuationForm][${requestIdRef.current}] Valuation failed:`, {
           error: errorMessage,
           timestamp: new Date().toISOString()
         });
         
-        handleError(errorMessage);
+        // Set error result for dialog display
+        setValuationResult({
+          error: errorMessage,
+          noData: errorMessage.includes("No data"),
+          vin: normalizedVin,
+          transmission: data.gearbox
+        });
+        setShowDialog(true);
       }
     } catch (error: any) {
       console.error(`[ValuationForm][${requestIdRef.current}] Valuation error:`, {
@@ -165,7 +212,14 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         timeoutRef.current = null;
       }
       
-      handleError(error.message || "Failed to get vehicle valuation");
+      // Set error result for dialog display
+      setValuationResult({
+        error: error.message || "Failed to get vehicle valuation",
+        noData: error.message?.includes("No data"),
+        vin: normalizedVin,
+        transmission: data.gearbox
+      });
+      setShowDialog(true);
     } finally {
       const totalDuration = performance.now() - startTime;
       console.log(`[ValuationForm][${requestIdRef.current}] Request completed in ${totalDuration.toFixed(2)}ms`);
