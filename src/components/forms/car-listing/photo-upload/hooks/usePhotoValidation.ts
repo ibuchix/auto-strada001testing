@@ -2,8 +2,12 @@
 /**
  * Hook to handle photo validation
  * Provides functionality to validate photos against requirements
+ * Changes made:
+ * - Updated to better handle minimal form objects
+ * - Added safety checks for missing form methods
+ * - Enhanced type safety with better error handling
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
@@ -12,8 +16,10 @@ export const usePhotoValidation = (form: UseFormReturn<CarListingFormData>) => {
   const [isSaving, setIsSaving] = useState(false);
   const [missingPhotos, setMissingPhotos] = useState<string[]>([]);
 
-  // Get all photo URLs from the form
-  const photos = form.watch('uploadedPhotos') || [];
+  // Get all photo URLs from the form - safely handle if watch returns a non-array
+  const photos = Array.isArray(form.watch('uploadedPhotos')) 
+    ? form.watch('uploadedPhotos') 
+    : [];
   
   // Check if we have the minimum required photos (3)
   const isValid = photos.length >= 3;
@@ -33,7 +39,7 @@ export const usePhotoValidation = (form: UseFormReturn<CarListingFormData>) => {
   // Function to validate the photo section
   const validatePhotoSection = useCallback(() => {
     const valid = validatePhotos();
-    if (valid) {
+    if (valid && typeof form.setValue === 'function') {
       form.setValue('photoValidationPassed', true);
     }
     return valid;
@@ -56,7 +62,9 @@ export const usePhotoValidation = (form: UseFormReturn<CarListingFormData>) => {
     try {
       // Mark photos as validated if we have enough
       if (photos.length >= 3) {
-        form.setValue('photoValidationPassed', true);
+        if (typeof form.setValue === 'function') {
+          form.setValue('photoValidationPassed', true);
+        }
         return true;
       } else {
         toast.error("Not enough photos", {

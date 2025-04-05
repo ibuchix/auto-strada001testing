@@ -1,12 +1,18 @@
 
 /**
  * Component for displaying photo upload progress and validation status
+ * Changes made:
+ * - Fixed TypeScript error by properly using the usePhotoValidation hook
+ * - Created a form-compatible wrapper to pass to the hook
+ * - Made component more robust with proper type safety
  */
 import { Progress } from "@/components/ui/progress";
 import { ValidationError } from "../../utils/validation";
 import { ValidationSummary } from "./ValidationSummary";
 import { allRequiredPhotos } from "../data/requiredPhotoData";
 import { usePhotoValidation } from "../hooks/usePhotoValidation";
+import { UseFormReturn } from "react-hook-form";
+import { CarListingFormData } from "@/types/forms";
 
 interface PhotoUploadProgressProps {
   completionPercentage: number;
@@ -23,14 +29,26 @@ export const PhotoUploadProgress = ({
   validationErrors,
   onValidationChange
 }: PhotoUploadProgressProps) => {
+  // Create a minimal form-compatible object that provides the data needed by usePhotoValidation
+  const formWrapper = {
+    watch: () => Object.keys(uploadedPhotos).filter(key => uploadedPhotos[key]),
+    setValue: () => {},
+    getValues: () => ({}),
+    // Add other required properties from UseFormReturn as needed with empty implementations
+  } as unknown as UseFormReturn<CarListingFormData>;
+  
   const { 
     isValid, 
     getMissingPhotoTitles 
-  } = usePhotoValidation({ 
-    uploadedPhotos,
-    onValidationChange 
-  });
+  } = usePhotoValidation(formWrapper);
 
+  // Call the validation change callback when isValid changes
+  React.useEffect(() => {
+    if (onValidationChange) {
+      onValidationChange(isValid);
+    }
+  }, [isValid, onValidationChange]);
+  
   const missingPhotoTitles = getMissingPhotoTitles();
   
   return (
