@@ -2,6 +2,7 @@
 /**
  * App component with centralized error handling
  * Updated: 2025-04-05 - Fixed ErrorBoundary usage and fallback function type
+ * Updated: 2025-04-07 - Fixed error fallback function type
  */
 
 import { Routes, Route } from "react-router-dom";
@@ -33,7 +34,7 @@ import { ErrorBoundary } from './components/errors/ErrorBoundary';
 import { AppError } from './errors/classes';
 import { ReactNode } from "react";
 
-// Custom fallback component for the ErrorBoundary
+// Custom fallback component for the ErrorBoundary - properly typed
 const ErrorFallback = (error: AppError, resetError: () => void): ReactNode => (
   <div className="p-6 bg-red-50 border border-red-200 rounded-lg m-4">
     <h2 className="text-xl font-bold text-red-800 mb-2">An error occurred</h2>

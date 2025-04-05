@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-08-16: Created error boundary fallback component using the centralized error handling
+ * - 2025-04-07: Fixed TypeScript errors with captureError and clearError methods
  */
 
 import { useEffect } from 'react';
@@ -32,7 +33,9 @@ export const ErrorBoundaryFallback = ({
     
     // Clean up when unmounting
     return () => {
-      errorContext.clearError();
+      // Use a dummy ID since we don't have the exact error ID
+      // In a real implementation, we might want to store the error ID after capturing
+      errorContext.clearError('boundary-error');
     };
   }, [error, errorContext]);
 

@@ -4,18 +4,21 @@
  * 
  * Context for application-wide error handling
  * Updated: 2025-04-06 - Fixed read-only property issues and type assignments
+ * Updated: 2025-04-07 - Added captureError method and fixed type issues
  */
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { AppError } from '@/errors/classes';
-import { ErrorCode, RecoveryAction } from '@/errors/types';
+import { ErrorCode, ErrorCategory, RecoveryAction } from '@/errors/types';
 import { toast } from 'sonner';
+import { createErrorFromUnknown } from '@/errors/factory';
 
 interface ErrorContextValue {
   errors: AppError[];
   addError: (error: AppError) => void;
   clearErrors: () => void;
   clearError: (id: string) => void;
+  captureError: (error: unknown) => AppError;
 }
 
 const ErrorContext = createContext<ErrorContextValue | null>(null);
@@ -66,13 +69,18 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
       error = new AppError({
         message: errorData.message,
         code: ErrorCode.UNKNOWN_ERROR,
-        stack: errorData.stack
+        category: ErrorCategory.UNKNOWN,
+        metadata: {
+          originalError: errorData,
+          details: { stack: errorData.stack }
+        }
       });
     } else {
       // Create a generic error for anything else
       error = new AppError({
-        message: String(errorData),
-        code: ErrorCode.UNKNOWN_ERROR
+        message: String(errorData || 'Unknown error'),
+        code: ErrorCode.UNKNOWN_ERROR,
+        category: ErrorCategory.UNKNOWN
       });
     }
     
@@ -100,9 +108,10 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
     <ErrorContext.Provider
       value={{
         errors,
-        addError: captureError,
+        addError,
         clearErrors,
-        clearError
+        clearError,
+        captureError
       }}
     >
       {children}

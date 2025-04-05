@@ -1,4 +1,3 @@
-
 /**
  * Hook for handling application errors in React components
  * Created: 2025-12-01
@@ -6,6 +5,7 @@
  * Updated: 2024-08-16: Integrated with centralized error context
  * Updated: 2026-05-10: Enhanced error categorization and improved recovery options
  * Updated: 2025-04-06: Fixed read-only property issues and type assignments
+ * Updated: 2025-04-07: Fixed captureError method usage
  */
 
 import { useState, useCallback, useEffect } from 'react';
