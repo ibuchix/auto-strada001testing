@@ -1,8 +1,10 @@
+
 /**
  * Changes made:
  * - Enhanced auto-fill functionality to use the standardized VIN validation data
- * - Updated to use the new handleAutoFill function from useVehicleDetailsSection
- * - Improved error handling and loading states
+ * - Improved auto-fill button with better state handling and feedback
+ * - Fixed type conversion issues for numeric values
+ * - Added better error handling and loading states
  */
 
 import { useState } from "react";
@@ -75,9 +77,10 @@ export const VehicleDetailsSection = () => {
               type="button" 
               onClick={() => handleVinLookup(vinValue)}
               disabled={isLoading || vinValue.length !== 17}
+              variant="default"
             >
               <Search className="mr-2 h-4 w-4" />
-              Lookup
+              {isLoading ? 'Looking up...' : 'Lookup'}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">

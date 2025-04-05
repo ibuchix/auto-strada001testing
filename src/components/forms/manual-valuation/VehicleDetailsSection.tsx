@@ -1,26 +1,89 @@
 
+/**
+ * Changes made:
+ * - Updated to use the standardized vehicle data storage and retrieval
+ * - Added proper type handling for form values
+ * - Improved form field initialization with more robust data fetching
+ */
+
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect } from "react";
+import { getStoredValidationData } from "@/services/supabase/valuation/vinValidationService";
 
 export const VehicleDetailsSection = ({ form }) => {
-  // Pre-fill form with data from localStorage if available
+  // Pre-fill form with data from the standardized localStorage structure
   useEffect(() => {
-    const vin = localStorage.getItem('tempVIN');
-    const mileage = localStorage.getItem('tempMileage');
-    const gearbox = localStorage.getItem('tempGearbox');
+    const vehicleData = getStoredValidationData();
     
-    if (vin) {
-      form.setValue('vin', vin);
-    }
-    
-    if (mileage) {
-      form.setValue('mileage', mileage);
-    }
-    
-    if (gearbox) {
-      form.setValue('transmission', gearbox);
+    if (vehicleData) {
+      // Set form values with proper type conversion
+      if (vehicleData.vin) {
+        form.setValue('vin', vehicleData.vin);
+      }
+      
+      if (vehicleData.mileage) {
+        const mileageValue = typeof vehicleData.mileage === 'number' 
+          ? vehicleData.mileage 
+          : parseInt(String(vehicleData.mileage));
+        form.setValue('mileage', mileageValue);
+      }
+      
+      if (vehicleData.transmission) {
+        form.setValue('transmission', vehicleData.transmission);
+      }
+      
+      if (vehicleData.make) {
+        form.setValue('make', vehicleData.make);
+      }
+      
+      if (vehicleData.model) {
+        form.setValue('model', vehicleData.model);
+      }
+      
+      if (vehicleData.year) {
+        const yearValue = typeof vehicleData.year === 'number' 
+          ? vehicleData.year 
+          : parseInt(String(vehicleData.year));
+        form.setValue('year', yearValue.toString());
+      }
+      
+      // Fallback to legacy localStorage format for backward compatibility
+      if (!vehicleData.vin || !vehicleData.mileage || !vehicleData.transmission) {
+        const vin = localStorage.getItem('tempVIN');
+        const mileage = localStorage.getItem('tempMileage');
+        const gearbox = localStorage.getItem('tempGearbox');
+        
+        if (vin && !vehicleData.vin) {
+          form.setValue('vin', vin);
+        }
+        
+        if (mileage && !vehicleData.mileage) {
+          form.setValue('mileage', mileage);
+        }
+        
+        if (gearbox && !vehicleData.transmission) {
+          form.setValue('transmission', gearbox);
+        }
+      }
+    } else {
+      // Fallback to legacy localStorage format
+      const vin = localStorage.getItem('tempVIN');
+      const mileage = localStorage.getItem('tempMileage');
+      const gearbox = localStorage.getItem('tempGearbox');
+      
+      if (vin) {
+        form.setValue('vin', vin);
+      }
+      
+      if (mileage) {
+        form.setValue('mileage', mileage);
+      }
+      
+      if (gearbox) {
+        form.setValue('transmission', gearbox);
+      }
     }
   }, [form]);
 

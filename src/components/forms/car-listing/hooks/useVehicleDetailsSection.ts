@@ -1,9 +1,10 @@
 
 /**
  * Changes made:
+ * - Fixed TypeScript errors with type assertions for year and mileage
  * - Enhanced handleVinLookup to utilize the validation API with standardized data storage
- * - Updated localStorage access to use the new utility functions
- * - Improved error handling and messaging
+ * - Improved handleAutoFill to more accurately retrieve and map vehicle details
+ * - Updated type safety throughout the component
  */
 
 import { useState, useEffect } from "react";
@@ -12,7 +13,7 @@ import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { 
   validateVin, 
-  getStoredValidationData, 
+  getStoredValidationData,
   VehicleData 
 } from "@/services/supabase/valuation/vinValidationService";
 
@@ -109,8 +110,8 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
         // Auto-fill form with fetched data
         if (response.data.make) form.setValue('make', response.data.make);
         if (response.data.model) form.setValue('model', response.data.model);
-        if (response.data.year) form.setValue('year', parseInt(response.data.year.toString()));
-        if (response.data.mileage) form.setValue('mileage', parseInt(response.data.mileage.toString()));
+        if (response.data.year) form.setValue('year', typeof response.data.year === 'number' ? response.data.year : parseInt(String(response.data.year)));
+        if (response.data.mileage) form.setValue('mileage', typeof response.data.mileage === 'number' ? response.data.mileage : parseInt(String(response.data.mileage)));
         if (response.data.vin) form.setValue('vin', response.data.vin);
         if (response.data.transmission) form.setValue('transmission', response.data.transmission);
         
@@ -142,11 +143,26 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
     try {
       console.log('Auto-filling with data:', data);
       
-      // Fill in all available fields
+      // Fill in all available fields with proper type conversion
       if (data.make) form.setValue('make', data.make);
       if (data.model) form.setValue('model', data.model);
-      if (data.year) form.setValue('year', typeof data.year === 'number' ? data.year : parseInt(data.year.toString()));
-      if (data.mileage) form.setValue('mileage', typeof data.mileage === 'number' ? data.mileage : parseInt(data.mileage.toString()));
+      
+      // Handle year with proper type conversion
+      if (data.year) {
+        const yearValue = typeof data.year === 'number' 
+          ? data.year 
+          : parseInt(String(data.year));
+        form.setValue('year', yearValue);
+      }
+      
+      // Handle mileage with proper type conversion
+      if (data.mileage) {
+        const mileageValue = typeof data.mileage === 'number' 
+          ? data.mileage 
+          : parseInt(String(data.mileage));
+        form.setValue('mileage', mileageValue);
+      }
+      
       if (data.vin) form.setValue('vin', data.vin);
       if (data.transmission) form.setValue('transmission', data.transmission);
       
