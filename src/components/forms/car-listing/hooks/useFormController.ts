@@ -5,6 +5,7 @@
  * - Handles initialization, state transitions, and submission logic
  * - 2025-04-10: Fixed TypeScript errors with form submission handling
  * - 2025-04-11: Resolved type issues with handleSubmit return value
+ * - 2025-04-12: Fixed initialization issues causing form to get stuck in loading state
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
@@ -50,6 +51,8 @@ export const useFormController = ({
   // Use refs for values that shouldn't trigger effect reruns
   const carIdRef = useRef<string | undefined>(formState.carId);
   const lastSavedRef = useRef<Date | null>(formState.lastSaved);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const initStartTimeRef = useRef<number>(performance.now());
   
   // Form initialization and draft loading
   const { 
@@ -82,15 +85,58 @@ export const useFormController = ({
 
   // Force form out of initializing state after a timeout
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (formState.isInitializing) {
-        console.warn('Form still initializing after timeout, forcing ready state');
-        transitionToReady();
-      }
-    }, 5000);
+    // Clean up any existing timeout
+    if (initTimeoutRef.current) {
+      clearTimeout(initTimeoutRef.current);
+    }
     
-    return () => clearTimeout(timeout);
+    if (formState.isInitializing) {
+      console.log('Form is initializing, setting safety timeout...');
+      
+      // Set new timeout to force ready state after 3 seconds (reduced from 5)
+      initTimeoutRef.current = setTimeout(() => {
+        const initTime = performance.now() - initStartTimeRef.current;
+        console.warn(`Form still initializing after ${Math.round(initTime)}ms, forcing ready state`);
+        transitionToReady();
+        
+        // Log initialization metrics
+        console.info('Form initialization metrics:', {
+          totalTime: `${Math.round(initTime)}ms`,
+          forcedReady: true,
+          timestamp: new Date().toISOString()
+        });
+      }, 3000);
+    }
+    
+    return () => {
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+        initTimeoutRef.current = null;
+      }
+    };
   }, [formState.isInitializing, transitionToReady]);
+  
+  // Additional effect to monitor and guarantee exit from initializing state
+  useEffect(() => {
+    // If both loading draft and initializing are false, ensure we're in ready state
+    if (!isLoadingDraft && !formState.isInitializing && formState.hasInitializedHooks) {
+      // Nothing more to do, we're ready
+      return;
+    }
+    
+    // If loading draft is done but we're still initializing, trigger ready state
+    if (!isLoadingDraft && formState.isInitializing && formState.hasInitializedHooks) {
+      console.log('Draft loading completed but form still initializing, forcing ready state');
+      transitionToReady();
+    }
+    
+    // Additional failsafe - if we've been initializing too long
+    const currentInitTime = performance.now() - initStartTimeRef.current;
+    if (currentInitTime > 4000 && formState.isInitializing) {
+      console.warn(`Form initialization taking too long (${Math.round(currentInitTime)}ms), applying emergency fix`);
+      transitionToReady();
+    }
+  }, [isLoadingDraft, formState.isInitializing, formState.hasInitializedHooks, transitionToReady]);
 
   // Form submission - must happen after form is initialized
   const { handleSubmit: handleFormSubmit, isSubmitting } = useFormSubmission(session.user.id);

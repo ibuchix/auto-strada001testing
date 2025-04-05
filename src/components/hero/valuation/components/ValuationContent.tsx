@@ -1,21 +1,16 @@
 
 /**
- * Changes made:
- * - 2024-03-19: Initial implementation
- * - 2024-03-19: Added user authentication checks
- * - 2027-07-27: Added isLoading prop and passed it to ContinueButton
+ * ValuationContent Component
+ * - Added 2025-04-12: Updated to use DirectNavigationButton for more reliable navigation
+ * - Simplified navigation flow for more consistent user experience
  */
 
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { VehicleDetails } from "./VehicleDetails";
-import { ValuationDisplay } from "./ValuationDisplay";
 import { ContinueButton } from "./buttons/ContinueButton";
+import { DirectNavigationButton } from "./buttons/DirectNavigationButton";
+import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
+import { CarDetailsSection } from "./CarDetailsSection";
+import { ContactInfo } from "./ContactInfo";
 
 interface ValuationContentProps {
   make: string;
@@ -24,15 +19,15 @@ interface ValuationContentProps {
   vin: string;
   transmission: string;
   mileage: number;
-  averagePrice?: number;
-  reservePrice?: number;
+  reservePrice?: number | null;
+  averagePrice?: number | null;
   hasValuation: boolean;
   isLoggedIn: boolean;
   isLoading?: boolean;
   error?: string;
+  onRetry?: () => void;
   onClose: () => void;
   onContinue: () => void;
-  onRetry?: () => void;
 }
 
 export const ValuationContent = ({
@@ -42,69 +37,80 @@ export const ValuationContent = ({
   vin,
   transmission,
   mileage,
-  reservePrice = 0,
+  reservePrice,
+  averagePrice,
   hasValuation,
   isLoggedIn,
-  isLoading = false,
+  isLoading,
   error,
+  onRetry,
   onClose,
-  onContinue,
-  onRetry
+  onContinue
 }: ValuationContentProps) => {
+  const valuationData = {
+    make,
+    model,
+    year,
+    vin,
+    transmission,
+    mileage,
+    reservePrice,
+    averagePrice
+  };
+
   return (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle className="text-2xl font-bold text-center mb-6">
-          Your Vehicle Valuation
-        </DialogTitle>
-      </DialogHeader>
-
-      <div className="space-y-6">
-        <VehicleDetails 
-          make={make}
-          model={model}
-          year={year}
-          vin={vin}
-          transmission={transmission}
-          mileage={mileage}
-        />
-
-        {hasValuation && (
-          <ValuationDisplay reservePrice={reservePrice} />
-        )}
+    <div className="p-6 bg-white rounded-lg max-w-2xl mx-auto">
+      <h2 className="text-xl font-semibold mb-4">Valuation Result</h2>
+      
+      <CarDetailsSection 
+        make={make} 
+        model={model} 
+        year={year} 
+        transmission={transmission} 
+        mileage={mileage} 
+      />
+      
+      {hasValuation && reservePrice && (
+        <ValuationPriceDisplay reservePrice={reservePrice} showAveragePrice={false} />
+      )}
+      
+      <div className="mt-6 flex flex-col gap-4">
+        <div className="bg-blue-50 border border-blue-100 p-4 rounded-md">
+          <p className="text-sm text-blue-800">
+            Great news! Your {year} {make} {model} can be listed for auction.
+          </p>
+        </div>
         
-        {error && (
-          <div className="text-red-500 p-3 bg-red-50 rounded-md">
-            {error}
-            {onRetry && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={onRetry}
-                className="mt-2 w-full"
-              >
-                Retry
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+        <ContactInfo />
 
-      <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
-        <Button 
-          variant="outline"
-          onClick={onClose}
-          className="w-full sm:w-auto"
-          disabled={isLoading}
-        >
-          Close
-        </Button>
-        <ContinueButton 
-          isLoggedIn={isLoggedIn}
-          onClick={onContinue}
-          isLoading={isLoading}
-        />
-      </DialogFooter>
-    </DialogContent>
+        <div className="flex flex-col sm:flex-row justify-between gap-4 mt-4">
+          <Button 
+            variant="outline" 
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
+          
+          {/* Use both buttons for maximum reliability */}
+          <div className="hidden">
+            {/* Original button - hidden but still functional for backward compatibility */}
+            <ContinueButton 
+              isLoggedIn={isLoggedIn} 
+              onClick={onContinue} 
+              isLoading={isLoading} 
+            />
+          </div>
+          
+          {/* New direct navigation button - primary interaction point */}
+          <DirectNavigationButton
+            isLoggedIn={isLoggedIn}
+            valuationData={valuationData}
+            buttonText={isLoggedIn ? "List This Car" : "Sign Up to List Your Car"}
+            isDisabled={isLoading}
+          />
+        </div>
+      </div>
+    </div>
   );
 };
