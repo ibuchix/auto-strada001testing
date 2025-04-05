@@ -5,6 +5,7 @@
  * - Added ValidationSummary component to display validation status
  * - Integrated with onValidationChange callback for form integration
  * - Maintained all original functionality while adding validation
+ * - Restyled to match brand guidelines with a single required indicator per section
  */
 
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +15,7 @@ import { PhotoUploadProgress } from "./components/PhotoUploadProgress";
 import { PhotoSection } from "./components/PhotoSection";
 import { useRequiredPhotosUpload } from "./hooks/useRequiredPhotosUpload";
 import { exteriorPhotos, interiorPhotos, allRequiredPhotos } from "./data/requiredPhotoData";
+import { Card } from "@/components/ui/card";
 
 interface RequiredPhotosProps {
   isUploading: boolean;
@@ -58,8 +60,8 @@ export const RequiredPhotos = ({
   };
 
   return (
-    <div className="space-y-6">
-      <h3 className="text-lg font-medium">Required Photos</h3>
+    <div className="space-y-8">
+      <h3 className="text-xl font-kanit font-semibold text-body">Required Photos</h3>
       
       {/* Validation summary and progress indicator */}
       <PhotoUploadProgress
@@ -70,37 +72,39 @@ export const RequiredPhotos = ({
         onValidationChange={onValidationChange}
       />
       
-      {/* Exterior photos section */}
-      <PhotoSection
-        title="Exterior Photos"
-        description="Please provide clear photos of all exterior angles of your vehicle in good lighting."
-        icon={Camera}
-        photos={exteriorPhotos}
-        uploadedPhotos={uploadedPhotos}
-        activeUploads={activeUploads}
-        progress={progress}
-        onFileSelect={handleFileUpload}
-        onPhotoUploaded={handlePhotoUploaded}
-        onUploadError={handleUploadError}
-        onUploadRetry={handleUploadRetry}
-      />
+      <Card className="p-5 shadow-sm border-accent">
+        {/* Exterior photos section */}
+        <PhotoSection
+          title="Exterior Photos"
+          description="Please provide clear photos of all exterior angles of your vehicle in good lighting."
+          icon={Camera}
+          photos={exteriorPhotos}
+          uploadedPhotos={uploadedPhotos}
+          activeUploads={activeUploads}
+          progress={progress}
+          onFileSelect={handleFileUpload}
+          onPhotoUploaded={handlePhotoUploaded}
+          onUploadError={handleUploadError}
+          onUploadRetry={handleUploadRetry}
+        />
+      </Card>
       
-      <Separator className="my-6" />
-      
-      {/* Interior photos section */}
-      <PhotoSection
-        title="Interior Photos"
-        description="Please provide clear photos of the interior, dashboard, and current odometer reading."
-        icon={CameraIcon}
-        photos={interiorPhotos}
-        uploadedPhotos={uploadedPhotos}
-        activeUploads={activeUploads}
-        progress={progress}
-        onFileSelect={handleFileUpload}
-        onPhotoUploaded={handlePhotoUploaded}
-        onUploadError={handleUploadError}
-        onUploadRetry={handleUploadRetry}
-      />
+      <Card className="p-5 shadow-sm border-accent">
+        {/* Interior photos section */}
+        <PhotoSection
+          title="Interior Photos"
+          description="Please provide clear photos of the interior, dashboard, and current odometer reading."
+          icon={CameraIcon}
+          photos={interiorPhotos}
+          uploadedPhotos={uploadedPhotos}
+          activeUploads={activeUploads}
+          progress={progress}
+          onFileSelect={handleFileUpload}
+          onPhotoUploaded={handlePhotoUploaded}
+          onUploadError={handleUploadError}
+          onUploadRetry={handleUploadRetry}
+        />
+      </Card>
     </div>
   );
 };

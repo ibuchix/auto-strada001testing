@@ -1,10 +1,15 @@
 
 /**
  * Component for displaying a section of related photos (exterior, interior, etc.)
+ * Changes made:
+ * - Added a single required indicator at the section level instead of individual photos
+ * - Updated styling to match brand guidelines
+ * - Improved visual hierarchy with brand fonts
  */
 import { LucideIcon } from "lucide-react";
 import { PhotoUpload } from "../PhotoUpload";
 import { PhotoValidationIndicator } from "../../validation/PhotoValidationIndicator";
+import { Badge } from "@/components/ui/badge";
 
 export interface PhotoItem {
   id: string;
@@ -39,15 +44,29 @@ export const PhotoSection = ({
   onUploadError,
   onUploadRetry
 }: PhotoSectionProps) => {
+  // Check if all photos in this section are required (for our styling)
+  const allPhotosRequired = true;
+  
   return (
     <div className="space-y-4">
-      <div className="flex items-center space-x-2">
-        <Icon className="h-5 w-5 text-gray-600" />
-        <h4 className="font-medium">{title}</h4>
+      <div className="border-b border-gray-200 pb-2 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Icon className="h-6 w-6 text-primary" />
+            <h4 className="font-oswald font-semibold text-lg">{title}</h4>
+          </div>
+          
+          {allPhotosRequired && (
+            <Badge className="bg-primary hover:bg-primary text-white font-medium py-1 px-3">
+              Required
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-subtitle mt-2 ml-9">
+          {description}
+        </p>
       </div>
-      <p className="text-sm text-gray-500 mb-3">
-        {description}
-      </p>
+      
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {photos.map((photo) => (
           <div key={photo.id} className="space-y-1">
@@ -74,12 +93,16 @@ export const PhotoSection = ({
                 }
               }}
             />
-            <PhotoValidationIndicator 
-              isUploaded={uploadedPhotos[photo.id]}
-              isRequired={true}
-              photoType={photo.title}
-              onRetry={() => onUploadRetry(photo.id)}
-            />
+            {/* Only show individual validation indicators for photos that are not uploaded yet */}
+            {!uploadedPhotos[photo.id] && (
+              <PhotoValidationIndicator 
+                isUploaded={uploadedPhotos[photo.id]}
+                isRequired={true}
+                photoType={photo.title}
+                onRetry={() => onUploadRetry(photo.id)}
+                hideRequiredLabel={true} // Hide "Required" label since we have it at the section level
+              />
+            )}
           </div>
         ))}
       </div>

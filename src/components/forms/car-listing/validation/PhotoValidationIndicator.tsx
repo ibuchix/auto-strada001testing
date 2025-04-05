@@ -6,6 +6,7 @@
  * - 2025-04-05: Enhanced with improved visual styling and clearer status messages
  * - 2025-04-05: Fixed tooltip component usage to match the correct API
  * - 2025-04-05: Added retry functionality for required photos
+ * - 2025-04-05: Added option to hide required label for section-level required indicators
  */
 import { CheckCircle, XCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -16,13 +17,15 @@ interface PhotoValidationIndicatorProps {
   isRequired: boolean;
   photoType: string;
   onRetry?: () => void;
+  hideRequiredLabel?: boolean;
 }
 
 export const PhotoValidationIndicator = ({
   isUploaded,
   isRequired,
   photoType,
-  onRetry
+  onRetry,
+  hideRequiredLabel = false
 }: PhotoValidationIndicatorProps) => {
   if (!isRequired && !isUploaded) {
     return null;
@@ -31,7 +34,7 @@ export const PhotoValidationIndicator = ({
   if (isUploaded) {
     return (
       <Tooltip content={`${photoType} successfully uploaded`}>
-        <Badge className="bg-green-500 hover:bg-green-600 flex items-center gap-1">
+        <Badge className="bg-success hover:bg-success/90 flex items-center gap-1">
           <CheckCircle className="h-3 w-3" />
           <span>Uploaded</span>
         </Badge>
@@ -39,7 +42,7 @@ export const PhotoValidationIndicator = ({
     );
   }
 
-  if (isRequired && !isUploaded) {
+  if (isRequired && !isUploaded && !hideRequiredLabel) {
     return (
       <Tooltip content={`${photoType} is required before submission`}>
         <Badge 
