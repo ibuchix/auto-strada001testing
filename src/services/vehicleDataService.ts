@@ -4,9 +4,12 @@
  * Provides consistent storage and retrieval of vehicle data across the application
  * 
  * Created: 2025-04-05
+ * Updated: 2025-04-05 - Added applyVehicleDataToForm function for form integration
  */
 
 import { toast } from "sonner";
+import { UseFormReturn } from "react-hook-form";
+import { CarListingFormData } from "@/types/forms";
 
 export interface VehicleData {
   vin: string;
@@ -98,4 +101,47 @@ export function hasValuationData(): boolean {
     data?.reservePrice || 
     data?.averagePrice
   );
+}
+
+/**
+ * Apply stored vehicle data to a form
+ * @param form React Hook Form instance
+ * @param showToast Whether to show a toast notification on success/failure
+ * @returns boolean indicating if application was successful
+ */
+export function applyVehicleDataToForm(form: UseFormReturn<CarListingFormData>, showToast: boolean = false): boolean {
+  try {
+    const data = getVehicleData();
+    
+    if (!data) {
+      if (showToast) {
+        toast.error("No vehicle data found to apply");
+      }
+      return false;
+    }
+    
+    // Apply each field from vehicle data to the form
+    if (data.make) form.setValue('make', data.make);
+    if (data.model) form.setValue('model', data.model);
+    if (data.year && typeof data.year === 'number') form.setValue('year', data.year);
+    if (data.vin) form.setValue('vin', data.vin);
+    if (data.mileage && typeof data.mileage === 'number') form.setValue('mileage', data.mileage);
+    if (data.transmission) form.setValue('transmission', data.transmission as "manual" | "automatic");
+    
+    console.log('Applied vehicle data to form:', data);
+    
+    if (showToast) {
+      toast.success("Vehicle data applied to form");
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to apply vehicle data to form:', error);
+    
+    if (showToast) {
+      toast.error("Failed to apply vehicle data to form");
+    }
+    
+    return false;
+  }
 }
