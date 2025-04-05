@@ -1,6 +1,8 @@
 
 /**
  * Changes made:
+ * - Enhanced handleVinLookup to utilize the validation API
+ * - Added logic to store validation results in localStorage
  * - Updated to work with both direct form usage and form context
  */
 
@@ -8,6 +10,7 @@ import { useState, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
+import { validateVin } from "@/services/supabase/valuation/vinValidationService";
 
 export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -71,17 +74,37 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
     
     setIsLoading(true);
     try {
-      // This would normally call an API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      // Get the mileage value from the form if it exists
+      const mileage = form.getValues('mileage') || 0;
       
-      // Mock successful lookup
-      toast.success('VIN lookup successful!');
+      // Call the VIN validation service
+      const response = await validateVin({
+        vin,
+        mileage
+      });
       
-      // Here you would normally update form with fetched data
-      // For example:
-      form.setValue('make', 'Toyota');
-      form.setValue('model', 'Corolla');
-      form.setValue('year', 2022);
+      if (!response.success) {
+        toast.error(response.error || 'VIN validation failed');
+        return;
+      }
+      
+      // Store the validation data in localStorage
+      if (response.data) {
+        localStorage.setItem('valuationData', JSON.stringify(response.data));
+        
+        // Auto-fill form with fetched data
+        if (response.data.make) form.setValue('make', response.data.make);
+        if (response.data.model) form.setValue('model', response.data.model);
+        if (response.data.year) form.setValue('year', parseInt(response.data.year.toString()));
+        if (response.data.mileage) form.setValue('mileage', parseInt(response.data.mileage.toString()));
+        if (response.data.vin) form.setValue('vin', response.data.vin);
+        
+        toast.success('VIN lookup successful!', {
+          description: `Found: ${response.data.year} ${response.data.make} ${response.data.model}`
+        });
+      } else {
+        toast.warning('VIN validation succeeded but no vehicle data was returned');
+      }
     } catch (error) {
       console.error('VIN lookup error:', error);
       toast.error('Failed to lookup VIN information');
