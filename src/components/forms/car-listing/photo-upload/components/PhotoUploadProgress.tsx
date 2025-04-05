@@ -6,6 +6,7 @@
  * - Created a form-compatible wrapper to pass to the hook
  * - Made component more robust with proper type safety
  */
+import React from "react";
 import { Progress } from "@/components/ui/progress";
 import { ValidationError } from "../../utils/validation";
 import { ValidationSummary } from "./ValidationSummary";

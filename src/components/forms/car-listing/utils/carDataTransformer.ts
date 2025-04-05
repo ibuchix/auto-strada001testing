@@ -8,6 +8,7 @@
  * - Integrated with carSchema validation
  * - 2025-11-29: Fixed validateCar import path
  * - 2025-12-01: Updated to use correct import for validateCar
+ * - 2025-12-03: Fixed type issue with transmission property
  */
 
 import { CarListingFormData, CarEntity } from '@/types/forms';
@@ -37,7 +38,7 @@ export const prepareCarData = (
     model: formData.model || '',
     mileage: formData.mileage ? Number(formData.mileage) : undefined,
     year: formData.year ? Number(formData.year) : undefined,
-    transmission: formData.transmission || '',
+    transmission: (formData.transmission || '') as "manual" | "automatic", // Type cast to ensure compatibility
     vin: formData.vin || '',
     price: formData.price ? Number(formData.price) : undefined,
     
@@ -91,7 +92,7 @@ export const prepareCarDataAsync = async (
       price: baseData.price as number,
       mileage: baseData.mileage as number,
       vin: baseData.vin,
-      transmission: formData.transmission as "manual" | "automatic" // Add this line
+      transmission: baseData.transmission as "manual" | "automatic"
     };
     
     // Only validate if we have enough data (silent return if not enough data yet)
