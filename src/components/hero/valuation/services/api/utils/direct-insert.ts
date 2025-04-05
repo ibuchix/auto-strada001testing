@@ -4,6 +4,7 @@
  * Changes:
  * - Added type assertions with validation for dynamic table names
  * - Ensured type safety without compromising flexibility
+ * - Added runtime validation to ensure only valid table names are used
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -19,10 +20,19 @@ const isValidTable = (table: string): table is ValidTableName => {
   const validTables: ValidTableName[] = [
     'cars', 'profiles', 'sellers', 'dealers', 'bids', 'notifications',
     'auction_schedules', 'auction_results', 'vin_valuation_cache',
-    'vin_reservations', 'service_history', 'manual_valuations'
+    'vin_reservations', 'service_history', 'manual_valuations',
+    'damage_reports', 'system_logs', 'announcements', 'disputes',
+    'auction_metrics', 'seller_performance_metrics', 'proxy_bids'
     // Add other table names as needed
   ];
-  return validTables.includes(table as ValidTableName);
+  
+  // Check if the provided table name is in our list of valid tables
+  if (!validTables.includes(table as ValidTableName)) {
+    console.warn(`Table validation failed: "${table}" is not a recognized table name`);
+    return false;
+  }
+  
+  return true;
 };
 
 // Insert a single value into a table with type safety
@@ -94,3 +104,4 @@ export const upsertValue = async (
     return { data: null, error };
   }
 };
+
