@@ -1,10 +1,8 @@
 
 /**
  * Changes made:
- * - Removed diagnostic-related code
- * - 2025-04-12: Added support for direct navigation from valuation
- * - 2025-04-12: Enhanced reliability for form loading
  * - 2025-04-05: Simplified state management and removed unnecessary logic
+ * - 2025-04-05: Improved handling of valuation data
  */
 
 import { useEffect } from "react";
@@ -22,7 +20,6 @@ interface PageStateManagerProps {
   isVerifying: boolean;
   handleRetrySellerVerification: () => void;
   fromValuation?: boolean;
-  directNavigation?: boolean;
 }
 
 export const PageStateManager = ({
@@ -32,24 +29,18 @@ export const PageStateManager = ({
   errorType,
   isVerifying,
   handleRetrySellerVerification,
-  fromValuation = false,
-  directNavigation = false
+  fromValuation = false
 }: PageStateManagerProps) => {
-  // Handle direct navigation from valuation
+  // Handle navigation from valuation
   useEffect(() => {
-    if (fromValuation && directNavigation && !isLoading && !error) {
-      // Clear any navigation toasts
-      toast.dismiss("navigation-toast");
-      
+    if (fromValuation && !isLoading && !error && isValid) {
       // Show success toast for seamless experience
-      if (isValid) {
-        toast.success("Ready to list your car", {
-          description: "Your vehicle data has been loaded",
-          duration: 3000
-        });
-      }
+      toast.success("Ready to list your car", {
+        description: "Your vehicle data has been loaded",
+        duration: 3000
+      });
     }
-  }, [fromValuation, directNavigation, isLoading, isValid, error]);
+  }, [fromValuation, isLoading, isValid, error]);
 
   // Determine which content to render based on current state
   function renderPageContent() {

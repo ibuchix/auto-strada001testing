@@ -1,9 +1,8 @@
 
 /**
  * ValuationContent Component
- * - Added 2025-04-12: Updated to use DirectNavigationButton for more reliable navigation
- * - Simplified navigation flow for more consistent user experience
- * - Updated 2025-04-05: Removed redundant navigation mechanisms
+ * - Updated 2025-04-05: Simplified navigation flow with single Button component
+ * - Removed redundant navigation mechanisms for clarity and reliability
  */
 
 import { Button } from "@/components/ui/button";
@@ -27,7 +26,6 @@ interface ValuationContentProps {
   error?: string;
   onRetry?: () => void;
   onClose: () => void;
-  onContinue: () => void;
 }
 
 export const ValuationContent = ({
@@ -44,8 +42,7 @@ export const ValuationContent = ({
   isLoading,
   error,
   onRetry,
-  onClose,
-  onContinue
+  onClose
 }: ValuationContentProps) => {
   const valuationData = {
     make,
@@ -92,9 +89,7 @@ export const ValuationContent = ({
             Cancel
           </Button>
           
-          {/* Only using one navigation button for simplicity and reliability */}
           <DirectNavigationButton
-            isLoggedIn={isLoggedIn}
             valuationData={valuationData}
             buttonText={isLoggedIn ? "List This Car" : "Sign Up to List Your Car"}
             isDisabled={isLoading}

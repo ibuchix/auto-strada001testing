@@ -1,46 +1,28 @@
 
 /**
  * Changes made:
- * - 2025-04-05: Simplified navigation to use a single, reliable approach
- * - Removed multiple fallback mechanisms and redundant state tracking
- * - Improved error handling with better user feedback
+ * - 2025-04-05: Completely refactored to use simplified navigation approach
+ * - Removed all complex state tracking and multiple fallback mechanisms
  */
 
-import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
+import { toast } from "sonner";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
-import { useState } from "react";
 
-interface DirectNavigationButtonProps {
-  valuationData: any;
-  buttonText: string;
-  isDisabled?: boolean;
-}
-
-export const DirectNavigationButton = ({
-  valuationData,
-  buttonText,
-  isDisabled = false
-}: DirectNavigationButtonProps) => {
+export const useValuationResultNavigation = () => {
   const navigate = useNavigate();
   const { session } = useAuth();
   const { isOffline } = useOfflineStatus();
-  const [isNavigating, setIsNavigating] = useState(false);
   
-  const handleNavigation = () => {
-    // Prevent multiple clicks
-    if (isNavigating) return;
-    setIsNavigating(true);
-    
-    // Check for offline status
+  const isLoggedIn = !!session;
+  
+  const handleNavigation = (valuationData: any) => {
     if (isOffline) {
       toast.warning("You appear to be offline", {
         description: "Please connect to the internet to continue.",
         duration: 5000
       });
-      setIsNavigating(false);
       return;
     }
     
@@ -51,7 +33,7 @@ export const DirectNavigationButton = ({
       localStorage.setItem('tempMileage', valuationData.mileage?.toString() || '');
       localStorage.setItem('tempGearbox', valuationData.transmission || '');
       
-      if (!session) {
+      if (!isLoggedIn) {
         // If not logged in, redirect to auth
         localStorage.setItem('redirectAfterAuth', '/sell-my-car');
         navigate('/auth', { 
@@ -77,17 +59,11 @@ export const DirectNavigationButton = ({
         description: "Please try again or refresh the page.",
         duration: 5000
       });
-      setIsNavigating(false);
     }
   };
   
-  return (
-    <Button
-      onClick={handleNavigation}
-      disabled={isDisabled || isNavigating}
-      className="w-full sm:w-auto"
-    >
-      {isNavigating ? "Processing..." : buttonText}
-    </Button>
-  );
+  return {
+    handleNavigation,
+    isLoggedIn
+  };
 };

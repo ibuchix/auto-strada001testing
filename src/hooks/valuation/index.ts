@@ -1,11 +1,13 @@
 
 /**
  * Changes made:
- * - 2024-12-20: Created valuation hooks index
+ * - 2025-04-05: Simplified exports to reflect consolidated state management
  */
 
-export * from './useValuationForm';
 export * from './useValuationState';
-export * from './useValuationRequest';
-export * from './useValuationErrorHandling';
-export * from './types';
+export * from './useValuationForm';
+
+// Remove exports of hooks that have been consolidated
+// export * from './useValuationRequest';
+// export * from './useValuationErrorHandling';
+// export * from './types';

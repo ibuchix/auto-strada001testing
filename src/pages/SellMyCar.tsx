@@ -1,10 +1,8 @@
 
 /**
  * Changes made:
- * - Removed diagnostic-related code
- * - 2025-04-12: Added direct navigation handling from valuation
- * - 2025-04-12: Improved loading performance and reliability
  * - 2025-04-05: Simplified navigation handling and removed excessive logging
+ * - 2025-04-05: Streamlined data retrieval from valuation flow
  */
 
 import { useEffect, useState } from "react";
@@ -15,7 +13,6 @@ import { useSearchParams } from "react-router-dom";
 const SellMyCar = () => {
   const [searchParams] = useSearchParams();
   const fromValuation = searchParams.get('from') === 'valuation';
-  const directNavigation = searchParams.get('direct') === 'true';
   const [initComplete, setInitComplete] = useState(false);
 
   const {
@@ -46,7 +43,6 @@ const SellMyCar = () => {
       isVerifying={isVerifying}
       handleRetrySellerVerification={handleRetrySellerVerification}
       fromValuation={fromValuation}
-      directNavigation={directNavigation}
     />
   );
 };
