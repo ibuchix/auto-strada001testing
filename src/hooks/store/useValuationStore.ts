@@ -1,4 +1,3 @@
-
 /**
  * Hooks for accessing valuation state from the central store
  * Created: 2025-04-09
@@ -98,7 +97,7 @@ export const useValuationStore = () => {
         formData.gearbox
       );
       
-      if (result.data.isExisting) {
+      if (result.data && result.data.isExisting) {
         toast.error("This vehicle has already been listed");
         return;
       }

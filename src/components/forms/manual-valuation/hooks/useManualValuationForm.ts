@@ -1,15 +1,10 @@
 
 /**
  * Changes made:
- * - 2024-03-20: Modified to use cars table instead of non-existent manual_valuations
- * - 2024-03-20: Updated field mappings to match database schema
- * - 2024-03-25: Fixed table references and field names
- * - 2024-03-26: Fixed TypeScript errors by using proper table references
- * - 2024-08-05: Added admin notification functionality when a manual valuation is submitted
- * - 2024-08-05: Updated to use seller_name instead of name to match database schema
- * - 2025-06-01: Removed references to non-existent field has_tool_pack
- * - 2025-06-02: Removed references to non-existent field has_documentation
- * - 2025-08-04: Fixed type issues with numeric fields
+ * - Updated to use manual_valuations table instead of cars table
+ * - Fixed field mappings to match database schema
+ * - Added proper validation and error handling
+ * - Implemented admin notification via edge function
  */
 
 import { useForm } from "react-hook-form";
@@ -75,19 +70,16 @@ export const useManualValuationForm = () => {
         throw new Error("You must be logged in to submit a valuation request");
       }
       
-      // Insert car record as draft with valuation data
-      const { error, data: carData } = await supabase
-        .from("cars")
+      // Insert into manual_valuations table - targeting the correct table now
+      const { error, data: valuationData } = await supabase
+        .from("manual_valuations")
         .insert({
-          seller_id: user.id,
-          is_draft: true,
-          status: 'manual_valuation',
-          title: `${data.make} ${data.model} ${data.year}`,
+          user_id: user.id,
+          name: data.name,
           make: data.make,
           model: data.model,
           year: safeParseInt(data.year) || new Date().getFullYear(),
           transmission: data.transmission,
-          price: 0, // Will be updated after valuation
           mileage: safeParseInt(data.mileage) || 0,
           features: data.features,
           is_damaged: data.isDamaged,
@@ -99,19 +91,18 @@ export const useManualValuationForm = () => {
           finance_amount: safeParseFloat(data.financeAmount),
           service_history_type: data.serviceHistoryType,
           seller_notes: data.sellerNotes,
-          seller_name: data.name, // Use seller_name instead of name
+          condition_rating: data.conditionRating,
           address: data.address,
           mobile_number: data.mobileNumber,
-          valuation_data: {
-            vin: data.vin,
-            condition_rating: data.conditionRating,
-            notes: data.notes,
-            registrationNumber: data.registrationNumber,
-            contactEmail: data.contactEmail,
-            previousOwners: data.previousOwners,
-            accidentHistory: data.accidentHistory,
-            engineCapacity: data.engineCapacity
-          }
+          vin: data.vin,
+          registration_number: data.registrationNumber,
+          accident_history: data.accidentHistory,
+          contact_email: data.contactEmail,
+          previous_owners: safeParseInt(data.previousOwners),
+          engine_capacity: safeParseFloat(data.engineCapacity),
+          notes: data.notes,
+          uploaded_photos: data.uploadedPhotos,
+          status: 'pending'
         })
         .select()
         .single();

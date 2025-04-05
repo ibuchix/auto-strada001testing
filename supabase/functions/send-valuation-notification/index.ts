@@ -1,109 +1,93 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+// Notification edge function for manual valuation submissions
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { logOperation, logError } from '../_shared/index.ts';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ValuationEmailRequest {
-  userEmail: string;
-  vehicleDetails: {
-    make: string;
-    model: string;
-    year: number;
-    vin: string;
-  };
-}
-
-const handler = async (req: Request): Promise<Response> => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { userEmail, vehicleDetails }: ValuationEmailRequest = await req.json();
-
-    // Send confirmation email to user
-    const userEmailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "Auto-Strada <admin@auto-strada.pl>",
-        to: [userEmail],
-        subject: "Your Vehicle Valuation Request - Auto-Strada",
-        html: `
-          <h1>Thank You for Your Valuation Request</h1>
-          <p>We've received your request for a valuation of your ${vehicleDetails.year} ${vehicleDetails.make} ${vehicleDetails.model}.</p>
-          <p>Our expert team will carefully review your submission and provide a detailed valuation within 24-48 hours.</p>
-          <h2>Vehicle Details:</h2>
-          <ul>
-            <li>Make: ${vehicleDetails.make}</li>
-            <li>Model: ${vehicleDetails.model}</li>
-            <li>Year: ${vehicleDetails.year}</li>
-            <li>VIN: ${vehicleDetails.vin}</li>
-          </ul>
-          <p>If you have any questions in the meantime, please don't hesitate to contact our support team.</p>
-          <p>Best regards,<br>The Auto-Strada Team</p>
-        `,
-      }),
-    });
-
-    // Send notification to valuation team
-    const teamEmailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "Auto-Strada System <admin@auto-strada.pl>",
-        to: ["valuations@auto-strada.pl"], // Replace with your team's email
-        subject: "New Manual Valuation Request",
-        html: `
-          <h1>New Manual Valuation Request Received</h1>
-          <p>A new manual valuation request has been submitted.</p>
-          <h2>Vehicle Details:</h2>
-          <ul>
-            <li>Make: ${vehicleDetails.make}</li>
-            <li>Model: ${vehicleDetails.model}</li>
-            <li>Year: ${vehicleDetails.year}</li>
-            <li>VIN: ${vehicleDetails.vin}</li>
-          </ul>
-          <p>Customer Email: ${userEmail}</p>
-          <p>Please review and process this request within the next 24-48 hours.</p>
-        `,
-      }),
-    });
-
-    if (!userEmailResponse.ok || !teamEmailResponse.ok) {
-      throw new Error("Failed to send one or more emails");
+    // Start logging operations
+    const requestId = crypto.randomUUID();
+    logOperation('send_valuation_notification_start', { requestId });
+    
+    // Parse the request
+    const { userEmail, vehicleDetails } = await req.json();
+    
+    if (!userEmail || !vehicleDetails) {
+      throw new Error('Missing required fields for notification');
     }
-
+    
+    logOperation('send_valuation_notification_data', { 
+      requestId,
+      userEmail: userEmail.slice(0, 3) + '***',
+      vehicleDetails: {
+        make: vehicleDetails.make,
+        model: vehicleDetails.model
+      }
+    });
+    
+    // Initialize Supabase client
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') || '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+      { auth: { persistSession: false } }
+    );
+    
+    // Get the user information
+    const userQuery = await supabaseAdmin.auth.admin.getUserByEmail(userEmail);
+    if (userQuery.error) {
+      throw new Error(`Error fetching user: ${userQuery.error.message}`);
+    }
+    
+    // Create admin notification
+    await supabaseAdmin.from('notifications').insert({
+      user_id: '00000000-0000-0000-0000-000000000000', // Special ID for admin notifications
+      title: 'New Manual Valuation Request',
+      message: `${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year}) requested by ${userEmail}`,
+      type: 'manual_valuation',
+      related_entity_type: 'manual_valuation',
+      related_entity_id: null,
+      is_read: false
+    });
+    
+    // Create confirmation notification for the user
+    if (userQuery.data?.user?.id) {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: userQuery.data.user.id,
+        title: 'Manual Valuation Request Received',
+        message: `We've received your valuation request for your ${vehicleDetails.make} ${vehicleDetails.model}. Our team will review and respond within 24-48 hours.`,
+        type: 'confirmation',
+        is_read: false
+      });
+    }
+    
+    logOperation('send_valuation_notification_complete', { requestId });
+    
     return new Response(
-      JSON.stringify({ message: "Notification emails sent successfully" }),
+      JSON.stringify({ success: true }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
     );
   } catch (error) {
-    console.error("Error in send-valuation-notification function:", error);
+    logError('send_valuation_notification', error);
+    
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to send notifications" }),
+      JSON.stringify({ error: error.message }),
       {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
       }
     );
   }
-};
-
-serve(handler);
+});

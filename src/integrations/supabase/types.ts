@@ -1014,6 +1014,7 @@ export type Database = {
           engine_capacity: number | null
           features: Json | null
           finance_amount: number | null
+          gearbox: string | null
           has_documentation: boolean | null
           has_private_plate: boolean | null
           has_tool_pack: boolean | null
@@ -1034,10 +1035,14 @@ export type Database = {
           seller_notes: string | null
           service_history_files: string[] | null
           service_history_type: string | null
+          status: string | null
           transmission:
             | Database["public"]["Enums"]["car_transmission_type"]
             | null
+          updated_at: string | null
+          uploaded_photos: Json | null
           user_id: string | null
+          valuation_result: Json | null
           vin: string | null
           year: number | null
         }
@@ -1051,6 +1056,7 @@ export type Database = {
           engine_capacity?: number | null
           features?: Json | null
           finance_amount?: number | null
+          gearbox?: string | null
           has_documentation?: boolean | null
           has_private_plate?: boolean | null
           has_tool_pack?: boolean | null
@@ -1071,10 +1077,14 @@ export type Database = {
           seller_notes?: string | null
           service_history_files?: string[] | null
           service_history_type?: string | null
+          status?: string | null
           transmission?:
             | Database["public"]["Enums"]["car_transmission_type"]
             | null
+          updated_at?: string | null
+          uploaded_photos?: Json | null
           user_id?: string | null
+          valuation_result?: Json | null
           vin?: string | null
           year?: number | null
         }
@@ -1088,6 +1098,7 @@ export type Database = {
           engine_capacity?: number | null
           features?: Json | null
           finance_amount?: number | null
+          gearbox?: string | null
           has_documentation?: boolean | null
           has_private_plate?: boolean | null
           has_tool_pack?: boolean | null
@@ -1108,10 +1119,14 @@ export type Database = {
           seller_notes?: string | null
           service_history_files?: string[] | null
           service_history_type?: string | null
+          status?: string | null
           transmission?:
             | Database["public"]["Enums"]["car_transmission_type"]
             | null
+          updated_at?: string | null
+          uploaded_photos?: Json | null
           user_id?: string | null
+          valuation_result?: Json | null
           vin?: string | null
           year?: number | null
         }
