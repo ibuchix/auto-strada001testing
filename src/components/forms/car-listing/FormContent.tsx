@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2027-11-17: Fixed React hooks inconsistency by ensuring unconditional hook calls
@@ -30,6 +31,10 @@
  * - 2028-05-18: Fixed form initialization to prevent stuck loading state
  * - 2028-05-19: Fixed form context issue causing "form.formState is undefined" error
  * - 2028-05-20: Added missing Alert component imports
+ * - 2025-04-07: Major refactoring to improve performance and prevent UI freezing
+ * - 2025-04-07: Extracted complex logic into dedicated hooks and components
+ * - 2025-04-07: Implemented better state management with refs and memoization
+ * - 2025-04-07: Added performance optimizations to prevent render loops
  */
 
 import { useNavigate } from "react-router-dom";
@@ -44,12 +49,8 @@ import { useFilteredSteps } from "./hooks/useFilteredSteps";
 import { useFormDialogs } from "./hooks/useFormDialogs";
 import { useStepNavigation } from "./hooks/useStepNavigation";
 import { FormContentLayout } from "./FormContentLayout";
-import { FormDialogs } from "./components/FormDialogs";
 import { useFormContentInit } from "./hooks/useFormContentInit";
 import { useFormState } from "./hooks/useFormState";
-import { FormProgressSection } from "./components/FormProgressSection";
-import { FormErrorSection } from "./components/FormErrorSection";
-import { MainFormContent } from "./components/MainFormContent";
 import { useFormActions } from "./hooks/useFormActions";
 import { useCallback, useMemo, useEffect, memo, useRef } from "react";
 import { FormDataProvider } from "./context/FormDataContext";
@@ -59,8 +60,9 @@ import { useDebugRender } from "./hooks/useDebugRender";
 import { LoadingState } from "./LoadingState";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { FormContentRenderer } from "./components/FormContentRenderer";
+import { useFormStateTransitions } from "./hooks/useFormStateTransitions";
+import { useVehicleDataManager } from "./hooks/vehicle-details/useVehicleDataManager";
 
 interface FormContentProps {
   session: Session;
@@ -89,9 +91,20 @@ export const FormContent = memo(({
   // Form state management
   const { formState, updateFormState } = useFormState();
   
+  // Form state transitions management
+  const { 
+    batchFormStateUpdate,
+    transitionToReady,
+    transitionToDraftLoaded,
+    transitionToErrorState
+  } = useFormStateTransitions({ updateFormState });
+  
   // Use refs for values that shouldn't trigger effect reruns
   const carIdRef = useRef<string | undefined>(formState.carId);
   const lastSavedRef = useRef<Date | null>(formState.lastSaved);
+  
+  // Vehicle data management - centralized
+  const vehicleDataManager = useVehicleDataManager(form);
   
   // Form initialization and draft loading
   const { 
@@ -113,14 +126,27 @@ export const FormContent = memo(({
   useEffect(() => {
     if (carId && carId !== carIdRef.current) {
       carIdRef.current = carId;
-      updateFormState(prev => ({ ...prev, carId }));
+      batchFormStateUpdate({ carId });
     }
     
     if (lastSaved && (!lastSavedRef.current || lastSaved.getTime() !== lastSavedRef.current.getTime())) {
       lastSavedRef.current = lastSaved;
-      updateFormState(prev => ({ ...prev, lastSaved }));
+      batchFormStateUpdate({ lastSaved });
     }
-  }, [carId, lastSaved, updateFormState]);
+  }, [carId, lastSaved, batchFormStateUpdate]);
+
+  // Force form out of initializing state after a timeout
+  useEffect(() => {
+    // If still initializing after 5 seconds, force-exit the loading state
+    const timeout = setTimeout(() => {
+      if (formState.isInitializing) {
+        console.warn('Form still initializing after timeout, forcing ready state');
+        transitionToReady();
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
+  }, [formState.isInitializing, transitionToReady]);
 
   // Dialog management
   const { showSaveDialog, showSuccessDialog, actions: dialogActions } = useFormDialogs();
@@ -248,23 +274,6 @@ export const FormContent = memo(({
     }
   }, [onDraftError, handleFormError, debugLog]);
 
-  // Force form out of initializing state after a timeout
-  useEffect(() => {
-    // If still initializing after 10 seconds, force-exit the loading state
-    const timeout = setTimeout(() => {
-      if (formState.isInitializing) {
-        console.warn('Form still initializing after timeout, forcing ready state');
-        updateFormState(prev => ({
-          ...prev,
-          isInitializing: false,
-          hasInitializedHooks: true
-        }));
-      }
-    }, 10000);
-    
-    return () => clearTimeout(timeout);
-  }, [formState.isInitializing, updateFormState]);
-
   // Main form content - wrap in FormDataProvider and ErrorBoundary for better context sharing
   return (
     <ErrorBoundary 
@@ -285,67 +294,29 @@ export const FormContent = memo(({
             layoutId={formState.carId || 'new-form'}
           >
             {!formState.isInitializing && !isLoadingDraft && (
-              <>
-                <FormProgressSection
-                  currentStep={stepNavigation.currentStep}
-                  lastSaved={formState.lastSaved}
-                  onOfflineStatusChange={handleOfflineStatusChange}
-                  steps={formState.filteredStepsArray}
-                  visibleSections={visibleSections}
-                  completedSteps={completedStepsArray}
-                  validationErrors={stepErrors}
-                  onStepChange={handleStepChange}
-                />
-                
-                <FormErrorSection 
-                  validationErrors={stepNavigation.stepValidationErrors || {}}
-                  showDetails={process.env.NODE_ENV !== 'production'}
-                />
-                
-                <ErrorBoundary
-                  boundary="main-form-content"
-                  resetOnPropsChange
-                  onError={(error) => {
-                    handleComponentError(error);
-                    debugLog('Error in main content section', error);
-                  }}
-                  fallback={
-                    <div className="bg-white rounded-lg shadow-sm p-6">
-                      <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Something went wrong</AlertTitle>
-                        <AlertDescription>
-                          There was an error loading the form content. Please try refreshing the page.
-                        </AlertDescription>
-                      </Alert>
-                    </div>
-                  }
-                >
-                  <MainFormContent
-                    currentStep={stepNavigation.currentStep}
-                    setCurrentStep={handleStepChange}
-                    carId={formState.carId}
-                    lastSaved={formState.lastSaved}
-                    isOffline={persistence.isOffline}
-                    isSaving={persistence.isSaving}
-                    isSubmitting={isSubmitting}
-                    saveProgress={saveWrapper}
-                    visibleSections={visibleSections}
-                    totalSteps={formState.totalSteps}
-                    onSaveAndContinue={handleSaveAndContinue}
-                    onSave={handleSave}
-                  />
-                </ErrorBoundary>
-
-                <FormDialogs 
-                  showSuccessDialog={showSuccessDialog}
-                  showSaveDialog={showSaveDialog}
-                  onSuccessDialogOpenChange={(open) => !open && dialogActions.hideSuccessDialog()}
-                  onSaveDialogOpenChange={(open) => !open && dialogActions.hideSaveDialog()}
-                  lastSaved={formState.lastSaved}
-                  carId={formState.carId}
-                />
-              </>
+              <FormContentRenderer
+                currentStep={stepNavigation.currentStep}
+                setCurrentStep={handleStepChange}
+                lastSaved={formState.lastSaved}
+                carId={formState.carId}
+                isOffline={persistence.isOffline}
+                isSaving={persistence.isSaving}
+                isSubmitting={isSubmitting}
+                saveProgress={saveWrapper}
+                visibleSections={visibleSections}
+                stepErrors={stepErrors}
+                validationErrors={stepNavigation.stepValidationErrors || {}}
+                completedSteps={completedStepsArray}
+                totalSteps={formState.totalSteps}
+                progress={progress}
+                showSuccessDialog={showSuccessDialog}
+                showSaveDialog={showSaveDialog}
+                onSuccessDialogOpenChange={(open) => !open && dialogActions.hideSuccessDialog()}
+                onSaveDialogOpenChange={(open) => !open && dialogActions.hideSaveDialog()}
+                onSaveAndContinue={handleSaveAndContinue}
+                onSave={handleSave}
+                onFormError={handleComponentError}
+              />
             )}
           </FormContentLayout>
         </FormDataProvider>
