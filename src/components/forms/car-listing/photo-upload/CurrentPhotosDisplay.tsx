@@ -1,3 +1,4 @@
+
 /**
  * Component for displaying currently uploaded photos
  * - Responsive grid layout

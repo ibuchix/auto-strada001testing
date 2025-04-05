@@ -1,7 +1,6 @@
 
 /**
- * Changes made:
- * - 2024-08-17: Extracted database operations into a separate service
+ * Service for managing photo database operations
  */
 
 import { supabase } from '@/integrations/supabase/client';

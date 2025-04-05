@@ -1,8 +1,6 @@
 
 /**
- * Changes made:
- * - 2024-08-17: Extracted storage operations into a separate service
- * - 2024-08-20: Improved error handling and added more detailed error messages
+ * Service for managing photo storage operations
  */
 
 import { supabase } from '@/integrations/supabase/client';

@@ -1,3 +1,4 @@
+
 /**
  * Component for uploading additional photos to a car listing
  * - Supports drag & drop and click-to-upload
