@@ -3,7 +3,7 @@
  * Service for caching valuation results
  * 
  * Changes:
- * - Fixed import path to use correct relative path format
+ * - Fixed import path to use correct relative path format for Deno
  */
 import { createSupabaseClient } from "../_shared/client.ts";
 import { logOperation } from "../_shared/logging.ts";

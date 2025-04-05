@@ -3,7 +3,7 @@
  * Service for interacting with the external valuation API
  * 
  * Changes:
- * - Fixed import path to use correct relative path format
+ * - Fixed import path to use correct relative path format for Deno
  */
 import { generateChecksum } from "../_shared/checksum.ts";
 import { logOperation } from "../_shared/logging.ts";

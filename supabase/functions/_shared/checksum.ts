@@ -1,26 +1,29 @@
 
 /**
- * Shared utility for generating checksums
- * Updated to use built-in Deno crypto instead of external module
+ * Checksum utilities for API requests
  */
 
 /**
- * Generate a checksum for the valuation API
- * @param apiId API ID
+ * Generate a checksum for API authentication
+ * @param apiId API identifier
  * @param apiSecret API secret key
  * @param vin Vehicle identification number
- * @returns MD5 checksum
+ * @returns MD5 hash checksum
  */
-export function generateChecksum(apiId: string, apiSecret: string, vin: string): string {
-  const data = `${apiId}${apiSecret}${vin}`;
+export async function generateChecksum(apiId: string, apiSecret: string, vin: string): Promise<string> {
+  // Create input string
+  const input = `${apiId}${apiSecret}${vin}`;
+  
+  // Encode to bytes
   const encoder = new TextEncoder();
-  const dataEncoded = encoder.encode(data);
+  const data = encoder.encode(input);
   
-  // Use the built-in crypto API to create an MD5 hash
-  const hashBuffer = crypto.subtle.digestSync("MD5", dataEncoded);
+  // Generate MD5 hash
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
   
-  // Convert the hash buffer to a hex string
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+  // Convert to hex string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  return hashHex;
 }
