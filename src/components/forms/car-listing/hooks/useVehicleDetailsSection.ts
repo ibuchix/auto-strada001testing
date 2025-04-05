@@ -4,7 +4,8 @@
  * - Fixed TypeScript errors with type assertions for year and mileage
  * - Enhanced handleVinLookup to utilize the validation API with standardized data storage
  * - Improved handleAutoFill to more accurately retrieve and map vehicle details
- * - Updated type safety throughout the component
+ * - Added detailed logging for debugging auto-fill functionality
+ * - Enhanced error handling with more descriptive error messages
  */
 
 import { useState, useEffect } from "react";
@@ -131,6 +132,9 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
   
   // Auto-fill form with stored vehicle data
   const handleAutoFill = () => {
+    // Log start of auto-fill process for debugging
+    console.log('Starting auto-fill process');
+    
     const data = getStoredValidationData();
     
     if (!data) {
@@ -144,14 +148,22 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
       console.log('Auto-filling with data:', data);
       
       // Fill in all available fields with proper type conversion
-      if (data.make) form.setValue('make', data.make);
-      if (data.model) form.setValue('model', data.model);
+      if (data.make) {
+        console.log('Setting make:', data.make);
+        form.setValue('make', data.make);
+      }
+      
+      if (data.model) {
+        console.log('Setting model:', data.model);
+        form.setValue('model', data.model);
+      }
       
       // Handle year with proper type conversion
       if (data.year) {
         const yearValue = typeof data.year === 'number' 
           ? data.year 
           : parseInt(String(data.year));
+        console.log('Setting year:', yearValue);
         form.setValue('year', yearValue);
       }
       
@@ -160,11 +172,19 @@ export const useVehicleDetailsSection = (form: UseFormReturn<CarListingFormData>
         const mileageValue = typeof data.mileage === 'number' 
           ? data.mileage 
           : parseInt(String(data.mileage));
+        console.log('Setting mileage:', mileageValue);
         form.setValue('mileage', mileageValue);
       }
       
-      if (data.vin) form.setValue('vin', data.vin);
-      if (data.transmission) form.setValue('transmission', data.transmission);
+      if (data.vin) {
+        console.log('Setting VIN:', data.vin);
+        form.setValue('vin', data.vin);
+      }
+      
+      if (data.transmission) {
+        console.log('Setting transmission:', data.transmission);
+        form.setValue('transmission', data.transmission);
+      }
       
       toast.success("Vehicle details auto-filled", {
         description: `Successfully populated data for ${data.year} ${data.make} ${data.model}`
