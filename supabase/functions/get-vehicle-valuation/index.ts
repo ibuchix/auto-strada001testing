@@ -2,13 +2,9 @@
 /**
  * Edge function for getting vehicle valuations
  * This function calls the external valuation API and handles caching
- * 
- * Changes:
- * - Fixed import paths to use correct relative path format for Deno
- * - Ensured all imports have consistent path resolution
  */
 
-// Import shared utilities with explicit path format
+// Import shared utilities
 import { corsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 import { logOperation } from "../_shared/logging.ts";
 import { formatSuccessResponse, formatErrorResponse } from "../_shared/response-formatter.ts";
