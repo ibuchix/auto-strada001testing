@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Updated to use enhanced valuation form hook for better state management
@@ -11,6 +10,7 @@ import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./valuation/components/ValuationResult";
 import { Dialog } from "@/components/ui/dialog";
 import { useEnhancedValuationForm } from "@/hooks/valuation/useEnhancedValuationForm";
+import { useValuationErrorDialog } from '@/hooks/valuation/useValuationErrorDialog';
 
 export const ValuationForm = () => {
   const {
@@ -23,6 +23,11 @@ export const ValuationForm = () => {
     handleContinue,
     resetForm
   } = useEnhancedValuationForm();
+
+  const { 
+    handleClose: handleErrorClose,
+    handleRetry: handleErrorRetry 
+  } = useValuationErrorDialog();
 
   return (
     <div className="w-full max-w-md mx-auto">

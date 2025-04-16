@@ -1,19 +1,29 @@
-
 /**
  * Changes made:
- * - 2024-11-11: Fixed unresponsive "List This Car" button by addressing JSON parsing issues
- * - 2024-11-11: Improved data passing to the listing form
- * - 2024-11-12: Implemented direct navigation for more reliable redirect
- * - 2025-04-05: Simplified navigation flow by removing redundant mechanisms
- * - 2025-04-05: Removed excessive debugging and consolidated error handling
+ * - 2024-03-19: Initial implementation of valuation result display
+ * - 2024-03-19: Added user authentication checks
+ * - 2024-03-19: Implemented seller role validation
+ * - 2024-03-19: Updated to pass reserve price to ValuationDisplay
+ * - 2024-03-19: Refactored into smaller components
+ * - 2024-03-19: Fixed type error in props passed to ValuationContent
+ * - 2024-03-19: Added averagePrice to ValuationContent props
+ * - 2024-03-19: Fixed valuation data being passed incorrectly
+ * - 2024-08-05: Enhanced error handling and improved manual valuation flow
+ * - 2026-04-15: Improved resilience for partial data and enhanced UI feedback
+ * - 2025-04-08: Added ability to use partial data when essential fields are available
  */
 
-import { useState } from "react";
-import { ValuationContent } from "./valuation/components/ValuationContent";
-import { ValuationErrorHandler } from "./valuation/components/ValuationErrorHandler";
-import { normalizeValuationData, validateValuationData } from "./valuation/utils/valuationDataNormalizer";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { TransmissionType } from "./valuation/types";
+import { ErrorDialog } from "./ErrorDialog";
+import { ExistingVehicleDialog } from "./dialogs/ExistingVehicleDialog";
+import { ValuationContent } from "./ValuationContent";
+import { useValuationContinue } from "../hooks/useValuationContinue";
+import { useState, useEffect } from "react";
+import { LoadingIndicator } from "@/components/common/LoadingIndicator";
+import { ValuationErrorHandler } from "./ValuationErrorHandler";
+import { ValuationErrorDialog } from "./components/dialogs/ValuationErrorDialog";
+import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -22,12 +32,11 @@ interface ValuationResultProps {
     year?: number;
     vin?: string;
     transmission?: string;
-    valuation?: number | null;
-    reservePrice?: number | null;
-    averagePrice?: number | null;
+    valuation?: number;
+    averagePrice?: number;
+    reservePrice?: number;
     isExisting?: boolean;
     error?: string;
-    rawResponse?: any;
     noData?: boolean;
   };
   onContinue: () => void;
@@ -42,113 +51,108 @@ export const ValuationResult = ({
   onRetry 
 }: ValuationResultProps) => {
   const [isLoading, setIsLoading] = useState(false);
+  const { 
+    isOpen: errorDialogOpen,
+    setIsOpen: setErrorDialogOpen,
+    handleClose: handleErrorClose,
+    handleRetry: handleErrorRetry 
+  } = useValuationErrorDialog();
   
-  // Check if user is logged in (simplified)
-  const isLoggedIn = !!localStorage.getItem('supabase.auth.token');
+  // Check for errors as soon as we get results
+  useEffect(() => {
+    if (valuationResult?.error || valuationResult?.noData) {
+      setErrorDialogOpen(true);
+    }
+  }, [valuationResult, setErrorDialogOpen]);
+
+  const navigate = useNavigate();
+  const { handleContinue, isLoggedIn } = useValuationContinue();
+  const [isValidatingData, setIsValidatingData] = useState(true);
   
-  // Ensure we have valid valuation data
+  // Validate data on mount with a slight delay to improve perceived responsiveness
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsValidatingData(false);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   if (!valuationResult) {
-    console.error('No valuation result provided to ValuationResult component');
-    return null;
+    return (
+      <div className="p-6 text-center">
+        <LoadingIndicator message="Preparing valuation data..." />
+      </div>
+    );
   }
-  
-  // Convert transmission string to TransmissionType before normalizing
-  const preparedResult = {
-    ...valuationResult,
-    // Cast to TransmissionType if valid, or use 'manual' as fallback
-    transmission: (valuationResult.transmission === 'manual' || valuationResult.transmission === 'automatic')
-      ? valuationResult.transmission as TransmissionType
-      : 'manual' as TransmissionType
-  };
-  
-  // Normalize and validate data using our utility functions
-  const normalizedResult = normalizeValuationData(preparedResult);
+
+  // Still validating - show a loading indicator
+  if (isValidatingData) {
+    return (
+      <div className="p-6 text-center">
+        <LoadingIndicator message="Processing valuation..." />
+      </div>
+    );
+  }
+
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-  const hasError = Boolean(normalizedResult.error || normalizedResult.noData);
-  const isValidData = validateValuationData(normalizedResult);
+  const hasError = !!valuationResult.error;
+  
+  // Now properly check for valid valuation data
+  const hasValuation = !hasError && (
+    valuationResult.valuation !== undefined || 
+    valuationResult.reservePrice !== undefined
+  );
 
-  // Handle validation errors - incomplete data without explicit error
-  if (!hasError && !isValidData) {
-    console.error('Invalid valuation data detected:', normalizedResult);
-    
-    // Create an error result for the error handler to display
-    const errorResult = {
-      ...normalizedResult,
-      error: 'Incomplete valuation data received. Please try again.',
-      noData: true
-    };
-    
+  // Handle missing essential data - defer to error handler which can handle partial data
+  const hasMissingEssentialData = !hasError && (
+    !valuationResult.make || 
+    !valuationResult.model || 
+    !valuationResult.year
+  );
+
+  if (hasError || valuationResult?.noData) {
     return (
-      <ValuationErrorHandler
-        valuationResult={errorResult}
-        mileage={mileage}
-        isLoggedIn={isLoggedIn}
-        onClose={onClose}
-        onRetry={onRetry}
+      <ValuationErrorDialog
+        isOpen={errorDialogOpen}
+        onClose={() => {
+          handleErrorClose();
+          onClose();
+        }}
+        onRetry={() => {
+          handleErrorRetry();
+          if (onRetry) onRetry();
+        }}
+        error={valuationResult.error || "No data found for this VIN"}
       />
     );
   }
 
-  // Handle explicit error cases with the dedicated component
-  if (hasError) {
-    return (
-      <ValuationErrorHandler
-        valuationResult={normalizedResult}
-        mileage={mileage}
-        isLoggedIn={isLoggedIn}
-        onClose={onClose}
-        onRetry={onRetry}
-      />
-    );
-  }
-
-  // Wrapper for continue button click handling
-  const handleContinueWrapper = () => {
-    setIsLoading(true);
-    
-    // Then close the dialog
-    try {
-      onClose();
-    } catch (closeError) {
-      console.error('Error closing dialog:', closeError);
-    }
+  // Use fallback values for missing properties
+  const normalizedResult = {
+    make: valuationResult.make || 'Unknown',
+    model: valuationResult.model || 'Vehicle',
+    year: valuationResult.year || new Date().getFullYear(),
+    vin: valuationResult.vin || '',
+    transmission: valuationResult.transmission || 'manual',
+    reservePrice: valuationResult.reservePrice || valuationResult.valuation,
+    averagePrice: valuationResult.averagePrice
   };
 
-  // Wrapper for retry handling
-  const handleRetryWrapper = () => {
-    setIsLoading(true);
-    if (onRetry) {
-      try {
-        onRetry();
-      } catch (error) {
-        console.error('Error in retry handler:', error);
-        setIsLoading(false);
-        toast.error('Failed to retry valuation');
-      }
-    } else {
-      setTimeout(() => setIsLoading(false), 500);
-    }
-  };
-
-  // Render main content for successful valuations
   return (
     <ValuationContent
-      make={normalizedResult.make || 'Unknown'}
-      model={normalizedResult.model || 'Vehicle'}
-      year={normalizedResult.year || new Date().getFullYear()}
-      vin={normalizedResult.vin || ''}
-      transmission={normalizedResult.transmission || 'manual'}
+      make={normalizedResult.make}
+      model={normalizedResult.model}
+      year={normalizedResult.year}
+      vin={normalizedResult.vin}
+      transmission={normalizedResult.transmission}
       mileage={mileage}
-      reservePrice={normalizedResult.reservePrice || normalizedResult.valuation}
-      // Still pass averagePrice in props but it won't be displayed
+      reservePrice={normalizedResult.reservePrice}
       averagePrice={normalizedResult.averagePrice}
-      hasValuation={isValidData}
+      hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
-      isLoading={isLoading}
-      error={normalizedResult.error}
-      onRetry={handleRetryWrapper}
       onClose={onClose}
-      onContinue={handleContinueWrapper}
+      onContinue={() => handleContinue(valuationResult)}
     />
   );
 };
