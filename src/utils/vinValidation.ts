@@ -3,6 +3,7 @@
  * Utility functions for VIN validation
  * Created: 2025-04-10
  * Updated: 2025-04-18 - Enhanced error messaging and format normalization
+ * Updated: 2025-04-19 - Improved VIN normalization to handle common input errors
  */
 
 /**
@@ -70,8 +71,8 @@ export function getVINErrorMessage(vin: string): string | null {
 export function normalizeVIN(vin: string): string {
   if (!vin) return '';
   
-  // Remove whitespace and convert to uppercase
-  let normalized = vin.trim().toUpperCase();
+  // Remove whitespace, dashes, and convert to uppercase
+  let normalized = vin.trim().toUpperCase().replace(/[\s-]/g, '');
   
   // Replace commonly confused characters
   normalized = normalized.replace(/[IOQ]/g, (match) => {
@@ -111,4 +112,28 @@ export function isTestVIN(vin: string): boolean {
   ];
   
   return testPatterns.some(pattern => pattern.test(normalized));
+}
+
+/**
+ * Check if a VIN looks realistic enough to attempt validation
+ * This helps filter out obviously invalid inputs before making API requests
+ * 
+ * @param vin The VIN to check
+ * @returns Boolean indicating if the VIN is realistic enough to validate
+ */
+export function isRealisticVIN(vin: string): boolean {
+  if (!vin) return false;
+  
+  const normalized = normalizeVIN(vin);
+  
+  // Must be 17 characters
+  if (normalized.length !== 17) return false;
+  
+  // Must not be a test VIN
+  if (isTestVIN(normalized)) return false;
+  
+  // Must not contain obviously repeated patterns
+  if (/(.)\1{5,}/.test(normalized)) return false; // 6+ of the same character in a row
+  
+  return true;
 }

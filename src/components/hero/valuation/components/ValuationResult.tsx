@@ -14,6 +14,7 @@
  * - 2025-04-08: Added ability to use partial data when essential fields are available
  * - 2025-04-17: Fixed import paths to match project structure
  * - 2025-04-18: Improved error dialog integration with proper state management
+ * - 2025-04-19: Fixed improper error detection causing valid VINs to show manual valuation
  */
 
 import { useNavigate } from "react-router-dom";
@@ -67,14 +68,25 @@ export const ValuationResult = ({
   const errorDialogOpen = externalErrorDialogOpen !== undefined ? externalErrorDialogOpen : internalErrorDialogOpen;
   const setErrorDialogOpen = externalSetErrorDialogOpen || internalSetErrorDialogOpen;
   
-  // Check for errors as soon as we get results
+  // Check for errors as soon as we get results - IMPORTANT: only set error dialog to true if there is a real error
   useEffect(() => {
-    if (valuationResult?.error || valuationResult?.noData) {
-      console.log('Setting error dialog open due to error/noData:', { 
+    // Only show error dialog for genuine errors, not for valid results with noData flag
+    const hasGenuineError = valuationResult?.error && !valuationResult?.make;
+    const hasNoDataWithoutValidResults = valuationResult?.noData && 
+                                        (!valuationResult?.make || !valuationResult?.model);
+    
+    if (hasGenuineError || hasNoDataWithoutValidResults) {
+      console.log('Setting error dialog open due to genuine error condition:', { 
         error: valuationResult?.error, 
-        noData: valuationResult?.noData 
+        noData: valuationResult?.noData,
+        hasMake: !!valuationResult?.make,
+        hasModel: !!valuationResult?.model
       });
       setErrorDialogOpen(true);
+    } else if (valuationResult?.make && valuationResult?.model) {
+      // We have valid data, make sure dialog is closed
+      console.log('Valid data detected, ensuring error dialog is closed');
+      setErrorDialogOpen(false);
     }
   }, [valuationResult, setErrorDialogOpen]);
 
@@ -109,24 +121,25 @@ export const ValuationResult = ({
   }
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-  const hasError = !!valuationResult.error;
   
-  // Now properly check for valid valuation data
+  // IMPORTANT: Changed error detection logic to properly identify genuine errors
+  const hasError = !!valuationResult.error && !valuationResult.make;
+  
+  // Check for valid valuation data - must have EITHER valuation OR reservePrice
   const hasValuation = !hasError && (
     valuationResult.valuation !== undefined || 
     valuationResult.reservePrice !== undefined
   );
 
-  // Handle missing essential data - defer to error handler which can handle partial data
-  const hasMissingEssentialData = !hasError && (
-    !valuationResult.make || 
-    !valuationResult.model || 
-    !valuationResult.year
-  );
-
-  if (hasError || valuationResult?.noData) {
-    console.log('Rendering ValuationErrorDialog with state:', { 
-      errorDialogOpen, 
+  // Check if we have the minimum required data for a successful result
+  const hasMinimumRequiredData = !!valuationResult.make && !!valuationResult.model;
+  
+  // Only show error dialog for genuine errors, not when we have valid data with the noData flag
+  if (hasError || (valuationResult?.noData && !hasMinimumRequiredData)) {
+    console.log('Rendering ValuationErrorDialog due to genuine error:', { 
+      hasError,
+      noData: valuationResult?.noData,
+      hasMinimumRequiredData,
       error: valuationResult.error || "No data found for this VIN" 
     });
     
@@ -148,7 +161,14 @@ export const ValuationResult = ({
     );
   }
 
-  // Use fallback values for missing properties
+  // If we reach here, we have valid data - use fallback values for any missing properties
+  console.log('Rendering ValuationContent with data:', {
+    make: valuationResult.make,
+    model: valuationResult.model,
+    year: valuationResult.year,
+    hasValuation
+  });
+  
   const normalizedResult = {
     make: valuationResult.make || 'Unknown',
     model: valuationResult.model || 'Vehicle',

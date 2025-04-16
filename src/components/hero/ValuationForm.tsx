@@ -8,6 +8,7 @@
  * - 2025-04-17: Fixed import paths for error dialog
  * - 2025-04-17: Fixed error dialog button handling
  * - 2025-04-18: Improved error handling for proper dialog interaction
+ * - 2025-04-19: Fixed valuation process to properly show results for valid VINs
  */
 
 import { ValuationInput } from "./ValuationInput";
@@ -22,6 +23,8 @@ export const ValuationForm = () => {
     isLoading,
     showDialog,
     setShowDialog,
+    errorDialogOpen,
+    setErrorDialogOpen,
     valuationResult,
     onSubmit,
     handleContinue,
@@ -31,8 +34,6 @@ export const ValuationForm = () => {
   const { 
     handleClose: handleErrorClose,
     handleRetry: handleErrorRetry,
-    isOpen: errorDialogOpen,
-    setIsOpen: setErrorDialogOpen
   } = useValuationErrorDialog();
 
   // Add explicit console logging for debugging event flow

@@ -3,6 +3,7 @@
  * Dialog component for displaying valuation errors with proper action handling
  * Created: 2025-04-16
  * Updated: 2025-04-18 - Added improved event stopping and better error feedback
+ * Updated: 2025-04-19 - Fixed issue with dialog state and improved button handling
  */
 
 import {
@@ -28,28 +29,32 @@ export const ValuationErrorDialog = ({
   onRetry,
   error
 }: ValuationErrorDialogProps) => {
-  console.log('ValuationErrorDialog render with improved handlers:', { isOpen, error });
+  console.log('ValuationErrorDialog render with state:', { isOpen, error });
 
   // Enhanced handlers with explicit event stopping to prevent dialog auto-close issues
   const handleClose = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Close button clicked with improved handling');
+    console.log('Close button clicked in error dialog');
     onClose();
   };
 
   const handleRetry = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Retry button clicked with improved handling');
+    console.log('Retry button clicked in error dialog');
     onRetry();
   };
+
+  // Determine if this is a "No data found" error that should show manual valuation option
+  const isNoDataError = error?.toLowerCase().includes('no data') || 
+                        error?.toLowerCase().includes('not found');
 
   // Format and enhance error message with helpful suggestions
   const getFormattedError = () => {
     if (!error) return "An unknown error occurred during valuation";
     
-    if (error.includes("No data found")) {
+    if (isNoDataError) {
       return `${error}. This may be because the VIN is not in our database or there was an issue connecting to the valuation service.`;
     }
     
@@ -61,8 +66,11 @@ export const ValuationErrorDialog = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={isOpen} onOpenChange={() => {
+      console.log('Dialog onOpenChange triggered');
+      onClose();
+    }}>
+      <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <AlertTriangle className="h-6 w-6 text-[#DC143C]" />
