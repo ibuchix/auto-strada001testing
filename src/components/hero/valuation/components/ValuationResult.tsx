@@ -12,17 +12,19 @@
  * - 2024-08-05: Enhanced error handling and improved manual valuation flow
  * - 2026-04-15: Improved resilience for partial data and enhanced UI feedback
  * - 2025-04-08: Added ability to use partial data when essential fields are available
+ * - 2025-04-17: Fixed import paths to match project structure
+ * - 2025-04-18: Improved error dialog integration with proper state management
  */
 
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ErrorDialog } from "./ErrorDialog";
-import { ExistingVehicleDialog } from "./dialogs/ExistingVehicleDialog";
 import { ValuationContent } from "./ValuationContent";
 import { useValuationContinue } from "../hooks/useValuationContinue";
 import { useState, useEffect } from "react";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorHandler } from "./ValuationErrorHandler";
+import { ValuationErrorDialog } from "./dialogs/ValuationErrorDialog";
+import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -41,14 +43,41 @@ interface ValuationResultProps {
   onContinue: () => void;
   onClose: () => void;
   onRetry?: () => void;
+  errorDialogOpen?: boolean;
+  setErrorDialogOpen?: (isOpen: boolean) => void;
 }
 
 export const ValuationResult = ({ 
   valuationResult, 
   onContinue, 
   onClose,
-  onRetry 
+  onRetry,
+  errorDialogOpen: externalErrorDialogOpen,
+  setErrorDialogOpen: externalSetErrorDialogOpen
 }: ValuationResultProps) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const { 
+    isOpen: internalErrorDialogOpen,
+    setIsOpen: internalSetErrorDialogOpen,
+    handleClose: handleErrorClose,
+    handleRetry: handleErrorRetry 
+  } = useValuationErrorDialog();
+  
+  // Use external state if provided, otherwise use internal state
+  const errorDialogOpen = externalErrorDialogOpen !== undefined ? externalErrorDialogOpen : internalErrorDialogOpen;
+  const setErrorDialogOpen = externalSetErrorDialogOpen || internalSetErrorDialogOpen;
+  
+  // Check for errors as soon as we get results
+  useEffect(() => {
+    if (valuationResult?.error || valuationResult?.noData) {
+      console.log('Setting error dialog open due to error/noData:', { 
+        error: valuationResult?.error, 
+        noData: valuationResult?.noData 
+      });
+      setErrorDialogOpen(true);
+    }
+  }, [valuationResult, setErrorDialogOpen]);
+
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
   const [isValidatingData, setIsValidatingData] = useState(true);
@@ -95,14 +124,26 @@ export const ValuationResult = ({
     !valuationResult.year
   );
 
-  if (hasError || valuationResult.noData || hasMissingEssentialData) {
+  if (hasError || valuationResult?.noData) {
+    console.log('Rendering ValuationErrorDialog with state:', { 
+      errorDialogOpen, 
+      error: valuationResult.error || "No data found for this VIN" 
+    });
+    
     return (
-      <ValuationErrorHandler 
-        valuationResult={valuationResult}
-        mileage={mileage}
-        isLoggedIn={isLoggedIn}
-        onClose={onClose}
-        onRetry={onRetry}
+      <ValuationErrorDialog
+        isOpen={errorDialogOpen}
+        onClose={() => {
+          console.log('ValuationErrorDialog onClose called');
+          handleErrorClose();
+          onClose();
+        }}
+        onRetry={() => {
+          console.log('ValuationErrorDialog onRetry called');
+          handleErrorRetry();
+          if (onRetry) onRetry();
+        }}
+        error={valuationResult.error || "No data found for this VIN"}
       />
     );
   }

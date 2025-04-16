@@ -7,6 +7,7 @@
  * - 2025-04-06: Fixed type issues with valuationResult
  * - 2025-04-17: Fixed import paths for error dialog
  * - 2025-04-17: Fixed error dialog button handling
+ * - 2025-04-18: Improved error handling for proper dialog interaction
  */
 
 import { ValuationInput } from "./ValuationInput";
@@ -29,17 +30,19 @@ export const ValuationForm = () => {
 
   const { 
     handleClose: handleErrorClose,
-    handleRetry: handleErrorRetry 
+    handleRetry: handleErrorRetry,
+    isOpen: errorDialogOpen,
+    setIsOpen: setErrorDialogOpen
   } = useValuationErrorDialog();
 
   // Add explicit console logging for debugging event flow
   const handleDialogClose = () => {
-    console.log("Dialog close triggered");
+    console.log("Dialog close triggered from ValuationForm");
     setShowDialog(false);
   };
 
   const handleRetry = () => {
-    console.log("Retry triggered from ValuationForm");
+    console.log("Retry triggered from ValuationForm with improved implementation");
     handleErrorRetry();
     resetForm();
   };
@@ -70,6 +73,8 @@ export const ValuationForm = () => {
             onContinue={handleContinue}
             onClose={handleDialogClose}
             onRetry={handleRetry}
+            errorDialogOpen={errorDialogOpen}
+            setErrorDialogOpen={setErrorDialogOpen}
           />
         )}
       </Dialog>

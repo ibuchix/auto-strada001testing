@@ -2,7 +2,7 @@
 /**
  * Dialog component for displaying valuation errors with proper action handling
  * Created: 2025-04-16
- * Updated: 2025-04-17 - Fixed event propagation issues with dialog buttons
+ * Updated: 2025-04-18 - Added improved event stopping and better error feedback
  */
 
 import {
@@ -28,21 +28,36 @@ export const ValuationErrorDialog = ({
   onRetry,
   error
 }: ValuationErrorDialogProps) => {
-  console.log('ValuationErrorDialog render:', { isOpen, error });
+  console.log('ValuationErrorDialog render with improved handlers:', { isOpen, error });
 
-  // Handlers with explicit event stopping to prevent dialog auto-close
+  // Enhanced handlers with explicit event stopping to prevent dialog auto-close issues
   const handleClose = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Close button clicked');
+    console.log('Close button clicked with improved handling');
     onClose();
   };
 
   const handleRetry = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Retry button clicked');
+    console.log('Retry button clicked with improved handling');
     onRetry();
+  };
+
+  // Format and enhance error message with helpful suggestions
+  const getFormattedError = () => {
+    if (!error) return "An unknown error occurred during valuation";
+    
+    if (error.includes("No data found")) {
+      return `${error}. This may be because the VIN is not in our database or there was an issue connecting to the valuation service.`;
+    }
+    
+    if (error.includes("timeout") || error.includes("Timeout")) {
+      return `${error}. The valuation service is taking longer than expected to respond. This might be due to network issues or high traffic.`;
+    }
+    
+    return error;
   };
 
   return (
@@ -56,7 +71,7 @@ export const ValuationErrorDialog = ({
         </DialogHeader>
 
         <div className="py-4">
-          <p className="text-gray-700">{error}</p>
+          <p className="text-gray-700">{getFormattedError()}</p>
         </div>
 
         <DialogFooter className="sm:justify-between gap-3">

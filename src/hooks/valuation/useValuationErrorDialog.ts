@@ -2,7 +2,7 @@
 /**
  * Hook for managing valuation error dialog state and actions
  * Created: 2025-04-16
- * Updated: 2025-04-17 - Fixed state management issues and improved handler reliability
+ * Updated: 2025-04-18 - Improved error state management and callback handling
  */
 
 import { useCallback, useState } from 'react';
@@ -15,14 +15,14 @@ export const useValuationErrorDialog = () => {
 
   // Enhanced close handler with explicit state cleanup
   const handleClose = useCallback(() => {
-    console.log('Dialog close handler executed');
+    console.log('Dialog close handler executed with new implementation');
     setIsOpen(false);
     setError(null);
   }, [setError]);
 
   // Enhanced retry handler with proper state reset sequence
   const handleRetry = useCallback(() => {
-    console.log('Retry handler executed, resetting form...');
+    console.log('Retry handler executed with new implementation, resetting form...');
     setIsOpen(false);
     setError(null);
     
