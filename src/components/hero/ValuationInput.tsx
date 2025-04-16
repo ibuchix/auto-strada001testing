@@ -4,6 +4,7 @@
  * - Enhanced form event handling for better performance
  * - Added optimized form validation with React Hook Form
  * - Improved mobile handling with enhanced UI feedback
+ * - 2025-04-20: Fixed type imports to use correct location
  */
 
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,7 @@ import { ChevronRight, Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { ValuationFormData } from "@/hooks/valuation/useEnhancedValuationForm";
+import { ValuationFormData } from "@/types/validation";
 import { UseFormReturn } from "react-hook-form";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCallback } from "react";
@@ -20,7 +21,6 @@ import { useCallback } from "react";
 interface ValuationInputProps {
   form: UseFormReturn<ValuationFormData> & {
     formState: { isSubmitting: boolean };
-    handleSubmitWithFeedback: (e?: React.BaseSyntheticEvent) => Promise<void>;
   };
   isLoading: boolean;
   onSubmit: (e: React.FormEvent) => void;

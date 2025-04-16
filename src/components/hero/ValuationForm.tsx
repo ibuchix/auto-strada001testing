@@ -9,6 +9,7 @@
  * - 2025-04-17: Fixed error dialog button handling
  * - 2025-04-18: Improved error handling for proper dialog interaction
  * - 2025-04-19: Fixed valuation process to properly show results for valid VINs
+ * - 2025-04-20: Fixed type issues with form handling and simplified props
  */
 
 import { ValuationInput } from "./ValuationInput";

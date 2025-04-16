@@ -3,6 +3,7 @@
  * Enhanced valuation form hook with better error handling
  * Created: 2025-04-15
  * Updated: 2025-04-19 - Fixed improper error detection causing valid VINs to show manual valuation
+ * Updated: 2025-04-20 - Fixed TypeScript typing issues with form and valuation result
  */
 
 import { useState, useCallback } from "react";
@@ -12,6 +13,7 @@ import { ValuationFormData, valuationFormSchema } from "@/types/validation";
 import { useValuationStore } from "@/hooks/store/useValuationStore";
 import { normalizeVIN } from "@/utils/vinValidation";
 import { toast } from "sonner";
+import { ValuationData } from "@/components/hero/valuation/types";
 
 export const useEnhancedValuationForm = () => {
   const [showDialog, setShowDialog] = useState(false);
@@ -66,7 +68,7 @@ export const useEnhancedValuationForm = () => {
   // Continue with car listing
   const handleContinue = useCallback(() => {
     console.log("Continuing with car listing");
-    if (valuationResult && valuationResult.make) {
+    if (valuationResult && valuationResult.data && valuationResult.data.make) {
       window.location.href = "/sell-my-car";
     } else {
       toast.error("No valid vehicle data available");
