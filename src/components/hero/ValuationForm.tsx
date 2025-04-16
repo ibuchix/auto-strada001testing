@@ -1,9 +1,11 @@
+
 /**
  * Changes made:
  * - Updated to use enhanced valuation form hook for better state management
  * - Improved performance with optimized React Hook Form integration
  * - Added form reset capability
  * - 2025-04-06: Fixed type issues with valuationResult
+ * - 2025-04-17: Fixed import paths for error dialog
  */
 
 import { ValuationInput } from "./ValuationInput";

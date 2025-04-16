@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of valuation result display
@@ -11,18 +12,17 @@
  * - 2024-08-05: Enhanced error handling and improved manual valuation flow
  * - 2026-04-15: Improved resilience for partial data and enhanced UI feedback
  * - 2025-04-08: Added ability to use partial data when essential fields are available
+ * - 2025-04-17: Fixed import paths to match project structure
  */
 
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ErrorDialog } from "./ErrorDialog";
-import { ExistingVehicleDialog } from "./dialogs/ExistingVehicleDialog";
-import { ValuationContent } from "./ValuationContent";
-import { useValuationContinue } from "../hooks/useValuationContinue";
+import { ValuationContent } from "./valuation/components/ValuationContent";
+import { useValuationContinue } from "./valuation/hooks/useValuationContinue";
 import { useState, useEffect } from "react";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { ValuationErrorHandler } from "./ValuationErrorHandler";
-import { ValuationErrorDialog } from "./components/dialogs/ValuationErrorDialog";
+import { ValuationErrorHandler } from "./valuation/components/ValuationErrorHandler";
+import { ValuationErrorDialog } from "./valuation/components/dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
 
 interface ValuationResultProps {
