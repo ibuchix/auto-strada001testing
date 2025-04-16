@@ -2,6 +2,7 @@
 /**
  * Dialog component for displaying valuation errors with proper action handling
  * Created: 2025-04-16
+ * Updated: 2025-04-17 - Fixed event propagation issues with dialog buttons
  */
 
 import {
@@ -29,6 +30,21 @@ export const ValuationErrorDialog = ({
 }: ValuationErrorDialogProps) => {
   console.log('ValuationErrorDialog render:', { isOpen, error });
 
+  // Handlers with explicit event stopping to prevent dialog auto-close
+  const handleClose = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Close button clicked');
+    onClose();
+  };
+
+  const handleRetry = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Retry button clicked');
+    onRetry();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -46,13 +62,13 @@ export const ValuationErrorDialog = ({
         <DialogFooter className="sm:justify-between gap-3">
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={handleClose}
             className="w-full sm:w-auto"
           >
             Close
           </Button>
           <Button
-            onClick={onRetry}
+            onClick={handleRetry}
             className="w-full sm:w-auto bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
           >
             Try Again

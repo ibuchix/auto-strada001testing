@@ -5,6 +5,7 @@
  * Changes made:
  * - 2026-05-10: Enhanced with offline mode support and better error feedback
  * - 2026-05-12: Updated to work with revised useOfflineStatus hook
+ * - 2025-04-17: Fixed button event handling and improved dialog controls
  */
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,6 +29,28 @@ export const ErrorDialog = ({
   onManualValuation,
   isOffline = false
 }: ErrorDialogProps) => {
+  // Add explicit event handling to prevent dialog auto-close behavior
+  const handleClose = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("ErrorDialog close clicked");
+    onClose();
+  };
+
+  const handleRetry = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("ErrorDialog retry clicked");
+    if (onRetry) onRetry();
+  };
+
+  const handleManualValuation = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Manual valuation clicked");
+    if (onManualValuation) onManualValuation();
+  };
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
@@ -57,7 +80,7 @@ export const ErrorDialog = ({
               <Button
                 variant="outline"
                 className="w-full sm:w-auto"
-                onClick={onRetry}
+                onClick={handleRetry}
                 disabled={isOffline}
               >
                 Try Again
@@ -68,7 +91,7 @@ export const ErrorDialog = ({
               <Button 
                 variant="default"
                 className="w-full sm:w-auto bg-[#DC143C] hover:bg-[#DC143C]/90"
-                onClick={onManualValuation}
+                onClick={handleManualValuation}
               >
                 Proceed with Manual Valuation
               </Button>
@@ -77,7 +100,7 @@ export const ErrorDialog = ({
             <Button
               variant="ghost"
               className="w-full sm:w-auto"
-              onClick={onClose}
+              onClick={handleClose}
             >
               Close
             </Button>

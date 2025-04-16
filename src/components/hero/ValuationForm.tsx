@@ -6,6 +6,7 @@
  * - Added form reset capability
  * - 2025-04-06: Fixed type issues with valuationResult
  * - 2025-04-17: Fixed import paths for error dialog
+ * - 2025-04-17: Fixed error dialog button handling
  */
 
 import { ValuationInput } from "./ValuationInput";
@@ -31,6 +32,18 @@ export const ValuationForm = () => {
     handleRetry: handleErrorRetry 
   } = useValuationErrorDialog();
 
+  // Add explicit console logging for debugging event flow
+  const handleDialogClose = () => {
+    console.log("Dialog close triggered");
+    setShowDialog(false);
+  };
+
+  const handleRetry = () => {
+    console.log("Retry triggered from ValuationForm");
+    handleErrorRetry();
+    resetForm();
+  };
+
   return (
     <div className="w-full max-w-md mx-auto">
       <ValuationInput 
@@ -38,7 +51,7 @@ export const ValuationForm = () => {
         isLoading={isLoading}
         onSubmit={onSubmit}
       />
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <Dialog open={showDialog} onOpenChange={handleDialogClose}>
         {valuationResult && (
           <ValuationResult 
             valuationResult={{
@@ -55,7 +68,8 @@ export const ValuationForm = () => {
               noData: valuationResult.data?.noData,
             }}
             onContinue={handleContinue}
-            onClose={() => setShowDialog(false)}
+            onClose={handleDialogClose}
+            onRetry={handleRetry}
           />
         )}
       </Dialog>
