@@ -7,6 +7,7 @@
  * - Added explicit console logging at key points
  * - Improved error handling and reporting
  * - Fixed state management issues
+ * - 2025-04-17: Fixed TypeScript errors with toast functions
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
@@ -73,7 +74,11 @@ export const useFormSubmission = (formId) => {
         const error = 'Missing required vehicle information';
         logSubmissionEvent('Validation failed', { submissionId, error });
         setSubmitError(error);
-        toast.error('Submission Error', { description: error });
+        toast({
+          title: 'Submission Error',
+          description: error,
+          variant: 'destructive'
+        });
         return { success: false, error };
       }
       
@@ -100,13 +105,17 @@ export const useFormSubmission = (formId) => {
         .from('cars')
         .upsert(submissionData, { 
           onConflict: 'id',
-          returning: 'minimal'
+          defaultToNull: false
         });
       
       if (error) {
         logSubmissionEvent('Database error', { submissionId, error: error.message });
         setSubmitError(error.message);
-        toast.error('Submission Error', { description: error.message });
+        toast({
+          title: 'Submission Error',
+          description: error.message,
+          variant: 'destructive'
+        });
         return { success: false, error: error.message };
       }
       
@@ -117,7 +126,11 @@ export const useFormSubmission = (formId) => {
       });
       
       logSubmissionEvent('Submission successful', { submissionId });
-      toast.success('Success!', { description: 'Your car listing has been submitted successfully.' });
+      toast({
+        title: 'Success!',
+        description: 'Your car listing has been submitted successfully.',
+        variant: 'success'
+      });
       
       return { success: true, data };
     } catch (error) {
@@ -130,7 +143,11 @@ export const useFormSubmission = (formId) => {
       });
       
       setSubmitError(errorMessage);
-      toast.error('Submission Error', { description: errorMessage });
+      toast({
+        title: 'Submission Error',
+        description: errorMessage,
+        variant: 'destructive'
+      });
       
       return { success: false, error: errorMessage };
     } finally {
