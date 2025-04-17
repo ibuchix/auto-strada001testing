@@ -1,162 +1,198 @@
+import { corsHeaders } from "../_shared/cors.ts";
+import { logOperation } from "../_shared/logging.ts";
+import { validateRequest } from "../_shared/request-validator.ts";
+import { formatResponse } from "../_shared/response-formatter.ts";
+import { createClient } from "../_shared/client.ts";
 
-/**
- * Edge function to handle seller operations securely
- * 
- * Supports various seller operations including:
- * - VIN validation and valuation
- * - Cache management
- * - VIN reservations
- * 
- * Enhanced with structured logging and performance tracking
- */
+import {
+  ApiError,
+  ValidationError,
+  safeJsonParse
+} from "./utils.ts";
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { ValuationRequest, validateRequest } from './schema-validation.ts';
-import { handleValuationRequest } from './handlers/valuation-handler.ts';
-import { handleCacheOperations } from './handlers/cache-handler.ts';
-import { logOperation, logError, createPerformanceTracker } from '../_shared/logging.ts';
+// Define types for seller operations
+type SellerOperation = 'create_seller' | 'update_seller' | 'delete_seller';
 
-// CORS headers for browser access
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-// Main request handler
-serve(async (req) => {
-  // Generate a request ID for tracing
-  const requestId = crypto.randomUUID();
-  
-  // Create performance tracker for this request
-  const perfTracker = createPerformanceTracker(requestId, 'handle_seller_operation');
-  
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
 
   try {
-    // Get request body
-    const requestData = await req.json();
-    
-    // Extract correlation ID if provided or generate a new one
-    const correlationId = requestData.correlation_id || requestId;
-    
-    // Log operation type
-    logOperation('request_received', { 
-      requestId, 
-      correlationId,
-      operation: requestData.operation,
-      timestamp: new Date().toISOString()
-    });
-    
-    perfTracker.checkpoint('request_parsed');
-    
-    // Initialize Supabase client with environment variables
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') as string;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    perfTracker.checkpoint('supabase_client_created');
+    // Validate the request
+    const { operation, payload } = await validateRequest(req);
 
-    // Route request based on operation type
-    switch (requestData.operation) {
-      case 'validate_vin': {
-        // Validate request schema
-        const validationRequest = await validateRequest<ValuationRequest>(requestData, 'validation');
-        if (!validationRequest.valid) {
-          perfTracker.complete('failure', { reason: 'validation_failed' });
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: validationRequest.error
-            }),
-            { 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 400 
-            }
-          );
-        }
-        
-        // Handle valuation request
-        const result = await handleValuationRequest(
-          supabase, 
-          validationRequest.data, 
-          correlationId
-        );
-        
-        perfTracker.complete(result.success ? 'success' : 'failure');
-        
-        return new Response(
-          JSON.stringify(result),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
-      }
-        
-      case 'cache_valuation':
-      case 'get_cached_valuation': {
-        // Handle cache operations
-        const result = await handleCacheOperations(
-          supabase, 
-          requestData.operation, 
-          requestData,
-          correlationId
-        );
-        
-        perfTracker.complete(result.success ? 'success' : 'failure');
-        
-        return new Response(
-          JSON.stringify(result),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
-      }
-      
+    // Log the operation
+    logOperation('seller_operation_received', { operation, payload });
+
+    // Process the seller operation
+    switch (operation) {
+      case 'create_seller':
+        return await createSeller(payload);
+      case 'update_seller':
+        return await updateSeller(payload);
+      case 'delete_seller':
+        return await deleteSeller(payload);
       default:
-        // Unknown operation
-        perfTracker.complete('failure', { reason: 'unknown_operation' });
-        
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "Unknown operation",
-            operation: requestData.operation
-          }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400 
-          }
-        );
+        throw new ValidationError(`Unsupported operation: ${operation}`, 'INVALID_OPERATION');
     }
-
   } catch (error) {
-    // Log and return error
-    logError('unhandled_error', { 
-      requestId, 
-      error: error.message,
-      stack: error.stack
-    });
-    
-    perfTracker.complete('failure', { 
-      reason: 'unhandled_error',
-      errorType: error.name,
-      errorMessage: error.message
-    });
-
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: `Server error: ${error.message}`,
-        timestamp: new Date().toISOString()
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
-      }
-    );
+    // Log and format the error response
+    logOperation('seller_operation_failed', { error: error.message, stack: error.stack }, 'error');
+    return formatResponse({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
   }
 });
+
+/**
+ * Creates a new seller in the database.
+ * @param payload - The data required to create a seller.
+ * @returns A formatted response indicating success or failure.
+ */
+async function createSeller(payload: any): Promise<Response> {
+  try {
+    // Validate payload
+    if (!payload.user_id || !payload.seller_name) {
+      throw new ValidationError('Missing required fields for creating a seller.', 'MISSING_FIELDS');
+    }
+
+    const supabaseClient = createClient();
+
+    // Insert the new seller into the database
+    const { data, error } = await supabaseClient
+      .from('sellers')
+      .insert([
+        {
+          user_id: payload.user_id,
+          seller_name: payload.seller_name,
+          contact_email: payload.contact_email,
+          contact_phone: payload.contact_phone,
+          address: payload.address,
+          city: payload.city,
+          state: payload.state,
+          zip_code: payload.zip_code,
+          description: payload.description,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ])
+      .select();
+
+    if (error) {
+      throw new ApiError(`Database error creating seller: ${error.message}`, 'DB_ERROR');
+    }
+
+    // Log the successful creation
+    logOperation('seller_created', { sellerId: data[0].id, userId: payload.user_id });
+
+    // Return a success response
+    return formatResponse({ success: true, data: data[0] }, { headers: corsHeaders });
+  } catch (error) {
+    // Log the error
+    logOperation('create_seller_failed', { error: error.message, stack: error.stack }, 'error');
+
+    // Return an error response
+    return formatResponse({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
+  }
+}
+
+/**
+ * Updates an existing seller in the database.
+ * @param payload - The data required to update a seller.
+ * @returns A formatted response indicating success or failure.
+ */
+async function updateSeller(payload: any): Promise<Response> {
+  try {
+    // Validate payload
+    if (!payload.id) {
+      throw new ValidationError('Missing seller ID for updating.', 'MISSING_SELLER_ID');
+    }
+
+    const supabaseClient = createClient();
+
+    // Update the seller in the database
+    const { data, error } = await supabaseClient
+      .from('sellers')
+      .update({
+        seller_name: payload.seller_name,
+        contact_email: payload.contact_email,
+        contact_phone: payload.contact_phone,
+        address: payload.address,
+        city: payload.city,
+        state: payload.state,
+        zip_code: payload.zip_code,
+        description: payload.description,
+        is_active: payload.is_active,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', payload.id)
+      .select();
+
+    if (error) {
+      throw new ApiError(`Database error updating seller: ${error.message}`, 'DB_ERROR');
+    }
+
+    if (!data || data.length === 0) {
+      throw new ApiError('Seller not found for updating.', 'SELLER_NOT_FOUND');
+    }
+
+    // Log the successful update
+    logOperation('seller_updated', { sellerId: payload.id });
+
+    // Return a success response
+    return formatResponse({ success: true, data: data[0] }, { headers: corsHeaders });
+  } catch (error) {
+    // Log the error
+    logOperation('update_seller_failed', { error: error.message, stack: error.stack }, 'error');
+
+    // Return an error response
+    return formatResponse({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
+  }
+}
+
+/**
+ * Deletes a seller from the database.
+ * @param payload - The data required to delete a seller (seller ID).
+ * @returns A formatted response indicating success or failure.
+ */
+async function deleteSeller(payload: any): Promise<Response> {
+  try {
+    // Validate payload
+    if (!payload.id) {
+      throw new ValidationError('Missing seller ID for deleting.', 'MISSING_SELLER_ID');
+    }
+
+    const supabaseClient = createClient();
+
+    // Delete the seller from the database
+    const { data, error } = await supabaseClient
+      .from('sellers')
+      .delete()
+      .eq('id', payload.id)
+      .select();
+
+    if (error) {
+      throw new ApiError(`Database error deleting seller: ${error.message}`, 'DB_ERROR');
+    }
+
+    if (!data || data.length === 0) {
+      throw new ApiError('Seller not found for deleting.', 'SELLER_NOT_FOUND');
+    }
+
+    // Log the successful deletion
+    logOperation('seller_deleted', { sellerId: payload.id });
+
+    // Return a success response
+    return formatResponse({ success: true, data: { id: payload.id } }, { headers: corsHeaders });
+  } catch (error) {
+    // Log the error
+    logOperation('delete_seller_failed', { error: error.message, stack: error.stack }, 'error');
+
+    // Return an error response
+    return formatResponse({ success: false, error: error.message }, { status: 500, headers: corsHeaders });
+  }
+}
