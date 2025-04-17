@@ -1,3 +1,4 @@
+
 /**
  * Modified Supabase Edge Function for VIN Validation
  * Updated: 2025-04-17 - Consolidated imports from shared module

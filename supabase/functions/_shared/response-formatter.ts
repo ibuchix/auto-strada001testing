@@ -52,3 +52,45 @@ export function formatErrorResponse(
     }
   );
 }
+
+/**
+ * Format server error response for unexpected errors
+ * @param error The error object
+ * @returns Formatted Response object
+ */
+export function formatServerErrorResponse(error: any): Response {
+  console.error('Server error:', error);
+  return formatErrorResponse(
+    `Server error: ${error.message || 'Unknown error'}`,
+    500,
+    'INTERNAL_SERVER_ERROR'
+  );
+}
+
+/**
+ * Format a response with custom status
+ * @param data The response data
+ * @param success Whether the operation was successful
+ * @param status HTTP status code
+ * @returns Formatted Response object
+ */
+export function formatResponse(
+  data: any,
+  success = true,
+  status = 200
+): Response {
+  return new Response(
+    JSON.stringify({
+      success,
+      ...(success ? { data } : { error: data }),
+      timestamp: new Date().toISOString()
+    }),
+    {
+      status,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+}

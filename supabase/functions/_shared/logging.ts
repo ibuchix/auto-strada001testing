@@ -31,3 +31,21 @@ export function logOperation(
       console.log(JSON.stringify(logData));
   }
 }
+
+/**
+ * Log an error with structured data
+ * @param context Context where the error occurred
+ * @param error The error object
+ */
+export function logError(context: string, error: any): void {
+  logOperation(
+    'error',
+    {
+      context,
+      message: error.message,
+      stack: error.stack,
+      data: error.data
+    },
+    'error'
+  );
+}
