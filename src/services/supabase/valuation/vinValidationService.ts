@@ -1,8 +1,12 @@
 
 /**
- * Changes made:
- * - 2025-04-06: Updated to use the centralized vehicle data service
- * - Simplified storage functions by delegating to vehicleDataService
+ * Enhanced VIN Validation Service
+ * 
+ * Changes:
+ * - Improved error handling in validateVin function
+ * - Added retry logic for transient errors
+ * - Enhanced logging for better diagnostics
+ * - Added option to bypass existence check
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +16,7 @@ export interface VinValidationRequest {
   vin: string;
   mileage: number;
   userId?: string;
+  allowExisting?: boolean; // New parameter to bypass existence check
 }
 
 export type { VehicleData };
@@ -55,30 +60,71 @@ export function clearValidationData() {
 }
 
 /**
- * Validates a VIN against the Supabase Edge Function
+ * Validates a VIN against the Supabase Edge Function with retry logic
  * 
  * @param params - Validation request parameters
+ * @param retryCount - Number of retries for transient errors (default: 2)
  * @returns Promise with validation results
  */
-export async function validateVin(params: VinValidationRequest): Promise<VinValidationResponse> {
+export async function validateVin(
+  params: VinValidationRequest, 
+  retryCount = 2
+): Promise<VinValidationResponse> {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  
   try {
-    console.log('Validating VIN:', params.vin);
+    console.log(`[VIN Validation][${requestId}] Validating VIN:`, params.vin, {
+      mileage: params.mileage,
+      allowExisting: params.allowExisting,
+      timestamp: new Date().toISOString()
+    });
     
     const { data, error } = await supabase.functions.invoke<any>('validate-vin', {
-      body: params
+      body: {
+        ...params,
+        requestId // Pass request ID for better tracing
+      }
     });
     
     if (error) {
-      console.error('VIN validation error:', error);
+      console.error(`[VIN Validation][${requestId}] Error:`, error);
+      
+      // Check for specific error types that might be retryable
+      const isRetryableError = 
+        error.message?.includes('timeout') || 
+        error.message?.includes('network') ||
+        error.message?.includes('rate limit') ||
+        error.status === 429 ||
+        error.status === 503;
+      
+      // Retry logic for transient errors
+      if (isRetryableError && retryCount > 0) {
+        console.log(`[VIN Validation][${requestId}] Retrying (${retryCount} attempts left)...`);
+        
+        // Exponential backoff - wait longer between retries
+        const backoffMs = Math.pow(2, 3 - retryCount) * 500;
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+        
+        return validateVin(params, retryCount - 1);
+      }
+      
       return {
         success: false,
         error: error.message || 'Error validating VIN',
-        errorCode: 'FUNCTION_ERROR'
+        errorCode: error.code || 'FUNCTION_ERROR'
       };
     }
     
     // If successful, store the data using our standardized storage service
     if (data) {
+      console.log(`[VIN Validation][${requestId}] Success:`, {
+        make: data.make,
+        model: data.model,
+        year: data.year,
+        cached: data.cached,
+        vehicleExists: data.vehicleExists
+      });
+      
       const vehicleData: VehicleData = {
         vin: params.vin,
         mileage: params.mileage,
@@ -91,7 +137,7 @@ export async function validateVin(params: VinValidationRequest): Promise<VinVali
         valuation: data.valuation || data.reservePrice,
         averagePrice: data.averagePrice || data.basePrice
       };
-
+      
       storeValidationData(vehicleData);
     }
     
@@ -101,7 +147,19 @@ export async function validateVin(params: VinValidationRequest): Promise<VinVali
       data
     };
   } catch (error) {
-    console.error('Unexpected error during VIN validation:', error);
+    console.error(`[VIN Validation][${requestId}] Unexpected error:`, error);
+    
+    // Retry logic for unexpected errors
+    if (retryCount > 0) {
+      console.log(`[VIN Validation][${requestId}] Retrying after unexpected error (${retryCount} attempts left)...`);
+      
+      // Exponential backoff - wait longer between retries
+      const backoffMs = Math.pow(2, 3 - retryCount) * 500;
+      await new Promise(resolve => setTimeout(resolve, backoffMs));
+      
+      return validateVin(params, retryCount - 1);
+    }
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unexpected error validating VIN',
