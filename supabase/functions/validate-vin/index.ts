@@ -1,16 +1,11 @@
-
 /**
- * Edge function for VIN validation
+ * Modified Supabase Edge Function for VIN Validation
  * 
- * This function validates vehicle identification numbers (VINs) by:
- * 1. Checking format validity
- * 2. Verifying if the vehicle already exists in the database
- * 3. Fetching valuation data when needed
- * 
- * Updated: Using consistent module versions and imports
- * Updated: 2025-04-20 - Improved vehicle checking with more detailed return data
- * Updated: 2025-04-20 - Enhanced rate limiting with less aggressive approach
- * Updated: 2025-04-20 - Added allowExisting parameter for more flexible checking
+ * Changes:
+ * - Modified checkVehicleExists to flag existence but not reject validation
+ * - Added allowExisting parameter to bypass existence check
+ * - Adjusted rate limiting logic to be less aggressive
+ * - Improved error handling and logging
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -21,9 +16,7 @@ import {
   formatSuccessResponse,
   formatErrorResponse,
   formatServerErrorResponse,
-  getSupabaseClient,
-  isValidVin,
-  isValidMileage
+  getSupabaseClient
 } from "../_shared/index.ts";
 import { z } from "https://esm.sh/zod@3.22.4";
 
