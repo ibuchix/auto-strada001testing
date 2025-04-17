@@ -2,6 +2,7 @@
 /**
  * Edge function for getting vehicle valuations
  * Updated: 2025-04-17 - Enhanced data validation and processing
+ * Updated: 2025-04-17 - Fixed import path for cors headers
  */
 
 import { corsHeaders } from "../_shared/cors.ts";
