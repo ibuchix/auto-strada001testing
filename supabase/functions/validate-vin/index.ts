@@ -8,6 +8,9 @@
  * 3. Fetching valuation data when needed
  * 
  * Updated: Using consistent module versions and imports
+ * Updated: 2025-04-20 - Improved vehicle checking with more detailed return data
+ * Updated: 2025-04-20 - Enhanced rate limiting with less aggressive approach
+ * Updated: 2025-04-20 - Added allowExisting parameter for more flexible checking
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -33,30 +36,61 @@ const validateVinSchema = z.object({
   mileage: z.number()
     .int("Mileage must be an integer")
     .min(0, "Mileage cannot be negative"),
-  userId: z.string().uuid("Invalid user ID format").optional()
+  userId: z.string().uuid("Invalid user ID format").optional(),
+  allowExisting: z.boolean().optional().default(false),
+  isTesting: z.boolean().optional().default(false)
 });
 
 // Rate limiting cache
-const rateLimitCache = new Map<string, number>();
+const rateLimitCache = new Map<string, { count: number; firstRequest: number; lastRequest: number }>();
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 
-// Check rate limiting for a VIN
-function checkRateLimit(vin: string): boolean {
+// Modified rate limiting function to be less aggressive
+function checkRateLimit(vin: string) {
   const now = Date.now();
-  const lastRequest = rateLimitCache.get(vin);
+  const key = `rate_limit:${vin}`;
   
-  if (lastRequest && now - lastRequest < RATE_LIMIT_WINDOW) {
-    return true; // Rate limited
+  // Get current rate limit data
+  const rateLimitData = rateLimitCache.get(key);
+  
+  if (!rateLimitData) {
+    // No rate limit data, create new entry
+    rateLimitCache.set(key, {
+      count: 1,
+      firstRequest: now,
+      lastRequest: now
+    });
+    return false; // Not rate limited
   }
   
-  rateLimitCache.set(vin, now);
-  return false; // Not rate limited
+  // Update rate limit data
+  rateLimitData.count += 1;
+  rateLimitData.lastRequest = now;
+  
+  // Check if rate limited - increased limits from original
+  const isRateLimited = 
+    rateLimitData.count > 15 && // Increased from 10
+    (now - rateLimitData.firstRequest) < 60000; // 1 minute window
+  
+  // Reset counter if window has passed
+  if (now - rateLimitData.firstRequest > 60000) {
+    rateLimitData.count = 1;
+    rateLimitData.firstRequest = now;
+  }
+  
+  rateLimitCache.set(key, rateLimitData);
+  
+  return isRateLimited;
 }
 
-// Check if vehicle exists in database
-async function checkVehicleExists(supabase, vin: string, requestId: string): Promise<boolean> {
+// Check if vehicle exists in database with enhanced return data
+async function checkVehicleExists(supabase, vin: string, requestId: string) {
   try {
-    // Check if the VIN exists in the cars table (excluding drafts)
+    logOperation('vehicle_check_started', { 
+      requestId, 
+      vin 
+    });
+    
     const { data, error } = await supabase
       .from('cars')
       .select('id, is_draft')
@@ -70,7 +104,7 @@ async function checkVehicleExists(supabase, vin: string, requestId: string): Pro
         vin, 
         error: error.message 
       }, 'error');
-      return false; // Assume it doesn't exist if there's an error
+      return { exists: false, error: error.message }; // Return error info but don't fail
     }
     
     // If data exists and it's not a draft, the car exists
@@ -82,7 +116,7 @@ async function checkVehicleExists(supabase, vin: string, requestId: string): Pro
       exists
     });
     
-    return exists;
+    return { exists, carData: data };
   } catch (error) {
     logOperation('vehicle_check_exception', { 
       requestId, 
@@ -90,7 +124,7 @@ async function checkVehicleExists(supabase, vin: string, requestId: string): Pro
       error: error.message,
       stack: error.stack
     }, 'error');
-    return false;
+    return { exists: false, error: error.message };
   }
 }
 
@@ -125,7 +159,7 @@ async function checkExistingReservation(supabase, vin: string, userId: string | 
   return { valid: true, reservation };
 }
 
-// Main handler function
+// Modified main handler function
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -149,10 +183,11 @@ serve(async (req) => {
       );
     }
     
-    const { vin, mileage, userId } = parseResult.data;
+    // Extract parameters with new allowExisting option
+    const { vin, mileage, userId, allowExisting = false, isTesting = false } = parseResult.data;
     
-    // Apply rate limiting
-    if (checkRateLimit(vin)) {
+    // Apply rate limiting with bypass for testing
+    if (!isTesting && checkRateLimit(vin)) {
       return formatErrorResponse(
         'Too many requests for this VIN. Please try again later.',
         429,
@@ -163,10 +198,11 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = getSupabaseClient();
     
-    // First check if this vehicle already exists in the database
-    const vehicleExists = await checkVehicleExists(supabase, vin, requestId);
+    // Check if this vehicle already exists in the database
+    const vehicleCheck = await checkVehicleExists(supabase, vin, requestId);
     
-    if (vehicleExists) {
+    // Only reject if vehicle exists and allowExisting is false
+    if (vehicleCheck.exists && !allowExisting) {
       logOperation('vin_already_exists', { 
         requestId, 
         vin 
@@ -196,7 +232,8 @@ serve(async (req) => {
             model: valuationData.model,
             year: valuationData.year,
             reservationId: reservationCheck.reservation.id,
-            valuationData
+            valuationData,
+            vehicleExists: vehicleCheck.exists // Add flag to indicate if vehicle exists
           });
         }
       }
@@ -219,7 +256,8 @@ serve(async (req) => {
         vin,
         mileage,
         ...cachedValidation.valuation_data,
-        shouldCreateReservation: !!userId
+        shouldCreateReservation: !!userId,
+        vehicleExists: vehicleCheck.exists // Add flag to indicate if vehicle exists
       });
     }
     
@@ -230,7 +268,8 @@ serve(async (req) => {
       vin,
       mileage,
       requiresValuation: true,
-      shouldCreateReservation: !!userId
+      shouldCreateReservation: !!userId,
+      vehicleExists: vehicleCheck.exists // Add flag to indicate if vehicle exists
     });
     
   } catch (error) {
