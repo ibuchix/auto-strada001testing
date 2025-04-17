@@ -1,12 +1,11 @@
-
 /**
- * Changes made:
+ * Fixed Valuation Service
+ * 
+ * Changes:
+ * - Fixed edge function name from 'handle-car-listing' to 'validate-vin'
  * - Enhanced error handling with better logging
  * - Added correlation ID support for request tracing
  * - Updated API calls to use the improved cache functions
- * - 2024-04-04: Fixed spread operator issue by checking for null values
- * - 2024-04-04: Added null/undefined object protection for all spreads
- * - 2025-05-08: Fixed missing utility function imports
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -59,11 +58,13 @@ export async function getValuation(
     console.log(`[ValuationService][${requestId}] Cache miss, fetching from edge function`);
     tracker.checkpoint('edge-function-start');
     
-    const { data: functionResult, error } = await supabase.functions.invoke('handle-car-listing', {
+    const { data: functionResult, error } = await supabase.functions.invoke('validate-vin', {
       body: { 
         vin, 
         mileage, 
         gearbox,
+        userId: supabase.auth.getUser()?.data?.user?.id,
+        allowExisting: true, // Allow validation even if VIN exists
         correlationId
       }
     });
@@ -105,7 +106,13 @@ export async function getValuation(
       }
     }
     
-    console.log(`[ValuationService][${requestId}] Valuation completed in ${(performance.now() - startTime).toFixed(2)}ms`);
+    console.log(`[ValuationService][${requestId}] Valuation completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
+      dataReceived: !!functionResult,
+      dataKeys: functionResult ? Object.keys(functionResult) : [],
+      hasMake: functionResult?.make ? 'yes' : 'no',
+      hasModel: functionResult?.model ? 'yes' : 'no',
+      hasYear: functionResult?.year ? 'yes' : 'no'
+    });
     
     tracker.complete('success');
     
