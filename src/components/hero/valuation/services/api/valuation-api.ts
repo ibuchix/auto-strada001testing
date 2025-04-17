@@ -1,18 +1,3 @@
-
-/**
- * Changes made:
- * - 2025-05-15: Extracted API calls from valuationService.ts
- * - 2025-11-05: Integrated with robust API client for automatic retries and error handling
- * - 2025-11-06: Fixed TypeScript response type issues
- * - 2025-11-10: Updated to use consolidated handle-seller-operations function
- * - 2025-12-01: Updated to use dedicated get-vehicle-valuation endpoint
- * - 2025-11-01: Fixed direct function invocation with proper error handling
- * - 2025-04-03: Enhanced debugging with detailed logging and performance metrics
- * - 2025-04-04: Fixed perfTracker completion status types
- * - 2025-04-04: Changed "error" to "failure" in perfTracker.complete calls
- * - 2025-04-05: Fixed empty response handling and added more detailed error logs
- */
-
 import { supabase } from "@/integrations/supabase/client";
 import { TransmissionType } from "../../types";
 import { generateRequestId, createPerformanceTracker } from "./utils/debug-utils";
@@ -44,19 +29,20 @@ export async function fetchHomeValuation(
   const requestId = generateRequestId();
   const perfTracker = createPerformanceTracker('home_valuation_api', requestId);
   
-  console.log(`[HomeValuationAPI][${requestId}] Fetching valuation for:`, { 
+  console.group(`[HomeValuationAPI][Detailed Valuation Check]`);
+  console.log('Request Parameters:', { 
     vin, 
     mileage, 
     gearbox,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    requestId
   });
   
   try {
     perfTracker.checkpoint('api_call_start');
     
-    // Use the direct edge function
     const { data, error } = await supabase.functions.invoke<any>(
-      'handle-car-listing',
+      'get-vehicle-valuation',
       {
         body: { 
           vin, 
@@ -68,106 +54,39 @@ export async function fetchHomeValuation(
     
     perfTracker.checkpoint('api_call_complete');
     
+    console.log('Raw API Response:', { 
+      hasData: !!data, 
+      hasError: !!error,
+      dataKeys: data ? Object.keys(data) : null
+    });
+    
     if (error) {
-      console.error(`[HomeValuationAPI][${requestId}] Edge function error:`, {
-        message: error.message,
-        name: error.name,
-        code: error.code,
-        details: error.details,
-        timestamp: new Date().toISOString()
-      });
-      
-      perfTracker.complete('failure', {
-        errorType: 'edge_function_error',
-        message: error.message
-      });
-      
+      console.error('Edge Function Error:', error);
       throw new Error(`API error: ${error.message}`);
     }
     
-    // Check if the data is in the expected format
     if (!data) {
-      console.error(`[HomeValuationAPI][${requestId}] No data returned from edge function`, {
-        timestamp: new Date().toISOString()
-      });
-      
-      perfTracker.complete('failure', {
-        errorType: 'missing_data',
-        message: 'No valuation data returned'
-      });
-      
+      console.warn('No data returned from edge function');
       throw new Error('No valuation data returned');
     }
     
-    // Handle case where API returns empty data or error field
-    if (data.error || (Object.keys(data).length === 0)) {
-      console.error(`[HomeValuationAPI][${requestId}] API returned error or empty data:`, {
-        error: data.error || 'Empty response',
-        dataKeys: Object.keys(data),
-        timestamp: new Date().toISOString()
-      });
-      
-      perfTracker.complete('failure', {
-        errorType: 'api_data_error',
-        message: data.error || 'Empty or invalid response from valuation API'
-      });
-      
-      throw new Error(data.error || 'No data found for this VIN');
-    }
-    
-    console.log(`[HomeValuationAPI][${requestId}] Received valuation data:`, {
+    console.log('Processed Valuation Data:', {
       make: data.make,
       model: data.model,
       year: data.year,
-      hasValuation: !!data.valuation,
-      hasReservePrice: !!data.reservePrice,
-      propertiesCount: Object.keys(data).length,
-      timestamp: new Date().toISOString()
+      valuation: data.valuation,
+      reservePrice: data.reservePrice
     });
     
-    // Calculate reserve price if not provided
-    if (data && data.valuation && !data.reservePrice) {
-      data.reservePrice = calculateReservePrice(data.valuation);
-      console.log(`[HomeValuationAPI][${requestId}] Calculated reserve price:`, { 
-        reservePrice: data.reservePrice,
-        baseValue: data.valuation,
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    // Ensure minimum required fields are present
-    if (!data.make || !data.model) {
-      console.warn(`[HomeValuationAPI][${requestId}] Incomplete vehicle data received:`, {
-        hasMake: !!data.make,
-        hasModel: !!data.model,
-        hasYear: !!data.year,
-        dataKeys: Object.keys(data),
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    perfTracker.complete('success', {
-      dataReceived: true,
-      withCalculation: !!(data && data.valuation && !data.reservePrice),
-      processingTimeMs: perfTracker.checkpoint('processing_complete'),
-      timestamp: new Date().toISOString()
-    });
+    console.groupEnd();
     
     return { data };
   } catch (error: any) {
-    console.error(`[HomeValuationAPI][${requestId}] Error fetching valuation:`, {
+    console.error(`Valuation API Error:`, {
       message: error.message,
-      stack: error.stack,
-      vin,
-      mileage,
-      timestamp: new Date().toISOString()
+      stack: error.stack
     });
-    
-    perfTracker.complete('failure', {
-      errorType: error.constructor?.name,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
+    console.groupEnd();
     
     return { error: error instanceof Error ? error : new Error(error.message || 'Unknown error') };
   }
