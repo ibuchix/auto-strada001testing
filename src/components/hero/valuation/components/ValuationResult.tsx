@@ -15,6 +15,7 @@
  * - 2025-04-17: Fixed import paths to match project structure
  * - 2025-04-17: Enhanced data validation and improved debug logging
  * - 2025-04-17: Fixed incorrect display of "Unknown Vehicle" when valid data exists
+ * - 2025-04-17: Fixed data extraction from external API responses
  */
 
 import { useNavigate } from "react-router-dom";
@@ -79,19 +80,23 @@ export const ValuationResult = ({
       model: valuationResult?.model,
       year: valuationResult?.year,
       valuation: valuationResult?.valuation,
-      reservePrice: valuationResult?.reservePrice
+      reservePrice: valuationResult?.reservePrice,
+      rawData: JSON.stringify(valuationResult).substring(0, 500)
     });
   }, [valuationResult]);
   
-  // Check for errors as soon as we get results
+  // Normalize and process data immediately
+  const [normalizedData, setNormalizedData] = useState<any>({});
+  
   useEffect(() => {
     if (!valuationResult) return;
     
     // Normalize and validate the result to handle different data formats
-    const normalizedResult = normalizeValuationData(valuationResult);
+    const normalized = normalizeValuationData(valuationResult);
+    setNormalizedData(normalized);
     
     // Check if we have valid vehicle identification (make AND model)
-    const hasValidVehicle = normalizedResult.make && normalizedResult.model;
+    const hasValidVehicle = normalized.make && normalized.model;
     
     // Show error dialog only if: explicit error OR noData flag and missing vehicle info
     const shouldShowError = (
@@ -104,8 +109,10 @@ export const ValuationResult = ({
       noData: !!valuationResult.noData,
       hasValidVehicle,
       shouldShowError,
-      make: normalizedResult.make,
-      model: normalizedResult.model
+      make: normalized.make,
+      model: normalized.model,
+      valuation: normalized.valuation,
+      reservePrice: normalized.reservePrice
     });
     
     if (shouldShowError) {
@@ -150,13 +157,13 @@ export const ValuationResult = ({
   
   // Check if we have a real error condition that should trigger the error dialog
   const hasError = !!valuationResult.error;
-  const hasMissingVehicleInfo = !valuationResult.make || !valuationResult.model;
+  const hasMissingVehicleInfo = !normalizedData.make || !normalizedData.model;
   const shouldShowError = hasError || (valuationResult?.noData && hasMissingVehicleInfo);
   
   // Check for valid valuation data
   const hasValuation = !hasError && (
-    valuationResult.valuation !== undefined || 
-    valuationResult.reservePrice !== undefined
+    normalizedData.valuation !== undefined || 
+    normalizedData.reservePrice !== undefined
   );
 
   // If we have an error that should be shown, display the error dialog
@@ -184,39 +191,30 @@ export const ValuationResult = ({
     );
   }
 
-  // Use vehicle data from result, fall back only if completely missing
-  // This should now correctly use actual vehicle make/model instead of "Unknown Vehicle"
-  const normalizedResult = {
-    make: valuationResult.make || 'Unknown',
-    model: valuationResult.model || 'Vehicle',
-    year: valuationResult.year || new Date().getFullYear(),
-    vin: valuationResult.vin || '',
-    transmission: valuationResult.transmission || 'manual',
-    reservePrice: valuationResult.reservePrice || valuationResult.valuation,
-    averagePrice: valuationResult.averagePrice
-  };
-
-  console.log('Rendering ValuationContent with data:', {
-    make: normalizedResult.make,
-    model: normalizedResult.model,
-    year: normalizedResult.year,
+  // Use the normalized data which contains properly extracted values
+  console.log('Rendering ValuationContent with normalized data:', {
+    make: normalizedData.make,
+    model: normalizedData.model,
+    year: normalizedData.year,
+    valuation: normalizedData.valuation,
+    reservePrice: normalizedData.reservePrice,
     hasValuation
   });
 
   return (
     <ValuationContent
-      make={normalizedResult.make}
-      model={normalizedResult.model}
-      year={normalizedResult.year}
-      vin={normalizedResult.vin}
-      transmission={normalizedResult.transmission}
+      make={normalizedData.make}
+      model={normalizedData.model}
+      year={normalizedData.year}
+      vin={normalizedData.vin || valuationResult.vin || ''}
+      transmission={normalizedData.transmission || valuationResult.transmission || 'manual'}
       mileage={mileage}
-      reservePrice={normalizedResult.reservePrice}
-      averagePrice={normalizedResult.averagePrice}
+      reservePrice={normalizedData.reservePrice}
+      averagePrice={normalizedData.averagePrice}
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
-      onContinue={() => handleContinue(valuationResult)}
+      onContinue={() => handleContinue(normalizedData)}
     />
   );
 };

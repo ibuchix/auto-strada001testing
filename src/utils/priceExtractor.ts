@@ -1,9 +1,10 @@
 
 /**
  * Enhanced price extractor with better debugging and more robust fallbacks
+ * Modified: 2025-04-17 - Improved extraction from external API response formats
  */
 export const extractPrice = (responseData: any): number | null => {
-  console.log('Extracting price from response:', JSON.stringify(responseData, null, 2));
+  console.log('Extracting price from response:', JSON.stringify(responseData, null, 2).substring(0, 1000));
 
   // If response is empty or invalid
   if (!responseData) {
@@ -11,6 +12,16 @@ export const extractPrice = (responseData: any): number | null => {
     return null;
   }
 
+  // Check for Auto ISO API specific fields first (the external valuation API)
+  if (responseData.price_min !== undefined && responseData.price_med !== undefined) {
+    // This is the format from the Auto ISO API - calculate base price as specified
+    const basePrice = (Number(responseData.price_min) + Number(responseData.price_med)) / 2;
+    if (basePrice > 0) {
+      console.log('AUTO ISO API: Calculated base price from min/med:', basePrice);
+      return basePrice;
+    }
+  }
+  
   // Direct price fields with validation - check these fields first in order of priority
   const directPriceFields = [
     // Primary fields - these are the most reliable
@@ -23,7 +34,6 @@ export const extractPrice = (responseData: any): number | null => {
     responseData?.functionResponse?.price,
     responseData?.functionResponse?.valuation?.price,
     // External API specific fields
-    responseData?.price_med,
     responseData?.estimated_value,
     responseData?.market_value,
     responseData?.value,
@@ -35,12 +45,35 @@ export const extractPrice = (responseData: any): number | null => {
     return directPriceFields[0];
   }
 
-  // Check for specific API response structure from external valuation API
-  if (responseData?.price_min && responseData?.price_med) {
-    const basePrice = (Number(responseData.price_min) + Number(responseData.price_med)) / 2;
-    if (basePrice > 0) {
-      console.log('Calculated base price from min/med:', basePrice);
-      return basePrice;
+  // Check for prices in nested data objects - common in API responses
+  const nestedData = responseData.data || 
+                    responseData.apiResponse || 
+                    responseData.apiData || 
+                    responseData.valuationDetails || 
+                    responseData.search_data || {};
+                    
+  if (nestedData && typeof nestedData === 'object') {
+    // Try the same process with the nested data
+    const nestedPriceFields = [
+      nestedData?.reservePrice,
+      nestedData?.price,
+      nestedData?.valuation,
+      nestedData?.price_med,
+      nestedData?.basePrice
+    ].filter(price => typeof price === 'number' && price > 0);
+    
+    if (nestedPriceFields.length > 0) {
+      console.log('Found nested price:', nestedPriceFields[0]);
+      return nestedPriceFields[0];
+    }
+    
+    // Check for Auto ISO format in nested data
+    if (nestedData.price_min !== undefined && nestedData.price_med !== undefined) {
+      const basePrice = (Number(nestedData.price_min) + Number(nestedData.price_med)) / 2;
+      if (basePrice > 0) {
+        console.log('AUTO ISO API (nested): Calculated base price from min/med:', basePrice);
+        return basePrice;
+      }
     }
   }
 
@@ -173,5 +206,4 @@ export const formatPrice = (price: number | undefined | null): string => {
     maximumFractionDigits: 0
   }).format(price);
 };
-
 

@@ -4,13 +4,14 @@
  * - Updated 2025-04-05: Simplified navigation flow with single Button component
  * - Removed redundant navigation mechanisms for clarity and reliability
  * - Updated 2025-04-06: Fixed TypeScript prop interface to include onContinue
+ * - Updated 2025-04-17: Fixed component to properly display vehicle data and pricing
  */
 
 import { Button } from "@/components/ui/button";
-import { DirectNavigationButton } from "./buttons/DirectNavigationButton";
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
 import { CarDetailsSection } from "./CarDetailsSection";
 import { ContactInfo } from "./ContactInfo";
+import { formatPrice } from "@/utils/priceExtractor";
 
 interface ValuationContentProps {
   make: string;
@@ -27,7 +28,7 @@ interface ValuationContentProps {
   error?: string;
   onRetry?: () => void;
   onClose: () => void;
-  onContinue: () => void; // Added missing prop
+  onContinue: () => void;
 }
 
 export const ValuationContent = ({
@@ -45,18 +46,12 @@ export const ValuationContent = ({
   error,
   onRetry,
   onClose,
-  onContinue  // Added missing prop
+  onContinue
 }: ValuationContentProps) => {
-  const valuationData = {
-    make,
-    model,
-    year,
-    vin,
-    transmission,
-    mileage,
-    reservePrice,
-    averagePrice
-  };
+  // Log the data being displayed for debugging
+  console.log('ValuationContent rendering with:', {
+    make, model, year, reservePrice, averagePrice, hasValuation
+  });
 
   return (
     <div className="p-6 bg-white rounded-lg max-w-2xl mx-auto">
@@ -71,7 +66,25 @@ export const ValuationContent = ({
       />
       
       {hasValuation && reservePrice && (
-        <ValuationPriceDisplay reservePrice={reservePrice} showAveragePrice={false} />
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-medium mb-2">Your Vehicle Valuation</h3>
+          
+          {averagePrice && (
+            <div className="mb-3">
+              <span className="text-gray-700">Market Average: </span>
+              <span className="font-semibold">{formatPrice(averagePrice)}</span>
+            </div>
+          )}
+          
+          <div className="mb-2">
+            <span className="text-gray-700">Reserve Price: </span>
+            <span className="text-lg font-bold text-secondary">{formatPrice(reservePrice)}</span>
+          </div>
+          
+          <p className="text-sm text-gray-600 mt-2">
+            This is the minimum price your vehicle will be listed for in our auction.
+          </p>
+        </div>
       )}
       
       <div className="mt-6 flex flex-col gap-4">
@@ -83,21 +96,13 @@ export const ValuationContent = ({
         
         <ContactInfo />
 
-        <div className="flex flex-col sm:flex-row justify-between gap-4 mt-4">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            Cancel
+        <div className="mt-4 flex flex-col sm:flex-row gap-3 justify-end">
+          <Button variant="outline" onClick={onClose}>
+            Close
           </Button>
-          
-          <DirectNavigationButton
-            valuationData={valuationData}
-            buttonText={isLoggedIn ? "List This Car" : "Sign Up to List Your Car"}
-            isDisabled={isLoading}
-            onContinue={onContinue}  // Pass the onContinue prop
-          />
+          <Button onClick={onContinue} className="bg-secondary hover:bg-secondary/90 text-white">
+            {isLoggedIn ? "List My Car" : "Sign Up to Continue"}
+          </Button>
         </div>
       </div>
     </div>
