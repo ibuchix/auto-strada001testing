@@ -11,7 +11,7 @@
 import React, { useState, useCallback } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 interface FormSubmitButtonProps extends ButtonProps {
   isSubmitting?: boolean;
@@ -58,8 +58,7 @@ export const FormSubmitButton = ({
       console.log(`[FormSubmitButton][${formId}] Already submitting, ignoring click`);
       toast({
         title: "Processing",
-        description: "Your submission is being processed...",
-        variant: "default"
+        description: "Your submission is being processed..."
       });
       return;
     }
@@ -77,9 +76,9 @@ export const FormSubmitButton = ({
       } catch (error) {
         console.error(`[FormSubmitButton][${formId}] Error in click handler:`, error);
         toast({
+          variant: "destructive",
           title: "Submission Error",
-          description: "There was a problem processing your request. Please try again.",
-          variant: "destructive"
+          description: "There was a problem processing your request. Please try again."
         });
       }
     }
