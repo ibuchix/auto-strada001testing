@@ -7,6 +7,7 @@
  * - Added explicit console logging at key points
  * - Improved error handling and reporting
  * - Fixed state management issues
+ * - Fixed TypeScript error with Supabase upsert options
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
@@ -98,13 +99,13 @@ export const useFormSubmission = (formId) => {
         }
       });
       
-      // Submit to database
+      // Submit to database - Fixed TypeScript error by removing returning option 
+      // which is not supported in this Supabase client version
       logSubmissionEvent('Sending to database', { submissionId });
       const { data, error } = await supabase
         .from('cars')
         .upsert(submissionData, { 
-          onConflict: 'id',
-          returning: 'minimal'
+          onConflict: 'id'
         });
       
       if (error) {
