@@ -1,8 +1,10 @@
 
 /**
  * ValuationResult Component
- * - Created: 2024-03-19
- * - Updated: 2025-04-17 - Refactored for better organization and maintainability
+ * Updated: 2025-04-17
+ * - Simplified component structure
+ * - Improved error handling
+ * - Enhanced data normalization
  */
 
 import { useNavigate } from "react-router-dom";
@@ -49,14 +51,12 @@ export const ValuationResult = ({
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
   
-  // Use external state if provided, otherwise use internal state
   const errorDialogOpen = externalErrorDialogOpen !== undefined ? externalErrorDialogOpen : internalErrorDialogOpen;
   const setErrorDialogOpen = externalSetErrorDialogOpen || internalSetErrorDialogOpen;
 
   const { normalizedData, hasError, shouldShowError, hasValuation } = useValuationData(valuationResult);
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
 
-  // Initial validation delay for UX
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsValidatingData(false);
@@ -64,7 +64,6 @@ export const ValuationResult = ({
     return () => clearTimeout(timer);
   }, []);
 
-  // Show loading state
   if (!valuationResult || isValidatingData) {
     return (
       <div className="p-6 text-center">
@@ -73,7 +72,6 @@ export const ValuationResult = ({
     );
   }
 
-  // Show error dialog if needed
   if (shouldShowError) {
     return (
       <ValuationErrorDialog
@@ -91,7 +89,6 @@ export const ValuationResult = ({
     );
   }
 
-  // Render valuation content
   return (
     <ValuationContent
       make={normalizedData.make}

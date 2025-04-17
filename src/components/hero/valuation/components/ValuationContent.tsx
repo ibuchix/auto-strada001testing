@@ -1,7 +1,10 @@
 
 /**
  * ValuationContent Component
- * - Updated 2025-04-17: Refactored to use separate components for better organization
+ * Updated: 2025-04-17
+ * - Consolidated functionality from ValuationMainContent
+ * - Improved error handling and display
+ * - Enhanced vehicle and price information display
  */
 
 import { Button } from "@/components/ui/button";
