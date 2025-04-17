@@ -1,6 +1,6 @@
 /**
  * Modified Supabase Edge Function for VIN Validation
- * Updated: 2025-04-17 - Fixed shared module import paths
+ * Updated: 2025-04-17 - Consolidated imports from shared module
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";

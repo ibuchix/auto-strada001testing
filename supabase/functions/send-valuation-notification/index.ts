@@ -1,12 +1,10 @@
+/**
+ * Notification edge function for manual valuation submissions
+ * Updated: 2025-04-17 - Consolidated imports from shared module
+ */
 
-// Notification edge function for manual valuation submissions
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { logOperation, logError } from '../_shared/index.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { logOperation, logError, corsHeaders } from '../_shared/index.ts';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests

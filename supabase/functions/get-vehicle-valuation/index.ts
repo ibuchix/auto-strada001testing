@@ -1,14 +1,16 @@
-
 /**
  * Edge function for getting vehicle valuations
- * Updated: 2025-04-17 - Enhanced data validation and processing
- * Updated: 2025-04-17 - Fixed all shared module import paths
+ * Updated: 2025-04-17 - Consolidated imports from shared module
  */
 
-import { corsHeaders } from "../_shared/cors.ts";
-import { logOperation } from "../_shared/logging.ts";
-import { formatSuccessResponse, formatErrorResponse } from "../_shared/response-formatter.ts";
-import { validateVehicleData, normalizeValuationData } from "../_shared/validation.ts";
+import { 
+  corsHeaders,
+  logOperation,
+  formatSuccessResponse, 
+  formatErrorResponse,
+  ValidationError 
+} from "../_shared/index.ts";
+
 import { fetchExternalValuation } from "./api-service.ts";
 import { checkCache, storeInCache } from "./cache-service.ts";
 

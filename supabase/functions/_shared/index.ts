@@ -1,13 +1,12 @@
 
 /**
  * _shared/index.ts - Common utilities for edge functions
- * 
- * Updated: Added getSupabaseClient export for consistent client usage
+ * Updated: 2025-04-17 - Consolidated all shared exports into a single entry point
  */
 
+export * from './cors.ts';
 export * from './logging.ts';
 export * from './checksum.ts';
-export * from './cors.ts';
 export * from './response-formatter.ts';
 export * from './client.ts';
 export * from './request-validator.ts';

@@ -1,12 +1,17 @@
-import { corsHeaders } from "../_shared/cors.ts";
-import { logOperation } from "../_shared/logging.ts";
-import { validateRequest } from "../_shared/request-validator.ts";
-import { formatResponse } from "../_shared/response-formatter.ts";
-import { createClient } from "../_shared/client.ts";
+/**
+ * Edge function for seller operations
+ * Updated: 2025-04-17 - Consolidated imports from shared module
+ */
+
+import { 
+  corsHeaders,
+  logOperation,
+  ValidationError,
+  formatResponse
+} from "../_shared/index.ts";
 
 import {
   ApiError,
-  ValidationError,
   safeJsonParse
 } from "./utils.ts";
 
