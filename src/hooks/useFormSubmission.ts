@@ -1,19 +1,16 @@
 
 /**
- * Enhanced Form Submission Logic - Updated to fix TypeScript error
+ * Enhanced Form Submission Logic
  * 
  * Changes:
- * - Fixed TypeScript error with Supabase upsert options
- * - Removed defaultToNull option which is causing the error
  * - Fixed event handling in form submission flow
  * - Added explicit console logging at key points
  * - Improved error handling and reporting
  * - Fixed state management issues
- * - 2025-04-17: Fixed TypeScript errors with toast functions
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { prepareSubmission } from '../utils/submission';
 import { supabase } from '@/integrations/supabase/client';
 import { useFormState } from '../context/FormStateContext';
@@ -77,9 +74,9 @@ export const useFormSubmission = (formId) => {
         logSubmissionEvent('Validation failed', { submissionId, error });
         setSubmitError(error);
         toast({
-          title: 'Submission Error',
-          description: error,
-          variant: 'destructive'
+          variant: "destructive",
+          title: "Submission Error",
+          description: error
         });
         return { success: false, error };
       }
@@ -101,21 +98,22 @@ export const useFormSubmission = (formId) => {
         }
       });
       
-      // Submit to database - Fixed TypeScript error by removing defaultToNull option
+      // Submit to database
       logSubmissionEvent('Sending to database', { submissionId });
       const { data, error } = await supabase
         .from('cars')
         .upsert(submissionData, { 
-          onConflict: 'id'
+          onConflict: 'id',
+          returning: 'minimal'
         });
       
       if (error) {
         logSubmissionEvent('Database error', { submissionId, error: error.message });
         setSubmitError(error.message);
         toast({
-          title: 'Submission Error',
-          description: error.message,
-          variant: 'destructive'
+          variant: "destructive",
+          title: "Submission Error",
+          description: error.message
         });
         return { success: false, error: error.message };
       }
@@ -128,9 +126,8 @@ export const useFormSubmission = (formId) => {
       
       logSubmissionEvent('Submission successful', { submissionId });
       toast({
-        title: 'Success!',
-        description: 'Your car listing has been submitted successfully.',
-        variant: 'success'
+        title: "Success!",
+        description: "Your car listing has been submitted successfully."
       });
       
       return { success: true, data };
@@ -145,9 +142,9 @@ export const useFormSubmission = (formId) => {
       
       setSubmitError(errorMessage);
       toast({
-        title: 'Submission Error',
-        description: errorMessage,
-        variant: 'destructive'
+        variant: "destructive",
+        title: "Submission Error",
+        description: errorMessage
       });
       
       return { success: false, error: errorMessage };
