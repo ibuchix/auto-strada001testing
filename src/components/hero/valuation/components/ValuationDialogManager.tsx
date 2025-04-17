@@ -3,6 +3,7 @@
  * Component for managing valuation-related dialogs
  * Created: 2025-04-17
  * Updated: 2025-04-17 - Improved with standardized types and better error handling
+ * Updated: 2025-04-17 - Fixed type issues with errorDetails and valuation props
  */
 
 import { useNavigate } from "react-router-dom";

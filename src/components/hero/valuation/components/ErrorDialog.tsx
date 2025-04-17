@@ -6,28 +6,34 @@
  * - 2026-05-10: Enhanced with offline mode support and better error feedback
  * - 2026-05-12: Updated to work with revised useOfflineStatus hook
  * - 2025-04-17: Fixed button event handling and improved dialog controls
+ * - 2025-04-17: Added errorDetails and valuation props for enhanced error information
  */
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, WifiOff } from "lucide-react";
+import { ValuationData } from "@/utils/valuation/valuationDataTypes";
 
 interface ErrorDialogProps {
   error: string;
+  errorDetails?: string;
   onClose: () => void;
   onRetry?: (() => void) | null;
   showManualOption?: boolean;
   onManualValuation?: () => void;
   isOffline?: boolean;
+  valuation?: Partial<ValuationData>;
 }
 
 export const ErrorDialog = ({
   error,
+  errorDetails,
   onClose,
   onRetry,
   showManualOption = false,
   onManualValuation,
-  isOffline = false
+  isOffline = false,
+  valuation
 }: ErrorDialogProps) => {
   // Add explicit event handling to prevent dialog auto-close behavior
   const handleClose = (e: React.MouseEvent) => {
@@ -68,6 +74,12 @@ export const ErrorDialog = ({
         </DialogHeader>
         <div className="py-4 space-y-6">
           <p className="text-gray-700">{error}</p>
+          
+          {errorDetails && (
+            <div className="bg-gray-50 border border-gray-200 rounded-md p-3 text-sm text-gray-600">
+              {errorDetails}
+            </div>
+          )}
           
           {isOffline && (
             <div className="bg-orange-50 border border-orange-100 rounded-md p-3 text-sm text-orange-800">

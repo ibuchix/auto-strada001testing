@@ -1,7 +1,7 @@
 
 /**
  * Component for handling valuation errors and recovery
- * Updated: 2025-04-17 - Refactored into smaller components
+ * Updated: 2025-04-17 - Refactored into smaller components with improved type safety
  */
 
 import { useNavigate } from "react-router-dom";
@@ -10,6 +10,7 @@ import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { useRetryHandler } from "@/hooks/valuation/useRetryHandler";
 import { salvagePartialData, hasUsablePartialData } from "@/utils/valuation/dataRecovery";
 import { ValuationDialogManager } from "./ValuationDialogManager";
+import { ValuationData, TransmissionType } from "@/utils/valuation/valuationDataTypes";
 
 interface ValuationErrorHandlerProps {
   valuationResult: {
@@ -63,12 +64,18 @@ export const ValuationErrorHandler = ({
     }
   };
 
+  // Convert valuationResult to a properly typed object
+  const typedValuationResult: Partial<ValuationData> = {
+    ...valuationResult,
+    // Ensure transmission is properly typed
+    transmission: valuationResult.transmission as TransmissionType,
+    // Add mileage to the data
+    mileage
+  };
+
   // Try to salvage partial data if possible
-  if (hasUsablePartialData(valuationResult)) {
-    const partialData = salvagePartialData({
-      ...valuationResult,
-      mileage
-    });
+  if (hasUsablePartialData(typedValuationResult)) {
+    const partialData = salvagePartialData(typedValuationResult);
 
     if (partialData) {
       toast.info("Using partial vehicle data", {
@@ -114,8 +121,10 @@ export const ValuationErrorHandler = ({
   return (
     <ValuationDialogManager
       error={valuationResult.error}
+      errorDetails={valuationResult.noData ? "No data was found for this vehicle identification number." : undefined}
       isExisting={valuationResult.isExisting}
       isOffline={isOffline}
+      valuation={typedValuationResult}
       onClose={onClose}
       onRetry={handleRetryAttempt}
       onManualValuation={handleManualValuation}

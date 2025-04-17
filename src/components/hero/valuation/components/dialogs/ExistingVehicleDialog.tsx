@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2024-03-19: Created ExistingVehicleDialog component extracted from ValuationResult
+ * - 2025-04-17: Added valuation prop to support detailed error information
  */
 
 import {
@@ -12,13 +13,20 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
+import { ValuationData } from "@/utils/valuation/valuationDataTypes";
 
 interface ExistingVehicleDialogProps {
   onClose: () => void;
   onRetry?: () => void;
+  valuation?: Partial<ValuationData>;
 }
 
-export const ExistingVehicleDialog = ({ onClose, onRetry }: ExistingVehicleDialogProps) => {
+export const ExistingVehicleDialog = ({ onClose, onRetry, valuation }: ExistingVehicleDialogProps) => {
+  // Extract vehicle details if available
+  const vehicleName = valuation?.make && valuation?.model 
+    ? `${valuation.year || ''} ${valuation.make} ${valuation.model}` 
+    : 'This vehicle';
+
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
@@ -30,7 +38,7 @@ export const ExistingVehicleDialog = ({ onClose, onRetry }: ExistingVehicleDialo
 
       <div className="space-y-4 text-center">
         <p className="text-subtitle">
-          This vehicle has already been listed in our system. Each vehicle can only be listed once.
+          {vehicleName} has already been listed in our system. Each vehicle can only be listed once.
         </p>
         <div className="bg-accent/50 p-4 rounded-lg">
           <p className="text-sm text-subtitle">
