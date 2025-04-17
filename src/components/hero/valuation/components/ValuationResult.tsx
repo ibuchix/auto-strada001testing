@@ -13,8 +13,8 @@
  * - 2026-04-15: Improved resilience for partial data and enhanced UI feedback
  * - 2025-04-08: Added ability to use partial data when essential fields are available
  * - 2025-04-17: Fixed import paths to match project structure
- * - 2025-04-18: Improved error dialog integration with proper state management
- * - 2025-04-19: Fixed improper error detection causing valid VINs to show manual valuation
+ * - 2025-04-17: Enhanced data validation and improved debug logging
+ * - 2025-04-17: Fixed incorrect display of "Unknown Vehicle" when valid data exists
  */
 
 import { useNavigate } from "react-router-dom";
@@ -26,6 +26,7 @@ import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorHandler } from "./ValuationErrorHandler";
 import { ValuationErrorDialog } from "./dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
+import { normalizeValuationData, validateValuationData } from "../utils/valuationDataNormalizer";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -68,24 +69,49 @@ export const ValuationResult = ({
   const errorDialogOpen = externalErrorDialogOpen !== undefined ? externalErrorDialogOpen : internalErrorDialogOpen;
   const setErrorDialogOpen = externalSetErrorDialogOpen || internalSetErrorDialogOpen;
   
-  // Check for errors as soon as we get results - IMPORTANT: only set error dialog to true if there is a real error
+  // For more comprehensive debugging
   useEffect(() => {
-    // Only show error dialog for genuine errors, not for valid results with noData flag
-    const hasGenuineError = valuationResult?.error && !valuationResult?.make;
-    const hasNoDataWithoutValidResults = valuationResult?.noData && 
-                                        (!valuationResult?.make || !valuationResult?.model);
+    console.log('ValuationResult received raw data:', {
+      hasResult: !!valuationResult,
+      hasError: !!valuationResult?.error,
+      noData: !!valuationResult?.noData,
+      make: valuationResult?.make,
+      model: valuationResult?.model,
+      year: valuationResult?.year,
+      valuation: valuationResult?.valuation,
+      reservePrice: valuationResult?.reservePrice
+    });
+  }, [valuationResult]);
+  
+  // Check for errors as soon as we get results
+  useEffect(() => {
+    if (!valuationResult) return;
     
-    if (hasGenuineError || hasNoDataWithoutValidResults) {
-      console.log('Setting error dialog open due to genuine error condition:', { 
-        error: valuationResult?.error, 
-        noData: valuationResult?.noData,
-        hasMake: !!valuationResult?.make,
-        hasModel: !!valuationResult?.model
-      });
+    // Normalize and validate the result to handle different data formats
+    const normalizedResult = normalizeValuationData(valuationResult);
+    
+    // Check if we have valid vehicle identification (make AND model)
+    const hasValidVehicle = normalizedResult.make && normalizedResult.model;
+    
+    // Show error dialog only if: explicit error OR noData flag and missing vehicle info
+    const shouldShowError = (
+      !!valuationResult.error || 
+      (valuationResult.noData && !hasValidVehicle)
+    );
+    
+    console.log('Validating valuation result:', {
+      hasError: !!valuationResult.error,
+      noData: !!valuationResult.noData,
+      hasValidVehicle,
+      shouldShowError,
+      make: normalizedResult.make,
+      model: normalizedResult.model
+    });
+    
+    if (shouldShowError) {
       setErrorDialogOpen(true);
-    } else if (valuationResult?.make && valuationResult?.model) {
+    } else if (hasValidVehicle) {
       // We have valid data, make sure dialog is closed
-      console.log('Valid data detected, ensuring error dialog is closed');
       setErrorDialogOpen(false);
     }
   }, [valuationResult, setErrorDialogOpen]);
@@ -122,37 +148,34 @@ export const ValuationResult = ({
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   
-  // IMPORTANT: Changed error detection logic to properly identify genuine errors
-  const hasError = !!valuationResult.error && !valuationResult.make;
+  // Check if we have a real error condition that should trigger the error dialog
+  const hasError = !!valuationResult.error;
+  const hasMissingVehicleInfo = !valuationResult.make || !valuationResult.model;
+  const shouldShowError = hasError || (valuationResult?.noData && hasMissingVehicleInfo);
   
-  // Check for valid valuation data - must have EITHER valuation OR reservePrice
+  // Check for valid valuation data
   const hasValuation = !hasError && (
     valuationResult.valuation !== undefined || 
     valuationResult.reservePrice !== undefined
   );
 
-  // Check if we have the minimum required data for a successful result
-  const hasMinimumRequiredData = !!valuationResult.make && !!valuationResult.model;
-  
-  // Only show error dialog for genuine errors, not when we have valid data with the noData flag
-  if (hasError || (valuationResult?.noData && !hasMinimumRequiredData)) {
-    console.log('Rendering ValuationErrorDialog due to genuine error:', { 
+  // If we have an error that should be shown, display the error dialog
+  if (shouldShowError) {
+    console.log('Showing ValuationErrorDialog due to:', {
       hasError,
+      hasMissingVehicleInfo,
       noData: valuationResult?.noData,
-      hasMinimumRequiredData,
-      error: valuationResult.error || "No data found for this VIN" 
+      errorMessage: valuationResult.error || "No data found for this VIN"
     });
     
     return (
       <ValuationErrorDialog
         isOpen={errorDialogOpen}
         onClose={() => {
-          console.log('ValuationErrorDialog onClose called');
           handleErrorClose();
           onClose();
         }}
         onRetry={() => {
-          console.log('ValuationErrorDialog onRetry called');
           handleErrorRetry();
           if (onRetry) onRetry();
         }}
@@ -161,14 +184,8 @@ export const ValuationResult = ({
     );
   }
 
-  // If we reach here, we have valid data - use fallback values for any missing properties
-  console.log('Rendering ValuationContent with data:', {
-    make: valuationResult.make,
-    model: valuationResult.model,
-    year: valuationResult.year,
-    hasValuation
-  });
-  
+  // Use vehicle data from result, fall back only if completely missing
+  // This should now correctly use actual vehicle make/model instead of "Unknown Vehicle"
   const normalizedResult = {
     make: valuationResult.make || 'Unknown',
     model: valuationResult.model || 'Vehicle',
@@ -178,6 +195,13 @@ export const ValuationResult = ({
     reservePrice: valuationResult.reservePrice || valuationResult.valuation,
     averagePrice: valuationResult.averagePrice
   };
+
+  console.log('Rendering ValuationContent with data:', {
+    make: normalizedResult.make,
+    model: normalizedResult.model,
+    year: normalizedResult.year,
+    hasValuation
+  });
 
   return (
     <ValuationContent

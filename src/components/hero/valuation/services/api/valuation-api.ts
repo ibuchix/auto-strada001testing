@@ -1,3 +1,13 @@
+
+/**
+ * Enhanced valuation API with improved error handling and data extraction
+ * 
+ * Changes:
+ * - 2025-04-17: Improved data normalization and error handling
+ * - 2025-04-17: Enhanced debug logging for better troubleshooting
+ * - 2025-04-17: Added robust fallback mechanisms for inconsistent API responses
+ */
+
 import { supabase } from "@/integrations/supabase/client";
 import { TransmissionType } from "../../types";
 import { generateRequestId, createPerformanceTracker } from "./utils/debug-utils";
@@ -57,7 +67,8 @@ export async function fetchHomeValuation(
     console.log('Raw API Response:', { 
       hasData: !!data, 
       hasError: !!error,
-      dataKeys: data ? Object.keys(data) : null
+      dataKeys: data ? Object.keys(data) : null,
+      dataSize: data ? JSON.stringify(data).length : 0
     });
     
     if (error) {
@@ -70,17 +81,27 @@ export async function fetchHomeValuation(
       throw new Error('No valuation data returned');
     }
     
+    // Log full API response for debugging (truncated for readability)
+    console.log('API Response Excerpt:', JSON.stringify(data).substring(0, 500) + '...');
+    
+    // Enhanced deep data extraction
+    const extractedData = extractVehicleData(data, vin);
+    
     console.log('Processed Valuation Data:', {
-      make: data.make,
-      model: data.model,
-      year: data.year,
-      valuation: data.valuation,
-      reservePrice: data.reservePrice
+      make: extractedData.make,
+      model: extractedData.model,
+      year: extractedData.year,
+      valuation: extractedData.valuation,
+      reservePrice: extractedData.reservePrice,
+      averagePrice: extractedData.averagePrice,
+      hasValidMake: !!extractedData.make,
+      hasValidModel: !!extractedData.model,
+      hasValidYear: !!extractedData.year
     });
     
     console.groupEnd();
     
-    return { data };
+    return { data: extractedData };
   } catch (error: any) {
     console.error(`Valuation API Error:`, {
       message: error.message,
@@ -131,6 +152,14 @@ export async function fetchSellerValuation(
     
     perfTracker.checkpoint('api_call_complete');
     
+    // Log full response for debugging
+    console.log(`[SellerValuationAPI][${requestId}] Raw API Response:`, {
+      hasResponse: !!response,
+      responseSize: response ? JSON.stringify(response).length : 0,
+      responseKeys: response ? Object.keys(response) : [],
+      hasError: !!error,
+    });
+    
     if (error) {
       console.error(`[SellerValuationAPI][${requestId}] Edge function error:`, {
         message: error.message,
@@ -166,50 +195,51 @@ export async function fetchSellerValuation(
       throw new Error(response?.error || 'Failed to validate vehicle');
     }
     
-    // Check if data is missing or invalid
-    if (!response.data || Object.keys(response.data).length === 0) {
-      console.error(`[SellerValuationAPI][${requestId}] Missing data in successful response:`, {
-        hasData: !!response.data,
-        dataKeys: response.data ? Object.keys(response.data) : [],
-        timestamp: new Date().toISOString()
-      });
-      
-      perfTracker.complete('failure', {
-        errorType: 'missing_data',
-        message: 'No data found in the successful response'
-      });
-      
-      throw new Error('No data found for this VIN');
-    }
+    // Get the actual data - might be in response.data or directly in response
+    const dataToProcess = response.data || response;
     
-    console.log(`[SellerValuationAPI][${requestId}] Received seller valuation data:`, {
-      make: response.data?.make,
-      model: response.data?.model,
-      year: response.data?.year,
-      hasValuation: !!response.data?.valuation,
-      hasReservePrice: !!response.data?.reservePrice,
-      propertiesCount: response.data ? Object.keys(response.data).length : 0,
-      timestamp: new Date().toISOString()
+    // Log the response data structure
+    console.log(`[SellerValuationAPI][${requestId}] Response structure:`, {
+      hasDataProperty: !!response.data,
+      dataPropertyKeys: response.data ? Object.keys(response.data) : [],
+      topLevelKeys: Object.keys(response),
+      hasVehicleInfo: !!(dataToProcess.make && dataToProcess.model),
+      hasHiddenVehicleInfo: findNestedValue(dataToProcess, 'make') !== undefined
     });
     
+    // Enhanced deep data extraction with improved property path finding
+    const extractedData = extractVehicleData(dataToProcess, vin);
+    
+    // Add the vin to make sure it's always available
+    extractedData.vin = vin;
+    
     // Calculate reserve price if not provided
-    if (response.data && response.data.valuation && !response.data.reservePrice) {
-      response.data.reservePrice = calculateReservePrice(response.data.valuation);
+    if (extractedData && extractedData.valuation && !extractedData.reservePrice) {
+      extractedData.reservePrice = calculateReservePrice(extractedData.valuation);
       console.log(`[SellerValuationAPI][${requestId}] Calculated reserve price:`, {
-        reservePrice: response.data.reservePrice,
-        baseValue: response.data.valuation,
+        reservePrice: extractedData.reservePrice,
+        baseValue: extractedData.valuation,
         timestamp: new Date().toISOString()
       });
     }
+    
+    console.log(`[SellerValuationAPI][${requestId}] Extracted vehicle data:`, {
+      make: extractedData.make,
+      model: extractedData.model,
+      year: extractedData.year,
+      valuation: extractedData.valuation,
+      reservePrice: extractedData.reservePrice,
+      isComplete: !!(extractedData.make && extractedData.model && extractedData.year)
+    });
     
     perfTracker.complete('success', { 
       dataReceived: true,
-      withCalculation: !!(response.data && response.data.valuation && !response.data.reservePrice),
+      hasVehicleDetails: !!(extractedData.make && extractedData.model),
       processingTimeMs: perfTracker.checkpoint('processing_complete'),
       timestamp: new Date().toISOString()
     });
     
-    return { data: response.data };
+    return { data: extractedData };
   } catch (error: any) {
     console.error(`[SellerValuationAPI][${requestId}] Error fetching seller valuation:`, {
       message: error.message,
@@ -228,6 +258,102 @@ export async function fetchSellerValuation(
     
     return { error: error instanceof Error ? error : new Error(error.message || 'Unknown error') };
   }
+}
+
+/**
+ * Enhanced function to extract vehicle data from potentially nested API response
+ */
+function extractVehicleData(data: any, vin: string): any {
+  // If the data is null or undefined, return an empty object
+  if (!data) return {};
+  
+  // Check if data is nested inside a data property
+  const vehicleData = data.data || data;
+  
+  // Extract make with multiple potential paths
+  const make = 
+    vehicleData.make || 
+    findNestedValue(vehicleData, 'make') || 
+    vehicleData.manufacturer || 
+    findNestedValue(vehicleData, 'manufacturer') || 
+    vehicleData.brand || 
+    findNestedValue(vehicleData, 'brand');
+  
+  // Extract model with multiple potential paths
+  const model = 
+    vehicleData.model || 
+    findNestedValue(vehicleData, 'model') || 
+    vehicleData.modelName || 
+    findNestedValue(vehicleData, 'modelName');
+  
+  // Extract year with multiple potential paths
+  const year = 
+    vehicleData.year || 
+    findNestedValue(vehicleData, 'year') || 
+    vehicleData.productionYear || 
+    findNestedValue(vehicleData, 'productionYear');
+  
+  // Extract price data with multiple potential paths
+  const valuation = 
+    vehicleData.valuation || 
+    findNestedValue(vehicleData, 'valuation') || 
+    vehicleData.price || 
+    findNestedValue(vehicleData, 'price') || 
+    vehicleData.price_med || 
+    findNestedValue(vehicleData, 'price_med');
+  
+  // Extract reserve price with multiple potential paths
+  const reservePrice = 
+    vehicleData.reservePrice || 
+    findNestedValue(vehicleData, 'reservePrice');
+  
+  // Extract average price with multiple potential paths
+  const averagePrice = 
+    vehicleData.averagePrice || 
+    findNestedValue(vehicleData, 'averagePrice') || 
+    vehicleData.price_med || 
+    findNestedValue(vehicleData, 'price_med');
+  
+  // Create the result object with all extracted data
+  const result = {
+    make,
+    model,
+    year: year ? Number(year) : undefined,
+    vin,
+    valuation: valuation ? Number(valuation) : undefined,
+    reservePrice: reservePrice ? Number(reservePrice) : (valuation ? calculateReservePrice(Number(valuation)) : undefined),
+    averagePrice: averagePrice ? Number(averagePrice) : undefined,
+    
+    // Include original data for reference
+    originalData: vehicleData
+  };
+  
+  return result;
+}
+
+/**
+ * Recursively find a value in a nested object structure by key
+ */
+function findNestedValue(obj: any, key: string): any {
+  // Handle null/undefined
+  if (!obj) return undefined;
+  
+  // Direct match
+  if (obj[key] !== undefined) {
+    return obj[key];
+  }
+  
+  // Search in nested objects
+  for (const prop in obj) {
+    if (obj[prop] && typeof obj[prop] === 'object') {
+      const found = findNestedValue(obj[prop], key);
+      if (found !== undefined) {
+        return found;
+      }
+    }
+  }
+  
+  return undefined;
 }
 
 /**
