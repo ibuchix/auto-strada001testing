@@ -1,8 +1,10 @@
 
 /**
- * Enhanced Form Submission Logic
+ * Enhanced Form Submission Logic - Updated to fix TypeScript error
  * 
  * Changes:
+ * - Fixed TypeScript error with Supabase upsert options
+ * - Removed defaultToNull option which is causing the error
  * - Fixed event handling in form submission flow
  * - Added explicit console logging at key points
  * - Improved error handling and reporting
@@ -99,13 +101,12 @@ export const useFormSubmission = (formId) => {
         }
       });
       
-      // Submit to database
+      // Submit to database - Fixed TypeScript error by removing defaultToNull option
       logSubmissionEvent('Sending to database', { submissionId });
       const { data, error } = await supabase
         .from('cars')
         .upsert(submissionData, { 
-          onConflict: 'id',
-          defaultToNull: false
+          onConflict: 'id'
         });
       
       if (error) {
