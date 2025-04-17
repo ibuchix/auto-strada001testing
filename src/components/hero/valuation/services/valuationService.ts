@@ -1,3 +1,4 @@
+
 /**
  * Fixed Valuation Service
  * 
@@ -58,12 +59,16 @@ export async function getValuation(
     console.log(`[ValuationService][${requestId}] Cache miss, fetching from edge function`);
     tracker.checkpoint('edge-function-start');
     
+    // Get current user ID - Fixed the TypeScript error by using the user ID correctly
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
     const { data: functionResult, error } = await supabase.functions.invoke('validate-vin', {
       body: { 
         vin, 
         mileage, 
         gearbox,
-        userId: supabase.auth.getUser()?.data?.user?.id,
+        userId,
         allowExisting: true, // Allow validation even if VIN exists
         correlationId
       }
