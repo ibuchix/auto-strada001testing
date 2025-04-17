@@ -1,93 +1,172 @@
 
 /**
- * Validation utilities for edge functions
+ * Shared validation utilities for edge functions
+ * Created: 2025-04-17
  */
-import { logError } from './logging.ts';
 
-/**
- * Enhanced error handling with specific error types
- */
-export class ValidationError extends Error {
-  code: string;
+import { logOperation } from "./logging.ts";
+import { ValuationData, TransmissionType } from "./types.ts";
+
+// Validate required vehicle fields
+export function validateVehicleData(
+  data: Partial<ValuationData>,
+  requestId: string
+): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
   
-  constructor(message: string, code: string = 'VALIDATION_ERROR') {
-    super(message);
-    this.name = 'ValidationError';
-    this.code = code;
+  // Required fields check
+  if (!data.make) errors.push("Missing vehicle make");
+  if (!data.model) errors.push("Missing vehicle model");
+  if (!data.year || data.year < 1900 || data.year > new Date().getFullYear() + 1) {
+    errors.push("Invalid vehicle year");
   }
-}
-
-/**
- * API error with code for better error handling
- */
-export class ApiError extends Error {
-  code: string;
-  
-  constructor(message: string, code: string = 'API_ERROR') {
-    super(message);
-    this.name = 'ApiError';
-    this.code = code;
+  if (!data.vin || data.vin.length < 11 || data.vin.length > 17) {
+    errors.push("Invalid VIN format");
   }
-}
-
-/**
- * Validates if a VIN is properly formatted
- * @param vin Vehicle Identification Number to validate
- * @returns boolean indicating if VIN is valid
- */
-export function isValidVin(vin: string): boolean {
-  return /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
-}
-
-/**
- * Validates a mileage value
- * @param mileage Vehicle mileage to validate
- * @returns boolean indicating if mileage is valid
- */
-export function isValidMileage(mileage: number): boolean {
-  return Number.isFinite(mileage) && mileage > 0 && mileage < 1000000;
-}
-
-/**
- * Helper function for retry logic
- */
-export async function withRetry<T>(
-  operation: () => Promise<T>, 
-  maxRetries: number = 3, 
-  delay: number = 1000
-): Promise<T> {
-  let lastError: Error | null = null;
+  if (data.mileage === undefined || data.mileage < 0) {
+    errors.push("Invalid mileage value");
+  }
   
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      logError('retry_attempt', { 
-        attempt, 
-        maxRetries, 
-        error: error.message || 'Unknown error'
-      }, 'warn');
+  // Validate transmission type
+  if (data.transmission && !["manual", "automatic"].includes(data.transmission)) {
+    errors.push("Invalid transmission type");
+  }
+  
+  // Validate price fields
+  if (data.valuation !== undefined && (isNaN(data.valuation) || data.valuation < 0)) {
+    errors.push("Invalid valuation amount");
+  }
+  if (data.reservePrice !== undefined && (isNaN(data.reservePrice) || data.reservePrice < 0)) {
+    errors.push("Invalid reserve price");
+  }
+  
+  const isValid = errors.length === 0;
+  
+  // Log validation results
+  logOperation("vehicle_data_validation", {
+    requestId,
+    isValid,
+    errors,
+    fieldsPresent: Object.keys(data)
+  });
+  
+  return { isValid, errors };
+}
+
+// Extract and normalize valuation data
+export function normalizeValuationData(
+  rawData: any,
+  requestId: string
+): Partial<ValuationData> {
+  const normalized: Partial<ValuationData> = {};
+  
+  try {
+    // Extract basic vehicle info
+    normalized.make = extractString(rawData, ["make", "manufacturer", "brand"]);
+    normalized.model = extractString(rawData, ["model", "modelName", "vehicleModel"]);
+    normalized.year = extractNumber(rawData, ["year", "productionYear", "modelYear"]);
+    normalized.vin = extractString(rawData, ["vin", "vinNumber"]);
+    normalized.mileage = extractNumber(rawData, ["mileage", "odometer", "kilometers"]);
+    normalized.transmission = extractTransmission(rawData);
+    
+    // Extract pricing information
+    const priceMin = extractNumber(rawData, ["price_min", "priceMin", "minimumPrice"]);
+    const priceMed = extractNumber(rawData, ["price_med", "priceMed", "medianPrice"]);
+    
+    if (priceMin > 0 && priceMed > 0) {
+      // Calculate base price as average of min and median
+      normalized.basePrice = (priceMin + priceMed) / 2;
       
-      if (attempt < maxRetries) {
-        // Exponential backoff
-        const backoffDelay = delay * Math.pow(2, attempt - 1);
-        await new Promise(resolve => setTimeout(resolve, backoffDelay));
+      // Calculate reserve price based on base price
+      if (normalized.basePrice > 0) {
+        normalized.reservePrice = calculateReservePrice(normalized.basePrice);
+        normalized.valuation = normalized.basePrice;
+      }
+    } else {
+      // Try to extract direct valuation
+      normalized.valuation = extractNumber(rawData, [
+        "price", "value", "valuation", "estimatedValue"
+      ]);
+      
+      if (normalized.valuation > 0) {
+        normalized.basePrice = normalized.valuation;
+        normalized.reservePrice = calculateReservePrice(normalized.valuation);
+      }
+    }
+    
+    logOperation("data_normalization_success", {
+      requestId,
+      fieldsExtracted: Object.keys(normalized),
+      hasValuation: !!normalized.valuation,
+      hasReservePrice: !!normalized.reservePrice
+    });
+    
+  } catch (error) {
+    logOperation("data_normalization_error", {
+      requestId,
+      error: error.message,
+      rawDataKeys: Object.keys(rawData)
+    }, "error");
+  }
+  
+  return normalized;
+}
+
+// Helper function to extract string values
+function extractString(data: any, possibleKeys: string[]): string {
+  for (const key of possibleKeys) {
+    if (data[key] && typeof data[key] === "string") {
+      return data[key].trim();
+    }
+  }
+  return "";
+}
+
+// Helper function to extract number values
+function extractNumber(data: any, possibleKeys: string[]): number {
+  for (const key of possibleKeys) {
+    const value = data[key];
+    if (value !== undefined) {
+      const num = Number(value);
+      if (!isNaN(num) && num >= 0) {
+        return num;
       }
     }
   }
-  
-  throw lastError || new Error('Operation failed after maximum retries');
+  return 0;
 }
 
-/**
- * Helper to safely parse JSON with error handling
- */
-export function safeJsonParse<T>(json: string, defaultValue: T): T {
-  try {
-    return JSON.parse(json) as T;
-  } catch (error) {
-    logError('json_parse_error', { error: (error as Error).message }, 'warn');
-    return defaultValue;
-  }
+// Helper function to extract and validate transmission type
+function extractTransmission(data: any): TransmissionType | undefined {
+  const transmissionValue = extractString(data, [
+    "transmission", "gearbox", "transmissionType"
+  ]).toLowerCase();
+  
+  if (transmissionValue.includes("manual")) return "manual";
+  if (transmissionValue.includes("auto")) return "automatic";
+  return undefined;
+}
+
+// Calculate reserve price based on base price tiers
+function calculateReservePrice(basePrice: number): number {
+  let percentage = 0;
+  
+  if (basePrice <= 15000) percentage = 0.65;
+  else if (basePrice <= 20000) percentage = 0.46;
+  else if (basePrice <= 30000) percentage = 0.37;
+  else if (basePrice <= 50000) percentage = 0.27;
+  else if (basePrice <= 60000) percentage = 0.27;
+  else if (basePrice <= 70000) percentage = 0.22;
+  else if (basePrice <= 80000) percentage = 0.23;
+  else if (basePrice <= 100000) percentage = 0.24;
+  else if (basePrice <= 130000) percentage = 0.20;
+  else if (basePrice <= 160000) percentage = 0.185;
+  else if (basePrice <= 200000) percentage = 0.22;
+  else if (basePrice <= 250000) percentage = 0.17;
+  else if (basePrice <= 300000) percentage = 0.18;
+  else if (basePrice <= 400000) percentage = 0.18;
+  else if (basePrice <= 500000) percentage = 0.16;
+  else percentage = 0.145;
+  
+  return Math.round(basePrice - (basePrice * percentage));
 }

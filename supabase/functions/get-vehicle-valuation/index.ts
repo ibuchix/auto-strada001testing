@@ -1,55 +1,48 @@
 
 /**
  * Edge function for getting vehicle valuations
- * This function calls the external valuation API and handles caching
+ * Updated: 2025-04-17 - Enhanced data validation and processing
  */
 
-// Import shared utilities
-import { corsHeaders, handleCorsOptions } from "../_shared/cors.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 import { logOperation } from "../_shared/logging.ts";
 import { formatSuccessResponse, formatErrorResponse } from "../_shared/response-formatter.ts";
-
-// Import our service modules
+import { validateVehicleData, normalizeValuationData } from "../_shared/validation.ts";
 import { fetchExternalValuation } from "./api-service.ts";
 import { checkCache, storeInCache } from "./cache-service.ts";
-import { calculateReservePrice } from "./price-calculator.ts";
 
-// Define the request handler
 Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
-    return handleCorsOptions();
+    return new Response(null, { headers: corsHeaders });
   }
 
-  // Get request ID for tracing
   const requestId = crypto.randomUUID();
   
   try {
-    // Parse the request body
     const { vin, mileage, gearbox } = await req.json();
     
     // Validate required parameters
     if (!vin || !mileage) {
       return formatErrorResponse(
-        "Missing required parameters: vin and mileage are required",
+        "Missing required parameters",
         400,
         "MISSING_PARAMETERS"
       );
     }
     
     // Log the valuation request
-    logOperation('valuation_request', { 
-      requestId, 
-      vin, 
-      mileage, 
-      gearbox 
-    });
+    logOperation('valuation_request', { requestId, vin, mileage, gearbox });
     
     // Check cache first
     const cachedResult = await checkCache(vin, mileage, requestId);
-    
     if (cachedResult) {
-      return formatSuccessResponse(cachedResult);
+      // Validate cached data
+      const { isValid, errors } = validateVehicleData(cachedResult, requestId);
+      if (isValid) {
+        return formatSuccessResponse(cachedResult);
+      }
+      logOperation('cached_data_invalid', { requestId, errors });
     }
     
     // Get valuation from external API
@@ -63,43 +56,31 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Calculate base price (average of min and median prices)
-    const priceMin = Number(valuationResult.data.price_min) || 0;
-    const priceMed = Number(valuationResult.data.price_med) || 0;
-    const basePrice = (priceMin + priceMed) / 2;
+    // Normalize and validate the data
+    const normalizedData = normalizeValuationData(valuationResult.data, requestId);
+    const { isValid, errors } = validateVehicleData(normalizedData, requestId);
     
-    // Calculate reserve price
-    const reservePrice = calculateReservePrice(basePrice, requestId);
-    
-    // Prepare the final response data
-    const responseData = {
-      success: true,
-      data: {
-        make: valuationResult.data.make,
-        model: valuationResult.data.model,
-        year: valuationResult.data.year,
-        transmission: gearbox,
-        mileage: mileage,
-        basePrice: basePrice,
-        reservePrice: reservePrice,
-        valuation: valuationResult.data
-      }
-    };
+    if (!isValid) {
+      return formatErrorResponse(
+        `Invalid valuation data: ${errors.join(", ")}`,
+        400,
+        "VALIDATION_ERROR"
+      );
+    }
     
     // Store in cache
-    await storeInCache(vin, mileage, responseData, requestId);
+    await storeInCache(vin, mileage, normalizedData, requestId);
     
     // Return success response
     logOperation('valuation_success', { 
       requestId, 
       vin, 
-      dataSize: JSON.stringify(responseData).length
+      dataSize: JSON.stringify(normalizedData).length
     });
     
-    return formatSuccessResponse(responseData.data);
+    return formatSuccessResponse(normalizedData);
     
   } catch (err) {
-    // Log error and return formatted response
     logOperation('valuation_error', { 
       requestId, 
       error: err.message,
