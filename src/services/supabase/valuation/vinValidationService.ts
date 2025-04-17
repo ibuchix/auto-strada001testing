@@ -9,8 +9,8 @@
  * - Added option to bypass existence check
  */
 
-import { supabase } from '@/integrations/supabase/client';
-import { VehicleData, storeVehicleData, getVehicleData, clearVehicleData } from '@/services/vehicleDataService';
+import { supabase } from "@/integrations/supabase/client";
+import { VehicleData, storeVehicleData, getVehicleData, clearVehicleData } from "@/services/vehicleDataService";
 
 export interface VinValidationRequest {
   vin: string;
