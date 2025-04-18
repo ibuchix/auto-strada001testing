@@ -135,6 +135,10 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       basePrice = price;
     }
     
+    // Import calculateReservePrice from the shared module index, not directly from the file
+    // This is the key change to fix the error
+    import { calculateReservePrice } from '../_shared/index.ts';
+    
     // Calculate reserve price using our shared formula
     const reservePrice = calculateReservePrice(basePrice);
     
@@ -224,6 +228,6 @@ export const corsHeaders = {
   "Access-Control-Max-Age": "86400",
 };
 
-// Import and re-export the calculateReservePrice function
-import { calculateReservePrice } from '../_shared/reserve-price.ts';
-export { calculateReservePrice };
+// Remove direct import to non-existent file path
+// Instead re-export from the shared index module
+export { calculateReservePrice } from '../_shared/index.ts';
