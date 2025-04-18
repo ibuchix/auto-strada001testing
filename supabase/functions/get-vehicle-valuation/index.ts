@@ -1,98 +1,86 @@
 
-/**
- * Edge function for getting vehicle valuations
- * Updated: 2025-04-17 - Consolidated imports from shared module
- */
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import { calculateValuationChecksum } from "../_shared/checksum.ts";
+import { formatSuccessResponse, formatErrorResponse } from "../_shared/response-formatter.ts";
+import { logOperation } from "../_shared/logging.ts";
+import { validateRequest } from "../_shared/request-validator.ts";
+import { getSupabaseClient } from "../_shared/client.ts";
+import type { ValuationData } from "../_shared/types.ts";
 
-import { 
-  corsHeaders,
-  logOperation,
-  formatSuccessResponse, 
-  formatErrorResponse,
-  ValidationError 
-} from "../_shared/index.ts";
-
-import { fetchExternalValuation } from "./api-service.ts";
-import { checkCache, storeInCache } from "./cache-service.ts";
-
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const requestId = crypto.randomUUID();
-  
   try {
     const { vin, mileage, gearbox } = await req.json();
-    
-    // Validate required parameters
-    if (!vin || !mileage) {
-      return formatErrorResponse(
-        "Missing required parameters",
-        400,
-        "MISSING_PARAMETERS"
-      );
-    }
-    
-    // Log the valuation request
-    logOperation('valuation_request', { requestId, vin, mileage, gearbox });
-    
+
+    // Log the incoming request
+    logOperation('valuation_request_received', { vin, mileage, gearbox });
+
+    // Get Supabase client
+    const supabase = getSupabaseClient();
+
     // Check cache first
-    const cachedResult = await checkCache(vin, mileage, requestId);
-    if (cachedResult) {
-      // Validate cached data
-      const { isValid, errors } = validateVehicleData(cachedResult, requestId);
-      if (isValid) {
-        return formatSuccessResponse(cachedResult);
-      }
-      logOperation('cached_data_invalid', { requestId, errors });
+    const { data: cachedData, error: cacheError } = await supabase
+      .from('vin_valuation_cache')
+      .select('valuation_data')
+      .eq('vin', vin)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!cacheError && cachedData?.valuation_data) {
+      logOperation('using_cached_valuation', { vin });
+      return formatSuccessResponse(cachedData.valuation_data);
     }
+
+    // Calculate valuation using external API
+    const apiId = Deno.env.get("VALUATION_API_ID") || "";
+    const apiSecret = Deno.env.get("VALUATION_API_SECRET") || "";
     
-    // Get valuation from external API
-    const valuationResult = await fetchExternalValuation(vin, mileage, requestId);
+    const checksum = await calculateValuationChecksum(apiId, apiSecret, vin);
     
-    if (!valuationResult.success) {
+    // Call external valuation API
+    const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    
+    const response = await fetch(valuationUrl);
+    const valuationData = await response.json();
+
+    if (!valuationData || valuationData.error) {
       return formatErrorResponse(
-        valuationResult.error || "Failed to retrieve valuation",
+        valuationData.error || "Failed to get valuation",
         400,
-        valuationResult.errorCode
+        "VALUATION_ERROR"
       );
     }
-    
-    // Normalize and validate the data
-    const normalizedData = normalizeValuationData(valuationResult.data, requestId);
-    const { isValid, errors } = validateVehicleData(normalizedData, requestId);
-    
-    if (!isValid) {
-      return formatErrorResponse(
-        `Invalid valuation data: ${errors.join(", ")}`,
-        400,
-        "VALIDATION_ERROR"
-      );
-    }
-    
+
     // Store in cache
-    await storeInCache(vin, mileage, normalizedData, requestId);
-    
-    // Return success response
-    logOperation('valuation_success', { 
-      requestId, 
-      vin, 
-      dataSize: JSON.stringify(normalizedData).length
-    });
-    
-    return formatSuccessResponse(normalizedData);
-    
-  } catch (err) {
+    const { error: insertError } = await supabase
+      .from('vin_valuation_cache')
+      .insert({
+        vin,
+        mileage,
+        valuation_data: valuationData,
+        created_at: new Date().toISOString()
+      });
+
+    if (insertError) {
+      logOperation('cache_insert_error', { error: insertError.message }, 'error');
+    }
+
+    return formatSuccessResponse(valuationData);
+
+  } catch (error) {
     logOperation('valuation_error', { 
-      requestId, 
-      error: err.message,
-      stack: err.stack
+      error: error.message,
+      stack: error.stack
     }, 'error');
     
     return formatErrorResponse(
-      `Error processing valuation request: ${err.message}`,
+      `Error processing valuation request: ${error.message}`,
       500,
       "INTERNAL_ERROR"
     );
