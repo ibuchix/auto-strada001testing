@@ -23,7 +23,7 @@ export * from './cache.ts';
 export * from './checksum.ts';
 
 // Re-export logging utilities
-export { logOperation } from './logging.ts';
+export * from './logging.ts';
 
 // Re-export reserve price calculator
 export { calculateReservePrice } from './reserve-price.ts';
@@ -37,4 +37,3 @@ export const ErrorCodes = {
   RATE_LIMITED: 'RATE_LIMITED',
   INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
-
