@@ -1,9 +1,6 @@
-/**
- * Enhanced Valuation Data Hook
- * Updated: 2025-04-18 - Improved data normalization and error handling
- */
 
 import { useMemo } from 'react';
+import { ValuationData } from '@/utils/valuation/valuationDataTypes';
 
 interface ValuationResultData {
   make?: string;
@@ -21,69 +18,58 @@ interface ValuationResultData {
 
 export function useValuationData(valuationResult: ValuationResultData | null) {
   return useMemo(() => {
+    // Provide default empty data if nothing is passed
+    const defaultNormalizedData: ValuationData = {
+      make: '',
+      model: '',
+      year: new Date().getFullYear(),
+      vin: '',
+      mileage: 0,
+      transmission: 'manual',
+      valuation: 0,
+      reservePrice: 0,
+      averagePrice: 0,
+      isExisting: false,
+      error: '',
+      noData: true
+    };
+
     if (!valuationResult) {
       return {
-        normalizedData: {},
+        normalizedData: defaultNormalizedData,
         hasError: false,
         shouldShowError: false,
         hasValuation: false
       };
     }
 
-    // Detect error conditions
-    const hasError = !!valuationResult.error || !!valuationResult.noData;
-    const shouldShowError = hasError && !valuationResult.make && !valuationResult.model;
-    
-    // Normalize data to handle missing fields and ensure consistent property names
-    const normalizedData = {
+    // Normalize data to handle missing fields
+    const normalizedData: ValuationData = {
       make: valuationResult.make || '',
       model: valuationResult.model || '',
       year: valuationResult.year || new Date().getFullYear(),
       vin: valuationResult.vin || '',
-      transmission: valuationResult.transmission || 'manual',
+      mileage: 0,  // We'll get this from localStorage
+      transmission: (valuationResult.transmission === 'manual' || valuationResult.transmission === 'automatic') 
+        ? valuationResult.transmission 
+        : 'manual',
       
-      // Ensure we have a valid reserve price
+      valuation: valuationResult.valuation || 0,
       reservePrice: valuationResult.reservePrice || valuationResult.valuation || 0,
+      averagePrice: valuationResult.averagePrice || 0,
       
-      // Ensure we have a valid average price
-      averagePrice: valuationResult.averagePrice || 
-                    (valuationResult.reservePrice && valuationResult.reservePrice > 0 ? 
-                      Math.round(valuationResult.reservePrice * 1.5) : 0),
-      
-      // Keep error information
-      error: valuationResult.error || (valuationResult.noData ? 'No data found for this VIN' : ''),
-      isExisting: valuationResult.isExisting || false
+      isExisting: valuationResult.isExisting || false,
+      error: valuationResult.error || '',
+      noData: valuationResult.noData || false
     };
     
-    // Determine if we have valid valuation data
+    const hasError = !!normalizedData.error || normalizedData.noData;
+    const shouldShowError = hasError && !normalizedData.make && !normalizedData.model;
     const hasValuation = !!(
       normalizedData.make && 
       normalizedData.model && 
-      normalizedData.reservePrice && 
-      normalizedData.reservePrice > 0
+      (normalizedData.reservePrice || normalizedData.valuation)
     );
-    
-    // Log the normalized data for debugging
-    console.log('Normalized valuation data:', {
-      original: {
-        make: valuationResult.make,
-        model: valuationResult.model,
-        year: valuationResult.year,
-        reservePrice: valuationResult.reservePrice,
-        valuation: valuationResult.valuation,
-        averagePrice: valuationResult.averagePrice
-      },
-      normalized: {
-        make: normalizedData.make,
-        model: normalizedData.model,
-        year: normalizedData.year,
-        reservePrice: normalizedData.reservePrice,
-        averagePrice: normalizedData.averagePrice
-      },
-      hasError,
-      shouldShowError,
-      hasValuation
-    });
 
     return {
       normalizedData,

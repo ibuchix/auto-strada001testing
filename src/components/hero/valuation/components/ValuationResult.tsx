@@ -1,12 +1,4 @@
 
-/**
- * ValuationResult Component
- * Updated: 2025-04-18
- * - Fixed TypeScript errors for potential undefined properties
- * - Improved type safety with proper null checks
- * - Enhanced data normalization and error handling
- */
-
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ValuationContent } from "./ValuationContent";
@@ -34,27 +26,23 @@ interface ValuationResultProps {
   onContinue: () => void;
   onClose: () => void;
   onRetry?: () => void;
-  errorDialogOpen?: boolean;
-  setErrorDialogOpen?: (isOpen: boolean) => void;
 }
 
 export const ValuationResult = ({ 
   valuationResult, 
   onContinue, 
   onClose,
-  onRetry,
-  errorDialogOpen: externalErrorDialogOpen,
-  setErrorDialogOpen: externalSetErrorDialogOpen
+  onRetry 
 }: ValuationResultProps) => {
   const [isValidatingData, setIsValidatingData] = useState(true);
-  const { isOpen: internalErrorDialogOpen, setIsOpen: internalSetErrorDialogOpen } = useValuationErrorDialog();
+  const { 
+    isOpen: errorDialogOpen,
+    setIsOpen: setErrorDialogOpen 
+  } = useValuationErrorDialog();
+  
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
   
-  const errorDialogOpen = externalErrorDialogOpen !== undefined ? externalErrorDialogOpen : internalErrorDialogOpen;
-  const setErrorDialogOpen = externalSetErrorDialogOpen || internalSetErrorDialogOpen;
-
-  // Use the valuation data hook, ensuring we pass null if valuationResult is null
   const { normalizedData, hasError, shouldShowError, hasValuation } = useValuationData(valuationResult);
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
 
@@ -90,31 +78,20 @@ export const ValuationResult = ({
     );
   }
 
-  // Create safe defaults for all potentially undefined values
-  const safeData = {
-    make: normalizedData?.make || '',
-    model: normalizedData?.model || '',
-    year: normalizedData?.year || new Date().getFullYear(),
-    vin: normalizedData?.vin || valuationResult.vin || '',
-    transmission: normalizedData?.transmission || valuationResult.transmission || 'manual',
-    reservePrice: normalizedData?.reservePrice || 0,
-    averagePrice: normalizedData?.averagePrice || 0,
-  };
-
   return (
     <ValuationContent
-      make={safeData.make}
-      model={safeData.model}
-      year={safeData.year}
-      vin={safeData.vin}
-      transmission={safeData.transmission}
+      make={normalizedData.make}
+      model={normalizedData.model}
+      year={normalizedData.year}
+      vin={normalizedData.vin}
+      transmission={normalizedData.transmission}
       mileage={mileage}
-      reservePrice={safeData.reservePrice}
-      averagePrice={safeData.averagePrice}
+      reservePrice={normalizedData.reservePrice}
+      averagePrice={normalizedData.averagePrice}
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
-      onContinue={() => handleContinue(normalizedData || {})}
+      onContinue={() => handleContinue(normalizedData)}
     />
   );
 };
