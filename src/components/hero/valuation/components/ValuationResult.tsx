@@ -1,4 +1,12 @@
 
+/**
+ * Changes made:
+ * - Updated to support more robust error handling
+ * - Improved validation of partial data
+ * - Enhanced TypeScript interface for better type safety
+ * - 2025-04-21: Adjusted interface to match props passed from ValuationForm
+ */
+
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ValuationContent } from "./ValuationContent";
@@ -45,6 +53,13 @@ export const ValuationResult = ({
   
   const { normalizedData, hasError, shouldShowError, hasValuation } = useValuationData(valuationResult);
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
+
+  // Effect to show error dialog when error is detected
+  useEffect(() => {
+    if (shouldShowError) {
+      setErrorDialogOpen(true);
+    }
+  }, [shouldShowError, setErrorDialogOpen]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

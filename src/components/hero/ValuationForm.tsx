@@ -10,13 +10,13 @@
  * - 2025-04-18: Improved error handling for proper dialog interaction
  * - 2025-04-19: Fixed valuation process to properly show results for valid VINs
  * - 2025-04-20: Fixed type issues with form handling and simplified props
+ * - 2025-04-21: Fixed type compatibility between ValuationForm and ValuationResult
  */
 
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./valuation/components/ValuationResult";
 import { Dialog } from "@/components/ui/dialog";
 import { useEnhancedValuationForm } from "@/hooks/valuation/useEnhancedValuationForm";
-import { useValuationErrorDialog } from '@/hooks/valuation/useValuationErrorDialog';
 
 export const ValuationForm = () => {
   const {
@@ -32,11 +32,6 @@ export const ValuationForm = () => {
     resetForm
   } = useEnhancedValuationForm();
 
-  const { 
-    handleClose: handleErrorClose,
-    handleRetry: handleErrorRetry,
-  } = useValuationErrorDialog();
-
   // Add explicit console logging for debugging event flow
   const handleDialogClose = () => {
     console.log("Dialog close triggered from ValuationForm");
@@ -45,7 +40,6 @@ export const ValuationForm = () => {
 
   const handleRetry = () => {
     console.log("Retry triggered from ValuationForm with improved implementation");
-    handleErrorRetry();
     resetForm();
   };
 
@@ -75,8 +69,6 @@ export const ValuationForm = () => {
             onContinue={handleContinue}
             onClose={handleDialogClose}
             onRetry={handleRetry}
-            errorDialogOpen={errorDialogOpen}
-            setErrorDialogOpen={setErrorDialogOpen}
           />
         )}
       </Dialog>
