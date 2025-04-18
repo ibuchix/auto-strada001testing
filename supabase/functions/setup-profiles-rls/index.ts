@@ -1,10 +1,9 @@
-
 // This edge function adds necessary RLS policies to the profiles table
 // to ensure users can access their own profile data
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { corsHeaders } from '../_shared/cors.ts';
+import { corsHeaders } from './utils.ts';
 
 serve(async (req) => {
   // Handle CORS
