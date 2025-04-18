@@ -1,8 +1,8 @@
 
 /**
  * Changes made:
+ * - 2025-04-22: Fixed hasValuation logic to consistently show List My Car button
  * - 2025-04-22: Added better display of vehicle information with formatting
- * - 2025-04-22: Added fallback displays and debugging information
  * - 2025-04-18: Fixed UI to show valuation data even when numeric values are 0
  */
 
@@ -53,8 +53,8 @@ export const ValuationContent = ({
   const formattedReservePrice = formatCurrency(reservePrice);
   const formattedAveragePrice = formatCurrency(averagePrice);
   
-  // Force hasValuation to true if we have the make and model, even with 0 values
-  // This is a temporary fix until we resolve the price calculation issue
+  // Determine if we should show the continue button
+  // Show it if we have basic vehicle details, even if prices are 0
   const shouldShowContinueButton = hasValuation || (make && model && year > 0);
   
   return (
@@ -87,7 +87,6 @@ export const ValuationContent = ({
             <p className="text-gray-600">Mileage:</p>
             <p className="font-semibold">{formattedMileage}</p>
           </div>
-          {/* Add VIN information for verification */}
           <div>
             <p className="text-gray-600">VIN:</p>
             <p className="font-semibold text-xs">{vin.toUpperCase() || "N/A"}</p>

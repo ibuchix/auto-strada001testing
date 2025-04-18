@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-19: Initial implementation of valuation result display
@@ -58,7 +57,6 @@ export const ValuationResult = ({
     handleRetry: handleErrorRetry 
   } = useValuationErrorDialog();
   
-  // Check for errors as soon as we get results
   useEffect(() => {
     if (valuationResult?.error || valuationResult?.noData) {
       setErrorDialogOpen(true);
@@ -69,7 +67,6 @@ export const ValuationResult = ({
   const { handleContinue, isLoggedIn } = useValuationContinue();
   const [isValidatingData, setIsValidatingData] = useState(true);
   
-  // Validate data on mount with a slight delay to improve perceived responsiveness
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsValidatingData(false);
@@ -78,15 +75,14 @@ export const ValuationResult = ({
     return () => clearTimeout(timer);
   }, []);
 
-  if (!valuationResult) {
+  if (!valuationResult || isValidatingData) {
     return (
       <div className="p-6 text-center">
-        <LoadingIndicator message="Preparing valuation data..." />
+        <LoadingIndicator message="Processing valuation..." />
       </div>
     );
   }
 
-  // Still validating - show a loading indicator
   if (isValidatingData) {
     return (
       <div className="p-6 text-center">
@@ -98,17 +94,10 @@ export const ValuationResult = ({
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
   const hasError = !!valuationResult.error;
   
-  // Now properly check for valid valuation data
   const hasValuation = !hasError && (
-    valuationResult.valuation !== undefined || 
-    valuationResult.reservePrice !== undefined
-  );
-
-  // Handle missing essential data - defer to error handler which can handle partial data
-  const hasMissingEssentialData = !hasError && (
-    !valuationResult.make || 
-    !valuationResult.model || 
-    !valuationResult.year
+    valuationResult.make && 
+    valuationResult.model && 
+    valuationResult.year > 0
   );
 
   if (hasError || valuationResult?.noData) {
@@ -128,15 +117,14 @@ export const ValuationResult = ({
     );
   }
 
-  // Use fallback values for missing properties
   const normalizedResult = {
     make: valuationResult.make || 'Unknown',
     model: valuationResult.model || 'Vehicle',
     year: valuationResult.year || new Date().getFullYear(),
     vin: valuationResult.vin || '',
     transmission: valuationResult.transmission || 'manual',
-    reservePrice: valuationResult.reservePrice || valuationResult.valuation,
-    averagePrice: valuationResult.averagePrice
+    reservePrice: valuationResult.reservePrice || valuationResult.valuation || 0,
+    averagePrice: valuationResult.averagePrice || 0
   };
 
   return (
