@@ -1,183 +1,132 @@
 
 /**
- * Changes made:
- * - 2024-07-22: Extracted external API communication functionality from vin-validation.ts
- * - 2025-12-22: Fixed data transformation and added better error handling
+ * External API utilities for seller operations
+ * Created: 2025-04-19 - Extracted from shared module
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { Database } from '../_shared/database.types.ts';
-import { logOperation, ValidationError, withRetry } from './utils.ts';
-import { calculateChecksum } from './checksum.ts';
+import { createClient } from "./utils.ts";
+import { logOperation } from "./logging.ts";
+import { calculateReservePriceFromTable } from "./reserve-price-calculator.ts";
+
+export interface ValuationResponse {
+  success: boolean;
+  data?: Record<string, any>;
+  error?: string;
+}
 
 /**
- * Fetches vehicle valuation data from external API
+ * Fetch vehicle valuation from external API
+ * @param vin Vehicle Identification Number
+ * @param mileage Vehicle mileage
+ * @param requestId Unique identifier for request tracking
  */
-export async function fetchExternalValuation(vin: string, mileage: number, requestId: string) {
-  // Get valuation from external API with retry mechanism
-  const checksum = await calculateChecksum(vin);
-  const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:AUTOSTRA/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-  
-  logOperation('fetching_valuation', { 
-    requestId,
-    vin, 
-    url: valuationUrl 
-  });
-  
-  const rawData = await withRetry(async () => {
-    const response = await fetch(valuationUrl);
-    if (!response.ok) {
-      throw new ValidationError(
-        `API responded with status: ${response.status}`, 
-        'API_ERROR'
-      );
-    }
-    return await response.json();
-  });
-
-  if (!rawData) {
-    logOperation('valuation_api_empty_response', { 
-      requestId,
-      vin
-    }, 'error');
-    throw new ValidationError(
-      'Empty response from valuation API', 
-      'VALUATION_ERROR'
-    );
-  }
-  
-  logOperation('valuation_api_raw_response', { 
-    requestId,
-    vin, 
-    hasResponse: !!rawData,
-    responseType: typeof rawData,
-    hasFunction: !!rawData.functionResponse
-  });
-  
-  // Extract structured data from API response
-  let data: any = {};
+export async function fetchExternalValuation(
+  vin: string,
+  mileage: number,
+  requestId: string
+): Promise<Record<string, any>> {
+  logOperation('fetchExternalValuation_start', { requestId, vin, mileage });
   
   try {
-    // Check for the various response formats and extract relevant data
-    if (rawData.functionResponse?.userParams) {
-      // Get vehicle details
-      data.make = rawData.functionResponse.userParams.make;
-      data.model = rawData.functionResponse.userParams.model;
-      data.year = rawData.functionResponse.userParams.year;
-      
-      // Get pricing data
-      if (rawData.functionResponse.valuation?.calcValuation) {
-        const calcVal = rawData.functionResponse.valuation.calcValuation;
-        data.price = calcVal.price;
-        data.price_min = calcVal.price_min;
-        data.price_max = calcVal.price_max;
-        data.price_avr = calcVal.price_avr;
-        data.price_med = calcVal.price_med;
+    // API credentials from environment variables
+    const apiId = Deno.env.get('VALUATION_API_ID') || 'AUTOSTRA';
+    const apiKey = Deno.env.get('VALUATION_API_KEY') || 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
+    
+    // Calculate checksum
+    const checksum = await calculateChecksum(apiId, apiKey, vin);
+    
+    // Construct API URL
+    const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    
+    // Make API request
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       }
-    } else if (rawData.success === false) {
-      logOperation('valuation_api_error_response', { 
-        requestId,
-        vin, 
-        apiResponse: rawData 
-      }, 'error');
-      throw new ValidationError(
-        rawData.message || 'Failed to get valuation', 
-        'VALUATION_ERROR'
-      );
-    } else if (typeof rawData === 'string') {
-      // Try to parse a string response
-      try {
-        const parsedData = JSON.parse(rawData);
-        if (parsedData.functionResponse) {
-          data = fetchExternalValuation(vin, mileage, requestId);
-        } else {
-          throw new ValidationError('Unexpected string response format', 'PARSING_ERROR');
-        }
-      } catch (e) {
-        throw new ValidationError('Failed to parse API response', 'PARSING_ERROR');
-      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`);
     }
     
-    // Validate that we have the essential data
-    if (!data.make || !data.model || !data.year) {
-      logOperation('valuation_api_missing_vehicle_data', { 
-        requestId,
-        vin, 
-        dataKeys: Object.keys(data)
-      }, 'error');
-      throw new ValidationError(
-        'Missing essential vehicle data in API response', 
-        'VALIDATION_ERROR'
-      );
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Unknown API error');
     }
     
-    return data;
+    logOperation('fetchExternalValuation_success', { 
+      requestId, 
+      vin,
+      responseStatus: response.status,
+      dataReceived: !!data
+    });
+    
+    return data.data || {};
   } catch (error) {
-    logOperation('valuation_data_extraction_error', { 
-      requestId,
-      vin, 
-      error: error.message
+    logOperation('fetchExternalValuation_error', { 
+      requestId, 
+      vin,
+      error: error.message 
     }, 'error');
+    
     throw error;
   }
 }
 
 /**
- * Calculate reserve price using database function
+ * Calculate checksum for API request
+ * @param apiId API identifier
+ * @param apiKey API secret key
+ * @param vin Vehicle Identification Number
+ */
+async function calculateChecksum(apiId: string, apiKey: string, vin: string): Promise<string> {
+  const input = `${apiId}${apiKey}${vin}`;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  
+  // Use crypto API to calculate MD5 hash
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  return hashHex;
+}
+
+/**
+ * Calculate reserve price based on base price
+ * @param supabase Supabase client
+ * @param basePrice Base price for calculation
+ * @param requestId Unique identifier for request tracking
  */
 export async function calculateReservePrice(
-  supabase: ReturnType<typeof createClient<Database>>,
+  supabase: ReturnType<typeof createClient>,
   basePrice: number,
   requestId: string
 ): Promise<number> {
-  // Use the database function to calculate reserve price
-  const { data: reservePriceResult, error: reservePriceError } = await supabase
-    .rpc('calculate_reserve_price', { p_base_price: basePrice });
+  logOperation('calculateReservePrice_start', { requestId, basePrice });
+  
+  try {
+    // Use the dedicated calculator
+    const reservePrice = calculateReservePriceFromTable(basePrice);
     
-  if (reservePriceError) {
-    logOperation('reserve_price_calculation_error', { 
-      requestId,
-      basePrice, 
-      error: reservePriceError.message 
-    }, 'error');
-    
-    // Calculate fallback reserve price using the formula
-    let percentage = 0;
-    if (basePrice <= 15000) percentage = 0.65;
-    else if (basePrice <= 20000) percentage = 0.46;
-    else if (basePrice <= 30000) percentage = 0.37;
-    else if (basePrice <= 50000) percentage = 0.27;
-    else if (basePrice <= 60000) percentage = 0.27;
-    else if (basePrice <= 70000) percentage = 0.22;
-    else if (basePrice <= 80000) percentage = 0.23;
-    else if (basePrice <= 100000) percentage = 0.24;
-    else if (basePrice <= 130000) percentage = 0.20;
-    else if (basePrice <= 160000) percentage = 0.185;
-    else if (basePrice <= 200000) percentage = 0.22;
-    else if (basePrice <= 250000) percentage = 0.17;
-    else if (basePrice <= 300000) percentage = 0.18;
-    else if (basePrice <= 400000) percentage = 0.18;
-    else if (basePrice <= 500000) percentage = 0.16;
-    else percentage = 0.145; // 500,001+ PLN
-    
-    const reservePrice = Math.round(basePrice - (basePrice * percentage));
-    
-    logOperation('calculated_fallback_reserve_price', { 
-      requestId,
-      basePrice, 
-      percentage,
+    logOperation('calculateReservePrice_success', { 
+      requestId, 
+      basePrice,
       reservePrice
     });
     
     return reservePrice;
+  } catch (error) {
+    logOperation('calculateReservePrice_error', { 
+      requestId, 
+      basePrice,
+      error: error.message 
+    }, 'error');
+    
+    // Default to 70% if calculation fails
+    return Math.round(basePrice * 0.7);
   }
-  
-  const reservePrice = reservePriceResult || 0;
-  logOperation('calculated_reserve_price', { 
-    requestId,
-    basePrice, 
-    reservePrice
-  });
-  
-  return reservePrice;
 }

@@ -1,19 +1,20 @@
+
 /**
  * Edge function for seller operations
  * Updated: 2025-04-17 - Consolidated imports from shared module
+ * Updated: 2025-04-19 - Fixed imports to use local utils instead of shared module
  */
-
-import { 
-  corsHeaders,
-  logOperation,
-  ValidationError,
-  formatResponse
-} from "../_shared/index.ts";
 
 import {
   ApiError,
-  safeJsonParse
+  ValidationError,
+  corsHeaders,
+  formatResponse,
+  validateRequest,
+  createClient
 } from "./utils.ts";
+
+import { logOperation } from "./logging.ts";
 
 // Define types for seller operations
 type SellerOperation = 'create_seller' | 'update_seller' | 'delete_seller';

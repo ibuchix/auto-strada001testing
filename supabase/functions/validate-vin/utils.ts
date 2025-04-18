@@ -1,6 +1,6 @@
 
 /**
- * Utilities for seller operations
+ * Utilities for VIN validation
  * Created: 2025-04-19 - Inlined utilities to avoid shared imports
  */
 
@@ -51,15 +51,6 @@ export function formatResponse(
   });
 }
 
-// Parse JSON safely with error handling
-export function safeJsonParse(text: string): any {
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    throw new ValidationError('Invalid JSON payload');
-  }
-}
-
 // Simple caching utilities
 const cache = new Map<string, { data: any; timestamp: number }>();
 
@@ -101,41 +92,12 @@ export function checkRateLimit(key: string, limit: number = 5, window: number = 
   return false; // Rate limit not exceeded
 }
 
-// Validate request to ensure required fields
-export async function validateRequest(req: Request): Promise<{ operation: string; payload: any }> {
-  if (req.method !== 'POST') {
-    throw new ValidationError('Only POST method is allowed');
-  }
-  
-  try {
-    const body = await req.json();
-    
-    if (!body.operation) {
-      throw new ValidationError('Missing required operation field');
-    }
-    
-    return {
-      operation: body.operation,
-      payload: body.payload || {}
-    };
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      throw error;
-    }
-    throw new ValidationError('Invalid request payload');
-  }
-}
-
 // Create Supabase client for database operations
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 export function createClient() {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase credentials');
-  }
   
   return createClient(supabaseUrl, supabaseKey);
 }
