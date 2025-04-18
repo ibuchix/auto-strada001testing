@@ -1,19 +1,14 @@
-
 /**
  * Modified Supabase Edge Function for VIN Validation
  * Updated: 2025-04-17 - Consolidated imports from shared module
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import {
-  corsHeaders,
-  logOperation,
-  ValidationError,
-  formatSuccessResponse,
-  formatErrorResponse,
-  formatServerErrorResponse,
-  getSupabaseClient
-} from "../_shared/index.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import { logOperation } from "../_shared/logging.ts";
+import { ValidationError } from "../_shared/types.ts";
+import { formatSuccessResponse, formatErrorResponse, formatServerErrorResponse } from "../_shared/response-formatter.ts";
+import { getSupabaseClient } from "../_shared/client.ts";
 import { validateVinSchema } from "./schema.ts";
 import { checkRateLimit } from "./rate-limiter.ts";
 import { checkVehicleExists } from "./vehicle-checker.ts";

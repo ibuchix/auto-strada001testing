@@ -1,15 +1,5 @@
 
-// Consolidated exports for shared utilities
-
-export * from './cors.ts';
-export * from './logging.ts';
-export * from './checksum.ts';
-export * from './response-formatter.ts';
-export * from './request-validator.ts';
-export * from './client.ts';
-export * from './types.ts';
-
-// Add common validation utilities
+// Export common validation utilities only
 export const isValidVin = (vin: string): boolean => {
   return /^[A-HJ-NPR-Z0-9]{11,17}$/.test(vin);
 };
