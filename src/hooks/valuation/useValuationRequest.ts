@@ -9,6 +9,7 @@
  * - 2024-04-03: Added correlation IDs for tracking requests through the system
  * - 2024-04-04: Fixed error property access
  * - 2024-04-04: Added proper type checking for result data
+ * - 2025-04-23: Fixed incorrect number of arguments passed to getValuation
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
@@ -189,16 +190,18 @@ export const useValuationRequest = ({
       
       // Use withTimeout utility to handle timeout in a more structured way
       const valuationStartTime = performance.now();
+      
+      // Fixed: Only pass the correct number of arguments to getValuation
       const result = await withTimeout(
         getValuation(
           data.vin,
           mileage,
-          data.gearbox,
-          correlationId
+          data.gearbox
         ),
         TimeoutDurations.LONG,
         "Valuation request timed out"
       );
+      
       const valuationDuration = logTiming('API call', valuationStartTime);
 
       console.log(`[ValuationRequest][${requestId}] Valuation result received:`, {

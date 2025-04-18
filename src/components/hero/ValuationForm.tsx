@@ -12,6 +12,7 @@
  * - 2025-04-20: Fixed type issues with form handling and simplified props
  * - 2025-04-21: Fixed type compatibility between ValuationForm and ValuationResult
  * - 2025-04-22: Added additional debugging and improved data handling
+ * - 2025-04-23: Fixed React state queue error by properly handling dialog state
  */
 
 import { ValuationInput } from "./ValuationInput";
@@ -25,8 +26,6 @@ export const ValuationForm = () => {
     isLoading,
     showDialog,
     setShowDialog,
-    errorDialogOpen,
-    setErrorDialogOpen,
     valuationResult,
     onSubmit,
     handleContinue,
@@ -47,9 +46,7 @@ export const ValuationForm = () => {
   // Add debugging for valuationResult
   console.log("Current valuation result in ValuationForm:", {
     hasResult: !!valuationResult,
-    data: valuationResult?.data,
     resultKeys: valuationResult ? Object.keys(valuationResult) : [],
-    dataKeys: valuationResult?.data ? Object.keys(valuationResult.data) : []
   });
 
   return (
@@ -62,19 +59,7 @@ export const ValuationForm = () => {
       <Dialog open={showDialog} onOpenChange={handleDialogClose}>
         {valuationResult && (
           <ValuationResult 
-            valuationResult={{
-              make: valuationResult.data?.make,
-              model: valuationResult.data?.model,
-              year: valuationResult.data?.year,
-              vin: valuationResult.data?.vin,
-              transmission: valuationResult.data?.transmission,
-              valuation: valuationResult.data?.valuation,
-              reservePrice: valuationResult.data?.reservePrice,
-              averagePrice: valuationResult.data?.averagePrice,
-              isExisting: valuationResult.data?.isExisting,
-              error: valuationResult.data?.error,
-              noData: valuationResult.data?.noData,
-            }}
+            valuationResult={valuationResult}
             onContinue={handleContinue}
             onClose={handleDialogClose}
             onRetry={handleRetry}

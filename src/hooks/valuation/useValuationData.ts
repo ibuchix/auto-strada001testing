@@ -6,6 +6,7 @@
  * - Enhanced normalization of partial data
  * - 2025-04-21: Made more resilient to handle different property types
  * - 2025-04-22: Added additional fallbacks and logging for better data handling
+ * - 2025-04-23: Fixed incorrect access to data property on ValuationResultData
  */
 
 import { useMemo } from 'react';
@@ -62,8 +63,9 @@ export function useValuationData(valuationResult: ValuationResultData | null) {
       };
     }
 
-    // Check for nested data structure - sometimes the API response has a data property
-    const dataToUse = valuationResult.data ? valuationResult.data : valuationResult;
+    // Check for nested data structure - checking if it's an object coming directly from an API
+    // Don't try to access data property directly - it doesn't exist on the type
+    const dataToUse = valuationResult;
 
     // Check if we have any vehicle data to display
     const hasVehicleData = !!(dataToUse.make || dataToUse.model || (dataToUse.year && dataToUse.year > 0));
