@@ -1,10 +1,10 @@
 
 /**
  * ValuationResult Component
- * Updated: 2025-04-17
- * - Simplified component structure
- * - Improved error handling
- * - Enhanced data normalization
+ * Updated: 2025-04-18
+ * - Fixed TypeScript errors for potential undefined properties
+ * - Improved type safety with proper null checks
+ * - Enhanced data normalization and error handling
  */
 
 import { useNavigate } from "react-router-dom";
@@ -30,7 +30,7 @@ interface ValuationResultProps {
     isExisting?: boolean;
     error?: string;
     noData?: boolean;
-  };
+  } | null;
   onContinue: () => void;
   onClose: () => void;
   onRetry?: () => void;
@@ -54,6 +54,7 @@ export const ValuationResult = ({
   const errorDialogOpen = externalErrorDialogOpen !== undefined ? externalErrorDialogOpen : internalErrorDialogOpen;
   const setErrorDialogOpen = externalSetErrorDialogOpen || internalSetErrorDialogOpen;
 
+  // Use the valuation data hook, ensuring we pass null if valuationResult is null
   const { normalizedData, hasError, shouldShowError, hasValuation } = useValuationData(valuationResult);
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
 
@@ -89,20 +90,31 @@ export const ValuationResult = ({
     );
   }
 
+  // Create safe defaults for all potentially undefined values
+  const safeData = {
+    make: normalizedData?.make || '',
+    model: normalizedData?.model || '',
+    year: normalizedData?.year || new Date().getFullYear(),
+    vin: normalizedData?.vin || valuationResult.vin || '',
+    transmission: normalizedData?.transmission || valuationResult.transmission || 'manual',
+    reservePrice: normalizedData?.reservePrice || 0,
+    averagePrice: normalizedData?.averagePrice || 0,
+  };
+
   return (
     <ValuationContent
-      make={normalizedData.make}
-      model={normalizedData.model}
-      year={normalizedData.year}
-      vin={normalizedData.vin || valuationResult.vin || ''}
-      transmission={normalizedData.transmission || valuationResult.transmission || 'manual'}
+      make={safeData.make}
+      model={safeData.model}
+      year={safeData.year}
+      vin={safeData.vin}
+      transmission={safeData.transmission}
       mileage={mileage}
-      reservePrice={normalizedData.reservePrice}
-      averagePrice={normalizedData.averagePrice}
+      reservePrice={safeData.reservePrice}
+      averagePrice={safeData.averagePrice}
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
-      onContinue={() => handleContinue(normalizedData)}
+      onContinue={() => handleContinue(normalizedData || {})}
     />
   );
 };
