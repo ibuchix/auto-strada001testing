@@ -2,13 +2,13 @@
 /**
  * Utility functions for vehicle valuation
  * Updated: 2025-04-18 - Enhanced data extraction and validation
+ * Updated: 2025-04-19 - Fixed import issues by inlining calculateReservePrice
  */
 
 import { crypto } from "https://deno.land/std@0.217.0/crypto/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { ValuationData } from "./types.ts";
 import { logOperation } from "./logging.ts";
-import { calculateReservePrice } from '../_shared/index.ts';
 
 export function md5(message: string): string {
   const encoder = new TextEncoder();
@@ -74,6 +74,39 @@ export function extractDataValue(data: any, propertyPaths: string[], defaultValu
 }
 
 /**
+ * Calculate the reserve price based on base price using the tiered percentage formula
+ * Inlined directly to avoid import issues
+ */
+export function calculateReservePrice(basePrice: number): number {
+  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
+    return 0;
+  }
+  
+  // Determine percentage based on price tier
+  let percentage = 0;
+  
+  if (basePrice <= 15000) percentage = 0.65;
+  else if (basePrice <= 20000) percentage = 0.46;
+  else if (basePrice <= 30000) percentage = 0.37;
+  else if (basePrice <= 50000) percentage = 0.27;
+  else if (basePrice <= 60000) percentage = 0.27;
+  else if (basePrice <= 70000) percentage = 0.22;
+  else if (basePrice <= 80000) percentage = 0.23;
+  else if (basePrice <= 100000) percentage = 0.24;
+  else if (basePrice <= 130000) percentage = 0.20;
+  else if (basePrice <= 160000) percentage = 0.185;
+  else if (basePrice <= 200000) percentage = 0.22;
+  else if (basePrice <= 250000) percentage = 0.17;
+  else if (basePrice <= 300000) percentage = 0.18;
+  else if (basePrice <= 400000) percentage = 0.18;
+  else if (basePrice <= 500000) percentage = 0.16;
+  else percentage = 0.145;
+  
+  // Apply formula: PriceX – (PriceX x PercentageY)
+  return Math.round(basePrice - (basePrice * percentage));
+}
+
+/**
  * Process and normalize raw valuation data
  */
 export function processValuationData(rawData: any, vin: string, mileage: number, requestId: string): ValuationData {
@@ -136,7 +169,7 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       basePrice = price;
     }
     
-    // Calculate reserve price using our shared formula
+    // Calculate reserve price using our inlined function
     const reservePrice = calculateReservePrice(basePrice);
     
     // Create standardized result object
@@ -224,6 +257,3 @@ export const corsHeaders = {
   "Access-Control-Allow-Credentials": "true",
   "Access-Control-Max-Age": "86400",
 };
-
-// Re-export calculateReservePrice from the shared index module
-export { calculateReservePrice };
