@@ -1,13 +1,42 @@
-
 /**
  * Changes made:
- * - 2025-04-18: Enhanced price extraction from API responses
- * - 2025-04-18: Added better fallback mechanisms for missing price data
+ * - 2025-04-18: Added sanitizePartialData function to handle partial valuation data
  */
 
 import { ValuationData } from "./valuationDataTypes";
 import { calculateReservePrice } from "./valuationCalculator";
 
+/**
+ * Sanitize partial valuation data, removing any undefined or null values
+ */
+export function sanitizePartialData(data: Partial<ValuationData>): Partial<ValuationData> {
+  // Create a new object with only defined values
+  const sanitized: Partial<ValuationData> = {};
+
+  // List of keys to check and potentially include
+  const validKeys: (keyof ValuationData)[] = [
+    'make', 'model', 'year', 'vin', 
+    'transmission', 'mileage', 
+    'valuation', 'reservePrice', 
+    'averagePrice', 'basePrice'
+  ];
+
+  validKeys.forEach(key => {
+    if (data[key] !== undefined && data[key] !== null) {
+      sanitized[key] = data[key];
+    }
+  });
+
+  // Log the sanitization process for debugging
+  console.log('Sanitizing partial valuation data:', {
+    inputData: Object.keys(data),
+    sanitizedData: Object.keys(sanitized)
+  });
+
+  return sanitized;
+}
+
+// Existing code for normalizeValuationData remains the same
 /**
  * Normalize valuation data from various sources into a consistent format
  */
