@@ -4,7 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { calculateValuationChecksum } from "../_shared/checksum.ts";
 import { formatSuccessResponse, formatErrorResponse } from "../_shared/response-formatter.ts";
 import { logOperation } from "../_shared/logging.ts";
-import { validateRequest } from "../_shared/request-validator.ts";
+import { isValidVin, isValidMileage } from "../_shared/validation-utils.ts";
 import { getSupabaseClient } from "../_shared/client.ts";
 import type { ValuationData } from "../_shared/types.ts";
 
@@ -19,6 +19,15 @@ serve(async (req) => {
 
     // Log the incoming request
     logOperation('valuation_request_received', { vin, mileage, gearbox });
+    
+    // Basic validation
+    if (!isValidVin(vin)) {
+      return formatErrorResponse("Invalid VIN format", 400, "VALIDATION_ERROR");
+    }
+    
+    if (!isValidMileage(mileage)) {
+      return formatErrorResponse("Invalid mileage value", 400, "VALIDATION_ERROR");
+    }
 
     // Get Supabase client
     const supabase = getSupabaseClient();

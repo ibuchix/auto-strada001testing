@@ -36,3 +36,7 @@ verify_jwt = true
 [[edge_functions]]
 name = "send-valuation-notification"
 verify_jwt = true
+
+[[edge_functions]]
+name = "validate-vin"
+verify_jwt = false
