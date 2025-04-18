@@ -1,11 +1,9 @@
 
 /**
  * Changes made:
- * - Updated to support more robust error handling
- * - Improved validation of partial data
- * - Enhanced TypeScript interface for better type safety
- * - 2025-04-21: Adjusted interface to match props passed from ValuationForm
+ * - 2025-04-22: Enhanced data validation and processing
  * - 2025-04-22: Added better debugging and improved data handling
+ * - 2025-04-22: Fixed price data extraction and display
  * - 2025-04-18: Fixed hasValuation logic to handle cases where price data is missing
  */
 
@@ -59,9 +57,12 @@ export const ValuationResult = ({
     hasData: !!valuationResult,
     makePresent: valuationResult?.make ? "yes" : "no",
     modelPresent: valuationResult?.model ? "yes" : "no",
-    yearPresent: valuationResult?.year ? "yes" : "no"
+    yearPresent: valuationResult?.year ? "yes" : "no",
+    reservePricePresent: valuationResult?.reservePrice ? "yes" : "no",
+    valuationPresent: valuationResult?.valuation ? "yes" : "no",
   });
   
+  // Use our enhanced hook to validate and normalize data
   const { normalizedData, hasError, shouldShowError, hasValuation } = useValuationData(valuationResult);
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
 
@@ -74,16 +75,9 @@ export const ValuationResult = ({
     make: normalizedData.make,
     model: normalizedData.model,
     year: normalizedData.year,
-    reservePrice: normalizedData.reservePrice
+    reservePrice: normalizedData.reservePrice,
+    valuation: normalizedData.valuation
   });
-
-  // Modify the logic for determining if we have a valid valuation
-  // Consider it valid if we at least have make and model, even if price is 0
-  const modifiedHasValuation = hasValuation || (
-    normalizedData.make && 
-    normalizedData.model && 
-    normalizedData.year > 0
-  );
 
   // Effect to show error dialog when error is detected
   useEffect(() => {
@@ -134,7 +128,7 @@ export const ValuationResult = ({
       mileage={mileage}
       reservePrice={normalizedData.reservePrice}
       averagePrice={normalizedData.averagePrice}
-      hasValuation={modifiedHasValuation}
+      hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
       onContinue={() => handleContinue(normalizedData)}

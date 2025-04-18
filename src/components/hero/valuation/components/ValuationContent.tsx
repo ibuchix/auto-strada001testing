@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-04-22: Fixed hasValuation logic to consistently show List My Car button
  * - 2025-04-22: Added better display of vehicle information with formatting
+ * - 2025-04-22: Added prominent pricing information display
  * - 2025-04-18: Fixed UI to show valuation data even when numeric values are 0
  */
 
@@ -57,6 +58,9 @@ export const ValuationContent = ({
   // Show it if we have basic vehicle details, even if prices are 0
   const shouldShowContinueButton = hasValuation || (make && model && year > 0);
   
+  // Determine if we have valid pricing data to display
+  const hasPricingData = reservePrice > 0 || averagePrice > 0;
+  
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
@@ -92,6 +96,22 @@ export const ValuationContent = ({
             <p className="font-semibold text-xs">{vin.toUpperCase() || "N/A"}</p>
           </div>
         </div>
+        
+        {hasPricingData && (
+          <div className="bg-blue-50 p-4 rounded-md mb-6">
+            <h4 className="font-semibold text-blue-800 text-center mb-2">Valuation Details</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-blue-700 text-sm">Reserve Price:</p>
+                <p className="font-bold text-blue-900 text-lg">{formattedReservePrice}</p>
+              </div>
+              <div>
+                <p className="text-blue-700 text-sm">Market Value:</p>
+                <p className="font-bold text-blue-900 text-lg">{formattedAveragePrice}</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className="bg-blue-50 p-4 rounded-md mb-6">
           <p className="text-blue-700 font-semibold text-center">

@@ -1,126 +1,63 @@
 
 /**
- * useValuationData hook
  * Changes made:
- * - Improved type safety and null handling
- * - Enhanced normalization of partial data
- * - 2025-04-21: Made more resilient to handle different property types
- * - 2025-04-22: Added additional fallbacks and logging for better data handling
- * - 2025-04-23: Fixed incorrect access to data property on ValuationResultData
- * - 2025-04-24: Fixed TypeScript errors with basePrice property
- * - 2025-04-18: Updated hasValuation logic to consider vehicle with make/model valid even with 0 prices
+ * - 2025-04-18: Created hook to consistently evaluate valuation data quality
+ * - 2025-04-18: Added detailed validation checks for pricing data
  */
 
 import { useMemo } from 'react';
-import { ValuationData } from '@/utils/valuation/valuationDataTypes';
+import { normalizeValuationData } from '@/utils/valuation/valuationDataNormalizer';
 
-interface ValuationResultData {
-  make?: string;
-  model?: string;
-  year?: number;
-  vin?: string;
-  transmission?: string;
-  valuation?: number;
-  averagePrice?: number;
-  reservePrice?: number;
-  isExisting?: boolean;
-  error?: string;
-  noData?: boolean;
-  // Add the basePrice property to fix TypeScript error
-  basePrice?: number;
-}
-
-export function useValuationData(valuationResult: ValuationResultData | null) {
+export const useValuationData = (valuationResult: any) => {
   return useMemo(() => {
-    // Log input data for debugging
-    console.log('useValuationData input:', {
-      hasData: !!valuationResult,
-      makePresent: valuationResult?.make ? "yes" : "no",
-      modelPresent: valuationResult?.model ? "yes" : "no",
-      yearPresent: valuationResult?.year ? "yes" : "no",
-      data: valuationResult
-    });
-    
-    // Provide default empty data if nothing is passed
-    const defaultNormalizedData: ValuationData = {
-      make: '',
-      model: '',
-      year: new Date().getFullYear(),
-      vin: '',
-      mileage: 0,
-      transmission: 'manual',
-      valuation: 0,
-      reservePrice: 0,
-      averagePrice: 0,
-      isExisting: false,
-      error: '',
-      noData: true
-    };
-
     if (!valuationResult) {
-      console.log('No valuation result data provided, using defaults');
       return {
-        normalizedData: defaultNormalizedData,
+        normalizedData: {
+          make: '',
+          model: '',
+          year: 0,
+          vin: '',
+          transmission: 'manual',
+          mileage: 0,
+          valuation: 0,
+          reservePrice: 0,
+          averagePrice: 0
+        },
         hasError: false,
         shouldShowError: false,
         hasValuation: false
       };
     }
-
-    // Check for nested data structure - checking if it's an object coming directly from an API
-    // Don't try to access data property directly - it doesn't exist on the type
-    const dataToUse = valuationResult;
-
-    // Check if we have any vehicle data to display
-    const hasVehicleData = !!(dataToUse.make || dataToUse.model || (dataToUse.year && dataToUse.year > 0));
     
-    // Normalize data to handle missing fields with robust type checking
-    const normalizedData: ValuationData = {
-      make: dataToUse.make || '',
-      model: dataToUse.model || '',
-      year: dataToUse.year || new Date().getFullYear(),
-      vin: dataToUse.vin || '',
-      mileage: 0,  // We'll get this from localStorage
-      transmission: (dataToUse.transmission === 'manual' || dataToUse.transmission === 'automatic') 
-        ? dataToUse.transmission 
-        : 'manual',
-      
-      valuation: typeof dataToUse.valuation === 'number' ? dataToUse.valuation : 
-                 typeof dataToUse.reservePrice === 'number' ? dataToUse.reservePrice : 0,
-                 
-      reservePrice: typeof dataToUse.reservePrice === 'number' ? dataToUse.reservePrice : 
-                   (typeof dataToUse.valuation === 'number' ? dataToUse.valuation : 0),
-                   
-      averagePrice: typeof dataToUse.averagePrice === 'number' ? dataToUse.averagePrice : 
-                   (typeof dataToUse.basePrice === 'number' ? dataToUse.basePrice : 0),
-      
-      isExisting: !!dataToUse.isExisting,
-      error: dataToUse.error || '',
-      noData: !!dataToUse.noData || !hasVehicleData
-    };
+    // Check for explicit errors
+    const hasError = !!valuationResult.error || !!valuationResult.noData;
+    const shouldShowError = hasError;
     
-    // Log the normalized data for debugging
-    console.log('Normalized valuation data in hook:', {
+    // Normalize the data to ensure consistent format
+    const normalizedData = normalizeValuationData(valuationResult);
+    
+    // Log key data points for debugging
+    console.log('Valuation data validation:', {
       make: normalizedData.make,
       model: normalizedData.model,
       year: normalizedData.year,
-      valuation: normalizedData.valuation,
       reservePrice: normalizedData.reservePrice,
-      averagePrice: normalizedData.averagePrice,
-      hasVehicleData
+      valuation: normalizedData.valuation,
+      hasExplicitError: hasError,
+      hasMakeModel: !!(normalizedData.make && normalizedData.model),
+      hasPricing: !!(normalizedData.reservePrice > 0 || normalizedData.valuation > 0)
     });
     
-    const hasError = !!normalizedData.error || normalizedData.noData;
-    const shouldShowError = hasError && !normalizedData.make && !normalizedData.model;
-    
-    // UPDATED: Consider a valuation valid if we have make and model, even if price is 0
-    // This allows us to still proceed with listing vehicles when pricing data is incomplete
-    const hasValuation = !!(
+    // The vehicle valuation is valid if we have:
+    // 1. No explicit errors AND
+    // 2. Make & model & year data AND
+    // 3. Some kind of pricing information (either valuation or reservePrice)
+    const hasValuation = !hasError && 
       normalizedData.make && 
       normalizedData.model && 
-      normalizedData.year > 0
-    );
-
+      normalizedData.year > 0 &&
+      (normalizedData.reservePrice > 0 || normalizedData.valuation > 0);
+      
     return {
       normalizedData,
       hasError,
@@ -128,4 +65,4 @@ export function useValuationData(valuationResult: ValuationResultData | null) {
       hasValuation
     };
   }, [valuationResult]);
-}
+};
