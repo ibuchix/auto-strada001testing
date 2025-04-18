@@ -1,13 +1,13 @@
-
 /**
  * Vehicle Valuation Edge Function
- * Updated: 2025-04-18 - Using absolute URLs for all imports to improve deployment reliability
+ * Updated: 2025-04-18 - Fixed Deno imports and md5 implementation
  */
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
 import { corsHeaders } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { md5 } from "https://deno.land/std@0.187.0/hash/md5.ts";
+// Fixed import for crypto instead of md5
+import { crypto } from "https://deno.land/std@0.217.0/crypto/mod.ts";
 
 // Type definitions
 interface ValuationData {
@@ -19,6 +19,15 @@ interface ValuationData {
   mileage?: number;
   valuation?: number;
   reservePrice?: number;
+}
+
+// MD5 implementation using crypto
+function md5(message: string): string {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = crypto.subtle.digestSync("MD5", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // Response formatting
@@ -97,10 +106,10 @@ const logOperation = (
   }
 };
 
-// Calculate valuation checksum
-const calculateValuationChecksum = async (apiId: string, apiSecret: string, vin: string): Promise<string> => {
+// Calculate valuation checksum - Fixed implementation
+const calculateValuationChecksum = (apiId: string, apiSecret: string, vin: string): string => {
   const checksumContent = apiId + apiSecret + vin;
-  return md5.toString(new TextEncoder().encode(checksumContent));
+  return md5(checksumContent);
 };
 
 // Create Supabase client
@@ -158,7 +167,7 @@ serve(async (req) => {
     const apiId = Deno.env.get("VALUATION_API_ID") || "";
     const apiSecret = Deno.env.get("VALUATION_API_SECRET") || "";
     
-    const checksum = await calculateValuationChecksum(apiId, apiSecret, vin);
+    const checksum = calculateValuationChecksum(apiId, apiSecret, vin);
     
     // Call external valuation API
     const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
