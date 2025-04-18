@@ -1,8 +1,6 @@
-
 /**
  * Vehicle Valuation Edge Function
- * Updated: 2025-04-18 - Enhanced data extraction, standardized property mapping,
- * and comprehensive validation
+ * Updated: 2025-04-18 - Enhanced logging to trace API response and price calculations
  */
 
 import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
@@ -19,8 +17,15 @@ serve(async (req) => {
   try {
     const requestId = crypto.randomUUID();
     const { vin, mileage, gearbox } = await req.json();
-    logOperation('valuation_request_received', { requestId, vin, mileage, gearbox });
     
+    logOperation('valuation_request_received', { 
+      requestId, 
+      vin, 
+      mileage, 
+      gearbox,
+      timestamp: new Date().toISOString() 
+    });
+
     // Input validation
     if (!isValidVin(vin)) {
       return formatErrorResponse("Invalid VIN format", 400, "VALIDATION_ERROR");
@@ -67,13 +72,18 @@ serve(async (req) => {
         "CONFIGURATION_ERROR"
       );
     }
-    
+
+    // Generate checksum for API auth
     const checksum = calculateValuationChecksum(apiId, apiSecret, vin);
-    
-    // Call external API
     const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-    logOperation('calling_external_api', { requestId, vin, apiUrl });
-    
+
+    logOperation('calling_external_api', {
+      requestId,
+      vin,
+      mileage,
+      url: apiUrl
+    });
+
     const response = await fetch(apiUrl);
     
     if (!response.ok) {
@@ -84,57 +94,119 @@ serve(async (req) => {
       }, 'error');
       
       return formatErrorResponse(
-        `API responded with status: ${response.status}`,
+        `API Error: ${response.status} ${response.statusText}`,
         response.status,
         "API_ERROR"
       );
     }
-    
-    const rawData = await response.json();
-    
-    if (!rawData) {
-      logOperation('empty_api_response', { requestId }, 'error');
+
+    // Log raw API response
+    const rawData = await response.text();
+    logOperation('raw_api_response', {
+      requestId,
+      responseSize: rawData.length,
+      rawResponse: rawData.substring(0, 1000), // First 1000 chars for debugging
+      timestamp: new Date().toISOString()
+    });
+
+    let apiData;
+    try {
+      apiData = JSON.parse(rawData);
+    } catch (parseError) {
+      logOperation('parse_error', {
+        requestId,
+        error: parseError.message,
+        rawData: rawData.substring(0, 500)
+      }, 'error');
+      
       return formatErrorResponse(
-        "Empty response from valuation API",
+        "Failed to parse API response",
         400,
-        "EMPTY_RESPONSE"
+        "PARSE_ERROR"
       );
     }
 
-    // Process and standardize the API response
-    const valuationData = processValuationData(rawData, vin, mileage, requestId);
-    
-    // Save to cache regardless of data completeness
-    try {
-      const { error: insertError } = await supabase
-        .from('vin_valuation_cache')
-        .insert({
-          vin,
-          mileage,
-          valuation_data: {
-            ...rawData,
-            processedAt: new Date().toISOString(),
-            standardized: valuationData
-          }
-        });
+    // Log all price-related fields
+    const priceFields = Object.entries(apiData)
+      .filter(([key, value]) => 
+        (key.toLowerCase().includes('price') || 
+         key.toLowerCase().includes('value') ||
+         key.toLowerCase().includes('cost')) &&
+        typeof value === 'number'
+      );
 
-      if (insertError) {
-        logOperation('cache_insert_error', { 
-          requestId,
-          error: insertError.message 
-        }, 'error');
-      }
-    } catch (cacheError) {
-      logOperation('cache_error', {
-        requestId,
-        error: cacheError.message
-      }, 'warn');
-    }
+    logOperation('price_fields_found', {
+      requestId,
+      priceFields: Object.fromEntries(priceFields),
+      timestamp: new Date().toISOString()
+    });
 
-    return formatSuccessResponse(valuationData);
+    // Calculate base price (average of min and median prices)
+    const priceMin = apiData.price_min || apiData.minimum_price || apiData.price || 0;
+    const priceMed = apiData.price_med || apiData.median_price || apiData.price || 0;
+    const basePrice = (priceMin + priceMed) / 2;
+
+    logOperation('price_calculation', {
+      requestId,
+      priceMin,
+      priceMed,
+      basePrice,
+      timestamp: new Date().toISOString()
+    });
+
+    // Calculate reserve price
+    let percentage = 0;
+    if (basePrice <= 15000) percentage = 0.65;
+    else if (basePrice <= 20000) percentage = 0.46;
+    else if (basePrice <= 30000) percentage = 0.37;
+    else if (basePrice <= 50000) percentage = 0.27;
+    else if (basePrice <= 60000) percentage = 0.27;
+    else if (basePrice <= 70000) percentage = 0.22;
+    else if (basePrice <= 80000) percentage = 0.23;
+    else if (basePrice <= 100000) percentage = 0.24;
+    else if (basePrice <= 130000) percentage = 0.20;
+    else if (basePrice <= 160000) percentage = 0.185;
+    else if (basePrice <= 200000) percentage = 0.22;
+    else if (basePrice <= 250000) percentage = 0.17;
+    else if (basePrice <= 300000) percentage = 0.18;
+    else if (basePrice <= 400000) percentage = 0.18;
+    else if (basePrice <= 500000) percentage = 0.16;
+    else percentage = 0.145;
+
+    const reservePrice = Math.round(basePrice - (basePrice * percentage));
+
+    logOperation('reserve_price_calculated', {
+      requestId,
+      basePrice,
+      percentage,
+      reservePrice,
+      formula: `${basePrice} - (${basePrice} × ${percentage})`,
+      timestamp: new Date().toISOString()
+    });
+
+    // Format the final response
+    const result = {
+      vin,
+      make: apiData.make || '',
+      model: apiData.model || '',
+      year: apiData.year || apiData.productionYear || new Date().getFullYear(),
+      mileage,
+      price: basePrice,
+      valuation: reservePrice,
+      reservePrice,
+      averagePrice: basePrice
+    };
+
+    logOperation('final_result', {
+      requestId,
+      result,
+      timestamp: new Date().toISOString()
+    });
+
+    return formatSuccessResponse(result);
 
   } catch (error) {
-    logOperation('valuation_error', { 
+    logOperation('unhandled_error', {
       error: error.message,
       stack: error.stack
     }, 'error');
