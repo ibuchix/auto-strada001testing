@@ -1,14 +1,11 @@
-
 /**
- * Hook for processing and validating valuation data
- * Created: 2025-04-17
+ * Enhanced Valuation Data Hook
+ * Updated: 2025-04-18 - Improved data normalization and error handling
  */
 
-import { useState, useEffect } from 'react';
-import { normalizeValuationData } from '@/components/hero/valuation/utils/valuationDataNormalizer';
-import { toast } from 'sonner';
+import { useMemo } from 'react';
 
-interface ValuationData {
+interface ValuationResultData {
   make?: string;
   model?: string;
   year?: number;
@@ -22,48 +19,77 @@ interface ValuationData {
   noData?: boolean;
 }
 
-export const useValuationData = (rawData: ValuationData | null) => {
-  const [normalizedData, setNormalizedData] = useState<ValuationData>({});
-  const [hasError, setHasError] = useState(false);
-  const [shouldShowError, setShouldShowError] = useState(false);
-
-  useEffect(() => {
-    if (!rawData) {
-      setNormalizedData({});
-      return;
+export function useValuationData(valuationResult: ValuationResultData | null) {
+  return useMemo(() => {
+    if (!valuationResult) {
+      return {
+        normalizedData: {},
+        hasError: false,
+        shouldShowError: false,
+        hasValuation: false
+      };
     }
 
-    // Normalize and process the data
-    const normalized = normalizeValuationData(rawData);
-    setNormalizedData(normalized);
-
-    // Check for valid vehicle identification
-    const hasValidVehicle = normalized.make && normalized.model;
-    const hasError = !!rawData.error;
-    const shouldShowError = (hasError || (rawData.noData && !hasValidVehicle));
-
-    setHasError(hasError);
-    setShouldShowError(shouldShowError);
-
-    // Log processing results
-    console.log('Valuation data processed:', {
-      hasValidVehicle,
+    // Detect error conditions
+    const hasError = !!valuationResult.error || !!valuationResult.noData;
+    const shouldShowError = hasError && !valuationResult.make && !valuationResult.model;
+    
+    // Normalize data to handle missing fields and ensure consistent property names
+    const normalizedData = {
+      make: valuationResult.make || '',
+      model: valuationResult.model || '',
+      year: valuationResult.year || new Date().getFullYear(),
+      vin: valuationResult.vin || '',
+      transmission: valuationResult.transmission || 'manual',
+      
+      // Ensure we have a valid reserve price
+      reservePrice: valuationResult.reservePrice || valuationResult.valuation || 0,
+      
+      // Ensure we have a valid average price
+      averagePrice: valuationResult.averagePrice || 
+                    (valuationResult.reservePrice && valuationResult.reservePrice > 0 ? 
+                      Math.round(valuationResult.reservePrice * 1.5) : 0),
+      
+      // Keep error information
+      error: valuationResult.error || (valuationResult.noData ? 'No data found for this VIN' : ''),
+      isExisting: valuationResult.isExisting || false
+    };
+    
+    // Determine if we have valid valuation data
+    const hasValuation = !!(
+      normalizedData.make && 
+      normalizedData.model && 
+      normalizedData.reservePrice && 
+      normalizedData.reservePrice > 0
+    );
+    
+    // Log the normalized data for debugging
+    console.log('Normalized valuation data:', {
+      original: {
+        make: valuationResult.make,
+        model: valuationResult.model,
+        year: valuationResult.year,
+        reservePrice: valuationResult.reservePrice,
+        valuation: valuationResult.valuation,
+        averagePrice: valuationResult.averagePrice
+      },
+      normalized: {
+        make: normalizedData.make,
+        model: normalizedData.model,
+        year: normalizedData.year,
+        reservePrice: normalizedData.reservePrice,
+        averagePrice: normalizedData.averagePrice
+      },
       hasError,
       shouldShowError,
-      make: normalized.make,
-      model: normalized.model,
-      valuation: normalized.valuation,
-      reservePrice: normalized.reservePrice
+      hasValuation
     });
-  }, [rawData]);
 
-  return {
-    normalizedData,
-    hasError,
-    shouldShowError,
-    hasValuation: !hasError && (
-      normalizedData.valuation !== undefined || 
-      normalizedData.reservePrice !== undefined
-    )
-  };
-};
+    return {
+      normalizedData,
+      hasError,
+      shouldShowError,
+      hasValuation
+    };
+  }, [valuationResult]);
+}
