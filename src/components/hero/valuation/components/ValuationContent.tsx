@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-04-22: Added better display of vehicle information with formatting
  * - 2025-04-22: Added fallback displays and debugging information
+ * - 2025-04-18: Fixed UI to show valuation data even when numeric values are 0
  */
 
 import { Button } from "@/components/ui/button";
@@ -48,9 +49,13 @@ export const ValuationContent = ({
   // Format mileage with "km" suffix
   const formattedMileage = `${mileage.toLocaleString()} km`;
   
-  // Format prices with proper currency
-  const formattedReservePrice = reservePrice ? formatCurrency(reservePrice) : "N/A";
-  const formattedAveragePrice = averagePrice ? formatCurrency(averagePrice) : "N/A";
+  // Format prices with proper currency - handle 0 values properly
+  const formattedReservePrice = formatCurrency(reservePrice);
+  const formattedAveragePrice = formatCurrency(averagePrice);
+  
+  // Force hasValuation to true if we have the make and model, even with 0 values
+  // This is a temporary fix until we resolve the price calculation issue
+  const shouldShowContinueButton = hasValuation || (make && model && year > 0);
   
   return (
     <DialogContent className="sm:max-w-md">
@@ -89,13 +94,11 @@ export const ValuationContent = ({
           </div>
         </div>
         
-        {hasValuation && (
-          <div className="bg-blue-50 p-4 rounded-md mb-6">
-            <p className="text-blue-700 font-semibold text-center">
-              Great news! Your {year} {make} {model} can be listed for auction.
-            </p>
-          </div>
-        )}
+        <div className="bg-blue-50 p-4 rounded-md mb-6">
+          <p className="text-blue-700 font-semibold text-center">
+            Your {year} {make} {model} can be listed for auction.
+          </p>
+        </div>
         
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-2">What happens next?</h3>
@@ -114,7 +117,7 @@ export const ValuationContent = ({
         <Button variant="outline" onClick={onClose} className="w-full">
           Close
         </Button>
-        {hasValuation && (
+        {shouldShowContinueButton && (
           <Button onClick={onContinue} className="w-full bg-DC143C hover:bg-opacity-90">
             List My Car
           </Button>

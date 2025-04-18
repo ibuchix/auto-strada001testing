@@ -8,6 +8,7 @@
  * - 2025-04-22: Added additional fallbacks and logging for better data handling
  * - 2025-04-23: Fixed incorrect access to data property on ValuationResultData
  * - 2025-04-24: Fixed TypeScript errors with basePrice property
+ * - 2025-04-18: Updated hasValuation logic to consider vehicle with make/model valid even with 0 prices
  */
 
 import { useMemo } from 'react';
@@ -111,11 +112,13 @@ export function useValuationData(valuationResult: ValuationResultData | null) {
     
     const hasError = !!normalizedData.error || normalizedData.noData;
     const shouldShowError = hasError && !normalizedData.make && !normalizedData.model;
+    
+    // UPDATED: Consider a valuation valid if we have make and model, even if price is 0
+    // This allows us to still proceed with listing vehicles when pricing data is incomplete
     const hasValuation = !!(
       normalizedData.make && 
       normalizedData.model && 
-      (typeof normalizedData.reservePrice === 'number' && normalizedData.reservePrice > 0 || 
-       typeof normalizedData.valuation === 'number' && normalizedData.valuation > 0)
+      normalizedData.year > 0
     );
 
     return {

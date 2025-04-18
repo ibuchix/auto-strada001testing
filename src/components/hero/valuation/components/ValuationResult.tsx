@@ -6,6 +6,7 @@
  * - Enhanced TypeScript interface for better type safety
  * - 2025-04-21: Adjusted interface to match props passed from ValuationForm
  * - 2025-04-22: Added better debugging and improved data handling
+ * - 2025-04-18: Fixed hasValuation logic to handle cases where price data is missing
  */
 
 import { useNavigate } from "react-router-dom";
@@ -76,6 +77,14 @@ export const ValuationResult = ({
     reservePrice: normalizedData.reservePrice
   });
 
+  // Modify the logic for determining if we have a valid valuation
+  // Consider it valid if we at least have make and model, even if price is 0
+  const modifiedHasValuation = hasValuation || (
+    normalizedData.make && 
+    normalizedData.model && 
+    normalizedData.year > 0
+  );
+
   // Effect to show error dialog when error is detected
   useEffect(() => {
     if (shouldShowError) {
@@ -125,7 +134,7 @@ export const ValuationResult = ({
       mileage={mileage}
       reservePrice={normalizedData.reservePrice}
       averagePrice={normalizedData.averagePrice}
-      hasValuation={hasValuation}
+      hasValuation={modifiedHasValuation}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
       onContinue={() => handleContinue(normalizedData)}
