@@ -1,19 +1,20 @@
 /**
  * Modified Supabase Edge Function for VIN Validation
- * Updated: 2025-04-18 - Made function more self-contained
+ * Updated: 2025-04-18 - Improved import strategy with absolute URLs
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-import { logOperation } from "../_shared/logging.ts";
+import { corsHeaders } from "https://deno.land/x/cors@v1.2.2/mod.ts";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { ValidationError } from "./errors.ts";
-import { formatSuccessResponse, formatErrorResponse, formatServerErrorResponse } from "../_shared/response-formatter.ts";
-import { getSupabaseClient } from "../_shared/client.ts";
+import { formatSuccessResponse, formatErrorResponse, formatServerErrorResponse } from "./response-formatter.ts";
 import { validateVinSchema } from "./schema.ts";
 import { checkRateLimit } from "./rate-limiter.ts";
 import { checkVehicleExists } from "./vehicle-checker.ts";
 import { checkExistingReservation } from "./reservation-checker.ts";
 import { isValidVin, isValidMileage } from "./validation.ts";
+import { getSupabaseClient } from "./client.ts";
+import { logOperation } from "./logging.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

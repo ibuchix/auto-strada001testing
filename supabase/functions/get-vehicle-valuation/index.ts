@@ -1,17 +1,17 @@
-
 /**
  * Vehicle Valuation Edge Function
- * Updated: 2025-04-18 - Made function more self-contained
+ * Updated: 2025-04-18 - Improved import strategy with absolute URLs
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
-import { calculateValuationChecksum } from "../_shared/checksum.ts";
-import { formatSuccessResponse, formatErrorResponse } from "../_shared/response-formatter.ts";
-import { logOperation } from "../_shared/logging.ts";
+import { corsHeaders } from "https://deno.land/x/cors@v1.2.2/mod.ts";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { formatSuccessResponse, formatErrorResponse } from "./response-formatter.ts";
+import { logOperation } from "./logging.ts";
 import { isValidVin, isValidMileage, ValidationError } from "./validation.ts";
-import { getSupabaseClient } from "../_shared/client.ts";
-import type { ValuationData } from "../_shared/types.ts";
+import type { ValuationData } from "./types.ts";
+import { getSupabaseClient } from "./client.ts";
+import { calculateValuationChecksum } from "./checksum.ts";
 
 serve(async (req) => {
   // Handle CORS
