@@ -11,6 +11,7 @@
  * - 2025-04-19: Fixed valuation process to properly show results for valid VINs
  * - 2025-04-20: Fixed type issues with form handling and simplified props
  * - 2025-04-21: Fixed type compatibility between ValuationForm and ValuationResult
+ * - 2025-04-22: Added additional debugging and improved data handling
  */
 
 import { ValuationInput } from "./ValuationInput";
@@ -42,6 +43,14 @@ export const ValuationForm = () => {
     console.log("Retry triggered from ValuationForm with improved implementation");
     resetForm();
   };
+  
+  // Add debugging for valuationResult
+  console.log("Current valuation result in ValuationForm:", {
+    hasResult: !!valuationResult,
+    data: valuationResult?.data,
+    resultKeys: valuationResult ? Object.keys(valuationResult) : [],
+    dataKeys: valuationResult?.data ? Object.keys(valuationResult.data) : []
+  });
 
   return (
     <div className="w-full max-w-md mx-auto">

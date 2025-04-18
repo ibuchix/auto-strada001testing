@@ -5,6 +5,7 @@
  * - Improved validation of partial data
  * - Enhanced TypeScript interface for better type safety
  * - 2025-04-21: Adjusted interface to match props passed from ValuationForm
+ * - 2025-04-22: Added better debugging and improved data handling
  */
 
 import { useNavigate } from "react-router-dom";
@@ -51,8 +52,29 @@ export const ValuationResult = ({
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
   
+  // Log the raw valuation result for debugging
+  console.log("Raw valuation result in ValuationResult:", {
+    result: valuationResult,
+    hasData: !!valuationResult,
+    makePresent: valuationResult?.make ? "yes" : "no",
+    modelPresent: valuationResult?.model ? "yes" : "no",
+    yearPresent: valuationResult?.year ? "yes" : "no"
+  });
+  
   const { normalizedData, hasError, shouldShowError, hasValuation } = useValuationData(valuationResult);
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
+
+  // Log normalized data for debugging
+  console.log("Normalized valuation data:", {
+    data: normalizedData,
+    hasError,
+    shouldShowError,
+    hasValuation,
+    make: normalizedData.make,
+    model: normalizedData.model,
+    year: normalizedData.year,
+    reservePrice: normalizedData.reservePrice
+  });
 
   // Effect to show error dialog when error is detected
   useEffect(() => {

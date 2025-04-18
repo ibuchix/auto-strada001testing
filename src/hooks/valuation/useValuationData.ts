@@ -5,6 +5,7 @@
  * - Improved type safety and null handling
  * - Enhanced normalization of partial data
  * - 2025-04-21: Made more resilient to handle different property types
+ * - 2025-04-22: Added additional fallbacks and logging for better data handling
  */
 
 import { useMemo } from 'react';
@@ -26,6 +27,15 @@ interface ValuationResultData {
 
 export function useValuationData(valuationResult: ValuationResultData | null) {
   return useMemo(() => {
+    // Log input data for debugging
+    console.log('useValuationData input:', {
+      hasData: !!valuationResult,
+      makePresent: valuationResult?.make ? "yes" : "no",
+      modelPresent: valuationResult?.model ? "yes" : "no",
+      yearPresent: valuationResult?.year ? "yes" : "no",
+      data: valuationResult
+    });
+    
     // Provide default empty data if nothing is passed
     const defaultNormalizedData: ValuationData = {
       make: '',
@@ -43,6 +53,7 @@ export function useValuationData(valuationResult: ValuationResultData | null) {
     };
 
     if (!valuationResult) {
+      console.log('No valuation result data provided, using defaults');
       return {
         normalizedData: defaultNormalizedData,
         hasError: false,
@@ -51,26 +62,47 @@ export function useValuationData(valuationResult: ValuationResultData | null) {
       };
     }
 
-    // Normalize data to handle missing fields
+    // Check for nested data structure - sometimes the API response has a data property
+    const dataToUse = valuationResult.data ? valuationResult.data : valuationResult;
+
+    // Check if we have any vehicle data to display
+    const hasVehicleData = !!(dataToUse.make || dataToUse.model || (dataToUse.year && dataToUse.year > 0));
+    
+    // Normalize data to handle missing fields with robust type checking
     const normalizedData: ValuationData = {
-      make: valuationResult.make || '',
-      model: valuationResult.model || '',
-      year: valuationResult.year || new Date().getFullYear(),
-      vin: valuationResult.vin || '',
+      make: dataToUse.make || '',
+      model: dataToUse.model || '',
+      year: dataToUse.year || new Date().getFullYear(),
+      vin: dataToUse.vin || '',
       mileage: 0,  // We'll get this from localStorage
-      transmission: (valuationResult.transmission === 'manual' || valuationResult.transmission === 'automatic') 
-        ? valuationResult.transmission 
+      transmission: (dataToUse.transmission === 'manual' || dataToUse.transmission === 'automatic') 
+        ? dataToUse.transmission 
         : 'manual',
       
-      valuation: typeof valuationResult.valuation === 'number' ? valuationResult.valuation : 0,
-      reservePrice: typeof valuationResult.reservePrice === 'number' ? valuationResult.reservePrice : 
-                   (typeof valuationResult.valuation === 'number' ? valuationResult.valuation : 0),
-      averagePrice: typeof valuationResult.averagePrice === 'number' ? valuationResult.averagePrice : 0,
+      valuation: typeof dataToUse.valuation === 'number' ? dataToUse.valuation : 
+                 typeof dataToUse.reservePrice === 'number' ? dataToUse.reservePrice : 0,
+                 
+      reservePrice: typeof dataToUse.reservePrice === 'number' ? dataToUse.reservePrice : 
+                   (typeof dataToUse.valuation === 'number' ? dataToUse.valuation : 0),
+                   
+      averagePrice: typeof dataToUse.averagePrice === 'number' ? dataToUse.averagePrice : 
+                   (typeof dataToUse.basePrice === 'number' ? dataToUse.basePrice : 0),
       
-      isExisting: !!valuationResult.isExisting,
-      error: valuationResult.error || '',
-      noData: !!valuationResult.noData
+      isExisting: !!dataToUse.isExisting,
+      error: dataToUse.error || '',
+      noData: !!dataToUse.noData || !hasVehicleData
     };
+    
+    // Log the normalized data for debugging
+    console.log('Normalized valuation data in hook:', {
+      make: normalizedData.make,
+      model: normalizedData.model,
+      year: normalizedData.year,
+      valuation: normalizedData.valuation,
+      reservePrice: normalizedData.reservePrice,
+      averagePrice: normalizedData.averagePrice,
+      hasVehicleData
+    });
     
     const hasError = !!normalizedData.error || normalizedData.noData;
     const shouldShowError = hasError && !normalizedData.make && !normalizedData.model;

@@ -1,152 +1,173 @@
 
 /**
- * Fixed Valuation Service
- * 
- * Changes:
- * - Fixed edge function name from 'handle-car-listing' to 'validate-vin'
- * - Enhanced error handling with better logging
- * - Added correlation ID support for request tracing
- * - Updated API calls to use the improved cache functions
+ * ValuationService
+ * Changes made:
+ * - 2025-04-22: Enhanced data handling and API response processing
+ * - 2025-04-22: Added better logging and error handling
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { getCachedValuation, storeValuationInCache } from "./api/cache-api";
-import { generateRequestId, createPerformanceTracker } from "./api/utils/debug-utils";
+import { TransmissionType } from "@/utils/valuation/valuationDataTypes";
 
+/**
+ * Get vehicle valuation from the API
+ * @param vin Vehicle Identification Number
+ * @param mileage Vehicle mileage
+ * @param gearbox Transmission type
+ * @returns Promise with valuation result
+ */
 export async function getValuation(
   vin: string,
   mileage: number,
-  gearbox: string,
-  correlationId?: string
+  gearbox: TransmissionType
 ) {
-  const startTime = performance.now();
-  const requestId = generateRequestId();
-  correlationId = correlationId || crypto.randomUUID();
-  
-  console.log(`[ValuationService][${requestId}] Processing valuation request:`, {
-    vin,
-    mileage,
-    gearbox,
-    correlationId,
-    timestamp: new Date().toISOString()
-  });
+  console.log(`[ValuationService] Fetching valuation for VIN: ${vin}, Mileage: ${mileage}, Gearbox: ${gearbox}`);
   
   try {
-    // First check cache
-    const tracker = createPerformanceTracker('valuation', requestId);
-    tracker.checkpoint('start');
-    
-    const cachedData = await getCachedValuation(vin, mileage);
-    tracker.checkpoint('cache-check');
-    
-    if (cachedData) {
-      const result = {
-        success: true,
-        data: {
-          ...(cachedData && typeof cachedData === 'object' ? cachedData : {}), // Ensure cachedData is an object before spreading
+    // First try to get the valuation data from the get-vehicle-valuation function
+    const { data: valuationData, error: valuationError } = await supabase.functions.invoke(
+      'get-vehicle-valuation',
+      {
+        body: {
           vin,
           mileage,
-          transmission: gearbox,
-          fromCache: true
+          gearbox
         }
-      };
-      
-      tracker.complete('success', { fromCache: true });
-      return result;
-    }
-    
-    // No cache hit, call the edge function
-    console.log(`[ValuationService][${requestId}] Cache miss, fetching from edge function`);
-    tracker.checkpoint('edge-function-start');
-    
-    // Get current user ID - Fixed the TypeScript error by using the user ID correctly
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData?.user?.id;
-    
-    const { data: functionResult, error } = await supabase.functions.invoke('validate-vin', {
-      body: { 
-        vin, 
-        mileage, 
-        gearbox,
-        userId,
-        allowExisting: true, // Allow validation even if VIN exists
-        correlationId
       }
+    );
+    
+    console.log("[ValuationService] Raw API response:", { 
+      valuationData, 
+      valuationError, 
+      success: !!valuationData && !valuationError 
     });
     
-    tracker.checkpoint('edge-function-complete');
-    
-    if (error) {
-      console.error(`[ValuationService][${requestId}] Edge function error:`, {
-        message: error.message,
-        details: error.details,
-        correlationId,
-        elapsedMs: (performance.now() - startTime).toFixed(2),
-        timestamp: new Date().toISOString()
-      });
-      
-      tracker.complete('failure', { error: error.message });
-      
+    if (valuationError) {
+      console.error("[ValuationService] Valuation function error:", valuationError);
       return {
         success: false,
-        data: { error: error.message, correlationId }
+        error: valuationError.message || "Failed to retrieve valuation"
+      };
+    }
+
+    if (!valuationData) {
+      console.error("[ValuationService] No data returned from valuation function");
+      return {
+        success: false,
+        error: "No valuation data returned from the server"
       };
     }
     
-    // Store the result in the cache to avoid future API calls
-    if (functionResult) {
-      tracker.checkpoint('cache-store-start');
+    // Check for nested data structure
+    let processedData = valuationData;
+    if (valuationData.data) {
+      processedData = valuationData.data;
+    }
+    
+    // Check if we have the expected vehicle data
+    if (!processedData.make || !processedData.model) {
+      console.warn("[ValuationService] Incomplete vehicle data:", processedData);
       
-      try {
-        await storeValuationInCache(vin, mileage, functionResult);
-        tracker.checkpoint('cache-store-complete');
-      } catch (cacheError) {
-        tracker.checkpoint('cache-store-failed');
-        // Log but don't fail the operation due to cache errors
-        console.warn(`[ValuationService][${requestId}] Cache storage failed:`, {
-          error: cacheError.message,
-          correlationId,
-          timestamp: new Date().toISOString()
+      // Try to extract information from possible different property names
+      const enhancedData = {
+        ...processedData,
+        make: processedData.make || processedData.manufacturer || '',
+        model: processedData.model || processedData.modelName || '',
+        year: processedData.year || processedData.productionYear || new Date().getFullYear(),
+        transmission: gearbox,
+        vin: vin
+      };
+      
+      // If we still don't have make and model, this is not valid data
+      if (!enhancedData.make || !enhancedData.model) {
+        console.error("[ValuationService] Missing critical vehicle information");
+        return {
+          success: false,
+          error: "Could not retrieve vehicle information for this VIN",
+          data: enhancedData
+        };
+      }
+      
+      processedData = enhancedData;
+    }
+    
+    // Ensure pricing data is available
+    if (!processedData.reservePrice && !processedData.valuation) {
+      console.warn("[ValuationService] Missing pricing data, using fallbacks");
+      
+      // Try to calculate reserve price from other available data
+      let basePrice = processedData.basePrice || processedData.averagePrice || 0;
+      
+      // If no base price, look for other fields
+      if (basePrice <= 0) {
+        if (processedData.price_med && processedData.price_min) {
+          basePrice = (processedData.price_med + processedData.price_min) / 2;
+        } else if (processedData.price) {
+          basePrice = processedData.price;
+        }
+      }
+      
+      // Calculate reserve price if we have a base price
+      if (basePrice > 0) {
+        // Determine percentage based on price tier
+        let percentage = 0;
+        
+        if (basePrice <= 15000) percentage = 0.65;
+        else if (basePrice <= 20000) percentage = 0.46;
+        else if (basePrice <= 30000) percentage = 0.37;
+        else if (basePrice <= 50000) percentage = 0.27;
+        else if (basePrice <= 60000) percentage = 0.27;
+        else if (basePrice <= 70000) percentage = 0.22;
+        else if (basePrice <= 80000) percentage = 0.23;
+        else if (basePrice <= 100000) percentage = 0.24;
+        else if (basePrice <= 130000) percentage = 0.20;
+        else if (basePrice <= 160000) percentage = 0.185;
+        else if (basePrice <= 200000) percentage = 0.22;
+        else if (basePrice <= 250000) percentage = 0.17;
+        else if (basePrice <= 300000) percentage = 0.18;
+        else if (basePrice <= 400000) percentage = 0.18;
+        else if (basePrice <= 500000) percentage = 0.16;
+        else percentage = 0.145;
+        
+        const reservePrice = Math.round(basePrice - (basePrice * percentage));
+        
+        processedData = {
+          ...processedData,
+          reservePrice,
+          valuation: reservePrice,
+          averagePrice: basePrice,
+          basePrice: basePrice
+        };
+        
+        console.log("[ValuationService] Calculated reserve price:", { 
+          basePrice, 
+          reservePrice, 
+          percentage 
         });
       }
     }
     
-    console.log(`[ValuationService][${requestId}] Valuation completed in ${(performance.now() - startTime).toFixed(2)}ms`, {
-      dataReceived: !!functionResult,
-      dataKeys: functionResult ? Object.keys(functionResult) : [],
-      hasMake: functionResult?.make ? 'yes' : 'no',
-      hasModel: functionResult?.model ? 'yes' : 'no',
-      hasYear: functionResult?.year ? 'yes' : 'no'
-    });
-    
-    tracker.complete('success');
+    console.log("[ValuationService] Final processed valuation data:", processedData);
     
     return {
       success: true,
-      data: {
-        ...(functionResult && typeof functionResult === 'object' ? functionResult : {}), // Ensure functionResult is an object before spreading
-        vin,
-        mileage,
-        transmission: gearbox
-      }
+      data: processedData
     };
-  } catch (error) {
-    console.error(`[ValuationService][${requestId}] Unhandled error:`, {
-      message: error.message,
-      stack: error.stack,
-      correlationId,
-      elapsedMs: (performance.now() - startTime).toFixed(2),
-      timestamp: new Date().toISOString()
-    });
-    
+  } catch (error: any) {
+    console.error("[ValuationService] Unexpected error:", error);
     return {
       success: false,
-      data: { error: error.message, correlationId }
+      error: error.message || "An unexpected error occurred",
     };
   }
 }
 
-// Clean up any temporary data if needed
+/**
+ * Clean up temporary valuation data from localStorage
+ */
 export function cleanupValuationData() {
-  // Nothing to clean up at the moment
+  localStorage.removeItem("valuationData");
+  localStorage.removeItem("tempVIN");
+  localStorage.removeItem("tempMileage");
+  localStorage.removeItem("tempGearbox");
 }
