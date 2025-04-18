@@ -1,13 +1,13 @@
 
 /**
- * Logging utilities
+ * Logging utilities for vehicle valuation
  */
 
-import { LogLevel } from "./types.ts";
+export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 export const logOperation = (
   operation: string, 
-  details: Record<string, any>,
+  details: Record<string, any> = {},
   level: LogLevel = 'info'
 ): void => {
   const logEntry = {

@@ -1,11 +1,12 @@
 
 /**
  * Shared validation utilities for edge functions
- * Created: 2025-04-17
+ * Updated: 2025-04-18 - Enhanced property extraction and data normalization
  */
 
 import { logOperation } from "./logging.ts";
 import { ValuationData, TransmissionType } from "./types.ts";
+import { calculateReservePrice } from "./reserve-price.ts";
 
 // Validate required vehicle fields
 export function validateVehicleData(
@@ -53,7 +54,7 @@ export function validateVehicleData(
   return { isValid, errors };
 }
 
-// Extract and normalize valuation data
+// Extract and normalize valuation data - improved with robust property extraction
 export function normalizeValuationData(
   rawData: any,
   requestId: string
@@ -61,30 +62,30 @@ export function normalizeValuationData(
   const normalized: Partial<ValuationData> = {};
   
   try {
-    // Extract basic vehicle info
-    normalized.make = extractString(rawData, ["make", "manufacturer", "brand"]);
-    normalized.model = extractString(rawData, ["model", "modelName", "vehicleModel"]);
-    normalized.year = extractNumber(rawData, ["year", "productionYear", "modelYear"]);
-    normalized.vin = extractString(rawData, ["vin", "vinNumber"]);
-    normalized.mileage = extractNumber(rawData, ["mileage", "odometer", "kilometers"]);
+    // Extract basic vehicle info with robust fallbacks
+    normalized.make = extractNestedValue(rawData, ["make", "manufacturer", "brand"]);
+    normalized.model = extractNestedValue(rawData, ["model", "modelName", "vehicleModel"]);
+    normalized.year = extractNestedNumber(rawData, ["year", "productionYear", "modelYear"]);
+    normalized.vin = extractNestedValue(rawData, ["vin", "vinNumber"]);
+    normalized.mileage = extractNestedNumber(rawData, ["mileage", "odometer", "kilometers"]);
     normalized.transmission = extractTransmission(rawData);
     
     // Extract pricing information
-    const priceMin = extractNumber(rawData, ["price_min", "priceMin", "minimumPrice"]);
-    const priceMed = extractNumber(rawData, ["price_med", "priceMed", "medianPrice"]);
+    const priceMin = extractNestedNumber(rawData, ["price_min", "priceMin", "minimumPrice"]);
+    const priceMed = extractNestedNumber(rawData, ["price_med", "priceMed", "medianPrice"]);
     
     if (priceMin > 0 && priceMed > 0) {
       // Calculate base price as average of min and median
       normalized.basePrice = (priceMin + priceMed) / 2;
+      normalized.valuation = normalized.basePrice;
       
       // Calculate reserve price based on base price
       if (normalized.basePrice > 0) {
         normalized.reservePrice = calculateReservePrice(normalized.basePrice);
-        normalized.valuation = normalized.basePrice;
       }
     } else {
       // Try to extract direct valuation
-      normalized.valuation = extractNumber(rawData, [
+      normalized.valuation = extractNestedNumber(rawData, [
         "price", "value", "valuation", "estimatedValue"
       ]);
       
@@ -112,19 +113,65 @@ export function normalizeValuationData(
   return normalized;
 }
 
-// Helper function to extract string values
-function extractString(data: any, possibleKeys: string[]): string {
+/**
+ * Enhanced nested property extraction that supports deep paths
+ * Can extract from nested objects with dot notation paths
+ */
+export function extractNestedValue(data: any, possibleKeys: string[]): string {
+  if (!data) return "";
+  
+  // First try direct property access
   for (const key of possibleKeys) {
+    // Handle dot notation for nested paths
+    if (key.includes('.')) {
+      const value = getNestedProperty(data, key);
+      if (value && typeof value === "string") {
+        return value.trim();
+      }
+      continue;
+    }
+    
+    // Direct property access
     if (data[key] && typeof data[key] === "string") {
       return data[key].trim();
     }
   }
+  
+  // Try one level deep
+  for (const mainKey of Object.keys(data)) {
+    if (data[mainKey] && typeof data[mainKey] === "object") {
+      for (const key of possibleKeys) {
+        if (data[mainKey][key] && typeof data[mainKey][key] === "string") {
+          return data[mainKey][key].trim();
+        }
+      }
+    }
+  }
+  
   return "";
 }
 
-// Helper function to extract number values
-function extractNumber(data: any, possibleKeys: string[]): number {
+/**
+ * Extract number values with robust fallbacks
+ */
+export function extractNestedNumber(data: any, possibleKeys: string[]): number {
+  if (!data) return 0;
+  
+  // First try direct property access
   for (const key of possibleKeys) {
+    // Handle dot notation for nested paths
+    if (key.includes('.')) {
+      const value = getNestedProperty(data, key);
+      if (value !== undefined) {
+        const num = Number(value);
+        if (!isNaN(num) && num >= 0) {
+          return num;
+        }
+      }
+      continue;
+    }
+    
+    // Direct property access
     const value = data[key];
     if (value !== undefined) {
       const num = Number(value);
@@ -133,40 +180,42 @@ function extractNumber(data: any, possibleKeys: string[]): number {
       }
     }
   }
+  
+  // Try one level deep
+  for (const mainKey of Object.keys(data)) {
+    if (data[mainKey] && typeof data[mainKey] === "object") {
+      for (const key of possibleKeys) {
+        const value = data[mainKey][key];
+        if (value !== undefined) {
+          const num = Number(value);
+          if (!isNaN(num) && num >= 0) {
+            return num;
+          }
+        }
+      }
+    }
+  }
+  
   return 0;
+}
+
+/**
+ * Helper to get a nested property using dot notation
+ * e.g., "functionResponse.userParams.make"
+ */
+function getNestedProperty(obj: any, path: string): any {
+  return path.split('.').reduce((prev, curr) => {
+    return prev ? prev[curr] : undefined;
+  }, obj);
 }
 
 // Helper function to extract and validate transmission type
 function extractTransmission(data: any): TransmissionType | undefined {
-  const transmissionValue = extractString(data, [
+  const transmissionValue = extractNestedValue(data, [
     "transmission", "gearbox", "transmissionType"
   ]).toLowerCase();
   
   if (transmissionValue.includes("manual")) return "manual";
   if (transmissionValue.includes("auto")) return "automatic";
   return undefined;
-}
-
-// Calculate reserve price based on base price tiers
-function calculateReservePrice(basePrice: number): number {
-  let percentage = 0;
-  
-  if (basePrice <= 15000) percentage = 0.65;
-  else if (basePrice <= 20000) percentage = 0.46;
-  else if (basePrice <= 30000) percentage = 0.37;
-  else if (basePrice <= 50000) percentage = 0.27;
-  else if (basePrice <= 60000) percentage = 0.27;
-  else if (basePrice <= 70000) percentage = 0.22;
-  else if (basePrice <= 80000) percentage = 0.23;
-  else if (basePrice <= 100000) percentage = 0.24;
-  else if (basePrice <= 130000) percentage = 0.20;
-  else if (basePrice <= 160000) percentage = 0.185;
-  else if (basePrice <= 200000) percentage = 0.22;
-  else if (basePrice <= 250000) percentage = 0.17;
-  else if (basePrice <= 300000) percentage = 0.18;
-  else if (basePrice <= 400000) percentage = 0.18;
-  else if (basePrice <= 500000) percentage = 0.16;
-  else percentage = 0.145;
-  
-  return Math.round(basePrice - (basePrice * percentage));
 }
