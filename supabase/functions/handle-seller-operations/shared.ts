@@ -5,12 +5,19 @@
  * to eliminate dependency on the _shared directory
  */
 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+
 // CORS headers for HTTP responses
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization"
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Allow-Credentials": "true",
+  "Access-Control-Max-Age": "86400",
 };
+
+// Log levels for structured logging
+export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 // Custom validation error class
 export class ValidationError extends Error {
@@ -29,7 +36,7 @@ export class ValidationError extends Error {
 export const logOperation = (
   operation: string, 
   details: Record<string, any> = {},
-  level: 'info' | 'warn' | 'error' | 'debug' = 'info'
+  level: LogLevel = 'info'
 ): void => {
   const logEntry = {
     timestamp: new Date().toISOString(),
@@ -52,6 +59,21 @@ export const logOperation = (
       console.log(JSON.stringify(logEntry));
   }
 };
+
+// Create Supabase client with enhanced error handling
+export function createSupabaseClient() {
+  try {
+    return createClient(
+      Deno.env.get('SUPABASE_URL') || '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    );
+  } catch (error) {
+    logOperation('supabase_client_creation_failed', { 
+      error: error.message 
+    }, 'error');
+    throw new Error('Failed to create Supabase client');
+  }
+}
 
 // Response formatting utility
 export const formatResponse = {
@@ -92,4 +114,14 @@ export const formatResponse = {
     );
   }
 };
+
+// Error codes for consistent error handling
+export const ErrorCodes = {
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  NOT_FOUND: 'NOT_FOUND',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  RATE_LIMITED: 'RATE_LIMITED',
+  INTERNAL_ERROR: 'INTERNAL_ERROR'
+} as const;
 
