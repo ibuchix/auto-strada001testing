@@ -8,6 +8,7 @@ import { crypto } from "https://deno.land/std@0.217.0/crypto/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { ValuationData } from "./types.ts";
 import { logOperation } from "./logging.ts";
+import { calculateReservePrice } from '../_shared/index.ts';
 
 export function md5(message: string): string {
   const encoder = new TextEncoder();
@@ -135,10 +136,6 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       basePrice = price;
     }
     
-    // Import calculateReservePrice from the shared module index, not directly from the file
-    // This is the key change to fix the error
-    import { calculateReservePrice } from '../_shared/index.ts';
-    
     // Calculate reserve price using our shared formula
     const reservePrice = calculateReservePrice(basePrice);
     
@@ -228,6 +225,5 @@ export const corsHeaders = {
   "Access-Control-Max-Age": "86400",
 };
 
-// Remove direct import to non-existent file path
-// Instead re-export from the shared index module
-export { calculateReservePrice } from '../_shared/index.ts';
+// Re-export calculateReservePrice from the shared index module
+export { calculateReservePrice };
