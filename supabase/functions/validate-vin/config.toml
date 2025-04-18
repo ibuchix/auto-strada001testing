@@ -1,0 +1,3 @@
+
+# Config for the validate-vin function
+# No auth required for this endpoint since it's used for VIN validation

@@ -1,18 +1,121 @@
+
 /**
  * Vehicle Valuation Edge Function
- * Updated: 2025-04-18 - Improved import strategy with absolute URLs
+ * Updated: 2025-04-18 - Using absolute URLs for all imports to improve deployment reliability
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "https://deno.land/x/cors@v1.2.2/mod.ts";
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { formatSuccessResponse, formatErrorResponse } from "./response-formatter.ts";
-import { logOperation } from "./logging.ts";
-import { isValidVin, isValidMileage, ValidationError } from "./validation.ts";
-import type { ValuationData } from "./types.ts";
-import { getSupabaseClient } from "./client.ts";
-import { calculateValuationChecksum } from "./checksum.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { md5 } from "https://deno.land/std@0.187.0/hash/md5.ts";
 
+// Type definitions
+interface ValuationData {
+  vin: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  price?: number;
+  mileage?: number;
+  valuation?: number;
+  reservePrice?: number;
+}
+
+// Response formatting
+const formatSuccessResponse = (data: any) => {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      data
+    }),
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    }
+  );
+};
+
+const formatErrorResponse = (error: string, status = 400, code = 'ERROR') => {
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error,
+      code
+    }),
+    {
+      status,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    }
+  );
+};
+
+// Validation helpers
+const isValidVin = (vin: string): boolean => {
+  if (!vin || typeof vin !== 'string') return false;
+  // Basic validation - VINs should be 17 characters and contain only valid characters
+  return /^[A-HJ-NPR-Z0-9]{17}$/i.test(vin);
+};
+
+const isValidMileage = (mileage: any): boolean => {
+  if (mileage === undefined || mileage === null) return false;
+  const mileageNumber = Number(mileage);
+  return !isNaN(mileageNumber) && mileageNumber >= 0 && mileageNumber <= 1000000;
+};
+
+// Logging utilities
+type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+
+const logOperation = (
+  operation: string, 
+  details: Record<string, any>,
+  level: LogLevel = 'info'
+): void => {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    operation,
+    level,
+    ...details
+  };
+  
+  switch (level) {
+    case 'error':
+      console.error(JSON.stringify(logEntry));
+      break;
+    case 'warn':
+      console.warn(JSON.stringify(logEntry));
+      break;
+    case 'debug':
+      console.debug(JSON.stringify(logEntry));
+      break;
+    default:
+      console.log(JSON.stringify(logEntry));
+  }
+};
+
+// Calculate valuation checksum
+const calculateValuationChecksum = async (apiId: string, apiSecret: string, vin: string): Promise<string> => {
+  const checksumContent = apiId + apiSecret + vin;
+  return md5.toString(new TextEncoder().encode(checksumContent));
+};
+
+// Create Supabase client
+const getSupabaseClient = () => {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+};
+
+// Main function handler
 serve(async (req) => {
   // Handle CORS
   if (req.method === "OPTIONS") {
