@@ -1,4 +1,3 @@
-
 /**
  * Edge function for processing proxy bids
  * 
@@ -7,9 +6,7 @@
  * consistent bid state.
  */
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { corsHeaders } from "../_shared/index.ts";
-import { getSupabaseClient } from "../_shared/client.ts";
-import { Database } from "../_shared/database.types.ts";
+import { corsHeaders, getSupabaseClient, Database } from "./utils.ts";
 
 interface ProcessProxyBidsRequest {
   carId?: string;
@@ -77,27 +74,23 @@ serve(async (req: Request) => {
     console.log(`[${requestId}] Proxy bid processing complete:`, result);
     
     // Return success response
-    return withCors(
-      new Response(JSON.stringify(result), {
-        status: result.success ? 200 : 400,
-        headers: { "Content-Type": "application/json" }
-      })
-    );
+    return new Response(JSON.stringify(result), {
+      status: result.success ? 200 : 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
   } catch (error) {
     console.error("Error processing proxy bids:", error);
     
     // Return error response
-    return withCors(
-      new Response(
-        JSON.stringify({
-          success: false,
-          error: error.message || "An error occurred processing proxy bids"
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" }
-        }
-      )
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || "An error occurred processing proxy bids"
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
     );
   }
 });
