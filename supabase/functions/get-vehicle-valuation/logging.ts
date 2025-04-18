@@ -1,10 +1,9 @@
 
 /**
- * Logging utilities for vehicle valuation
- * Created: 2025-04-18
+ * Logging utilities
  */
 
-export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+import { LogLevel } from "./types.ts";
 
 export const logOperation = (
   operation: string, 

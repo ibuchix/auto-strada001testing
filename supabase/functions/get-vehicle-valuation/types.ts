@@ -1,7 +1,6 @@
 
 /**
  * Type definitions for vehicle valuation
- * Created: 2025-04-18
  */
 
 export interface ValuationData {
@@ -14,3 +13,5 @@ export interface ValuationData {
   valuation?: number;
   reservePrice?: number;
 }
+
+export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
