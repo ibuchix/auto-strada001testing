@@ -1,19 +1,19 @@
-
 /**
  * Modified Supabase Edge Function for VIN Validation
- * Updated: 2025-04-18 - Organized imports from dedicated utility modules
+ * Updated: 2025-04-18 - Made function more self-contained
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { logOperation } from "../_shared/logging.ts";
-import { ValidationError } from "../_shared/errors.ts";
+import { ValidationError } from "./errors.ts";
 import { formatSuccessResponse, formatErrorResponse, formatServerErrorResponse } from "../_shared/response-formatter.ts";
 import { getSupabaseClient } from "../_shared/client.ts";
 import { validateVinSchema } from "./schema.ts";
 import { checkRateLimit } from "./rate-limiter.ts";
 import { checkVehicleExists } from "./vehicle-checker.ts";
 import { checkExistingReservation } from "./reservation-checker.ts";
+import { isValidVin, isValidMileage } from "./validation.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -42,6 +42,22 @@ serve(async (req) => {
         'Too many requests for this VIN. Please try again later.',
         429,
         'RATE_LIMIT_EXCEEDED'
+      );
+    }
+    
+    if (!isValidVin(vin)) {
+      return formatErrorResponse(
+        'Invalid VIN format',
+        400,
+        'INVALID_VIN'
+      );
+    }
+    
+    if (!isValidMileage(mileage)) {
+      return formatErrorResponse(
+        'Invalid mileage format',
+        400,
+        'INVALID_MILEAGE'
       );
     }
     
