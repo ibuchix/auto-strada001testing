@@ -7,6 +7,7 @@
  * - 2025-04-21: Made more resilient to handle different property types
  * - 2025-04-22: Added additional fallbacks and logging for better data handling
  * - 2025-04-23: Fixed incorrect access to data property on ValuationResultData
+ * - 2025-04-24: Fixed TypeScript errors with basePrice property
  */
 
 import { useMemo } from 'react';
@@ -24,6 +25,8 @@ interface ValuationResultData {
   isExisting?: boolean;
   error?: string;
   noData?: boolean;
+  // Add the basePrice property to fix TypeScript error
+  basePrice?: number;
 }
 
 export function useValuationData(valuationResult: ValuationResultData | null) {
