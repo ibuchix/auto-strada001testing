@@ -1,13 +1,12 @@
-
 /**
  * VIN Validation Edge Function
  * Updated: 2025-04-18 - Using absolute URLs for all imports to improve deployment reliability
+ * Updated: 2025-04-18 - Replaced external MD5 import with Web Crypto API
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { md5 } from "https://deno.land/std@0.187.0/hash/md5.ts";
 
 // Error types
 export class ValidationError extends Error {
@@ -76,7 +75,6 @@ const formatServerErrorResponse = (error: any, status = 500, code = 'SERVER_ERRO
 // Validation helpers
 const isValidVin = (vin: string): boolean => {
   if (!vin || typeof vin !== 'string') return false;
-  // Basic validation - VINs should be 17 characters and contain only valid characters
   return /^[A-HJ-NPR-Z0-9]{17}$/i.test(vin);
 };
 
@@ -127,6 +125,15 @@ const createSupabaseClient = () => {
   
   return createClient(supabaseUrl, supabaseKey);
 };
+
+// Calculate MD5 hash using Web Crypto API
+async function calculateMD5(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 // Main function handler
 serve(async (req: Request) => {
@@ -204,7 +211,7 @@ serve(async (req: Request) => {
     
     // Calculate checksum for valuation API
     const checksumContent = apiId + apiSecret + vin;
-    const checksum = md5.toString(new TextEncoder().encode(checksumContent));
+    const checksum = await calculateMD5(checksumContent);
     
     // Call external valuation API
     const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
