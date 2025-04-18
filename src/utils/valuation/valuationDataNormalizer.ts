@@ -1,6 +1,8 @@
+
 /**
  * Changes made:
  * - 2025-04-18: Added sanitizePartialData function to handle partial valuation data
+ * - 2025-04-19: Fixed TypeScript typing in sanitizePartialData function
  */
 
 import { ValuationData } from "./valuationDataTypes";
@@ -21,9 +23,11 @@ export function sanitizePartialData(data: Partial<ValuationData>): Partial<Valua
     'averagePrice', 'basePrice'
   ];
 
+  // Type-safe way to copy properties
   validKeys.forEach(key => {
     if (data[key] !== undefined && data[key] !== null) {
-      sanitized[key] = data[key];
+      // Use type assertion to tell TypeScript this assignment is valid
+      (sanitized as any)[key] = data[key];
     }
   });
 
