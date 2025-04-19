@@ -4,6 +4,7 @@
  * - 2025-04-19: Added proper TypeScript types
  * - 2025-04-19: Improved error handling and data validation
  * - 2025-04-19: Enhanced logging for debugging
+ * - 2025-04-23: Fixed type conflicts between different ValuationData interfaces
  */
 
 import { useMemo } from 'react';
@@ -38,7 +39,8 @@ export const useValuationData = (valuationResult: Partial<ValuationData> | null)
     const shouldShowError = hasError;
     
     // Normalize the data to ensure consistent format
-    const normalizedData = normalizeValuationData(valuationResult);
+    // Cast the result to our ValuationData type to ensure TypeScript compatibility
+    const normalizedData = normalizeValuationData(valuationResult) as ValuationData;
     
     // Log key data points for debugging
     console.log('Valuation data validation:', {

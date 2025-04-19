@@ -5,6 +5,7 @@
  * - 2025-04-22: Added better debugging and improved data handling
  * - 2025-04-22: Fixed price data extraction and display
  * - 2025-04-18: Fixed hasValuation logic to handle cases where price data is missing
+ * - 2025-04-23: Fixed TypeScript casting for transmission property
  */
 
 import { useNavigate } from "react-router-dom";
@@ -16,6 +17,7 @@ import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorDialog } from "./dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
 import { useValuationData } from "@/hooks/valuation/useValuationData";
+import { ValuationData } from "@/hooks/valuation/types/valuationTypes";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -62,8 +64,14 @@ export const ValuationResult = ({
     valuationPresent: valuationResult?.valuation ? "yes" : "no",
   });
   
+  // Convert the string transmission to the expected union type
+  const typedValuationResult = valuationResult ? {
+    ...valuationResult,
+    transmission: (valuationResult.transmission === 'automatic' ? 'automatic' : 'manual') as 'manual' | 'automatic'
+  } : null;
+  
   // Use our enhanced hook to validate and normalize data
-  const { normalizedData, hasError, shouldShowError, hasValuation } = useValuationData(valuationResult);
+  const { normalizedData, hasError, shouldShowError, hasValuation } = useValuationData(typedValuationResult);
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
 
   // Log normalized data for debugging
@@ -127,7 +135,7 @@ export const ValuationResult = ({
       transmission={normalizedData.transmission}
       mileage={mileage}
       reservePrice={normalizedData.reservePrice}
-      averagePrice={normalizedData.averagePrice}
+      averagePrice={normalizedData.averagePrice || 0}
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
