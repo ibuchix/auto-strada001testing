@@ -1,25 +1,25 @@
-
 /**
  * Vehicle Valuation Edge Function
- * Updated: 2025-04-19 - Refactored to use organized utilities directory structure
+ * Updated: 2025-04-19 - Switched to use shared utilities from central repository
  */
 
-import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
-import { 
-  corsHeaders, 
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  corsHeaders,
   handleCorsOptions,
-  formatSuccessResponse, 
-  formatErrorResponse, 
+  formatSuccessResponse,
+  formatErrorResponse,
   formatServerErrorResponse,
   isValidVin,
   isValidMileage,
   logOperation,
-  createPerformanceTracker,
+  createRequestId,
+  calculateMd5,
   checkCache,
   storeInCache,
   callValuationApi,
   processValuationData
-} from "./utils/index.ts";
+} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
 import type { ValuationRequest, ValuationData } from "./types.ts";
 
 serve(async (req) => {

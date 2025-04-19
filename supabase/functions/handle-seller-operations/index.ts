@@ -1,11 +1,19 @@
-
 /**
  * Edge function for seller operations
- * Updated: 2025-04-19 - Fixed utility imports and enhanced error handling
+ * Updated: 2025-04-19 - Switched to use shared utilities from central repository
  */
 
-import { corsHeaders, handleOptions } from "./utils/cors.ts";
-import { logOperation } from "./utils/logging.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { 
+  corsHeaders,
+  handleCorsOptions,
+  logOperation,
+  formatSuccessResponse,
+  formatErrorResponse,
+  validateRequest,
+  createRequestId
+} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
+
 import { handleRequestValidation } from "./utils/validation.ts";
 import { createSupabaseClient } from "./utils/supabase.ts";
 import { handleGetValuation } from "./handlers/valuation-handler.ts";
@@ -17,15 +25,15 @@ import { requestSchema } from "./schema-validation.ts";
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return handleOptions();
+    return handleCorsOptions();
   }
 
-  const requestId = crypto.randomUUID();
+  const requestId = createRequestId();
   logOperation('seller_operation_received', { requestId });
 
   try {
     const [data, validationError] = await handleRequestValidation(req, requestSchema);
-    if (validationError) return validationError;
+    if (validationError) return formatErrorResponse(validationError);
     if (!data) throw new OperationError('Invalid request data', 'VALIDATION_ERROR');
 
     const supabase = createSupabaseClient();

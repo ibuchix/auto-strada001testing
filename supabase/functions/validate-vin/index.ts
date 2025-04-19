@@ -1,11 +1,13 @@
 /**
  * VIN Validation Edge Function
- * Updated: 2025-04-19 - Fixed import structure and consolidated utilities
+ * Updated: 2025-04-19 - Switched to use shared utilities from central repository
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { 
   corsHeaders, 
+  handleCorsOptions,
   formatSuccessResponse,
   formatErrorResponse, 
   formatServerErrorResponse,
@@ -13,12 +15,11 @@ import {
   isValidVin,
   isValidMileage,
   logOperation,
-  checkRateLimit
-} from "./utils/index.ts";
+  checkRateLimit,
+  calculateMd5
+} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
 
 // Create Supabase client
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-
 const createSupabaseClient = () => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';

@@ -1,18 +1,17 @@
-
 /**
  * Edge function for processing proxy bids
- * Updated: 2025-04-19 - Improved error handling and response formatting
+ * Updated: 2025-04-19 - Switched to use shared utilities from central repository
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { 
   corsHeaders, 
   logOperation, 
   formatSuccessResponse, 
   formatErrorResponse,
   formatServerErrorResponse
-} from "./utils/index.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
