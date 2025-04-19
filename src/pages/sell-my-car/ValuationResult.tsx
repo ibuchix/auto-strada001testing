@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ValuationContent } from "./valuation/components/ValuationContent";
-import { useValuationContinue } from "./valuation/hooks/useValuationContinue";
+import { ValuationContent } from "@/components/hero/valuation/components/ValuationContent";
+import { useValuationContinue } from "@/components/hero/valuation/hooks/useValuationContinue";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { ValuationErrorDialog } from "./valuation/components/dialogs/ValuationErrorDialog";
+import { ValuationErrorDialog } from "@/components/hero/valuation/components/dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
 
 interface ValuationResultProps {
