@@ -1,6 +1,7 @@
 
 /**
- * Simple cache implementation for validation results
+ * Cache implementation
+ * Updated: 2025-04-19 - Extracted from shared module
  */
 
 interface CacheEntry {
@@ -33,4 +34,3 @@ export function setCache(key: string, data: any): void {
 export function clearCache(): void {
   cache.clear();
 }
-

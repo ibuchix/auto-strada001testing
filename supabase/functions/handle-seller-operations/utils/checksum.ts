@@ -1,6 +1,7 @@
 
 /**
  * Checksum calculation utilities
+ * Updated: 2025-04-19 - Extracted from shared module
  */
 
 export async function calculateChecksum(
@@ -18,4 +19,3 @@ export async function calculateChecksum(
   
   return hashHex;
 }
-

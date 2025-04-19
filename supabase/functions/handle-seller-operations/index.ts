@@ -1,7 +1,6 @@
-
 /**
  * Edge function for seller operations
- * Updated: 2025-04-19 - Refactored to use local utilities
+ * Updated: 2025-04-19 - Updated to use local utilities
  */
 
 import { corsHeaders, handleOptions } from "./utils/cors.ts";
@@ -69,4 +68,3 @@ Deno.serve(async (req) => {
     );
   }
 });
-
