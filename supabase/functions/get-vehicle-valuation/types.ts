@@ -1,6 +1,7 @@
 
 /**
- * Type definitions for vehicle valuation
+ * Type definitions for get-vehicle-valuation
+ * Created: 2025-04-19
  */
 
 export interface ValuationData {
@@ -8,10 +9,24 @@ export interface ValuationData {
   make?: string;
   model?: string;
   year?: number;
-  price?: number;
   mileage?: number;
+  transmission?: string;
+  price?: number;
   valuation?: number;
   reservePrice?: number;
+  averagePrice?: number;
+  [key: string]: any;
 }
 
-export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+export interface ValuationRequest {
+  vin: string;
+  mileage: number;
+  gearbox?: string;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  errorCode?: string;
+}

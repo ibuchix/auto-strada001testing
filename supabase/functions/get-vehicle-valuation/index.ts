@@ -1,24 +1,58 @@
 
 /**
  * Vehicle Valuation Edge Function
- * Updated: 2025-04-18 - Fixed price calculation logic and enhanced logging to trace API response
+ * Updated: 2025-04-19 - Refactored to use organized utilities directory structure
  */
 
 import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
-import { isValidVin, isValidMileage } from "./validation.ts";
-import { formatSuccessResponse, formatErrorResponse, corsHeaders, 
-  calculateValuationChecksum, getSupabaseClient, processValuationData } from "./utils.ts";
-import { logOperation } from "./logging.ts";
+import { 
+  corsHeaders, 
+  handleCorsOptions,
+  formatSuccessResponse, 
+  formatErrorResponse, 
+  formatServerErrorResponse,
+  isValidVin,
+  isValidMileage,
+  logOperation,
+  createPerformanceTracker,
+  checkCache,
+  storeInCache,
+  callValuationApi,
+  processValuationData
+} from "./utils/index.ts";
+import type { ValuationRequest, ValuationData } from "./types.ts";
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsOptions();
   }
 
   try {
+    // Generate request ID for tracing
     const requestId = crypto.randomUUID();
-    const { vin, mileage, gearbox } = await req.json();
+    const perfTracker = createPerformanceTracker(requestId, 'valuation_request');
     
+    // Parse request
+    let requestData: ValuationRequest;
+    try {
+      requestData = await req.json();
+    } catch (jsonError) {
+      logOperation('invalid_json', { 
+        requestId, 
+        error: jsonError.message 
+      }, 'error');
+      
+      return formatErrorResponse(
+        "Invalid request format: " + jsonError.message,
+        400,
+        "INVALID_REQUEST"
+      );
+    }
+    
+    const { vin, mileage, gearbox } = requestData;
+    
+    // Log operation start
     logOperation('valuation_request_received', { 
       requestId, 
       vin, 
@@ -26,213 +60,117 @@ serve(async (req) => {
       gearbox,
       timestamp: new Date().toISOString() 
     });
+    
+    perfTracker.checkpoint('request_parsed');
 
     // Input validation
     if (!isValidVin(vin)) {
+      logOperation('validation_error', { 
+        requestId, 
+        error: 'Invalid VIN format',
+        vin
+      }, 'warn');
+      
       return formatErrorResponse("Invalid VIN format", 400, "VALIDATION_ERROR");
     }
     
     if (!isValidMileage(mileage)) {
+      logOperation('validation_error', { 
+        requestId, 
+        error: 'Invalid mileage value',
+        mileage
+      }, 'warn');
+      
       return formatErrorResponse("Invalid mileage value", 400, "VALIDATION_ERROR");
     }
-
-    const supabase = getSupabaseClient();
+    
+    perfTracker.checkpoint('validation_complete');
 
     // Check cache first
-    const { data: cachedData, error: cacheError } = await supabase
-      .from('vin_valuation_cache')
-      .select('valuation_data')
-      .eq('vin', vin)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const cachedData = await checkCache(vin, requestId);
+    perfTracker.checkpoint('cache_check');
 
-    if (!cacheError && cachedData?.valuation_data) {
-      logOperation('using_cached_valuation', { requestId, vin });
-      
-      // Process cached data to ensure consistent format
-      const standardizedData = processValuationData(
-        cachedData.valuation_data,
+    if (cachedData) {
+      // If we have cached data, update with current mileage and return
+      const result: ValuationData = {
+        ...cachedData,
         vin,
-        mileage,
-        requestId
-      );
+        mileage
+      };
       
-      return formatSuccessResponse(standardizedData);
+      perfTracker.complete('success', { 
+        source: 'cache',
+        vin,
+        hasData: true
+      });
+      
+      return formatSuccessResponse(result);
     }
 
-    // Get API credentials and generate checksum
-    const apiId = Deno.env.get("VALUATION_API_ID") || "";
-    const apiSecret = Deno.env.get("VALUATION_API_SECRET") || "";
+    // Call external valuation API
+    const apiResponse = await callValuationApi(vin, mileage, requestId);
+    perfTracker.checkpoint('api_call_complete');
     
-    if (!apiId || !apiSecret) {
-      logOperation('missing_api_credentials', { requestId }, 'error');
-      return formatErrorResponse(
-        "API credentials not configured",
-        500,
-        "CONFIGURATION_ERROR"
-      );
-    }
-
-    // Generate checksum for API auth
-    const checksum = calculateValuationChecksum(apiId, apiSecret, vin);
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-
-    logOperation('calling_external_api', {
-      requestId,
-      vin,
-      mileage,
-      url: apiUrl
-    });
-
-    const response = await fetch(apiUrl);
-    
-    if (!response.ok) {
-      logOperation('api_error_response', { 
-        requestId,
-        status: response.status,
-        statusText: response.statusText
-      }, 'error');
+    if (!apiResponse.success) {
+      perfTracker.complete('failure', { 
+        reason: apiResponse.errorCode,
+        vin,
+        error: apiResponse.error
+      });
       
       return formatErrorResponse(
-        `API Error: ${response.status} ${response.statusText}`,
-        response.status,
-        "API_ERROR"
-      );
-    }
-
-    // Log raw API response
-    const rawData = await response.text();
-    logOperation('raw_api_response', {
-      requestId,
-      responseSize: rawData.length,
-      rawResponse: rawData.substring(0, 2000), // Log more of the response for debugging
-      timestamp: new Date().toISOString()
-    });
-
-    let apiData;
-    try {
-      apiData = JSON.parse(rawData);
-    } catch (parseError) {
-      logOperation('parse_error', {
-        requestId,
-        error: parseError.message,
-        rawData: rawData.substring(0, 500)
-      }, 'error');
-      
-      return formatErrorResponse(
-        "Failed to parse API response",
+        apiResponse.error,
         400,
-        "PARSE_ERROR"
+        apiResponse.errorCode
       );
     }
 
-    // Log all price-related fields found in the response
-    const priceFields = Object.entries(apiData)
-      .filter(([key, value]) => 
-        (key.toLowerCase().includes('price') || 
-         key.toLowerCase().includes('value') ||
-         key.toLowerCase().includes('cost')) &&
-        typeof value === 'number'
-      );
-
-    logOperation('price_fields_found', {
-      requestId,
-      priceFields: Object.fromEntries(priceFields),
-      allFields: Object.keys(apiData), // Log all fields to see what's available
-      timestamp: new Date().toISOString()
-    });
-
-    // BUGFIX: Handle the case when price_min and price_med might not be present
-    // Set default values when data is missing
-    const priceMin = apiData.price_min || apiData.minimum_price || apiData.price || 0;
-    const priceMed = apiData.price_med || apiData.median_price || apiData.price || 0;
-    
-    // HARDCODED VALUES FOR TESTING - Remove in production!
-    // If the prices are 0 but we have make/model/year, use default test values for this Toyota
-    const hasMakeModel = apiData.make && apiData.model; 
-    const needsFallbackPricing = (priceMin === 0 || priceMed === 0) && hasMakeModel;
-    
-    // If it's the specific Toyota Avensis we're testing with and prices are 0, use fallback values
-    const isTestToyota = apiData.make?.toUpperCase() === 'TOYOTA' && 
-                        apiData.model?.toUpperCase() === 'AVENSIS' &&
-                        (apiData.year === 2007 || apiData.productionYear === 2007);
-    
-    // Apply fallback pricing if needed for testing/debugging
-    const effectivePriceMin = isTestToyota && needsFallbackPricing ? 25000 : priceMin;
-    const effectivePriceMed = isTestToyota && needsFallbackPricing ? 32000 : priceMed;
-    
-    // Calculate base price as the average of min and median prices
-    const basePrice = (effectivePriceMin + effectivePriceMed) / 2;
-
-    logOperation('price_calculation', {
-      requestId,
-      priceMin: effectivePriceMin,
-      priceMed: effectivePriceMed,
-      basePrice,
-      isUsingFallback: isTestToyota && needsFallbackPricing,
-      timestamp: new Date().toISOString()
-    });
-
-    // Calculate reserve price
-    let percentage = 0;
-    if (basePrice <= 15000) percentage = 0.65;
-    else if (basePrice <= 20000) percentage = 0.46;
-    else if (basePrice <= 30000) percentage = 0.37;
-    else if (basePrice <= 50000) percentage = 0.27;
-    else if (basePrice <= 60000) percentage = 0.27;
-    else if (basePrice <= 70000) percentage = 0.22;
-    else if (basePrice <= 80000) percentage = 0.23;
-    else if (basePrice <= 100000) percentage = 0.24;
-    else if (basePrice <= 130000) percentage = 0.20;
-    else if (basePrice <= 160000) percentage = 0.185;
-    else if (basePrice <= 200000) percentage = 0.22;
-    else if (basePrice <= 250000) percentage = 0.17;
-    else if (basePrice <= 300000) percentage = 0.18;
-    else if (basePrice <= 400000) percentage = 0.18;
-    else if (basePrice <= 500000) percentage = 0.16;
-    else percentage = 0.145;
-
-    const reservePrice = Math.round(basePrice - (basePrice * percentage));
-
-    logOperation('reserve_price_calculated', {
-      requestId,
-      basePrice,
-      percentage,
-      reservePrice,
-      formula: `${basePrice} - (${basePrice} × ${percentage})`,
-      timestamp: new Date().toISOString()
-    });
-
-    // Format the final response
-    const result = {
+    // Process the API data into standardized format
+    const processedData = processValuationData(
+      apiResponse.data,
       vin,
-      make: apiData.make || '',
-      model: apiData.model || '',
-      year: apiData.year || apiData.productionYear || new Date().getFullYear(),
       mileage,
-      price: basePrice,
-      valuation: reservePrice,
-      reservePrice,
-      averagePrice: basePrice
-    };
+      requestId
+    );
+    
+    perfTracker.checkpoint('data_processing');
+    
+    // Store result in cache in background (don't await)
+    storeInCache(vin, processedData, requestId)
+      .catch(cacheError => {
+        logOperation('cache_store_background_error', { 
+          requestId, 
+          vin,
+          error: cacheError.message
+        }, 'warn');
+      });
 
-    logOperation('final_result', {
-      requestId,
-      result,
+    perfTracker.complete('success', { 
+      source: 'api',
+      vin,
+      hasData: true,
+      hasVehicleDetails: !!(processedData.make && processedData.model)
+    });
+    
+    logOperation('valuation_request_complete', { 
+      requestId, 
+      vin,
+      success: true,
       timestamp: new Date().toISOString()
     });
 
-    return formatSuccessResponse(result);
-
+    return formatSuccessResponse(processedData);
   } catch (error) {
+    const errorId = crypto.randomUUID().substring(0, 8);
+    
     logOperation('unhandled_error', {
+      errorId,
       error: error.message,
       stack: error.stack
     }, 'error');
     
-    return formatErrorResponse(
-      `Error processing valuation request: ${error.message}`,
+    return formatServerErrorResponse(
+      `Error processing valuation request [ID:${errorId}]: ${error.message}`,
       500,
       "INTERNAL_ERROR"
     );
