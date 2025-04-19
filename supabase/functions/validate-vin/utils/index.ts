@@ -1,15 +1,16 @@
 
 /**
  * Utility exports for validate-vin
- * Updated: 2025-04-19 - Consolidated all utilities into a single export file
+ * Updated: 2025-04-19 - Organized and consolidated utilities
  */
 
-export * from './cors';
-export * from './logging';
-export * from './validation';
-export * from './response';
+export * from './cors.ts';
+export * from './logging.ts';
+export * from './validation.ts';
+export * from './response.ts';
+export * from './rate-limiting.ts';
 
-// Export error types that were previously in separate files
+// Export ValidationError class for convenience
 export class ValidationError extends Error {
   code: string;
   
@@ -18,25 +19,4 @@ export class ValidationError extends Error {
     this.name = 'ValidationError';
     this.code = code;
   }
-}
-
-// Export rate limiting utilities
-export function checkRateLimit(key: string, limit: number = 5, window: number = 60000): boolean {
-  const now = Date.now();
-  const rateLimits = new Map<string, number[]>();
-  const timestamps = rateLimits.get(key) || [];
-  
-  // Filter out old timestamps
-  const recent = timestamps.filter(time => now - time < window);
-  
-  // Check if limit exceeded
-  if (recent.length >= limit) {
-    return true; // Rate limit exceeded
-  }
-  
-  // Update timestamps
-  recent.push(now);
-  rateLimits.set(key, recent);
-  
-  return false; // Rate limit not exceeded
 }

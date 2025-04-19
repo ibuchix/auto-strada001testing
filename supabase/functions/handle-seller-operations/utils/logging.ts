@@ -1,16 +1,16 @@
 
 /**
  * Logging utilities for handle-seller-operations
- * Created: 2025-04-19
+ * Created: 2025-04-19 - Extracted from utils.ts
  */
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
-export const logOperation = (
+export function logOperation(
   operation: string, 
   details: Record<string, any> = {},
   level: LogLevel = 'info'
-): void => {
+): void {
   const logEntry = {
     timestamp: new Date().toISOString(),
     operation,
@@ -31,4 +31,11 @@ export const logOperation = (
     default:
       console.log(JSON.stringify(logEntry));
   }
-};
+}
+
+/**
+ * Create a request ID for tracking operations
+ */
+export function createRequestId(): string {
+  return crypto.randomUUID();
+}

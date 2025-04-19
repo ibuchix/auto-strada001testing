@@ -1,6 +1,6 @@
 
 /**
- * CORS utilities for VIN validation
+ * CORS utilities for validate-vin
  * Updated: 2025-04-19
  */
 export const corsHeaders = {

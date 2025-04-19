@@ -1,59 +1,47 @@
 
 /**
- * Response formatting utilities
- * Updated: 2025-04-19 - Extracted from shared module
+ * Response utilities for handle-seller-operations
+ * Created: 2025-04-19 - Extracted from utils.ts
  */
 
 import { corsHeaders } from './cors.ts';
 
-export interface ErrorResponse {
-  success: boolean;
-  error: string;
-  details?: any;
-  code?: string;
-}
-
-export interface SuccessResponse {
-  success: boolean;
-  data: any;
-}
-
-export type ApiResponse = ErrorResponse | SuccessResponse;
-
-export function formatResponse(data: any): Response {
+export function formatSuccessResponse(data: any): Response {
   return new Response(
-    JSON.stringify({
-      success: true,
-      data
-    }),
+    JSON.stringify({ success: true, data }),
     {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
     }
   );
 }
 
-export function formatErrorResponse(
-  error: Error | string,
-  status = 400,
-  code?: string
-): Response {
-  const errorMessage = error instanceof Error ? error.message : error;
-  
+export function formatErrorResponse(message: string, code: string = 'ERROR', status: number = 400): Response {
   return new Response(
-    JSON.stringify({
-      success: false,
-      error: errorMessage,
+    JSON.stringify({ 
+      success: false, 
+      error: message,
       code
     }),
     {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
+    }
+  );
+}
+
+export function formatServerErrorResponse(error: Error | string, status: number = 500, code: string = 'SERVER_ERROR'): Response {
+  const message = error instanceof Error ? error.message : error;
+  
+  return new Response(
+    JSON.stringify({ 
+      success: false, 
+      error: message,
+      code
+    }),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status,
     }
   );
 }

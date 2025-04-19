@@ -1,71 +1,91 @@
 
 /**
- * Cache implementation
- * Created: 2025-04-19 - Extracted from shared module
+ * Cache implementation for handle-seller-operations
+ * Created: 2025-04-19 - Moved from root directory to utils
  */
 
+import { logOperation } from './logging.ts';
+
 interface CacheEntry {
-  data: any;
+  value: any;
   timestamp: number;
 }
 
+// Simple in-memory cache for VIN validations
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 3600000; // 1 hour in milliseconds
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes cache lifetime
 
 /**
- * Get a value from cache if it exists and hasn't expired
- * @param key Cache key
- * @returns The cached value or null if not found/expired
+ * Get cached validation data for a VIN
+ * @param vin The VIN to check cache for
+ * @param mileage The mileage to check cache for (optional)
+ * @returns The cached data or null if not found or expired
  */
-export function getCached(key: string): any {
-  const entry = cache.get(key);
-  if (!entry) return null;
+export function getCachedValidation(vin: string, mileage?: number): any | null {
+  const cacheKey = mileage ? `${vin}-${mileage}` : vin;
+  const cachedEntry = cache.get(cacheKey);
   
-  if (Date.now() - entry.timestamp > CACHE_TTL) {
-    cache.delete(key);
+  if (!cachedEntry) {
     return null;
   }
   
-  return entry.data;
-}
-
-/**
- * Store a value in cache
- * @param key Cache key
- * @param data Data to cache
- */
-export function setCache(key: string, data: any): void {
-  cache.set(key, {
-    data,
-    timestamp: Date.now()
+  const now = Date.now();
+  
+  // Check if entry is expired
+  if (now - cachedEntry.timestamp > CACHE_TTL) {
+    cache.delete(cacheKey);
+    return null;
+  }
+  
+  logOperation('cache_hit', { 
+    vin, 
+    mileage, 
+    cacheAge: now - cachedEntry.timestamp 
   });
+  
+  return cachedEntry.value;
 }
 
 /**
- * Clear the entire cache
- */
-export function clearCache(): void {
-  cache.clear();
-}
-
-/**
- * Get cached valuation data for a VIN
- * @param vin Vehicle identification number
- * @param mileage Optional mileage parameter
- * @returns Cached valuation data or null
- */
-export function getCachedValidation(vin: string, mileage?: number): any {
-  const key = mileage ? `${vin}_${mileage}` : vin;
-  return getCached(key);
-}
-
-/**
- * Cache valuation data for a VIN
- * @param vin Vehicle identification number
- * @param data Valuation data to cache
- * @param mileage Optional mileage parameter
+ * Store validation data in cache
+ * @param vin The VIN to cache data for
+ * @param data The data to cache
+ * @param mileage The mileage to associate with cache (optional)
  */
 export function cacheValidation(vin: string, data: any, mileage?: number): void {
-  const key = mileage ? `${vin}_${mileage}` : vin;
-  setCache(key, data);
+  const cacheKey = mileage ? `${vin}-${mileage}` : vin;
+  
+  cache.set(cacheKey, {
+    value: data,
+    timestamp: Date.now()
+  });
+  
+  logOperation('cache_store', { vin, mileage });
+  
+  // Prune expired entries from cache occasionally
+  if (Math.random() < 0.1) { // ~10% chance on each cache operation
+    pruneExpiredCache();
+  }
+}
+
+/**
+ * Remove expired entries from cache
+ */
+function pruneExpiredCache(): void {
+  const now = Date.now();
+  let prunedCount = 0;
+  
+  for (const [key, entry] of cache.entries()) {
+    if (now - entry.timestamp > CACHE_TTL) {
+      cache.delete(key);
+      prunedCount++;
+    }
+  }
+  
+  if (prunedCount > 0) {
+    logOperation('cache_pruned', { 
+      prunedCount, 
+      remainingEntries: cache.size 
+    });
+  }
 }

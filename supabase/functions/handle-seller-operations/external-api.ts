@@ -1,12 +1,13 @@
 
 /**
  * External API utilities for seller operations
- * Created: 2025-04-19 - Extracted from shared module
+ * Updated: 2025-04-19 - Now using organized utility structure
  */
 
-import { createClient } from "./utils.ts";
-import { logOperation } from "./logging.ts";
-import { calculateReservePriceFromTable } from "./reserve-price-calculator.ts";
+import { createSupabaseClient } from "./utils/supabase.ts";
+import { logOperation } from "./utils/logging.ts";
+import { calculateReservePriceFromTable } from "./utils/reserve-price-calculator.ts";
+import { calculateChecksum } from "./utils/checksum.ts";
 
 export interface ValuationResponse {
   success: boolean;
@@ -77,32 +78,13 @@ export async function fetchExternalValuation(
 }
 
 /**
- * Calculate checksum for API request
- * @param apiId API identifier
- * @param apiKey API secret key
- * @param vin Vehicle Identification Number
- */
-async function calculateChecksum(apiId: string, apiKey: string, vin: string): Promise<string> {
-  const input = `${apiId}${apiKey}${vin}`;
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  
-  // Use crypto API to calculate MD5 hash
-  const hashBuffer = await crypto.subtle.digest('MD5', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  
-  return hashHex;
-}
-
-/**
  * Calculate reserve price based on base price
  * @param supabase Supabase client
  * @param basePrice Base price for calculation
  * @param requestId Unique identifier for request tracking
  */
 export async function calculateReservePrice(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createSupabaseClient>,
   basePrice: number,
   requestId: string
 ): Promise<number> {
