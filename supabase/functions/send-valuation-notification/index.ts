@@ -1,11 +1,14 @@
 
 /**
  * Notification edge function for manual valuation submissions
- * Updated: 2025-04-18 - Consolidated imports from local utils module
+ * Updated: 2025-04-19 - Restructured to use modular architecture
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { logOperation, logError, corsHeaders } from './utils.ts';
+import { corsHeaders, formatSuccessResponse, formatErrorResponse } from './utils.ts';
+import { NotificationService } from './services.ts';
+import { ValuationRequest } from './types.ts';
+import { validateRequest } from './validator.ts';
+import { logOperation, logError } from './utils.ts';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -13,80 +16,24 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const requestId = crypto.randomUUID();
+  logOperation('send_valuation_notification_start', { requestId });
+
   try {
-    // Start logging operations
-    const requestId = crypto.randomUUID();
-    logOperation('send_valuation_notification_start', { requestId });
+    const data = await req.json();
+    const validationResult = validateRequest(data);
     
-    // Parse the request
-    const { userEmail, vehicleDetails } = await req.json();
-    
-    if (!userEmail || !vehicleDetails) {
-      throw new Error('Missing required fields for notification');
+    if (!validationResult.success) {
+      throw new Error(validationResult.error);
     }
-    
-    logOperation('send_valuation_notification_data', { 
-      requestId,
-      userEmail: userEmail.slice(0, 3) + '***',
-      vehicleDetails: {
-        make: vehicleDetails.make,
-        model: vehicleDetails.model
-      }
-    });
-    
-    // Initialize Supabase client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
-      { auth: { persistSession: false } }
-    );
-    
-    // Get the user information
-    const userQuery = await supabaseAdmin.auth.admin.getUserByEmail(userEmail);
-    if (userQuery.error) {
-      throw new Error(`Error fetching user: ${userQuery.error.message}`);
-    }
-    
-    // Create admin notification
-    await supabaseAdmin.from('notifications').insert({
-      user_id: '00000000-0000-0000-0000-000000000000', // Special ID for admin notifications
-      title: 'New Manual Valuation Request',
-      message: `${vehicleDetails.make} ${vehicleDetails.model} (${vehicleDetails.year}) requested by ${userEmail}`,
-      type: 'manual_valuation',
-      related_entity_type: 'manual_valuation',
-      related_entity_id: null,
-      is_read: false
-    });
-    
-    // Create confirmation notification for the user
-    if (userQuery.data?.user?.id) {
-      await supabaseAdmin.from('notifications').insert({
-        user_id: userQuery.data.user.id,
-        title: 'Manual Valuation Request Received',
-        message: `We've received your valuation request for your ${vehicleDetails.make} ${vehicleDetails.model}. Our team will review and respond within 24-48 hours.`,
-        type: 'confirmation',
-        is_read: false
-      });
-    }
-    
-    logOperation('send_valuation_notification_complete', { requestId });
-    
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
+
+    const notificationService = new NotificationService();
+    await notificationService.handleValuationRequest(data as ValuationRequest);
+
+    logOperation('send_valuation_notification_complete', { requestId, success: true });
+    return formatSuccessResponse({ success: true });
   } catch (error) {
-    logError('send_valuation_notification', error);
-    
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    );
+    logError('send_valuation_notification', error, { requestId });
+    return formatErrorResponse(error.message);
   }
 });

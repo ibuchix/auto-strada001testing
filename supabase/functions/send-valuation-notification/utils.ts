@@ -1,7 +1,7 @@
 
 /**
  * Utility functions for send-valuation-notification edge function
- * Created to make the function self-contained without external dependencies
+ * Updated: 2025-04-19 - Enhanced with better error handling and response formatting
  */
 
 // CORS headers for edge functions
@@ -13,11 +13,11 @@ export const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 };
 
-// Structured logging utility
+// Type for log levels
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 /**
- * Log an operation with structured details
+ * Structured logging utility
  */
 export function logOperation(
   operation: string, 
@@ -49,7 +49,11 @@ export function logOperation(
 /**
  * Log an error with context information
  */
-export function logError(context: string, error: Error, additionalDetails: Record<string, any> = {}): void {
+export function logError(
+  context: string, 
+  error: Error, 
+  additionalDetails: Record<string, any> = {}
+): void {
   logOperation(`${context}_error`, {
     errorMessage: error.message,
     errorName: error.name,
@@ -59,11 +63,11 @@ export function logError(context: string, error: Error, additionalDetails: Recor
 }
 
 /**
- * Create a standardized success response
+ * Format a success response
  */
 export function formatSuccessResponse(data: any): Response {
   return new Response(
-    JSON.stringify({ success: true, data }),
+    JSON.stringify(data),
     {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
@@ -72,14 +76,11 @@ export function formatSuccessResponse(data: any): Response {
 }
 
 /**
- * Create a standardized error response
+ * Format an error response
  */
 export function formatErrorResponse(message: string, status: number = 400): Response {
   return new Response(
-    JSON.stringify({ 
-      success: false, 
-      error: message 
-    }),
+    JSON.stringify({ error: message }),
     {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status,
