@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -7,6 +6,10 @@ import { useValuationContinue } from "@/components/hero/valuation/hooks/useValua
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorDialog } from "@/components/hero/valuation/components/dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
+import { 
+  NoValuationDataError, 
+  InvalidValuationDataError 
+} from "@/errors/valuation/valuationErrors";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -33,7 +36,7 @@ export const ValuationResult = ({
   onClose,
   onRetry 
 }: ValuationResultProps) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isValidatingData, setIsValidatingData] = useState(true);
   const { 
     isOpen: errorDialogOpen,
     setIsOpen: setErrorDialogOpen,
@@ -42,20 +45,20 @@ export const ValuationResult = ({
   } = useValuationErrorDialog();
   
   useEffect(() => {
-    if (valuationResult?.error || valuationResult?.noData) {
-      setErrorDialogOpen(true);
-    }
-  }, [valuationResult, setErrorDialogOpen]);
+    console.log('ValuationResult mounted with data:', {
+      hasData: !!valuationResult,
+      error: valuationResult?.error,
+      noData: valuationResult?.noData
+    });
+  }, [valuationResult]);
 
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
-  const [isValidatingData, setIsValidatingData] = useState(true);
-  
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsValidatingData(false);
     }, 300);
-    
     return () => clearTimeout(timer);
   }, []);
 
@@ -67,24 +70,27 @@ export const ValuationResult = ({
     );
   }
 
-  if (isValidatingData) {
-    return (
-      <div className="p-6 text-center">
-        <LoadingIndicator message="Processing valuation..." />
-      </div>
-    );
-  }
-
-  const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-  const hasError = !!valuationResult.error;
+  const mileage = parseInt(localStorage.getItem('tempMileage') || '0', 10);
   
-  const hasValuation = !hasError && (
-    valuationResult.make && 
-    valuationResult.model && 
-    valuationResult.year > 0
-  );
+  if (valuationResult.error || valuationResult?.noData) {
+    let error;
+    if (valuationResult.noData) {
+      error = new NoValuationDataError(valuationResult.vin || '');
+    } else if (!valuationResult.make || !valuationResult.model || !valuationResult.year) {
+      error = new InvalidValuationDataError(
+        valuationResult.vin || '', 
+        valuationResult
+      );
+    } else {
+      error = new Error(valuationResult.error || "An unexpected error occurred");
+    }
 
-  if (hasError || valuationResult?.noData) {
+    console.error('Valuation error:', {
+      type: error.constructor.name,
+      message: error.message,
+      details: valuationResult
+    });
+
     return (
       <ValuationErrorDialog
         isOpen={errorDialogOpen}
@@ -96,21 +102,26 @@ export const ValuationResult = ({
           handleErrorRetry();
           if (onRetry) onRetry();
         }}
-        error={valuationResult.error || "No data found for this VIN"}
+        error={error.message}
+        description={error instanceof ValuationError ? error.description : undefined}
       />
     );
   }
 
-  // Type-safe transmission conversion
   const normalizedResult = {
-    make: valuationResult.make || 'Unknown',
-    model: valuationResult.model || 'Vehicle',
+    make: valuationResult.make || 'Unknown Make',
+    model: valuationResult.model || 'Unknown Model',
     year: valuationResult.year || new Date().getFullYear(),
     vin: valuationResult.vin || '',
-    transmission: (valuationResult.transmission === 'automatic' ? 'automatic' : 'manual') as 'manual' | 'automatic',
+    transmission: valuationResult.transmission === 'automatic' ? 'automatic' : 'manual',
     reservePrice: valuationResult.reservePrice || valuationResult.valuation || 0,
-    averagePrice: valuationResult.averagePrice || 0
+    averagePrice: valuationResult.averagePrice || valuationResult.valuation || 0
   };
+
+  console.log('Normalized valuation data:', {
+    ...normalizedResult,
+    timestamp: new Date().toISOString()
+  });
 
   return (
     <ValuationContent
@@ -118,11 +129,11 @@ export const ValuationResult = ({
       model={normalizedResult.model}
       year={normalizedResult.year}
       vin={normalizedResult.vin}
-      transmission={normalizedResult.transmission}
+      transmission={normalizedResult.transmission as 'manual' | 'automatic'}
       mileage={mileage}
       reservePrice={normalizedResult.reservePrice}
       averagePrice={normalizedResult.averagePrice}
-      hasValuation={hasValuation}
+      hasValuation={true}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
       onContinue={() => handleContinue(valuationResult)}

@@ -1,9 +1,4 @@
 
-/**
- * Dialog component for displaying valuation errors with proper action handling
- * Created: 2025-04-19
- */
-
 import {
   Dialog,
   DialogContent,
@@ -19,37 +14,21 @@ interface ValuationErrorDialogProps {
   onClose: () => void;
   onRetry: () => void;
   error: string;
+  description?: string;
 }
 
 export const ValuationErrorDialog = ({
   isOpen,
   onClose,
   onRetry,
-  error
+  error,
+  description
 }: ValuationErrorDialogProps) => {
-  console.log('ValuationErrorDialog render with state:', { isOpen, error });
-
-  // Enhanced handlers with explicit event stopping to prevent dialog auto-close issues
-  const handleClose = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Close button clicked in error dialog');
-    onClose();
-  };
-
-  const handleRetry = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Retry button clicked in error dialog');
-    onRetry();
-  };
+  console.log('ValuationErrorDialog render:', { isOpen, error, description });
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {
-      console.log('Dialog onOpenChange triggered');
-      onClose();
-    }}>
-      <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <AlertTriangle className="h-6 w-6 text-[#DC143C]" />
@@ -57,20 +36,23 @@ export const ValuationErrorDialog = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className="py-4 space-y-2">
           <p className="text-gray-700">{error}</p>
+          {description && (
+            <p className="text-sm text-gray-500">{description}</p>
+          )}
         </div>
 
         <DialogFooter className="sm:justify-between gap-3">
           <Button
             variant="outline"
-            onClick={handleClose}
+            onClick={onClose}
             className="w-full sm:w-auto"
           >
             Close
           </Button>
           <Button
-            onClick={handleRetry}
+            onClick={onRetry}
             className="w-full sm:w-auto bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
           >
             Try Again
