@@ -1,90 +1,113 @@
 
 /**
  * Rate limiting utilities for validate-vin
- * Created: 2025-04-19
+ * Created: 2025-04-19 - Moved from root directory to utils
  */
 
-const rateLimits = new Map<string, {
-  count: number,
-  resetTime: number
-}>();
+import { logOperation } from './logging.ts';
+
+// Rate limiting cache
+const rateLimitCache = new Map<string, { count: number; firstRequest: number; lastRequest: number }>();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute (milliseconds)
+const MAX_REQUESTS_PER_WINDOW = 15; // Maximum requests per window per key
 
 /**
- * Check if a request exceeds rate limits
- * @param key Identifier for rate limiting (e.g., IP, user ID, VIN)
- * @param maxRequests Maximum allowed requests in time window
- * @param windowMs Time window in milliseconds
- * @returns True if rate limit exceeded, false otherwise
+ * Check if a request should be rate limited
+ * @param key The key to rate limit on (usually VIN)
+ * @returns Boolean indicating if request should be limited
  */
-export function isRateLimited(
-  key: string, 
-  maxRequests: number = 10, 
-  windowMs: number = 60000
-): boolean {
+export function checkRateLimit(key: string): boolean {
   const now = Date.now();
-  const record = rateLimits.get(key);
+  const cacheKey = `rate_limit:${key}`;
   
-  // No existing record, create new one
-  if (!record) {
-    rateLimits.set(key, {
-      count: 1,
-      resetTime: now + windowMs
-    });
+  // Get current rate limit data or create new entry
+  const rateLimitData = rateLimitCache.get(cacheKey) || {
+    count: 0,
+    firstRequest: now,
+    lastRequest: now
+  };
+  
+  // Reset count if window has passed
+  if (now - rateLimitData.firstRequest > RATE_LIMIT_WINDOW) {
+    rateLimitData.count = 1;
+    rateLimitData.firstRequest = now;
+    rateLimitData.lastRequest = now;
+    rateLimitCache.set(cacheKey, rateLimitData);
     return false;
   }
   
-  // Reset counter if time window has passed
-  if (now > record.resetTime) {
-    record.count = 1;
-    record.resetTime = now + windowMs;
-    return false;
+  // Increment count
+  rateLimitData.count += 1;
+  rateLimitData.lastRequest = now;
+  
+  // Check if over limit
+  const isRateLimited = rateLimitData.count > MAX_REQUESTS_PER_WINDOW;
+  
+  // Log rate limiting
+  if (isRateLimited) {
+    logOperation('rate_limit_exceeded', { 
+      key, 
+      count: rateLimitData.count,
+      window: RATE_LIMIT_WINDOW,
+      firstRequest: new Date(rateLimitData.firstRequest).toISOString(),
+      timeSinceFirstRequest: now - rateLimitData.firstRequest
+    }, 'warn');
   }
   
-  // Increment counter and check limit
-  record.count++;
-  return record.count > maxRequests;
+  // Store updated data
+  rateLimitCache.set(cacheKey, rateLimitData);
+  
+  return isRateLimited;
 }
 
 /**
- * Get remaining allowed requests
- * @param key Identifier for rate limiting
- * @returns Remaining requests or -1 if no record exists
+ * Prune expired entries from the rate limit cache
+ * Should be called periodically to prevent memory leaks
  */
-export function getRemainingRequests(key: string): number {
+export function pruneRateLimitCache(): void {
   const now = Date.now();
-  const record = rateLimits.get(key);
+  let prunedCount = 0;
   
-  if (!record) {
-    return -1;
-  }
-  
-  if (now > record.resetTime) {
-    return -1;
-  }
-  
-  return Math.max(0, 10 - record.count);
-}
-
-/**
- * Get reset time for rate limit window
- * @param key Identifier for rate limiting
- * @returns Reset time in milliseconds or -1 if no record exists
- */
-export function getResetTime(key: string): number {
-  const record = rateLimits.get(key);
-  return record ? record.resetTime : -1;
-}
-
-/**
- * Occasionally clean up expired rate limit records
- * This function should be called periodically
- */
-export function cleanupRateLimits(): void {
-  const now = Date.now();
-  
-  for (const [key, record] of rateLimits.entries()) {
-    if (now > record.resetTime) {
-      rateLimits.delete(key);
+  for (const [key, data] of rateLimitCache.entries()) {
+    if (now - data.firstRequest > RATE_LIMIT_WINDOW * 2) {
+      rateLimitCache.delete(key);
+      prunedCount++;
     }
   }
+  
+  if (prunedCount > 0) {
+    logOperation('rate_limit_cache_pruned', { 
+      prunedCount,
+      remainingEntries: rateLimitCache.size
+    });
+  }
+}
+
+/**
+ * Get current rate limit status for a key
+ * @param key The key to check status for
+ * @returns Rate limit status object or null if not being rate limited
+ */
+export function getRateLimitStatus(key: string): { 
+  isLimited: boolean; 
+  requestsRemaining: number;
+  resetTime: number;
+} | null {
+  const cacheKey = `rate_limit:${key}`;
+  const data = rateLimitCache.get(cacheKey);
+  
+  if (!data) {
+    return null;
+  }
+  
+  const now = Date.now();
+  const resetTime = data.firstRequest + RATE_LIMIT_WINDOW;
+  const isLimited = data.count > MAX_REQUESTS_PER_WINDOW && now < resetTime;
+  const requestsRemaining = Math.max(0, MAX_REQUESTS_PER_WINDOW - data.count);
+  
+  return {
+    isLimited,
+    requestsRemaining,
+    resetTime
+  };
 }

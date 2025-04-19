@@ -3,81 +3,78 @@
  * Data extraction utilities
  * Created: 2025-04-19
  */
-import { TransmissionType } from './types';
-import { logOperation } from '../logging';
 
-export function extractNestedValue(data: any, possibleKeys: string[]): string {
-  if (!data) return "";
-  
-  // First try direct property access
-  for (const key of possibleKeys) {
-    if (key.includes('.')) {
-      const value = getNestedProperty(data, key);
-      if (value && typeof value === "string") {
-        return value.trim();
-      }
-      continue;
-    }
-    
-    if (data[key] && typeof data[key] === "string") {
-      return data[key].trim();
-    }
+import { ValuationData } from './types';
+import { normalizeValuationData } from './normalizer';
+
+/**
+ * Extract valuation data from API response
+ * @param apiResponse Response from external valuation API
+ * @returns Normalized ValuationData
+ */
+export function extractValuationFromApiResponse(apiResponse: any): ValuationData {
+  // Check if data is in expected format
+  if (!apiResponse || !apiResponse.data) {
+    throw new Error('Invalid API response format');
   }
   
-  // Try one level deep
-  for (const mainKey of Object.keys(data)) {
-    if (data[mainKey] && typeof data[mainKey] === "object") {
-      for (const key of possibleKeys) {
-        if (data[mainKey][key] && typeof data[mainKey][key] === "string") {
-          return data[mainKey][key].trim();
-        }
-      }
-    }
+  // Extract data from API response
+  const data = apiResponse.data;
+  
+  // Handle different API response formats
+  if (data.price_min !== undefined && data.price_med !== undefined) {
+    // Calculate base price (average of min and median)
+    data.basePrice = (Number(data.price_min) + Number(data.price_med)) / 2;
   }
   
-  return "";
+  // Normalize to consistent format
+  return normalizeValuationData(data);
 }
 
-export function extractNestedNumber(data: any, possibleKeys: string[]): number {
-  if (!data) return 0;
-  
-  // First try direct property access
-  for (const key of possibleKeys) {
-    if (key.includes('.')) {
-      const value = getNestedProperty(data, key);
-      if (value !== undefined) {
-        const num = Number(value);
-        if (!isNaN(num) && num >= 0) {
-          return num;
-        }
-      }
-      continue;
-    }
-    
-    const value = data[key];
-    if (value !== undefined) {
-      const num = Number(value);
-      if (!isNaN(num) && num >= 0) {
-        return num;
-      }
-    }
+/**
+ * Extract valuation data from database record
+ * @param dbRecord Database record containing valuation data
+ * @param valuationDataField Field name containing valuation data
+ * @returns Normalized ValuationData
+ */
+export function extractValuationFromDbRecord(
+  dbRecord: any, 
+  valuationDataField: string = 'valuation_data'
+): ValuationData {
+  if (!dbRecord) {
+    throw new Error('Invalid database record');
   }
   
-  return 0;
-}
-
-function getNestedProperty(obj: any, path: string): any {
-  return path.split('.').reduce((prev, curr) => {
-    return prev ? prev[curr] : undefined;
-  }, obj);
-}
-
-export function extractTransmission(data: any): TransmissionType | undefined {
-  const transmissionValue = extractNestedValue(data, [
-    "transmission", "gearbox", "transmissionType"
-  ]).toLowerCase();
+  // Get valuation data from field
+  const valuationData = dbRecord[valuationDataField];
   
-  if (transmissionValue.includes("manual")) return "manual";
-  if (transmissionValue.includes("auto")) return "automatic";
-  return undefined;
+  if (!valuationData) {
+    throw new Error(`No valuation data found in field '${valuationDataField}'`);
+  }
+  
+  // Normalize the data
+  return normalizeValuationData(valuationData);
+}
+
+/**
+ * Create empty valuation data structure
+ * @param vin Optional VIN to include
+ * @returns Empty ValuationData object
+ */
+export function createEmptyValuationData(vin?: string): ValuationData {
+  return {
+    vin: vin || '',
+    make: '',
+    model: '',
+    year: new Date().getFullYear(),
+    mileage: 0,
+    transmission: undefined,
+    valuation: 0,
+    reservePrice: 0,
+    averagePrice: 0,
+    basePrice: 0,
+    minPrice: 0,
+    maxPrice: 0,
+    currency: 'PLN'
+  };
 }

@@ -1,35 +1,94 @@
 
 /**
- * Reserve price calculator for handle-seller-operations
- * Created: 2025-04-19 - Extracted from pricing logic
+ * Reserve price calculator utility for handle-seller-operations
+ * Created: 2025-04-19 - Extracted from valuation-service.ts
  */
 
+import { logOperation } from './logging.ts';
+
 /**
- * Calculate the reserve price based on the valuation price
- * @param valuation Vehicle valuation price
+ * Calculate reserve price based on base price and price tier table
+ * 
+ * Formula: PriceX – (PriceX x PercentageY) where PriceX is base price
+ * and PercentageY varies by price tier
+ * 
+ * @param basePrice Base price of the vehicle
  * @returns Calculated reserve price
  */
-export function calculateReservePrice(valuation: number): number {
-  // Determine percentage based on price range
-  let percentageY;
+export function calculateReservePriceFromTable(basePrice: number): number {
+  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
+    logOperation('reserve_price_calculation_error', {
+      basePrice,
+      error: 'Invalid base price'
+    }, 'error');
+    return 0;
+  }
   
-  if (valuation <= 15000) percentageY = 0.65;
-  else if (valuation <= 20000) percentageY = 0.46;
-  else if (valuation <= 30000) percentageY = 0.37;
-  else if (valuation <= 50000) percentageY = 0.27;
-  else if (valuation <= 60000) percentageY = 0.27;
-  else if (valuation <= 70000) percentageY = 0.22;
-  else if (valuation <= 80000) percentageY = 0.23;
-  else if (valuation <= 100000) percentageY = 0.24;
-  else if (valuation <= 130000) percentageY = 0.20;
-  else if (valuation <= 160000) percentageY = 0.185;
-  else if (valuation <= 200000) percentageY = 0.22;
-  else if (valuation <= 250000) percentageY = 0.17;
-  else if (valuation <= 300000) percentageY = 0.18;
-  else if (valuation <= 400000) percentageY = 0.18;
-  else if (valuation <= 500000) percentageY = 0.16;
-  else percentageY = 0.145;
+  let percentageDiscount;
+  
+  // Determine percentage based on price tier
+  if (basePrice <= 15000) percentageDiscount = 0.65;
+  else if (basePrice <= 20000) percentageDiscount = 0.46;
+  else if (basePrice <= 30000) percentageDiscount = 0.37;
+  else if (basePrice <= 50000) percentageDiscount = 0.27;
+  else if (basePrice <= 60000) percentageDiscount = 0.27;
+  else if (basePrice <= 70000) percentageDiscount = 0.22;
+  else if (basePrice <= 80000) percentageDiscount = 0.23;
+  else if (basePrice <= 100000) percentageDiscount = 0.24;
+  else if (basePrice <= 130000) percentageDiscount = 0.20;
+  else if (basePrice <= 160000) percentageDiscount = 0.185;
+  else if (basePrice <= 200000) percentageDiscount = 0.22;
+  else if (basePrice <= 250000) percentageDiscount = 0.17;
+  else if (basePrice <= 300000) percentageDiscount = 0.18;
+  else if (basePrice <= 400000) percentageDiscount = 0.18;
+  else if (basePrice <= 500000) percentageDiscount = 0.16;
+  else percentageDiscount = 0.145; // 500,001+
   
   // Apply formula: PriceX – (PriceX x PercentageY)
-  return Math.round(valuation - (valuation * percentageY));
+  const reservePrice = Math.round(basePrice - (basePrice * percentageDiscount));
+  
+  logOperation('reserve_price_calculated', {
+    basePrice,
+    reservePrice,
+    percentageDiscount
+  });
+  
+  return reservePrice;
+}
+
+/**
+ * Format the reserve price as currency
+ * @param price The price to format
+ * @param currency The currency code (default: PLN)
+ * @returns Formatted price string
+ */
+export function formatReservePrice(price: number, currency: string = 'PLN'): string {
+  return new Intl.NumberFormat('pl-PL', {
+    style: 'currency',
+    currency: currency
+  }).format(price);
+}
+
+/**
+ * Get the discount percentage for a given price tier
+ * @param basePrice The base price to check against tiers
+ * @returns The discount percentage (0-1)
+ */
+export function getDiscountPercentageForTier(basePrice: number): number {
+  if (basePrice <= 15000) return 0.65;
+  else if (basePrice <= 20000) return 0.46;
+  else if (basePrice <= 30000) return 0.37;
+  else if (basePrice <= 50000) return 0.27;
+  else if (basePrice <= 60000) return 0.27;
+  else if (basePrice <= 70000) return 0.22;
+  else if (basePrice <= 80000) return 0.23;
+  else if (basePrice <= 100000) return 0.24;
+  else if (basePrice <= 130000) return 0.20;
+  else if (basePrice <= 160000) return 0.185;
+  else if (basePrice <= 200000) return 0.22;
+  else if (basePrice <= 250000) return 0.17;
+  else if (basePrice <= 300000) return 0.18;
+  else if (basePrice <= 400000) return 0.18;
+  else if (basePrice <= 500000) return 0.16;
+  else return 0.145; // 500,001+
 }
