@@ -1,18 +1,20 @@
 
 /**
  * Edge function to setup RLS policies for cars table
- * Updated: 2025-04-19 - Restructured to use modular architecture
+ * Updated: 2025-04-19 - Refactored to use utils folder structure
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { RLSService } from './services.ts';
-import { corsHeaders, formatSuccessResponse, formatErrorResponse, logOperation, logError } from './utils.ts';
+import { corsHeaders, handleCorsOptions } from './utils/cors.ts';
+import { formatSuccessResponse, formatErrorResponse } from './utils/response.ts';
+import { logOperation, logError } from './utils/logging.ts';
 import type { CarsRLSResult } from './types.ts';
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsOptions();
   }
 
   const requestId = crypto.randomUUID();
