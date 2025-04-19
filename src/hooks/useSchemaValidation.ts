@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-06-10: Created schema validation hook for form components
  * - 2027-11-07: Enhanced with improved error handling and diagnostics
+ * - 2025-04-19: Updated imports to use new schema validation module structure
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -10,7 +11,7 @@ import {
   validateFormSchema, 
   resetSchemaValidationCache, 
   getSchemaValidationDiagnostics 
-} from '@/utils/validation/schemaValidation';
+} from '@/utils/validation/schema';
 import { useForm } from 'react-hook-form';
 
 /**

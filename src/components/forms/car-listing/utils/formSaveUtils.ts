@@ -1,19 +1,13 @@
-
 /**
- * Changes made:
- * - Updated to use security definer function for database operations
- * - Improved cache management with better data change detection
- * - Enhanced error handling and retry logic
- * - Added more robust logging
- * - Implemented better type safety for response handling
- * - Fixed type error with created_at field being Date instead of string
+ * Form save utilities
+ * Updated: 2025-04-19 - Updated imports to use new schema validation module structure
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { prepareCarData, prepareCarDataAsync } from "./carDataTransformer";
-import { validateFormSchema } from "@/utils/validation/schemaValidation";
+import { validateFormSchema } from "@/utils/validation/schema";
 
 // Cache last saved data to avoid unnecessary saves
 let lastSavedDataCache = new Map<string, string>();
