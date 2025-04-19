@@ -16,7 +16,7 @@ interface ValuationContentProps {
   model: string;
   year: number;
   vin: string;
-  transmission: string;
+  transmission: 'manual' | 'automatic';
   mileage: number;
   reservePrice: number;
   averagePrice: number;
