@@ -1,14 +1,15 @@
+
 /**
  * Changes made:
- * - 2025-04-19: Added data validation and improved error handling
- * - 2025-04-19: Enhanced logging for better debugging
+ * - 2025-04-19: Fixed import paths for useValuationContinue
+ * - 2025-04-19: Enhanced error handling and data validation
  */
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ValuationContent } from "./valuation/components/ValuationContent";
 import { useNavigate } from "react-router-dom";
-import { useValuationContinue } from "../hooks/useValuationContinue";
+import { useValuationContinue } from "./valuation/hooks/useValuationContinue";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorDialog } from "./valuation/components/dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";

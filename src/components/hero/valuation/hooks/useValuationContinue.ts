@@ -1,9 +1,7 @@
 
 /**
- * Changes made:
- * - 2024-03-19: Created useValuationContinue hook extracted from ValuationResult
- * - 2026-12-20: Fixed ValuationResultData type definition
- * - 2027-05-15: Updated ValuationResultData interface to make vin and transmission optional
+ * Hook for handling valuation continuation logic
+ * Created: 2025-04-19
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -11,7 +9,6 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-// Updated type definition to make vin and transmission optional
 interface ValuationResultData {
   vin?: string;
   transmission?: string;

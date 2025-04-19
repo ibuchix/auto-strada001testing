@@ -1,11 +1,16 @@
+
 /**
  * Changes made:
- * - 2025-04-19: Added TypeScript interface and validation
- * - 2025-04-19: Enhanced logging for debugging
+ * - 2025-04-19: Added proper Dialog imports
+ * - 2025-04-19: Fixed TypeScript interface compatibility
  */
 
 import { Button } from "@/components/ui/button";
-import { DialogContent } from "@/components/ui/dialog";
+import { 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog";
 import { formatCurrency } from "@/utils/formatters";
 import { ValuationContentProps } from "../types/ValuationContentProps";
 
