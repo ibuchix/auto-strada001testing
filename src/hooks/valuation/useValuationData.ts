@@ -1,15 +1,18 @@
 
 /**
  * Changes made:
- * - 2025-04-18: Created hook to consistently evaluate valuation data quality
- * - 2025-04-18: Added detailed validation checks for pricing data
+ * - 2025-04-19: Added proper TypeScript types
+ * - 2025-04-19: Improved error handling and data validation
+ * - 2025-04-19: Enhanced logging for debugging
  */
 
 import { useMemo } from 'react';
 import { normalizeValuationData } from '@/utils/valuation/valuationDataNormalizer';
+import { ValuationData, ValuationResult } from './types/valuationTypes';
 
-export const useValuationData = (valuationResult: any) => {
+export const useValuationData = (valuationResult: Partial<ValuationData> | null): ValuationResult => {
   return useMemo(() => {
+    // Default empty state
     if (!valuationResult) {
       return {
         normalizedData: {
@@ -25,7 +28,8 @@ export const useValuationData = (valuationResult: any) => {
         },
         hasError: false,
         shouldShowError: false,
-        hasValuation: false
+        hasValuation: false,
+        hasPricingData: false
       };
     }
     
@@ -48,21 +52,31 @@ export const useValuationData = (valuationResult: any) => {
       hasPricing: !!(normalizedData.reservePrice > 0 || normalizedData.valuation > 0)
     });
     
-    // The vehicle valuation is valid if we have:
-    // 1. No explicit errors AND
-    // 2. Make & model & year data AND
-    // 3. Some kind of pricing information (either valuation or reservePrice)
+    // The vehicle valuation is valid if we have basic vehicle details
     const hasValuation = !hasError && 
       normalizedData.make && 
       normalizedData.model && 
-      normalizedData.year > 0 &&
-      (normalizedData.reservePrice > 0 || normalizedData.valuation > 0);
+      normalizedData.year > 0;
+    
+    // Check if we have any pricing data
+    const hasPricingData = normalizedData.reservePrice > 0 || normalizedData.valuation > 0;
+    
+    // Log warning if we have vehicle details but no pricing
+    if (!hasPricingData && hasValuation) {
+      console.warn('Vehicle has valid details but no pricing data:', {
+        make: normalizedData.make,
+        model: normalizedData.model,
+        year: normalizedData.year,
+        vin: normalizedData.vin
+      });
+    }
       
     return {
       normalizedData,
       hasError,
       shouldShowError,
-      hasValuation
+      hasValuation,
+      hasPricingData
     };
   }, [valuationResult]);
 };
