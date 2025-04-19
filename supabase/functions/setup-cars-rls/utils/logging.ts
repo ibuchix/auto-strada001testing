@@ -4,23 +4,31 @@
  * Created: 2025-04-19
  */
 
-export function logOperation(operation: string, details: Record<string, any> = {}): void {
-  console.log(JSON.stringify({
+export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+
+export const logOperation = (
+  operation: string, 
+  details: Record<string, any> = {},
+  level: LogLevel = 'info'
+): void => {
+  const logEntry = {
     timestamp: new Date().toISOString(),
     operation,
+    level,
     ...details
-  }));
-}
-
-export function logError(context: string, error: Error, additionalDetails: Record<string, any> = {}): void {
-  console.error(JSON.stringify({
-    timestamp: new Date().toISOString(),
-    context,
-    error: {
-      message: error.message,
-      name: error.name,
-      stack: error.stack
-    },
-    ...additionalDetails
-  }));
-}
+  };
+  
+  switch (level) {
+    case 'error':
+      console.error(JSON.stringify(logEntry));
+      break;
+    case 'warn':
+      console.warn(JSON.stringify(logEntry));
+      break;
+    case 'debug':
+      console.debug(JSON.stringify(logEntry));
+      break;
+    default:
+      console.log(JSON.stringify(logEntry));
+  }
+};

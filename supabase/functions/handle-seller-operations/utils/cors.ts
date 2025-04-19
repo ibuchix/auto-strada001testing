@@ -1,6 +1,7 @@
 
 /**
- * CORS utilities for seller operations
+ * CORS utilities for handle-seller-operations
+ * Created: 2025-04-19
  */
 
 export const corsHeaders = {
@@ -11,10 +12,8 @@ export const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 };
 
-export function handleOptions(): Response {
+export function handleCorsOptions(): Response {
   return new Response(null, {
-    status: 204,
     headers: corsHeaders
   });
 }
-
