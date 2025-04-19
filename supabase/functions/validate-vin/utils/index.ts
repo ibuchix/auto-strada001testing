@@ -20,3 +20,4 @@ export class ValidationError extends Error {
     this.code = code;
   }
 }
+

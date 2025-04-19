@@ -17,3 +17,4 @@ export function handleCorsOptions(): Response {
     headers: corsHeaders
   });
 }
+

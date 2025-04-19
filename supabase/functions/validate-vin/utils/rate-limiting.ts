@@ -1,56 +1,90 @@
 
 /**
  * Rate limiting utilities for validate-vin
- * Created: 2025-04-19 - Extracted from utils.ts
+ * Created: 2025-04-19
  */
 
-// In-memory store for rate limiting
-const rateLimits = new Map<string, number[]>();
+const rateLimits = new Map<string, {
+  count: number,
+  resetTime: number
+}>();
 
 /**
  * Check if a request exceeds rate limits
  * @param key Identifier for rate limiting (e.g., IP, user ID, VIN)
- * @param limit Maximum number of requests in the time window
- * @param window Time window in milliseconds
- * @returns true if rate limit is exceeded, false otherwise
+ * @param maxRequests Maximum allowed requests in time window
+ * @param windowMs Time window in milliseconds
+ * @returns True if rate limit exceeded, false otherwise
  */
-export function checkRateLimit(key: string, limit: number = 5, window: number = 60000): boolean {
+export function isRateLimited(
+  key: string, 
+  maxRequests: number = 10, 
+  windowMs: number = 60000
+): boolean {
   const now = Date.now();
-  const timestamps = rateLimits.get(key) || [];
+  const record = rateLimits.get(key);
   
-  // Filter out old timestamps
-  const recent = timestamps.filter(time => now - time < window);
-  
-  // Check if limit exceeded
-  if (recent.length >= limit) {
-    return true; // Rate limit exceeded
+  // No existing record, create new one
+  if (!record) {
+    rateLimits.set(key, {
+      count: 1,
+      resetTime: now + windowMs
+    });
+    return false;
   }
   
-  // Update timestamps
-  recent.push(now);
-  rateLimits.set(key, recent);
+  // Reset counter if time window has passed
+  if (now > record.resetTime) {
+    record.count = 1;
+    record.resetTime = now + windowMs;
+    return false;
+  }
   
-  return false; // Rate limit not exceeded
+  // Increment counter and check limit
+  record.count++;
+  return record.count > maxRequests;
 }
 
 /**
- * Get current usage statistics for a key
+ * Get remaining allowed requests
  * @param key Identifier for rate limiting
- * @param window Time window in milliseconds
- * @returns Object with usage statistics
+ * @returns Remaining requests or -1 if no record exists
  */
-export function getRateLimitStats(key: string, window: number = 60000): { count: number; remaining: number; reset: number } {
+export function getRemainingRequests(key: string): number {
   const now = Date.now();
-  const timestamps = rateLimits.get(key) || [];
-  const recent = timestamps.filter(time => now - time < window);
+  const record = rateLimits.get(key);
   
-  // Find oldest timestamp to determine when the window resets
-  const oldestTimestamp = recent.length > 0 ? Math.min(...recent) : now;
-  const resetTime = oldestTimestamp + window - now;
+  if (!record) {
+    return -1;
+  }
   
-  return {
-    count: recent.length,
-    remaining: 5 - recent.length, // Assuming default limit of 5
-    reset: resetTime
-  };
+  if (now > record.resetTime) {
+    return -1;
+  }
+  
+  return Math.max(0, 10 - record.count);
+}
+
+/**
+ * Get reset time for rate limit window
+ * @param key Identifier for rate limiting
+ * @returns Reset time in milliseconds or -1 if no record exists
+ */
+export function getResetTime(key: string): number {
+  const record = rateLimits.get(key);
+  return record ? record.resetTime : -1;
+}
+
+/**
+ * Occasionally clean up expired rate limit records
+ * This function should be called periodically
+ */
+export function cleanupRateLimits(): void {
+  const now = Date.now();
+  
+  for (const [key, record] of rateLimits.entries()) {
+    if (now > record.resetTime) {
+      rateLimits.delete(key);
+    }
+  }
 }

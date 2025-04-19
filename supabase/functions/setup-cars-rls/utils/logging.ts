@@ -32,3 +32,4 @@ export const logOperation = (
       console.log(JSON.stringify(logEntry));
   }
 };
+

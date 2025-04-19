@@ -30,3 +30,4 @@ export function formatErrorResponse(error: Error | string, status: number = 500)
     }
   );
 }
+

@@ -3,62 +3,72 @@
  * Data normalization utilities
  * Created: 2025-04-19
  */
-import { ValuationData } from './types';
-import { logOperation } from '../logging';
-import { extractNestedValue, extractNestedNumber, extractTransmission } from './dataExtractor';
-import { calculateReservePrice } from '../reserve-price';
 
-export function normalizeValuationData(
-  rawData: any,
-  requestId: string
-): Partial<ValuationData> {
-  const normalized: Partial<ValuationData> = {};
+/**
+ * Normalize VIN by removing spaces and converting to uppercase
+ * @param vin The VIN to normalize
+ * @returns Normalized VIN
+ */
+export function normalizeVin(vin: string): string {
+  return vin.replace(/\s+/g, '').toUpperCase();
+}
+
+/**
+ * Normalize a numerical value
+ * @param value The value to normalize
+ * @param defaultValue Default value if normalization fails
+ * @returns Normalized number
+ */
+export function normalizeNumber(value: any, defaultValue: number = 0): number {
+  if (value === null || value === undefined) return defaultValue;
   
-  try {
-    // Extract basic vehicle info with robust fallbacks
-    normalized.make = extractNestedValue(rawData, ["make", "manufacturer", "brand"]);
-    normalized.model = extractNestedValue(rawData, ["model", "modelName", "vehicleModel"]);
-    normalized.year = extractNestedNumber(rawData, ["year", "productionYear", "modelYear"]);
-    normalized.vin = extractNestedValue(rawData, ["vin", "vinNumber"]);
-    normalized.mileage = extractNestedNumber(rawData, ["mileage", "odometer", "kilometers"]);
-    normalized.transmission = extractTransmission(rawData);
-    
-    // Extract pricing information
-    const priceMin = extractNestedNumber(rawData, ["price_min", "priceMin", "minimumPrice"]);
-    const priceMed = extractNestedNumber(rawData, ["price_med", "priceMed", "medianPrice"]);
-    
-    if (priceMin > 0 && priceMed > 0) {
-      normalized.basePrice = (priceMin + priceMed) / 2;
-      normalized.valuation = normalized.basePrice;
-      
-      if (normalized.basePrice > 0) {
-        normalized.reservePrice = calculateReservePrice(normalized.basePrice);
-      }
-    } else {
-      normalized.valuation = extractNestedNumber(rawData, [
-        "price", "value", "valuation", "estimatedValue"
-      ]);
-      
-      if (normalized.valuation > 0) {
-        normalized.basePrice = normalized.valuation;
-        normalized.reservePrice = calculateReservePrice(normalized.valuation);
-      }
-    }
-    
-    logOperation("data_normalization_success", {
-      requestId,
-      fieldsExtracted: Object.keys(normalized),
-      hasValuation: !!normalized.valuation,
-      hasReservePrice: !!normalized.reservePrice
-    });
-    
-  } catch (error) {
-    logOperation("data_normalization_error", {
-      requestId,
-      error: error.message,
-      rawDataKeys: Object.keys(rawData)
-    }, "error");
+  // If already a number, return it
+  if (typeof value === 'number' && !isNaN(value)) return value;
+  
+  // Try to convert to number
+  const parsed = Number(value);
+  return isNaN(parsed) ? defaultValue : parsed;
+}
+
+/**
+ * Normalize a boolean value
+ * @param value The value to normalize
+ * @param defaultValue Default value if normalization fails
+ * @returns Normalized boolean
+ */
+export function normalizeBoolean(value: any, defaultValue: boolean = false): boolean {
+  if (value === null || value === undefined) return defaultValue;
+  
+  // If already a boolean, return it
+  if (typeof value === 'boolean') return value;
+  
+  // Handle string values
+  if (typeof value === 'string') {
+    const lowercased = value.toLowerCase();
+    if (lowercased === 'true' || lowercased === 'yes' || lowercased === '1') return true;
+    if (lowercased === 'false' || lowercased === 'no' || lowercased === '0') return false;
   }
   
-  return normalized;
+  // Handle number values
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  
+  return defaultValue;
+}
+
+/**
+ * Normalize a string value
+ * @param value The value to normalize
+ * @param defaultValue Default value if normalization fails
+ * @returns Normalized string
+ */
+export function normalizeString(value: any, defaultValue: string = ''): string {
+  if (value === null || value === undefined) return defaultValue;
+  
+  // If already a string, return it trimmed
+  if (typeof value === 'string') return value.trim();
+  
+  // Convert to string
+  return String(value);
 }
