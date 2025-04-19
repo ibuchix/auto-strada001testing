@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ValuationContent } from "@/components/hero/valuation/components/ValuationContent";
-import { useValuationContinue } from "@/hooks/valuation/useValuationContinue";
+import { useValuationContinue } from "@/components/hero/valuation/hooks/useValuationContinue";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorDialog } from "@/components/hero/valuation/components/dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
@@ -84,7 +85,10 @@ export const ValuationResult = ({
         valuationResult
       );
     } else {
-      error = new ValuationError(valuationResult.error || "An unexpected error occurred");
+      error = new ValuationError({
+        message: valuationResult.error || "An unexpected error occurred",
+        retry: true
+      });
     }
 
     console.error('Valuation error:', {
