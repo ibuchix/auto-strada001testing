@@ -1,28 +1,18 @@
 /**
  * Changes made:
- * - 2024-03-19: Initial implementation of valuation result display
- * - 2024-03-19: Added user authentication checks
- * - 2024-03-19: Implemented seller role validation
- * - 2024-03-19: Updated to pass reserve price to ValuationDisplay
- * - 2024-03-19: Refactored into smaller components
- * - 2024-03-19: Fixed type error in props passed to ValuationContent
- * - 2024-03-19: Added averagePrice to ValuationContent props
- * - 2024-03-19: Fixed valuation data being passed incorrectly
- * - 2024-08-05: Enhanced error handling and improved manual valuation flow
- * - 2026-04-15: Improved resilience for partial data and enhanced UI feedback
- * - 2025-04-08: Added ability to use partial data when essential fields are available
- * - 2025-04-17: Fixed import paths to match project structure
+ * - 2025-04-19: Added data validation and improved error handling
+ * - 2025-04-19: Enhanced logging for better debugging
  */
 
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ValuationContent } from "./valuation/components/ValuationContent";
-import { useValuationContinue } from "./valuation/hooks/useValuationContinue";
-import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useValuationContinue } from "../hooks/useValuationContinue";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { ValuationErrorHandler } from "./valuation/components/ValuationErrorHandler";
 import { ValuationErrorDialog } from "./valuation/components/dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
+import { normalizeTransmission, validateValuationData } from "@/utils/validation/validateTypes";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -58,10 +48,13 @@ export const ValuationResult = ({
   } = useValuationErrorDialog();
   
   useEffect(() => {
-    if (valuationResult?.error || valuationResult?.noData) {
-      setErrorDialogOpen(true);
-    }
-  }, [valuationResult, setErrorDialogOpen]);
+    console.log('ValuationResult mounted with data:', {
+      hasData: !!valuationResult,
+      error: valuationResult?.error,
+      noData: valuationResult?.noData,
+      timestamp: new Date().toISOString()
+    });
+  }, [valuationResult]);
 
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
@@ -117,15 +110,35 @@ export const ValuationResult = ({
     );
   }
 
+  const isValidData = validateValuationData(valuationResult);
+  console.log('Validation status:', { isValidData });
+
+  if (!isValidData && !valuationResult?.error) {
+    console.warn('Invalid valuation data structure:', valuationResult);
+    return (
+      <ValuationErrorDialog
+        isOpen={true}
+        onClose={onClose}
+        onRetry={onRetry}
+        error="Invalid valuation data received"
+      />
+    );
+  }
+
   const normalizedResult = {
     make: valuationResult.make || 'Unknown',
     model: valuationResult.model || 'Vehicle',
     year: valuationResult.year || new Date().getFullYear(),
     vin: valuationResult.vin || '',
-    transmission: valuationResult.transmission || 'manual',
+    transmission: normalizeTransmission(valuationResult.transmission),
     reservePrice: valuationResult.reservePrice || valuationResult.valuation || 0,
     averagePrice: valuationResult.averagePrice || 0
   };
+
+  console.log('Normalized valuation data:', {
+    ...normalizedResult,
+    timestamp: new Date().toISOString()
+  });
 
   return (
     <ValuationContent
@@ -137,7 +150,7 @@ export const ValuationResult = ({
       mileage={mileage}
       reservePrice={normalizedResult.reservePrice}
       averagePrice={normalizedResult.averagePrice}
-      hasValuation={hasValuation}
+      hasValuation={isValidData}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
       onContinue={() => handleContinue(valuationResult)}

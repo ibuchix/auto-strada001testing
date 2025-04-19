@@ -1,30 +1,13 @@
-
 /**
  * Changes made:
- * - 2025-04-22: Fixed hasValuation logic to consistently show List My Car button
- * - 2025-04-22: Added better display of vehicle information with formatting
- * - 2025-04-22: Added prominent pricing information display
- * - 2025-04-18: Fixed UI to show valuation data even when numeric values are 0
+ * - 2025-04-19: Added TypeScript interface and validation
+ * - 2025-04-19: Enhanced logging for debugging
  */
 
 import { Button } from "@/components/ui/button";
-import { DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogContent } from "@/components/ui/dialog";
 import { formatCurrency } from "@/utils/formatters";
-
-interface ValuationContentProps {
-  make: string;
-  model: string;
-  year: number;
-  vin: string;
-  transmission: 'manual' | 'automatic';
-  mileage: number;
-  reservePrice: number;
-  averagePrice: number;
-  hasValuation: boolean;
-  isLoggedIn: boolean;
-  onClose: () => void;
-  onContinue: () => void;
-}
+import { ValuationContentProps } from "../types/ValuationContentProps";
 
 export const ValuationContent = ({
   make,
@@ -44,7 +27,8 @@ export const ValuationContent = ({
   console.log("ValuationContent props:", {
     make, model, year, transmission, 
     mileage, reservePrice, averagePrice, 
-    hasValuation
+    hasValuation,
+    timestamp: new Date().toISOString()
   });
   
   // Format mileage with "km" suffix
