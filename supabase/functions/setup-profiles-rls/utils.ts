@@ -1,7 +1,7 @@
 
 /**
  * Utility functions for setup-profiles-rls edge function
- * Created: 2025-04-18 - Made function self-contained by moving utilities here
+ * Created: 2025-04-19
  */
 
 // CORS headers for edge functions
@@ -13,9 +13,21 @@ export const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 };
 
-// Handle CORS preflight requests
-export function handleCorsOptions(): Response {
-  return new Response(null, {
-    headers: corsHeaders
-  });
+export function formatResponse(data: any, status: number = 200): Response {
+  return new Response(
+    JSON.stringify(data),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status,
+    }
+  );
 }
+
+export function handleError(error: Error): Response {
+  console.error('Error in setup-profiles-rls:', error);
+  return formatResponse({
+    success: false,
+    error: error.message || 'Failed to set up profiles RLS policies'
+  }, 500);
+}
+
