@@ -1,68 +1,16 @@
 
 /**
  * Changes made:
- * - 2025-04-18: Added sanitizePartialData function to handle partial valuation data
- * - 2025-04-19: Fixed TypeScript typing in sanitizePartialData function
+ * - 2025-04-19: Refactored price extraction to prioritize Auto ISO API format
+ * - 2025-04-19: Improved logging and error handling for price calculations
  */
 
 import { ValuationData } from "./valuationDataTypes";
-import { calculateReservePrice } from "./valuationCalculator";
 
-/**
- * Sanitize partial valuation data, removing any undefined or null values
- */
-export function sanitizePartialData(data: Partial<ValuationData>): Partial<ValuationData> {
-  // Create a new object with only defined values
-  const sanitized: Partial<ValuationData> = {};
-
-  // List of keys to check and potentially include
-  const validKeys: (keyof ValuationData)[] = [
-    'make', 'model', 'year', 'vin', 
-    'transmission', 'mileage', 
-    'valuation', 'reservePrice', 
-    'averagePrice', 'basePrice'
-  ];
-
-  // Type-safe way to copy properties
-  validKeys.forEach(key => {
-    if (data[key] !== undefined && data[key] !== null) {
-      // Use type assertion to tell TypeScript this assignment is valid
-      (sanitized as any)[key] = data[key];
-    }
-  });
-
-  // Log the sanitization process for debugging
-  console.log('Sanitizing partial valuation data:', {
-    inputData: Object.keys(data),
-    sanitizedData: Object.keys(sanitized)
-  });
-
-  return sanitized;
-}
-
-// Existing code for normalizeValuationData remains the same
-/**
- * Normalize valuation data from various sources into a consistent format
- */
 export function normalizeValuationData(data: any): ValuationData {
-  // Log incoming data for debugging
-  console.log('Normalizing valuation data:', {
-    dataKeys: data ? Object.keys(data) : [],
-    hasMake: !!data?.make,
-    hasModel: !!data?.model,
-    hasYear: !!data?.year,
-    hasValuation: !!(data?.valuation || data?.reservePrice),
-    hasAveragePrice: !!data?.averagePrice,
-    hasBasePrice: !!data?.basePrice,
-    priceFields: extractPriceRelatedFields(data)
-  });
-  
-  // Extract the pricing information using multiple fallback options
+  // Extract pricing information first
   const priceInfo = extractPriceInfo(data);
   
-  // Log extracted price info
-  console.log('Extracted price info:', priceInfo);
-
   return {
     make: data?.make || '',
     model: data?.model || '',
@@ -81,129 +29,136 @@ export function normalizeValuationData(data: any): ValuationData {
   };
 }
 
-/**
- * Extract all price-related fields from an object for debugging
- */
-function extractPriceRelatedFields(data: any): Record<string, number> {
-  if (!data || typeof data !== 'object') return {};
-  
-  const priceFields: Record<string, number> = {};
-  
-  for (const [key, value] of Object.entries(data)) {
-    if (
-      (key.toLowerCase().includes('price') || 
-       key.toLowerCase().includes('value') ||
-       key.toLowerCase().includes('valuation')) && 
-      typeof value === 'number'
-    ) {
-      priceFields[key] = value;
-    }
-  }
-  
-  // Also check nested properties like valuationDetails
-  const nestedObjects = ['valuationDetails', 'data', 'apiData'];
-  for (const nestedKey of nestedObjects) {
-    if (data[nestedKey] && typeof data[nestedKey] === 'object') {
-      for (const [key, value] of Object.entries(data[nestedKey])) {
-        if (
-          (key.toLowerCase().includes('price') || 
-           key.toLowerCase().includes('value') ||
-           key.toLowerCase().includes('valuation')) && 
-          typeof value === 'number'
-        ) {
-          priceFields[`${nestedKey}.${key}`] = value as number;
-        }
-      }
-    }
-  }
-  
-  return priceFields;
-}
-
-/**
- * Extract and calculate price information from API response
- */
 function extractPriceInfo(data: any): {
   basePrice: number;
   reservePrice: number;
   valuation: number;
   averagePrice: number;
 } {
-  // Initialize with defaults
+  // Log incoming data structure
+  console.log('Extracting price info from data:', {
+    hasAutoIsoFields: !!(data.price_min || data.price_med),
+    price_min: data.price_min,
+    price_med: data.price_med,
+    directPrices: {
+      basePrice: data.basePrice,
+      valuation: data.valuation,
+      reservePrice: data.reservePrice
+    }
+  });
+
+  // Initialize price values
   let basePrice = 0;
   let reservePrice = 0;
   let valuation = 0;
   let averagePrice = 0;
-  
-  // First, check for direct values that we want to use
-  if (data.reservePrice && typeof data.reservePrice === 'number' && data.reservePrice > 0) {
-    reservePrice = data.reservePrice;
-  }
-  
-  if (data.valuation && typeof data.valuation === 'number' && data.valuation > 0) {
-    valuation = data.valuation;
-  }
-  
-  if (data.basePrice && typeof data.basePrice === 'number' && data.basePrice > 0) {
-    basePrice = data.basePrice;
-  }
-  
-  if (data.averagePrice && typeof data.averagePrice === 'number' && data.averagePrice > 0) {
-    averagePrice = data.averagePrice;
-  }
-  
-  // Special handling for Auto ISO API format
+
+  // PRIORITY 1: Auto ISO API Format (Our primary source)
   if (data.price_min !== undefined && data.price_med !== undefined) {
     const min = Number(data.price_min);
     const med = Number(data.price_med);
     
     if (min > 0 && med > 0) {
-      // This is the API standard calculation
       basePrice = (min + med) / 2;
-      console.log('Using Auto ISO format - calculated base price:', basePrice);
+      console.log('AUTO ISO API: Calculated base price:', {
+        price_min: min,
+        price_med: med,
+        basePrice
+      });
+      
+      // Calculate reserve price using our tiered formula
+      reservePrice = calculateReservePrice(basePrice);
+      valuation = basePrice;
+      averagePrice = med;
+      
+      return { basePrice, reservePrice, valuation, averagePrice };
     }
   }
-  
-  // If we have a basePrice but no reservePrice, calculate it
-  if (basePrice > 0 && reservePrice <= 0) {
-    reservePrice = calculateReservePrice(basePrice);
-    console.log('Calculated reserve price from base price:', { basePrice, reservePrice });
+
+  // PRIORITY 2: Direct API Values
+  if (data.basePrice > 0 || data.valuation > 0) {
+    basePrice = data.basePrice || data.valuation;
+    reservePrice = data.reservePrice || calculateReservePrice(basePrice);
+    valuation = data.valuation || basePrice;
+    averagePrice = data.averagePrice || basePrice;
+    
+    console.log('Using direct API values:', {
+      basePrice,
+      reservePrice,
+      valuation,
+      averagePrice
+    });
+    
+    return { basePrice, reservePrice, valuation, averagePrice };
+  }
+
+  // PRIORITY 3: Check primary nested locations
+  const nestedData = data.data || data.apiResponse || data.valuationDetails;
+  if (nestedData?.price_min && nestedData?.price_med) {
+    const min = Number(nestedData.price_min);
+    const med = Number(nestedData.price_med);
+    
+    if (min > 0 && med > 0) {
+      basePrice = (min + med) / 2;
+      reservePrice = calculateReservePrice(basePrice);
+      valuation = basePrice;
+      averagePrice = med;
+      
+      console.log('Using nested Auto ISO format:', {
+        price_min: min,
+        price_med: med,
+        basePrice,
+        reservePrice
+      });
+      
+      return { basePrice, reservePrice, valuation, averagePrice };
+    }
+  }
+
+  // No valid price data found
+  console.error('No valid price data found in API response:', {
+    dataKeys: Object.keys(data),
+    vin: data.vin,
+    make: data.make,
+    model: data.model
+  });
+
+  return { basePrice: 0, reservePrice: 0, valuation: 0, averagePrice: 0 };
+}
+
+function calculateReservePrice(basePrice: number): number {
+  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
+    console.error('Invalid base price for reserve calculation:', basePrice);
+    return 0;
   }
   
-  // If we have a reservePrice but no basePrice, approximate it
-  if (reservePrice > 0 && basePrice <= 0) {
-    // Roughly estimate a basePrice from the reservePrice
-    // This is an approximation and not as accurate as the official formula
-    basePrice = reservePrice * 1.35; // Average markup based on our pricing tiers
-    console.log('Estimated base price from reserve price:', { reservePrice, basePrice });
-  }
+  // Determine percentage based on price tier
+  let percentage = 0;
   
-  // Ensure we have values in both valuation and reservePrice for compatibility
-  if (reservePrice > 0 && valuation <= 0) {
-    valuation = reservePrice;
-  } else if (valuation > 0 && reservePrice <= 0) {
-    reservePrice = valuation;
-  }
+  if (basePrice <= 15000) percentage = 0.65;
+  else if (basePrice <= 20000) percentage = 0.46;
+  else if (basePrice <= 30000) percentage = 0.37;
+  else if (basePrice <= 50000) percentage = 0.27;
+  else if (basePrice <= 60000) percentage = 0.27;
+  else if (basePrice <= 70000) percentage = 0.22;
+  else if (basePrice <= 80000) percentage = 0.23;
+  else if (basePrice <= 100000) percentage = 0.24;
+  else if (basePrice <= 130000) percentage = 0.20;
+  else if (basePrice <= 160000) percentage = 0.185;
+  else if (basePrice <= 200000) percentage = 0.22;
+  else if (basePrice <= 250000) percentage = 0.17;
+  else if (basePrice <= 300000) percentage = 0.18;
+  else if (basePrice <= 400000) percentage = 0.18;
+  else if (basePrice <= 500000) percentage = 0.16;
+  else percentage = 0.145;
   
-  // If averagePrice is missing, use basePrice
-  if (averagePrice <= 0 && basePrice > 0) {
-    averagePrice = basePrice;
-  }
+  const reservePrice = Math.round(basePrice - (basePrice * percentage));
   
-  // If we have vehicle details but absolutely no price data, provide a fallback
-  // This should only happen in development/testing
-  if (basePrice <= 0 && reservePrice <= 0 && valuation <= 0 && data.make && data.model) {
-    console.warn('No price data available for vehicle with details. Using fallback values.');
-    basePrice = 35000; // Fallback value 
-    reservePrice = calculateReservePrice(basePrice);
-    valuation = reservePrice;
-    averagePrice = basePrice;
-  }
-  
-  return {
+  console.log('Reserve price calculation:', {
     basePrice,
-    reservePrice,
-    valuation,
-    averagePrice
-  };
+    percentage: (percentage * 100).toFixed(1) + '%',
+    reservePrice
+  });
+  
+  return reservePrice;
 }
