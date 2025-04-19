@@ -1,44 +1,54 @@
 
 /**
- * Reserve price calculator for vehicle valuations
- * Created: 2025-04-19 - Extracted from shared module
+ * Reserve price calculator
+ * Created: 2025-04-19
  */
 
+import { logOperation } from "./utils/logging.ts";
+
 /**
- * Calculate reserve price based on base price
- * Formula: PriceX – (PriceX x PercentageY)
- * where PercentageY varies based on price range
+ * Calculate reserve price based on base price and price tiers
+ * 
+ * @param basePrice The base price of the vehicle
+ * @returns Calculated reserve price
  */
 export function calculateReservePriceFromTable(basePrice: number): number {
-  // Get the appropriate percentage based on price range
-  const percentageY = getReservePercentage(basePrice);
-  
-  // Apply the formula: PriceX – (PriceX x PercentageY)
-  const reservePrice = basePrice - (basePrice * percentageY);
-  
-  // Round to nearest whole number
-  return Math.round(reservePrice);
-}
+  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
+    logOperation('reserve_price_calculation_error', { 
+      error: 'Invalid base price',
+      basePrice
+    }, 'error');
+    return 0;
+  }
 
-/**
- * Get the reserve percentage based on price range
- */
-function getReservePercentage(basePrice: number): number {
-  // Price ranges and corresponding percentages
-  if (basePrice <= 15000) return 0.65;
-  if (basePrice <= 20000) return 0.46;
-  if (basePrice <= 30000) return 0.37;
-  if (basePrice <= 50000) return 0.27;
-  if (basePrice <= 60000) return 0.27;
-  if (basePrice <= 70000) return 0.22;
-  if (basePrice <= 80000) return 0.23;
-  if (basePrice <= 100000) return 0.24;
-  if (basePrice <= 130000) return 0.20;
-  if (basePrice <= 160000) return 0.185;
-  if (basePrice <= 200000) return 0.22;
-  if (basePrice <= 250000) return 0.17;
-  if (basePrice <= 300000) return 0.18;
-  if (basePrice <= 400000) return 0.18;
-  if (basePrice <= 500000) return 0.16;
-  return 0.145; // 500,001+
+  let percentageDiscount: number;
+  
+  // Determine percentage based on price tier
+  if (basePrice <= 15000) percentageDiscount = 0.65;
+  else if (basePrice <= 20000) percentageDiscount = 0.46;
+  else if (basePrice <= 30000) percentageDiscount = 0.37;
+  else if (basePrice <= 50000) percentageDiscount = 0.27;
+  else if (basePrice <= 60000) percentageDiscount = 0.27;
+  else if (basePrice <= 70000) percentageDiscount = 0.22;
+  else if (basePrice <= 80000) percentageDiscount = 0.23;
+  else if (basePrice <= 100000) percentageDiscount = 0.24;
+  else if (basePrice <= 130000) percentageDiscount = 0.20;
+  else if (basePrice <= 160000) percentageDiscount = 0.185;
+  else if (basePrice <= 200000) percentageDiscount = 0.22;
+  else if (basePrice <= 250000) percentageDiscount = 0.17;
+  else if (basePrice <= 300000) percentageDiscount = 0.18;
+  else if (basePrice <= 400000) percentageDiscount = 0.18;
+  else if (basePrice <= 500000) percentageDiscount = 0.16;
+  else percentageDiscount = 0.145;
+  
+  // Apply formula: PriceX – (PriceX x PercentageY)
+  const reservePrice = Math.round(basePrice - (basePrice * percentageDiscount));
+  
+  logOperation('reserve_price_calculated', { 
+    basePrice,
+    percentageDiscount,
+    reservePrice
+  });
+  
+  return reservePrice;
 }

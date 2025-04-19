@@ -1,7 +1,7 @@
 
 /**
  * Edge function for seller operations
- * Updated: 2025-04-19 - Switched to local utils imports
+ * Updated: 2025-04-19 - Fixed utility imports and enhanced error handling
  */
 
 import { corsHeaders, handleOptions } from "./utils/cors.ts";

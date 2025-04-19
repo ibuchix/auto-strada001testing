@@ -1,7 +1,7 @@
 
 /**
  * CORS utilities for handle-seller-operations
- * Created: 2025-04-19
+ * Updated: 2025-04-19 - Improved CORS handling
  */
 
 export const corsHeaders = {
@@ -12,7 +12,11 @@ export const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 };
 
-export function handleCorsOptions(): Response {
+/**
+ * Handle OPTIONS requests for CORS preflight
+ * @returns Response with CORS headers
+ */
+export function handleOptions(): Response {
   return new Response(null, {
     headers: corsHeaders
   });
