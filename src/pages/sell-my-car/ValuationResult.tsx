@@ -1,14 +1,16 @@
+import React from 'react';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ValuationContent } from "@/components/hero/valuation/components/ValuationContent";
-import { useValuationContinue } from "@/components/hero/valuation/hooks/useValuationContinue";
+import { useValuationContinue } from "@/hooks/valuation/useValuationContinue";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorDialog } from "@/components/hero/valuation/components/dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
 import { 
   NoValuationDataError, 
-  InvalidValuationDataError 
+  InvalidValuationDataError,
+  ValuationError 
 } from "@/errors/valuation/valuationErrors";
 
 interface ValuationResultProps {
@@ -82,7 +84,7 @@ export const ValuationResult = ({
         valuationResult
       );
     } else {
-      error = new Error(valuationResult.error || "An unexpected error occurred");
+      error = new ValuationError(valuationResult.error || "An unexpected error occurred");
     }
 
     console.error('Valuation error:', {
