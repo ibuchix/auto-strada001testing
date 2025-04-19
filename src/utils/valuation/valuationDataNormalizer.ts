@@ -1,11 +1,22 @@
-
 /**
  * Changes made:
- * - 2025-04-19: Refactored price extraction to prioritize Auto ISO API format
- * - 2025-04-19: Improved logging and error handling for price calculations
+ * - 2025-04-19: Added sanitizePartialData function to handle data sanitization
+ * - Improved type safety for partial data sanitization
  */
 
-import { ValuationData } from "./valuationDataTypes";
+import { ValuationData, TransmissionType } from "./valuationDataTypes";
+
+export function sanitizePartialData(data: Partial<ValuationData>): Partial<ValuationData> {
+  // Basic sanitization and type coercion for partial valuation data
+  return {
+    make: typeof data.make === 'string' ? data.make.trim() : '',
+    model: typeof data.model === 'string' ? data.model.trim() : '',
+    year: typeof data.year === 'number' && data.year > 0 ? data.year : 0,
+    vin: typeof data.vin === 'string' ? data.vin.trim().toUpperCase() : '',
+    transmission: (data.transmission as TransmissionType) || 'manual',
+    mileage: typeof data.mileage === 'number' && data.mileage >= 0 ? data.mileage : 0
+  };
+}
 
 export function normalizeValuationData(data: any): ValuationData {
   // Extract pricing information first
