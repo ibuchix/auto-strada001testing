@@ -1,6 +1,6 @@
 /**
  * Edge function for VIN reservation
- * Updated: 2025-04-19 - Switched to local utils imports
+ * Updated: 2025-04-19 - Switched to use shared utilities from central repository
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -10,8 +10,11 @@ import {
   handleCorsOptions, 
   logOperation, 
   formatSuccessResponse, 
-  formatErrorResponse 
-} from "./utils/index.ts";
+  formatErrorResponse,
+  createRequestId,
+  validateVinRequest,
+  checkRateLimit
+} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";

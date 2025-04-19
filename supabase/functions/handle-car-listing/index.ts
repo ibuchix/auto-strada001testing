@@ -1,7 +1,7 @@
 
 /**
  * Edge function for handling car listing valuation requests
- * Updated: 2025-04-19 - Refactored to use modular utility files
+ * Updated: 2025-04-19 - Switched to use shared utilities from central repository
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -17,7 +17,7 @@ import {
   calculateReservePrice,
   storeSearchResult,
   createRequestId
-} from './utils/index.ts';
+} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
 import { ValuationRequest, ValuationResponse } from './types.ts';
 
 serve(async (req) => {

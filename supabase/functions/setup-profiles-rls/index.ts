@@ -1,20 +1,19 @@
-
 /**
  * Edge function to setup RLS policies for profiles table
- * Updated: 2025-04-19 - Restructured with improved error handling and utility organization
+ * Updated: 2025-04-19 - Switched to use shared utilities from central repository
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { RLSService } from './services.ts';
 import { 
   corsHeaders, 
-  handleOptions, 
-  formatResponse, 
+  handleCorsOptions, 
+  formatSuccessResponse, 
   formatErrorResponse,
   logOperation,
   logError,
   validateEnvironment
-} from './utils/index.ts';
+} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
 import type { ProfilesRLSResult } from './types.ts';
 
 serve(async (req) => {
@@ -23,7 +22,7 @@ serve(async (req) => {
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return handleOptions();
+    return handleCorsOptions();
   }
 
   try {
@@ -107,7 +106,7 @@ serve(async (req) => {
       requestId
     });
 
-    return formatResponse(result);
+    return formatSuccessResponse(result);
   } catch (error) {
     logError('setup_profiles_rls', error as Error, { requestId });
     return formatErrorResponse(error as Error);

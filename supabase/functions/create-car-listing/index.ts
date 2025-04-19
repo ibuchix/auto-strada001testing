@@ -1,8 +1,8 @@
-
 /**
  * Edge function for creating car listings
- * Updated: 2025-04-19 - Refactored to use modular utility files for better organization
+ * Updated: 2025-04-19 - Switched to use shared utilities from central repository
  */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { 
@@ -14,12 +14,10 @@ import {
   formatSuccessResponse,
   formatErrorResponse,
   ensureSellerExists,
-  getSellerName,
-  validateVinReservation,
-  markReservationAsUsed,
-  createListing
-} from './utils/index.ts';
+  getSellerName
+} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
 import { ListingRequest, ListingData } from './types.ts';
+import { validateVinReservation, markReservationAsUsed, createListing } from './utils/index.ts';
 
 serve(async (req) => {
   // Generate request ID for tracking
