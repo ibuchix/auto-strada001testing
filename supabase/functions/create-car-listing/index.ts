@@ -1,41 +1,57 @@
 
-// Enhanced car listing creation function with improved field handling
+/**
+ * Edge function for creating car listings
+ * Updated: 2025-04-19 - Refactored to use modular utility files for better organization
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-
-// Define CORS headers inline to avoid import issues
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Allow-Credentials': 'true',
-  'Access-Control-Max-Age': '86400',
-};
-
-interface ListingRequest {
-  valuationData: any;
-  userId: string;
-  vin: string;
-  mileage: number;
-  transmission: string;
-  reservationId?: string;
-}
+import { 
+  corsHeaders,
+  handleCorsOptions,
+  validateListingRequest,
+  logOperation,
+  createRequestId,
+  formatSuccessResponse,
+  formatErrorResponse,
+  ensureSellerExists,
+  getSellerName,
+  validateVinReservation,
+  markReservationAsUsed,
+  createListing
+} from './utils/index.ts';
+import { ListingRequest, ListingData } from './types.ts';
 
 serve(async (req) => {
-  // Handle CORS
+  // Generate request ID for tracking
+  const requestId = createRequestId();
+  logOperation('request_received', { requestId, method: req.method, url: req.url });
+  
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleCorsOptions();
   }
 
   try {
+    // Parse request
     const requestData = await req.json();
-    const { valuationData, userId, vin, mileage, transmission, reservationId } = requestData as ListingRequest;
+    logOperation('request_parsed', { requestId, body: requestData }, 'debug');
     
-    console.log('Request parameters:', { userId, vin, mileage, transmission });
-
-    if (!valuationData || !userId || !vin || !mileage) {
-      throw new Error('Missing required fields');
+    // Validate request
+    const { valuationData, userId, vin, mileage, transmission, reservationId } = requestData as ListingRequest;
+    const validation = validateListingRequest(requestData);
+    
+    if (!validation.valid) {
+      logOperation('validation_error', { requestId, error: validation.error }, 'error');
+      return formatErrorResponse(validation.error || 'Invalid request');
     }
+    
+    logOperation('request_validated', { 
+      requestId, 
+      userId, 
+      vin, 
+      mileage, 
+      transmission 
+    });
 
     // Initialize Supabase client with increased timeout
     const supabase = createClient(
@@ -49,137 +65,102 @@ serve(async (req) => {
           schema: 'public'
         },
         global: {
-          // Set timeout to 4 minutes (240000ms)
           headers: { 'x-request-timeout': '240000' }
         }
       }
     );
+    
+    // Validate VIN reservation if provided
+    const reservationValidation = await validateVinReservation(
+      supabase, 
+      userId, 
+      vin, 
+      reservationId, 
+      requestId
+    );
+    
+    if (!reservationValidation.valid) {
+      return formatErrorResponse(reservationValidation.error || 'Invalid reservation');
+    }
 
-    // Use background processing for the listing creation
-    const processListing = async () => {
-      try {
-        // Log seller information for debugging
-        console.log('Creating listing for seller:', userId);
-        
-        // Check if seller exists and is verified
-        const { data: seller, error: sellerError } = await supabase
-          .from('sellers')
-          .select('id, verification_status')
-          .eq('user_id', userId)
-          .single();
-        
-        if (sellerError) {
-          console.log('Seller not found, attempting to create seller record...');
-          // Create seller record if it doesn't exist
-          await supabase
-            .from('sellers')
-            .insert({
-              user_id: userId,
-              verification_status: 'verified',
-              is_verified: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-        } else {
-          console.log('Found seller:', seller);
-        }
+    // Create seller if needed
+    const sellerResult = await ensureSellerExists(supabase, userId, requestId);
+    if (!sellerResult.success) {
+      return formatErrorResponse('Failed to verify seller account');
+    }
 
-        // Prepare seller name from auth user if available
-        const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(userId);
-        const sellerName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Unnamed Seller';
-        
-        // Prepare the listing data with both name and seller_name fields for compatibility
-        const listingData = {
-          seller_id: userId,
-          name: sellerName, // For backward compatibility
-          seller_name: sellerName, // For database schema
-          title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
-          vin: vin,
-          mileage: mileage,
-          transmission: transmission,
-          make: valuationData.make,
-          model: valuationData.model,
-          year: valuationData.year,
-          price: valuationData.valuation || valuationData.averagePrice,
-          valuation_data: valuationData,
-          is_draft: true
-        };
-
-        console.log('Creating listing with data:', {
-          ...listingData,
-          valuation_data: '(omitted for log clarity)'
-        });
-
-        // Try to use the security definer function first
-        try {
-          console.log('Attempting to create listing via security definer function');
-          const { data: rpcResult, error: rpcError } = await supabase.rpc(
-            'create_car_listing',
-            { p_car_data: listingData }
-          );
-
-          if (!rpcError && rpcResult) {
-            console.log('Listing created successfully via RPC:', rpcResult);
-            return rpcResult;
-          }
-          
-          console.warn('RPC failed, falling back to direct insert:', rpcError);
-        } catch (rpcError) {
-          console.warn('Exception calling RPC function:', rpcError);
-        }
-
-        // Fallback to direct insert
-        const { data: listing, error: listingError } = await supabase
-          .from('cars')
-          .insert(listingData)
-          .select()
-          .single();
-
-        if (listingError) {
-          console.error('Error creating listing:', listingError);
-          throw listingError;
-        }
-
-        console.log('Listing created successfully via direct insert:', listing);
-        return listing;
-      } catch (error) {
-        console.error('Background processing error:', error);
-        throw error;
-      }
+    // Get seller name from user data
+    const sellerName = await getSellerName(supabase, userId);
+    
+    // Prepare listing data
+    const listingData: ListingData = {
+      seller_id: userId,
+      seller_name: sellerName,
+      title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
+      vin: vin,
+      mileage: mileage,
+      transmission: transmission,
+      make: valuationData.make,
+      model: valuationData.model,
+      year: valuationData.year,
+      price: valuationData.valuation || valuationData.averagePrice,
+      valuation_data: valuationData,
+      is_draft: true
     };
 
-    // Start the background processing
-    const backgroundProcess = processListing();
-    
-    // Use EdgeRuntime.waitUntil to handle the background task
-    EdgeRuntime.waitUntil(backgroundProcess);
+    logOperation('creating_listing', { 
+      requestId,
+      userId,
+      carMake: valuationData.make,
+      carModel: valuationData.model
+    });
 
-    // Return an immediate response while processing continues in background
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Listing creation started',
-      }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        },
-        status: 202 // Accepted
+    // Use EdgeRuntime.waitUntil for background processing
+    const backgroundProcess = async () => {
+      try {
+        // Create the listing
+        const result = await createListing(supabase, listingData, userId, requestId);
+        
+        if (!result.success) {
+          logOperation('background_process_failed', {
+            requestId,
+            error: result.error?.message
+          }, 'error');
+          return;
+        }
+        
+        // Mark reservation as used if provided
+        if (reservationId) {
+          await markReservationAsUsed(supabase, reservationId, requestId);
+        }
+        
+        logOperation('background_process_completed', {
+          requestId,
+          carId: result.data?.car_id || result.data?.id
+        });
+      } catch (error) {
+        logOperation('background_process_error', {
+          requestId,
+          error: (error as Error).message
+        }, 'error');
       }
-    );
+    };
+    
+    // Start the background processing
+    EdgeRuntime.waitUntil(backgroundProcess());
+
+    // Return immediate response
+    return formatSuccessResponse({
+      message: 'Listing creation started',
+    }, 202);
 
   } catch (error) {
-    console.error('Error in create-car-listing:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message: error.message || 'Failed to create listing',
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
-      }
-    );
+    logOperation('unhandled_error', { 
+      requestId, 
+      error: (error as Error).message,
+      stack: (error as Error).stack
+    }, 'error');
+    
+    return formatErrorResponse(error as Error);
   }
 });
