@@ -1,16 +1,22 @@
 
 /**
  * Logging utilities for handle-car-listing
- * Created: 2025-04-19
+ * Created: 2025-04-19 - Extracted from inline implementation
  */
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
-export const logOperation = (
+/**
+ * Log operation with structured data
+ * @param operation Name of the operation being performed
+ * @param details Additional details to include in the log
+ * @param level Log level
+ */
+export function logOperation(
   operation: string, 
   details: Record<string, any> = {},
   level: LogLevel = 'info'
-): void => {
+): void {
   const logEntry = {
     timestamp: new Date().toISOString(),
     operation,
@@ -31,4 +37,12 @@ export const logOperation = (
     default:
       console.log(JSON.stringify(logEntry));
   }
-};
+}
+
+/**
+ * Create a request ID for tracking operations
+ * @returns Unique request ID
+ */
+export function createRequestId(): string {
+  return crypto.randomUUID();
+}
