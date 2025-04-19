@@ -1,31 +1,20 @@
 /**
  * VIN Validation Edge Function
- * Updated: 2025-04-19 - Switched to local utils imports
+ * Updated: 2025-04-19 - Fixed import structure and consolidated utilities
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { 
   corsHeaders, 
-  formatResponse, 
+  formatSuccessResponse,
   formatErrorResponse, 
   formatServerErrorResponse,
-  ValidationError
+  ValidationError,
+  isValidVin,
+  isValidMileage,
+  logOperation,
+  checkRateLimit
 } from "./utils/index.ts";
-import { isValidVin, isValidMileage } from "./utils/validation.ts";
-import { logOperation } from "./utils/logging.ts";
-
-// Error types
-export class ApiError extends Error {
-  code: string;
-  status: number;
-  
-  constructor(message: string, code = 'VALIDATION_ERROR', status = 400) {
-    super(message);
-    this.name = 'ApiError';
-    this.code = code;
-    this.status = status;
-  }
-}
 
 // Create Supabase client
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
@@ -67,6 +56,12 @@ serve(async (req: Request) => {
       allowExisting,
       timestamp: new Date().toISOString()
     });
+
+    // Apply rate limiting
+    if (checkRateLimit(vin)) {
+      logOperation('rate_limit_exceeded', { requestId, vin }, 'warn');
+      return formatErrorResponse("Rate limit exceeded. Please try again later.", 429, "RATE_LIMIT_EXCEEDED");
+    }
 
     // Basic validation
     if (!isValidVin(vin)) {

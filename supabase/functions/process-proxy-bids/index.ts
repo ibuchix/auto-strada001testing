@@ -1,6 +1,7 @@
+
 /**
  * Edge function for processing proxy bids
- * Updated: 2025-04-19 - Switched to local utils imports
+ * Updated: 2025-04-19 - Improved error handling and response formatting
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -8,12 +9,17 @@ import {
   corsHeaders, 
   logOperation, 
   formatSuccessResponse, 
-  formatErrorResponse 
+  formatErrorResponse,
+  formatServerErrorResponse
 } from "./utils/index.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing required environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -73,9 +79,6 @@ serve(async (req) => {
 
     logOperation('listing_updated_with_winning_bid', { requestId, listingId, winningBid });
 
-    // Notify the winning bidder (implementation depends on your notification system)
-    // You might use another edge function or a background worker for this
-
     return formatSuccessResponse({
       message: 'Proxy bids processed successfully',
       winningBid
@@ -83,6 +86,6 @@ serve(async (req) => {
 
   } catch (error) {
     logOperation('process_proxy_bids_exception', { requestId, error: error.message }, 'error');
-    return formatErrorResponse(`Error processing proxy bids: ${error.message}`, 500);
+    return formatServerErrorResponse(`Error processing proxy bids: ${error.message}`, 500);
   }
 });
