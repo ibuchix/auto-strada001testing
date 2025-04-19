@@ -1,12 +1,12 @@
 
 /**
  * Edge function to setup RLS policies for profiles table
- * Updated: 2025-04-19 - Restructured to use modular architecture
+ * Updated: 2025-04-19 - Switched to local utils imports
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { RLSService } from './services.ts';
-import { corsHeaders, formatResponse, handleError } from './utils.ts';
+import { corsHeaders, formatResponse, handleError } from './utils/index.ts';
 import type { ProfilesRLSResult } from './types.ts';
 
 serve(async (req) => {

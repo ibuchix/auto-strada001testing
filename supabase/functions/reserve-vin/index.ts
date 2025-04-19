@@ -1,22 +1,17 @@
 /**
  * Edge function for VIN reservation
- * 
- * This function handles:
- * - Creating new VIN reservations
- * - Checking reservation status
- * - Updating existing reservations
- * - Handling expiration logic
+ * Updated: 2025-04-19 - Switched to local utils imports
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { 
-  corsHeaders,
-  handleCorsOptions,
-  logOperation,
-  formatSuccessResponse,
+  corsHeaders, 
+  handleCorsOptions, 
+  logOperation, 
+  formatSuccessResponse, 
   formatErrorResponse 
-} from "./utils.ts";
+} from "./utils/index.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";

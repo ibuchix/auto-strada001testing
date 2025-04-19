@@ -1,122 +1,35 @@
-
 /**
  * VIN Validation Edge Function
- * Updated: 2025-04-18 - Using absolute URLs for all imports to improve deployment reliability
- * Updated: 2025-04-18 - Replaced external MD5 import with Web Crypto API
- * Updated: 2025-04-18 - Enhanced logging and API response handling
+ * Updated: 2025-04-19 - Switched to local utils imports
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "https://deno.land/x/cors@v1.2.2/mod.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { 
+  corsHeaders, 
+  formatResponse, 
+  formatErrorResponse, 
+  formatServerErrorResponse,
+  ValidationError
+} from "./utils/index.ts";
+import { isValidVin, isValidMileage } from "./utils/validation.ts";
+import { logOperation } from "./utils/logging.ts";
 
 // Error types
-export class ValidationError extends Error {
+export class ApiError extends Error {
   code: string;
   status: number;
   
   constructor(message: string, code = 'VALIDATION_ERROR', status = 400) {
     super(message);
-    this.name = 'ValidationError';
+    this.name = 'ApiError';
     this.code = code;
     this.status = status;
   }
 }
 
-// Response formatting
-const formatSuccessResponse = (data: any) => {
-  return new Response(
-    JSON.stringify({
-      success: true,
-      data
-    }),
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      }
-    }
-  );
-};
-
-const formatErrorResponse = (error: string, status = 400, code = 'ERROR') => {
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error,
-      code
-    }),
-    {
-      status,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      }
-    }
-  );
-};
-
-const formatServerErrorResponse = (error: any, status = 500, code = 'SERVER_ERROR') => {
-  const message = error instanceof Error ? error.message : String(error);
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error: `Server error: ${message}`,
-      code
-    }),
-    {
-      status,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      }
-    }
-  );
-};
-
-// Validation helpers
-const isValidVin = (vin: string): boolean => {
-  if (!vin || typeof vin !== 'string') return false;
-  return /^[A-HJ-NPR-Z0-9]{17}$/i.test(vin);
-};
-
-const isValidMileage = (mileage: any): boolean => {
-  if (mileage === undefined || mileage === null) return false;
-  const mileageNumber = Number(mileage);
-  return !isNaN(mileageNumber) && mileageNumber >= 0 && mileageNumber <= 1000000;
-};
-
-// Logging utilities
-type LogLevel = 'info' | 'warn' | 'error' | 'debug';
-
-const logOperation = (
-  operation: string, 
-  details: Record<string, any>,
-  level: LogLevel = 'info'
-): void => {
-  const logEntry = {
-    timestamp: new Date().toISOString(),
-    operation,
-    level,
-    ...details
-  };
-  
-  switch (level) {
-    case 'error':
-      console.error(JSON.stringify(logEntry));
-      break;
-    case 'warn':
-      console.warn(JSON.stringify(logEntry));
-      break;
-    case 'debug':
-      console.debug(JSON.stringify(logEntry));
-      break;
-    default:
-      console.log(JSON.stringify(logEntry));
-  }
-};
-
 // Create Supabase client
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
 const createSupabaseClient = () => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';

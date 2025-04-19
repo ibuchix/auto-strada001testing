@@ -1,14 +1,13 @@
-
 /**
- * Notification edge function for manual valuation submissions
- * Updated: 2025-04-19 - Restructured to use modular architecture
+ * Edge function for manual valuation submissions
+ * Updated: 2025-04-19 - Switched to local utils imports
  */
 
-import { corsHeaders, formatSuccessResponse, formatErrorResponse } from './utils.ts';
+import { corsHeaders, formatSuccessResponse, formatErrorResponse } from './utils/index.ts';
 import { NotificationService } from './services.ts';
 import { ValuationRequest } from './types.ts';
 import { validateRequest } from './validator.ts';
-import { logOperation, logError } from './utils.ts';
+import { logOperation, logError } from './utils/index.ts';
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
