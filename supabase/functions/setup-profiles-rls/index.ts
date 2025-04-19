@@ -1,21 +1,35 @@
 
 /**
  * Edge function to setup RLS policies for profiles table
- * Updated: 2025-04-19 - Switched to local utils imports
+ * Updated: 2025-04-19 - Restructured with improved error handling and utility organization
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { RLSService } from './services.ts';
-import { corsHeaders, formatResponse, handleError } from './utils/index.ts';
+import { 
+  corsHeaders, 
+  handleOptions, 
+  formatResponse, 
+  formatErrorResponse,
+  logOperation,
+  logError,
+  validateEnvironment
+} from './utils/index.ts';
 import type { ProfilesRLSResult } from './types.ts';
 
 serve(async (req) => {
+  const requestId = crypto.randomUUID();
+  logOperation('setup_profiles_rls_start', { requestId });
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return handleOptions();
   }
 
   try {
+    // Validate required environment variables
+    validateEnvironment();
+    
     const rlsService = new RLSService();
     const executedSql: string[] = [];
     
@@ -33,6 +47,7 @@ serve(async (req) => {
       }
       
       executedSql.push('Enabled RLS on profiles table');
+      logOperation('enabled_rls', { table: 'profiles', requestId });
     }
 
     // Check existing policies
@@ -52,6 +67,11 @@ serve(async (req) => {
       }
       
       executedSql.push('Created policy: Users can view own profile');
+      logOperation('created_policy', { 
+        policy: 'Users can view own profile', 
+        table: 'profiles',
+        requestId 
+      });
     }
 
     // Add update policy if needed
@@ -68,6 +88,11 @@ serve(async (req) => {
       }
       
       executedSql.push('Created policy: Users can update own profile');
+      logOperation('created_policy', { 
+        policy: 'Users can update own profile', 
+        table: 'profiles',
+        requestId 
+      });
     }
 
     const result: ProfilesRLSResult = {
@@ -76,9 +101,15 @@ serve(async (req) => {
       executed: executedSql
     };
 
+    logOperation('setup_profiles_rls_complete', { 
+      success: true, 
+      policiesCreated: executedSql.length,
+      requestId
+    });
+
     return formatResponse(result);
   } catch (error) {
-    return handleError(error);
+    logError('setup_profiles_rls', error as Error, { requestId });
+    return formatErrorResponse(error as Error);
   }
 });
-
