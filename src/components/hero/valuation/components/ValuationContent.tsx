@@ -1,10 +1,4 @@
 
-/**
- * Changes made:
- * - 2025-04-19: Added proper Dialog imports
- * - 2025-04-19: Fixed TypeScript interface compatibility
- */
-
 import { Button } from "@/components/ui/button";
 import { 
   DialogContent, 
@@ -12,7 +6,22 @@ import {
   DialogTitle 
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/utils/formatters";
-import { ValuationContentProps } from "../types/ValuationContentProps";
+import { debugUiRendering } from "@/utils/debugging/enhanced_vin_debugging";
+
+interface ValuationContentProps {
+  make: string;
+  model: string;
+  year: number;
+  vin: string;
+  transmission: 'manual' | 'automatic';
+  mileage: number;
+  reservePrice: number;
+  averagePrice: number;
+  hasValuation: boolean;
+  isLoggedIn: boolean;
+  onClose: () => void;
+  onContinue: () => void;
+}
 
 export const ValuationContent = ({
   make,
@@ -28,27 +37,31 @@ export const ValuationContent = ({
   onClose,
   onContinue,
 }: ValuationContentProps) => {
-  // Log props for debugging
-  console.log("ValuationContent props:", {
-    make, model, year, transmission, 
-    mileage, reservePrice, averagePrice, 
-    hasValuation,
-    timestamp: new Date().toISOString()
-  });
-  
   // Format mileage with "km" suffix
   const formattedMileage = `${mileage.toLocaleString()} km`;
   
-  // Format prices with proper currency - handle 0 values properly
+  // Format prices with proper currency
   const formattedReservePrice = formatCurrency(reservePrice);
   const formattedAveragePrice = formatCurrency(averagePrice);
   
-  // Determine if we should show the continue button
-  // Show it if we have basic vehicle details, even if prices are 0
-  const shouldShowContinueButton = hasValuation || (make && model && year > 0);
+  // CRITICAL FIX: Determine if we should show the continue button
+  // Show it if we have basic vehicle details, regardless of pricing data
+  const shouldShowContinueButton = !!(make && model && year > 0);
   
   // Determine if we have valid pricing data to display
   const hasPricingData = reservePrice > 0 || averagePrice > 0;
+  
+  // Log the rendering decisions
+  debugUiRendering('ValuationContent', {
+    make, model, year, transmission, 
+    mileage, reservePrice, averagePrice, 
+    hasValuation
+  }, {
+    shouldShowContinueButton,
+    hasPricingData,
+    formattedReservePrice,
+    formattedAveragePrice
+  });
   
   return (
     <DialogContent className="sm:max-w-md">
@@ -134,3 +147,4 @@ export const ValuationContent = ({
     </DialogContent>
   );
 };
+
