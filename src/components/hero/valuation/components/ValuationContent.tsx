@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/utils/formatters";
 import { debugUiRendering } from "@/utils/debugging/enhanced_vin_debugging";
+import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
 
 interface ValuationContentProps {
   make: string;
@@ -40,27 +41,15 @@ export const ValuationContent = ({
   // Format mileage with "km" suffix
   const formattedMileage = `${mileage.toLocaleString()} km`;
   
-  // Format prices with proper currency
-  const formattedReservePrice = formatCurrency(reservePrice);
-  const formattedAveragePrice = formatCurrency(averagePrice);
-  
-  // CRITICAL FIX: Determine if we should show the continue button
-  // Show it if we have basic vehicle details, regardless of pricing data
-  const shouldShowContinueButton = !!(make && model && year > 0);
-  
-  // Determine if we have valid pricing data to display
-  const hasPricingData = reservePrice > 0 || averagePrice > 0;
-  
-  // Log the rendering decisions
+  // Log debugging information for price display
   debugUiRendering('ValuationContent', {
-    make, model, year, transmission, 
-    mileage, reservePrice, averagePrice, 
+    make, model, year,
+    reservePrice, averagePrice,
     hasValuation
   }, {
-    shouldShowContinueButton,
-    hasPricingData,
-    formattedReservePrice,
-    formattedAveragePrice
+    formattedReservePrice: formatCurrency(reservePrice),
+    formattedAveragePrice: formatCurrency(averagePrice),
+    shouldShowPrices: hasValuation && (reservePrice > 0 || averagePrice > 0)
   });
   
   return (
@@ -99,20 +88,12 @@ export const ValuationContent = ({
           </div>
         </div>
         
-        {hasPricingData && (
-          <div className="bg-blue-50 p-4 rounded-md mb-6">
-            <h4 className="font-semibold text-blue-800 text-center mb-2">Valuation Details</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-blue-700 text-sm">Reserve Price:</p>
-                <p className="font-bold text-blue-900 text-lg">{formattedReservePrice}</p>
-              </div>
-              <div>
-                <p className="text-blue-700 text-sm">Market Value:</p>
-                <p className="font-bold text-blue-900 text-lg">{formattedAveragePrice}</p>
-              </div>
-            </div>
-          </div>
+        {hasValuation && (
+          <ValuationPriceDisplay 
+            reservePrice={reservePrice}
+            showAveragePrice={true}
+            averagePrice={averagePrice}
+          />
         )}
         
         <div className="bg-blue-50 p-4 rounded-md mb-6">
@@ -138,11 +119,9 @@ export const ValuationContent = ({
         <Button variant="outline" onClick={onClose} className="w-full">
           Close
         </Button>
-        {shouldShowContinueButton && (
-          <Button onClick={onContinue} className="w-full bg-DC143C hover:bg-opacity-90">
-            List My Car
-          </Button>
-        )}
+        <Button onClick={onContinue} className="w-full bg-DC143C hover:bg-opacity-90">
+          List My Car
+        </Button>
       </div>
     </DialogContent>
   );
