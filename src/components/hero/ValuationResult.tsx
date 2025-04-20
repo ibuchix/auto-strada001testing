@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-04-19: Fixed import paths for useValuationContinue
@@ -70,14 +69,6 @@ export const ValuationResult = ({
   }, []);
 
   if (!valuationResult || isValidatingData) {
-    return (
-      <div className="p-6 text-center">
-        <LoadingIndicator message="Processing valuation..." />
-      </div>
-    );
-  }
-
-  if (isValidatingData) {
     return (
       <div className="p-6 text-center">
         <LoadingIndicator message="Processing valuation..." />
