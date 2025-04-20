@@ -29,6 +29,43 @@ interface ApiCallMetrics {
 const apiCallMetrics = new Map<string, ApiCallMetrics>();
 
 /**
+ * Debug the UI rendering decisions
+ * @param component The component name
+ * @param props The component props
+ * @param decisions The rendering decisions
+ */
+export function debugUiRendering(
+  component: string,
+  props: Record<string, any>,
+  decisions: Record<string, any> = {}
+): void {
+  console.log(`[UI_DEBUG][${component.toUpperCase()}] ${new Date().toISOString()}`);
+  console.log('Component props:', props);
+  console.log('Rendering decisions:', decisions);
+}
+
+/**
+ * Debug the data flow in the valuation process
+ */
+export function debugValuationCalculation(
+  stage: string,
+  basePrice: number,
+  reservePrice: number,
+  valuation: number,
+  averagePrice: number,
+  metadata: Record<string, any> = {}
+): void {
+  console.log(`[DEBUG][VALUATION_CALC][${stage}]`, {
+    basePrice,
+    reservePrice,
+    valuation,
+    averagePrice,
+    ...metadata,
+    timestamp: new Date().toISOString()
+  });
+}
+
+/**
  * Detailed API response logger for debugging VIN check issues
  */
 export function debugVinApiResponse(stage: string, data: any): void {
@@ -101,84 +138,6 @@ export function debugVinApiResponse(stage: string, data: any): void {
 }
 
 /**
- * Debug valuation calculation process
- */
-export function debugValuationCalculation(
-  basePrice: number,
-  finalPrice: number,
-  calculation: { [key: string]: any }
-): void {
-  console.group('[VIN_DEBUG][VALUATION_CALCULATION]');
-  try {
-    console.log('Calculation inputs:', {
-      basePrice,
-      timestamp: new Date().toISOString()
-    });
-    
-    console.log('Calculation details:', calculation);
-    
-    console.log('Final result:', {
-      finalPrice,
-      difference: finalPrice - basePrice,
-      percentageChange: ((finalPrice - basePrice) / basePrice) * 100
-    });
-  } catch (error) {
-    console.error('Error in debugValuationCalculation:', error);
-  } finally {
-    console.groupEnd();
-  }
-}
-
-/**
- * Debug UI rendering with valuation data
- */
-export function debugUiRendering(componentName: string, props: any): void {
-  console.group(`[VIN_DEBUG][UI_RENDER][${componentName}]`);
-  try {
-    console.log('Render timestamp:', new Date().toISOString());
-    console.log('Component props:', {
-      hasData: !!props,
-      propsKeys: Object.keys(props),
-      valuationPresent: !!props.valuation || !!props.pricing
-    });
-    
-    if (props.error) {
-      console.warn('Error present in props:', props.error);
-    }
-  } catch (error) {
-    console.error('Error in debugUiRendering:', error);
-  } finally {
-    console.groupEnd();
-  }
-}
-
-/**
- * Track API call timing and results
- */
-export function trackVinApiCall(requestId: string, stage: string): void {
-  if (stage === 'start') {
-    apiCallMetrics.set(requestId, {
-      requestId,
-      startTime: performance.now(),
-      stage: 'started'
-    });
-  } else if (stage === 'end') {
-    const metrics = apiCallMetrics.get(requestId);
-    if (metrics) {
-      metrics.endTime = performance.now();
-      metrics.stage = 'completed';
-      
-      console.log('[VIN_DEBUG][API_METRICS]', {
-        requestId,
-        duration: metrics.endTime - metrics.startTime,
-        success: metrics.success,
-        errorType: metrics.errorType
-      });
-    }
-  }
-}
-
-/**
  * Calculate data quality score
  */
 function calculateDataQualityScore(data: any): number {
@@ -214,28 +173,3 @@ function calculateDataQualityScore(data: any): number {
   return totalChecks > 0 ? Math.max(0, score / totalChecks) : 0;
 }
 
-/**
- * Debug API request parameters
- */
-export function debugApiRequest(vin: string, params: any): void {
-  console.group('[VIN_DEBUG][API_REQUEST]');
-  try {
-    console.log('Request parameters:', {
-      vin,
-      timestamp: new Date().toISOString(),
-      params
-    });
-    
-    // Validate VIN format
-    const vinValid = /^[A-HJ-NPR-Z0-9]{17}$/i.test(vin);
-    console.log('VIN validation:', {
-      isValid: vinValid,
-      length: vin.length,
-      format: vinValid ? 'valid' : 'invalid'
-    });
-  } catch (error) {
-    console.error('Error in debugApiRequest:', error);
-  } finally {
-    console.groupEnd();
-  }
-}
