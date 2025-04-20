@@ -3,6 +3,7 @@
  * ValuationPriceDisplay Component
  * - Updated 2025-04-20: Enhanced price validation and display
  * - Updated 2025-04-20: Added fallback for missing price data
+ * - Updated 2025-04-20: Fixed handling of edge cases for better reliability
  */
 
 import { formatCurrency } from "@/utils/formatters";
@@ -18,14 +19,21 @@ export const ValuationPriceDisplay = ({
   showAveragePrice = false,
   averagePrice
 }: ValuationPriceDisplayProps) => {
-  const hasValidReservePrice = reservePrice > 0;
-  const hasValidAveragePrice = averagePrice && averagePrice > 0;
-  const hasNoValidPrices = !hasValidReservePrice && (!averagePrice || !hasValidAveragePrice);
+  // Ensure we have valid numbers
+  const validReservePrice = typeof reservePrice === 'number' && !isNaN(reservePrice) ? reservePrice : 0;
+  const validAveragePrice = typeof averagePrice === 'number' && !isNaN(averagePrice) ? averagePrice : 0;
+  
+  // Determine if we have valid prices to display
+  const hasValidReservePrice = validReservePrice > 0;
+  const hasValidAveragePrice = validAveragePrice > 0;
+  const hasNoValidPrices = !hasValidReservePrice && !hasValidAveragePrice;
 
   // Log price display for debugging
   console.log('ValuationPriceDisplay values:', {
-    reservePrice,
-    averagePrice,
+    inputReservePrice: reservePrice,
+    inputAveragePrice: averagePrice,
+    validReservePrice,
+    validAveragePrice,
     hasValidReservePrice,
     hasValidAveragePrice,
     hasNoValidPrices,
@@ -38,14 +46,14 @@ export const ValuationPriceDisplay = ({
         {hasValidReservePrice ? (
           <div>
             <h3 className="text-sm font-medium text-gray-500">Reserve Price</h3>
-            <p className="text-2xl font-bold text-DC143C">{formatCurrency(reservePrice)}</p>
+            <p className="text-2xl font-bold text-DC143C">{formatCurrency(validReservePrice)}</p>
           </div>
         ) : null}
         
         {showAveragePrice && hasValidAveragePrice ? (
           <div>
             <h3 className="text-sm font-medium text-gray-500">Market Value</h3>
-            <p className="text-xl font-semibold text-gray-700">{formatCurrency(averagePrice)}</p>
+            <p className="text-xl font-semibold text-gray-700">{formatCurrency(validAveragePrice)}</p>
           </div>
         ) : null}
         
