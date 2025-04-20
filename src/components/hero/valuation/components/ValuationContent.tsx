@@ -51,16 +51,19 @@ export const ValuationContent = ({
   // Determine if we have valid pricing data to display
   const hasPricingData = reservePrice > 0 || averagePrice > 0;
   
-  // Log the rendering decisions
+  // Log the rendering decisions - combine objects to match function signature
   debugUiRendering('ValuationContent', {
-    make, model, year, transmission, 
-    mileage, reservePrice, averagePrice, 
-    hasValuation
-  }, {
-    shouldShowContinueButton,
-    hasPricingData,
-    formattedReservePrice,
-    formattedAveragePrice
+    ...{
+      make, model, year, transmission, 
+      mileage, reservePrice, averagePrice, 
+      hasValuation
+    },
+    ...{
+      shouldShowContinueButton,
+      hasPricingData,
+      formattedReservePrice,
+      formattedAveragePrice
+    }
   });
   
   return (
