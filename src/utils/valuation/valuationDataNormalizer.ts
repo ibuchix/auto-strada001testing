@@ -1,10 +1,14 @@
+
 /**
  * Changes made:
- * - 2025-04-19: Added sanitizePartialData function to handle data sanitization
- * - Improved type safety for partial data sanitization
+ * - 2025-04-20: Enhanced price data extraction and normalization
+ * - Added detailed debugging and validation
+ * - Improved fallback value handling
  */
 
 import { ValuationData, TransmissionType } from "./valuationDataTypes";
+import { calculateReservePrice } from "./valuationCalculator";
+import { debugVinApiResponse, debugValuationCalculation } from "../debugging/enhanced_vin_debugging";
 
 export function sanitizePartialData(data: Partial<ValuationData>): Partial<ValuationData> {
   // Basic sanitization and type coercion for partial valuation data
@@ -19,10 +23,13 @@ export function sanitizePartialData(data: Partial<ValuationData>): Partial<Valua
 }
 
 export function normalizeValuationData(data: any): ValuationData {
+  // Log incoming data for debugging
+  debugVinApiResponse('raw_input', data);
+  
   // Extract pricing information first
   const priceInfo = extractPriceInfo(data);
   
-  return {
+  const normalized: ValuationData = {
     make: data?.make || '',
     model: data?.model || '',
     year: data?.year || data?.productionYear || 0,
@@ -38,6 +45,11 @@ export function normalizeValuationData(data: any): ValuationData {
     noData: data?.noData,
     isExisting: data?.isExisting
   };
+
+  // Log normalized data for debugging
+  debugVinApiResponse('normalized_output', normalized);
+  
+  return normalized;
 }
 
 function extractPriceInfo(data: any): {
@@ -49,8 +61,6 @@ function extractPriceInfo(data: any): {
   // Log incoming data structure
   console.log('Extracting price info from data:', {
     hasAutoIsoFields: !!(data.price_min || data.price_med),
-    price_min: data.price_min,
-    price_med: data.price_med,
     directPrices: {
       basePrice: data.basePrice,
       valuation: data.valuation,
@@ -64,7 +74,7 @@ function extractPriceInfo(data: any): {
   let valuation = 0;
   let averagePrice = 0;
 
-  // PRIORITY 1: Auto ISO API Format (Our primary source)
+  // PRIORITY 1: Auto ISO API Format (Primary source)
   if (data.price_min !== undefined && data.price_med !== undefined) {
     const min = Number(data.price_min);
     const med = Number(data.price_med);
@@ -135,41 +145,4 @@ function extractPriceInfo(data: any): {
   });
 
   return { basePrice: 0, reservePrice: 0, valuation: 0, averagePrice: 0 };
-}
-
-function calculateReservePrice(basePrice: number): number {
-  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
-    console.error('Invalid base price for reserve calculation:', basePrice);
-    return 0;
-  }
-  
-  // Determine percentage based on price tier
-  let percentage = 0;
-  
-  if (basePrice <= 15000) percentage = 0.65;
-  else if (basePrice <= 20000) percentage = 0.46;
-  else if (basePrice <= 30000) percentage = 0.37;
-  else if (basePrice <= 50000) percentage = 0.27;
-  else if (basePrice <= 60000) percentage = 0.27;
-  else if (basePrice <= 70000) percentage = 0.22;
-  else if (basePrice <= 80000) percentage = 0.23;
-  else if (basePrice <= 100000) percentage = 0.24;
-  else if (basePrice <= 130000) percentage = 0.20;
-  else if (basePrice <= 160000) percentage = 0.185;
-  else if (basePrice <= 200000) percentage = 0.22;
-  else if (basePrice <= 250000) percentage = 0.17;
-  else if (basePrice <= 300000) percentage = 0.18;
-  else if (basePrice <= 400000) percentage = 0.18;
-  else if (basePrice <= 500000) percentage = 0.16;
-  else percentage = 0.145;
-  
-  const reservePrice = Math.round(basePrice - (basePrice * percentage));
-  
-  console.log('Reserve price calculation:', {
-    basePrice,
-    percentage: (percentage * 100).toFixed(1) + '%',
-    reservePrice
-  });
-  
-  return reservePrice;
 }
