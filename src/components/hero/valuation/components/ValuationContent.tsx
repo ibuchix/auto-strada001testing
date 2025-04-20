@@ -41,16 +41,24 @@ export const ValuationContent = ({
   // Format mileage with "km" suffix
   const formattedMileage = `${mileage.toLocaleString()} km`;
   
-  // Log debugging information for price display
-  debugUiRendering('ValuationContent', {
-    make, model, year,
+  // Enhanced logging to debug display issues
+  console.log('ValuationContent rendering with:', {
+    make, model, year, vin,
+    mileage, transmission,
     reservePrice, averagePrice,
-    hasValuation
-  }, {
-    formattedReservePrice: formatCurrency(reservePrice),
-    formattedAveragePrice: formatCurrency(averagePrice),
-    shouldShowPrices: hasValuation && (reservePrice > 0 || averagePrice > 0)
+    hasValidReservePrice: reservePrice > 0,
+    hasValidAveragePrice: averagePrice > 0,
+    hasValuation,
+    timestamp: new Date().toISOString()
   });
+  
+  // Determine if we can show prices - at least one price must be valid OR we have vehicle info
+  const shouldShowPrices = hasValuation && (
+    // Either we have valid prices
+    (reservePrice > 0 || averagePrice > 0) ||
+    // Or we have valid vehicle info but no prices (will show fallback message)
+    (make && model && year > 0)
+  );
   
   return (
     <DialogContent className="sm:max-w-md">
@@ -88,7 +96,7 @@ export const ValuationContent = ({
           </div>
         </div>
         
-        {hasValuation && (
+        {shouldShowPrices && (
           <ValuationPriceDisplay 
             reservePrice={reservePrice}
             showAveragePrice={true}
