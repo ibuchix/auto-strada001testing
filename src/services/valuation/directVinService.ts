@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-04-20: Created direct VIN validation service to bypass edge functions
@@ -8,7 +7,7 @@
 import { calculateReservePrice } from '@/utils/valuation/valuationCalculator';
 import { ValuationData } from '@/utils/valuation/valuationDataTypes';
 import { debugVinApiResponse } from '@/utils/debugging/enhanced_vin_debugging';
-import md5 from 'js-md5';
+import { createHash } from 'crypto';
 
 interface ApiResponse {
   make?: string;
@@ -21,7 +20,6 @@ interface ApiResponse {
 
 /**
  * Enhanced VIN validation service with direct API integration
- * This bypasses potential issues with the edge function
  */
 export async function validateVinDirectly(
   vin: string,
@@ -30,17 +28,14 @@ export async function validateVinDirectly(
   console.log('Starting direct VIN validation for:', vin);
   
   try {
-    // First try the primary API (Auto ISO API)
     const result = await fetchFromAutoIsoApi(vin, mileage);
     
-    // If we got valid data, return it
     if (result && result.make && result.model) {
       console.log('Successfully retrieved data from Auto ISO API');
       debugVinApiResponse('auto_iso_success', result);
       return transformAutoIsoResponse(result, vin, mileage);
     }
     
-    // If primary API failed, try the fallback API
     console.log('Primary API returned incomplete data, trying fallback API');
     debugVinApiResponse('auto_iso_failed', result);
     
@@ -60,10 +55,11 @@ async function fetchFromAutoIsoApi(vin: string, mileage: number): Promise<ApiRes
   const API_ID = 'AUTOSTRA';
   const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
   
-  // Calculate checksum
-  const checksum = md5(API_ID + API_SECRET + vin);
+  // Calculate checksum using native crypto
+  const checksum = createHash('md5')
+    .update(API_ID + API_SECRET + vin)
+    .digest('hex');
   
-  // Construct API URL
   const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
   
   try {
@@ -75,9 +71,7 @@ async function fetchFromAutoIsoApi(vin: string, mileage: number): Promise<ApiRes
     }
     
     const data = await response.json();
-    
     debugVinApiResponse('auto_iso_raw_response', data);
-    
     return data;
   } catch (error) {
     console.error('Auto ISO API error:', error);

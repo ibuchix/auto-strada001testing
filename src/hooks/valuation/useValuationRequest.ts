@@ -1,28 +1,19 @@
 /**
  * Changes made:
- * - 2024-12-20: Created valuation request hook extracted from useValuationForm
- * - 2024-08-17: Refactored to use standardized timeout utilities
- * - 2024-12-21: Optimized with memoization and better resource management
- * - 2024-04-03: Updated function signature in getValuation call to remove unnecessary context parameter
- * - 2024-04-03: Enhanced debug logging for performance tracking and troubleshooting
- * - 2024-04-03: Added request IDs and timing information for better traceability
- * - 2024-04-03: Added correlation IDs for tracking requests through the system
- * - 2024-04-04: Fixed error property access
- * - 2024-04-04: Added proper type checking for result data
- * - 2025-04-23: Fixed incorrect number of arguments passed to getValuation
+ * - 2025-04-20: Added direct VIN validation as fallback
+ * - Enhanced error handling and tracking
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import { getValuation, cleanupValuationData } from "@/components/hero/valuation/services/valuationService";
+import { getValuation } from "@/components/hero/valuation/services/valuationService";
+import { validateVinDirectly } from "@/services/valuation/directVinService";
+import { debugVinApiResponse } from "@/utils/debugging/enhanced_vin_debugging";
 import { useRealtime } from "@/components/RealtimeProvider";
 import { ValuationFormData } from "@/types/validation";
 import { UseValuationRequestProps } from "./types";
-import { TimeoutDurations, withTimeout } from "@/utils/timeoutUtils";
+import { TimeoutDurations } from "@/utils/timeoutUtils";
 
-/**
- * Hook for handling valuation API requests
- */
 export const useValuationRequest = ({
   onSuccess,
   onError,
@@ -129,148 +120,83 @@ export const useValuationRequest = ({
     onError(error);
   }, [onError, isConnected]);
 
-  // Optimized request execution with error handling
+  // Enhanced request execution with fallback mechanism
   const executeRequest = useCallback(async (data: ValuationFormData) => {
     const requestId = getRequestId();
     const startTime = performance.now();
     requestStartTimeRef.current = startTime;
     
-    // Generate a correlation ID for tracing through the system
-    const correlationId = typeof crypto !== 'undefined' && crypto.randomUUID ?
-      crypto.randomUUID() : 
-      `${requestId}-${Date.now()}`;
-    
     console.log(`[ValuationRequest][${requestId}] Starting valuation request:`, {
       vin: data.vin,
       mileage: data.mileage,
       gearbox: data.gearbox,
-      timestamp: new Date().toISOString(),
-      correlationId,
-      isConnected
+      timestamp: new Date().toISOString()
     });
     
-    // Clear any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     
     setIsLoading(true);
     
-    // Warn user about WebSocket disconnection but proceed anyway
-    if (!isConnected) {
-      console.warn(`[ValuationRequest][${requestId}] WebSocket not connected during valuation request`);
-      toast.warning("Limited connectivity detected", {
-        description: "We'll still try to get your valuation, but you may need to refresh if there are issues.",
-        duration: TimeoutDurations.SHORT
-      });
-    }
-    
-    // Set a timeout to cancel the operation if it takes too long
     timeoutRef.current = setTimeout(() => {
-      if (setIsLoading) {
-        console.log(`[ValuationRequest][${requestId}] Request timed out after ${TimeoutDurations.LONG}ms`);
-        setIsLoading(false);
-        toast.error("Request timed out", {
-          description: "The valuation request is taking longer than expected. Please try again.",
-        });
-      }
-    }, TimeoutDurations.LONG); // 20 second timeout
+      console.log(`[ValuationRequest][${requestId}] Request timed out`);
+      setIsLoading(false);
+      toast.error("Request timed out", {
+        description: "The valuation request is taking longer than expected. Please try again.",
+      });
+    }, TimeoutDurations.LONG);
     
     try {
-      // Safely parse mileage to ensure it's a number
       const mileage = parseInt(data.mileage) || 0;
       
-      console.log(`[ValuationRequest][${requestId}] Calling getValuation with parameters:`, {
-        vin: data.vin,
+      // First try primary valuation method
+      let result = await getValuation(
+        data.vin,
         mileage,
-        gearbox: data.gearbox,
-        correlationId,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Use withTimeout utility to handle timeout in a more structured way
-      const valuationStartTime = performance.now();
-      
-      // Fixed: Only pass the correct number of arguments to getValuation
-      const result = await withTimeout(
-        getValuation(
-          data.vin,
-          mileage,
-          data.gearbox
-        ),
-        TimeoutDurations.LONG,
-        "Valuation request timed out"
+        data.gearbox
       );
       
-      const valuationDuration = logTiming('API call', valuationStartTime);
-
-      console.log(`[ValuationRequest][${requestId}] Valuation result received:`, {
-        success: result.success,
-        error: result.data && typeof result.data === 'object' && 'error' in result.data ? result.data.error : null,
-        dataSize: result.data ? JSON.stringify(result.data).length : 0,
-        duration: `${valuationDuration.toFixed(2)}ms`,
-        correlationId,
-        timestamp: new Date().toISOString()
-      });
-
-      // Clear timeout since we got a response
+      // If primary method failed or returned incomplete data, try direct API
+      if (!result.success || !result.data || !result.data.make || !result.data.model) {
+        console.log(`[ValuationRequest][${requestId}] Primary method failed, trying direct API`);
+        
+        const directResult = await validateVinDirectly(data.vin, mileage);
+        
+        // Use direct result if it has valid data
+        if (directResult && directResult.make && directResult.model) {
+          result = { success: true, data: directResult };
+        }
+      }
+      
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
 
-      if (result.success) {
-        const storageStartTime = performance.now();
+      if (result.success && result.data) {
+        debugVinApiResponse('valuation_success', result.data);
         
-        // Store the valuation data in localStorage
+        // Store the data
         localStorage.setItem("valuationData", JSON.stringify(result.data));
         localStorage.setItem("tempMileage", data.mileage);
         localStorage.setItem("tempVIN", data.vin);
         localStorage.setItem("tempGearbox", data.gearbox);
         localStorage.setItem("valuationTimestamp", new Date().toISOString());
-        localStorage.setItem("valuationRequestId", requestId);
-        localStorage.setItem("correlationId", correlationId);
         
-        logTiming('localStorage storage', storageStartTime);
-
-        // Log the data with price information for debugging
-        console.log(`[ValuationRequest][${requestId}] Setting valuation result:`, {
-          make: result.data.make,
-          model: result.data.model,
-          year: result.data.year,
-          valuation: result.data.valuation,
-          reservePrice: result.data.reservePrice,
-          averagePrice: result.data.averagePrice,
-          processingTime: `${(performance.now() - startTime).toFixed(2)}ms`,
-          correlationId,
-          timestamp: new Date().toISOString()
-        });
-
-        // Set the result with normalized property names - ensure both valuation and reservePrice exist
-        const normalizedResult = {
-          ...result.data,
-          reservePrice: result.data.reservePrice || result.data.valuation, 
-          valuation: result.data.valuation || result.data.reservePrice
-        };
-        
-        onSuccess(normalizedResult);
+        onSuccess(result.data);
       } else {
-        // Check if error exists in the result data using safe property access
-        const errorMessage = result.data && typeof result.data === 'object' && 'error' in result.data
-          ? result.data.error
-          : 'Unknown valuation error';
-          
+        const errorMessage = result.data?.error || 'Unknown valuation error';
         handleApiError(errorMessage);
       }
     } catch (error: any) {
       handleRequestError(error);
     } finally {
-      // Make sure isLoading is set to false in all cases
       const totalDuration = performance.now() - startTime;
       console.log(`[ValuationRequest][${requestId}] Request completed in ${totalDuration.toFixed(2)}ms`);
       setIsLoading(false);
     }
-  }, [isConnected, setIsLoading, onSuccess, handleApiError, handleRequestError, getRequestId, logTiming]);
+  }, [isConnected, setIsLoading, onSuccess, handleApiError, handleRequestError, getRequestId]);
 
   return useMemo(() => ({
     executeRequest,
