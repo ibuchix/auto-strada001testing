@@ -1,9 +1,13 @@
+/**
+ * Valuation handler for seller operations
+ * Updated: 2025-04-21 - Fixed import paths to use local utils instead of shared
+ */
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { ValuationRequest } from '../schema-validation.ts';
 import { checkExistingEntities, validateVinInput } from '../services/validation-service.ts';
 import { fetchVehicleValuation } from '../valuation-service.ts';
-import { logOperation, createPerformanceTracker } from '../../_shared/logging.ts';
+import { logOperation, createPerformanceTracker } from '../utils/logging.ts';
 
 export async function handleValuationRequest(
   supabase: SupabaseClient,
