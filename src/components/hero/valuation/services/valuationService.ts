@@ -5,9 +5,11 @@
  * Updated: 2025-04-28 - Added cleanupValuationData function
  * Updated: 2025-04-28 - Enhanced logging for API response debugging
  * Updated: 2025-04-29 - ADDED HIGHLY VISIBLE CONSOLE LOGGING FOR DEBUGGING
+ * Updated: 2025-04-30 - Improved API response processing and price extraction
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { extractPriceData } from "@/utils/valuation/priceExtractor";
 
 interface ValuationOptions {
   debug?: boolean;
@@ -110,36 +112,39 @@ export async function getValuation(
       };
     }
 
-    // Log specific price data fields for debugging
-    console.log('%c💰 PRICE DATA CHECK:', 'background: #2196F3; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
-    console.table({
-      valuation: data.valuation,
-      basePrice: data.basePrice, 
-      reservePrice: data.reservePrice,
-      averagePrice: data.averagePrice,
-      price_min: data.price_min,
-      price_med: data.price_med,
-      apiSource: data.apiSource,
-      usingFallbackEstimation: data.usingFallbackEstimation
-    });
+    // Enhanced price data extraction
+    const priceData = extractPriceData(data);
+    
+    // Prepare enhanced response with extracted prices
+    const enhancedResponse = {
+      ...data,
+      // Make sure price fields are present 
+      reservePrice: priceData.reservePrice || data.reservePrice || 0,
+      valuation: priceData.valuation || data.valuation || 0,
+      basePrice: priceData.basePrice || data.basePrice || 0,
+      averagePrice: priceData.averagePrice || data.averagePrice || 0,
+      // Add estimation metadata
+      usingFallbackEstimation: data.usingFallbackEstimation || priceData.valuation !== data.valuation,
+      estimationMethod: data.estimationMethod || (priceData.valuation !== data.valuation ? 'enhanced_price_extraction' : undefined)
+    };
     
     // Check for valid vehicle data
-    const hasValidVehicleData = data.make && data.model && data.year;
+    const hasValidVehicleData = enhancedResponse.make && enhancedResponse.model && enhancedResponse.year;
     if (!hasValidVehicleData) {
       console.warn('%c⚠️ MISSING VEHICLE DATA:', 'background: #FF9800; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
-        make: data.make || 'MISSING',
-        model: data.model || 'MISSING',
-        year: data.year || 'MISSING'
+        make: enhancedResponse.make || 'MISSING',
+        model: enhancedResponse.model || 'MISSING',
+        year: enhancedResponse.year || 'MISSING'
       });
     }
     
     // Check for valid price data
-    const hasValidPriceData = data.reservePrice > 0 || data.valuation > 0 || data.basePrice > 0;
+    const hasValidPriceData = enhancedResponse.reservePrice > 0 || enhancedResponse.valuation > 0 || enhancedResponse.basePrice > 0;
     if (!hasValidPriceData) {
       console.warn('%c⚠️ MISSING PRICE DATA:', 'background: #FF9800; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
-        reservePrice: data.reservePrice,
-        valuation: data.valuation,
-        basePrice: data.basePrice
+        reservePrice: enhancedResponse.reservePrice,
+        valuation: enhancedResponse.valuation,
+        basePrice: enhancedResponse.basePrice
       });
     }
 
@@ -160,10 +165,21 @@ export async function getValuation(
     }
 
     console.log('%c✅ VALUATION REQUEST COMPLETED SUCCESSFULLY', 'background: #4CAF50; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
+    console.log('%c📝 ENHANCED RESPONSE:', 'font-weight: bold; color: #4CAF50');
+    console.table({
+      make: enhancedResponse.make,
+      model: enhancedResponse.model,
+      year: enhancedResponse.year,
+      basePrice: enhancedResponse.basePrice,
+      reservePrice: enhancedResponse.reservePrice,
+      averagePrice: enhancedResponse.averagePrice,
+      valuation: enhancedResponse.valuation,
+      usingFallbackEstimation: enhancedResponse.usingFallbackEstimation
+    });
 
     return {
       success: true,
-      data
+      data: enhancedResponse
     };
   } catch (error) {
     console.error('%c❌ UNEXPECTED ERROR:', 'background: #FF5252; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', error);
