@@ -107,8 +107,8 @@ serve(async (req: Request) => {
     }
     
     // Get valuation data
-    const apiId = Deno.env.get("VALUATION_API_ID") || "AUTOSTRA";
-    const apiSecret = Deno.env.get("VALUATION_API_SECRET") || "A4FTFH54C3E37P2D34A16A7A4V41XKBF";
+    const apiId = Deno.env.get("VALUATION_API_ID") || "";
+    const apiSecret = Deno.env.get("VALUATION_API_SECRET") || "";
     
     if (!apiId || !apiSecret) {
       logOperation('missing_valuation_credentials', { requestId }, 'error');
@@ -209,7 +209,6 @@ serve(async (req: Request) => {
         rawSample: JSON.stringify(valuationData).substring(0, 200) + '...'
       });
       
-      // Process the valuation result
       // Extract essential data with fallbacks for missing properties
       const make = valuationData.make || valuationData.manufacturer || '';
       const model = valuationData.model || valuationData.modelName || '';
@@ -327,6 +326,7 @@ serve(async (req: Request) => {
       
       const reservePrice = basePrice - (basePrice * reservePercentage);
       
+      // Log received data for debugging
       logOperation('reserve_price_calculated', { 
         requestId,
         basePrice,
@@ -335,7 +335,7 @@ serve(async (req: Request) => {
         tiersUsed: true
       });
       
-      // Return the successful result
+      // Return the successful result with consistent structure
       return formatSuccessResponse({
         vin,
         vehicleExists,
@@ -343,18 +343,27 @@ serve(async (req: Request) => {
         model,
         year,
         transmission,
-        averagePrice: Math.round(basePrice),
+        averagePrice: Math.round(priceMed || basePrice),
+        basePrice: Math.round(basePrice),
         reservePrice: Math.round(reservePrice),
-        valuationData: {
-          make,
-          model,
-          year,
-          transmission,
-          priceMin,
-          priceMed,
-          calculatedBasePrice: basePrice,
-          calculatedReservePrice: reservePrice
-        }
+        // Include nested structure to match Auto ISO API format
+        functionResponse: {
+          userParams: {
+            make,
+            model,
+            year
+          },
+          valuation: {
+            calcValuation: {
+              price_min: priceMin,
+              price_med: priceMed
+            }
+          }
+        },
+        // Also include flat structure for backward compatibility
+        valuation: Math.round(basePrice),
+        price_min: Math.round(priceMin),
+        price_med: Math.round(priceMed)
       });
     } catch (apiError) {
       logOperation('valuation_api_exception', { 

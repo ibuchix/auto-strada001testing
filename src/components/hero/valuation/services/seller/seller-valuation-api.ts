@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-11-21: Extracted from seller-valuation.ts as part of refactoring
@@ -60,6 +59,31 @@ export async function fetchSellerValuationData(
     if (error) {
       console.error('Edge function error:', error);
       throw new Error(`API error: ${error.message}`);
+    }
+    
+    // Enhanced logging for debugging the response structure
+    console.log('Raw API response structure:', {
+      success: data?.success,
+      hasData: !!data?.data,
+      dataKeys: data?.data ? Object.keys(data.data) : [],
+      hasPrices: !!(data?.data?.reservePrice || data?.data?.basePrice),
+      hasNestedFunctionResponse: !!data?.data?.functionResponse,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Check response structure
+    if (!data) {
+      console.error('Empty response from API');
+      return {
+        error: new Error('Empty response from valuation API')
+      };
+    }
+    
+    if (!data.success) {
+      console.error('API returned failure:', data.error);
+      return {
+        error: new Error(data.error || 'Failed to validate VIN')
+      };
     }
     
     // Log the complete raw response for debugging
@@ -129,154 +153,97 @@ function normalizeValuationData(data: any, vinNumber: string): any {
   if (!data) return null;
   
   // Handle nested data structure - try multiple possible paths
-  const actualData = data.data || data.functionResponse?.data || data;
+  const actualData = data.data || data;
   
-  console.log('Normalizing valuation data from:', actualData);
-  console.log('Data structure before normalization:', {
-    topLevelKeys: Object.keys(actualData),
-    hasVehicleInfo: !!(actualData.make && actualData.model),
-    hasPriceData: !!(actualData.basePrice || actualData.price || actualData.valuation || 
-                    actualData.price_min || actualData.price_med || actualData.averagePrice)
-  });
+  console.log('Normalizing valuation data for VIN:', vinNumber);
+
+  // Extract functionResponse data which contains the nested API response structure
+  const functionResponse = actualData.functionResponse || {};
+  const userParams = functionResponse.userParams || {};
+  const calcValuation = functionResponse.valuation?.calcValuation || {};
   
   // Extract basic vehicle information with fallbacks
   const result: Record<string, any> = {
     ...actualData,
-    make: actualData.make || actualData.brand || actualData.manufacturer || 'Unknown',
-    model: actualData.model || actualData.modelName || actualData.vehicle_model || 'Unknown',
-    year: actualData.year || actualData.productionYear || actualData.vehicle_year || new Date().getFullYear(),
+    make: userParams.make || actualData.make || 'Unknown',
+    model: userParams.model || actualData.model || 'Unknown',
+    year: userParams.year || actualData.year || actualData.productionYear || new Date().getFullYear(),
     vin: vinNumber, // Always ensure VIN is present
     transmission: actualData.transmission || actualData.gearbox || 'manual'
   };
   
-  // Try to extract price information from the response using multiple pathways
-  // First try direct extraction from common fields
-  const basePrice = getFirstValidValue([
-    actualData.basePrice,
-    actualData.price,
-    actualData.price_med,
-    actualData.valuation,
-    actualData.averagePrice,
-    // Deeper nested paths
-    actualData.functionResponse?.price,
-    actualData.functionResponse?.valuation?.price,
-    actualData.apiResponse?.price_med,
-    // Try to extract price from deeper nested structures
-    extractPrice(actualData)
-  ]);
+  // Check for direct reservePrice and basePrice (preferred source)
+  let basePrice = actualData.basePrice;
+  let reservePrice = actualData.reservePrice;
+  let averagePrice = actualData.averagePrice;
   
-  const averagePrice = getFirstValidValue([
-    actualData.averagePrice,
-    actualData.basePrice,
-    actualData.price_med,
-    actualData.valuation,
-    actualData.price,
-    basePrice
-  ]);
-  
-  const reservePrice = getFirstValidValue([
-    actualData.reservePrice,
-    actualData.valuation,
-    actualData.price,
-    actualData.functionResponse?.reservePrice,
-    // If we have a base price but no reserve price, calculate it
-    basePrice > 0 ? calculateReservePrice(basePrice) : null
-  ]);
-  
-  // Log detailed price extraction attempts
-  console.log('Price extraction paths:', {
-    directBasePrice: actualData.basePrice,
-    directPrice: actualData.price,
-    priceMed: actualData.price_med,
-    directValuation: actualData.valuation,
-    directAveragePrice: actualData.averagePrice,
-    nestedFunctionPrice: actualData.functionResponse?.price,
-    extractedPrice: extractPrice(actualData),
-    finalBasePrice: basePrice,
-    finalAveragePrice: averagePrice,
-    finalReservePrice: reservePrice
+  // Log the direct extraction
+  console.log('Direct price extraction:', {
+    directBasePrice: basePrice,
+    directReservePrice: reservePrice,
+    directAveragePrice: averagePrice
   });
   
-  // Set the primary fields used by the UI
+  // If direct values not available, extract from nested structure
+  if (!basePrice || basePrice <= 0) {
+    if (calcValuation.price_min > 0 && calcValuation.price_med > 0) {
+      basePrice = (Number(calcValuation.price_min) + Number(calcValuation.price_med)) / 2;
+      console.log('Calculated base price from calcValuation:', basePrice);
+    } else if (actualData.price_min > 0 && actualData.price_med > 0) {
+      basePrice = (Number(actualData.price_min) + Number(actualData.price_med)) / 2;
+      console.log('Calculated base price from root level:', basePrice);
+    }
+  }
+  
+  // If still no basePrice, try other possible fields
+  if (!basePrice || basePrice <= 0) {
+    basePrice = actualData.valuation || 
+                actualData.price || 
+                calcValuation.price ||
+                0;
+    console.log('Used fallback for base price:', basePrice);
+  }
+  
+  // If direct reservePrice not available but we have basePrice, calculate it
+  if ((!reservePrice || reservePrice <= 0) && basePrice > 0) {
+    reservePrice = calculateReservePrice(basePrice);
+    console.log('Calculated reserve price from base price:', reservePrice);
+  }
+  
+  // Set averagePrice if not already set
+  if (!averagePrice || averagePrice <= 0) {
+    averagePrice = actualData.price_med || 
+                   calcValuation.price_med || 
+                   basePrice || 
+                   0;
+    console.log('Used fallback for average price:', averagePrice);
+  }
+  
+  // Assign the extracted values
   result.basePrice = basePrice;
-  result.averagePrice = averagePrice;
   result.reservePrice = reservePrice;
+  result.averagePrice = averagePrice;
+  result.valuation = basePrice; // For backward compatibility
   
-  // Also set valuation as an alias for reservePrice for backward compatibility
-  result.valuation = reservePrice || actualData.valuation;
+  // Copy over any price_* fields that exist
+  if (calcValuation.price_min) result.price_min = calcValuation.price_min;
+  else if (actualData.price_min) result.price_min = actualData.price_min;
   
-  // Copy over any additional fields that might be useful
-  if (actualData.price_min) result.price_min = actualData.price_min;
-  if (actualData.price_med) result.price_med = actualData.price_med;
-  if (actualData.price_max) result.price_max = actualData.price_max;
+  if (calcValuation.price_med) result.price_med = calcValuation.price_med;
+  else if (actualData.price_med) result.price_med = actualData.price_med;
   
-  // Check if we have prices and need to calculate reserve price
-  if ((result.basePrice > 0 || result.averagePrice > 0) && !result.reservePrice) {
-    const priceToUse = result.basePrice || result.averagePrice;
-    result.reservePrice = calculateReservePrice(priceToUse);
-    result.valuation = result.reservePrice; // For consistency
-    console.log('Calculated reserve price locally:', { 
-      price: priceToUse, 
-      reservePrice: result.reservePrice 
-    });
-  }
+  if (calcValuation.price_max) result.price_max = calcValuation.price_max;
+  else if (actualData.price_max) result.price_max = actualData.price_max;
   
-  // Validate final result
-  if (!result.reservePrice || !result.valuation) {
-    console.warn('Failed to determine valuation or reserve price after normalization');
-    
-    // Last resort: if we have any price_* fields, use their average
-    if (result.price_min && result.price_med) {
-      const calculatedBasePrice = (Number(result.price_min) + Number(result.price_med)) / 2;
-      result.basePrice = calculatedBasePrice;
-      result.reservePrice = calculateReservePrice(calculatedBasePrice);
-      result.valuation = result.reservePrice;
-      console.log('Last resort price calculation:', {
-        price_min: result.price_min,
-        price_med: result.price_med,
-        calculatedBasePrice,
-        reservePrice: result.reservePrice
-      });
-    }
-    
-    // Absolute last resort: generate a placeholder valuation
-    if (!result.reservePrice || result.reservePrice <= 0) {
-      // This should almost never happen, but we want to avoid UI errors
-      const placeholderValue = 25000; // Arbitrary placeholder
-      result.reservePrice = placeholderValue;
-      result.valuation = placeholderValue;
-      result.isPlaceholder = true; // Flag that this is a placeholder value
-      
-      console.warn('Using placeholder valuation as last resort:', placeholderValue);
-    }
-  }
-  
-  console.log('Normalized data result:', {
+  // Log final result
+  console.log('Final normalized valuation:', {
     make: result.make,
     model: result.model,
     year: result.year,
     basePrice: result.basePrice,
-    averagePrice: result.averagePrice,
     reservePrice: result.reservePrice,
-    valuation: result.valuation,
-    isPlaceholder: result.isPlaceholder || false
+    averagePrice: result.averagePrice
   });
-  
-  // Store in localStorage for debugging purposes
-  try {
-    localStorage.setItem('lastValuationData', JSON.stringify({
-      timestamp: new Date().toISOString(),
-      vin: vinNumber,
-      normalized: {
-        make: result.make,
-        model: result.model,
-        reservePrice: result.reservePrice,
-        valuation: result.valuation
-      }
-    }));
-  } catch (e) {
-    console.warn('Failed to store debug data in localStorage:', e);
-  }
   
   return result;
 }
@@ -327,4 +294,3 @@ function validateValuationData(data: any): void {
     console.warn('Using placeholder valuation data - potential data quality issue');
   }
 }
-

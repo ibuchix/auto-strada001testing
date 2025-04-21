@@ -7,10 +7,11 @@
  * - 2025-04-21: Updated to properly extract nested vehicle data from Auto ISO API response
  * - 2025-04-21: Fixed nested price extraction pattern to match API structure
  * - 2025-04-22: Enhanced data transformation to correctly preserve pricing information
+ * - 2025-04-22: Fixed edge function response handling for proper reserve price extraction
  */
 
-import { extractPrice, calculateReservePrice } from '../../utils/priceExtractor';
-import { ValuationData, TransmissionType } from './valuationDataTypes';
+import { extractPrice } from '../../utils/priceExtractor';
+import { ValuationData, TransmissionType, calculateReservePrice } from './valuationDataTypes';
 
 export function normalizeValuationData(data: any): ValuationData {
   // Log the raw data for debugging
@@ -29,8 +30,8 @@ export function normalizeValuationData(data: any): ValuationData {
   // Extract base price with improved path awareness
   const basePrice = extractBasePrice(data, calcValuation);
   
-  // Calculate reserve price if we have a base price
-  const reservePrice = basePrice > 0 ? calculateReservePrice(basePrice) : 0;
+  // Extract reserve price with fallbacks
+  const reservePrice = extractReservePrice(data, basePrice);
   
   // Extract make, model, year from the proper nested location
   const make = userParams.make || data?.make || '';
@@ -47,7 +48,7 @@ export function normalizeValuationData(data: any): ValuationData {
   // Extract API-specific price fields with fallbacks
   const priceMin = calcValuation.price_min || data?.price_min || 0;
   const priceMed = calcValuation.price_med || data?.price_med || data?.averagePrice || 0;
-  const averagePrice = priceMed || basePrice;
+  const averagePrice = data?.averagePrice || priceMed || basePrice;
 
   // Log the extracted price data for debugging
   console.log('Extracted pricing data:', {
@@ -57,7 +58,8 @@ export function normalizeValuationData(data: any): ValuationData {
     priceMed,
     averagePrice,
     fromCalcValuation: !!calcValuation.price_med,
-    fromDirectPrice: !!data?.price
+    fromDirectPrice: !!data?.price,
+    fromDirectReservePrice: !!data?.reservePrice
   });
 
   const normalized: ValuationData = {
@@ -68,7 +70,7 @@ export function normalizeValuationData(data: any): ValuationData {
     transmission,
     mileage: typeof mileage === 'number' ? mileage : parseInt(mileage) || 0,
     valuation: data?.valuation || basePrice || 0,
-    reservePrice: data?.reservePrice || reservePrice || 0,
+    reservePrice: reservePrice || 0,
     averagePrice: averagePrice,
     basePrice: basePrice,
     
@@ -100,7 +102,12 @@ export function normalizeValuationData(data: any): ValuationData {
  * Helper function to extract base price from different data structures
  */
 function extractBasePrice(data: any, calcValuation: any): number {
-  // First try to get price from calcValuation (most reliable)
+  // Check directly for basePrice field (added by edge function)
+  if (data.basePrice > 0) {
+    return Number(data.basePrice);
+  }
+  
+  // Then try to get price from calcValuation (most reliable)
   if (calcValuation.price_min > 0 && calcValuation.price_med > 0) {
     const priceMin = Number(calcValuation.price_min);
     const priceMed = Number(calcValuation.price_med);
@@ -119,6 +126,23 @@ function extractBasePrice(data: any, calcValuation: any): number {
   
   // Use extractPrice utility as final fallback
   return extractPrice(data);
+}
+
+/**
+ * Helper function to extract reserve price from different data structures
+ */
+function extractReservePrice(data: any, basePrice: number): number {
+  // First check if reservePrice is directly provided (preferred)
+  if (data.reservePrice > 0) {
+    return Number(data.reservePrice);
+  }
+  
+  // If we have a base price but no reserve price, calculate it
+  if (basePrice > 0) {
+    return calculateReservePrice(basePrice);
+  }
+  
+  return 0;
 }
 
 function normalizeTransmission(transmission: any): TransmissionType {

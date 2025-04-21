@@ -7,6 +7,7 @@
  * - Updated 2025-04-21: Improved price display with better data debugging
  * - Updated 2025-04-21: Added better validation for price extraction
  * - Updated 2025-04-22: Enhanced data transformation validation for more reliable display
+ * - Updated 2025-04-22: Added improved error handling for edge function responses
  */
 
 import { formatCurrency } from "@/utils/formatters";
@@ -27,6 +28,8 @@ export const ValuationPriceDisplay = ({
     reservePrice,
     averagePrice,
     showAveragePrice,
+    isReservePriceNumber: typeof reservePrice === 'number',
+    isAveragePriceNumber: typeof averagePrice === 'number',
     timestamp: new Date().toISOString()
   });
 

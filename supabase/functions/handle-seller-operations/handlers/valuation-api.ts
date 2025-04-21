@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-07-22: Created dedicated module for API valuation service
  * - 2025-04-08: Enhanced data normalization and fallback values
+ * - 2025-04-22: Fixed data structure consistency and reserve price calculation
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
@@ -67,54 +68,44 @@ export async function getValuationFromAPI(
       hasModel: !!apiData.model,
       hasYear: !!apiData.productionYear || !!apiData.year
     });
-    
-    // Store in cache table for future reference
-    const { error: cacheError } = await storeInCache(vin, mileage, apiData);
-    
-    if (cacheError) {
-      logOperation('cache_error', { 
-        requestId, 
-        error: cacheError.message 
-      }, 'warn');
-    }
+
+    // Extract data from the response structure
+    // The Auto ISO API returns data in a nested structure under functionResponse
+    const functionResponse = apiData.functionResponse || {};
+    const userParams = functionResponse.userParams || {};
+    const calcValuation = functionResponse.valuation?.calcValuation || {};
     
     // Get consistent field values with fallbacks
-    const make = apiData.make || apiData.manufacturer || '';
-    const model = apiData.model || apiData.modelName || '';
-    const year = apiData.productionYear || apiData.year || 0;
+    const make = userParams.make || apiData.make || '';
+    const model = userParams.model || apiData.model || '';
+    const year = userParams.year || apiData.productionYear || apiData.year || 0;
     
-    // Normalize price fields
+    // Normalize price fields with enhanced extraction
     let priceMin = 0;
     let priceMed = 0;
     
-    // Try to extract prices using different field names
-    if (apiData.price_min !== undefined) priceMin = Number(apiData.price_min);
-    else if (apiData.priceMin !== undefined) priceMin = Number(apiData.priceMin);
-    else if (apiData.minPrice !== undefined) priceMin = Number(apiData.minPrice);
-    else if (apiData.minimum_value !== undefined) priceMin = Number(apiData.minimum_value);
-    else if (apiData.price !== undefined) priceMin = Number(apiData.price);
+    // First try to get prices from nested calcValuation (preferred source)
+    if (calcValuation.price_min !== undefined) priceMin = Number(calcValuation.price_min);
+    if (calcValuation.price_med !== undefined) priceMed = Number(calcValuation.price_med);
     
-    if (apiData.price_med !== undefined) priceMed = Number(apiData.price_med);
-    else if (apiData.priceMed !== undefined) priceMed = Number(apiData.priceMed);
-    else if (apiData.medianPrice !== undefined) priceMed = Number(apiData.medianPrice);
-    else if (apiData.median_value !== undefined) priceMed = Number(apiData.median_value);
-    else if (apiData.average_value !== undefined) priceMed = Number(apiData.average_value);
-    else if (apiData.price !== undefined) priceMed = Number(apiData.price);
+    // If not found in calcValuation, try root level
+    if (priceMin <= 0 && apiData.price_min !== undefined) priceMin = Number(apiData.price_min);
+    if (priceMed <= 0 && apiData.price_med !== undefined) priceMed = Number(apiData.price_med);
     
-    // If we don't have enough information, try to use any available price
-    if (priceMin <= 0 && priceMed <= 0) {
-      for (const [key, value] of Object.entries(apiData)) {
-        if (
-          (key.toLowerCase().includes('price') || 
-          key.toLowerCase().includes('value')) && 
-          !isNaN(Number(value)) && 
-          Number(value) > 0
-        ) {
-          if (priceMin <= 0) priceMin = Number(value);
-          if (priceMed <= 0) priceMed = Number(value);
-          break;
-        }
-      }
+    // If still no valid prices, try alternative field names
+    if (priceMin <= 0) {
+      if (apiData.priceMin !== undefined) priceMin = Number(apiData.priceMin);
+      else if (apiData.minPrice !== undefined) priceMin = Number(apiData.minPrice);
+      else if (apiData.minimum_value !== undefined) priceMin = Number(apiData.minimum_value);
+      else if (apiData.price !== undefined) priceMin = Number(apiData.price);
+    }
+    
+    if (priceMed <= 0) {
+      if (apiData.priceMed !== undefined) priceMed = Number(apiData.priceMed);
+      else if (apiData.medianPrice !== undefined) priceMed = Number(apiData.medianPrice);
+      else if (apiData.median_value !== undefined) priceMed = Number(apiData.median_value);
+      else if (apiData.average_value !== undefined) priceMed = Number(apiData.average_value);
+      else if (apiData.price !== undefined) priceMed = Number(apiData.price);
     }
     
     // Check if we have critical data
@@ -159,25 +150,54 @@ export async function getValuationFromAPI(
     // Calculate reserve price
     const reservePrice = calculateReservePrice(basePrice);
     
-    // Ensure we don't return undefined or null values
-    const safeApiData = { ...apiData };
+    // Store in cache table for future reference
+    const { error: cacheError } = await storeInCache(vin, mileage, {
+      make,
+      model,
+      year,
+      price_min: priceMin,
+      price_med: priceMed,
+      basePrice,
+      reservePrice
+    });
     
-    // Format response
+    if (cacheError) {
+      logOperation('cache_error', { 
+        requestId, 
+        error: cacheError.message 
+      }, 'warn');
+    }
+    
+    // Format response to match the structure expected by frontend
     return {
       success: true,
       data: {
         vin,
-        make: make || '',
-        model: model || '',
-        year: year || new Date().getFullYear(),
+        make,
+        model,
+        year,
         transmission: gearbox,
         mileage,
         price_min: priceMin,
-        price_max: apiData.priceMax || apiData.price_max || 0,
         price_med: priceMed,
         basePrice,
         reservePrice,
-        valuationDetails: safeApiData
+        averagePrice: priceMed,
+        valuation: basePrice,
+        // Include the original response to aid debugging
+        functionResponse: {
+          userParams: {
+            make,
+            model,
+            year
+          },
+          valuation: {
+            calcValuation: {
+              price_min: priceMin,
+              price_med: priceMed
+            }
+          }
+        }
       }
     };
   } catch (error) {
