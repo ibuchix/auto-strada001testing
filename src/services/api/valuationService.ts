@@ -2,6 +2,7 @@
 /**
  * Enhanced valuation service with monitoring
  * Updated: 2025-04-19 - Added monitoring integration
+ * Updated: 2025-04-25 - Enhanced API response logging to debug price data issues
  */
 
 import { ValuationMonitoring } from '../monitoring/valuationMonitoring';
@@ -18,19 +19,32 @@ export async function getVehicleValuation(
   let usedFallback = false;
 
   try {
-    console.log('Getting valuation for:', { vin, mileage, gearbox });
+    console.log('[VALUATION-API] Getting valuation for:', { vin, mileage, gearbox });
+    
+    // Track request for debugging
+    const requestId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    console.log(`[VALUATION-API] Request ID: ${requestId}`);
     
     const { data, error } = await supabase.functions.invoke(
       'get-vehicle-valuation',
       {
-        body: { vin, mileage, gearbox }
+        body: { 
+          vin, 
+          mileage, 
+          gearbox,
+          debug: true, // Enable debug mode for more verbose logging
+          requestId
+        }
       }
     );
     
     const executionTime = performance.now() - startTime;
 
+    // Log complete raw response for debugging
+    console.log('[VALUATION-API] Raw API response:', JSON.stringify(data, null, 2));
+    
     if (error) {
-      console.error('Valuation API error:', error);
+      console.error('[VALUATION-API] Error:', error);
       
       ValuationMonitoring.trackValuation({
         vin,
@@ -44,6 +58,24 @@ export async function getVehicleValuation(
         message: 'Failed to get vehicle valuation',
         originalError: error
       });
+    }
+
+    // More detailed API response inspection
+    console.log('[VALUATION-API] Response structure:', {
+      hasData: !!data,
+      topLevelKeys: data ? Object.keys(data) : [],
+      hasPriceMin: data?.price_min !== undefined,
+      hasPriceMed: data?.price_med !== undefined,
+      hasValuation: data?.valuation !== undefined,
+      hasReservePrice: data?.reservePrice !== undefined,
+      hasNestedFunctionResponse: !!data?.functionResponse,
+      hasNestedCalcValuation: !!data?.functionResponse?.valuation?.calcValuation
+    });
+
+    // If we have nested function response, check for price data
+    if (data?.functionResponse?.valuation?.calcValuation) {
+      console.log('[VALUATION-API] Nested calcValuation found:', 
+        data.functionResponse.valuation.calcValuation);
     }
 
     // Calculate data quality score
@@ -61,7 +93,7 @@ export async function getVehicleValuation(
 
     return { data, error: null };
   } catch (error) {
-    console.error('Valuation service error:', error);
+    console.error('[VALUATION-API] Service error:', error);
     toast.error('Failed to get vehicle valuation');
     
     return {

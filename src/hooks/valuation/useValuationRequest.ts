@@ -5,6 +5,7 @@
  * - Enhanced error handling and tracking
  * - 2025-04-21: ADDED STEP-BY-STEP LOGGING TO TRACE VIN CHECK & VALUATION LOGIC
  * - 2025-04-22: ADDED DEEP DATA STRUCTURE INSPECTION FOR DEBUGGING API RESPONSES
+ * - 2025-04-25: ADDED DEBUG MODE AND API RESPONSE INSPECTION TO FIX PRICE DATA ISSUES
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
@@ -16,6 +17,7 @@ import { useRealtime } from "@/components/RealtimeProvider";
 import { ValuationFormData } from "@/types/validation";
 import { UseValuationRequestProps } from "./types";
 import { TimeoutDurations } from "@/utils/timeoutUtils";
+import { deepScanForPrices } from "@/utils/valuation/priceExtractor";
 
 export const useValuationRequest = ({
   onSuccess,
@@ -90,6 +92,14 @@ export const useValuationRequest = ({
 
     console.log(`[ValuationRequest][${requestIdRef.current}] [${source}] Response structure:`, summary);
     
+    // Deep scan for any price-related fields in the response
+    const priceFields = deepScanForPrices(data);
+    if (Object.keys(priceFields).length > 0) {
+      console.log(`[ValuationRequest][${requestIdRef.current}] [${source}] Found price-related fields in deep scan:`, priceFields);
+    } else {
+      console.warn(`[ValuationRequest][${requestIdRef.current}] [${source}] NO PRICE FIELDS FOUND IN DEEP SCAN`);
+    }
+    
     // Try to log raw pricing for debugging
     try {
       console.log(`[ValuationRequest][${requestIdRef.current}] [${source}] Price fields:`, {
@@ -154,17 +164,20 @@ export const useValuationRequest = ({
     
     try {
       const mileage = parseInt(data.mileage) || 0;
-      // 1. Try primary valuation method
-      console.log(`[ValuationRequest][${requestId}] Calling getValuation...`);
+      
+      // 1. Try primary valuation method with debug mode enabled
+      console.log(`[ValuationRequest][${requestId}] Calling getValuation with debug mode...`);
       let result = await getValuation(
         data.vin,
         mileage,
-        data.gearbox
+        data.gearbox,
+        { debug: true, requestId } // Add debug flag and request ID for tracing
       );
       console.log(`[ValuationRequest][${requestId}] getValuation returned:`, result);
       
       // Inspect the API response structure
       if (result?.data) {
+        console.log(`[ValuationRequest][${requestId}] Raw API response data:`, JSON.stringify(result.data, null, 2));
         inspectApiResponse(result.data, 'PRIMARY_API');
       }
 
@@ -204,6 +217,13 @@ export const useValuationRequest = ({
             basePrice: result.data.basePrice,
             averagePrice: result.data.averagePrice
           });
+          
+          // If we have make/model/year but no price, force the estimated price calculation
+          if (result.data.make && result.data.model && result.data.year) {
+            result.data.apiSource = 'estimation';
+            result.data.estimationMethod = 'make_model_year';
+            result.data.usingFallbackEstimation = true;
+          }
         }
         
         // Store the data

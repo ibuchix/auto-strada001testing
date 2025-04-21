@@ -1,11 +1,12 @@
 
 /**
  * Data processing utilities for get-vehicle-valuation
- * Updated: 2025-04-22 - Fixed price data extraction and valuation calculation
+ * Updated: 2025-04-25 - Enhanced price extraction with better API response handling
  */
 
 import { logOperation } from './logging.ts';
 import { calculateReservePrice } from './price-calculator.ts';
+import { estimateBasePriceByModel } from './price-estimator.ts';
 
 /**
  * Type definition for valuation data
@@ -21,6 +22,8 @@ export interface ValuationData {
   valuation?: number;
   reservePrice?: number;
   averagePrice?: number;
+  price_min?: number;
+  price_med?: number;
   [key: string]: any;
 }
 
@@ -68,6 +71,88 @@ export function extractDataValue(data: any, propertyPaths: string[], defaultValu
 }
 
 /**
+ * Scan deeply for price data in API response
+ */
+function scanForPriceData(data: any, requestId: string): { priceMin: number, priceMed: number } {
+  // Initialize with defaults
+  let priceMin = 0;
+  let priceMed = 0;
+  
+  // Start with direct paths at root level
+  if (data.price_min !== undefined) priceMin = Number(data.price_min);
+  if (data.price_med !== undefined) priceMed = Number(data.price_med);
+  
+  if (priceMin > 0 && priceMed > 0) {
+    logOperation('found_price_data_at_root', {
+      requestId,
+      priceMin,
+      priceMed
+    });
+    return { priceMin, priceMed };
+  }
+  
+  // Look for nested CalcValuation (common in Auto ISO API)
+  if (data.functionResponse?.valuation?.calcValuation) {
+    const calcValuation = data.functionResponse.valuation.calcValuation;
+    logOperation('found_nested_calcvaluation', {
+      requestId,
+      calcValuationKeys: Object.keys(calcValuation)
+    });
+    
+    if (calcValuation.price_min !== undefined) priceMin = Number(calcValuation.price_min);
+    if (calcValuation.price_med !== undefined) priceMed = Number(calcValuation.price_med);
+    
+    if (priceMin > 0 && priceMed > 0) {
+      logOperation('found_price_data_in_calcvaluation', {
+        requestId,
+        priceMin,
+        priceMed
+      });
+      return { priceMin, priceMed };
+    }
+  }
+  
+  // Try alternate field names
+  const priceMinFields = ['priceMin', 'minPrice', 'minimum_value', 'price'];
+  const priceMedFields = ['priceMed', 'medianPrice', 'median_value', 'average_value', 'price'];
+  
+  for (const field of priceMinFields) {
+    if (data[field] !== undefined && priceMin === 0) {
+      priceMin = Number(data[field]);
+      logOperation('found_price_min_alternate', {
+        requestId,
+        field,
+        value: priceMin
+      });
+    }
+  }
+  
+  for (const field of priceMedFields) {
+    if (data[field] !== undefined && priceMed === 0) {
+      priceMed = Number(data[field]);
+      logOperation('found_price_med_alternate', {
+        requestId,
+        field,
+        value: priceMed
+      });
+    }
+  }
+  
+  // Check nested objects (common pattern in some APIs)
+  const nestedPaths = ['data', 'apiResponse', 'response', 'result'];
+  for (const path of nestedPaths) {
+    if (data[path] && typeof data[path] === 'object') {
+      const nestedResult = scanForPriceData(data[path], requestId);
+      if (nestedResult.priceMin > 0 && nestedResult.priceMed > 0) {
+        return nestedResult;
+      }
+    }
+  }
+  
+  return { priceMin, priceMed };
+}
+
+/**
  * Process and normalize raw valuation data
  * @param rawData Raw data from API
  * @param vin Vehicle identification number
@@ -105,48 +190,43 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       'productionYear'
     ], 0);
     
-    // Extract pricing data with fallbacks
-    const priceMin = extractDataValue(rawData, [
-      'functionResponse.valuation.calcValuation.price_min',
-      'price_min',
-      'priceMin',
-      'minPrice'
-    ], 0);
+    // Scan deeply for price data
+    const { priceMin, priceMed } = scanForPriceData(rawData, requestId);
     
-    const priceMed = extractDataValue(rawData, [
-      'functionResponse.valuation.calcValuation.price_med',
-      'price_med',
-      'priceMed',
-      'medianPrice',
-      'averagePrice'
-    ], 0);
-    
-    const price = extractDataValue(rawData, [
-      'functionResponse.valuation.calcValuation.price',
-      'price',
-      'value',
-      'estimatedValue',
-      'valuation'
-    ], 0);
+    logOperation('price_scan_results', {
+      requestId,
+      priceMin,
+      priceMed,
+      hasValidPrices: priceMin > 0 && priceMed > 0
+    });
     
     // Calculate base price and valuation
     let basePrice = 0;
     if (priceMin > 0 && priceMed > 0) {
       basePrice = (priceMin + priceMed) / 2;
-    } else if (price > 0) {
-      basePrice = price;
-    } else if (priceMed > 0) {
-      basePrice = priceMed;
-    } else if (priceMin > 0) {
-      basePrice = priceMin;
+    } else {
+      // Try direct price fields
+      const price = extractDataValue(rawData, [
+        'price',
+        'value',
+        'estimatedValue',
+        'valuation'
+      ], 0);
+      
+      if (price > 0) {
+        basePrice = price;
+      }
     }
     
-    // If no price data was found, set a default
-    if (basePrice <= 0) {
-      basePrice = make && model ? 50000 : 0; // Only use default if we have make/model
-      logOperation('using_default_price', { 
+    // If we still don't have price data, estimate it
+    if (basePrice <= 0 && make && model && year > 0) {
+      basePrice = estimateBasePriceByModel(make, model, year);
+      logOperation('using_estimated_price', { 
         requestId,
         vin,
+        make,
+        model,
+        year,
         basePrice
       }, 'warn');
     }
@@ -161,20 +241,25 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       model,
       year,
       mileage,
+      price_min: priceMin,
+      price_med: priceMed,
       basePrice,
       valuation: basePrice,
       reservePrice,
-      averagePrice: priceMed || basePrice
+      averagePrice: priceMed || basePrice,
+      estimationMethod: basePrice > 0 && (priceMin === 0 || priceMed === 0) ? 'make_model_year' : undefined
     };
     
     // Validate essential data
-    const isValid = make && model && year > 0 && basePrice > 0;
+    const isValid = make && model && year > 0;
+    const hasPriceData = basePrice > 0;
     
     // Log the processing result
     logOperation('valuation_data_processed', { 
       requestId,
       vin,
       isValid,
+      hasPriceData,
       make,
       model,
       year,

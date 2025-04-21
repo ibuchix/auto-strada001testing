@@ -1,97 +1,170 @@
 
 /**
- * Edge function for retrieving vehicle valuation data
- * Updated: 2025-04-22 - Improved price data extraction and response structure
+ * Edge function for vehicle valuation
+ * Updated: 2025-04-25 - Enhanced price data extraction and error handling
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "./utils/cors.ts";
-import { validateRequest } from "./utils/validation.ts";
+import { callValuationApi } from "./utils/api-service.ts";
 import { processValuationData } from "./utils/data-processor.ts";
 import { calculateReservePrice } from "./utils/price-calculator.ts";
-import { callExternalValuationAPI } from "./utils/api-client.ts";
 import { logOperation } from "./utils/logging.ts";
 
 serve(async (req) => {
-  // Generate a unique request ID for tracking
-  const requestId = crypto.randomUUID();
-  
-  // Handle CORS
+  // Handle CORS if needed
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
-  
+
   try {
-    // Parse and validate request data
-    const { data, error } = await validateRequest(req);
+    // Generate request ID for tracking
+    const requestId = crypto.randomUUID().substring(0, 8);
     
-    if (error) {
+    // Parse request data
+    const { vin, mileage, gearbox, debug } = await req.json();
+    
+    if (!vin) {
       return new Response(
-        JSON.stringify({ success: false, error: error }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        JSON.stringify({
+          success: false,
+          error: 'Missing VIN parameter'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    const { vin, mileage, gearbox } = data;
-    
-    logOperation('valuation_request', { 
-      requestId, 
-      vin, 
-      mileage 
+    logOperation('request_received', {
+      requestId,
+      vin,
+      mileage,
+      gearbox,
+      debug: !!debug
     });
     
     // Call external valuation API
-    const valuation = await callExternalValuationAPI(vin, mileage, requestId);
+    const apiResponse = await callValuationApi(vin, mileage, requestId);
     
-    if (!valuation || valuation.error) {
-      throw new Error(valuation?.error || 'Failed to retrieve valuation data');
+    // Log the raw API response for debugging
+    logOperation('api_response_received', {
+      requestId,
+      success: apiResponse.success,
+      hasData: !!apiResponse.data,
+      error: apiResponse.error || null,
+      responseSize: apiResponse.data ? JSON.stringify(apiResponse.data).length : 0
+    });
+    
+    if (!apiResponse.success) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: apiResponse.error || 'Failed to get valuation'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
-    // Process the valuation data
-    const processedData = processValuationData(valuation, vin, mileage, requestId);
+    // Process the raw valuation data
+    const rawData = apiResponse.data;
     
-    // Add essential fields
-    processedData.vin = vin;
-    processedData.mileage = mileage;
-    processedData.transmission = gearbox;
+    // IMPORTANT: Log the complete raw data for debugging price extraction issues
+    logOperation('raw_valuation_data', {
+      requestId,
+      dataKeys: Object.keys(rawData),
+      hasPriceFields: !!(rawData.price_min || rawData.price_med),
+      hasNestedFunctionResponse: !!rawData.functionResponse,
+      rawData: debug ? JSON.stringify(rawData) : '[omitted]' // Only include raw data in debug mode
+    });
     
-    // Ensure the valuation amounts are set
-    if (!processedData.valuation || processedData.valuation <= 0) {
-      if (processedData.averagePrice > 0) {
-        processedData.valuation = processedData.averagePrice;
-      } else if (processedData.basePrice > 0) {
-        processedData.valuation = processedData.basePrice;
+    // Extract pricing data from nested structure if present
+    let extractedPriceMin = 0;
+    let extractedPriceMed = 0;
+    
+    // Try to extract from functionResponse.valuation.calcValuation (common API structure)
+    if (rawData.functionResponse?.valuation?.calcValuation) {
+      const calcValuation = rawData.functionResponse.valuation.calcValuation;
+      
+      logOperation('found_nested_calcvaluation', {
+        requestId,
+        calcValuationKeys: Object.keys(calcValuation)
+      });
+      
+      if (calcValuation.price_min !== undefined) {
+        extractedPriceMin = Number(calcValuation.price_min);
+      }
+      
+      if (calcValuation.price_med !== undefined) {
+        extractedPriceMed = Number(calcValuation.price_med);
       }
     }
     
-    // Ensure reserve price is calculated
-    if (!processedData.reservePrice || processedData.reservePrice <= 0) {
-      const basePrice = processedData.basePrice || processedData.valuation || 0;
-      processedData.reservePrice = calculateReservePrice(basePrice, requestId);
+    // If not found in nested structure, check root level
+    if (extractedPriceMin === 0 && rawData.price_min !== undefined) {
+      extractedPriceMin = Number(rawData.price_min);
     }
     
-    logOperation('valuation_response', { 
-      requestId, 
-      hasPrice: !!processedData.valuation,
-      make: processedData.make,
-      model: processedData.model
+    if (extractedPriceMed === 0 && rawData.price_med !== undefined) {
+      extractedPriceMed = Number(rawData.price_med);
+    }
+    
+    logOperation('extracted_price_data', {
+      requestId,
+      extractedPriceMin,
+      extractedPriceMed
     });
     
-    // Return successful response
+    // Process the data to extract vehicle info and calculate prices
+    const processedData = processValuationData(rawData, vin, mileage, requestId);
+    
+    // Override with extracted price data if we found it
+    if (extractedPriceMin > 0 && extractedPriceMed > 0) {
+      processedData.price_min = extractedPriceMin;
+      processedData.price_med = extractedPriceMed;
+      
+      // Calculate basePrice as average of min and med prices
+      const basePrice = (extractedPriceMin + extractedPriceMed) / 2;
+      processedData.basePrice = basePrice;
+      processedData.valuation = basePrice;
+      
+      // Calculate reserve price using pricing tiers
+      processedData.reservePrice = calculateReservePrice(basePrice, requestId);
+      processedData.averagePrice = extractedPriceMed;
+    }
+    
+    logOperation('processing_complete', {
+      requestId,
+      make: processedData.make,
+      model: processedData.model,
+      year: processedData.year,
+      hasPriceData: processedData.basePrice > 0,
+      basePrice: processedData.basePrice,
+      reservePrice: processedData.reservePrice
+    });
+    
+    // Prepare the response
     return new Response(
-      JSON.stringify({ success: true, data: processedData }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        ...processedData,
+        apiSource: processedData.basePrice > 0 ? 'auto_iso' : 'estimation',
+        usingFallbackEstimation: processedData.basePrice === 0,
+        debug: debug ? {
+          requestId,
+          extractedPriceMin,
+          extractedPriceMed,
+          rawDataKeys: Object.keys(rawData)
+        } : undefined
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    // Log and return error response
-    logOperation('valuation_error', { 
-      requestId, 
-      error: error.message 
-    }, 'error');
+    console.error('Error in valuation function:', error);
     
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Internal server error'
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
