@@ -10,6 +10,7 @@
  * - Updated 2025-04-22: Added improved error handling for edge function responses
  * - Updated 2025-04-22: Fixed DialogContent issue by adding proper description
  * - Updated 2025-04-23: Added improved debugging and fallback message for failed API price data
+ * - Updated 2025-04-25: Enhanced estimated price display with more specific information
  */
 
 import { formatCurrency } from "@/utils/formatters";
@@ -21,6 +22,7 @@ interface ValuationPriceDisplayProps {
   averagePrice?: number | null;
   errorDetails?: string;
   apiSource?: string;
+  estimationMethod?: string;
 }
 
 export const ValuationPriceDisplay = ({ 
@@ -28,7 +30,8 @@ export const ValuationPriceDisplay = ({
   showAveragePrice = false,
   averagePrice,
   errorDetails,
-  apiSource = 'default'
+  apiSource = 'default',
+  estimationMethod
 }: ValuationPriceDisplayProps) => {
   // Enhanced validation with more detailed logging
   useEffect(() => {
@@ -37,12 +40,13 @@ export const ValuationPriceDisplay = ({
       averagePrice,
       showAveragePrice,
       apiSource,
+      estimationMethod,
       errorDetails,
       isReservePriceNumber: typeof reservePrice === 'number',
       isAveragePriceNumber: typeof averagePrice === 'number',
       timestamp: new Date().toISOString()
     });
-  }, [reservePrice, averagePrice, showAveragePrice, errorDetails, apiSource]);
+  }, [reservePrice, averagePrice, showAveragePrice, errorDetails, apiSource, estimationMethod]);
 
   // Ensure we have valid numbers with more robust validation
   const validReservePrice = typeof reservePrice === 'number' && !isNaN(reservePrice) && reservePrice > 0 
@@ -59,7 +63,7 @@ export const ValuationPriceDisplay = ({
   const hasNoValidPrices = !hasValidReservePrice && !hasValidAveragePrice;
   
   // Check if we're using estimated values (API failure fallback)
-  const isUsingEstimated = apiSource === 'estimation' || reservePrice === 36500;
+  const isUsingEstimated = apiSource === 'estimation' || estimationMethod;
 
   // Log the validated values
   useEffect(() => {
@@ -75,6 +79,19 @@ export const ValuationPriceDisplay = ({
   }, [validReservePrice, validAveragePrice, hasValidReservePrice, 
       hasValidAveragePrice, hasNoValidPrices, isUsingEstimated]);
 
+  // Get a user-friendly estimation message based on the method
+  const getEstimationMessage = () => {
+    if (!isUsingEstimated) return null;
+    
+    if (estimationMethod === 'make_model_year') {
+      return "Estimated based on make, model, and year";
+    } else if (estimationMethod === 'default_value') {
+      return "Using default valuation (API data unavailable)";
+    } else {
+      return "Estimated price (API data incomplete)";
+    }
+  };
+
   return (
     <div className="mt-4 p-5 bg-gray-50 rounded-lg border border-gray-100">
       <div className="flex flex-col gap-3">
@@ -84,7 +101,7 @@ export const ValuationPriceDisplay = ({
             <p className="text-2xl font-bold text-DC143C">{formatCurrency(validReservePrice)}</p>
             {isUsingEstimated && (
               <p className="text-xs text-amber-600 mt-1">
-                Estimated price based on vehicle data
+                {getEstimationMessage()}
               </p>
             )}
           </div>
@@ -96,7 +113,7 @@ export const ValuationPriceDisplay = ({
             <p className="text-xl font-semibold text-gray-700">{formatCurrency(validAveragePrice)}</p>
             {isUsingEstimated && (
               <p className="text-xs text-amber-600 mt-1">
-                Estimated value based on vehicle data
+                {getEstimationMessage()}
               </p>
             )}
           </div>

@@ -5,6 +5,7 @@
  * - 2025-04-19: Made averagePrice optional to match with utils/valuation/valuationDataTypes
  * - 2025-04-19: Added explicit transmission type
  * - 2025-04-24: Added apiSource, errorDetails, and usingFallbackEstimation properties
+ * - 2025-04-25: Added estimationMethod for more accurate valuation display
  */
 
 export interface ValuationData {
@@ -24,6 +25,7 @@ export interface ValuationData {
   apiSource?: string;
   errorDetails?: string;
   usingFallbackEstimation?: boolean;
+  estimationMethod?: string;
 }
 
 export interface ValuationResult {

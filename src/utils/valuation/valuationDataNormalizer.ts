@@ -9,10 +9,11 @@
  * - 2025-04-22: Enhanced data extraction to properly handle price data from API response
  * - 2025-04-21: ADDED STEP-BY-STEP LOGS FOR DEBUGGING DATA/PRICE EXTRACTION
  * - 2025-04-22: FIXED DIRECT RAW DATA LOGGING AND TYPE VALIDATION
+ * - 2025-04-25: IMPROVED FALLBACK PRICE ESTIMATION WITH MAKE/MODEL BASED CALCULATIONS
  */
 
 import { extractPrice } from '../../utils/priceExtractor';
-import { ValuationData, TransmissionType, calculateReservePrice } from './valuationDataTypes';
+import { ValuationData, TransmissionType, calculateReservePrice, estimateBasePriceByModel } from './valuationDataTypes';
 
 export function normalizeValuationData(data: any): ValuationData {
   // COMPREHENSIVE RAW DATA LOGGING
@@ -113,6 +114,9 @@ export function normalizeValuationData(data: any): ValuationData {
   
   // Calculate base price with improved fallbacks
   let basePrice = 0;
+  let isUsingEstimatedPrice = false;
+  let estimationMethod = '';
+  
   if (priceMin > 0 && priceMed > 0) {
     basePrice = (priceMin + priceMed) / 2;
     console.log('[VAL-NORM] basePrice calculated from priceMin & priceMed:', { priceMin, priceMed, basePrice });
@@ -135,10 +139,18 @@ export function normalizeValuationData(data: any): ValuationData {
       basePrice = validPrices[0].value;
       console.warn('[VAL-NORM] basePrice set from alternative field:', validPrices[0].key, basePrice);
     }
+  } else if (make && model && year > 0) {
+    // Improved fallback for when all price data is missing but we have vehicle details
+    basePrice = estimateBasePriceByModel(make, model, year);
+    isUsingEstimatedPrice = true;
+    estimationMethod = 'make_model_year';
+    console.warn('[VAL-NORM][WARN] No valid price found, using make/model estimation:', basePrice);
   } else {
     // Last resort fallback
-    console.warn('[VAL-NORM][WARN] No valid price found (should not happen), using fallback 50000');
     basePrice = 50000; // Default fallback value
+    isUsingEstimatedPrice = true;
+    estimationMethod = 'default_value';
+    console.warn('[VAL-NORM][WARN] No valid price found and insufficient data for estimation, using default value 50000');
   }
 
   // Extract or calculate reserve price with thorough validation
@@ -168,6 +180,8 @@ export function normalizeValuationData(data: any): ValuationData {
     priceMin,
     priceMed,
     averagePrice,
+    isUsingEstimatedPrice,
+    estimationMethod,
     fromCalcValuation: !!calcValuation.price_med,
     fromDirectPrice: !!data?.price,
     fromDirectReservePrice: !!data?.reservePrice
@@ -186,8 +200,13 @@ export function normalizeValuationData(data: any): ValuationData {
     basePrice,
     
     // API metadata
-    apiSource: data?.apiSource || 'default',
+    apiSource: data?.apiSource || (isUsingEstimatedPrice ? 'estimation' : 'default'),
     valuationDate: data?.valuationDate || new Date().toISOString(),
+    usingFallbackEstimation: isUsingEstimatedPrice,
+    estimationMethod: isUsingEstimatedPrice ? estimationMethod : undefined,
+    errorDetails: isUsingEstimatedPrice ? 
+      `No price data available from API, using ${estimationMethod === 'make_model_year' ? 'make/model/year estimation' : 'default value'}` : 
+      data?.errorDetails,
     
     // Status flags
     error: data?.error,
@@ -238,6 +257,9 @@ export function sanitizePartialData(data: Partial<ValuationData>): Partial<Valua
     reservePrice: data.reservePrice || 0,
     averagePrice: data.averagePrice || 0,
     basePrice: data.basePrice || 0,
+    usingFallbackEstimation: data.usingFallbackEstimation,
+    estimationMethod: data.estimationMethod,
+    apiSource: data.apiSource,
     error: data.error,
     noData: data.noData,
     isExisting: data.isExisting

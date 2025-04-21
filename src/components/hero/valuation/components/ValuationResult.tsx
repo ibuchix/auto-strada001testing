@@ -8,6 +8,7 @@
  * - 2025-04-23: Fixed TypeScript casting for transmission property
  * - 2025-04-23: Added API source and error details for better debugging
  * - 2025-04-24: Fixed TypeScript errors by ensuring proper type definitions
+ * - 2025-04-25: Added estimation method information for better user feedback
  */
 
 import { useNavigate } from "react-router-dom";
@@ -37,6 +38,8 @@ interface ValuationResultProps {
     noData?: boolean;
     apiSource?: string;
     errorDetails?: string;
+    usingFallbackEstimation?: boolean;
+    estimationMethod?: string;
   } | null;
   onContinue: () => void;
   onClose: () => void;
@@ -76,7 +79,8 @@ export const ValuationResult = ({
     reservePricePresent: valuationResult?.reservePrice ? "yes" : "no",
     valuationPresent: valuationResult?.valuation ? "yes" : "no",
     apiSource: valuationResult?.apiSource || 'unknown',
-    errorDetails: valuationResult?.errorDetails || 'none'
+    errorDetails: valuationResult?.errorDetails || 'none',
+    estimationMethod: valuationResult?.estimationMethod || 'none'
   });
   
   // Convert the string transmission to the expected union type
@@ -101,6 +105,7 @@ export const ValuationResult = ({
     reservePrice: normalizedData.reservePrice,
     valuation: normalizedData.valuation,
     apiSource: normalizedData.apiSource || 'unknown',
+    estimationMethod: normalizedData.estimationMethod || 'none',
     timestamp: new Date().toISOString()
   });
 
@@ -144,8 +149,9 @@ export const ValuationResult = ({
   }
 
   // Generate error details for debugging if we're using estimated values
-  const errorDebugInfo = normalizedData.apiSource === 'estimation' || normalizedData.usingFallbackEstimation ? 
-    `Using estimated value (API price data missing or invalid)` : 
+  const errorDebugInfo = normalizedData.usingFallbackEstimation ? 
+    `Using estimated value (${normalizedData.estimationMethod === 'make_model_year' ? 
+      'based on make/model/year' : 'default value'})` : 
     normalizedData.errorDetails || undefined;
 
   return (
@@ -161,6 +167,7 @@ export const ValuationResult = ({
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
       apiSource={normalizedData.apiSource}
+      estimationMethod={normalizedData.estimationMethod}
       errorDetails={errorDebugInfo}
       onClose={onClose}
       onContinue={() => handleContinue(normalizedData)}

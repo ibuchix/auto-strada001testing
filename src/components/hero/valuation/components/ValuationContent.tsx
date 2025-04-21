@@ -4,6 +4,7 @@
  * Updated 2025-04-22: Fixed missing Description for DialogContent warning
  * Updated 2025-04-23: Added error details debug prop for better valuation troubleshooting
  * Updated 2025-04-24: Updated interface to include apiSource, ensuring TypeScript compatibility
+ * Updated 2025-04-25: Added estimation method information for better price display
  */
 
 import { X } from "lucide-react";
@@ -24,6 +25,7 @@ interface ValuationContentProps {
   hasValuation?: boolean;
   isLoggedIn?: boolean;
   apiSource?: string;
+  estimationMethod?: string;
   errorDetails?: string;
   onClose: () => void;
   onContinue: () => void;
@@ -41,6 +43,7 @@ export const ValuationContent = ({
   hasValuation = false,
   isLoggedIn = false,
   apiSource = 'default',
+  estimationMethod,
   errorDetails,
   onClose,
   onContinue
@@ -59,6 +62,7 @@ export const ValuationContent = ({
     hasValidAveragePrice: typeof averagePrice === 'number' && averagePrice > 0,
     hasValuation,
     apiSource,
+    estimationMethod,
     errorDetails,
     timestamp: new Date().toISOString()
   });
@@ -93,6 +97,7 @@ export const ValuationContent = ({
           averagePrice={averagePrice}
           showAveragePrice={true}
           apiSource={apiSource}
+          estimationMethod={estimationMethod}
           errorDetails={errorDetails}
         />
 
