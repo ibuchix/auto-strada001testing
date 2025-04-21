@@ -1,6 +1,8 @@
+
 /**
  * Edge function for seller operations
  * Updated: 2025-04-19 - Switched to use shared utilities from central repository
+ * Updated: 2025-07-08 - Fixed modular imports from utils directory
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";

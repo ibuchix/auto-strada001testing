@@ -2,8 +2,8 @@
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
-import { logOperation, logError } from '../_shared/logging.ts';
-import { getCachedValidation, cacheValidation } from './cache.ts';
+import { logOperation } from './utils/logging.ts';
+import { getCachedValidation, cacheValidation } from './utils/cache.ts';
 
 export interface ValuationResult {
   success: boolean;

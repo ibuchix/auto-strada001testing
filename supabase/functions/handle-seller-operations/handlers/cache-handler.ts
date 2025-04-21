@@ -1,11 +1,10 @@
-
 /**
  * Handler for cache-related operations
  */
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { logOperation } from '../../_shared/logging.ts';
-import { cacheValidation, getCachedValidation } from '../cache.ts';
+import { cacheValidation, getCachedValidation } from '../utils/cache.ts';
 
 export interface CacheResult {
   success: boolean;
