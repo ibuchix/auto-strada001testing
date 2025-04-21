@@ -1,18 +1,16 @@
-
 /**
  * Changes made:
  * - 2025-07-04: Created validation service for VIN data validation
  * - 2025-07-06: Fixed syntax error in logOperation call
  * - 2025-07-07: Updated import for Database types to use local utils/database.types.ts for edge function deployment
+ * - 2025-07-08: Updated imports to use modular utilities from utils directory
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-// UPDATE BELOW: Use local database.types.ts so edge function builds standalone
+// Use local database.types.ts so edge function builds standalone
 import { Database } from '../utils/database.types.ts';
-import { 
-  ValidationError, 
-  logOperation
-} from '../utils.ts';
+import { ValidationError } from '../utils/validation.ts';
+import { logOperation } from '../utils/logging.ts';
 import { checkVehicleExists } from '../vehicle-checker.ts';
 
 /**
@@ -154,9 +152,7 @@ export async function validateReservation(
     logOperation('validateReservation_success', { requestId, reservationId: reservation.id });
     return { valid: true, reservation };
   } catch (error) {
-    // Fixed this line - using proper object literal syntax
     logOperation('validateReservation_exception', { requestId, vin, errorMessage: error.message }, 'error');
     return { valid: false, error: 'Error validating reservation' };
   }
 }
-
