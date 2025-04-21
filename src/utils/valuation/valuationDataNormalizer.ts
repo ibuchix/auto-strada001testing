@@ -6,6 +6,7 @@
  * - 2025-04-21: Added robust fallback price estimation when API returns zeros
  * - 2025-04-22: Fixed base price handling and reserve price calculation logic
  * - 2025-04-22: Added support for functionResponse nested structure in API response
+ * - 2025-04-26: Improved logging and prioritization of calcValuation data extraction
  */
 
 import { extractVehicleData, extractPriceData } from './core/dataExtractor';
@@ -30,18 +31,22 @@ export function normalizeValuationData(rawData: any): ValuationData {
 
   // If we have functionResponse with calcValuation, log the price data
   if (rawData.functionResponse?.valuation?.calcValuation) {
+    const calcVal = rawData.functionResponse.valuation.calcValuation;
     console.log('[VAL-NORM] Found calcValuation price data:', {
-      price: rawData.functionResponse.valuation.calcValuation.price,
-      price_min: rawData.functionResponse.valuation.calcValuation.price_min,
-      price_med: rawData.functionResponse.valuation.calcValuation.price_med,
-      price_max: rawData.functionResponse.valuation.calcValuation.price_max,
-      price_avr: rawData.functionResponse.valuation.calcValuation.price_avr
+      price: calcVal.price,
+      price_min: calcVal.price_min,
+      price_med: calcVal.price_med,
+      price_max: calcVal.price_max,
+      price_avr: calcVal.price_avr
     });
   }
 
   // Extract core vehicle and price data
   const vehicleData = extractVehicleData(rawData);
   const priceData = extractPriceData(rawData);
+  
+  // Log the extracted price data
+  console.log('[VAL-NORM] Extracted price data:', priceData);
   
   // Handle the case where we need to use fallback estimation
   let basePrice = priceData.basePrice;

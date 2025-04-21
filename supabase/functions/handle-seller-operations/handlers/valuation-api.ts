@@ -1,9 +1,11 @@
+
 /**
  * Changes made:
  * - 2024-07-22: Created dedicated module for API valuation service
  * - 2025-04-08: Enhanced data normalization and fallback values
  * - 2025-04-22: Fixed data structure consistency and reserve price calculation
  * - 2025-04-22: Fixed API response handling to preserve nested functionResponse
+ * - 2025-04-26: Enhanced extraction of pricing data from functionResponse.valuation.calcValuation
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
@@ -61,7 +63,7 @@ export async function getValuationFromAPI(
       responseSize: JSON.stringify(apiData).length
     });
     
-    // Log the fields received from the API
+    // Log the top-level fields received from the API
     logOperation('api_fields_received', {
       requestId,
       fields: Object.keys(apiData),
@@ -74,11 +76,15 @@ export async function getValuationFromAPI(
     // Preserve the full functionResponse from API
     const functionResponse = apiData.functionResponse || {};
     
-    // Log if we have the nested calcValuation
+    // Log if we have the nested calcValuation for debugging
     if (functionResponse.valuation?.calcValuation) {
+      const calcValuation = functionResponse.valuation.calcValuation;
       logOperation('found_calc_valuation', {
         requestId,
-        calcValuation: JSON.stringify(functionResponse.valuation.calcValuation)
+        calcValuation: JSON.stringify(calcValuation),
+        price_min: calcValuation.price_min,
+        price_med: calcValuation.price_med,
+        price: calcValuation.price
       });
     }
 
@@ -153,8 +159,8 @@ export async function getValuationFromAPI(
       }, 'warn');
     }
     
-    // Format response to match the structure expected by frontend
-    // IMPORTANT: Preserve the functionResponse in the response
+    // IMPORTANT: Format response to match the structure expected by frontend
+    // Include the complete functionResponse so that it's available for processing
     return {
       success: true,
       data: {

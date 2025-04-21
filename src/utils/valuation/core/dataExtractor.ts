@@ -7,6 +7,7 @@
  * - 2025-04-21: Added basePrice to RawValuationData interface to fix TypeScript errors
  * - 2025-04-21: Enhanced price calculation to better handle fallback cases
  * - 2025-04-22: Fixed extraction of nested pricing data from functionResponse structure
+ * - 2025-04-26: Completely refactored price extraction to prioritize functionResponse structure
  */
 
 import { ValuationData } from '../valuationDataTypes';
@@ -96,135 +97,126 @@ export function extractVehicleData(rawData: RawValuationData) {
 }
 
 export function extractPriceData(rawData: RawValuationData) {
-  // Try to get data from nested structure first, then fallback to root
-  const sourceData = rawData?.data || rawData;
-  
-  // First check for price data in functionResponse.valuation.calcValuation
+  // First, check if we have the functionResponse structure with calcValuation
   const calcValuation = rawData?.functionResponse?.valuation?.calcValuation;
   
-  // Log all possible price data sources for debugging
-  console.log('[DATA-EXTRACTOR] Available price fields:', {
-    fromSource: Object.keys(sourceData).filter(key => 
-      ['price', 'valuation', 'reservePrice', 'averagePrice', 'price_min', 'price_med', 'basePrice'].includes(key)
-    ),
-    fromCalcValuation: calcValuation ? Object.keys(calcValuation) : [],
-    calcValuationPriceMin: calcValuation?.price_min,
-    calcValuationPriceMed: calcValuation?.price_med,
-    sourcePriceMin: sourceData.price_min,
-    sourcePriceMed: sourceData.price_med,
-    values: {
-      price: sourceData.price,
-      valuation: sourceData.valuation,
-      reservePrice: sourceData.reservePrice,
-      averagePrice: sourceData.averagePrice,
-      price_min: sourceData.price_min,
-      price_med: sourceData.price_med,
-      basePrice: sourceData.basePrice
+  // Debug: Log entire functionalResponse structure if available
+  if (rawData?.functionResponse) {
+    console.log('[DATA-EXTRACTOR] Found functionResponse structure:', {
+      hasUserParams: !!rawData.functionResponse.userParams,
+      hasValuation: !!rawData.functionResponse.valuation,
+      hasCalcValuation: !!rawData.functionResponse.valuation?.calcValuation
+    });
+    
+    if (calcValuation) {
+      console.log('[DATA-EXTRACTOR] calcValuation contains:', {
+        price: calcValuation.price,
+        price_min: calcValuation.price_min,
+        price_med: calcValuation.price_med,
+        price_max: calcValuation.price_max,
+        price_avr: calcValuation.price_avr
+      });
     }
-  });
+  }
 
-  // Calculate base price with priority order:
-  // 1. Use calcValuation.price_min/price_med if available (most reliable)
-  // 2. Then try sourceData.price_min/price_med
-  // 3. Then try other price fields or provided basePrice
-  let basePrice = 0;
-  let calculatedFromMinMed = false;
-  let priceSource = 'unknown';
-  
-  // 1. First priority: Check calcValuation (the most reliable source)
-  if (calcValuation && calcValuation.price_min && calcValuation.price_med) {
-    basePrice = (Number(calcValuation.price_min) + Number(calcValuation.price_med)) / 2;
-    calculatedFromMinMed = true;
-    priceSource = 'calcValuation';
+  // PRIORITY 1: Try to get data from functionResponse.valuation.calcValuation first
+  if (calcValuation && calcValuation.price_min !== undefined && calcValuation.price_med !== undefined) {
+    const priceMin = Number(calcValuation.price_min);
+    const priceMed = Number(calcValuation.price_med);
     
-    console.log('[DATA-EXTRACTOR] Calculated base price from calcValuation min/med:', {
-      price_min: calcValuation.price_min,
-      price_med: calcValuation.price_med,
-      basePrice
-    });
-  }
-  // 2. Second priority: Try data.price_min/price_med
-  else if (sourceData.price_min && sourceData.price_med) {
-    basePrice = (Number(sourceData.price_min) + Number(sourceData.price_med)) / 2;
-    calculatedFromMinMed = true;
-    priceSource = 'sourceData';
-    
-    console.log('[DATA-EXTRACTOR] Calculated base price from source min/med:', {
-      price_min: sourceData.price_min,
-      price_med: sourceData.price_med,
-      basePrice
-    });
-  }
-  // 3. Third priority: Check if basePrice is directly provided
-  else if (sourceData.basePrice && sourceData.basePrice > 0) {
-    basePrice = sourceData.basePrice;
-    priceSource = 'providedBasePrice';
-    console.log('[DATA-EXTRACTOR] Using provided base price:', basePrice);
-  }
-  // 4. Fourth priority: Try alternative price fields
-  else {
-    // Try other price fields
-    basePrice = sourceData.basePrice || 
-                sourceData.valuation || 
-                sourceData.price || 
-                sourceData.averagePrice || 
-                calcValuation?.price ||
-                calcValuation?.price_avr ||
-                0;
-                
-    if (basePrice > 0) {
-      priceSource = basePrice === sourceData.valuation ? 'valuation' : 
-                   basePrice === sourceData.price ? 'price' : 
-                   basePrice === sourceData.averagePrice ? 'averagePrice' :
-                   basePrice === calcValuation?.price ? 'calcValuation.price' :
-                   basePrice === calcValuation?.price_avr ? 'calcValuation.price_avr' :
-                   'unknown';
+    // Check if these are valid numbers and not zero
+    if (!isNaN(priceMin) && !isNaN(priceMed) && priceMin > 0 && priceMed > 0) {
+      // Calculate base price (average of min and median)
+      const basePrice = (priceMin + priceMed) / 2;
       
-      console.log('[DATA-EXTRACTOR] Using alternative price field:', {
-        source: priceSource,
-        value: basePrice
+      console.log('[DATA-EXTRACTOR] Successfully extracted price data from calcValuation:', {
+        priceMin,
+        priceMed,
+        calculatedBasePrice: basePrice
       });
+      
+      return {
+        price: calcValuation.price || basePrice,
+        valuation: basePrice,
+        reservePrice: 0, // Will be calculated later
+        averagePrice: priceMed,
+        basePrice: basePrice
+      };
     }
   }
   
-  // Use root-level prices if they exist and we didn't already calculate from min/med
-  if (!calculatedFromMinMed && basePrice === 0) {
-    if (rawData.basePrice && rawData.basePrice > 0) {
-      basePrice = rawData.basePrice;
-      priceSource = 'rootBasePrice';
-      console.log('[DATA-EXTRACTOR] Using root level basePrice:', basePrice);
-    } else if (rawData.price_min && rawData.price_med) {
-      basePrice = (Number(rawData.price_min) + Number(rawData.price_med)) / 2;
-      priceSource = 'rootMinMed';
-      console.log('[DATA-EXTRACTOR] Calculated base price from root min/med:', {
-        price_min: rawData.price_min,
-        price_med: rawData.price_med,
-        basePrice
+  // PRIORITY 2: Try to get data from the nested data structure if available
+  const sourceData = rawData?.data || rawData;
+  
+  if (sourceData.price_min !== undefined && sourceData.price_med !== undefined) {
+    const priceMin = Number(sourceData.price_min);
+    const priceMed = Number(sourceData.price_med);
+    
+    if (!isNaN(priceMin) && !isNaN(priceMed) && priceMin > 0 && priceMed > 0) {
+      const basePrice = (priceMin + priceMed) / 2;
+      
+      console.log('[DATA-EXTRACTOR] Using price_min/price_med from source data:', {
+        priceMin,
+        priceMed,
+        calculatedBasePrice: basePrice
       });
+      
+      return {
+        price: sourceData.price || basePrice,
+        valuation: basePrice,
+        reservePrice: sourceData.reservePrice || 0,
+        averagePrice: priceMed,
+        basePrice: basePrice
+      };
     }
   }
   
-  // Get the average price from the most reliable source
-  let averagePrice = calcValuation?.price_med || 
-                    calcValuation?.price_avr || 
-                    sourceData.averagePrice || 
-                    sourceData.price_med || 
-                    basePrice;
-
-  console.log('[DATA-EXTRACTOR] Final extracted prices:', {
-    basePrice,
-    averagePrice,
-    priceSource,
-    usingFallbackEstimation: basePrice === 0
-  });
+  // PRIORITY 3: Check if basePrice is directly provided
+  if (sourceData.basePrice && sourceData.basePrice > 0) {
+    console.log('[DATA-EXTRACTOR] Using provided base price:', sourceData.basePrice);
+    
+    return {
+      price: sourceData.price || sourceData.basePrice,
+      valuation: sourceData.valuation || sourceData.basePrice,
+      reservePrice: sourceData.reservePrice || 0,
+      averagePrice: sourceData.averagePrice || sourceData.basePrice,
+      basePrice: sourceData.basePrice
+    };
+  }
   
-  // Now return all available price data
+  // PRIORITY 4: Try other price fields
+  const possiblePriceField = sourceData.valuation || 
+                            sourceData.price || 
+                            sourceData.averagePrice || 
+                            (calcValuation?.price || 0);
+  
+  if (possiblePriceField > 0) {
+    console.log('[DATA-EXTRACTOR] Using alternative price field:', {
+      value: possiblePriceField,
+      source: sourceData.valuation ? 'valuation' : 
+             sourceData.price ? 'price' : 
+             sourceData.averagePrice ? 'averagePrice' :
+             'calcValuation.price'
+    });
+    
+    return {
+      price: possiblePriceField,
+      valuation: possiblePriceField,
+      reservePrice: sourceData.reservePrice || 0,
+      averagePrice: sourceData.averagePrice || possiblePriceField,
+      basePrice: possiblePriceField
+    };
+  }
+  
+  // If we get here, we couldn't find any valid price data
+  console.warn('[DATA-EXTRACTOR] No valid price data found in the API response');
+  
   return {
-    price: sourceData.price || calcValuation?.price || 0,
-    valuation: sourceData.valuation || basePrice,
-    reservePrice: sourceData.reservePrice || 0,
-    averagePrice: averagePrice,
-    basePrice: basePrice
+    price: 0,
+    valuation: 0,
+    reservePrice: 0,
+    averagePrice: 0,
+    basePrice: 0
   };
 }
 
