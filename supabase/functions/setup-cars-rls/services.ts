@@ -2,9 +2,10 @@
 /**
  * Services for setup-cars-rls edge function
  * Created: 2025-04-19
+ * 2025-04-21: Fixed supabase-js import to use Deno/ESM compatible style for edge functions and modular utils.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'; // Fixed: Use CDN import for Deno compatibility
 import { RLSPolicy, DBResponse } from './types.ts';
 import { logOperation, logError } from './utils.ts';
 
