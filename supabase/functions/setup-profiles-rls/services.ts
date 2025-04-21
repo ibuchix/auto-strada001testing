@@ -2,9 +2,10 @@
 /**
  * Services for setup-profiles-rls edge function
  * Updated: 2025-04-19 - Improved error handling and service reliability
+ * 2025-04-21: Fixed supabase-js import to use Deno/ESM compatible style for edge functions.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'; // Fixed to use CDN import for Deno compatibility
 import { RLSPolicy, DBResponse } from './types.ts';
 import { logError } from './utils/logging.ts';
 
@@ -64,3 +65,4 @@ export class RLSService {
     }
   }
 }
+
