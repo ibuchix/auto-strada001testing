@@ -3,10 +3,11 @@
  * Changes made:
  * - 2024-07-22: Created dedicated handler for proxy bids requests
  * - 2025-04-05: Updated to use consistent Supabase client version
+ * - 2025-04-21: Updated to use local logging utility instead of shared
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { logOperation } from "../../_shared/index.ts";
+import { logOperation } from "../utils/logging.ts";
 
 /**
  * Handle proxy bids processing requests
