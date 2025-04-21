@@ -5,6 +5,7 @@
  * Updated: 2025-04-22 - Added ValuationResult interface for consistent data handling
  * Updated: 2025-04-24 - Added apiSource, errorDetails, and usingFallbackEstimation properties
  * Updated: 2025-04-25 - Enhanced fallback estimation handling with better metadata
+ * Updated: 2025-04-25 - Fixed reserve price calculation to ensure proper percentages are applied
  */
 
 export type TransmissionType = 'manual' | 'automatic';
