@@ -2,6 +2,7 @@
 /**
  * Edge function for vehicle valuation
  * Updated: 2025-04-25 - Enhanced price data extraction and error handling
+ * Updated: 2025-04-28 - Added extensive debugging and response validation
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -10,6 +11,7 @@ import { callValuationApi } from "./utils/api-service.ts";
 import { processValuationData } from "./utils/data-processor.ts";
 import { calculateReservePrice } from "./utils/price-calculator.ts";
 import { logOperation } from "./utils/logging.ts";
+import { checkApiCredentials, debugApiEndpoint } from "./utils/debug-helper.ts";
 
 serve(async (req) => {
   // Handle CORS if needed
@@ -22,9 +24,21 @@ serve(async (req) => {
     const requestId = crypto.randomUUID().substring(0, 8);
     
     // Parse request data
-    const { vin, mileage, gearbox, debug } = await req.json();
+    const requestJson = await req.json();
+    const { vin, mileage, gearbox, debug = true } = requestJson; // Default debug to true for troubleshooting
+    
+    // Log received parameters
+    logOperation('request_received', {
+      requestId,
+      vin,
+      mileage,
+      gearbox,
+      debug,
+      timestamp: new Date().toISOString()
+    });
     
     if (!vin) {
+      logOperation('missing_vin', { requestId }, 'error');
       return new Response(
         JSON.stringify({
           success: false,
@@ -34,135 +48,158 @@ serve(async (req) => {
       );
     }
     
-    logOperation('request_received', {
+    // Verify API credentials are available
+    const credentialCheck = checkApiCredentials(requestId);
+    logOperation('credential_check', {
       requestId,
-      vin,
-      mileage,
-      gearbox,
-      debug: !!debug
+      valid: credentialCheck.valid,
+      ...credentialCheck.details
     });
     
-    // Call external valuation API
-    const apiResponse = await callValuationApi(vin, mileage, requestId);
+    if (!credentialCheck.valid) {
+      logOperation('api_credentials_invalid', { requestId }, 'error');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'API credentials are not properly configured',
+          apiSource: 'estimation',
+          usingFallbackEstimation: true,
+          make: '',
+          model: '',
+          year: 0
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
-    // Log the raw API response for debugging
+    // Debug the API endpoint that will be called
+    debugApiEndpoint(vin, mileage, requestId);
+    
+    // Call external valuation API
+    logOperation('calling_external_api', { requestId, vin, mileage });
+    const apiResponseStart = performance.now();
+    const apiResponse = await callValuationApi(vin, mileage, requestId);
+    const apiResponseTime = performance.now() - apiResponseStart;
+    
+    // Log API response details
     logOperation('api_response_received', {
       requestId,
+      timeMs: apiResponseTime.toFixed(2),
       success: apiResponse.success,
       hasData: !!apiResponse.data,
       error: apiResponse.error || null,
       responseSize: apiResponse.data ? JSON.stringify(apiResponse.data).length : 0
     });
     
+    // CRITICAL: Log the entire raw response for debugging
+    if (debug) {
+      logOperation('api_raw_response', {
+        requestId,
+        data: JSON.stringify(apiResponse.data)
+      });
+    }
+    
     if (!apiResponse.success) {
+      logOperation('api_error', { 
+        requestId, 
+        error: apiResponse.error 
+      }, 'error');
+      
       return new Response(
         JSON.stringify({
           success: false,
-          error: apiResponse.error || 'Failed to get valuation'
+          error: apiResponse.error || 'Failed to get valuation',
+          apiSource: 'error',
+          errorDetails: apiResponse.error
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Process the raw valuation data
+    // Process the raw valuation data with detailed logging
     const rawData = apiResponse.data;
     
-    // IMPORTANT: Log the complete raw data for debugging price extraction issues
-    logOperation('raw_valuation_data', {
+    // Log raw data structure
+    logOperation('raw_data_structure', {
       requestId,
-      dataKeys: Object.keys(rawData),
-      hasPriceFields: !!(rawData.price_min || rawData.price_med),
-      hasNestedFunctionResponse: !!rawData.functionResponse,
-      rawData: debug ? JSON.stringify(rawData) : '[omitted]' // Only include raw data in debug mode
+      hasData: !!rawData,
+      topLevelKeys: rawData ? Object.keys(rawData) : [],
+      hasFunctionResponse: !!rawData?.functionResponse,
+      hasNestedValuation: !!rawData?.functionResponse?.valuation,
+      hasCalcValuation: !!rawData?.functionResponse?.valuation?.calcValuation
     });
     
-    // Extract pricing data from nested structure if present
-    let extractedPriceMin = 0;
-    let extractedPriceMed = 0;
+    // Extract detailed data structure for debugging
+    const functionResponse = rawData?.functionResponse || {};
+    const userParams = functionResponse.userParams || {};
+    const calcValuation = functionResponse.valuation?.calcValuation || {};
     
-    // Try to extract from functionResponse.valuation.calcValuation (common API structure)
-    if (rawData.functionResponse?.valuation?.calcValuation) {
-      const calcValuation = rawData.functionResponse.valuation.calcValuation;
-      
-      logOperation('found_nested_calcvaluation', {
-        requestId,
-        calcValuationKeys: Object.keys(calcValuation)
-      });
-      
-      if (calcValuation.price_min !== undefined) {
-        extractedPriceMin = Number(calcValuation.price_min);
-      }
-      
-      if (calcValuation.price_med !== undefined) {
-        extractedPriceMed = Number(calcValuation.price_med);
-      }
-    }
-    
-    // If not found in nested structure, check root level
-    if (extractedPriceMin === 0 && rawData.price_min !== undefined) {
-      extractedPriceMin = Number(rawData.price_min);
-    }
-    
-    if (extractedPriceMed === 0 && rawData.price_med !== undefined) {
-      extractedPriceMed = Number(rawData.price_med);
-    }
-    
-    logOperation('extracted_price_data', {
+    logOperation('data_extraction_check', {
       requestId,
-      extractedPriceMin,
-      extractedPriceMed
+      userParamsFields: Object.keys(userParams),
+      calcValuationFields: Object.keys(calcValuation),
+      hasUserParamsMake: !!userParams.make,
+      hasUserParamsModel: !!userParams.model,
+      hasCalcValuationPriceMin: calcValuation.price_min !== undefined,
+      hasCalcValuationPriceMed: calcValuation.price_med !== undefined
     });
     
-    // Process the data to extract vehicle info and calculate prices
+    // Process the data with enhanced validation
     const processedData = processValuationData(rawData, vin, mileage, requestId);
     
-    // Override with extracted price data if we found it
-    if (extractedPriceMin > 0 && extractedPriceMed > 0) {
-      processedData.price_min = extractedPriceMin;
-      processedData.price_med = extractedPriceMed;
-      
-      // Calculate basePrice as average of min and med prices
-      const basePrice = (extractedPriceMin + extractedPriceMed) / 2;
-      processedData.basePrice = basePrice;
-      processedData.valuation = basePrice;
-      
-      // Calculate reserve price using pricing tiers
-      processedData.reservePrice = calculateReservePrice(basePrice, requestId);
-      processedData.averagePrice = extractedPriceMed;
-    }
-    
-    logOperation('processing_complete', {
+    // Log the processed data for debugging
+    logOperation('processed_data', {
       requestId,
       make: processedData.make,
       model: processedData.model,
       year: processedData.year,
-      hasPriceData: processedData.basePrice > 0,
       basePrice: processedData.basePrice,
-      reservePrice: processedData.reservePrice
+      reservePrice: processedData.reservePrice,
+      valuation: processedData.valuation,
+      apiSource: processedData.basePrice > 0 ? 'auto_iso' : 'estimation'
     });
     
-    // Prepare the response
+    // Final response generation
+    const finalResponse = {
+      ...processedData,
+      apiSource: processedData.basePrice > 0 ? 'auto_iso' : 'estimation',
+      usingFallbackEstimation: processedData.basePrice === 0,
+      gearbox: gearbox || processedData.transmission || 'manual',
+      debug: debug ? {
+        requestId,
+        timestamp: new Date().toISOString(),
+        originalDataKeys: Object.keys(rawData || {}),
+        extractedDataKeys: Object.keys(processedData || {})
+      } : undefined
+    };
+    
+    // Log what we're about to send back
+    logOperation('sending_response', {
+      requestId,
+      responseSize: JSON.stringify(finalResponse).length,
+      hasMake: !!finalResponse.make,
+      hasModel: !!finalResponse.model,
+      hasYear: !!finalResponse.year,
+      hasPrices: finalResponse.basePrice > 0 || finalResponse.reservePrice > 0,
+      usingFallback: finalResponse.usingFallbackEstimation
+    });
+    
     return new Response(
-      JSON.stringify({
-        ...processedData,
-        apiSource: processedData.basePrice > 0 ? 'auto_iso' : 'estimation',
-        usingFallbackEstimation: processedData.basePrice === 0,
-        debug: debug ? {
-          requestId,
-          extractedPriceMin,
-          extractedPriceMed,
-          rawDataKeys: Object.keys(rawData)
-        } : undefined
-      }),
+      JSON.stringify(finalResponse),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
+    const errorMessage = error.message || 'Internal server error';
     console.error('Error in valuation function:', error);
     
+    // Send detailed error response
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Internal server error'
+        error: errorMessage,
+        errorStack: error.stack,
+        errorType: error.name,
+        timestamp: new Date().toISOString()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
