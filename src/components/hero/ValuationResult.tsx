@@ -1,7 +1,9 @@
+
 /**
  * Changes made:
  * - 2025-04-19: Fixed import paths for useValuationContinue
  * - 2025-04-19: Enhanced error handling and data validation
+ * - 2025-04-22: Added detailed data logging for debugging issues
  */
 
 import { useState, useEffect } from "react";
@@ -13,6 +15,7 @@ import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorDialog } from "./valuation/components/dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
 import { normalizeTransmission, validateValuationData } from "@/utils/validation/validateTypes";
+import { useValuationLogger } from "@/hooks/valuation/useValuationLogger";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -47,6 +50,13 @@ export const ValuationResult = ({
     handleRetry: handleErrorRetry 
   } = useValuationErrorDialog();
   
+  // Enable the valuation logger to see detailed data
+  useValuationLogger({
+    data: valuationResult,
+    stage: 'ValuationResult',
+    enabled: true // Always enabled for now to help debug
+  });
+  
   useEffect(() => {
     console.log('ValuationResult mounted with data:', {
       hasData: !!valuationResult,
@@ -54,6 +64,15 @@ export const ValuationResult = ({
       noData: valuationResult?.noData,
       timestamp: new Date().toISOString()
     });
+    
+    // Log all price-related fields
+    if (valuationResult) {
+      console.log('ValuationResult price data:', {
+        valuation: valuationResult.valuation,
+        reservePrice: valuationResult.reservePrice,
+        averagePrice: valuationResult.averagePrice
+      });
+    }
   }, [valuationResult]);
 
   const navigate = useNavigate();

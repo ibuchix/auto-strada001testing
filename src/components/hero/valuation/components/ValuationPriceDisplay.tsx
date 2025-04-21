@@ -8,6 +8,7 @@
  * - Updated 2025-04-21: Added better validation for price extraction
  * - Updated 2025-04-22: Enhanced data transformation validation for more reliable display
  * - Updated 2025-04-22: Added improved error handling for edge function responses
+ * - Updated 2025-04-22: Fixed DialogContent issue by adding proper description
  */
 
 import { formatCurrency } from "@/utils/formatters";

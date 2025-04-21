@@ -4,6 +4,7 @@
  * - 2025-04-20: Added direct VIN validation as fallback
  * - Enhanced error handling and tracking
  * - 2025-04-21: ADDED STEP-BY-STEP LOGGING TO TRACE VIN CHECK & VALUATION LOGIC
+ * - 2025-04-22: ADDED DEEP DATA STRUCTURE INSPECTION FOR DEBUGGING API RESPONSES
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
@@ -53,6 +54,56 @@ export const useValuationRequest = ({
     const duration = performance.now() - startTime;
     console.log(`[ValuationRequest][${requestIdRef.current}] ${stage} completed in ${duration.toFixed(2)}ms`);
     return duration;
+  }, []);
+
+  // Utility function to log API response details
+  const inspectApiResponse = useCallback((data: any, source: string) => {
+    if (!data) {
+      console.log(`[ValuationRequest][${requestIdRef.current}] [${source}] No data in response`);
+      return;
+    }
+
+    const summary = {
+      hasData: !!data,
+      topLevelKeys: Object.keys(data),
+      hasMake: !!data.make,
+      hasModel: !!data.model,
+      hasYear: !!data.year,
+      hasVin: !!data.vin,
+      hasValuation: typeof data.valuation === 'number' && data.valuation > 0,
+      hasReservePrice: typeof data.reservePrice === 'number' && data.reservePrice > 0,
+      hasBasePrice: typeof data.basePrice === 'number' && data.basePrice > 0,
+      hasAveragePrice: typeof data.averagePrice === 'number' && data.averagePrice > 0,
+      hasError: !!data.error,
+      isSuccess: !!data.success,
+      hasFunctionResponse: !!data.functionResponse,
+      hasPriceMin: data.price_min !== undefined,
+      hasPriceMed: data.price_med !== undefined
+    };
+
+    // Check for nested price data
+    if (data.functionResponse?.valuation?.calcValuation) {
+      summary['hasNestedCalcValuation'] = true;
+      summary['nestedPriceMin'] = data.functionResponse.valuation.calcValuation.price_min;
+      summary['nestedPriceMed'] = data.functionResponse.valuation.calcValuation.price_med;
+    }
+
+    console.log(`[ValuationRequest][${requestIdRef.current}] [${source}] Response structure:`, summary);
+    
+    // Try to log raw pricing for debugging
+    try {
+      console.log(`[ValuationRequest][${requestIdRef.current}] [${source}] Price fields:`, {
+        price: data.price,
+        valuation: data.valuation,
+        reservePrice: data.reservePrice,
+        basePrice: data.basePrice,
+        averagePrice: data.averagePrice,
+        price_min: data.price_min,
+        price_med: data.price_med
+      });
+    } catch (e) {
+      console.log(`[ValuationRequest][${requestIdRef.current}] [${source}] Error logging price fields`);
+    }
   }, []);
 
   // Optimized error handlers with memoization
@@ -111,12 +162,21 @@ export const useValuationRequest = ({
         data.gearbox
       );
       console.log(`[ValuationRequest][${requestId}] getValuation returned:`, result);
+      
+      // Inspect the API response structure
+      if (result?.data) {
+        inspectApiResponse(result.data, 'PRIMARY_API');
+      }
 
       // If primary method failed or returned incomplete data, try direct API
       if (!result.success || !result.data || !result.data.make || !result.data.model) {
         console.warn(`[ValuationRequest][${requestId}] PRIMARY METHOD failed or incomplete, trying direct API`);
         const directResult = await validateVinDirectly(data.vin, mileage);
         console.log(`[ValuationRequest][${requestId}] validateVinDirectly result:`, directResult);
+        
+        // Inspect the fallback API response
+        inspectApiResponse(directResult, 'FALLBACK_API');
+        
         // Use direct result if it has valid data
         if (directResult && directResult.make && directResult.model) {
           result = { success: true, data: directResult };
@@ -130,6 +190,22 @@ export const useValuationRequest = ({
       if (result.success && result.data) {
         console.log(`[ValuationRequest][${requestId}] FINAL SUCCESS - DATA:`, result.data);
         debugVinApiResponse('valuation_success', result.data);
+        
+        // Check if this data has actually useful price data
+        const hasPriceData = result.data.valuation > 0 || 
+          result.data.reservePrice > 0 || 
+          result.data.basePrice > 0 || 
+          result.data.averagePrice > 0;
+          
+        if (!hasPriceData) {
+          console.warn(`[ValuationRequest][${requestId}] WARNING: API returned success but no price data!`, {
+            valuation: result.data.valuation,
+            reservePrice: result.data.reservePrice,
+            basePrice: result.data.basePrice,
+            averagePrice: result.data.averagePrice
+          });
+        }
+        
         // Store the data
         localStorage.setItem("valuationData", JSON.stringify(result.data));
         localStorage.setItem("tempMileage", data.mileage);
@@ -148,7 +224,7 @@ export const useValuationRequest = ({
       console.log(`[ValuationRequest][${requestId}] END. Request completed in ${totalDuration.toFixed(2)}ms`);
       setIsLoading(false);
     }
-  }, [isConnected, setIsLoading, onSuccess, handleApiError, handleRequestError, getRequestId]);
+  }, [isConnected, setIsLoading, onSuccess, handleApiError, handleRequestError, getRequestId, inspectApiResponse]);
 
   return useMemo(() => ({
     executeRequest,

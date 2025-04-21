@@ -1,3 +1,4 @@
+
 /**
  * Enhanced valuation API with improved error handling and data extraction
  * 
@@ -8,6 +9,7 @@
  * - 2025-04-17: Updated to use standardized data models and types
  * - 2025-04-21: Fixed TypeScript errors with imports and type definitions
  * - 2025-04-21: ADDED DETAILED CONSOLE.LOGS AT EVERY PIPELINE STAGE FOR DEBUGGING VALUATION DATA FLOW
+ * - 2025-04-22: FIXED DATA EXTRACTION FROM API RESPONSE
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +35,13 @@ export async function fetchHomeValuation(
   try {
     perfTracker.checkpoint('api_call_start');
     
+    // Add VIN validation logging before API call
+    console.log(`[HomeValuationAPI][${requestId}] Validating VIN before API call:`, {
+      vin,
+      vinLength: vin.length,
+      isValid: vin.length === 17
+    });
+    
     const { data, error } = await supabase.functions.invoke<any>(
       'get-vehicle-valuation',
       {
@@ -46,7 +55,12 @@ export async function fetchHomeValuation(
     
     perfTracker.checkpoint('api_call_complete');
     
-    console.log('[API] Response from edge function', { error, data: data, dataKeys: data ? Object.keys(data) : null });
+    // Detailed API response logging
+    console.log('[API] Response status from edge function', { 
+      hasError: !!error, 
+      hasData: !!data, 
+      dataKeys: data ? Object.keys(data) : null 
+    });
     
     if (error) {
       console.error('[API] Error received from function:', error);
@@ -59,7 +73,33 @@ export async function fetchHomeValuation(
     }
     
     // Log raw edge response
-    console.log('[API] Full edge response payload:', JSON.stringify(data).slice(0, 500));
+    console.log('[API] Full edge response payload:', JSON.stringify(data));
+    
+    // Examine data structure closely
+    if (data.functionResponse) {
+      console.log('[API] Function response detected:', {
+        hasUserParams: !!data.functionResponse.userParams,
+        hasValuation: !!data.functionResponse.valuation,
+        hasCalcValuation: !!data.functionResponse.valuation?.calcValuation
+      });
+      
+      if (data.functionResponse.valuation?.calcValuation) {
+        console.log('[API] CalcValuation data:', data.functionResponse.valuation.calcValuation);
+      }
+    }
+    
+    // Log any price-related fields at the root level
+    const priceFields = ['price', 'price_min', 'price_med', 'valuation', 'basePrice', 'reservePrice', 'averagePrice'];
+    const foundPriceFields = priceFields.filter(field => data[field] !== undefined);
+    
+    if (foundPriceFields.length > 0) {
+      console.log('[API] Found price fields at root level:', foundPriceFields.reduce((acc, field) => {
+        acc[field] = data[field];
+        return acc;
+      }, {} as Record<string, any>));
+    } else {
+      console.warn('[API] No price fields found at root level');
+    }
     
     // Normalize and log data step by step
     console.log('[NORMALIZER] Passing raw data to normalizeValuationData:', {
@@ -72,6 +112,16 @@ export async function fetchHomeValuation(
     if (normalizedData && normalizedData.basePrice === 50000) {
       console.warn('[NORMALIZER RESULT][WARNING] Fallback value (50000) used for basePrice!');
     }
+
+    // Final validation check
+    console.log('[API] Final validation check:', {
+      hasMake: !!normalizedData.make,
+      hasModel: !!normalizedData.model,
+      hasYear: normalizedData.year > 0,
+      hasValuation: normalizedData.valuation > 0,
+      hasReservePrice: normalizedData.reservePrice > 0,
+      vin: normalizedData.vin
+    });
 
     console.groupEnd();
     
@@ -116,7 +166,11 @@ export async function fetchSellerValuation(
     
     perfTracker.checkpoint('api_call_complete');
     
-    console.log('[SELLER API] Edge response:', { response, error, hasResponse: !!response, hasError: !!error });
+    console.log('[SELLER API] Edge response:', { 
+      hasResponse: !!response, 
+      hasError: !!error,
+      responseKeys: response ? Object.keys(response) : null
+    });
     
     if (error) {
       console.error('[SELLER API] Error received:', error);
@@ -136,8 +190,34 @@ export async function fetchSellerValuation(
       throw new Error(response?.error || 'Failed to validate vehicle');
     }
 
+    // Detailed response inspection
+    console.log('[SELLER API] Response data structure:', {
+      hasData: !!response.data,
+      dataKeys: response.data ? Object.keys(response.data) : null
+    });
+    
+    if (response.data) {
+      // Check for price-related fields
+      const priceFields = ['price', 'price_min', 'price_med', 'valuation', 'basePrice', 'reservePrice'];
+      const foundPriceFields = priceFields.filter(field => response.data[field] !== undefined);
+      
+      if (foundPriceFields.length > 0) {
+        console.log('[SELLER API] Found price fields:', foundPriceFields.reduce((acc, field) => {
+          acc[field] = response.data[field];
+          return acc;
+        }, {} as Record<string, any>));
+      } else {
+        console.warn('[SELLER API] No price fields found in response data');
+      }
+    }
+
     // NORMALIZE
-    console.log('[SELLER NORMALIZER] Passing to normalizeValuationData:', { ...response.data, vin, mileage, transmission: gearbox });
+    console.log('[SELLER NORMALIZER] Passing to normalizeValuationData:', { 
+      ...response.data, 
+      vin, 
+      mileage, 
+      transmission: gearbox 
+    });
     const normalizedData = normalizeValuationData({ ...response.data, vin, mileage, transmission: gearbox });
     console.log('[SELLER NORMALIZER RESULT]:', normalizedData);
 
@@ -162,6 +242,13 @@ export async function fetchSellerValuation(
  * Uses the official pricing tiers and percentages
  */
 export function calculateReservePrice(basePrice: number): number {
+  console.log('[RESERVE CALC] Starting calculation with basePrice:', basePrice);
+  
+  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
+    console.error('[RESERVE CALC] Invalid base price:', basePrice);
+    return 0;
+  }
+  
   // Determine the percentage based on price tier
   let percentage = 0;
   
@@ -200,5 +287,14 @@ export function calculateReservePrice(basePrice: number): number {
   }
   
   // Calculate and round to the nearest whole number
-  return Math.round(basePrice - (basePrice * percentage));
+  const reservePrice = Math.round(basePrice - (basePrice * percentage));
+  
+  console.log('[RESERVE CALC] Calculation details:', {
+    basePrice,
+    percentageRate: (percentage * 100).toFixed(1) + '%',
+    formula: `${basePrice} - (${basePrice} × ${percentage})`,
+    reservePrice
+  });
+  
+  return reservePrice;
 }
