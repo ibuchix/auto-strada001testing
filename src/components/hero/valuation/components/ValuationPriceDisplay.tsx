@@ -5,6 +5,7 @@
  * - Updated 2025-04-20: Added fallback for missing price data
  * - Updated 2025-04-20: Fixed handling of edge cases for better reliability
  * - Updated 2025-04-21: Improved price display with better data debugging
+ * - Updated 2025-04-21: Added better validation for price extraction
  */
 
 import { formatCurrency } from "@/utils/formatters";

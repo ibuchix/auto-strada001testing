@@ -4,6 +4,7 @@
  * Modified: 2025-04-20 - Added default values for missing price data
  * Modified: 2025-04-20 - Fixed price extraction logic to prevent failures
  * Modified: 2025-04-21 - Updated to correctly extract nested price data from Auto ISO API
+ * Modified: 2025-04-21 - Fixed nested path extraction for Auto ISO response format
  */
 export const extractPrice = (responseData: any): number | null => {
   // Log the incoming data structure for debugging (truncate lengthy responses)
@@ -47,26 +48,47 @@ export const extractPrice = (responseData: any): number | null => {
   findPriceFields(responseData);
   console.log('Available price-related fields:', priceRelatedFields);
   
-  // Check the correct nested path for Auto ISO API (based on the actual API response)
+  // FIXED: Check the correct nested path for Auto ISO API first (primary source of truth)
+  // This is the most specific check and most reliable when available
   if (responseData.functionResponse?.valuation?.calcValuation) {
     const calcValuation = responseData.functionResponse.valuation.calcValuation;
     
+    // Log the nested structure to help with debugging
+    console.log('Found nested Auto ISO calcValuation:', {
+      has_price_min: calcValuation.price_min !== undefined,
+      has_price_med: calcValuation.price_med !== undefined,
+      price_min: calcValuation.price_min,
+      price_med: calcValuation.price_med
+    });
+    
     if (calcValuation.price_min !== undefined && calcValuation.price_med !== undefined) {
-      // This is the structure from the actual Auto ISO API response
-      const basePrice = (Number(calcValuation.price_min) + Number(calcValuation.price_med)) / 2;
-      if (basePrice > 0) {
+      // Validate both values are actual numbers and greater than zero
+      const priceMin = Number(calcValuation.price_min);
+      const priceMed = Number(calcValuation.price_med);
+      
+      if (!isNaN(priceMin) && !isNaN(priceMed) && priceMin > 0 && priceMed > 0) {
+        const basePrice = (priceMin + priceMed) / 2;
         console.log('AUTO ISO API: Calculated base price from nested calcValuation:', basePrice);
         return basePrice;
       }
     }
+    
+    // If min/med prices aren't available, check for direct price in the nested structure
+    if (calcValuation.price !== undefined && Number(calcValuation.price) > 0) {
+      const price = Number(calcValuation.price);
+      console.log('AUTO ISO API: Using direct price from nested calcValuation:', price);
+      return price;
+    }
   }
   
-  // Check for Auto ISO API specific fields at root level (the previously expected location)
+  // Check for Auto ISO API specific fields at root level (fallback to previous expected location)
   if (responseData.price_min !== undefined && responseData.price_med !== undefined) {
-    // This is the previously expected format
-    const basePrice = (Number(responseData.price_min) + Number(responseData.price_med)) / 2;
-    if (basePrice > 0) {
-      console.log('AUTO ISO API: Calculated base price from min/med:', basePrice);
+    const priceMin = Number(responseData.price_min);
+    const priceMed = Number(responseData.price_med);
+    
+    if (!isNaN(priceMin) && !isNaN(priceMed) && priceMin > 0 && priceMed > 0) {
+      const basePrice = (priceMin + priceMed) / 2;
+      console.log('AUTO ISO API: Calculated base price from root min/med:', basePrice);
       return basePrice;
     }
   }

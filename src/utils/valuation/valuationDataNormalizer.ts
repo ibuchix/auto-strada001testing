@@ -5,6 +5,7 @@
  * - 2025-04-20: Added detailed logging and validation
  * - 2025-04-20: Fixed import paths and added sanitizePartialData function
  * - 2025-04-21: Updated to properly extract nested vehicle data from Auto ISO API response
+ * - 2025-04-21: Fixed nested price extraction pattern to match API structure
  */
 
 import { extractPrice, calculateReservePrice } from '../../utils/priceExtractor';
@@ -26,6 +27,7 @@ export function normalizeValuationData(data: any): ValuationData {
   
   // Extract vehicle data from Auto ISO API response (proper nested path)
   const userParams = data?.functionResponse?.userParams || {};
+  const calcValuation = data?.functionResponse?.valuation?.calcValuation || {};
   
   // Extract make, model, year from the proper nested location
   const make = userParams.make || data?.make || '';
@@ -39,6 +41,14 @@ export function normalizeValuationData(data: any): ValuationData {
   // Get mileage from the proper nested location or from the root
   const mileage = userParams.odometer || data?.mileage || 0;
 
+  // Log the extracted price data for debugging
+  console.log('Extracted pricing data:', {
+    basePrice,
+    reservePrice,
+    valuation: data?.valuation,
+    averagePrice: calcValuation.price_med || data?.averagePrice || basePrice
+  });
+
   const normalized: ValuationData = {
     make: make,
     model: model,
@@ -48,7 +58,7 @@ export function normalizeValuationData(data: any): ValuationData {
     mileage: typeof mileage === 'number' ? mileage : parseInt(mileage) || 0,
     valuation: data?.valuation || reservePrice || 0,
     reservePrice: data?.reservePrice || reservePrice || 0,
-    averagePrice: data?.averagePrice || basePrice || 0,
+    averagePrice: calcValuation.price_med || data?.averagePrice || basePrice || 0,
     basePrice: basePrice,
     
     // API metadata
