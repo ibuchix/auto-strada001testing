@@ -3,10 +3,12 @@
  * Changes made:
  * - 2025-07-04: Created validation service for VIN data validation
  * - 2025-07-06: Fixed syntax error in logOperation call
+ * - 2025-07-07: Updated import for Database types to use local utils/database.types.ts for edge function deployment
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { Database } from '../../_shared/database.types.ts';
+// UPDATE BELOW: Use local database.types.ts so edge function builds standalone
+import { Database } from '../utils/database.types.ts';
 import { 
   ValidationError, 
   logOperation
@@ -157,3 +159,4 @@ export async function validateReservation(
     return { valid: false, error: 'Error validating reservation' };
   }
 }
+
