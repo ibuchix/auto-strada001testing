@@ -4,6 +4,7 @@
  * - 2025-04-19: Added proper TypeScript types
  * - 2025-04-19: Improved error handling and data validation
  * - 2025-04-19: Enhanced logging for debugging
+ * - 2025-04-22: Enhanced data transformation validation for all valuation data
  * - 2025-04-23: Fixed type conflicts between different ValuationData interfaces
  */
 
@@ -38,17 +39,29 @@ export const useValuationData = (valuationResult: Partial<ValuationData> | null)
     const hasError = !!valuationResult.error || !!valuationResult.noData;
     const shouldShowError = hasError;
     
+    // Log the raw data before normalization
+    console.log('Raw valuation data before normalization:', {
+      make: valuationResult.make,
+      model: valuationResult.model,
+      year: valuationResult.year,
+      reservePrice: valuationResult.reservePrice,
+      valuation: valuationResult.valuation,
+      hasError
+    });
+    
     // Normalize the data to ensure consistent format
     // Cast the result to our ValuationData type to ensure TypeScript compatibility
     const normalizedData = normalizeValuationData(valuationResult) as ValuationData;
     
     // Log key data points for debugging
-    console.log('Valuation data validation:', {
+    console.log('Valuation data after normalization:', {
       make: normalizedData.make,
       model: normalizedData.model,
       year: normalizedData.year,
       reservePrice: normalizedData.reservePrice,
       valuation: normalizedData.valuation,
+      basePrice: normalizedData.basePrice,
+      averagePrice: normalizedData.averagePrice,
       hasExplicitError: hasError,
       hasMakeModel: !!(normalizedData.make && normalizedData.model),
       hasPricing: !!(normalizedData.reservePrice > 0 || normalizedData.valuation > 0)

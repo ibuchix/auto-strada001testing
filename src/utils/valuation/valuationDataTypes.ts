@@ -1,40 +1,35 @@
 
 /**
- * Changes made:
- * - 2025-04-18: Created standardized types for valuation data
+ * Type definitions for valuation data
+ * Updated: 2025-04-22 - Added more complete type definitions
  */
 
-export type TransmissionType = "manual" | "automatic";
-
-export interface ValuationResult {
-  success: boolean;
-  data: ValuationData;
-}
+export type TransmissionType = 'manual' | 'automatic';
 
 export interface ValuationData {
+  vin: string;
   make: string;
   model: string;
   year: number;
-  vin: string;
   transmission: TransmissionType;
   mileage: number;
   valuation: number;
   reservePrice: number;
-  basePrice?: number;
-  averagePrice?: number;
+  averagePrice: number;
+  basePrice: number;
   
-  // External API metadata
+  // Metadata
   apiSource?: string;
   valuationDate?: string;
-  confidence?: number;
   
   // Status flags
-  isExisting?: boolean;
   error?: string;
   noData?: boolean;
+  isExisting?: boolean;
 }
 
-/**
- * Re-export the calculation function for convenience
- */
-export { calculateReservePrice } from './valuationCalculator';
+export interface ValuationApiResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}

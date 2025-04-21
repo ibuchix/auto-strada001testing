@@ -6,6 +6,7 @@
  * - Updated 2025-04-20: Fixed handling of edge cases for better reliability
  * - Updated 2025-04-21: Improved price display with better data debugging
  * - Updated 2025-04-21: Added better validation for price extraction
+ * - Updated 2025-04-22: Enhanced data transformation validation for more reliable display
  */
 
 import { formatCurrency } from "@/utils/formatters";
@@ -21,25 +22,35 @@ export const ValuationPriceDisplay = ({
   showAveragePrice = false,
   averagePrice
 }: ValuationPriceDisplayProps) => {
-  // Ensure we have valid numbers
-  const validReservePrice = typeof reservePrice === 'number' && !isNaN(reservePrice) ? reservePrice : 0;
-  const validAveragePrice = typeof averagePrice === 'number' && !isNaN(averagePrice) ? averagePrice : 0;
+  // Enhanced validation with more detailed logging
+  console.log('ValuationPriceDisplay received values:', {
+    reservePrice,
+    averagePrice,
+    showAveragePrice,
+    timestamp: new Date().toISOString()
+  });
+
+  // Ensure we have valid numbers with more robust validation
+  const validReservePrice = typeof reservePrice === 'number' && !isNaN(reservePrice) && reservePrice > 0 
+    ? reservePrice 
+    : 0;
+    
+  const validAveragePrice = typeof averagePrice === 'number' && !isNaN(averagePrice) && averagePrice > 0
+    ? averagePrice 
+    : 0;
   
   // Determine if we have valid prices to display
   const hasValidReservePrice = validReservePrice > 0;
   const hasValidAveragePrice = validAveragePrice > 0;
   const hasNoValidPrices = !hasValidReservePrice && !hasValidAveragePrice;
 
-  // Log price display for debugging with more detailed information
-  console.log('ValuationPriceDisplay values:', {
-    inputReservePrice: reservePrice,
-    inputAveragePrice: averagePrice,
+  // Log the validated values
+  console.log('ValuationPriceDisplay validated values:', {
     validReservePrice,
     validAveragePrice,
     hasValidReservePrice,
     hasValidAveragePrice,
-    hasNoValidPrices,
-    timestamp: new Date().toISOString()
+    hasNoValidPrices
   });
 
   return (
