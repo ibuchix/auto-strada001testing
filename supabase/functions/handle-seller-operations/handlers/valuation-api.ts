@@ -1,9 +1,9 @@
-
 /**
  * Changes made:
  * - 2024-07-22: Created dedicated module for API valuation service
  * - 2025-04-08: Enhanced data normalization and fallback values
  * - 2025-04-22: Fixed data structure consistency and reserve price calculation
+ * - 2025-04-22: Fixed API response handling to preserve nested functionResponse
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
@@ -54,6 +54,7 @@ export async function getValuationFromAPI(
       };
     }
     
+    // Parse the API response
     const apiData = await response.json();
     logOperation('api_success', { 
       requestId, 
@@ -66,12 +67,22 @@ export async function getValuationFromAPI(
       fields: Object.keys(apiData),
       hasMake: !!apiData.make,
       hasModel: !!apiData.model,
-      hasYear: !!apiData.productionYear || !!apiData.year
+      hasYear: !!apiData.productionYear || !!apiData.year,
+      hasFunctionResponse: !!apiData.functionResponse
     });
 
-    // Extract data from the response structure
-    // The Auto ISO API returns data in a nested structure under functionResponse
+    // Preserve the full functionResponse from API
     const functionResponse = apiData.functionResponse || {};
+    
+    // Log if we have the nested calcValuation
+    if (functionResponse.valuation?.calcValuation) {
+      logOperation('found_calc_valuation', {
+        requestId,
+        calcValuation: JSON.stringify(functionResponse.valuation.calcValuation)
+      });
+    }
+
+    // Extract user params
     const userParams = functionResponse.userParams || {};
     const calcValuation = functionResponse.valuation?.calcValuation || {};
     
@@ -80,72 +91,46 @@ export async function getValuationFromAPI(
     const model = userParams.model || apiData.model || '';
     const year = userParams.year || apiData.productionYear || apiData.year || 0;
     
-    // Normalize price fields with enhanced extraction
+    // Extract price data from calcValuation if available
     let priceMin = 0;
     let priceMed = 0;
+    let basePrice = 0;
     
-    // First try to get prices from nested calcValuation (preferred source)
-    if (calcValuation.price_min !== undefined) priceMin = Number(calcValuation.price_min);
-    if (calcValuation.price_med !== undefined) priceMed = Number(calcValuation.price_med);
-    
-    // If not found in calcValuation, try root level
-    if (priceMin <= 0 && apiData.price_min !== undefined) priceMin = Number(apiData.price_min);
-    if (priceMed <= 0 && apiData.price_med !== undefined) priceMed = Number(apiData.price_med);
-    
-    // If still no valid prices, try alternative field names
-    if (priceMin <= 0) {
-      if (apiData.priceMin !== undefined) priceMin = Number(apiData.priceMin);
-      else if (apiData.minPrice !== undefined) priceMin = Number(apiData.minPrice);
-      else if (apiData.minimum_value !== undefined) priceMin = Number(apiData.minimum_value);
-      else if (apiData.price !== undefined) priceMin = Number(apiData.price);
-    }
-    
-    if (priceMed <= 0) {
-      if (apiData.priceMed !== undefined) priceMed = Number(apiData.priceMed);
-      else if (apiData.medianPrice !== undefined) priceMed = Number(apiData.medianPrice);
-      else if (apiData.median_value !== undefined) priceMed = Number(apiData.median_value);
-      else if (apiData.average_value !== undefined) priceMed = Number(apiData.average_value);
-      else if (apiData.price !== undefined) priceMed = Number(apiData.price);
-    }
-    
-    // Check if we have critical data
-    const hasCriticalData = make && model && year > 0;
-    
-    // We need at least some pricing data to continue
-    if ((priceMin <= 0 || priceMed <= 0) && !hasCriticalData) {
-      logOperation('insufficient_pricing_data', { 
-        requestId, 
-        vin,
+    if (calcValuation.price_min !== undefined && calcValuation.price_med !== undefined) {
+      priceMin = Number(calcValuation.price_min);
+      priceMed = Number(calcValuation.price_med);
+      
+      // Calculate base price (average of min and median)
+      basePrice = (priceMin + priceMed) / 2;
+      
+      logOperation('using_calcvaluation_prices', {
+        requestId,
         priceMin,
         priceMed,
-        hasMake: !!make,
-        hasModel: !!model,
-        hasYear: year > 0
-      }, 'error');
+        basePrice
+      });
+    } else {
+      // Fallback to other price fields
+      priceMin = apiData.price_min || 0;
+      priceMed = apiData.price_med || 0;
       
-      // If we have make/model/year, but no pricing, we can still return
-      if (hasCriticalData) {
-        // Use sensible defaults for price
-        priceMin = 30000;
-        priceMed = 30000;
-        
-        logOperation('using_default_pricing', {
+      if (priceMin > 0 && priceMed > 0) {
+        basePrice = (priceMin + priceMed) / 2;
+        logOperation('using_root_prices', {
           requestId,
-          vin,
-          make,
-          model,
-          year
-        }, 'warn');
+          priceMin,
+          priceMed,
+          basePrice
+        });
       } else {
-        return {
-          success: false,
-          error: 'Could not retrieve valid pricing data for this vehicle'
-        };
+        // Further fallbacks
+        basePrice = apiData.basePrice || apiData.valuation || apiData.price || 0;
+        logOperation('using_fallback_prices', {
+          requestId,
+          basePrice
+        });
       }
     }
-    
-    // Calculate base price (average of min and median prices)
-    const basePrice = (priceMin + priceMed) / 2;
     
     // Calculate reserve price
     const reservePrice = calculateReservePrice(basePrice);
@@ -169,6 +154,7 @@ export async function getValuationFromAPI(
     }
     
     // Format response to match the structure expected by frontend
+    // IMPORTANT: Preserve the functionResponse in the response
     return {
       success: true,
       data: {
@@ -184,20 +170,8 @@ export async function getValuationFromAPI(
         reservePrice,
         averagePrice: priceMed,
         valuation: basePrice,
-        // Include the original response to aid debugging
-        functionResponse: {
-          userParams: {
-            make,
-            model,
-            year
-          },
-          valuation: {
-            calcValuation: {
-              price_min: priceMin,
-              price_med: priceMed
-            }
-          }
-        }
+        // Include the original functionResponse
+        functionResponse
       }
     };
   } catch (error) {

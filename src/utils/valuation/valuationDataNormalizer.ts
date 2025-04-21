@@ -5,6 +5,7 @@
  * - 2025-04-21: Enhanced price calculation logic to properly handle nested API response
  * - 2025-04-21: Added robust fallback price estimation when API returns zeros
  * - 2025-04-22: Fixed base price handling and reserve price calculation logic
+ * - 2025-04-22: Added support for functionResponse nested structure in API response
  */
 
 import { extractVehicleData, extractPriceData } from './core/dataExtractor';
@@ -17,6 +18,25 @@ export function normalizeValuationData(rawData: any): ValuationData {
   if (!rawData) {
     console.warn('[VAL-NORM] No valid data found in response');
     return createEmptyValuation();
+  }
+
+  // Log the structure of the raw data to help with debugging
+  console.log('[VAL-NORM] Raw data structure:', {
+    hasData: !!rawData.data,
+    hasFunctionResponse: !!rawData.functionResponse,
+    hasFunctionResponseValuation: !!(rawData.functionResponse?.valuation),
+    hasCalcValuation: !!(rawData.functionResponse?.valuation?.calcValuation)
+  });
+
+  // If we have functionResponse with calcValuation, log the price data
+  if (rawData.functionResponse?.valuation?.calcValuation) {
+    console.log('[VAL-NORM] Found calcValuation price data:', {
+      price: rawData.functionResponse.valuation.calcValuation.price,
+      price_min: rawData.functionResponse.valuation.calcValuation.price_min,
+      price_med: rawData.functionResponse.valuation.calcValuation.price_med,
+      price_max: rawData.functionResponse.valuation.calcValuation.price_max,
+      price_avr: rawData.functionResponse.valuation.calcValuation.price_avr
+    });
   }
 
   // Extract core vehicle and price data
@@ -72,7 +92,7 @@ export function normalizeValuationData(rawData: any): ValuationData {
     reservePrice: reservePrice,
     averagePrice: priceData.averagePrice > 0 ? priceData.averagePrice : basePrice,
     basePrice: basePrice,
-    apiSource: rawData.apiSource,
+    apiSource: rawData.apiSource || (rawData.functionResponse ? 'auto_iso_api' : 'unknown'),
     valuationDate: rawData.valuationDate || new Date().toISOString(),
     usingFallbackEstimation: usingFallbackEstimation,
     estimationMethod: estimationMethod,
