@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-04-21: Refactored to use separate data extraction and validation utilities
@@ -14,10 +13,20 @@ import { validateVehicleData, validatePriceData } from './core/dataValidator';
 import { ValuationData, TransmissionType, calculateReservePrice, estimateBasePriceByModel } from './valuationDataTypes';
 
 export function normalizeValuationData(rawData: any): ValuationData {
-  console.log('[VAL-NORM] INPUT RAW valuation data:', JSON.stringify(rawData));
-  
+  console.log('%c🔬 VALUATION NORMALIZATION STARTED', 'background: #FF5722; color: white; font-size: 16px; padding: 4px 8px; border-radius: 4px', {
+    hasRawData: !!rawData,
+    dataKeys: rawData ? Object.keys(rawData) : [],
+    hasNestedData: !!rawData?.functionResponse
+  });
+
+  // Log the entire raw data structure for comprehensive debugging
+  console.log('%c🕵️ RAW DATA FULL STRUCTURE', 'background: #3F51B5; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', 
+    JSON.stringify(rawData, null, 2)
+  );
+
+  // Existing normalization logic with enhanced error tracking
   if (!rawData) {
-    console.warn('[VAL-NORM] No valid data found in response');
+    console.error('%c❌ NO VALID DATA FOUND', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
     return createEmptyValuation();
   }
 
@@ -41,17 +50,33 @@ export function normalizeValuationData(rawData: any): ValuationData {
     });
   }
 
-  // Extract core vehicle and price data
+  // Extract core vehicle and price data with more detailed logging
   const vehicleData = extractVehicleData(rawData);
   const priceData = extractPriceData(rawData);
   
   // Log the extracted price data
   console.log('[VAL-NORM] Extracted price data:', priceData);
   
-  // Handle the case where we need to use fallback estimation
+  console.log('%c💰 EXTRACTED PRICE DATA', 'background: #4CAF50; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+    basePrice: priceData.basePrice,
+    valuation: priceData.valuation,
+    averagePrice: priceData.averagePrice
+  });
+
+  // Detailed logging for base price calculation
   let basePrice = priceData.basePrice;
   let usingFallbackEstimation = rawData.usingFallbackEstimation || false;
   let estimationMethod = rawData.estimationMethod || undefined;
+  
+  // Logging for estimation scenarios
+  console.log('%c🧮 BASE PRICE ESTIMATION', 'background: #9C27B0; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+    basePrice,
+    usingFallbackEstimation,
+    estimationMethod,
+    hasMake: !!vehicleData.make,
+    hasModel: !!vehicleData.model,
+    hasYear: vehicleData.year > 0
+  });
   
   // If no valid base price, try to estimate one based on vehicle data
   if (basePrice <= 0 && vehicleData.make && vehicleData.model && vehicleData.year > 0) {
@@ -82,6 +107,14 @@ export function normalizeValuationData(rawData: any): ValuationData {
   const reservePrice = priceData.reservePrice > 0 
     ? priceData.reservePrice 
     : calculateReservePrice(basePrice);
+  
+  // Log final reserve price calculation
+  console.log('%c💵 RESERVE PRICE CALCULATION', 'background: #FF9800; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+    basePrice,
+    reservePrice,
+    usingFallbackEstimation,
+    estimationMethod
+  });
   
   console.log('[VAL-NORM] Reserve price calculation:', {
     basePrice,

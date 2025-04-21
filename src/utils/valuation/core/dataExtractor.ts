@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-04-21: Created utility for extracting data from API response
@@ -97,9 +96,34 @@ export function extractVehicleData(rawData: RawValuationData) {
 }
 
 export function extractPriceData(rawData: RawValuationData) {
+  // Enhanced logging for debugging
+  console.log('%c🔍 DETAILED DATA EXTRACTION START', 'background: #2196F3; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+    hasRawData: !!rawData,
+    rawDataKeys: rawData ? Object.keys(rawData) : [],
+    hasFunctionResponse: !!rawData?.functionResponse,
+    hasValuation: !!rawData?.functionResponse?.valuation
+  });
+
+  // Log the entire functionResponse structure for complete visibility
+  if (rawData?.functionResponse) {
+    console.log('%c📊 FULL FUNCTION RESPONSE', 'background: #4CAF50; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', 
+      JSON.stringify(rawData.functionResponse, null, 2)
+    );
+  }
+
   // First, check if we have the functionResponse structure with calcValuation
   const calcValuation = rawData?.functionResponse?.valuation?.calcValuation;
   
+  // Detailed logging of calcValuation
+  console.log('%c💰 CALC VALUATION DETAILS', 'background: #FF9800; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+    hasCalcValuation: !!calcValuation,
+    priceMin: calcValuation?.price_min,
+    priceMed: calcValuation?.price_med,
+    price: calcValuation?.price,
+    priceAvr: calcValuation?.price_avr,
+    priceMax: calcValuation?.price_max
+  });
+
   // Debug: Log entire functionalResponse structure if available
   if (rawData?.functionResponse) {
     console.log('[DATA-EXTRACTOR] Found functionResponse structure:', {
@@ -124,10 +148,26 @@ export function extractPriceData(rawData: RawValuationData) {
     const priceMin = Number(calcValuation.price_min);
     const priceMed = Number(calcValuation.price_med);
     
+    // Extensive logging for price calculation
+    console.log('%c✅ PRICE EXTRACTION SUCCESS', 'background: #8BC34A; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+      priceMin,
+      priceMed,
+      isValidPriceMin: !isNaN(priceMin) && priceMin > 0,
+      isValidPriceMed: !isNaN(priceMed) && priceMed > 0
+    });
+    
     // Check if these are valid numbers and not zero
     if (!isNaN(priceMin) && !isNaN(priceMed) && priceMin > 0 && priceMed > 0) {
       // Calculate base price (average of min and median)
       const basePrice = (priceMin + priceMed) / 2;
+      
+      console.log('%c💸 BASE PRICE CALCULATION', 'background: #673AB7; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+        priceMin,
+        priceMed,
+        calculatedBasePrice: basePrice,
+        averagePrice: calcValuation.price_avr || basePrice,
+        maxPrice: calcValuation.price_max
+      });
       
       console.log('[DATA-EXTRACTOR] Successfully extracted price data from calcValuation:', {
         priceMin,
@@ -207,6 +247,11 @@ export function extractPriceData(rawData: RawValuationData) {
       basePrice: possiblePriceField
     };
   }
+  
+  // Fallback logging if no valid price data is found
+  console.error('%c❌ NO VALID PRICE DATA FOUND', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+    rawData: JSON.stringify(rawData, null, 2)
+  });
   
   // If we get here, we couldn't find any valid price data
   console.warn('[DATA-EXTRACTOR] No valid price data found in the API response');
