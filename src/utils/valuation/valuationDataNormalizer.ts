@@ -4,6 +4,7 @@
  * - 2025-04-20: Enhanced data normalization with better price data extraction
  * - 2025-04-20: Added detailed logging and validation
  * - 2025-04-20: Fixed import paths and added sanitizePartialData function
+ * - 2025-04-21: Updated to properly extract nested vehicle data from Auto ISO API response
  */
 
 import { extractPrice, calculateReservePrice } from '../../utils/priceExtractor';
@@ -23,16 +24,28 @@ export function normalizeValuationData(data: any): ValuationData {
   // Calculate reserve price if we have a base price
   const reservePrice = basePrice > 0 ? calculateReservePrice(basePrice) : 0;
   
+  // Extract vehicle data from Auto ISO API response (proper nested path)
+  const userParams = data?.functionResponse?.userParams || {};
+  
+  // Extract make, model, year from the proper nested location
+  const make = userParams.make || data?.make || '';
+  const model = userParams.model || data?.model || '';
+  const year = userParams.year || data?.year || data?.productionYear || 0;
+  
   // Normalize the transmission type
-  const transmission = normalizeTransmission(data?.transmission);
+  const gearbox = userParams.gearbox || data?.transmission || data?.gearbox || '';
+  const transmission = normalizeTransmission(gearbox);
+
+  // Get mileage from the proper nested location or from the root
+  const mileage = userParams.odometer || data?.mileage || 0;
 
   const normalized: ValuationData = {
-    make: data?.make || '',
-    model: data?.model || '',
-    year: data?.year || data?.productionYear || 0,
+    make: make,
+    model: model,
+    year: year,
     vin: data?.vin || '',
     transmission,
-    mileage: typeof data?.mileage === 'number' ? data.mileage : 0,
+    mileage: typeof mileage === 'number' ? mileage : parseInt(mileage) || 0,
     valuation: data?.valuation || reservePrice || 0,
     reservePrice: data?.reservePrice || reservePrice || 0,
     averagePrice: data?.averagePrice || basePrice || 0,
@@ -92,3 +105,4 @@ export function sanitizePartialData(data: Partial<ValuationData>): Partial<Valua
     isExisting: data.isExisting
   };
 }
+

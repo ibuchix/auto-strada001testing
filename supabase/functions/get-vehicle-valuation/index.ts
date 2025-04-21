@@ -1,7 +1,7 @@
-
 /**
  * Vehicle Valuation Edge Function
  * Updated: 2025-04-20 - Fixed MD5 implementation and improved error handling
+ * Updated: 2025-04-21 - Updated data processing to handle nested Auto ISO API response structure
  */
 
 import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
@@ -125,6 +125,91 @@ const getSupabaseClient = () => {
   return createClient(supabaseUrl, supabaseKey);
 };
 
+// ADDED: Function to enhance valuation data with pricing information
+function enhanceValuationData(data: any, vin: string, mileage: number): any {
+  // Extract pricing data from the correct nested path in the Auto ISO API response
+  let basePrice = 0;
+  let priceMin = 0;
+  let priceMed = 0;
+  let priceMax = 0;
+  
+  // Extract data from the proper nested structure
+  if (data.functionResponse?.valuation?.calcValuation) {
+    const calcValuation = data.functionResponse.valuation.calcValuation;
+    priceMin = calcValuation.price_min || 0;
+    priceMed = calcValuation.price_med || 0;
+    priceMax = calcValuation.price_max || 0;
+    
+    // Use price or calculate basePrice
+    basePrice = calcValuation.price || ((priceMin + priceMed) / 2);
+  }
+  
+  // Calculate reserve price based on the extracted base price
+  let reservePrice = calculateReservePrice(basePrice);
+  
+  // Extract vehicle details from the API response
+  const userParams = data.functionResponse?.userParams || {};
+  const make = userParams.make || '';
+  const model = userParams.model || '';
+  const year = userParams.year || 0;
+  
+  // Create an enhanced data object with all necessary fields
+  const enhancedData = {
+    ...data, // Keep the original data
+    // Add normalized fields at the root level for easier access
+    make: make,
+    model: model,
+    year: year,
+    vin: vin,
+    mileage: mileage,
+    basePrice: basePrice,
+    reservePrice: reservePrice,
+    valuation: basePrice,
+    averagePrice: priceMed,
+    price_min: priceMin,
+    price_med: priceMed,
+    price_max: priceMax,
+    // Add debug information to help troubleshoot
+    debugInfo: {
+      extractionTime: new Date().toISOString(),
+      hasNestedPricing: !!data.functionResponse?.valuation?.calcValuation,
+      calculatedReservePrice: !!reservePrice
+    }
+  };
+  
+  return enhancedData;
+}
+
+// Helper function to calculate reserve price
+function calculateReservePrice(basePrice: number): number {
+  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
+    return 0;
+  }
+  
+  // Determine the percentage based on price tier
+  let percentage = 0;
+  
+  if (basePrice <= 15000) percentage = 0.65;
+  else if (basePrice <= 20000) percentage = 0.46;
+  else if (basePrice <= 30000) percentage = 0.37;
+  else if (basePrice <= 50000) percentage = 0.27;
+  else if (basePrice <= 60000) percentage = 0.27;
+  else if (basePrice <= 70000) percentage = 0.22;
+  else if (basePrice <= 80000) percentage = 0.23;
+  else if (basePrice <= 100000) percentage = 0.24;
+  else if (basePrice <= 130000) percentage = 0.20;
+  else if (basePrice <= 160000) percentage = 0.185;
+  else if (basePrice <= 200000) percentage = 0.22;
+  else if (basePrice <= 250000) percentage = 0.17;
+  else if (basePrice <= 300000) percentage = 0.18;
+  else if (basePrice <= 400000) percentage = 0.18;
+  else if (basePrice <= 500000) percentage = 0.16;
+  else percentage = 0.145;
+  
+  // Calculate and round to the nearest whole number
+  return Math.round(basePrice - (basePrice * percentage));
+}
+
 // Main function handler
 serve(async (req) => {
   // Handle CORS
@@ -213,7 +298,7 @@ serve(async (req) => {
       );
     }
 
-    // ADDED: Extract and calculate pricing information
+    // ADDED: Enhance the valuation data processing with the actual structure
     const enhancedValuationData = enhanceValuationData(valuationData, vin, mileage);
     
     // Store in cache
@@ -245,67 +330,3 @@ serve(async (req) => {
     );
   }
 });
-
-// ADDED: Function to enhance valuation data with pricing information
-function enhanceValuationData(data: any, vin: string, mileage: number): any {
-  // Create a copy of the original data
-  const enhanced = { ...data, vin, mileage };
-  
-  // Extract make, model, year
-  const make = data.make || data.brand || '';
-  const model = data.model || '';
-  const year = data.year || data.productionYear || 0;
-  
-  // Set these values explicitly to ensure they're available
-  enhanced.make = make;
-  enhanced.model = model;
-  enhanced.year = year;
-  
-  // Extract or calculate pricing information
-  let basePrice = 0;
-  let reservePrice = 0;
-  
-  // Check for direct price fields
-  if (data.price && typeof data.price === 'number' && data.price > 0) {
-    basePrice = data.price;
-  } else if (data.basePrice && typeof data.basePrice === 'number' && data.basePrice > 0) {
-    basePrice = data.basePrice;
-  } else if (data.marketValue && typeof data.marketValue === 'number' && data.marketValue > 0) {
-    basePrice = data.marketValue;
-  }
-  
-  // Check for Auto ISO API specific format
-  if (data.price_min !== undefined && data.price_med !== undefined) {
-    const min = Number(data.price_min);
-    const med = Number(data.price_med);
-    
-    if (min > 0 && med > 0) {
-      basePrice = (min + med) / 2;
-    }
-  }
-  
-  // Calculate reserve price (70-80% of base price)
-  if (basePrice > 0) {
-    reservePrice = Math.round(basePrice * 0.75);
-  }
-  
-  // Set pricing fields explicitly
-  enhanced.basePrice = basePrice;
-  enhanced.reservePrice = reservePrice;
-  enhanced.valuation = reservePrice;
-  enhanced.averagePrice = basePrice;
-  
-  // Add debug information
-  enhanced.debugInfo = {
-    source: 'external_api',
-    timestamp: new Date().toISOString(),
-    pricingCalculated: basePrice > 0,
-    originalPriceFields: Object.keys(data).filter(key => 
-      key.toLowerCase().includes('price') || 
-      key.toLowerCase().includes('value') ||
-      key.toLowerCase().includes('valuation')
-    )
-  };
-  
-  return enhanced;
-}

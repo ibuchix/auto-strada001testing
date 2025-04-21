@@ -4,6 +4,7 @@
  * - Updated 2025-04-20: Enhanced price validation and display
  * - Updated 2025-04-20: Added fallback for missing price data
  * - Updated 2025-04-20: Fixed handling of edge cases for better reliability
+ * - Updated 2025-04-21: Improved price display with better data debugging
  */
 
 import { formatCurrency } from "@/utils/formatters";
@@ -28,7 +29,7 @@ export const ValuationPriceDisplay = ({
   const hasValidAveragePrice = validAveragePrice > 0;
   const hasNoValidPrices = !hasValidReservePrice && !hasValidAveragePrice;
 
-  // Log price display for debugging
+  // Log price display for debugging with more detailed information
   console.log('ValuationPriceDisplay values:', {
     inputReservePrice: reservePrice,
     inputAveragePrice: averagePrice,

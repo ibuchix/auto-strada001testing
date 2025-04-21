@@ -3,6 +3,7 @@
  * Modified: 2025-04-17 - Improved extraction from external API response formats
  * Modified: 2025-04-20 - Added default values for missing price data
  * Modified: 2025-04-20 - Fixed price extraction logic to prevent failures
+ * Modified: 2025-04-21 - Updated to correctly extract nested price data from Auto ISO API
  */
 export const extractPrice = (responseData: any): number | null => {
   // Log the incoming data structure for debugging (truncate lengthy responses)
@@ -46,9 +47,23 @@ export const extractPrice = (responseData: any): number | null => {
   findPriceFields(responseData);
   console.log('Available price-related fields:', priceRelatedFields);
   
-  // Check for Auto ISO API specific fields first (the external valuation API)
+  // Check the correct nested path for Auto ISO API (based on the actual API response)
+  if (responseData.functionResponse?.valuation?.calcValuation) {
+    const calcValuation = responseData.functionResponse.valuation.calcValuation;
+    
+    if (calcValuation.price_min !== undefined && calcValuation.price_med !== undefined) {
+      // This is the structure from the actual Auto ISO API response
+      const basePrice = (Number(calcValuation.price_min) + Number(calcValuation.price_med)) / 2;
+      if (basePrice > 0) {
+        console.log('AUTO ISO API: Calculated base price from nested calcValuation:', basePrice);
+        return basePrice;
+      }
+    }
+  }
+  
+  // Check for Auto ISO API specific fields at root level (the previously expected location)
   if (responseData.price_min !== undefined && responseData.price_med !== undefined) {
-    // This is the format from the Auto ISO API - calculate base price as specified
+    // This is the previously expected format
     const basePrice = (Number(responseData.price_min) + Number(responseData.price_med)) / 2;
     if (basePrice > 0) {
       console.log('AUTO ISO API: Calculated base price from min/med:', basePrice);
@@ -59,6 +74,9 @@ export const extractPrice = (responseData: any): number | null => {
   // Direct price fields with validation - check these fields first in order of priority
   const directPriceFields = [
     // Primary fields - these are the most reliable
+    responseData?.functionResponse?.valuation?.calcValuation?.price,
+    responseData?.functionResponse?.valuation?.calcValuation?.price_med,
+    responseData?.functionResponse?.valuation?.calcValuation?.price_avr,
     responseData?.reservePrice,
     responseData?.price,
     responseData?.valuation,
@@ -113,14 +131,8 @@ export const extractPrice = (responseData: any): number | null => {
 
   // Try finding average of available price values
   const priceValues = [];
-  for (const [key, value] of Object.entries(responseData)) {
-    if (
-      (key.toLowerCase().includes('price') || 
-       key.toLowerCase().includes('value') ||
-       key.toLowerCase().includes('cost')) && 
-      typeof value === 'number' && 
-      value > 0
-    ) {
+  for (const [key, value] of Object.entries(priceRelatedFields)) {
+    if (typeof value === 'number' && value > 0) {
       priceValues.push(value);
     }
   }
@@ -147,8 +159,10 @@ export const extractPrice = (responseData: any): number | null => {
   }
 
   // Use a default estimation if vehicle data is available
-  if (responseData.make && responseData.model) {
-    const year = responseData.year || new Date().getFullYear() - 5;
+  if (responseData.functionResponse?.userParams?.make && responseData.functionResponse?.userParams?.model) {
+    const make = responseData.functionResponse.userParams.make;
+    const model = responseData.functionResponse.userParams.model;
+    const year = responseData.functionResponse.userParams.year || new Date().getFullYear() - 5;
     const currentYear = new Date().getFullYear();
     const age = currentYear - year;
     
@@ -160,9 +174,9 @@ export const extractPrice = (responseData: any): number | null => {
     else if (age <= 12) estimatedBasePrice = 40000; // Older car
     else estimatedBasePrice = 25000; // Very old car
     
-    console.log('Using estimated price based on vehicle age:', {
-      make: responseData.make,
-      model: responseData.model,
+    console.log('Using estimated price based on vehicle data:', {
+      make,
+      model,
       year,
       age,
       estimatedPrice: estimatedBasePrice
