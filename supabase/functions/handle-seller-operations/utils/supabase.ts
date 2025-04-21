@@ -2,6 +2,7 @@
 /**
  * Supabase utilities for handle-seller-operations
  * Created: 2025-04-19 - Extracted from utils.ts
+ * Updated: 2025-04-23 - Fixed import path for database types
  */
 
 import { createClient as createSupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
