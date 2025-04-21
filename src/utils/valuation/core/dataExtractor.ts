@@ -1,13 +1,14 @@
-
 /**
  * Changes made:
  * - 2025-04-21: Created utility for extracting data from API response
  * - 2025-04-21: Updated RawValuationData interface to include vin at all levels
+ * - 2025-04-21: Enhanced price data extraction to handle nested API response
  */
 
 import { ValuationData } from '../valuationDataTypes';
 
 export interface RawValuationData {
+  success?: boolean;
   data?: {
     make?: string;
     model?: string;
@@ -18,6 +19,8 @@ export interface RawValuationData {
     valuation?: number;
     reservePrice?: number;
     averagePrice?: number;
+    price_min?: number;
+    price_med?: number;
   };
   make?: string;
   model?: string;
@@ -29,41 +32,74 @@ export interface RawValuationData {
   valuation?: number;
   reservePrice?: number;
   averagePrice?: number;
+  price_min?: number;
+  price_med?: number;
+  basePrice?: number;
 }
 
 export function extractVehicleData(rawData: RawValuationData) {
-  const data = rawData?.data || rawData;
+  // Try to get data from nested structure first, then fallback to root
+  const sourceData = rawData?.data || rawData;
   
-  console.log('[DATA-EXTRACTOR] Extracting from:', {
-    hasNestedData: !!rawData?.data,
-    sourceKeys: Object.keys(data)
+  console.log('[DATA-EXTRACTOR] Using data source:', {
+    isNested: !!rawData?.data,
+    dataKeys: Object.keys(sourceData)
   });
   
   return {
-    make: data.make || '',
-    model: data.model || '',
-    year: data.year || 0,
-    vin: data.vin || '',
-    mileage: data.mileage || 0,
+    make: sourceData.make || '',
+    model: sourceData.model || '',
+    year: sourceData.year || 0,
+    vin: sourceData.vin || '',
+    mileage: sourceData.mileage || 0,
     transmission: rawData.transmission || 'manual'
   };
 }
 
 export function extractPriceData(rawData: RawValuationData) {
-  const data = rawData?.data || rawData;
+  // Try to get data from nested structure first, then fallback to root
+  const sourceData = rawData?.data || rawData;
   
-  console.log('[DATA-EXTRACTOR] Extracting price data from:', {
-    dataSource: rawData?.data ? 'nested' : 'root',
-    availablePriceFields: Object.keys(data).filter(key => 
-      ['price', 'valuation', 'reservePrice', 'averagePrice'].includes(key)
-    )
+  // Log available price fields for debugging
+  console.log('[DATA-EXTRACTOR] Available price fields:', {
+    fromSource: Object.keys(sourceData).filter(key => 
+      ['price', 'valuation', 'reservePrice', 'averagePrice', 'price_min', 'price_med', 'basePrice'].includes(key)
+    ),
+    values: {
+      price: sourceData.price,
+      valuation: sourceData.valuation,
+      reservePrice: sourceData.reservePrice,
+      averagePrice: sourceData.averagePrice,
+      price_min: sourceData.price_min,
+      price_med: sourceData.price_med,
+      basePrice: sourceData.basePrice
+    }
   });
-  
+
+  // Calculate base price from price_min and price_med if available
+  let basePrice = 0;
+  if (sourceData.price_min && sourceData.price_med) {
+    basePrice = (sourceData.price_min + sourceData.price_med) / 2;
+    console.log('[DATA-EXTRACTOR] Calculated base price from min/med:', {
+      price_min: sourceData.price_min,
+      price_med: sourceData.price_med,
+      basePrice
+    });
+  } else {
+    // Try other price fields
+    basePrice = sourceData.basePrice || 
+                sourceData.valuation || 
+                sourceData.price || 
+                sourceData.averagePrice || 
+                0;
+  }
+
   return {
-    price: data.price || 0,
-    valuation: data.valuation || 0,
-    reservePrice: data.reservePrice || 0,
-    averagePrice: data.averagePrice || 0
+    price: sourceData.price || 0,
+    valuation: sourceData.valuation || basePrice,
+    reservePrice: sourceData.reservePrice || 0,
+    averagePrice: sourceData.averagePrice || basePrice,
+    basePrice: basePrice
   };
 }
 

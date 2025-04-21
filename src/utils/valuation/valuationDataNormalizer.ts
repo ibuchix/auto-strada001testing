@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-04-21: Refactored to use separate data extraction and validation utilities
+ * - 2025-04-21: Enhanced price calculation logic to properly handle nested API response
  */
 
 import { extractVehicleData, extractPriceData } from './core/dataExtractor';
@@ -20,27 +21,20 @@ export function normalizeValuationData(rawData: any): ValuationData {
   const vehicleData = extractVehicleData(rawData);
   const priceData = extractPriceData(rawData);
   
-  // Calculate base price and reserve price
-  let basePrice = priceData.valuation || priceData.price || 0;
-  let reservePrice = priceData.reservePrice;
-
-  // If we have vehicle details but no price, estimate it
-  if (basePrice === 0 && vehicleData.make && vehicleData.model && vehicleData.year > 0) {
-    console.log('[VAL-NORM] Estimating price based on vehicle details:', vehicleData);
-    basePrice = 15000; // Default estimation
-    reservePrice = calculateReservePrice(basePrice);
-  }
+  // Calculate reserve price if not provided
+  const reservePrice = priceData.reservePrice || 
+    (priceData.basePrice > 0 ? calculateReservePrice(priceData.basePrice) : 0);
 
   const normalized: ValuationData = {
     ...vehicleData,
     transmission: (rawData.transmission || 'manual') as TransmissionType,
-    valuation: basePrice,
-    reservePrice: reservePrice || calculateReservePrice(basePrice),
-    averagePrice: priceData.averagePrice || basePrice,
-    basePrice,
+    valuation: priceData.basePrice,
+    reservePrice: reservePrice,
+    averagePrice: priceData.averagePrice,
+    basePrice: priceData.basePrice,
     apiSource: rawData.apiSource,
     valuationDate: rawData.valuationDate || new Date().toISOString(),
-    usingFallbackEstimation: basePrice === 0,
+    usingFallbackEstimation: rawData.usingFallbackEstimation || false,
     error: rawData.error,
     noData: rawData.noData,
     isExisting: rawData.isExisting
