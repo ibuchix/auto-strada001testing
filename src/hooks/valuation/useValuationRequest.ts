@@ -1,7 +1,9 @@
+
 /**
  * Changes made:
  * - 2025-04-20: Added direct VIN validation as fallback
  * - Enhanced error handling and tracking
+ * - 2025-04-21: ADDED STEP-BY-STEP LOGGING TO TRACE VIN CHECK & VALUATION LOGIC
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
@@ -27,7 +29,6 @@ export const useValuationRequest = ({
   // Log WebSocket connection status for debugging
   useEffect(() => {
     console.log('[ValuationRequest] WebSocket connection status:', isConnected ? 'connected' : 'disconnected');
-    
     return () => {
       if (timeoutRef.current) {
         console.log('[ValuationRequest] Clearing timeout on unmount');
@@ -43,7 +44,6 @@ export const useValuationRequest = ({
     const id = typeof crypto !== 'undefined' && crypto.randomUUID ? 
       crypto.randomUUID().substring(0, 8) : 
       Math.random().toString(36).substring(2, 9);
-    
     requestIdRef.current = id;
     return id;
   }, []);
@@ -62,26 +62,6 @@ export const useValuationRequest = ({
       processingTime: performance.now() - requestStartTimeRef.current,
       timestamp: new Date().toISOString()
     });
-    
-    // Handle specific error scenarios
-    if (errorMessage?.includes('rate limit') || 
-        errorMessage?.includes('too many requests')) {
-      toast.error("Too many requests", {
-        description: "Please wait a moment before trying again.",
-      });
-    } else if (errorMessage === 'Request timed out') {
-      // Timeout was already handled by the service
-    } else if (errorMessage?.includes('WebSocket') || 
-               errorMessage?.includes('connection')) {
-      toast.error("Connection issue detected", {
-        description: "Please check your internet connection and try again.",
-      });
-    } else {
-      toast.error(errorMessage || "Failed to get vehicle valuation", {
-        description: "Please try again or contact support if the issue persists."
-      });
-    }
-    
     onError(new Error(errorMessage || "Valuation failed"));
   }, [onError]);
 
@@ -93,30 +73,11 @@ export const useValuationRequest = ({
       processingTime: performance.now() - requestStartTimeRef.current,
       timestamp: new Date().toISOString()
     });
-    
     // Clear timeout since we got a response
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    
-    // Check for WebSocket or network errors
-    const errorMessage = error.message || "Failed to get vehicle valuation";
-    if (errorMessage.includes('WebSocket') || errorMessage.includes('network') || 
-        errorMessage.includes('connection') || !isConnected) {
-      toast.error("Connection issue detected", {
-        description: "Please check your internet connection and try again.",
-        action: {
-          label: "Retry",
-          onClick: () => console.log(`[ValuationRequest][${requestIdRef.current}] Retry action triggered`)
-        }
-      });
-    } else {
-      toast.error(errorMessage, {
-        description: "Please check your connection and try again."
-      });
-    }
-    
     onError(error);
   }, [onError, isConnected]);
 
@@ -126,19 +87,12 @@ export const useValuationRequest = ({
     const startTime = performance.now();
     requestStartTimeRef.current = startTime;
     
-    console.log(`[ValuationRequest][${requestId}] Starting valuation request:`, {
-      vin: data.vin,
-      mileage: data.mileage,
-      gearbox: data.gearbox,
-      timestamp: new Date().toISOString()
-    });
+    console.log(`[ValuationRequest][${requestId}] START valuation request with data:`, data);
     
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-    
     setIsLoading(true);
-    
     timeoutRef.current = setTimeout(() => {
       console.log(`[ValuationRequest][${requestId}] Request timed out`);
       setIsLoading(false);
@@ -149,41 +103,39 @@ export const useValuationRequest = ({
     
     try {
       const mileage = parseInt(data.mileage) || 0;
-      
-      // First try primary valuation method
+      // 1. Try primary valuation method
+      console.log(`[ValuationRequest][${requestId}] Calling getValuation...`);
       let result = await getValuation(
         data.vin,
         mileage,
         data.gearbox
       );
-      
+      console.log(`[ValuationRequest][${requestId}] getValuation returned:`, result);
+
       // If primary method failed or returned incomplete data, try direct API
       if (!result.success || !result.data || !result.data.make || !result.data.model) {
-        console.log(`[ValuationRequest][${requestId}] Primary method failed, trying direct API`);
-        
+        console.warn(`[ValuationRequest][${requestId}] PRIMARY METHOD failed or incomplete, trying direct API`);
         const directResult = await validateVinDirectly(data.vin, mileage);
-        
+        console.log(`[ValuationRequest][${requestId}] validateVinDirectly result:`, directResult);
         // Use direct result if it has valid data
         if (directResult && directResult.make && directResult.model) {
           result = { success: true, data: directResult };
         }
       }
-      
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
 
       if (result.success && result.data) {
+        console.log(`[ValuationRequest][${requestId}] FINAL SUCCESS - DATA:`, result.data);
         debugVinApiResponse('valuation_success', result.data);
-        
         // Store the data
         localStorage.setItem("valuationData", JSON.stringify(result.data));
         localStorage.setItem("tempMileage", data.mileage);
         localStorage.setItem("tempVIN", data.vin);
         localStorage.setItem("tempGearbox", data.gearbox);
         localStorage.setItem("valuationTimestamp", new Date().toISOString());
-        
         onSuccess(result.data);
       } else {
         const errorMessage = result.data?.error || 'Unknown valuation error';
@@ -193,7 +145,7 @@ export const useValuationRequest = ({
       handleRequestError(error);
     } finally {
       const totalDuration = performance.now() - startTime;
-      console.log(`[ValuationRequest][${requestId}] Request completed in ${totalDuration.toFixed(2)}ms`);
+      console.log(`[ValuationRequest][${requestId}] END. Request completed in ${totalDuration.toFixed(2)}ms`);
       setIsLoading(false);
     }
   }, [isConnected, setIsLoading, onSuccess, handleApiError, handleRequestError, getRequestId]);

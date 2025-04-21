@@ -1,4 +1,3 @@
-
 /**
  * Enhanced valuation API with improved error handling and data extraction
  * 
@@ -8,14 +7,13 @@
  * - 2025-04-17: Added robust fallback mechanisms for inconsistent API responses
  * - 2025-04-17: Updated to use standardized data models and types
  * - 2025-04-21: Fixed TypeScript errors with imports and type definitions
+ * - 2025-04-21: ADDED DETAILED CONSOLE.LOGS AT EVERY PIPELINE STAGE FOR DEBUGGING VALUATION DATA FLOW
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { TransmissionType, ValuationData } from "@/utils/valuation/valuationDataTypes";
 import { normalizeValuationData } from "@/utils/valuation/valuationDataNormalizer";
 import { generateRequestId, createPerformanceTracker } from "./utils/debug-utils";
-
-// Import the ValuationResult type from the correct location
 import { ValuationResult } from "@/hooks/valuation/types/valuationTypes";
 
 /**
@@ -30,13 +28,7 @@ export async function fetchHomeValuation(
   const perfTracker = createPerformanceTracker('home_valuation_api', requestId);
   
   console.group(`[HomeValuationAPI][${requestId}][Detailed Valuation Check]`);
-  console.log('Request Parameters:', { 
-    vin, 
-    mileage, 
-    gearbox,
-    timestamp: new Date().toISOString(),
-    requestId
-  });
+  console.log('START: Home valuation fetch', { vin, mileage, gearbox, requestId, timestamp: new Date().toISOString() });
   
   try {
     perfTracker.checkpoint('api_call_start');
@@ -54,56 +46,39 @@ export async function fetchHomeValuation(
     
     perfTracker.checkpoint('api_call_complete');
     
-    console.log('Raw API Response:', { 
-      hasData: !!data, 
-      hasError: !!error,
-      dataKeys: data ? Object.keys(data) : null,
-      dataSize: data ? JSON.stringify(data).length : 0
-    });
+    console.log('[API] Response from edge function', { error, data: data, dataKeys: data ? Object.keys(data) : null });
     
     if (error) {
-      console.error('Edge Function Error:', error);
+      console.error('[API] Error received from function:', error);
       throw new Error(`API error: ${error.message}`);
     }
     
     if (!data) {
-      console.warn('No data returned from edge function');
+      console.warn('[API] Empty data received from function');
       throw new Error('No valuation data returned');
     }
     
-    // Log full API response for debugging (truncated for readability)
-    console.log('API Response Excerpt:', JSON.stringify(data).substring(0, 300) + '...');
+    // Log raw edge response
+    console.log('[API] Full edge response payload:', JSON.stringify(data).slice(0, 500));
     
-    // Use our standardized normalizer
-    const normalizedData = normalizeValuationData({
-      ...data,
-      vin,
-      mileage,
-      transmission: gearbox
+    // Normalize and log data step by step
+    console.log('[NORMALIZER] Passing raw data to normalizeValuationData:', {
+      ...data, vin, mileage, transmission: gearbox
     });
-    
-    console.log('Processed Valuation Data:', {
-      make: normalizedData.make,
-      model: normalizedData.model,
-      year: normalizedData.year,
-      valuation: normalizedData.valuation,
-      reservePrice: normalizedData.reservePrice,
-      averagePrice: normalizedData.averagePrice,
-      hasValidMake: !!normalizedData.make,
-      hasValidModel: !!normalizedData.model,
-      hasValidYear: !!normalizedData.year
-    });
-    
+    const normalizedData = normalizeValuationData({ ...data, vin, mileage, transmission: gearbox });
+    console.log('[NORMALIZER RESULT] Data after normalization:', normalizedData);
+
+    // Sanity check: Log if using fallback price
+    if (normalizedData && normalizedData.basePrice === 50000) {
+      console.warn('[NORMALIZER RESULT][WARNING] Fallback value (50000) used for basePrice!');
+    }
+
     console.groupEnd();
     
     return { data: normalizedData };
   } catch (error: any) {
-    console.error(`Valuation API Error:`, {
-      message: error.message,
-      stack: error.stack
-    });
+    console.error(`[VAL-API][ERROR] Exception in fetchHomeValuation:`, { message: error.message, stack: error.stack });
     console.groupEnd();
-    
     return { error: error instanceof Error ? error : new Error(error.message || 'Unknown error') };
   }
 }
@@ -120,18 +95,12 @@ export async function fetchSellerValuation(
   const requestId = generateRequestId();
   const perfTracker = createPerformanceTracker('seller_valuation_api', requestId);
   
-  console.log(`[SellerValuationAPI][${requestId}] Fetching valuation for:`, { 
-    vin, 
-    mileage, 
-    gearbox, 
-    userId,
-    timestamp: new Date().toISOString()
-  });
+  console.group(`[SellerValuationAPI][${requestId}] Detailed seller valuation check`);
+  console.log('START: Seller valuation fetch', { vin, mileage, gearbox, userId, requestId, timestamp: new Date().toISOString() });
   
   try {
     perfTracker.checkpoint('api_call_start');
     
-    // Use the handle-seller-operations edge function
     const { data: response, error } = await supabase.functions.invoke<any>(
       'handle-seller-operations',
       {
@@ -147,90 +116,43 @@ export async function fetchSellerValuation(
     
     perfTracker.checkpoint('api_call_complete');
     
-    // Log full response for debugging
-    console.log(`[SellerValuationAPI][${requestId}] Raw API Response:`, {
-      hasResponse: !!response,
-      responseSize: response ? JSON.stringify(response).length : 0,
-      responseKeys: response ? Object.keys(response) : [],
-      hasError: !!error,
-    });
+    console.log('[SELLER API] Edge response:', { response, error, hasResponse: !!response, hasError: !!error });
     
     if (error) {
-      console.error(`[SellerValuationAPI][${requestId}] Edge function error:`, {
-        message: error.message,
-        name: error.name,
-        code: error.code,
-        details: error.details,
-        timestamp: new Date().toISOString()
-      });
-      
-      perfTracker.complete('failure', {
-        errorType: 'edge_function_error',
-        message: error.message
-      });
-      
+      console.error('[SELLER API] Error received:', error);
+      perfTracker.complete('failure', { error, message: error.message });
       throw new Error(`API error: ${error.message}`);
     }
     
-    // Handle specific error format from this endpoint
     if (!response || !response.success) {
-      console.error(`[SellerValuationAPI][${requestId}] API response indicates failure:`, {
+      console.error('[SELLER API] API response indicates failure:', {
         error: response?.error || 'No success response received',
-        code: response?.errorCode,
-        hasResponse: !!response,
-        responseKeys: response ? Object.keys(response) : [],
-        timestamp: new Date().toISOString()
+        response
       });
-      
       perfTracker.complete('failure', {
         errorType: 'api_response_failure',
         message: response?.error || 'Failed to validate vehicle'
       });
-      
       throw new Error(response?.error || 'Failed to validate vehicle');
     }
 
-    // Use our standardized normalizer
-    const normalizedData = normalizeValuationData({
-      ...response.data,
-      vin,
-      mileage,
-      transmission: gearbox
-    });
-    
-    console.log(`[SellerValuationAPI][${requestId}] Normalized vehicle data:`, {
-      make: normalizedData.make,
-      model: normalizedData.model,
-      year: normalizedData.year,
-      valuation: normalizedData.valuation,
-      reservePrice: normalizedData.reservePrice,
-      isComplete: !!(normalizedData.make && normalizedData.model && normalizedData.year)
-    });
-    
-    perfTracker.complete('success', { 
-      dataReceived: true,
-      hasVehicleDetails: !!(normalizedData.make && normalizedData.model),
-      processingTimeMs: perfTracker.checkpoint('processing_complete'),
-      timestamp: new Date().toISOString()
-    });
+    // NORMALIZE
+    console.log('[SELLER NORMALIZER] Passing to normalizeValuationData:', { ...response.data, vin, mileage, transmission: gearbox });
+    const normalizedData = normalizeValuationData({ ...response.data, vin, mileage, transmission: gearbox });
+    console.log('[SELLER NORMALIZER RESULT]:', normalizedData);
+
+    if (normalizedData && normalizedData.basePrice === 50000) {
+      console.warn('[SELLER NORMALIZER WARNING] Fallback value (50000) used for basePrice!');
+    }
+
+    perfTracker.complete('success', { normalizedData, receivedResult: true });
+    console.groupEnd();
     
     return { data: normalizedData };
   } catch (error: any) {
-    console.error(`[SellerValuationAPI][${requestId}] Error fetching seller valuation:`, {
-      message: error.message,
-      stack: error.stack,
-      vin,
-      mileage,
-      userId,
-      timestamp: new Date().toISOString()
-    });
-    
-    perfTracker.complete('failure', {
-      errorType: error.constructor?.name,
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-    
+    console.error(`[SellerValuationAPI][${requestId}] Exception:`, { error, message: error.message, stack: error.stack });
+    perfTracker.complete('failure', { message: error.message });
+    console.groupEnd();
     return { error: error instanceof Error ? error : new Error(error.message || 'Unknown error') };
   }
 }

@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-04-20: Enhanced data normalization with better price data extraction
@@ -7,6 +6,7 @@
  * - 2025-04-21: Updated to properly extract nested vehicle data from Auto ISO API response
  * - 2025-04-21: Fixed nested price extraction pattern to match API structure
  * - 2025-04-22: Enhanced data extraction to properly handle price data from API response
+ * - 2025-04-21: ADDED STEP-BY-STEP LOGS FOR DEBUGGING DATA/PRICE EXTRACTION
  */
 
 import { extractPrice } from '../../utils/priceExtractor';
@@ -14,12 +14,7 @@ import { ValuationData, TransmissionType, calculateReservePrice } from './valuat
 
 export function normalizeValuationData(data: any): ValuationData {
   // Log the raw data for debugging
-  console.log('Normalizing valuation data:', {
-    hasData: !!data,
-    dataKeys: data ? Object.keys(data) : [],
-    timestamp: new Date().toISOString(),
-    hasNestedFunctionResponse: !!data?.functionResponse
-  });
+  console.log('[VAL-NORM] INPUT RAW valuation data:', JSON.stringify(data, null, 2));
 
   // Enhanced extraction with more specific paths
   const functionResponse = data?.functionResponse || {};
@@ -42,37 +37,48 @@ export function normalizeValuationData(data: any): ValuationData {
   const priceMin = calcValuation.price_min || data?.price_min || 0;
   const priceMed = calcValuation.price_med || data?.price_med || data?.averagePrice || 0;
   
-  // Extract direct price/valuation data with fallbacks
+  // Explicit logs for price extraction
+  console.log('[VAL-NORM] EXTRACTED make/model/year:', { make, model, year });
+  console.log('[VAL-NORM] EXTRACTED GEARBOX DATA:', { gearbox, transmission });
+  console.log('[VAL-NORM] EXTRACTED MILEAGE:', { mileage });
+  console.log('[VAL-NORM] EXTRACTED priceMin/priceMed:', { priceMin, priceMed });
+
+  // Direct price/valuation
   let valuation = data?.valuation;
   if (!valuation || valuation <= 0) {
     valuation = data?.price || priceMed || 0;
+    if (!valuation) console.warn('[VAL-NORM] Unable to find valuation in fields, using fallback...');
   }
   
   // Calculate base price with improved fallbacks
   let basePrice = 0;
   if (priceMin > 0 && priceMed > 0) {
     basePrice = (priceMin + priceMed) / 2;
+    console.log('[VAL-NORM] basePrice calculated from priceMin & priceMed:', { priceMin, priceMed, basePrice });
   } else if (valuation > 0) {
     basePrice = valuation;
+    console.warn('[VAL-NORM] basePrice set from valuation (no min/med):', { valuation, basePrice });
   } else if (data?.price > 0) {
     basePrice = data.price;
+    console.warn('[VAL-NORM] basePrice set from data.price:', { basePrice });
   } else {
     // Last resort fallback
-    console.warn('No valid price found in response, using fallback value of 50000');
+    console.warn('[VAL-NORM][WARN] No valid price found (should not happen), using fallback 50000');
     basePrice = 50000; // Default fallback value
   }
-  
+
   // Extract or calculate reserve price
   let reservePrice = data?.reservePrice;
   if (!reservePrice || reservePrice <= 0) {
     reservePrice = calculateReservePrice(basePrice);
+    console.warn('[VAL-NORM] Calculated reservePrice:', { reservePrice, basePrice });
   }
   
   // Use average price with fallbacks
   const averagePrice = data?.averagePrice || priceMed || basePrice;
 
   // Log the extracted price data for debugging
-  console.log('Extracted pricing data:', {
+  console.log('[VAL-NORM] PRICING SUMMARY:', {
     basePrice,
     reservePrice,
     priceMin,
@@ -106,15 +112,7 @@ export function normalizeValuationData(data: any): ValuationData {
   };
 
   // Log the normalized result
-  console.log('Normalized valuation data:', {
-    make: normalized.make,
-    model: normalized.model,
-    year: normalized.year,
-    basePrice: normalized.basePrice,
-    reservePrice: normalized.reservePrice,
-    averagePrice: normalized.averagePrice,
-    hasError: !!normalized.error
-  });
+  console.log('[VAL-NORM] OUTPUT normalized valuation data:', normalized);
 
   return normalized;
 }
