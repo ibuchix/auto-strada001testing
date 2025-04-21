@@ -1,7 +1,7 @@
-
 /**
  * Valuation service for car valuation API calls
  * Updated: 2025-04-25 - Added debug options and enhanced error handling
+ * Updated: 2025-04-28 - Added cleanupValuationData function
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,20 @@ import { supabase } from "@/integrations/supabase/client";
 interface ValuationOptions {
   debug?: boolean;
   requestId?: string;
+}
+
+/**
+ * Cleanup all valuation-related data
+ */
+export function cleanupValuationData(): void {
+  // Clear valuation-related localStorage items
+  localStorage.removeItem('valuationData');
+  localStorage.removeItem('tempMileage');
+  localStorage.removeItem('tempVIN');
+  localStorage.removeItem('tempGearbox');
+  localStorage.removeItem('valuationTimestamp');
+  
+  console.log('[ValuationService] Cleaned up valuation data');
 }
 
 export async function getValuation(
