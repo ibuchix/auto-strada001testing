@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-04-21: Created utility for extracting data from API response
+ * - 2025-04-21: Updated RawValuationData interface to include vin at all levels
  */
 
 import { ValuationData } from '../valuationDataTypes';
@@ -21,6 +22,7 @@ export interface RawValuationData {
   make?: string;
   model?: string;
   year?: number;
+  vin?: string;
   transmission?: string;
   mileage?: number;
   price?: number;
@@ -62,5 +64,21 @@ export function extractPriceData(rawData: RawValuationData) {
     valuation: data.valuation || 0,
     reservePrice: data.reservePrice || 0,
     averagePrice: data.averagePrice || 0
+  };
+}
+
+// Add the sanitization utility that was previously in valuationDataNormalizer
+export function sanitizePartialData(data: Partial<ValuationData>): Partial<ValuationData> {
+  return {
+    make: data.make?.trim() || undefined,
+    model: data.model?.trim() || undefined,
+    year: data.year || undefined,
+    vin: data.vin?.trim() || undefined,
+    transmission: data.transmission || undefined,
+    mileage: data.mileage || undefined,
+    valuation: data.valuation || undefined,
+    reservePrice: data.reservePrice || undefined,
+    averagePrice: data.averagePrice || undefined,
+    basePrice: data.basePrice || undefined
   };
 }

@@ -1,12 +1,12 @@
-
 /**
  * Utility functions for handling partial valuation data
  * Created: 2025-04-17
  * Updated: 2025-04-17 - Improved data recovery and standardized with new types
+ * Updated: 2025-04-21 - Updated to use sanitizePartialData from dataExtractor
  */
 
 import { ValuationData, TransmissionType } from "./valuationDataTypes";
-import { sanitizePartialData } from "./valuationDataNormalizer";
+import { sanitizePartialData } from "./core/dataExtractor";
 
 export const salvagePartialData = (data: Partial<ValuationData>): Partial<ValuationData> | null => {
   // Sanitize incoming data
