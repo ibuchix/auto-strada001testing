@@ -1,6 +1,11 @@
 
+/**
+ * Changes made:
+ * - 2025-07-08: Removed usage of obsolete utils.ts, switched to modular imports from utils directory.
+ * - Updated logging import.
+ */
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { logOperation } from './utils.ts';
+import { logOperation } from './utils/logging.ts';
 
 /**
  * Checks if a vehicle with the given VIN already exists
