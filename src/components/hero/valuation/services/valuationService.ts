@@ -4,6 +4,7 @@
  * Updated: 2025-04-25 - Added debug options and enhanced error handling
  * Updated: 2025-04-28 - Added cleanupValuationData function
  * Updated: 2025-04-28 - Enhanced logging for API response debugging
+ * Updated: 2025-04-29 - ADDED HIGHLY VISIBLE CONSOLE LOGGING FOR DEBUGGING
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -33,14 +34,15 @@ export async function getValuation(
   gearbox: string, 
   options: ValuationOptions = {}
 ) {
-  console.log('[ValuationService] Starting valuation for:', { vin, mileage, gearbox });
-  console.log('[ValuationService] Options:', options);
+  console.log('%c🚗 VALUATION REQUEST STARTED', 'background: #ffcc00; color: #000; font-size: 14px; padding: 4px 8px; border-radius: 4px');
+  console.log('%c📝 Input Parameters:', 'font-weight: bold; color: #0066cc');
+  console.table({ vin, mileage, gearbox, debug: options.debug || true });
   
   // Generate a unique request ID for tracing
   const requestId = options.requestId || `val-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   
   try {
-    console.log(`[ValuationService][${requestId}] Making API request to Supabase Function`);
+    console.log('%c📡 Calling Supabase Function...', 'color: #6a0dad; font-weight: bold');
     
     // Make the request with optional debug flags
     const { data, error } = await supabase.functions.invoke(
@@ -56,11 +58,15 @@ export async function getValuation(
       }
     );
 
-    // Log the raw response for debugging
-    console.log(`[ValuationService][${requestId}] Raw supabase response:`, JSON.stringify(data));
+    // Log the raw response with clear visibility
+    console.log('%c📊 RAW SUPABASE RESPONSE:', 'background: #4CAF50; color: white; font-size: 12px; padding: 3px 6px; border-radius: 4px');
+    console.dir(data);
+    console.log('%c📝 RAW RESPONSE JSON:', 'color: #2196F3; font-weight: bold');
+    console.log(JSON.stringify(data, null, 2));
     
-    // Also log the response structure
-    console.log(`[ValuationService][${requestId}] Response structure:`, {
+    // Log response structure with clear formatting
+    console.log('%c🔍 RESPONSE STRUCTURE ANALYSIS:', 'background: #9C27B0; color: white; font-size: 12px; padding: 3px 6px; border-radius: 4px');
+    console.table({
       hasData: !!data,
       isObject: typeof data === 'object',
       topLevelKeys: data ? Object.keys(data) : [],
@@ -76,7 +82,7 @@ export async function getValuation(
     });
 
     if (error) {
-      console.error(`[ValuationService][${requestId}] API error:`, error);
+      console.error('%c❌ API ERROR:', 'background: #FF5252; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', error);
       return {
         success: false,
         data: { error: error.message },
@@ -86,7 +92,7 @@ export async function getValuation(
 
     // Verify we have data
     if (!data) {
-      console.error(`[ValuationService][${requestId}] Empty response`);
+      console.error('%c❌ EMPTY RESPONSE', 'background: #FF5252; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
       return {
         success: false,
         data: { error: 'No data received from valuation service' },
@@ -96,7 +102,7 @@ export async function getValuation(
 
     // Check for API-specific errors
     if (data.error) {
-      console.error(`[ValuationService][${requestId}] API returned error:`, data.error);
+      console.error('%c❌ API RETURNED ERROR:', 'background: #FF5252; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', data.error);
       return {
         success: false,
         data: { error: data.error },
@@ -105,7 +111,8 @@ export async function getValuation(
     }
 
     // Log specific price data fields for debugging
-    console.log(`[ValuationService][${requestId}] Price fields in response:`, {
+    console.log('%c💰 PRICE DATA CHECK:', 'background: #2196F3; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
+    console.table({
       valuation: data.valuation,
       basePrice: data.basePrice, 
       reservePrice: data.reservePrice,
@@ -119,7 +126,7 @@ export async function getValuation(
     // Check for valid vehicle data
     const hasValidVehicleData = data.make && data.model && data.year;
     if (!hasValidVehicleData) {
-      console.warn(`[ValuationService][${requestId}] Missing vehicle data:`, {
+      console.warn('%c⚠️ MISSING VEHICLE DATA:', 'background: #FF9800; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
         make: data.make || 'MISSING',
         model: data.model || 'MISSING',
         year: data.year || 'MISSING'
@@ -129,7 +136,7 @@ export async function getValuation(
     // Check for valid price data
     const hasValidPriceData = data.reservePrice > 0 || data.valuation > 0 || data.basePrice > 0;
     if (!hasValidPriceData) {
-      console.warn(`[ValuationService][${requestId}] Missing price data:`, {
+      console.warn('%c⚠️ MISSING PRICE DATA:', 'background: #FF9800; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
         reservePrice: data.reservePrice,
         valuation: data.valuation,
         basePrice: data.basePrice
@@ -152,12 +159,14 @@ export async function getValuation(
       console.warn('[ValuationService] Failed to store debug data:', e);
     }
 
+    console.log('%c✅ VALUATION REQUEST COMPLETED SUCCESSFULLY', 'background: #4CAF50; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
+
     return {
       success: true,
       data
     };
   } catch (error) {
-    console.error(`[ValuationService][${requestId}] Unexpected error:`, error);
+    console.error('%c❌ UNEXPECTED ERROR:', 'background: #FF5252; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', error);
     return {
       success: false,
       data: { error: error instanceof Error ? error.message : 'Unknown error' },

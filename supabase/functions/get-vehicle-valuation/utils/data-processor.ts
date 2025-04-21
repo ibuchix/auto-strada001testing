@@ -1,288 +1,158 @@
 
 /**
- * Data processing utilities for get-vehicle-valuation
- * Updated: 2025-04-25 - Enhanced price extraction with better API response handling
+ * Data processing utilities for vehicle valuation
+ * Updated: 2025-04-29 - ENHANCED LOGGING FOR DEBUGGING
  */
 
-import { logOperation } from './logging.ts';
-import { calculateReservePrice } from './price-calculator.ts';
-import { estimateBasePriceByModel } from './price-estimator.ts';
-
-/**
- * Type definition for valuation data
- */
-export interface ValuationData {
-  vin: string;
-  make?: string;
-  model?: string;
-  year?: number;
-  mileage?: number;
-  transmission?: string;
-  basePrice?: number;
-  valuation?: number;
-  reservePrice?: number;
-  averagePrice?: number;
-  price_min?: number;
-  price_med?: number;
-  [key: string]: any;
-}
+import { logOperation } from "./logging.ts";
+import { estimateBasePriceByModel } from "./price-estimator.ts";
+import { calculateReservePrice } from "./price-calculator.ts";
 
 /**
- * Extract data value with multiple property path support
- * @param data Source data object
- * @param propertyPaths Array of possible property paths to check
- * @param defaultValue Default value if not found
- * @returns Found value or default
+ * Extract and process valuation data from API response
  */
-export function extractDataValue(data: any, propertyPaths: string[], defaultValue: any = null): any {
-  // Try each property path in order
-  for (const path of propertyPaths) {
-    // Handle nested paths with dot notation
-    const parts = path.split('.');
-    let current = data;
-    
-    // Navigate through object following the path
-    let valid = true;
-    for (const part of parts) {
-      if (current === null || current === undefined || typeof current !== 'object') {
-        valid = false;
-        break;
-      }
-      
-      current = current[part];
-      if (current === undefined) {
-        valid = false;
-        break;
-      }
-    }
-    
-    // If we successfully navigated the path and found a value
-    if (valid && current !== undefined && current !== null) {
-      // Convert to number if it looks numeric and we expect a number
-      if (typeof current === 'string' && !isNaN(Number(current)) && 
-          (typeof defaultValue === 'number' || defaultValue === 0)) {
-        return Number(current);
-      }
-      return current;
-    }
+export function processValuationData(rawData: any, vin: string, mileage: number, requestId: string) {
+  // Deep analysis of the response structure
+  logOperation('data_processor_input', {
+    requestId,
+    hasRawData: !!rawData,
+    rawDataKeys: rawData ? Object.keys(rawData) : [],
+    rawDataSize: rawData ? JSON.stringify(rawData).length : 0,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Safety check for null data
+  if (!rawData) {
+    logOperation('process_data_null_input', { requestId }, 'error');
+    return {
+      make: '',
+      model: '',
+      year: 0,
+      basePrice: 0,
+      reservePrice: 0,
+      valuation: 0,
+      usingFallbackEstimation: true
+    };
   }
   
-  return defaultValue;
-}
-
-/**
- * Scan deeply for price data in API response
- */
-function scanForPriceData(data: any, requestId: string): { priceMin: number, priceMed: number } {
-  // Initialize with defaults
-  let priceMin = 0;
-  let priceMed = 0;
+  // Extract nested data if available
+  const functionResponse = rawData.functionResponse || {};
+  const userParams = functionResponse.userParams || {};
+  const calcValuation = functionResponse.valuation?.calcValuation || {};
   
-  // Start with direct paths at root level
-  if (data.price_min !== undefined) priceMin = Number(data.price_min);
-  if (data.price_med !== undefined) priceMed = Number(data.price_med);
+  // Log detailed extraction paths
+  logOperation('data_extraction_paths', {
+    requestId,
+    hasFunctionResponse: !!rawData.functionResponse,
+    hasUserParams: !!functionResponse.userParams,
+    hasCalcValuation: !!functionResponse.valuation?.calcValuation,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Extract vehicle details (try multiple paths)
+  const make = rawData.make || userParams.make || '';
+  const model = rawData.model || userParams.model || '';
+  const year = rawData.year || userParams.yearOfProduction || 0;
+  
+  // Log the extracted basic vehicle data
+  logOperation('extracted_vehicle_data', {
+    requestId,
+    make,
+    model,
+    year,
+    vin,
+    mileage,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Extract price data (try multiple paths)
+  const priceMin = rawData.price_min || calcValuation.price_min || 0;
+  const priceMed = rawData.price_med || calcValuation.price_med || 0;
+  const directValuation = rawData.valuation || 0;
+  
+  // Log all price-related fields found
+  logOperation('all_price_fields', {
+    requestId,
+    directValuation,
+    priceMin,
+    priceMed,
+    rawReservePrice: rawData.reservePrice,
+    rawBasePrice: rawData.basePrice,
+    rawAveragePrice: rawData.averagePrice,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Calculate base price if we have price min and med
+  let basePrice = 0;
+  let usingFallbackEstimation = false;
   
   if (priceMin > 0 && priceMed > 0) {
-    logOperation('found_price_data_at_root', {
-      requestId,
-      priceMin,
-      priceMed
-    });
-    return { priceMin, priceMed };
-  }
-  
-  // Look for nested CalcValuation (common in Auto ISO API)
-  if (data.functionResponse?.valuation?.calcValuation) {
-    const calcValuation = data.functionResponse.valuation.calcValuation;
-    logOperation('found_nested_calcvaluation', {
-      requestId,
-      calcValuationKeys: Object.keys(calcValuation)
-    });
-    
-    if (calcValuation.price_min !== undefined) priceMin = Number(calcValuation.price_min);
-    if (calcValuation.price_med !== undefined) priceMed = Number(calcValuation.price_med);
-    
-    if (priceMin > 0 && priceMed > 0) {
-      logOperation('found_price_data_in_calcvaluation', {
-        requestId,
-        priceMin,
-        priceMed
-      });
-      return { priceMin, priceMed };
-    }
-  }
-  
-  // Try alternate field names
-  const priceMinFields = ['priceMin', 'minPrice', 'minimum_value', 'price'];
-  const priceMedFields = ['priceMed', 'medianPrice', 'median_value', 'average_value', 'price'];
-  
-  for (const field of priceMinFields) {
-    if (data[field] !== undefined && priceMin === 0) {
-      priceMin = Number(data[field]);
-      logOperation('found_price_min_alternate', {
-        requestId,
-        field,
-        value: priceMin
-      });
-    }
-  }
-  
-  for (const field of priceMedFields) {
-    if (data[field] !== undefined && priceMed === 0) {
-      priceMed = Number(data[field]);
-      logOperation('found_price_med_alternate', {
-        requestId,
-        field,
-        value: priceMed
-      });
-    }
-  }
-  
-  // Check nested objects (common pattern in some APIs)
-  const nestedPaths = ['data', 'apiResponse', 'response', 'result'];
-  for (const path of nestedPaths) {
-    if (data[path] && typeof data[path] === 'object') {
-      const nestedResult = scanForPriceData(data[path], requestId);
-      if (nestedResult.priceMin > 0 && nestedResult.priceMed > 0) {
-        return nestedResult;
-      }
-    }
-  }
-  
-  return { priceMin, priceMed };
-}
-
-/**
- * Process and normalize raw valuation data
- * @param rawData Raw data from API
- * @param vin Vehicle identification number
- * @param mileage Vehicle mileage
- * @param requestId For logging
- * @returns Processed valuation data
- */
-export function processValuationData(rawData: any, vin: string, mileage: number, requestId: string): ValuationData {
-  try {
-    // Log the incoming data structure for debugging
-    logOperation('processing_raw_valuation', { 
-      requestId,
-      dataKeys: Object.keys(rawData),
-      hasUserParams: !!rawData.functionResponse?.userParams,
-      hasCalcValuation: !!rawData.functionResponse?.valuation?.calcValuation
-    });
-    
-    // Extract vehicle details with multiple fallback paths
-    const make = extractDataValue(rawData, [
-      'functionResponse.userParams.make', 
-      'make', 
-      'manufacturer', 
-      'brand'
-    ], '');
-    
-    const model = extractDataValue(rawData, [
-      'functionResponse.userParams.model', 
-      'model', 
-      'modelName'
-    ], '');
-    
-    const year = extractDataValue(rawData, [
-      'functionResponse.userParams.year', 
-      'year', 
-      'productionYear'
-    ], 0);
-    
-    // Scan deeply for price data
-    const { priceMin, priceMed } = scanForPriceData(rawData, requestId);
-    
-    logOperation('price_scan_results', {
+    // Use API price data (average of min and med)
+    basePrice = (priceMin + priceMed) / 2;
+    logOperation('using_api_price_data', {
       requestId,
       priceMin,
       priceMed,
-      hasValidPrices: priceMin > 0 && priceMed > 0
+      calculatedBasePrice: basePrice,
+      timestamp: new Date().toISOString()
     });
-    
-    // Calculate base price and valuation
-    let basePrice = 0;
-    if (priceMin > 0 && priceMed > 0) {
-      basePrice = (priceMin + priceMed) / 2;
-    } else {
-      // Try direct price fields
-      const price = extractDataValue(rawData, [
-        'price',
-        'value',
-        'estimatedValue',
-        'valuation'
-      ], 0);
-      
-      if (price > 0) {
-        basePrice = price;
-      }
-    }
-    
-    // If we still don't have price data, estimate it
-    if (basePrice <= 0 && make && model && year > 0) {
-      basePrice = estimateBasePriceByModel(make, model, year);
-      logOperation('using_estimated_price', { 
-        requestId,
-        vin,
-        make,
-        model,
-        year,
-        basePrice
-      }, 'warn');
-    }
-    
-    // Calculate reserve price
-    const reservePrice = calculateReservePrice(basePrice, requestId);
-    
-    // Create standardized result object
-    const result: ValuationData = {
-      vin,
+  } else if (directValuation > 0) {
+    // Use direct valuation
+    basePrice = directValuation;
+    logOperation('using_direct_valuation', {
+      requestId,
+      directValuation,
+      timestamp: new Date().toISOString()
+    });
+  } else if (make && model && year > 0) {
+    // Estimate price based on vehicle details
+    basePrice = estimateBasePriceByModel(make, model, year, requestId);
+    usingFallbackEstimation = true;
+    logOperation('using_estimated_price', {
+      requestId,
       make,
       model,
       year,
-      mileage,
-      price_min: priceMin,
-      price_med: priceMed,
-      basePrice,
-      valuation: basePrice,
-      reservePrice,
-      averagePrice: priceMed || basePrice,
-      estimationMethod: basePrice > 0 && (priceMin === 0 || priceMed === 0) ? 'make_model_year' : undefined
-    };
-    
-    // Validate essential data
-    const isValid = make && model && year > 0;
-    const hasPriceData = basePrice > 0;
-    
-    // Log the processing result
-    logOperation('valuation_data_processed', { 
-      requestId,
-      vin,
-      isValid,
-      hasPriceData,
-      make,
-      model,
-      year,
-      basePrice,
-      reservePrice
+      estimatedBasePrice: basePrice,
+      timestamp: new Date().toISOString()
     });
-    
-    return result;
-  } catch (error) {
-    logOperation('data_processing_error', {
+  } else {
+    // Default fallback
+    basePrice = 50000; // Sensible default
+    usingFallbackEstimation = true;
+    logOperation('using_default_price', {
       requestId,
-      error: error.message,
-      stack: error.stack
-    }, 'error');
-    
-    // Return minimal data with VIN
-    return { 
-      vin, 
-      mileage,
-      make: '',
-      model: '',
-      valuation: 0,
-      reservePrice: 0
-    };
+      defaultBasePrice: basePrice,
+      timestamp: new Date().toISOString()
+    });
   }
+  
+  // Calculate reserve price
+  const reservePrice = calculateReservePrice(basePrice);
+  
+  // Log final processed data
+  logOperation('processed_data_result', {
+    requestId,
+    make,
+    model,
+    year,
+    basePrice,
+    reservePrice,
+    usingFallbackEstimation,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Return processed data
+  return {
+    make,
+    model,
+    year,
+    transmission: userParams.transmission || rawData.transmission || '',
+    vin,
+    mileage,
+    basePrice,
+    reservePrice,
+    valuation: directValuation || basePrice,
+    usingFallbackEstimation
+  };
 }

@@ -1,30 +1,25 @@
 
-/**
- * API Service for get-vehicle-valuation
- * Created: 2025-04-19
- * Updated: 2025-04-28 - Enhanced error handling and detailed logging
- */
-
 import { logOperation } from "./logging.ts";
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
-import { encodeToString } from "https://deno.land/std@0.177.0/encoding/hex.ts";
 
 /**
- * Call the Auto ISO valuation API
+ * Call the external valuation API
+ * Updated: 2025-04-29 - ENHANCED LOGGING FOR DEBUGGING
  */
 export async function callValuationApi(vin: string, mileage: number, requestId: string) {
   try {
-    // Get API credentials from environment variables
+    // Get API credentials (first try valuation-specific env vars, then fall back to generic)
     const apiId = Deno.env.get("VALUATION_API_ID") || "AUTOSTRA";
     const apiSecret = Deno.env.get("VALUATION_API_SECRET") || Deno.env.get("CAR_API_SECRET");
     
-    // Log API credentials status (without revealing the actual secret)
-    logOperation('api_credentials', {
+    // Detailed logging of credentials (safely)
+    logOperation('api_credentials_check', {
       requestId,
-      hasApiId: !!apiId,
+      usingApiId: apiId,
       hasApiSecret: !!apiSecret,
-      apiIdValue: apiId,
       apiSecretLength: apiSecret ? apiSecret.length : 0,
+      apiSecretFirstChars: apiSecret ? apiSecret.substring(0, 4) + '***' : 'MISSING',
+      apiSecretLastChars: apiSecret ? '***' + apiSecret.substring(apiSecret.length - 4) : 'MISSING',
       timestamp: new Date().toISOString()
     });
     
@@ -32,123 +27,166 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
       logOperation('missing_api_secret', { requestId }, 'error');
       return {
         success: false,
-        error: 'API secret is not configured'
+        error: "Missing API secret key"
       };
     }
     
-    // Calculate checksum: md5(api id + api secret key + vin)
-    const checksum = await calculateChecksum(apiId, apiSecret, vin, requestId);
+    // Calculate checksum (md5 hash of apiId + apiSecret + vin)
+    const input = `${apiId}${apiSecret}${vin}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    const hashBuffer = await crypto.subtle.digest('MD5', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     
-    // Construct API URL
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-    
-    logOperation('calling_api', {
+    // Log the input for checksum (without exposing the full API secret)
+    logOperation('checksum_calculation', {
       requestId,
-      apiUrl,
-      vin,
-      mileage
+      apiId,
+      vinUsed: vin,
+      checksumGenerated: checksum,
+      inputLength: input.length,
+      timestamp: new Date().toISOString()
     });
     
-    // Set reasonable timeout
+    // Construct the API URL
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    
+    logOperation('api_request_url', {
+      requestId,
+      url: apiUrl.replace(checksum, 'CHECKSUM-HIDDEN-FOR-SECURITY'),
+      timestamp: new Date().toISOString()
+    });
+    
+    // Set timeout for API request
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
     try {
-      // Make the API request
-      const startTime = performance.now();
+      // Make the actual API request
+      logOperation('api_request_start', { requestId, vin, mileage });
       
-      const response = await fetch(apiUrl, {
+      const response = await fetch(apiUrl, { 
         signal: controller.signal,
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'AutostradaValuationService/1.0'
+          'User-Agent': 'Autostrada/1.0'
         }
       });
       
       clearTimeout(timeoutId);
-      const endTime = performance.now();
       
-      logOperation('api_response_timing', {
+      // Log the response status
+      logOperation('api_response_received', {
         requestId,
-        timeMs: (endTime - startTime).toFixed(2),
         status: response.status,
         statusText: response.statusText,
-        contentType: response.headers.get('content-type')
-      });
-      
-      // Check if the response is successful
-      if (!response.ok) {
-        const errorText = await response.text();
-        logOperation('api_http_error', {
-          requestId,
-          status: response.status,
-          statusText: response.statusText,
-          errorText
-        }, 'error');
-        
-        return {
-          success: false,
-          error: `API responded with error: ${response.status} ${response.statusText}`,
-          data: { errorText }
-        };
-      }
-      
-      // Parse the JSON response
-      // First log the raw text for debugging
-      const responseText = await response.text();
-      logOperation('api_response_raw', {
-        requestId,
-        responseLength: responseText.length,
+        headers: Object.fromEntries([...response.headers.entries()]),
         timestamp: new Date().toISOString()
       });
       
-      let jsonData;
-      try {
-        jsonData = JSON.parse(responseText);
-        
-        // Log the parsed JSON structure
-        logOperation('api_response_parsed', {
-          requestId,
-          hasData: !!jsonData,
-          keys: Object.keys(jsonData),
-          nestedKeys: jsonData?.functionResponse ? Object.keys(jsonData.functionResponse) : []
-        });
-        
-        return {
-          success: true,
-          data: jsonData
-        };
-      } catch (parseError) {
-        logOperation('api_json_parse_error', {
-          requestId,
-          error: parseError.message,
-          responseText: responseText.substring(0, 200) + '...',
-          responseLength: responseText.length
+      if (!response.ok) {
+        const responseText = await response.text();
+        logOperation('api_response_error', { 
+          requestId, 
+          status: response.status,
+          statusText: response.statusText,
+          responseText
         }, 'error');
         
         return {
           success: false,
-          error: 'Failed to parse API response',
-          data: { responseText }
+          error: `API responded with status: ${response.status}`
         };
       }
+      
+      // Parse the response
+      const responseText = await response.text();
+      logOperation('api_response_text', {
+        requestId,
+        responseText,
+        timestamp: new Date().toISOString()
+      });
+      
+      let valuationData;
+      try {
+        valuationData = JSON.parse(responseText);
+        
+        // Log the parsed data structure
+        logOperation('api_response_parsed', {
+          requestId,
+          hasData: !!valuationData,
+          topLevelKeys: Object.keys(valuationData),
+          dataSize: JSON.stringify(valuationData).length,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Deep check for important fields
+        logOperation('api_response_fields', {
+          requestId,
+          hasMake: !!valuationData.make,
+          hasModel: !!valuationData.model,
+          hasYear: !!valuationData.year,
+          hasValuation: !!valuationData.valuation,
+          hasPriceMin: !!valuationData.price_min,
+          hasPriceMed: !!valuationData.price_med,
+          hasCalcValuation: !!valuationData.functionResponse?.valuation?.calcValuation,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (parseError) {
+        logOperation('api_response_parse_error', { 
+          requestId, 
+          error: parseError.message,
+          responseText
+        }, 'error');
+        
+        return {
+          success: false,
+          error: `Failed to parse API response: ${parseError.message}`
+        };
+      }
+      
+      // Check for error in the API response
+      if (valuationData.error) {
+        logOperation('api_business_error', { 
+          requestId, 
+          error: valuationData.error
+        }, 'error');
+        
+        return {
+          success: false,
+          error: valuationData.error
+        };
+      }
+      
+      // Log the successful result
+      logOperation('api_call_success', {
+        requestId,
+        dataSize: JSON.stringify(valuationData).length,
+        timestamp: new Date().toISOString()
+      });
+      
+      return {
+        success: true,
+        data: valuationData
+      };
     } catch (fetchError) {
       clearTimeout(timeoutId);
       
-      // Check if this is a timeout error
       if (fetchError.name === 'AbortError') {
         logOperation('api_timeout', { requestId }, 'error');
         return {
           success: false,
-          error: 'API request timed out after 15 seconds'
+          error: "API request timed out"
         };
       }
       
       logOperation('api_fetch_error', {
         requestId,
         error: fetchError.message,
-        name: fetchError.name,
-        stack: fetchError.stack
+        stack: fetchError.stack,
+        timestamp: new Date().toISOString()
       }, 'error');
       
       return {
@@ -160,51 +198,13 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
     logOperation('api_service_error', {
       requestId,
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
+      timestamp: new Date().toISOString()
     }, 'error');
     
     return {
       success: false,
-      error: `Error calling valuation API: ${error.message}`
+      error: `Error in API service: ${error.message}`
     };
-  }
-}
-
-/**
- * Calculate MD5 checksum for API authentication
- */
-async function calculateChecksum(apiId: string, apiSecret: string, vin: string, requestId: string) {
-  try {
-    // Input is the concatenation of API ID + API secret + VIN
-    const input = `${apiId}${apiSecret}${vin}`;
-    
-    // Encode the input to bytes
-    const encoder = new TextEncoder();
-    const data = encoder.encode(input);
-    
-    // Calculate MD5 hash
-    const hashBuffer = await crypto.subtle.digest('MD5', data);
-    const hashArray = new Uint8Array(hashBuffer);
-    
-    // Convert to hex string
-    const checksum = encodeToString(hashArray);
-    
-    logOperation('checksum_calculated', {
-      requestId,
-      checksumLength: checksum.length,
-      inputLength: input.length,
-      // Log a small part of the checksum for verification
-      checksumStart: checksum.substring(0, 8),
-      checksumEnd: checksum.substring(checksum.length - 8)
-    });
-    
-    return checksum;
-  } catch (error) {
-    logOperation('checksum_error', {
-      requestId,
-      error: error.message
-    }, 'error');
-    
-    throw new Error(`Failed to calculate checksum: ${error.message}`);
   }
 }
