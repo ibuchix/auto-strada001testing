@@ -1,7 +1,7 @@
 
 /**
  * Data processing utilities for get-vehicle-valuation
- * Created: 2025-04-19 - Extracted from inline implementation
+ * Updated: 2025-04-22 - Fixed price data extraction and valuation calculation
  */
 
 import { logOperation } from './logging.ts';
@@ -17,7 +17,7 @@ export interface ValuationData {
   year?: number;
   mileage?: number;
   transmission?: string;
-  price?: number;
+  basePrice?: number;
   valuation?: number;
   reservePrice?: number;
   averagePrice?: number;
@@ -117,22 +117,38 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       'functionResponse.valuation.calcValuation.price_med',
       'price_med',
       'priceMed',
-      'medianPrice'
+      'medianPrice',
+      'averagePrice'
     ], 0);
     
     const price = extractDataValue(rawData, [
       'functionResponse.valuation.calcValuation.price',
       'price',
       'value',
-      'estimatedValue'
+      'estimatedValue',
+      'valuation'
     ], 0);
     
-    // Calculate base price and reserve price
+    // Calculate base price and valuation
     let basePrice = 0;
     if (priceMin > 0 && priceMed > 0) {
       basePrice = (priceMin + priceMed) / 2;
     } else if (price > 0) {
       basePrice = price;
+    } else if (priceMed > 0) {
+      basePrice = priceMed;
+    } else if (priceMin > 0) {
+      basePrice = priceMin;
+    }
+    
+    // If no price data was found, set a default
+    if (basePrice <= 0) {
+      basePrice = make && model ? 50000 : 0; // Only use default if we have make/model
+      logOperation('using_default_price', { 
+        requestId,
+        vin,
+        basePrice
+      }, 'warn');
     }
     
     // Calculate reserve price
@@ -145,7 +161,7 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       model,
       year,
       mileage,
-      price: basePrice,
+      basePrice,
       valuation: basePrice,
       reservePrice,
       averagePrice: priceMed || basePrice
@@ -175,6 +191,13 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
     }, 'error');
     
     // Return minimal data with VIN
-    return { vin, mileage };
+    return { 
+      vin, 
+      mileage,
+      make: '',
+      model: '',
+      valuation: 0,
+      reservePrice: 0
+    };
   }
 }

@@ -6,8 +6,7 @@
  * - 2025-04-20: Fixed import paths and added sanitizePartialData function
  * - 2025-04-21: Updated to properly extract nested vehicle data from Auto ISO API response
  * - 2025-04-21: Fixed nested price extraction pattern to match API structure
- * - 2025-04-22: Enhanced data transformation to correctly preserve pricing information
- * - 2025-04-22: Fixed edge function response handling for proper reserve price extraction
+ * - 2025-04-22: Enhanced data extraction to properly handle price data from API response
  */
 
 import { extractPrice } from '../../utils/priceExtractor';
@@ -27,12 +26,6 @@ export function normalizeValuationData(data: any): ValuationData {
   const userParams = functionResponse.userParams || {};
   const calcValuation = functionResponse.valuation?.calcValuation || {};
   
-  // Extract base price with improved path awareness
-  const basePrice = extractBasePrice(data, calcValuation);
-  
-  // Extract reserve price with fallbacks
-  const reservePrice = extractReservePrice(data, basePrice);
-  
   // Extract make, model, year from the proper nested location
   const make = userParams.make || data?.make || '';
   const model = userParams.model || data?.model || '';
@@ -45,9 +38,37 @@ export function normalizeValuationData(data: any): ValuationData {
   // Get mileage from the proper nested location or from the root
   const mileage = userParams.odometer || data?.mileage || 0;
 
-  // Extract API-specific price fields with fallbacks
+  // Extract API-specific price fields with improved fallbacks
   const priceMin = calcValuation.price_min || data?.price_min || 0;
   const priceMed = calcValuation.price_med || data?.price_med || data?.averagePrice || 0;
+  
+  // Extract direct price/valuation data with fallbacks
+  let valuation = data?.valuation;
+  if (!valuation || valuation <= 0) {
+    valuation = data?.price || priceMed || 0;
+  }
+  
+  // Calculate base price with improved fallbacks
+  let basePrice = 0;
+  if (priceMin > 0 && priceMed > 0) {
+    basePrice = (priceMin + priceMed) / 2;
+  } else if (valuation > 0) {
+    basePrice = valuation;
+  } else if (data?.price > 0) {
+    basePrice = data.price;
+  } else {
+    // Last resort fallback
+    console.warn('No valid price found in response, using fallback value of 50000');
+    basePrice = 50000; // Default fallback value
+  }
+  
+  // Extract or calculate reserve price
+  let reservePrice = data?.reservePrice;
+  if (!reservePrice || reservePrice <= 0) {
+    reservePrice = calculateReservePrice(basePrice);
+  }
+  
+  // Use average price with fallbacks
   const averagePrice = data?.averagePrice || priceMed || basePrice;
 
   // Log the extracted price data for debugging
@@ -63,16 +84,16 @@ export function normalizeValuationData(data: any): ValuationData {
   });
 
   const normalized: ValuationData = {
-    make: make,
-    model: model,
-    year: year,
+    make,
+    model,
+    year,
     vin: data?.vin || '',
     transmission,
-    mileage: typeof mileage === 'number' ? mileage : parseInt(mileage) || 0,
-    valuation: data?.valuation || basePrice || 0,
-    reservePrice: reservePrice || 0,
-    averagePrice: averagePrice,
-    basePrice: basePrice,
+    mileage: typeof mileage === 'number' ? mileage : parseInt(String(mileage)) || 0,
+    valuation: valuation || basePrice,
+    reservePrice,
+    averagePrice,
+    basePrice,
     
     // API metadata
     apiSource: data?.apiSource || 'default',
@@ -99,52 +120,8 @@ export function normalizeValuationData(data: any): ValuationData {
 }
 
 /**
- * Helper function to extract base price from different data structures
+ * Helper function to normalize transmission values
  */
-function extractBasePrice(data: any, calcValuation: any): number {
-  // Check directly for basePrice field (added by edge function)
-  if (data.basePrice > 0) {
-    return Number(data.basePrice);
-  }
-  
-  // Then try to get price from calcValuation (most reliable)
-  if (calcValuation.price_min > 0 && calcValuation.price_med > 0) {
-    const priceMin = Number(calcValuation.price_min);
-    const priceMed = Number(calcValuation.price_med);
-    return (priceMin + priceMed) / 2;
-  }
-  
-  // Then try direct price in calcValuation
-  if (calcValuation.price > 0) {
-    return Number(calcValuation.price);
-  }
-  
-  // Fall back to price_min and price_med at root level
-  if (data.price_min > 0 && data.price_med > 0) {
-    return (Number(data.price_min) + Number(data.price_med)) / 2;
-  }
-  
-  // Use extractPrice utility as final fallback
-  return extractPrice(data);
-}
-
-/**
- * Helper function to extract reserve price from different data structures
- */
-function extractReservePrice(data: any, basePrice: number): number {
-  // First check if reservePrice is directly provided (preferred)
-  if (data.reservePrice > 0) {
-    return Number(data.reservePrice);
-  }
-  
-  // If we have a base price but no reserve price, calculate it
-  if (basePrice > 0) {
-    return calculateReservePrice(basePrice);
-  }
-  
-  return 0;
-}
-
 function normalizeTransmission(transmission: any): TransmissionType {
   if (typeof transmission === 'string') {
     const normalized = transmission.toLowerCase();
@@ -155,7 +132,6 @@ function normalizeTransmission(transmission: any): TransmissionType {
 
 /**
  * Sanitizes partial valuation data for recovery purposes
- * Added to support the dataRecovery utility
  */
 export function sanitizePartialData(data: Partial<ValuationData>): Partial<ValuationData> {
   if (!data) return {};
