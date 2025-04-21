@@ -9,30 +9,40 @@
  * - Updated 2025-04-22: Enhanced data transformation validation for more reliable display
  * - Updated 2025-04-22: Added improved error handling for edge function responses
  * - Updated 2025-04-22: Fixed DialogContent issue by adding proper description
+ * - Updated 2025-04-23: Added improved debugging and fallback message for failed API price data
  */
 
 import { formatCurrency } from "@/utils/formatters";
+import { useEffect } from "react";
 
 interface ValuationPriceDisplayProps {
   reservePrice: number;
   showAveragePrice?: boolean;
   averagePrice?: number | null;
+  errorDetails?: string;
+  apiSource?: string;
 }
 
 export const ValuationPriceDisplay = ({ 
   reservePrice, 
   showAveragePrice = false,
-  averagePrice
+  averagePrice,
+  errorDetails,
+  apiSource = 'default'
 }: ValuationPriceDisplayProps) => {
   // Enhanced validation with more detailed logging
-  console.log('ValuationPriceDisplay received values:', {
-    reservePrice,
-    averagePrice,
-    showAveragePrice,
-    isReservePriceNumber: typeof reservePrice === 'number',
-    isAveragePriceNumber: typeof averagePrice === 'number',
-    timestamp: new Date().toISOString()
-  });
+  useEffect(() => {
+    console.log('ValuationPriceDisplay received values:', {
+      reservePrice,
+      averagePrice,
+      showAveragePrice,
+      apiSource,
+      errorDetails,
+      isReservePriceNumber: typeof reservePrice === 'number',
+      isAveragePriceNumber: typeof averagePrice === 'number',
+      timestamp: new Date().toISOString()
+    });
+  }, [reservePrice, averagePrice, showAveragePrice, errorDetails, apiSource]);
 
   // Ensure we have valid numbers with more robust validation
   const validReservePrice = typeof reservePrice === 'number' && !isNaN(reservePrice) && reservePrice > 0 
@@ -47,15 +57,23 @@ export const ValuationPriceDisplay = ({
   const hasValidReservePrice = validReservePrice > 0;
   const hasValidAveragePrice = validAveragePrice > 0;
   const hasNoValidPrices = !hasValidReservePrice && !hasValidAveragePrice;
+  
+  // Check if we're using estimated values (API failure fallback)
+  const isUsingEstimated = apiSource === 'estimation' || reservePrice === 36500;
 
   // Log the validated values
-  console.log('ValuationPriceDisplay validated values:', {
-    validReservePrice,
-    validAveragePrice,
-    hasValidReservePrice,
-    hasValidAveragePrice,
-    hasNoValidPrices
-  });
+  useEffect(() => {
+    console.log('ValuationPriceDisplay validated values:', {
+      validReservePrice,
+      validAveragePrice,
+      hasValidReservePrice,
+      hasValidAveragePrice,
+      hasNoValidPrices,
+      isUsingEstimated,
+      timestamp: new Date().toISOString()
+    });
+  }, [validReservePrice, validAveragePrice, hasValidReservePrice, 
+      hasValidAveragePrice, hasNoValidPrices, isUsingEstimated]);
 
   return (
     <div className="mt-4 p-5 bg-gray-50 rounded-lg border border-gray-100">
@@ -64,6 +82,11 @@ export const ValuationPriceDisplay = ({
           <div>
             <h3 className="text-sm font-medium text-gray-500">Reserve Price</h3>
             <p className="text-2xl font-bold text-DC143C">{formatCurrency(validReservePrice)}</p>
+            {isUsingEstimated && (
+              <p className="text-xs text-amber-600 mt-1">
+                Estimated price based on vehicle data
+              </p>
+            )}
           </div>
         ) : null}
         
@@ -71,6 +94,11 @@ export const ValuationPriceDisplay = ({
           <div>
             <h3 className="text-sm font-medium text-gray-500">Market Value</h3>
             <p className="text-xl font-semibold text-gray-700">{formatCurrency(validAveragePrice)}</p>
+            {isUsingEstimated && (
+              <p className="text-xs text-amber-600 mt-1">
+                Estimated value based on vehicle data
+              </p>
+            )}
           </div>
         ) : null}
         
@@ -79,6 +107,11 @@ export const ValuationPriceDisplay = ({
             <h3 className="text-sm font-medium text-gray-500">Price Information</h3>
             <p className="text-base text-gray-700">Contact support for pricing information</p>
             <p className="text-xs text-gray-500 mt-1">You can still list your car with us.</p>
+            {errorDetails && (
+              <p className="text-xs text-amber-600 mt-2">
+                Debug info: {errorDetails}
+              </p>
+            )}
           </div>
         )}
       </div>

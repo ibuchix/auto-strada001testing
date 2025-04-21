@@ -6,6 +6,7 @@
  * - 2025-04-22: Fixed price data extraction and display
  * - 2025-04-18: Fixed hasValuation logic to handle cases where price data is missing
  * - 2025-04-23: Fixed TypeScript casting for transmission property
+ * - 2025-04-23: Added API source and error details for better debugging
  */
 
 import { useNavigate } from "react-router-dom";
@@ -18,6 +19,7 @@ import { ValuationErrorDialog } from "./dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
 import { useValuationData } from "@/hooks/valuation/useValuationData";
 import { ValuationData } from "@/hooks/valuation/types/valuationTypes";
+import { useValuationLogger } from "@/hooks/valuation/useValuationLogger";
 
 interface ValuationResultProps {
   valuationResult: {
@@ -32,6 +34,8 @@ interface ValuationResultProps {
     isExisting?: boolean;
     error?: string;
     noData?: boolean;
+    apiSource?: string;
+    errorDetails?: string;
   } | null;
   onContinue: () => void;
   onClose: () => void;
@@ -53,6 +57,14 @@ export const ValuationResult = ({
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
   
+  // Enhanced logging to debug the valuation process
+  useValuationLogger({
+    data: valuationResult,
+    stage: 'ValuationResult-Initial',
+    enabled: true,
+    inspectNested: true
+  });
+  
   // Log the raw valuation result for debugging
   console.log("Raw valuation result in ValuationResult:", {
     result: valuationResult,
@@ -62,6 +74,8 @@ export const ValuationResult = ({
     yearPresent: valuationResult?.year ? "yes" : "no",
     reservePricePresent: valuationResult?.reservePrice ? "yes" : "no",
     valuationPresent: valuationResult?.valuation ? "yes" : "no",
+    apiSource: valuationResult?.apiSource || 'unknown',
+    errorDetails: valuationResult?.errorDetails || 'none'
   });
   
   // Convert the string transmission to the expected union type
@@ -84,7 +98,9 @@ export const ValuationResult = ({
     model: normalizedData.model,
     year: normalizedData.year,
     reservePrice: normalizedData.reservePrice,
-    valuation: normalizedData.valuation
+    valuation: normalizedData.valuation,
+    apiSource: normalizedData.apiSource || 'unknown',
+    timestamp: new Date().toISOString()
   });
 
   // Effect to show error dialog when error is detected
@@ -126,6 +142,11 @@ export const ValuationResult = ({
     );
   }
 
+  // Generate error details for debugging if we're using estimated values
+  const errorDebugInfo = normalizedData.apiSource === 'estimation' || normalizedData.usingFallbackEstimation ? 
+    `Using estimated value (API price data missing or invalid)` : 
+    normalizedData.errorDetails || undefined;
+
   return (
     <ValuationContent
       make={normalizedData.make}
@@ -138,6 +159,8 @@ export const ValuationResult = ({
       averagePrice={normalizedData.averagePrice || 0}
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
+      apiSource={normalizedData.apiSource}
+      errorDetails={errorDebugInfo}
       onClose={onClose}
       onContinue={() => handleContinue(normalizedData)}
     />

@@ -2,6 +2,7 @@
 /**
  * Component to display car valuation results
  * Updated 2025-04-22: Fixed missing Description for DialogContent warning
+ * Updated 2025-04-23: Added error details debug prop for better valuation troubleshooting
  */
 
 import { X } from "lucide-react";
@@ -21,6 +22,8 @@ interface ValuationContentProps {
   averagePrice?: number;
   hasValuation?: boolean;
   isLoggedIn?: boolean;
+  apiSource?: string;
+  errorDetails?: string;
   onClose: () => void;
   onContinue: () => void;
 }
@@ -36,6 +39,8 @@ export const ValuationContent = ({
   averagePrice = 0,
   hasValuation = false,
   isLoggedIn = false,
+  apiSource = 'default',
+  errorDetails,
   onClose,
   onContinue
 }: ValuationContentProps) => {
@@ -52,6 +57,8 @@ export const ValuationContent = ({
     hasValidReservePrice: typeof reservePrice === 'number' && reservePrice > 0,
     hasValidAveragePrice: typeof averagePrice === 'number' && averagePrice > 0,
     hasValuation,
+    apiSource,
+    errorDetails,
     timestamp: new Date().toISOString()
   });
 
@@ -84,6 +91,8 @@ export const ValuationContent = ({
           reservePrice={reservePrice}
           averagePrice={averagePrice}
           showAveragePrice={true}
+          apiSource={apiSource}
+          errorDetails={errorDetails}
         />
 
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
