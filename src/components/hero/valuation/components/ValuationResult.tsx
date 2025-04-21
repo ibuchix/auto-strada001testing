@@ -7,6 +7,7 @@
  * - 2025-04-18: Fixed hasValuation logic to handle cases where price data is missing
  * - 2025-04-23: Fixed TypeScript casting for transmission property
  * - 2025-04-23: Added API source and error details for better debugging
+ * - 2025-04-24: Fixed TypeScript errors by ensuring proper type definitions
  */
 
 import { useNavigate } from "react-router-dom";

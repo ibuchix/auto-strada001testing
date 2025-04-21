@@ -3,6 +3,7 @@
  * Type definitions for valuation data
  * Updated: 2025-04-22 - Added more complete type definitions
  * Updated: 2025-04-22 - Added ValuationResult interface for consistent data handling
+ * Updated: 2025-04-24 - Added apiSource, errorDetails, and usingFallbackEstimation properties
  */
 
 export type TransmissionType = 'manual' | 'automatic';
@@ -22,6 +23,8 @@ export interface ValuationData {
   // Metadata
   apiSource?: string;
   valuationDate?: string;
+  errorDetails?: string;
+  usingFallbackEstimation?: boolean;
   
   // Status flags
   error?: string;

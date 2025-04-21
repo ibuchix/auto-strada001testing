@@ -3,6 +3,7 @@
  * Component to display car valuation results
  * Updated 2025-04-22: Fixed missing Description for DialogContent warning
  * Updated 2025-04-23: Added error details debug prop for better valuation troubleshooting
+ * Updated 2025-04-24: Updated interface to include apiSource, ensuring TypeScript compatibility
  */
 
 import { X } from "lucide-react";
