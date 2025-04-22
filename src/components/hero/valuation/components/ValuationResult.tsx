@@ -1,14 +1,6 @@
-
 /**
  * Changes made:
- * - 2025-04-22: Enhanced data validation and processing
- * - 2025-04-22: Added better debugging and improved data handling
- * - 2025-04-22: Fixed price data extraction and display
- * - 2025-04-18: Fixed hasValuation logic to handle cases where price data is missing
- * - 2025-04-23: Fixed TypeScript casting for transmission property
- * - 2025-04-23: Added API source and error details for better debugging
- * - 2025-04-24: Fixed TypeScript errors by ensuring proper type definitions
- * - 2025-04-25: Added estimation method information for better user feedback
+ * - 2025-04-22: Removed localStorage operations to debug nested API data issues
  */
 
 import { useNavigate } from "react-router-dom";
@@ -91,7 +83,7 @@ export const ValuationResult = ({
   
   // Use our enhanced hook to validate and normalize data
   const { normalizedData, hasError, shouldShowError, hasValuation } = useValuationData(typedValuationResult);
-  const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
+  const mileage = 0; // Default value instead of reading from localStorage
 
   // Log normalized data for debugging
   console.log("Normalized valuation data:", {

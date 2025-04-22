@@ -1,14 +1,6 @@
-
 /**
  * Changes made:
- * - 2024-04-02: Fixed incomplete hook implementation that was causing React Error #310 (infinite loop)
- * - 2024-04-02: Added proper dependency arrays to useEffect hooks
- * - 2024-04-02: Fixed return statement to include all required properties
- * - 2024-04-03: Fixed TypeScript errors by removing unnecessary context parameter
- * - 2024-04-03: Enhanced logging with timestamps and detailed execution information
- * - 2024-04-04: Fixed error property access
- * - 2024-04-04: Added safe error handling with optional chaining
- * - 2025-04-10: Added VIN validation and improved error handling
+ * - 2025-04-22: Removed localStorage operations to debug nested API data issues
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -143,24 +135,6 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
           return;
         }
       
-        // Store the valuation data in localStorage
-        localStorage.setItem("valuationData", JSON.stringify(result.data));
-        localStorage.setItem("tempMileage", data.mileage);
-        localStorage.setItem("tempVIN", normalizedVin);
-        localStorage.setItem("tempGearbox", data.gearbox);
-        localStorage.setItem("valuationTimestamp", new Date().toISOString());
-
-        // Log successful result with key data points
-        console.log(`[ValuationForm][${requestIdRef.current}] Successful valuation:`, {
-          make: result.data.make,
-          model: result.data.model,
-          year: result.data.year,
-          valuation: result.data.valuation || result.data.reservePrice,
-          reservePrice: result.data.reservePrice || result.data.valuation,
-          totalTime: `${(performance.now() - startTime).toFixed(2)}ms`,
-          timestamp: new Date().toISOString()
-        });
-
         // Set the result with normalized property names
         const normalizedResult = {
           ...result.data,

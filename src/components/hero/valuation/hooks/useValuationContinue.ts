@@ -1,81 +1,51 @@
 
 /**
- * Hook for handling valuation continuation logic
- * Created: 2025-04-19
+ * Changes made:
+ * - 2025-04-22: Removed localStorage operations to debug nested API data issues
  */
 
-import { useAuth } from "@/components/AuthProvider";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/components/AuthProvider";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-
-interface ValuationResultData {
-  vin?: string;
-  transmission?: string;
-  noData?: boolean;
-  [key: string]: any;
-}
 
 export const useValuationContinue = () => {
-  const { session } = useAuth();
   const navigate = useNavigate();
+  const { session } = useAuth();
+  const isLoggedIn = !!session;
 
-  const handleContinue = async (valuationResult: ValuationResultData) => {
-    if (!session) {
-      navigate('/auth');
-      toast.info("Please sign in to list your car", {
-        description: "Create an account or sign in to continue.",
+  const handleContinue = (carData: any) => {
+    console.log('Continue button clicked with data:', carData);
+
+    if (!isLoggedIn) {
+      toast.info("Please sign in to continue", {
+        description: "Create an account or sign in to list your car",
+        duration: 5000
+      });
+      navigate('/auth', { 
+        state: { 
+          redirectAfter: '/sell-my-car',
+          carData
+        }
       });
       return;
     }
 
-    // Check user's role from the profiles table
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-
-    if (error) {
-      toast.error("Failed to verify user role");
-      return;
-    }
-
-    if (profile.role !== 'seller') {
-      navigate('/auth');
-      toast.info("Please sign up as a seller", {
-        description: "You need a seller account to list your car.",
-      });
-      return;
-    }
-
-    const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-
-    // If they are a seller, handle the navigation based on data availability
-    if (valuationResult.noData) {
-      navigate('/manual-valuation');
-      toast.info("Manual valuation required", {
-        description: "Please provide additional details about your vehicle.",
-      });
-    } else {
-      navigate('/sell-my-car');
-      localStorage.setItem('valuationData', JSON.stringify(valuationResult));
-      
-      // Store VIN and transmission if available
-      if (valuationResult.vin) {
-        localStorage.setItem('tempVIN', valuationResult.vin);
+    // Navigate to the sell-my-car page with state
+    navigate('/sell-my-car', { 
+      state: { 
+        fromValuation: true,
+        valuationData: carData
       }
-      
-      localStorage.setItem('tempMileage', mileage.toString());
-      
-      if (valuationResult.transmission) {
-        localStorage.setItem('tempGearbox', valuationResult.transmission);
-      }
-    }
+    });
+
+    toast.success("Ready to list your car", {
+      description: "Please complete the listing form",
+      duration: 3000
+    });
   };
 
-  return {
-    handleContinue,
-    isLoggedIn: !!session
+  return { 
+    handleContinue, 
+    isLoggedIn 
   };
 };
