@@ -4,6 +4,7 @@
  * - 2025-04-22: Fixed return type to properly handle nested API response structure
  * - 2025-04-22: Enhanced support for nested functionResponse in API data
  * - 2025-04-26: Fixed return type to ensure consistent object shape
+ * - 2025-04-29: Fixed data extraction from nested API response structure
  */
 
 import { TransmissionType } from "@/components/hero/valuation/types";
@@ -45,26 +46,34 @@ export function validateValuationData(data: any): ValidationResult {
     topLevelKeys: Object.keys(data)
   });
   
-  // Check for error conditions
-  const hasError = !!data.error || !!data.noData;
-  const shouldShowError = hasError || (!data.make && !data.model);
+  // First, let's try to get the vehicle data from nested 'data' property if it exists
+  // This handles the case where the API response is wrapped in a 'data' property
+  const nestedVehicleData = data.data || {};
   
-  // Extract nested data if present
-  const nestedData = data.data || {};
-  const functionResponse = data.functionResponse || {};
+  // Check for error conditions
+  const hasError = !!data.error || !!data.noData || (data.data && !!data.data.error);
+  const errorMessage = data.error || (data.data && data.data.error) || '';
+  
+  // Extract ALL possible vehicle data paths (API response varies)
+  const make = data.make || nestedVehicleData.make || '';
+  const model = data.model || nestedVehicleData.model || '';
+  const year = data.year || nestedVehicleData.year || 0;
+  const vin = data.vin || nestedVehicleData.vin || '';
+  
+  // Check if functionResponse exists (new API structure)
+  const functionResponse = data.functionResponse || (data.data && data.data.functionResponse) || {};
   const userParams = functionResponse.userParams || {};
   const calcValuation = functionResponse.valuation?.calcValuation || {};
   
-  // Extract vehicle details (try all possible paths)
-  const make = data.make || nestedData.make || userParams.make || '';
-  const model = data.model || nestedData.model || userParams.model || '';
-  const year = data.year || nestedData.year || userParams.year || userParams.productionYear || 0;
-  const vin = data.vin || nestedData.vin || '';
+  // Extract vehicle data from functionResponse if we don't have it yet
+  const finalMake = make || userParams.make || '';
+  const finalModel = model || userParams.model || '';
+  const finalYear = year || userParams.year || userParams.productionYear || 0;
   
   // Extract price data (try all possible paths)
   const hasNestedPriceData = calcValuation.price_min !== undefined && calcValuation.price_med !== undefined;
   
-  // Calculate base price if we have nested price data
+  // Calculate base price from all possible sources
   let basePrice = data.basePrice || data.valuation || 0;
   let reservePrice = data.reservePrice || 0;
   let averagePrice = data.averagePrice || data.price_med || 0;
@@ -78,6 +87,7 @@ export function validateValuationData(data: any): ValidationResult {
     if (!isNaN(priceMin) && !isNaN(priceMed) && priceMin > 0 && priceMed > 0) {
       basePrice = (priceMin + priceMed) / 2;
       averagePrice = priceMed;
+      console.log('Using nested price data:', { priceMin, priceMed, basePrice });
     }
   }
   
@@ -86,10 +96,25 @@ export function validateValuationData(data: any): ValidationResult {
     reservePrice = calculateReservePrice(basePrice);
   }
   
+  // If we have vehicle data from the data property but not at the top level, use it
+  if ((!finalMake || !finalModel) && nestedVehicleData.make && nestedVehicleData.model) {
+    console.log('Using vehicle data from nested data property');
+  }
+  
+  // Log all extracted data for debugging
+  console.log('Extracted vehicle data:', {
+    make: finalMake,
+    model: finalModel,
+    year: finalYear,
+    basePrice,
+    reservePrice,
+    hasNestedPriceData
+  });
+  
   const normalizedData = {
-    make,
-    model,
-    year,
+    make: finalMake,
+    model: finalModel,
+    year: finalYear,
     vin,
     transmission: normalizeTransmission(data.transmission),
     mileage: data.mileage || 0,
@@ -97,7 +122,7 @@ export function validateValuationData(data: any): ValidationResult {
     reservePrice,
     averagePrice,
     basePrice,
-    error: data.error || '',
+    error: errorMessage,
     noData: !!data.noData,
     apiSource: data.apiSource || 'auto_iso',
     usingFallbackEstimation: !!data.usingFallbackEstimation,
@@ -106,8 +131,12 @@ export function validateValuationData(data: any): ValidationResult {
   };
   
   // Check if we have basic vehicle data
-  const hasVehicleData = !!make && !!model && year > 0;
+  const hasVehicleData = !!finalMake && !!finalModel && finalYear > 0;
   const hasValuation = hasVehicleData && basePrice > 0;
+  
+  // If we don't have vehicle data but we DO have a `data` property with valid vehicle data
+  // Don't show an error in that case, as we extracted the data successfully
+  const shouldShowError = hasError || (!hasVehicleData && !nestedVehicleData.make && !nestedVehicleData.model);
   
   console.log('Validation result:', {
     hasVehicleData,
@@ -168,4 +197,3 @@ function calculateReservePrice(basePrice: number): number {
   // Calculate and round to nearest whole number
   return Math.round(basePrice - (basePrice * percentage));
 }
-

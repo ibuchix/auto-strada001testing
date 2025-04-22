@@ -1,18 +1,25 @@
 
+/**
+ * Changes made:
+ * - 2025-04-29: Fixed DialogContent by adding proper description
+ */
+
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle } from "lucide-react";
+import { X, RefreshCw } from "lucide-react";
 
 interface ValuationErrorDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onRetry: () => void;
+  onRetry?: () => void;
   error: string;
   description?: string;
 }
@@ -24,39 +31,64 @@ export const ValuationErrorDialog = ({
   error,
   description
 }: ValuationErrorDialogProps) => {
-  console.log('ValuationErrorDialog render:', { isOpen, error, description });
+  const [isRendered, setIsRendered] = useState(false);
+
+  useEffect(() => {
+    setIsRendered(true);
+  }, []);
+
+  if (!isRendered) {
+    return null;
+  }
+
+  console.log('ValuationErrorDialog render:', {
+    isOpen,
+    error,
+    description
+  });
+
+  // This ensures we always have a description for accessibility
+  const dialogDescription = description || "There was a problem with your valuation request. Please try again or contact support.";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-2xl">
-            <AlertTriangle className="h-6 w-6 text-[#DC143C]" />
-            Valuation Error
+          <DialogTitle className="text-red-600">
+            Valuation Failed
           </DialogTitle>
+          <DialogDescription>
+            {dialogDescription}
+          </DialogDescription>
         </DialogHeader>
-
-        <div className="py-4 space-y-2">
-          <p className="text-gray-700">{error}</p>
-          {description && (
-            <p className="text-sm text-gray-500">{description}</p>
-          )}
+        <div className="p-4 bg-red-50 rounded-md">
+          <p className="text-red-800">{error}</p>
         </div>
-
-        <DialogFooter className="sm:justify-between gap-3">
+        <DialogFooter className="flex sm:justify-between gap-4">
           <Button
+            type="button"
             variant="outline"
             onClick={onClose}
-            className="w-full sm:w-auto"
+            className="flex-1 sm:flex-none"
           >
+            <X className="h-4 w-4 mr-2" />
             Close
           </Button>
-          <Button
-            onClick={onRetry}
-            className="w-full sm:w-auto bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
-          >
-            Try Again
-          </Button>
+          {onRetry && (
+            <Button
+              type="button"
+              onClick={() => {
+                // First close the dialog
+                onClose();
+                // Then trigger retry
+                setTimeout(() => onRetry(), 100);
+              }}
+              className="flex-1 sm:flex-none"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
