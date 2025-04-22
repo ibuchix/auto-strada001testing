@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2025-04-21: Created utility for extracting data from API response
@@ -7,6 +8,7 @@
  * - 2025-04-21: Enhanced price calculation to better handle fallback cases
  * - 2025-04-22: Fixed extraction of nested pricing data from functionResponse structure
  * - 2025-04-26: Completely refactored price extraction to prioritize functionResponse structure
+ * - 2025-04-29: Added CRITICAL DEBUGGING for nested API response structure extraction
  */
 
 import { ValuationData } from '../valuationDataTypes';
@@ -96,19 +98,47 @@ export function extractVehicleData(rawData: RawValuationData) {
 }
 
 export function extractPriceData(rawData: RawValuationData) {
+  // RAW DATA DEBUG LOG - Print the entire object structure
+  console.log('%c🔎 FULL RAW DATA STRUCTURE:', 'background: #333; color: #ff9; font-size: 14px; padding: 5px;', JSON.stringify(rawData, null, 2));
+
   // Enhanced logging for debugging
   console.log('%c🔍 DETAILED DATA EXTRACTION START', 'background: #2196F3; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
     hasRawData: !!rawData,
     rawDataKeys: rawData ? Object.keys(rawData) : [],
     hasFunctionResponse: !!rawData?.functionResponse,
-    hasValuation: !!rawData?.functionResponse?.valuation
+    hasValuation: !!rawData?.functionResponse?.valuation,
+    nestedStructurePath: rawData?.functionResponse?.valuation?.calcValuation ? 'FOUND' : 'NOT FOUND'
   });
 
-  // Log the entire functionResponse structure for complete visibility
-  if (rawData?.functionResponse) {
+  // Check if we even have a functionResponse object
+  if (!rawData?.functionResponse) {
+    console.error('%c❌ MISSING FUNCTION RESPONSE', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+      rawDataTopLevel: Object.keys(rawData || {})
+    });
+  } else {
+    // Log the entire functionResponse structure
     console.log('%c📊 FULL FUNCTION RESPONSE', 'background: #4CAF50; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', 
       JSON.stringify(rawData.functionResponse, null, 2)
     );
+    
+    // Check for the valuation property
+    if (!rawData.functionResponse.valuation) {
+      console.error('%c❌ MISSING VALUATION PROPERTY', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+        functionResponseKeys: Object.keys(rawData.functionResponse)
+      });
+    } else {
+      // Log the valuation object
+      console.log('%c📊 VALUATION OBJECT', 'background: #9C27B0; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', 
+        JSON.stringify(rawData.functionResponse.valuation, null, 2)
+      );
+      
+      // Check for calcValuation property
+      if (!rawData.functionResponse.valuation.calcValuation) {
+        console.error('%c❌ MISSING CALCVALUATION PROPERTY', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+          valuationKeys: Object.keys(rawData.functionResponse.valuation)
+        });
+      }
+    }
   }
 
   // First, check if we have the functionResponse structure with calcValuation
@@ -123,25 +153,6 @@ export function extractPriceData(rawData: RawValuationData) {
     priceAvr: calcValuation?.price_avr,
     priceMax: calcValuation?.price_max
   });
-
-  // Debug: Log entire functionalResponse structure if available
-  if (rawData?.functionResponse) {
-    console.log('[DATA-EXTRACTOR] Found functionResponse structure:', {
-      hasUserParams: !!rawData.functionResponse.userParams,
-      hasValuation: !!rawData.functionResponse.valuation,
-      hasCalcValuation: !!rawData.functionResponse.valuation?.calcValuation
-    });
-    
-    if (calcValuation) {
-      console.log('[DATA-EXTRACTOR] calcValuation contains:', {
-        price: calcValuation.price,
-        price_min: calcValuation.price_min,
-        price_med: calcValuation.price_med,
-        price_max: calcValuation.price_max,
-        price_avr: calcValuation.price_avr
-      });
-    }
-  }
 
   // PRIORITY 1: Try to get data from functionResponse.valuation.calcValuation first
   if (calcValuation && calcValuation.price_min !== undefined && calcValuation.price_med !== undefined) {
@@ -167,12 +178,6 @@ export function extractPriceData(rawData: RawValuationData) {
         calculatedBasePrice: basePrice,
         averagePrice: calcValuation.price_avr || basePrice,
         maxPrice: calcValuation.price_max
-      });
-      
-      console.log('[DATA-EXTRACTOR] Successfully extracted price data from calcValuation:', {
-        priceMin,
-        priceMed,
-        calculatedBasePrice: basePrice
       });
       
       return {

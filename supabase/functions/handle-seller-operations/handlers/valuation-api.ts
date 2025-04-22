@@ -6,6 +6,7 @@
  * - 2025-04-22: Fixed data structure consistency and reserve price calculation
  * - 2025-04-22: Fixed API response handling to preserve nested functionResponse
  * - 2025-04-26: Enhanced extraction of pricing data from functionResponse.valuation.calcValuation
+ * - 2025-04-29: Added DEBUG logging to trace full API response preservation
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
@@ -58,9 +59,17 @@ export async function getValuationFromAPI(
     
     // Parse the API response
     const apiData = await response.json();
+    
+    // DEBUG LOG FULL API RESPONSE
+    logOperation('raw_api_response', {
+      requestId,
+      fullApiResponse: JSON.stringify(apiData)
+    });
+    
     logOperation('api_success', { 
       requestId, 
-      responseSize: JSON.stringify(apiData).length
+      responseSize: JSON.stringify(apiData).length,
+      hasTopLevelFunctionResponse: !!apiData.functionResponse
     });
     
     // Log the top-level fields received from the API
@@ -76,16 +85,32 @@ export async function getValuationFromAPI(
     // Preserve the full functionResponse from API
     const functionResponse = apiData.functionResponse || {};
     
+    // DEBUG: Log functionResponse structure
+    logOperation('function_response_structure', {
+      requestId,
+      hasValuation: !!functionResponse.valuation,
+      hasCalcValuation: !!functionResponse.valuation?.calcValuation,
+      hasPriceMin: functionResponse.valuation?.calcValuation?.price_min !== undefined,
+      valuationKeys: Object.keys(functionResponse.valuation || {}),
+      calcValuationKeys: Object.keys(functionResponse.valuation?.calcValuation || {})
+    });
+    
     // Log if we have the nested calcValuation for debugging
     if (functionResponse.valuation?.calcValuation) {
       const calcValuation = functionResponse.valuation.calcValuation;
       logOperation('found_calc_valuation', {
         requestId,
-        calcValuation: JSON.stringify(calcValuation),
         price_min: calcValuation.price_min,
         price_med: calcValuation.price_med,
         price: calcValuation.price
       });
+    } else {
+      logOperation('missing_calc_valuation', {
+        requestId,
+        functionResponseKeys: Object.keys(functionResponse),
+        hasValuation: !!functionResponse.valuation,
+        valuationKeys: functionResponse.valuation ? Object.keys(functionResponse.valuation) : []
+      }, 'warn');
     }
 
     // Extract user params
@@ -159,9 +184,8 @@ export async function getValuationFromAPI(
       }, 'warn');
     }
     
-    // IMPORTANT: Format response to match the structure expected by frontend
-    // Include the complete functionResponse so that it's available for processing
-    return {
+    // CRITICAL: Log the final data structure being returned
+    const returnData = {
       success: true,
       data: {
         vin,
@@ -180,6 +204,17 @@ export async function getValuationFromAPI(
         functionResponse
       }
     };
+    
+    logOperation('final_response_structure', {
+      requestId,
+      returnDataKeys: Object.keys(returnData),
+      dataKeys: Object.keys(returnData.data),
+      hasFunctionResponse: !!returnData.data.functionResponse,
+      hasPriceData: priceMin > 0 && priceMed > 0,
+      reservePrice: reservePrice
+    });
+    
+    return returnData;
   } catch (error) {
     logOperation('api_exception', { 
       requestId, 

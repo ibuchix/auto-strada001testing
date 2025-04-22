@@ -6,6 +6,7 @@
  * - 2025-04-22: Fixed base price handling and reserve price calculation logic
  * - 2025-04-22: Added support for functionResponse nested structure in API response
  * - 2025-04-26: Improved logging and prioritization of calcValuation data extraction
+ * - 2025-04-29: Added CRITICAL DEBUGGING to diagnose nested API structure issues
  */
 
 import { extractVehicleData, extractPriceData } from './core/dataExtractor';
@@ -19,15 +20,38 @@ export function normalizeValuationData(rawData: any): ValuationData {
     hasNestedData: !!rawData?.functionResponse
   });
 
-  // Log the entire raw data structure for comprehensive debugging
-  console.log('%c🕵️ RAW DATA FULL STRUCTURE', 'background: #3F51B5; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', 
-    JSON.stringify(rawData, null, 2)
-  );
-
-  // Existing normalization logic with enhanced error tracking
-  if (!rawData) {
-    console.error('%c❌ NO VALID DATA FOUND', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
-    return createEmptyValuation();
+  // CRITICAL DEBUG - Log the entire incoming raw data structure
+  console.log('%c🔎 FULL RAW DATA IN NORMALIZER:', 'background: #333; color: #ff9; font-size: 14px; padding: 5px;', JSON.stringify(rawData, null, 2));
+  
+  // Check for functionResponse structure
+  if (rawData?.functionResponse) {
+    console.log('%c🔍 FUNCTION RESPONSE FOUND', 'background: #4CAF50; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+      hasUserParams: !!rawData.functionResponse.userParams,
+      hasValuation: !!rawData.functionResponse.valuation,
+      hasCalcValuation: !!rawData.functionResponse.valuation?.calcValuation,
+      calcValuationKeys: rawData.functionResponse.valuation?.calcValuation ? 
+                         Object.keys(rawData.functionResponse.valuation.calcValuation) : []
+    });
+    
+    // Check for price data in nested structure
+    if (rawData.functionResponse.valuation?.calcValuation) {
+      const calcVal = rawData.functionResponse.valuation.calcValuation;
+      console.log('%c💰 NESTED PRICE DATA FOUND', 'background: #673AB7; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+        price: calcVal.price,
+        price_min: calcVal.price_min,
+        price_med: calcVal.price_med,
+        price_max: calcVal.price_max,
+        price_avr: calcVal.price_avr
+      });
+    } else {
+      console.error('%c❌ MISSING CALC VALUATION', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+        functionResponseStructure: JSON.stringify(rawData.functionResponse, null, 2)
+      });
+    }
+  } else {
+    console.error('%c❌ MISSING FUNCTION RESPONSE', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+      topLevelKeys: Object.keys(rawData || {})
+    });
   }
 
   // Log the structure of the raw data to help with debugging
@@ -38,16 +62,10 @@ export function normalizeValuationData(rawData: any): ValuationData {
     hasCalcValuation: !!(rawData.functionResponse?.valuation?.calcValuation)
   });
 
-  // If we have functionResponse with calcValuation, log the price data
-  if (rawData.functionResponse?.valuation?.calcValuation) {
-    const calcVal = rawData.functionResponse.valuation.calcValuation;
-    console.log('[VAL-NORM] Found calcValuation price data:', {
-      price: calcVal.price,
-      price_min: calcVal.price_min,
-      price_med: calcVal.price_med,
-      price_max: calcVal.price_max,
-      price_avr: calcVal.price_avr
-    });
+  // Existing normalization logic with enhanced error tracking
+  if (!rawData) {
+    console.error('%c❌ NO VALID DATA FOUND', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
+    return createEmptyValuation();
   }
 
   // Extract core vehicle and price data with more detailed logging
@@ -66,7 +84,7 @@ export function normalizeValuationData(rawData: any): ValuationData {
   // Detailed logging for base price calculation
   let basePrice = priceData.basePrice;
   let usingFallbackEstimation = rawData.usingFallbackEstimation || false;
-  let estimationMethod = rawData.estimationMethod || undefined;
+  let estimationMethod = rawData.estimationMethod || "enhanced_price_extraction";
   
   // Logging for estimation scenarios
   console.log('%c🧮 BASE PRICE ESTIMATION', 'background: #9C27B0; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
