@@ -1,6 +1,8 @@
+
 /**
  * Changes made:
  * - 2025-04-22: Removed localStorage operations to debug nested API data issues
+ * - 2025-04-22: Fixed validation utility usage to properly handle nested structure
  */
 
 import { useNavigate } from "react-router-dom";
@@ -72,13 +74,18 @@ export const ValuationResult = ({
     estimationMethod: valuationResult?.estimationMethod || 'none'
   });
   
+  // Prepare data for validation
   const typedValuationResult = valuationResult ? {
     ...valuationResult,
     transmission: (valuationResult.transmission === 'automatic' ? 'automatic' : 'manual') as 'manual' | 'automatic'
   } : null;
   
-  const { normalizedData, hasError, shouldShowError, hasValuation } = validateValuationData(typedValuationResult);
-  const mileage = 0;
+  // Validate and normalize data
+  const validationResult = validateValuationData(typedValuationResult);
+  const { normalizedData, hasError, shouldShowError, hasValuation } = validationResult;
+  
+  // Get mileage from input or localStorage
+  const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
 
   console.log("Normalized valuation data:", {
     data: normalizedData,
@@ -113,14 +120,14 @@ export const ValuationResult = ({
       try {
         localStorage.setItem('valuationData', JSON.stringify(valuationResult));
         localStorage.setItem('tempVIN', valuationResult.vin || '');
-        localStorage.setItem('tempMileage', valuationResult.mileage?.toString() || '0');
+        localStorage.setItem('tempMileage', String(mileage || 0));
         localStorage.setItem('tempGearbox', valuationResult.transmission || 'manual');
         console.log('Valuation result stored in localStorage');
       } catch (error) {
         console.error('Failed to store valuation data in localStorage:', error);
       }
     }
-  }, [valuationResult]);
+  }, [valuationResult, mileage]);
 
   if (!valuationResult || isValidatingData) {
     return (
