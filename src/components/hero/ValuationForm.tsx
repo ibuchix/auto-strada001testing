@@ -13,10 +13,11 @@
  * - 2025-04-21: Fixed type compatibility between ValuationForm and ValuationResult
  * - 2025-04-22: Added additional debugging and improved data handling
  * - 2025-04-23: Fixed React state queue error by properly handling dialog state
+ * - 2025-04-23: Fixed ValuationResult import path
  */
 
 import { ValuationInput } from "./ValuationInput";
-import { ValuationResult } from "./valuation/components/ValuationResult";
+import { ValuationResult } from "./ValuationResult";
 import { Dialog } from "@/components/ui/dialog";
 import { useEnhancedValuationForm } from "@/hooks/valuation/useEnhancedValuationForm";
 
