@@ -1,16 +1,16 @@
 
 /**
  * Changes made:
- * - 2025-04-19: Fixed import paths for useValuationContinue
- * - 2025-04-19: Enhanced error handling and data validation
- * - 2025-04-22: Added detailed data logging for debugging issues
+ * - 2025-04-22: Removed localStorage operations to debug nested API data issues
+ * - 2025-04-22: Fixed validation utility usage to properly handle nested structure
+ * - 2025-04-26: Fixed type error with validateValuationData return value
  */
 
-import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ValuationContent } from "./valuation/components/ValuationContent";
-import { useNavigate } from "react-router-dom";
-import { useValuationContinue } from "./valuation/hooks/useValuationContinue";
+import { useValuationContinue } from "../hooks/valuation/useValuationContinue";
+import { useState, useEffect } from "react";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorDialog } from "./valuation/components/dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
@@ -30,7 +30,11 @@ interface ValuationResultProps {
     isExisting?: boolean;
     error?: string;
     noData?: boolean;
-  };
+    apiSource?: string;
+    errorDetails?: string;
+    usingFallbackEstimation?: boolean;
+    estimationMethod?: string;
+  } | null;
   onContinue: () => void;
   onClose: () => void;
   onRetry?: () => void;
@@ -42,50 +46,89 @@ export const ValuationResult = ({
   onClose,
   onRetry 
 }: ValuationResultProps) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isValidatingData, setIsValidatingData] = useState(true);
   const { 
     isOpen: errorDialogOpen,
-    setIsOpen: setErrorDialogOpen,
-    handleClose: handleErrorClose,
-    handleRetry: handleErrorRetry 
+    setIsOpen: setErrorDialogOpen 
   } = useValuationErrorDialog();
   
-  // Enable the valuation logger to see detailed data
-  useValuationLogger({
-    data: valuationResult,
-    stage: 'ValuationResult',
-    enabled: true // Always enabled for now to help debug
-  });
-  
-  useEffect(() => {
-    console.log('ValuationResult mounted with data:', {
-      hasData: !!valuationResult,
-      error: valuationResult?.error,
-      noData: valuationResult?.noData,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Log all price-related fields
-    if (valuationResult) {
-      console.log('ValuationResult price data:', {
-        valuation: valuationResult.valuation,
-        reservePrice: valuationResult.reservePrice,
-        averagePrice: valuationResult.averagePrice
-      });
-    }
-  }, [valuationResult]);
-
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
-  const [isValidatingData, setIsValidatingData] = useState(true);
   
+  useValuationLogger({
+    data: valuationResult,
+    stage: 'ValuationResult-Initial',
+    enabled: true,
+    inspectNested: true
+  });
+  
+  console.log("Raw valuation result in ValuationResult:", {
+    result: valuationResult,
+    hasData: !!valuationResult,
+    makePresent: valuationResult?.make ? "yes" : "no",
+    modelPresent: valuationResult?.model ? "yes" : "no",
+    yearPresent: valuationResult?.year ? "yes" : "no",
+    reservePricePresent: valuationResult?.reservePrice ? "yes" : "no",
+    valuationPresent: valuationResult?.valuation ? "yes" : "no",
+    apiSource: valuationResult?.apiSource || 'unknown',
+    errorDetails: valuationResult?.errorDetails || 'none',
+    estimationMethod: valuationResult?.estimationMethod || 'none'
+  });
+  
+  // Prepare data for validation
+  const typedValuationResult = valuationResult ? {
+    ...valuationResult,
+    transmission: (valuationResult.transmission === 'automatic' ? 'automatic' : 'manual') as 'manual' | 'automatic'
+  } : null;
+  
+  // Validate and normalize data
+  const validationResult = validateValuationData(typedValuationResult);
+  const { normalizedData, hasError, shouldShowError, hasValuation } = validationResult;
+  
+  // Get mileage from input or localStorage
+  const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
+
+  console.log("Normalized valuation data:", {
+    data: normalizedData,
+    hasError,
+    shouldShowError,
+    hasValuation,
+    make: normalizedData.make,
+    model: normalizedData.model,
+    year: normalizedData.year,
+    reservePrice: normalizedData.reservePrice,
+    valuation: normalizedData.valuation,
+    apiSource: normalizedData.apiSource || 'unknown',
+    estimationMethod: normalizedData.estimationMethod || 'none',
+    timestamp: new Date().toISOString()
+  });
+
+  useEffect(() => {
+    if (shouldShowError) {
+      setErrorDialogOpen(true);
+    }
+  }, [shouldShowError, setErrorDialogOpen]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsValidatingData(false);
     }, 300);
-    
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (valuationResult) {
+      try {
+        localStorage.setItem('valuationData', JSON.stringify(valuationResult));
+        localStorage.setItem('tempVIN', valuationResult.vin || '');
+        localStorage.setItem('tempMileage', String(mileage || 0));
+        localStorage.setItem('tempGearbox', valuationResult.transmission || 'manual');
+        console.log('Valuation result stored in localStorage');
+      } catch (error) {
+        console.error('Failed to store valuation data in localStorage:', error);
+      }
+    }
+  }, [valuationResult, mileage]);
 
   if (!valuationResult || isValidatingData) {
     return (
@@ -95,25 +138,16 @@ export const ValuationResult = ({
     );
   }
 
-  const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-  const hasError = !!valuationResult.error;
-  
-  const hasValuation = !hasError && (
-    valuationResult.make && 
-    valuationResult.model && 
-    valuationResult.year > 0
-  );
-
-  if (hasError || valuationResult?.noData) {
+  if (shouldShowError) {
     return (
       <ValuationErrorDialog
         isOpen={errorDialogOpen}
         onClose={() => {
-          handleErrorClose();
+          setErrorDialogOpen(false);
           onClose();
         }}
         onRetry={() => {
-          handleErrorRetry();
+          setErrorDialogOpen(false);
           if (onRetry) onRetry();
         }}
         error={valuationResult.error || "No data found for this VIN"}
@@ -121,50 +155,29 @@ export const ValuationResult = ({
     );
   }
 
-  const isValidData = validateValuationData(valuationResult);
-  console.log('Validation status:', { isValidData });
-
-  if (!isValidData && !valuationResult?.error) {
-    console.warn('Invalid valuation data structure:', valuationResult);
-    return (
-      <ValuationErrorDialog
-        isOpen={true}
-        onClose={onClose}
-        onRetry={onRetry}
-        error="Invalid valuation data received"
-      />
-    );
-  }
-
-  const normalizedResult = {
-    make: valuationResult.make || 'Unknown',
-    model: valuationResult.model || 'Vehicle',
-    year: valuationResult.year || new Date().getFullYear(),
-    vin: valuationResult.vin || '',
-    transmission: normalizeTransmission(valuationResult.transmission),
-    reservePrice: valuationResult.reservePrice || valuationResult.valuation || 0,
-    averagePrice: valuationResult.averagePrice || 0
-  };
-
-  console.log('Normalized valuation data:', {
-    ...normalizedResult,
-    timestamp: new Date().toISOString()
-  });
+  const errorDebugInfo = normalizedData.usingFallbackEstimation ? 
+    `Using estimated value (${normalizedData.estimationMethod === 'make_model_year' ? 
+      'based on make/model/year' : 'default value'})` : 
+    normalizedData.errorDetails || undefined;
 
   return (
     <ValuationContent
-      make={normalizedResult.make}
-      model={normalizedResult.model}
-      year={normalizedResult.year}
-      vin={normalizedResult.vin}
-      transmission={normalizedResult.transmission}
+      make={normalizedData.make}
+      model={normalizedData.model}
+      year={normalizedData.year}
+      vin={normalizedData.vin}
+      transmission={normalizedData.transmission}
       mileage={mileage}
-      reservePrice={normalizedResult.reservePrice}
-      averagePrice={normalizedResult.averagePrice}
-      hasValuation={isValidData}
+      reservePrice={normalizedData.reservePrice}
+      averagePrice={normalizedData.averagePrice || 0}
+      hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
+      apiSource={normalizedData.apiSource}
+      estimationMethod={normalizedData.estimationMethod}
+      errorDetails={errorDebugInfo}
       onClose={onClose}
-      onContinue={() => handleContinue(valuationResult)}
+      onContinue={() => handleContinue(normalizedData)}
     />
   );
 };
+

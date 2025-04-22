@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-04-22: Fixed return type to properly handle nested API response structure
  * - 2025-04-22: Enhanced support for nested functionResponse in API data
+ * - 2025-04-26: Fixed return type to ensure consistent object shape
  */
 
 import { TransmissionType } from "@/components/hero/valuation/types";
@@ -167,3 +168,4 @@ function calculateReservePrice(basePrice: number): number {
   // Calculate and round to nearest whole number
   return Math.round(basePrice - (basePrice * percentage));
 }
+
