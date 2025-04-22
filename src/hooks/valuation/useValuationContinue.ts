@@ -1,10 +1,4 @@
 
-/**
- * Changes made:
- * - 2025-04-23: Fixed navigation to listing form
- * - 2025-04-23: Added proper error handling and data persistence
- */
-
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from "@/components/AuthProvider";
 import { toast } from "sonner";
@@ -31,13 +25,13 @@ export const useValuationContinue = () => {
       return;
     }
 
-    // Store car data in sessionStorage for the listing form
+    // Restore localStorage operations
     try {
-      sessionStorage.setItem('carListingData', JSON.stringify(carData));
+      localStorage.setItem('valuationData', JSON.stringify(carData));
       localStorage.setItem('tempVIN', carData.vin || '');
       localStorage.setItem('tempMileage', carData.mileage?.toString() || '');
       localStorage.setItem('tempGearbox', carData.transmission || '');
-      console.log('Car data stored successfully');
+      console.log('Car data stored successfully in localStorage');
 
       // Navigate to the sell-my-car page
       navigate('/sell-my-car', { 

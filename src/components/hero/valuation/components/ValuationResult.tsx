@@ -11,8 +11,7 @@ import { useState, useEffect } from "react";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorDialog } from "./dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
-import { useValuationData } from "@/hooks/valuation/useValuationData";
-import { ValuationData } from "@/hooks/valuation/types/valuationTypes";
+import { normalizeTransmission, validateValuationData } from "@/utils/validation/validateTypes";
 import { useValuationLogger } from "@/hooks/valuation/useValuationLogger";
 
 interface ValuationResultProps {
@@ -53,7 +52,6 @@ export const ValuationResult = ({
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
   
-  // Enhanced logging to debug the valuation process
   useValuationLogger({
     data: valuationResult,
     stage: 'ValuationResult-Initial',
@@ -61,7 +59,6 @@ export const ValuationResult = ({
     inspectNested: true
   });
   
-  // Log the raw valuation result for debugging
   console.log("Raw valuation result in ValuationResult:", {
     result: valuationResult,
     hasData: !!valuationResult,
@@ -75,17 +72,14 @@ export const ValuationResult = ({
     estimationMethod: valuationResult?.estimationMethod || 'none'
   });
   
-  // Convert the string transmission to the expected union type
   const typedValuationResult = valuationResult ? {
     ...valuationResult,
     transmission: (valuationResult.transmission === 'automatic' ? 'automatic' : 'manual') as 'manual' | 'automatic'
   } : null;
   
-  // Use our enhanced hook to validate and normalize data
-  const { normalizedData, hasError, shouldShowError, hasValuation } = useValuationData(typedValuationResult);
-  const mileage = 0; // Default value instead of reading from localStorage
+  const { normalizedData, hasError, shouldShowError, hasValuation } = validateValuationData(typedValuationResult);
+  const mileage = 0;
 
-  // Log normalized data for debugging
   console.log("Normalized valuation data:", {
     data: normalizedData,
     hasError,
@@ -101,7 +95,6 @@ export const ValuationResult = ({
     timestamp: new Date().toISOString()
   });
 
-  // Effect to show error dialog when error is detected
   useEffect(() => {
     if (shouldShowError) {
       setErrorDialogOpen(true);
@@ -114,6 +107,20 @@ export const ValuationResult = ({
     }, 300);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (valuationResult) {
+      try {
+        localStorage.setItem('valuationData', JSON.stringify(valuationResult));
+        localStorage.setItem('tempVIN', valuationResult.vin || '');
+        localStorage.setItem('tempMileage', valuationResult.mileage?.toString() || '0');
+        localStorage.setItem('tempGearbox', valuationResult.transmission || 'manual');
+        console.log('Valuation result stored in localStorage');
+      } catch (error) {
+        console.error('Failed to store valuation data in localStorage:', error);
+      }
+    }
+  }, [valuationResult]);
 
   if (!valuationResult || isValidatingData) {
     return (
@@ -140,7 +147,6 @@ export const ValuationResult = ({
     );
   }
 
-  // Generate error details for debugging if we're using estimated values
   const errorDebugInfo = normalizedData.usingFallbackEstimation ? 
     `Using estimated value (${normalizedData.estimationMethod === 'make_model_year' ? 
       'based on make/model/year' : 'default value'})` : 
