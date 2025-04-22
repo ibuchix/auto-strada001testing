@@ -5,6 +5,7 @@
  * - 2025-04-22: Enhanced support for nested functionResponse in API data
  * - 2025-04-26: Fixed return type to ensure consistent object shape
  * - 2025-04-29: Fixed data extraction from nested API response structure
+ * - 2025-05-01: Improved deep extraction of price data from nested structures
  */
 
 import { TransmissionType } from "@/components/hero/valuation/types";
@@ -47,7 +48,6 @@ export function validateValuationData(data: any): ValidationResult {
   });
   
   // First, let's try to get the vehicle data from nested 'data' property if it exists
-  // This handles the case where the API response is wrapped in a 'data' property
   const nestedVehicleData = data.data || {};
   
   // Check for error conditions
@@ -70,16 +70,31 @@ export function validateValuationData(data: any): ValidationResult {
   const finalModel = model || userParams.model || '';
   const finalYear = year || userParams.year || userParams.productionYear || 0;
   
-  // Extract price data (try all possible paths)
-  const hasNestedPriceData = calcValuation.price_min !== undefined && calcValuation.price_med !== undefined;
+  // ==== NEW IMPROVED PRICE EXTRACTION LOGIC ====
   
-  // Calculate base price from all possible sources
-  let basePrice = data.basePrice || data.valuation || 0;
-  let reservePrice = data.reservePrice || 0;
-  let averagePrice = data.averagePrice || data.price_med || 0;
+  // Log all possible sources of price data for debugging
+  console.log('Possible price data sources:', {
+    topLevelBasePrice: data.basePrice,
+    topLevelValuation: data.valuation,
+    topLevelReservePrice: data.reservePrice,
+    topLevelAveragePrice: data.averagePrice,
+    nestedBasePrice: nestedVehicleData.basePrice,
+    nestedValuation: nestedVehicleData.valuation,
+    nestedReservePrice: nestedVehicleData.reservePrice,
+    nestedPriceMin: data.price_min || nestedVehicleData.price_min,
+    nestedPriceMed: data.price_med || nestedVehicleData.price_med,
+    calcValuationPriceMin: calcValuation.price_min,
+    calcValuationPriceMed: calcValuation.price_med,
+    calcValuationPrice: calcValuation.price
+  });
   
-  // If we have nested price data, use that
-  if (hasNestedPriceData) {
+  // Start with zero values for prices
+  let basePrice = 0;
+  let reservePrice = 0;
+  let averagePrice = 0;
+  
+  // Try to extract prices from calcValuation first (most specific)
+  if (calcValuation.price_min !== undefined && calcValuation.price_med !== undefined) {
     const priceMin = Number(calcValuation.price_min);
     const priceMed = Number(calcValuation.price_med);
     
@@ -87,28 +102,68 @@ export function validateValuationData(data: any): ValidationResult {
     if (!isNaN(priceMin) && !isNaN(priceMed) && priceMin > 0 && priceMed > 0) {
       basePrice = (priceMin + priceMed) / 2;
       averagePrice = priceMed;
-      console.log('Using nested price data:', { priceMin, priceMed, basePrice });
+      console.log('Using calcValuation nested price data:', { priceMin, priceMed, basePrice });
     }
   }
   
-  // For reserve price, use what we have or calculate it
-  if (reservePrice <= 0 && basePrice > 0) {
-    reservePrice = calculateReservePrice(basePrice);
+  // If we don't have prices yet, try top-level or nested price_min/price_med
+  if (basePrice === 0) {
+    const priceMin = Number(data.price_min || nestedVehicleData.price_min || 0);
+    const priceMed = Number(data.price_med || nestedVehicleData.price_med || 0);
+    
+    if (!isNaN(priceMin) && !isNaN(priceMed) && priceMin > 0 && priceMed > 0) {
+      basePrice = (priceMin + priceMed) / 2;
+      averagePrice = priceMed;
+      console.log('Using top-level/nested price_min/price_med:', { priceMin, priceMed, basePrice });
+    }
   }
   
-  // If we have vehicle data from the data property but not at the top level, use it
-  if ((!finalMake || !finalModel) && nestedVehicleData.make && nestedVehicleData.model) {
-    console.log('Using vehicle data from nested data property');
+  // If still no basePrice, try direct price fields
+  if (basePrice === 0) {
+    // Try all possible basePrice locations in order of preference
+    basePrice = 
+      Number(data.basePrice) || 
+      Number(nestedVehicleData.basePrice) || 
+      Number(data.valuation) || 
+      Number(nestedVehicleData.valuation) || 
+      Number(calcValuation.price) || 
+      0;
+      
+    if (basePrice > 0) {
+      console.log('Using direct basePrice/valuation field:', { basePrice });
+    }
+  }
+  
+  // For direct reservePrice, use what we have or calculate it
+  reservePrice = 
+    Number(data.reservePrice) || 
+    Number(nestedVehicleData.reservePrice) || 
+    0;
+    
+  // If we have a basePrice but no reservePrice, calculate it
+  if (reservePrice === 0 && basePrice > 0) {
+    reservePrice = calculateReservePrice(basePrice);
+    console.log('Calculated reservePrice from basePrice:', { basePrice, reservePrice });
+  }
+  
+  // For averagePrice, use what we have if not already set
+  if (averagePrice === 0) {
+    averagePrice = 
+      Number(data.averagePrice) || 
+      Number(nestedVehicleData.averagePrice) || 
+      Number(data.price_med) || 
+      Number(nestedVehicleData.price_med) || 
+      basePrice;
   }
   
   // Log all extracted data for debugging
-  console.log('Extracted vehicle data:', {
+  console.log('Final extracted price data:', {
     make: finalMake,
     model: finalModel,
     year: finalYear,
     basePrice,
     reservePrice,
-    hasNestedPriceData
+    averagePrice
   });
   
   const normalizedData = {

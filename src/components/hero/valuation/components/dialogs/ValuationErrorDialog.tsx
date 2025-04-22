@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-04-29: Fixed DialogContent by adding proper description
+ * - 2025-05-01: Enhanced error message display with better fallbacks
  */
 
 import { useState, useEffect } from "react";
@@ -49,6 +50,9 @@ export const ValuationErrorDialog = ({
 
   // This ensures we always have a description for accessibility
   const dialogDescription = description || "There was a problem with your valuation request. Please try again or contact support.";
+  
+  // Make sure the error is not empty
+  const displayError = error || "Unknown valuation error occurred";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -62,7 +66,7 @@ export const ValuationErrorDialog = ({
           </DialogDescription>
         </DialogHeader>
         <div className="p-4 bg-red-50 rounded-md">
-          <p className="text-red-800">{error}</p>
+          <p className="text-red-800">{displayError}</p>
         </div>
         <DialogFooter className="flex sm:justify-between gap-4">
           <Button
