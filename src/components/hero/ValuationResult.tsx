@@ -4,12 +4,13 @@
  * - 2025-04-22: Removed localStorage operations to debug nested API data issues
  * - 2025-04-22: Fixed validation utility usage to properly handle nested structure
  * - 2025-04-26: Fixed type error with validateValuationData return value
+ * - 2025-04-22: Fixed import path for useValuationContinue hook
  */
 
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ValuationContent } from "./valuation/components/ValuationContent";
-import { useValuationContinue } from "../hooks/valuation/useValuationContinue";
+import { useValuationContinue } from "@/hooks/valuation/useValuationContinue";
 import { useState, useEffect } from "react";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorDialog } from "./valuation/components/dialogs/ValuationErrorDialog";
@@ -180,4 +181,3 @@ export const ValuationResult = ({
     />
   );
 };
-
