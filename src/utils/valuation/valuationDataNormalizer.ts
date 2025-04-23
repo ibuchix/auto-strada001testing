@@ -6,6 +6,7 @@
  * - 2025-04-22: Fixed base price handling and reserve price calculation logic
  * - 2025-04-22: Added support for functionResponse nested structure in API response
  * - 2025-04-23: Updated import paths to use consistent price extraction utilities
+ * - 2025-04-24: Enhanced structure detection and added robust multi-path data extraction
  */
 
 import { extractVehicleData } from './core/dataExtractor';
@@ -17,54 +18,55 @@ export function normalizeValuationData(rawData: any): ValuationData {
   console.log('%c🔬 VALUATION NORMALIZATION STARTED', 'background: #FF5722; color: white; font-size: 16px; padding: 4px 8px; border-radius: 4px', {
     hasRawData: !!rawData,
     dataKeys: rawData ? Object.keys(rawData) : [],
-    hasNestedData: !!rawData?.functionResponse
+    hasData: !!rawData?.data,
+    hasFunctionResponse: !!rawData?.functionResponse,
+    hasNestedFunctionResponse: !!rawData?.data?.functionResponse
   });
 
-  // CRITICAL DEBUG - Log the entire incoming raw data structure
-  console.log('%c🔎 FULL RAW DATA IN NORMALIZER:', 'background: #333; color: #ff9; font-size: 14px; padding: 5px;', JSON.stringify(rawData, null, 2));
+  // CRITICAL DEBUG - Check for data at expected paths
+  console.log('%c🔎 STRUCTURE INSPECTION:', 'background: #333; color: #ff9; font-size: 14px; padding: 5px;');
   
-  // Check for functionResponse structure
   if (rawData?.functionResponse) {
-    console.log('%c🔍 FUNCTION RESPONSE FOUND', 'background: #4CAF50; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+    console.log('Found functionResponse at root level:', {
       hasUserParams: !!rawData.functionResponse.userParams,
-      hasValuation: !!rawData.functionResponse.valuation,
-      hasCalcValuation: !!rawData.functionResponse.valuation?.calcValuation,
-      calcValuationKeys: rawData.functionResponse.valuation?.calcValuation ? 
-                         Object.keys(rawData.functionResponse.valuation.calcValuation) : []
+      hasValuation: !!rawData.functionResponse.valuation
     });
-    
-    // Check for price data in nested structure
-    if (rawData.functionResponse.valuation?.calcValuation) {
-      const calcVal = rawData.functionResponse.valuation.calcValuation;
-      console.log('%c💰 NESTED PRICE DATA FOUND', 'background: #673AB7; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
-        price: calcVal.price,
-        price_min: calcVal.price_min,
-        price_med: calcVal.price_med,
-        price_max: calcVal.price_max,
-        price_avr: calcVal.price_avr
-      });
-    } else {
-      console.error('%c❌ MISSING CALC VALUATION', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
-        functionResponseStructure: JSON.stringify(rawData.functionResponse, null, 2)
-      });
-    }
+  } else if (rawData?.data?.functionResponse) {
+    console.log('Found functionResponse in data property:', {
+      hasUserParams: !!rawData.data.functionResponse.userParams,
+      hasValuation: !!rawData.data.functionResponse.valuation
+    });
   } else {
-    console.error('%c❌ MISSING FUNCTION RESPONSE', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
-      topLevelKeys: Object.keys(rawData || {})
-    });
+    console.warn('No functionResponse found in any expected location');
   }
-
+  
   // Check for valid data
   if (!rawData) {
     console.error('%c❌ NO VALID DATA FOUND', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
     return createEmptyValuation();
   }
 
-  // Extract core vehicle data
+  // Extract core vehicle data with robust extraction
   const vehicleData = extractVehicleData(rawData);
+  
+  if (!vehicleData || (!vehicleData.make && !vehicleData.model)) {
+    console.warn('Vehicle data extraction failed, checking original input');
+    // Try to get some data from raw input as a last resort
+    if (rawData.make && rawData.model) {
+      console.log('Found basic vehicle details in root level');
+    } else if (rawData.data?.make && rawData.data?.model) {
+      console.log('Found basic vehicle details in data property');
+    }
+  }
   
   // Extract price data using the dedicated utility
   const priceData = extractNestedPriceData(rawData);
+  
+  // Check if we got valid price data
+  if (!priceData.price_min && !priceData.price_med) {
+    console.warn("Could not find price data in the API response");
+  }
+  
   const basePrice = calculateBasePriceFromNested(priceData);
   
   // Log the extracted price data
@@ -91,7 +93,7 @@ export function normalizeValuationData(rawData: any): ValuationData {
 
   const normalized: ValuationData = {
     ...vehicleData,
-    transmission: (rawData.transmission || 'manual') as TransmissionType,
+    transmission: (vehicleData.transmission || 'manual') as TransmissionType,
     valuation: basePrice,
     reservePrice: reservePrice,
     averagePrice: priceData.price_med || 0,
