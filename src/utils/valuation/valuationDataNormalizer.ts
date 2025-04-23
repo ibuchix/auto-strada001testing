@@ -8,6 +8,7 @@
  * - 2025-04-23: Updated import paths to use consistent price extraction utilities
  * - 2025-04-24: Enhanced structure detection and added robust multi-path data extraction
  * - 2025-04-26: Updated to use enhanced extraction with better fallback handling
+ * - 2025-04-27: Removed fallbacks for price calculations to ensure accuracy
  */
 
 import { extractVehicleData } from './core/dataExtractor';
@@ -30,13 +31,13 @@ export function normalizeValuationData(rawData: any): ValuationData {
     return createEmptyValuation();
   }
 
-  // IMPROVED: Extract core vehicle data with better field handling
+  // Extract core vehicle data with better field handling
   const vehicleData = extractVehicleData(rawData);
   
-  // IMPROVED: Extract price data with enhanced detection
+  // Extract price data with enhanced detection
   const priceData = extractNestedPriceData(rawData);
   
-  // Calculate base price with more reliable fallback options
+  // Calculate base price - REMOVED FALLBACKS to ensure accuracy
   const basePrice = calculateBasePriceFromNested(priceData);
   
   // Log the extracted price data
@@ -44,6 +45,23 @@ export function normalizeValuationData(rawData: any): ValuationData {
     basePrice,
     priceData
   });
+  
+  // If we have no base price, we shouldn't proceed with calculations
+  if (basePrice <= 0) {
+    console.error('%c❌ NO VALID PRICE DATA FOUND', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
+    
+    // Return vehicle data but mark pricing as invalid
+    return {
+      ...vehicleData,
+      transmission: (vehicleData.transmission || 'manual') as TransmissionType,
+      valuation: 0,
+      reservePrice: 0,
+      averagePrice: 0,
+      basePrice: 0,
+      noData: true,
+      error: 'Could not retrieve valid pricing data'
+    };
+  }
   
   console.log('%c💰 EXTRACTED PRICE DATA', 'background: #4CAF50; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
     basePrice,

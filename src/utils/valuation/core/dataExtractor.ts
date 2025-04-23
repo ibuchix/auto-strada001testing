@@ -38,7 +38,7 @@ export function extractVehicleData(rawData: any) {
   }
   
   console.log('[DATA-EXTRACTOR] User params found:', {
-    hasUserParams: !!userParams,
+    hasUserParamsData: !!userParams,
     userParamsKeys: userParams ? Object.keys(userParams) : [],
     primaryDataSource: dataSource === rawData ? 'root' : 'nested data'
   });
