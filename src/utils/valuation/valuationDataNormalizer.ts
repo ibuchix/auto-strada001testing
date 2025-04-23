@@ -1,12 +1,10 @@
+
 /**
  * Changes made:
  * - 2025-04-21: Refactored to use separate data extraction and validation utilities
  * - 2025-04-21: Enhanced price calculation logic to properly handle nested API response
- * - 2025-04-21: Added robust fallback price estimation when API returns zeros
  * - 2025-04-22: Fixed base price handling and reserve price calculation logic
  * - 2025-04-22: Added support for functionResponse nested structure in API response
- * - 2025-04-26: Improved logging and prioritization of calcValuation data extraction
- * - 2025-04-29: Added CRITICAL DEBUGGING to diagnose nested API structure issues
  * - 2025-04-23: Updated import paths to use consistent price extraction utilities
  */
 
@@ -56,7 +54,7 @@ export function normalizeValuationData(rawData: any): ValuationData {
     });
   }
 
-  // Existing normalization logic with enhanced error tracking
+  // Check for valid data
   if (!rawData) {
     console.error('%c❌ NO VALID DATA FOUND', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
     return createEmptyValuation();
@@ -96,7 +94,7 @@ export function normalizeValuationData(rawData: any): ValuationData {
     transmission: (rawData.transmission || 'manual') as TransmissionType,
     valuation: basePrice,
     reservePrice: reservePrice,
-    averagePrice: priceData.price_med > 0 ? priceData.price_med : basePrice,
+    averagePrice: priceData.price_med || 0,
     basePrice: basePrice,
     apiSource: rawData.apiSource || (rawData.functionResponse ? 'auto_iso_api' : 'unknown'),
     valuationDate: rawData.valuationDate || new Date().toISOString(),

@@ -40,25 +40,7 @@ export function extractNestedPriceData(data: any): PriceData {
     };
   }
 
-  // If not found in the primary location, try the backup/flattened data structure
-  // This happens in some API response formats or when data is manually structured
-  if (data.price || data.price_min || data.price_med) {
-    console.log('Found price data in root level:', {
-      price: data.price,
-      price_min: data.price_min,
-      price_med: data.price_med
-    });
-    
-    return {
-      price: Number(data.price) || undefined,
-      price_min: Number(data.price_min) || undefined,
-      price_max: Number(data.price_max) || undefined,
-      price_avr: Number(data.price_avr) || undefined,
-      price_med: Number(data.price_med) || undefined
-    };
-  }
-
-  // If we don't find the nested structure, log it
+  // If not found in the primary location, log it
   console.warn('Could not find price data in the API response', {
     hasFunctionResponse: !!data?.functionResponse,
     hasValuation: !!data?.functionResponse?.valuation,
@@ -77,23 +59,27 @@ export function calculateBasePriceFromNested(priceData: PriceData): number {
   // First check if we have the minimum requirements for calculation
   if (!priceData.price_min && !priceData.price_med) {
     console.warn('Missing required price data for base price calculation', priceData);
-    
-    // Fallback to price if available
-    if (priceData.price) {
-      console.log('Using direct price value as fallback', priceData.price);
-      return Number(priceData.price);
-    }
-    
     return 0;
   }
 
-  // Use price_med as fallback for price_min if needed
-  const minPrice = priceData.price_min ?? priceData.price_med ?? 0;
-  // Use price_min as fallback for price_med if needed
-  const medPrice = priceData.price_med ?? priceData.price_min ?? 0;
+  // Both values must be present for an accurate calculation
+  if (priceData.price_min === undefined || priceData.price_med === undefined) {
+    console.warn('Incomplete price data for base price calculation', priceData);
+    return 0;
+  }
 
-  const basePrice = (Number(minPrice) + Number(medPrice)) / 2;
+  const minPrice = Number(priceData.price_min);
+  const medPrice = Number(priceData.price_med);
+
+  // Validate the numbers before calculation
+  if (isNaN(minPrice) || isNaN(medPrice) || minPrice <= 0 || medPrice <= 0) {
+    console.warn('Invalid price values for calculation', { minPrice, medPrice });
+    return 0;
+  }
+
+  const basePrice = (minPrice + medPrice) / 2;
   console.log(`Calculated base price: ${basePrice} from min: ${minPrice}, med: ${medPrice}`);
   
   return basePrice;
 }
+

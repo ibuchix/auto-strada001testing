@@ -39,13 +39,25 @@ export function extractVehicleData(rawData: any) {
     rootKeys: Object.keys(rawData || {})
   });
   
-  // For make, model, year - first check userParams if available (most accurate source)
-  const make = userParams?.make || rawData.make || '';
-  const model = userParams?.model || rawData.model || '';
-  const year = Number(userParams?.year || rawData.year || 0);
-  const transmission = userParams?.gearbox || rawData.transmission || rawData.gearbox || 'manual';
+  if (!userParams) {
+    console.warn('No userParams found in API response structure');
+    return {
+      make: '',
+      model: '',
+      year: 0,
+      vin: rawData.vin || '',
+      mileage: 0,
+      transmission: 'manual'
+    };
+  }
+  
+  // Extract data from userParams (most accurate source)
+  const make = userParams.make || '';
+  const model = userParams.model || '';
+  const year = Number(userParams.year) || 0;
+  const transmission = userParams.gearbox || 'manual';
   const vin = rawData.vin || '';
-  const mileage = Number(userParams?.odometer || rawData.mileage || 0);
+  const mileage = Number(userParams.odometer) || 0;
 
   // Log what we found for debugging
   console.log('Extracted vehicle data:', { make, model, year, transmission, mileage });
