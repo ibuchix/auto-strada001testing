@@ -1,8 +1,9 @@
 
 /**
  * Changes made:
- * - 2025-04-29: Fixed DialogContent by adding proper description
- * - 2025-05-01: Enhanced error message display with better fallbacks
+ * - 2025-05-01: Enhanced error handling for valuation failures
+ * - 2025-05-01: Improved UI for clearer error explanations
+ * - 2025-05-01: Added more descriptive guidance for users
  */
 
 import { useState, useEffect } from "react";
@@ -15,12 +16,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X, RefreshCw } from "lucide-react";
+import { X, RefreshCw, ClipboardList } from "lucide-react";
 
 interface ValuationErrorDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onRetry?: () => void;
+  onManualValuation?: () => void;
   error: string;
   description?: string;
 }
@@ -29,6 +31,7 @@ export const ValuationErrorDialog = ({
   isOpen,
   onClose,
   onRetry,
+  onManualValuation,
   error,
   description
 }: ValuationErrorDialogProps) => {
@@ -45,11 +48,13 @@ export const ValuationErrorDialog = ({
   console.log('ValuationErrorDialog render:', {
     isOpen,
     error,
-    description
+    description,
+    hasRetryHandler: !!onRetry,
+    hasManualHandler: !!onManualValuation
   });
 
   // This ensures we always have a description for accessibility
-  const dialogDescription = description || "There was a problem with your valuation request. Please try again or contact support.";
+  const dialogDescription = description || "There was a problem with your valuation request. Please try again or use manual listing.";
   
   // Make sure the error is not empty
   const displayError = error || "Unknown valuation error occurred";
@@ -68,7 +73,31 @@ export const ValuationErrorDialog = ({
         <div className="p-4 bg-red-50 rounded-md">
           <p className="text-red-800">{displayError}</p>
         </div>
-        <DialogFooter className="flex sm:justify-between gap-4">
+        <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-2">
+          {onManualValuation && (
+            <Button
+              type="button"
+              onClick={onManualValuation}
+              className="flex-1 sm:flex-none"
+            >
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Manual Listing
+            </Button>
+          )}
+          {onRetry && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onClose();
+                setTimeout(() => onRetry(), 100);
+              }}
+              className="flex-1 sm:flex-none"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -78,21 +107,6 @@ export const ValuationErrorDialog = ({
             <X className="h-4 w-4 mr-2" />
             Close
           </Button>
-          {onRetry && (
-            <Button
-              type="button"
-              onClick={() => {
-                // First close the dialog
-                onClose();
-                // Then trigger retry
-                setTimeout(() => onRetry(), 100);
-              }}
-              className="flex-1 sm:flex-none"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Try Again
-            </Button>
-          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

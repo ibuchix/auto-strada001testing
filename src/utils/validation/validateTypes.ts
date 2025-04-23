@@ -1,14 +1,13 @@
 
 /**
  * Changes made:
- * - 2025-04-22: Fixed return type to properly handle nested API response structure
- * - 2025-04-22: Enhanced support for nested functionResponse in API data
- * - 2025-04-26: Fixed return type to ensure consistent object shape
- * - 2025-04-29: Fixed data extraction from nested API response structure
- * - 2025-05-01: Improved deep extraction of price data from nested structures
+ * - 2025-05-01: Completely refactored to use centralized data extraction utilities
+ * - 2025-05-01: Removed all fallback price estimation - now requires valid API data
+ * - 2025-05-01: Stricter validation - no more guessing or estimation
  */
 
 import { TransmissionType } from "@/components/hero/valuation/types";
+import { extractValue, validators, hasRequiredProperties } from "@/utils/extraction/dataExtractor";
 
 interface ValidationResult {
   normalizedData: any;
@@ -29,7 +28,7 @@ export function normalizeTransmission(transmission: string | undefined): Transmi
 
 /**
  * Validates and normalizes valuation data from API response
- * Handles nested structures like functionResponse
+ * Now uses centralized extraction utilities and removes fallback mechanisms
  */
 export function validateValuationData(data: any): ValidationResult {
   if (!data) {
@@ -47,157 +46,127 @@ export function validateValuationData(data: any): ValidationResult {
     topLevelKeys: Object.keys(data)
   });
   
-  // First, let's try to get the vehicle data from nested 'data' property if it exists
-  const nestedVehicleData = data.data || {};
+  // Extract vehicle data with multiple possible paths
+  const make = extractValue(data, [
+    'make',
+    'data.make',
+    'functionResponse.userParams.make'
+  ], '', validators.isString);
   
-  // Check for error conditions
-  const hasError = !!data.error || !!data.noData || (data.data && !!data.data.error);
-  const errorMessage = data.error || (data.data && data.data.error) || '';
+  const model = extractValue(data, [
+    'model',
+    'data.model',
+    'functionResponse.userParams.model'
+  ], '', validators.isString);
   
-  // Extract ALL possible vehicle data paths (API response varies)
-  const make = data.make || nestedVehicleData.make || '';
-  const model = data.model || nestedVehicleData.model || '';
-  const year = data.year || nestedVehicleData.year || 0;
-  const vin = data.vin || nestedVehicleData.vin || '';
+  const year = extractValue(data, [
+    'year',
+    'data.year',
+    'functionResponse.userParams.year',
+    'functionResponse.userParams.productionYear'
+  ], 0, validators.isYear);
   
-  // Check if functionResponse exists (new API structure)
-  const functionResponse = data.functionResponse || (data.data && data.data.functionResponse) || {};
-  const userParams = functionResponse.userParams || {};
-  const calcValuation = functionResponse.valuation?.calcValuation || {};
+  const vin = extractValue(data, ['vin', 'data.vin'], '', validators.isString);
   
-  // Extract vehicle data from functionResponse if we don't have it yet
-  const finalMake = make || userParams.make || '';
-  const finalModel = model || userParams.model || '';
-  const finalYear = year || userParams.year || userParams.productionYear || 0;
+  // Extract price data with multiple possible paths
+  const priceMin = extractValue(data, [
+    'price_min',
+    'data.price_min',
+    'functionResponse.valuation.calcValuation.price_min'
+  ], 0, validators.isPositiveNumber);
   
-  // ==== NEW IMPROVED PRICE EXTRACTION LOGIC ====
+  const priceMed = extractValue(data, [
+    'price_med',
+    'data.price_med',
+    'functionResponse.valuation.calcValuation.price_med'
+  ], 0, validators.isPositiveNumber);
   
-  // Log all possible sources of price data for debugging
-  console.log('Possible price data sources:', {
-    topLevelBasePrice: data.basePrice,
-    topLevelValuation: data.valuation,
-    topLevelReservePrice: data.reservePrice,
-    topLevelAveragePrice: data.averagePrice,
-    nestedBasePrice: nestedVehicleData.basePrice,
-    nestedValuation: nestedVehicleData.valuation,
-    nestedReservePrice: nestedVehicleData.reservePrice,
-    nestedPriceMin: data.price_min || nestedVehicleData.price_min,
-    nestedPriceMed: data.price_med || nestedVehicleData.price_med,
-    calcValuationPriceMin: calcValuation.price_min,
-    calcValuationPriceMed: calcValuation.price_med,
-    calcValuationPrice: calcValuation.price
-  });
+  // Try to get direct valuation/price values if min/med aren't available
+  const directPrice = extractValue(data, [
+    'valuation',
+    'basePrice',
+    'data.valuation',
+    'data.basePrice',
+    'functionResponse.valuation.calcValuation.price',
+    'price'
+  ], 0, validators.isPositiveNumber);
   
-  // Start with zero values for prices
+  // Calculate basePrice only if we have valid price data
   let basePrice = 0;
-  let reservePrice = 0;
-  let averagePrice = 0;
-  
-  // Try to extract prices from calcValuation first (most specific)
-  if (calcValuation.price_min !== undefined && calcValuation.price_med !== undefined) {
-    const priceMin = Number(calcValuation.price_min);
-    const priceMed = Number(calcValuation.price_med);
-    
-    // Only use if they're valid numbers
-    if (!isNaN(priceMin) && !isNaN(priceMed) && priceMin > 0 && priceMed > 0) {
-      basePrice = (priceMin + priceMed) / 2;
-      averagePrice = priceMed;
-      console.log('Using calcValuation nested price data:', { priceMin, priceMed, basePrice });
-    }
+  if (priceMin > 0 && priceMed > 0) {
+    basePrice = (priceMin + priceMed) / 2;
+  } else if (directPrice > 0) {
+    basePrice = directPrice;
   }
   
-  // If we don't have prices yet, try top-level or nested price_min/price_med
-  if (basePrice === 0) {
-    const priceMin = Number(data.price_min || nestedVehicleData.price_min || 0);
-    const priceMed = Number(data.price_med || nestedVehicleData.price_med || 0);
-    
-    if (!isNaN(priceMin) && !isNaN(priceMed) && priceMin > 0 && priceMed > 0) {
-      basePrice = (priceMin + priceMed) / 2;
-      averagePrice = priceMed;
-      console.log('Using top-level/nested price_min/price_med:', { priceMin, priceMed, basePrice });
-    }
-  }
+  // Get reservePrice if available or calculate it from basePrice
+  const directReservePrice = extractValue(data, [
+    'reservePrice',
+    'data.reservePrice'
+  ], 0, validators.isPositiveNumber);
   
-  // If still no basePrice, try direct price fields
-  if (basePrice === 0) {
-    // Try all possible basePrice locations in order of preference
-    basePrice = 
-      Number(data.basePrice) || 
-      Number(nestedVehicleData.basePrice) || 
-      Number(data.valuation) || 
-      Number(nestedVehicleData.valuation) || 
-      Number(calcValuation.price) || 
-      0;
-      
-    if (basePrice > 0) {
-      console.log('Using direct basePrice/valuation field:', { basePrice });
-    }
-  }
+  const reservePrice = directReservePrice > 0 ? directReservePrice : 
+    (basePrice > 0 ? calculateReservePrice(basePrice) : 0);
   
-  // For direct reservePrice, use what we have or calculate it
-  reservePrice = 
-    Number(data.reservePrice) || 
-    Number(nestedVehicleData.reservePrice) || 
-    0;
-    
-  // If we have a basePrice but no reservePrice, calculate it
-  if (reservePrice === 0 && basePrice > 0) {
-    reservePrice = calculateReservePrice(basePrice);
-    console.log('Calculated reservePrice from basePrice:', { basePrice, reservePrice });
-  }
+  // Get averagePrice (usually the median price)
+  const averagePrice = extractValue(data, [
+    'averagePrice',
+    'data.averagePrice',
+    'price_med',
+    'data.price_med',
+    'functionResponse.valuation.calcValuation.price_med'
+  ], priceMed || basePrice, validators.isNumber);
   
-  // For averagePrice, use what we have if not already set
-  if (averagePrice === 0) {
-    averagePrice = 
-      Number(data.averagePrice) || 
-      Number(nestedVehicleData.averagePrice) || 
-      Number(data.price_med) || 
-      Number(nestedVehicleData.price_med) || 
-      basePrice;
-  }
+  // Extract error information
+  const error = extractValue(data, [
+    'error',
+    'data.error',
+    'functionResponse.error'
+  ], '');
   
-  // Log all extracted data for debugging
-  console.log('Final extracted price data:', {
-    make: finalMake,
-    model: finalModel,
-    year: finalYear,
-    basePrice,
-    reservePrice,
-    averagePrice
-  });
+  const noData = extractValue(data, ['noData', 'data.noData'], false);
   
+  // Construct normalized data object with all extracted values
   const normalizedData = {
-    make: finalMake,
-    model: finalModel,
-    year: finalYear,
+    make,
+    model,
+    year,
     vin,
     transmission: normalizeTransmission(data.transmission),
-    mileage: data.mileage || 0,
+    mileage: extractValue(data, ['mileage', 'data.mileage'], 0, validators.isNumber),
     valuation: basePrice,
     reservePrice,
     averagePrice,
     basePrice,
-    error: errorMessage,
-    noData: !!data.noData,
-    apiSource: data.apiSource || 'auto_iso',
-    usingFallbackEstimation: !!data.usingFallbackEstimation,
-    estimationMethod: data.estimationMethod || '',
-    errorDetails: data.errorDetails || ''
+    error,
+    noData,
+    apiSource: extractValue(data, ['apiSource', 'data.apiSource'], 'auto_iso'),
+    errorDetails: extractValue(data, ['errorDetails', 'data.errorDetails'], '')
   };
   
-  // Check if we have basic vehicle data
-  const hasVehicleData = !!finalMake && !!finalModel && finalYear > 0;
-  const hasValuation = hasVehicleData && basePrice > 0;
+  // Determine if we have required data for a valid valuation
+  const hasRequiredVehicleData = hasRequiredProperties(normalizedData, ['make', 'model', 'year']);
+  const hasRequiredPriceData = normalizedData.basePrice > 0 && normalizedData.reservePrice > 0;
   
-  // If we don't have vehicle data but we DO have a `data` property with valid vehicle data
-  // Don't show an error in that case, as we extracted the data successfully
-  const shouldShowError = hasError || (!hasVehicleData && !nestedVehicleData.make && !nestedVehicleData.model);
+  const hasValuation = hasRequiredVehicleData && hasRequiredPriceData;
+  
+  // Determine if there's an error or if we should show an error
+  const hasError = !!error || !!noData || !hasValuation;
+  
+  // Show error if essential data is missing or there's an explicit error
+  const shouldShowError = hasError;
   
   console.log('Validation result:', {
-    hasVehicleData,
+    hasRequiredVehicleData,
+    hasRequiredPriceData,
     hasValuation,
     hasError,
-    shouldShowError
+    shouldShowError,
+    make,
+    model,
+    year,
+    basePrice,
+    reservePrice
   });
   
   return {
