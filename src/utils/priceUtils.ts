@@ -5,7 +5,7 @@
  * Consolidated price extraction and calculation utilities
  */
 
-import { calculateBasePriceFromNested } from './extraction/pricePathExtractor';
+import { extractNestedPriceData, calculateBasePriceFromNested } from './extraction/pricePathExtractor';
 
 /**
  * Format a price value for display
@@ -67,7 +67,7 @@ export function calculateReservePrice(basePrice: number): number {
  * @deprecated Use extractNestedPriceData from pricePathExtractor directly
  */
 export function extractPrice(data: any): number {
-  // Extract nested price data
+  // Extract nested price data using the imported function
   const priceData = extractNestedPriceData(data);
   // Calculate base price from the extracted data
   return calculateBasePriceFromNested(priceData);
@@ -81,4 +81,3 @@ export {
   extractNestedPriceData, 
   calculateBasePriceFromNested 
 } from './extraction/pricePathExtractor';
-
