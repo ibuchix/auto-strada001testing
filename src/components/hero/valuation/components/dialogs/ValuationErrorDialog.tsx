@@ -4,6 +4,7 @@
  * - 2025-05-01: Enhanced error handling for valuation failures
  * - 2025-05-01: Improved UI for clearer error explanations
  * - 2025-05-01: Added more descriptive guidance for users
+ * - 2025-05-03: Added showManualOption prop to control visibility of manual valuation button
  */
 
 import { useState, useEffect } from "react";
@@ -25,6 +26,7 @@ interface ValuationErrorDialogProps {
   onManualValuation?: () => void;
   error: string;
   description?: string;
+  showManualOption?: boolean;
 }
 
 export const ValuationErrorDialog = ({
@@ -33,7 +35,8 @@ export const ValuationErrorDialog = ({
   onRetry,
   onManualValuation,
   error,
-  description
+  description,
+  showManualOption = true
 }: ValuationErrorDialogProps) => {
   const [isRendered, setIsRendered] = useState(false);
 
@@ -50,7 +53,8 @@ export const ValuationErrorDialog = ({
     error,
     description,
     hasRetryHandler: !!onRetry,
-    hasManualHandler: !!onManualValuation
+    hasManualHandler: !!onManualValuation,
+    showManualOption
   });
 
   // This ensures we always have a description for accessibility
@@ -74,7 +78,7 @@ export const ValuationErrorDialog = ({
           <p className="text-red-800">{displayError}</p>
         </div>
         <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-2">
-          {onManualValuation && (
+          {onManualValuation && showManualOption && (
             <Button
               type="button"
               onClick={onManualValuation}
