@@ -1,9 +1,9 @@
 
 /**
  * ValuationPriceDisplay Component
- * - Updated 2025-05-01: Simplified price display with fallbacks removed
- * - Updated 2025-05-01: Cleaner logic for displaying reserve and average prices
- * - Updated 2025-05-01: Removed estimationMethod property to fix type errors
+ * - Updated 2025-05-03: Removed all fallback price estimation mechanisms
+ * - Updated 2025-05-03: Simplified price display with strict validation
+ * - Updated 2025-05-03: Enhanced debugging for price data availability
  */
 
 import { formatCurrency } from "@/utils/formatters";

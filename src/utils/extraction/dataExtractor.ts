@@ -1,8 +1,9 @@
 
 /**
  * Data extraction utilities for safely handling nested API responses
- * Updated: 2025-05-02 - Enhanced extraction utilities with better type safety
- * Updated: 2025-05-02 - Removed fallback estimation logic as requested
+ * Updated: 2025-05-03 - Enhanced extraction utilities to better handle nested API data
+ * Updated: 2025-05-03 - Completely removed fallback estimation logic
+ * Updated: 2025-05-03 - Added better validation for price data
  */
 
 /**
@@ -24,23 +25,36 @@ export function extractValue<T>(
     return defaultValue;
   }
 
+  // Log extraction attempt for debugging
+  console.log(`Extracting data for paths: [${paths.join(', ')}]`, {
+    availableTopLevelKeys: Object.keys(obj),
+    hasFunctionResponse: !!obj.functionResponse,
+    hasValuation: obj.functionResponse?.valuation ? true : false
+  });
+
   // Try each path in order
   for (const path of paths) {
     const value = getNestedProperty(obj, path);
     
-    // If we found a value and it passes validation (if provided)
-    if (value !== undefined && value !== null && 
-        (!typeValidator || typeValidator(value))) {
+    if (value !== undefined && value !== null) {
+      console.log(`Found value at path ${path}:`, value);
       
-      // Convert string to number if default is a number and value is numeric string
-      if (typeof defaultValue === 'number' && typeof value === 'string' && !isNaN(Number(value))) {
-        return Number(value) as unknown as T;
+      // If we found a value and it passes validation (if provided)
+      if (!typeValidator || typeValidator(value)) {
+        // Convert string to number if default is a number and value is numeric string
+        if (typeof defaultValue === 'number' && typeof value === 'string' && !isNaN(Number(value))) {
+          return Number(value) as unknown as T;
+        }
+        
+        return value as T;
+      } else {
+        console.warn(`Value at path ${path} failed validation:`, value);
       }
-      
-      return value as T;
     }
   }
   
+  // If we got here, no valid value was found
+  console.warn(`No valid value found for paths: [${paths.join(', ')}]`);
   return defaultValue;
 }
 
@@ -55,6 +69,7 @@ function getNestedProperty(obj: any, path: string): any {
   const keys = path.split('.');
   let current = obj;
   
+  // Traverse the object following the path
   for (const key of keys) {
     if (current === null || current === undefined || typeof current !== 'object') {
       return undefined;
@@ -77,7 +92,7 @@ export function hasRequiredProperties(obj: any, requiredProps: string[]): boolea
     return false;
   }
   
-  return requiredProps.every(prop => {
+  const result = requiredProps.every(prop => {
     const value = obj[prop];
     
     // Check if value exists and is not empty
@@ -91,27 +106,61 @@ export function hasRequiredProperties(obj: any, requiredProps: string[]): boolea
     
     return true;
   });
+  
+  // Log validation result for debugging
+  console.log(`Property validation for [${requiredProps.join(', ')}]:`, {
+    passed: result,
+    objectKeys: Object.keys(obj)
+  });
+  
+  return result;
 }
 
 /**
  * Type validators for common data types
  */
 export const validators = {
-  isNumber: (value: any): boolean => 
-    (typeof value === 'number' && !isNaN(value)) || 
-    (typeof value === 'string' && !isNaN(Number(value))),
+  isNumber: (value: any): boolean => {
+    const isValid = (typeof value === 'number' && !isNaN(value)) || 
+                    (typeof value === 'string' && !isNaN(Number(value)));
+    
+    if (!isValid) {
+      console.warn('Failed number validation:', value);
+    }
+    
+    return isValid;
+  },
   
   isPositiveNumber: (value: any): boolean => {
     const num = typeof value === 'number' ? value : Number(value);
-    return !isNaN(num) && num > 0;
+    const isValid = !isNaN(num) && num > 0;
+    
+    if (!isValid) {
+      console.warn('Failed positive number validation:', value);
+    }
+    
+    return isValid;
   },
   
-  isString: (value: any): boolean => 
-    typeof value === 'string' && value.trim() !== '',
+  isString: (value: any): boolean => {
+    const isValid = typeof value === 'string' && value.trim() !== '';
+    
+    if (!isValid && value !== undefined) {
+      console.warn('Failed string validation:', value);
+    }
+    
+    return isValid;
+  },
   
   isYear: (value: any): boolean => {
     const year = Number(value);
     const currentYear = new Date().getFullYear();
-    return !isNaN(year) && year > 1900 && year <= currentYear + 1;
+    const isValid = !isNaN(year) && year > 1900 && year <= currentYear + 1;
+    
+    if (!isValid && value !== undefined) {
+      console.warn('Failed year validation:', value);
+    }
+    
+    return isValid;
   }
 };

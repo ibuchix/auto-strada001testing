@@ -1,9 +1,10 @@
 
 /**
  * Changes made:
- * - 2025-05-02: Completely refactored to use centralized data extraction utilities
- * - 2025-05-02: Removed all fallback price estimation - now requires valid API data
- * - 2025-05-02: Stricter validation - no more guessing or estimation
+ * - 2025-05-03: Completely removed all fallback price estimation mechanisms
+ * - 2025-05-03: Stricter validation - requiring valid API data for all pricing fields
+ * - 2025-05-03: Enhanced error detection for missing/invalid price data
+ * - 2025-05-03: Improved logging for better debugging of data extraction issues
  */
 
 import { TransmissionType } from "@/components/hero/valuation/types";
@@ -28,7 +29,7 @@ export function normalizeTransmission(transmission: string | undefined): Transmi
 
 /**
  * Validates and normalizes valuation data from API response
- * Now uses centralized extraction utilities and removes fallback mechanisms
+ * Uses centralized extraction utilities and requires valid API data
  */
 export function validateValuationData(data: any): ValidationResult {
   if (!data) {
@@ -68,7 +69,7 @@ export function validateValuationData(data: any): ValidationResult {
   
   const vin = extractValue(data, ['vin', 'data.vin'], '', validators.isString);
   
-  // Extract price data with multiple possible paths
+  // Extract pricing data from API response (no fallbacks)
   const reservePrice = extractValue(data, [
     'reservePrice',
     'data.reservePrice'
@@ -81,6 +82,30 @@ export function validateValuationData(data: any): ValidationResult {
     'data.price_med',
     'functionResponse.valuation.calcValuation.price_med'
   ], 0, validators.isNumber);
+  
+  // Try to extract pricing data from nested API structure
+  const priceMin = extractValue(data, [
+    'price_min', 
+    'data.price_min',
+    'functionResponse.valuation.calcValuation.price_min'
+  ], 0, validators.isNumber);
+  
+  const priceMed = extractValue(data, [
+    'price_med',
+    'data.price_med', 
+    'functionResponse.valuation.calcValuation.price_med'
+  ], 0, validators.isNumber);
+  
+  // Log extracted price data for debugging
+  console.log('Extracted price data:', {
+    reservePrice,
+    averagePrice,
+    priceMin,
+    priceMed,
+    hasValidReservePrice: reservePrice > 0,
+    hasValidAvgPrice: averagePrice > 0,
+    hasValidPrices: priceMin > 0 && priceMed > 0
+  });
   
   // Extract error information
   const error = extractValue(data, [
@@ -109,6 +134,7 @@ export function validateValuationData(data: any): ValidationResult {
   };
   
   // Determine if we have required data for a valid valuation
+  // NO FALLBACKS: We require actual data from the API
   const hasRequiredVehicleData = hasRequiredProperties(normalizedData, ['make', 'model', 'year']);
   const hasRequiredPriceData = reservePrice > 0;
   

@@ -1,10 +1,10 @@
 
 /**
  * Changes made:
- * - 2025-05-02: Removed fallback estimation logic as requested
- * - 2025-05-02: Improved error handling for incomplete valuation data
- * - 2025-05-02: Using centralized data extraction utilities
- * - 2025-05-02: Cleaner validation flow with stricter requirements
+ * - 2025-05-03: Removed all fallback price estimation mechanisms
+ * - 2025-05-03: Enhanced error handling with clear distinction between VIN errors and price errors
+ * - 2025-05-03: Improved logging for better debugging of data extraction issues
+ * - 2025-05-03: Added explicit checking for missing price data
  */
 
 import { useNavigate } from "react-router-dom";
@@ -56,6 +56,7 @@ export const ValuationResult = ({
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
   
+  // Enhanced logging of the valuation result
   useValuationLogger({
     data: valuationResult,
     stage: 'ValuationResult-Initial',
@@ -64,7 +65,6 @@ export const ValuationResult = ({
   });
   
   console.log("Raw valuation result in ValuationResult:", {
-    result: valuationResult,
     hasData: !!valuationResult,
     makePresent: valuationResult?.make ? "yes" : "no",
     modelPresent: valuationResult?.model ? "yes" : "no",
@@ -74,8 +74,8 @@ export const ValuationResult = ({
     apiSource: valuationResult?.apiSource || 'unknown',
     errorDetails: valuationResult?.errorDetails || 'none',
     hasNestedData: !!valuationResult?.data,
-    nestedDataKeys: valuationResult?.data ? Object.keys(valuationResult.data) : [],
-    hasFunctionResponse: !!valuationResult?.functionResponse
+    hasFunctionResponse: !!valuationResult?.functionResponse,
+    timestamp: new Date().toISOString()
   });
   
   // Validate the data with stricter rules - NO FALLBACKS
@@ -84,20 +84,6 @@ export const ValuationResult = ({
   
   // Get mileage from localStorage
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-
-  console.log("Normalized valuation data:", {
-    data: normalizedData,
-    hasError,
-    shouldShowError,
-    hasValuation,
-    make: normalizedData.make,
-    model: normalizedData.model,
-    year: normalizedData.year,
-    reservePrice: normalizedData.reservePrice,
-    valuation: normalizedData.valuation,
-    apiSource: normalizedData.apiSource || 'unknown',
-    timestamp: new Date().toISOString()
-  });
 
   // Show error dialog if validation fails
   useEffect(() => {
@@ -140,15 +126,27 @@ export const ValuationResult = ({
 
   // Show error dialog if validation failed
   if (shouldShowError) {
-    // Determine appropriate error message
-    let errorMessage = normalizedData.error || "Couldn't retrieve complete valuation data";
+    // Determine if the error is related to VIN not found or price data missing
+    const isVinError = normalizedData.noData || (normalizedData.error && normalizedData.error.toLowerCase().includes('vin'));
+    let errorMessage: string;
+    let errorDescription: string;
     
-    if (!normalizedData.make || !normalizedData.model || !normalizedData.year) {
-      errorMessage = "Vehicle information could not be retrieved for this VIN";
+    if (isVinError) {
+      // This is a case where the VIN was not found in the database
+      errorMessage = "Vehicle not found";
+      errorDescription = "This VIN couldn't be found in our database. You may proceed with manual listing.";
+    } else if (!normalizedData.make || !normalizedData.model || !normalizedData.year) {
+      // Missing vehicle details
+      errorMessage = "Vehicle information incomplete";
+      errorDescription = "We couldn't retrieve complete information for this vehicle. Please check the VIN and try again.";
     } else if (normalizedData.reservePrice <= 0) {
-      errorMessage = "Pricing data could not be retrieved for this vehicle";
-    } else if (normalizedData.noData) {
-      errorMessage = "No data found for this VIN";
+      // This is a case where we have vehicle data but no pricing data
+      errorMessage = "Price information unavailable";
+      errorDescription = "We found your vehicle but couldn't retrieve pricing information. Please try again or contact support.";
+    } else {
+      // Generic error
+      errorMessage = normalizedData.error || "Valuation error";
+      errorDescription = "An error occurred during the valuation process. Please try again.";
     }
     
     return (
@@ -164,10 +162,18 @@ export const ValuationResult = ({
         }}
         onManualValuation={() => {
           setErrorDialogOpen(false);
-          navigate('/manual-valuation');
+          // Only offer manual valuation if VIN not found
+          if (isVinError) {
+            navigate('/manual-valuation');
+          } else {
+            // For price errors, we should retry instead
+            if (onRetry) onRetry();
+            else onClose();
+          }
         }}
         error={errorMessage}
-        description="To continue, you can try again with a different VIN or proceed with manual listing."
+        description={errorDescription}
+        showManualOption={isVinError} // Only show manual option for VIN errors
       />
     );
   }
@@ -186,6 +192,7 @@ export const ValuationResult = ({
       hasValuation={hasValuation}
       isLoggedIn={isLoggedIn}
       apiSource={normalizedData.apiSource}
+      errorDetails={normalizedData.errorDetails}
       onClose={onClose}
       onContinue={() => handleContinue(normalizedData)}
     />

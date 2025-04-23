@@ -1,20 +1,18 @@
 
 /**
  * Changes made:
- * - 2025-05-01: Simplified ValuationContent to remove estimationMethod property
- * - 2025-05-01: Enhanced error handling with clearer user messaging
- * - 2025-05-01: Improved type safety for API response data
+ * - 2025-05-03: Fixed import error with heroicons
+ * - 2025-05-03: Removed unused imports and simplified error handling
+ * - 2025-05-03: Enhanced error messaging for invalid valuation data
  */
 
 import React from "react";
-import { XMarkIcon } from "@heroicons/react/24/solid";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
-import { formatCurrency } from "@/utils/formatters";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { ValuationData } from "@/utils/valuation/valuationDataTypes";
 import { normalizeTransmission } from "@/utils/validation/validateTypes";
+import { XCircle } from "lucide-react"; // Using lucide-react instead of heroicons
 
 interface ValuationContentProps {
   make: string;
@@ -84,7 +82,7 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
           className="p-1 rounded-full hover:bg-gray-200"
           aria-label="Close"
         >
-          <XMarkIcon className="h-6 w-6" />
+          <XCircle className="h-6 w-6" />
         </button>
       </div>
 
