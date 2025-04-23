@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2025-05-03: Updated to use new nested price extraction
