@@ -1,20 +1,15 @@
 /**
- * Data extraction utilities for safely handling nested API responses
- * Updated: 2025-05-03 - Completely refactored to prioritize nested price data extraction
- * Updated: 2025-05-03 - Removed fallback estimation logic
- * Updated: 2025-05-03 - Added better validation for price data
+ * Data extraction utilities
+ * Created: 2025-04-19
+ * Modified: 2025-04-23 - Removed duplicate price extraction logic
+ * Modified: 2025-04-23 - Now uses dedicated pricePathExtractor utility
  */
 
 import { extractNestedPriceData, calculateBasePriceFromNested } from './pricePathExtractor';
+import { validators } from './validators';
 
 /**
- * Safely extract a value from a nested object using an array of possible paths
- * Returns the first valid value found or the default value
- * 
- * @param obj The object to extract from
- * @param paths Array of possible property paths to try
- * @param defaultValue Default value to return if no valid value is found
- * @param typeValidator Optional function to validate the value type
+ * Extract value from nested object
  */
 export function extractValue<T>(
   obj: any,
@@ -81,137 +76,11 @@ function getNestedProperty(obj: any, path: string): any {
   return current;
 }
 
-/**
- * Validate if an object has all required properties with valid values
- * 
- * @param obj Object to validate
- * @param requiredProps Array of required property names
- * @returns True if all required properties exist and have values
- */
-export function hasRequiredProperties(obj: any, requiredProps: string[]): boolean {
-  if (!obj || typeof obj !== 'object') {
-    return false;
-  }
-  
-  const result = requiredProps.every(prop => {
-    const value = obj[prop];
-    
-    // Check if value exists and is not empty
-    if (value === undefined || value === null) return false;
-    
-    // For strings, check if empty
-    if (typeof value === 'string' && value.trim() === '') return false;
-    
-    // For numbers, check if valid number
-    if (typeof value === 'number' && (isNaN(value) || value <= 0)) return false;
-    
-    return true;
-  });
-  
-  // Log validation result for debugging
-  console.log(`Property validation for [${requiredProps.join(', ')}]:`, {
-    passed: result,
-    objectKeys: Object.keys(obj)
-  });
-  
-  return result;
-}
+// Export validators for reuse
+export { validators };
 
-/**
- * Type validators for common data types
- */
-export const validators = {
-  isNumber: (value: any): boolean => {
-    const isValid = (typeof value === 'number' && !isNaN(value)) || 
-                    (typeof value === 'string' && !isNaN(Number(value)));
-    
-    if (!isValid) {
-      console.warn('Failed number validation:', value);
-    }
-    
-    return isValid;
-  },
-  
-  isPositiveNumber: (value: any): boolean => {
-    const num = typeof value === 'number' ? value : Number(value);
-    const isValid = !isNaN(num) && num > 0;
-    
-    if (!isValid) {
-      console.warn('Failed positive number validation:', value);
-    }
-    
-    return isValid;
-  },
-  
-  isString: (value: any): boolean => {
-    const isValid = typeof value === 'string' && value.trim() !== '';
-    
-    if (!isValid && value !== undefined) {
-      console.warn('Failed string validation:', value);
-    }
-    
-    return isValid;
-  },
-  
-  isYear: (value: any): boolean => {
-    const year = Number(value);
-    const currentYear = new Date().getFullYear();
-    const isValid = !isNaN(year) && year > 1900 && year <= currentYear + 1;
-    
-    if (!isValid && value !== undefined) {
-      console.warn('Failed year validation:', value);
-    }
-    
-    return isValid;
-  }
-};
-
-/**
- * Extract price data from a nested object
- * 
- * @param data The object containing nested price data
- * @returns An object with extracted price data
- */
-export function extractPriceData(data: any) {
-  if (!data) {
-    console.warn('No data provided for price extraction');
-    return {
-      valuation: 0,
-      reservePrice: 0,
-      basePrice: 0,
-      averagePrice: 0
-    };
-  }
-
-  // Extract nested price data using our new utility
-  const priceData = extractNestedPriceData(data);
-  
-  // Log the extracted price data
-  console.log('Extracted nested price data:', priceData);
-
-  // If we don't have the minimum required price data, return zeros
-  if (!priceData.price_min || !priceData.price_med) {
-    console.error('Missing required price data', {
-      hasPriceMin: !!priceData.price_min,
-      hasPriceMed: !!priceData.price_med,
-      source: 'nested_extraction'
-    });
-    
-    return {
-      valuation: 0,
-      reservePrice: 0,
-      basePrice: 0,
-      averagePrice: 0
-    };
-  }
-
-  // Calculate base price from min and median
-  const basePrice = calculateBasePriceFromNested(priceData);
-
-  return {
-    valuation: basePrice,
-    reservePrice: basePrice, // This will be calculated later using the reserve price formula
-    basePrice: basePrice,
-    averagePrice: priceData.price_med
-  };
-}
+// Re-export price extraction utilities for backward compatibility
+export { 
+  extractNestedPriceData, 
+  calculateBasePriceFromNested 
+} from './pricePathExtractor';

@@ -2,11 +2,12 @@
  * Changes made:
  * - 2025-05-03: Updated to use new nested price extraction
  * - 2025-05-03: Removed all fallback price estimation
+ * - 2025-04-23: Now uses dedicated pricePathExtractor utility
  */
 
 import { TransmissionType } from "@/components/hero/valuation/types";
 import { extractValue, validators } from "@/utils/extraction/dataExtractor";
-import { extractNestedPriceData } from "@/utils/extraction/pricePathExtractor";
+import { extractNestedPriceData, calculateBasePriceFromNested } from "@/utils/extraction/pricePathExtractor";
 
 interface ValidationResult {
   normalizedData: any;
@@ -40,10 +41,10 @@ export function validateValuationData(data: any): ValidationResult {
     };
   }
 
-  // Extract price data from nested structure
+  // Extract price data using our dedicated utility
   const priceData = extractNestedPriceData(data);
   
-  // Extract vehicle data (make, model, year)
+  // Extract vehicle data
   const make = extractValue(data, [
     'functionResponse.userParams.make',
     'make'
@@ -59,6 +60,9 @@ export function validateValuationData(data: any): ValidationResult {
     'year'
   ], 0, validators.isYear);
 
+  // Calculate base price using our dedicated utility
+  const basePrice = calculateBasePriceFromNested(priceData);
+
   // Construct normalized data
   const normalizedData = {
     make,
@@ -67,13 +71,10 @@ export function validateValuationData(data: any): ValidationResult {
     vin: data.vin || '',
     transmission: normalizeTransmission(data.transmission),
     mileage: extractValue(data, ['mileage'], 0, validators.isNumber),
-    // Use the nested price data
-    valuation: priceData.price || 0,
-    reservePrice: 0, // Will be calculated later
+    valuation: basePrice,
+    reservePrice: basePrice, // Will be calculated later using the reserve price formula
     averagePrice: priceData.price_med || 0,
-    basePrice: (priceData.price_min && priceData.price_med) 
-      ? (Number(priceData.price_min) + Number(priceData.price_med)) / 2 
-      : 0
+    basePrice
   };
 
   // Determine if we have valid data
