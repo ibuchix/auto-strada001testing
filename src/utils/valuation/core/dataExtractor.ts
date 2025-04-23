@@ -4,6 +4,7 @@
  * Created: 2025-04-23
  * Updated: 2025-04-23 - Enhanced nested data extraction with better debugging
  * Updated: 2025-04-24 - Fixed deep path traversal for complex API responses
+ * Updated: 2025-04-25 - Fixed duplicate property names in debug logging
  */
 
 import { ValuationData } from '../valuationDataTypes';
@@ -17,7 +18,7 @@ export function extractVehicleData(rawData: any) {
     hasData: !!rawData,
     topLevelKeys: rawData ? Object.keys(rawData) : [],
     hasFunctionResponse: !!rawData?.functionResponse,
-    hasData: !!rawData?.data
+    hasNestedData: !!rawData?.data
   });
   
   // Check for different possible paths where data might be located

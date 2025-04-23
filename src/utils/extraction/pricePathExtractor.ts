@@ -4,6 +4,7 @@
  * Created: 2025-05-03
  * Updated: 2025-04-23 - Strictly uses nested API response structure
  * Updated: 2025-04-24 - Fixed nested structure traversal with robust path handling
+ * Updated: 2025-04-25 - Fixed duplicate property names in debug logging
  */
 
 interface PriceData {
@@ -23,7 +24,7 @@ export function extractNestedPriceData(data: any): PriceData {
     hasData: !!data,
     topLevelKeys: data ? Object.keys(data) : [],
     hasFunctionResponse: !!data?.functionResponse,
-    hasData: !!data?.data,
+    hasNestedData: !!data?.data,
     hasNestedFunctionResponse: !!data?.data?.functionResponse
   });
 
@@ -51,7 +52,7 @@ export function extractNestedPriceData(data: any): PriceData {
   }
   
   // If still not found, check for direct price fields at root level
-  console.warn('[PRICE-EXTRACTOR] No calcValuation found, checking direct price fields');
+  console.warn('[PRICE-EXTRACTOR] Missing calcValuation in API response');
   
   // Try direct price fields in different locations
   const directPriceData = {
