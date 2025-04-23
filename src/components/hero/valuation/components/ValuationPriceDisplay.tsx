@@ -3,6 +3,7 @@
  * ValuationPriceDisplay Component
  * - Updated 2025-05-01: Simplified price display with fallbacks removed
  * - Updated 2025-05-01: Cleaner logic for displaying reserve and average prices
+ * - Updated 2025-05-01: Removed estimationMethod property to fix type errors
  */
 
 import { formatCurrency } from "@/utils/formatters";

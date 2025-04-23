@@ -1,7 +1,8 @@
 
 /**
  * Data extraction utilities for safely handling nested API responses
- * Created: 2025-05-01 - Centralized extraction utilities for nested API structures
+ * Updated: 2025-05-02 - Enhanced extraction utilities with better type safety
+ * Updated: 2025-05-02 - Removed fallback estimation logic as requested
  */
 
 /**

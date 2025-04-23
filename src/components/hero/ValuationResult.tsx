@@ -1,10 +1,10 @@
 
 /**
  * Changes made:
- * - 2025-05-01: Removed fallback estimation logic as requested
- * - 2025-05-01: Improved error handling for incomplete valuation data
- * - 2025-05-01: Using centralized data extraction utilities
- * - 2025-05-01: Cleaner validation flow with stricter requirements
+ * - 2025-05-02: Removed fallback estimation logic as requested
+ * - 2025-05-02: Improved error handling for incomplete valuation data
+ * - 2025-05-02: Using centralized data extraction utilities
+ * - 2025-05-02: Cleaner validation flow with stricter requirements
  */
 
 import { useNavigate } from "react-router-dom";
@@ -145,7 +145,7 @@ export const ValuationResult = ({
     
     if (!normalizedData.make || !normalizedData.model || !normalizedData.year) {
       errorMessage = "Vehicle information could not be retrieved for this VIN";
-    } else if (normalizedData.valuation <= 0 || normalizedData.reservePrice <= 0) {
+    } else if (normalizedData.reservePrice <= 0) {
       errorMessage = "Pricing data could not be retrieved for this vehicle";
     } else if (normalizedData.noData) {
       errorMessage = "No data found for this VIN";
@@ -161,6 +161,10 @@ export const ValuationResult = ({
         onRetry={() => {
           setErrorDialogOpen(false);
           if (onRetry) onRetry();
+        }}
+        onManualValuation={() => {
+          setErrorDialogOpen(false);
+          navigate('/manual-valuation');
         }}
         error={errorMessage}
         description="To continue, you can try again with a different VIN or proceed with manual listing."
