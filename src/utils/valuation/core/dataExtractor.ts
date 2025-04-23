@@ -2,90 +2,52 @@
 /**
  * Vehicle data extraction utility
  * Created: 2025-04-23
- * Updated: 2025-04-23 - Enhanced to handle nested API response structure
- * Core data extraction functions for valuation data
+ * Updated: 2025-04-23 - Strict nested data extraction implementation
  */
 
 import { ValuationData } from '../valuationDataTypes';
 
-export function sanitizePartialData(data: Partial<ValuationData>): Partial<ValuationData> {
-  return {
-    make: data.make?.trim() || undefined,
-    model: data.model?.trim() || undefined,
-    year: data.year || undefined,
-    vin: data.vin?.trim() || undefined,
-    transmission: data.transmission || undefined,
-    mileage: data.mileage || undefined,
-    valuation: data.valuation || undefined,
-    reservePrice: data.reservePrice || undefined,
-    averagePrice: data.averagePrice || undefined,
-    basePrice: data.basePrice || undefined
-  };
-}
-
-/**
- * Extracts vehicle data from API response, prioritizing nested structure
- * @param rawData API response data
- * @returns Object with vehicle details
- */
 export function extractVehicleData(rawData: any) {
-  // Try to get data from nested structure first
+  // Get data from userParams (most accurate source)
   const userParams = rawData?.functionResponse?.userParams;
   
-  // Log the available data for debugging
-  console.log('Extracting vehicle data from:', {
+  console.log('[DATA-EXTRACTOR] Extracting from API response:', {
     hasUserParams: !!userParams,
-    userParamsKeys: userParams ? Object.keys(userParams) : [],
-    rootKeys: Object.keys(rawData || {})
+    userParamsData: userParams,
+    userParamsKeys: userParams ? Object.keys(userParams) : []
   });
   
   if (!userParams) {
-    console.warn('No userParams found in API response structure');
-    return {
-      make: '',
-      model: '',
-      year: 0,
-      vin: rawData.vin || '',
-      mileage: 0,
-      transmission: 'manual'
-    };
+    console.warn('[DATA-EXTRACTOR] No userParams found in API response');
+    return null;
   }
   
   // Extract data from userParams (most accurate source)
-  const make = userParams.make || '';
-  const model = userParams.model || '';
-  const year = Number(userParams.year) || 0;
-  const transmission = userParams.gearbox || 'manual';
-  const vin = rawData.vin || '';
-  const mileage = Number(userParams.odometer) || 0;
-
-  // Log what we found for debugging
-  console.log('Extracted vehicle data:', { make, model, year, transmission, mileage });
-  
-  return {
-    make,
-    model,
-    year,
-    vin,
-    mileage,
-    transmission
+  const extractedData = {
+    make: userParams.make || '',
+    model: userParams.model || '',
+    year: Number(userParams.year) || 0,
+    transmission: userParams.gearbox || 'manual',
+    vin: rawData.vin || '',
+    mileage: Number(userParams.odometer) || 0
   };
+
+  console.log('[DATA-EXTRACTOR] Extracted vehicle data:', extractedData);
+  
+  return extractedData;
 }
 
-export function extractPriceData(rawData: any) {
-  const { extractNestedPriceData, calculateBasePriceFromNested } = 
-    require('@/utils/extraction/pricePathExtractor');
-  
-  // Extract nested price data
-  const priceData = extractNestedPriceData(rawData);
-  
-  // Calculate base price
-  const basePrice = calculateBasePriceFromNested(priceData);
-  
+export function sanitizePartialData(data: Partial<ValuationData>): Partial<ValuationData> {
   return {
-    basePrice,
-    reservePrice: rawData.reservePrice || 0,
-    averagePrice: priceData.price_med || 0,
-    valuation: basePrice
+    make: data.make?.trim(),
+    model: data.model?.trim(),
+    year: data.year,
+    vin: data.vin?.trim(),
+    transmission: data.transmission,
+    mileage: data.mileage,
+    valuation: data.valuation,
+    reservePrice: data.reservePrice,
+    averagePrice: data.averagePrice,
+    basePrice: data.basePrice
   };
 }
