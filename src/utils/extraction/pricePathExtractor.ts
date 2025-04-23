@@ -5,6 +5,7 @@
  * Updated: 2025-04-23 - Strictly uses nested API response structure
  * Updated: 2025-04-24 - Fixed nested structure traversal with robust path handling
  * Updated: 2025-04-25 - Fixed duplicate property names in debug logging
+ * Updated: 2025-04-26 - Enhanced price data extraction with better fallbacks
  */
 
 interface PriceData {
@@ -28,44 +29,50 @@ export function extractNestedPriceData(data: any): PriceData {
     hasNestedFunctionResponse: !!data?.data?.functionResponse
   });
 
-  // Check multiple possible paths where price data might be located
-  // First try direct function response
-  let calcValuation = data?.functionResponse?.valuation?.calcValuation;
-  
-  // If not found, check in data property
-  if (!calcValuation && data?.data?.functionResponse) {
-    calcValuation = data.data.functionResponse.valuation?.calcValuation;
-    console.log('[PRICE-EXTRACTOR] Found calcValuation in data.functionResponse path');
+  // ENHANCED: Check for price data at all possible locations
+  let priceData: PriceData = {};
+
+  // First try the nested calcValuation path which is most reliable when available
+  if (data?.functionResponse?.valuation?.calcValuation) {
+    const calcValuation = data.functionResponse.valuation.calcValuation;
+    priceData = extractFromCalcValuation(calcValuation);
+    console.log('[PRICE-EXTRACTOR] Found price data in functionResponse.valuation.calcValuation:', priceData);
+    return priceData;
   }
   
-  if (calcValuation) {
-    console.log('[PRICE-EXTRACTOR] Found calcValuation data:', calcValuation);
-    
-    // Return the price data directly from calcValuation
-    return {
-      price: Number(calcValuation.price) || undefined,
-      price_min: Number(calcValuation.price_min) || undefined,
-      price_max: Number(calcValuation.price_max) || undefined,
-      price_avr: Number(calcValuation.price_avr) || undefined,
-      price_med: Number(calcValuation.price_med) || undefined
+  // Check in nested data structure
+  if (data?.data?.functionResponse?.valuation?.calcValuation) {
+    const calcValuation = data.data.functionResponse.valuation.calcValuation;
+    priceData = extractFromCalcValuation(calcValuation);
+    console.log('[PRICE-EXTRACTOR] Found price data in data.functionResponse.valuation.calcValuation:', priceData);
+    return priceData;
+  }
+  
+  // NEW: Try to find price_min and price_med directly in the data property
+  if (data?.data?.price_min !== undefined && data?.data?.price_med !== undefined) {
+    priceData = {
+      price_min: Number(data.data.price_min),
+      price_med: Number(data.data.price_med),
+      price_avr: Number(data.data.price_avr),
+      price_max: Number(data.data.price_max),
+      price: Number(data.data.price || data.data.valuation)
     };
+    console.log('[PRICE-EXTRACTOR] Found price data in data property:', priceData);
+    return priceData;
   }
   
-  // If still not found, check for direct price fields at root level
-  console.warn('[PRICE-EXTRACTOR] Missing calcValuation in API response');
-  
-  // Try direct price fields in different locations
+  // Try direct values at root level as last resort
   const directPriceData = {
-    price: Number(data?.price || data?.data?.price) || undefined,
-    price_min: Number(data?.price_min || data?.data?.price_min) || undefined,
-    price_max: Number(data?.price_max || data?.data?.price_max) || undefined,
-    price_avr: Number(data?.price_avr || data?.data?.price_avr) || undefined,
-    price_med: Number(data?.price_med || data?.data?.price_med) || undefined
+    price: Number(data?.price || data?.valuation) || undefined,
+    price_min: Number(data?.price_min) || undefined,
+    price_max: Number(data?.price_max) || undefined,
+    price_avr: Number(data?.price_avr) || undefined,
+    price_med: Number(data?.price_med) || undefined
   };
   
   // Log what we found at the direct level
   const foundDirectPrices = Object.entries(directPriceData)
-    .filter(([_, value]) => value !== undefined)
+    .filter(([_, value]) => value !== undefined && !isNaN(value) && value > 0)
     .map(([key]) => key);
   
   if (foundDirectPrices.length > 0) {
@@ -79,25 +86,50 @@ export function extractNestedPriceData(data: any): PriceData {
 }
 
 /**
+ * Extract price data from calcValuation object
+ */
+function extractFromCalcValuation(calcValuation: any): PriceData {
+  if (!calcValuation) return {};
+  
+  return {
+    price: Number(calcValuation.price) || undefined,
+    price_min: Number(calcValuation.price_min) || undefined,
+    price_max: Number(calcValuation.price_max) || undefined,
+    price_avr: Number(calcValuation.price_avr) || undefined,
+    price_med: Number(calcValuation.price_med) || undefined
+  };
+}
+
+/**
  * Calculate base price from extracted nested price data
  */
 export function calculateBasePriceFromNested(priceData: PriceData): number {
-  if (!priceData.price_min || !priceData.price_med) {
-    console.warn('[PRICE-EXTRACTOR] Missing required price data for calculation', priceData);
-    return 0;
-  }
-
-  const minPrice = Number(priceData.price_min);
-  const medPrice = Number(priceData.price_med);
-
-  // Return 0 if any price is invalid
-  if (isNaN(minPrice) || isNaN(medPrice) || minPrice <= 0 || medPrice <= 0) {
-    console.warn('[PRICE-EXTRACTOR] Invalid price values:', { minPrice, medPrice });
-    return 0;
-  }
-
-  const basePrice = (minPrice + medPrice) / 2;
-  console.log('[PRICE-EXTRACTOR] Calculated base price:', basePrice);
+  // ENHANCED: More flexible price calculation with better fallbacks
   
-  return basePrice;
+  // Option 1: Use price_min and price_med if available (preferred method)
+  if (priceData.price_min && priceData.price_med) {
+    const minPrice = Number(priceData.price_min);
+    const medPrice = Number(priceData.price_med);
+    
+    if (!isNaN(minPrice) && !isNaN(medPrice) && minPrice > 0 && medPrice > 0) {
+      const basePrice = (minPrice + medPrice) / 2;
+      console.log('[PRICE-EXTRACTOR] Calculated base price from min/med:', basePrice);
+      return basePrice;
+    }
+  }
+  
+  // Option 2: Use price or valuation if available
+  if (priceData.price && !isNaN(Number(priceData.price)) && Number(priceData.price) > 0) {
+    console.log('[PRICE-EXTRACTOR] Using direct price as base price:', priceData.price);
+    return Number(priceData.price);
+  }
+  
+  // Option 3: Use average price if available
+  if (priceData.price_avr && !isNaN(Number(priceData.price_avr)) && Number(priceData.price_avr) > 0) {
+    console.log('[PRICE-EXTRACTOR] Using average price as base price:', priceData.price_avr);
+    return Number(priceData.price_avr);
+  }
+  
+  console.warn('[PRICE-EXTRACTOR] Could not calculate base price from available data:', priceData);
+  return 0;
 }

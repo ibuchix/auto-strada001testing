@@ -7,6 +7,7 @@
  * - 2025-04-22: Added support for functionResponse nested structure in API response
  * - 2025-04-23: Updated import paths to use consistent price extraction utilities
  * - 2025-04-24: Enhanced structure detection and added robust multi-path data extraction
+ * - 2025-04-26: Updated to use enhanced extraction with better fallback handling
  */
 
 import { extractVehicleData } from './core/dataExtractor';
@@ -23,50 +24,19 @@ export function normalizeValuationData(rawData: any): ValuationData {
     hasNestedFunctionResponse: !!rawData?.data?.functionResponse
   });
 
-  // CRITICAL DEBUG - Check for data at expected paths
-  console.log('%c🔎 STRUCTURE INSPECTION:', 'background: #333; color: #ff9; font-size: 14px; padding: 5px;');
-  
-  if (rawData?.functionResponse) {
-    console.log('Found functionResponse at root level:', {
-      hasUserParams: !!rawData.functionResponse.userParams,
-      hasValuation: !!rawData.functionResponse.valuation
-    });
-  } else if (rawData?.data?.functionResponse) {
-    console.log('Found functionResponse in data property:', {
-      hasUserParams: !!rawData.data.functionResponse.userParams,
-      hasValuation: !!rawData.data.functionResponse.valuation
-    });
-  } else {
-    console.warn('No functionResponse found in any expected location');
-  }
-  
   // Check for valid data
   if (!rawData) {
     console.error('%c❌ NO VALID DATA FOUND', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
     return createEmptyValuation();
   }
 
-  // Extract core vehicle data with robust extraction
+  // IMPROVED: Extract core vehicle data with better field handling
   const vehicleData = extractVehicleData(rawData);
   
-  if (!vehicleData || (!vehicleData.make && !vehicleData.model)) {
-    console.warn('Vehicle data extraction failed, checking original input');
-    // Try to get some data from raw input as a last resort
-    if (rawData.make && rawData.model) {
-      console.log('Found basic vehicle details in root level');
-    } else if (rawData.data?.make && rawData.data?.model) {
-      console.log('Found basic vehicle details in data property');
-    }
-  }
-  
-  // Extract price data using the dedicated utility
+  // IMPROVED: Extract price data with enhanced detection
   const priceData = extractNestedPriceData(rawData);
   
-  // Check if we got valid price data
-  if (!priceData.price_min && !priceData.price_med) {
-    console.warn("Could not find price data in the API response");
-  }
-  
+  // Calculate base price with more reliable fallback options
   const basePrice = calculateBasePriceFromNested(priceData);
   
   // Log the extracted price data
@@ -90,6 +60,15 @@ export function normalizeValuationData(rawData: any): ValuationData {
     basePrice,
     reservePrice
   });
+
+  // Special handling: if we have vehicle data but no price data, log this issue
+  if (vehicleData.make && vehicleData.model && basePrice === 0) {
+    console.warn('%c⚠️ VEHICLE FOUND BUT NO PRICE DATA', 'background: #FF9800; color: black; font-size: 14px; padding: 4px 8px; border-radius: 4px', {
+      make: vehicleData.make,
+      model: vehicleData.model,
+      year: vehicleData.year
+    });
+  }
 
   const normalized: ValuationData = {
     ...vehicleData,
