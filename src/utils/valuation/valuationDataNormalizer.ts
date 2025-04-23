@@ -9,6 +9,7 @@
  * - 2025-04-24: Enhanced structure detection and added robust multi-path data extraction
  * - 2025-04-26: Updated to use enhanced extraction with better fallback handling
  * - 2025-04-27: Removed fallbacks for price calculations to ensure accuracy
+ * - 2025-04-28: Added comprehensive API structure logging and validation
  */
 
 import { extractVehicleData } from './core/dataExtractor';
@@ -17,6 +18,9 @@ import { calculateReservePrice } from '@/utils/priceUtils';
 import { ValuationData, TransmissionType } from './valuationDataTypes';
 
 export function normalizeValuationData(rawData: any): ValuationData {
+  // Log the entire raw data structure for deep analysis
+  console.log('[VAL-NORM] COMPLETE RAW API RESPONSE:', JSON.stringify(rawData, null, 2));
+
   console.log('%c🔬 VALUATION NORMALIZATION STARTED', 'background: #FF5722; color: white; font-size: 16px; padding: 4px 8px; border-radius: 4px', {
     hasRawData: !!rawData,
     dataKeys: rawData ? Object.keys(rawData) : [],
@@ -29,6 +33,28 @@ export function normalizeValuationData(rawData: any): ValuationData {
   if (!rawData) {
     console.error('%c❌ NO VALID DATA FOUND', 'background: #F44336; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
     return createEmptyValuation();
+  }
+
+  // Log detailed data structure inspection
+  if (rawData.data) {
+    console.log('[VAL-NORM] Nested data structure:', {
+      dataKeys: Object.keys(rawData.data),
+      hasNestedFunctionResponse: !!rawData.data.functionResponse
+    });
+  }
+
+  if (rawData.functionResponse) {
+    console.log('[VAL-NORM] Function response structure:', {
+      functionResponseKeys: Object.keys(rawData.functionResponse),
+      hasValuation: !!rawData.functionResponse.valuation
+    });
+    
+    if (rawData.functionResponse.valuation) {
+      console.log('[VAL-NORM] Valuation structure:', {
+        valuationKeys: Object.keys(rawData.functionResponse.valuation),
+        hasCalcValuation: !!rawData.functionResponse.valuation.calcValuation
+      });
+    }
   }
 
   // Extract core vehicle data with better field handling

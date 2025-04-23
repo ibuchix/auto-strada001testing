@@ -6,6 +6,7 @@
  * Updated: 2025-04-24 - Fixed deep path traversal for complex API responses
  * Updated: 2025-04-25 - Fixed duplicate property names in debug logging
  * Updated: 2025-04-26 - Enhanced extraction with additional paths for year and mileage
+ * Updated: 2025-04-28 - Added complete object structure logging for better debugging
  */
 
 import { ValuationData } from '../valuationDataTypes';
@@ -14,7 +15,9 @@ import { ValuationData } from '../valuationDataTypes';
  * Extract vehicle data from API response with robust nested data handling
  */
 export function extractVehicleData(rawData: any) {
-  // Debug the incoming structure
+  // Debug the incoming structure with complete data inspection
+  console.log('[DATA-EXTRACTOR] Complete raw data:', JSON.stringify(rawData, null, 2));
+  
   console.log('[DATA-EXTRACTOR] Analyzing API response structure:', {
     hasData: !!rawData,
     topLevelKeys: rawData ? Object.keys(rawData) : [],
