@@ -1,37 +1,50 @@
 
 /**
- * Validation utility functions for data extraction
+ * Validator functions for data extraction
  * Created: 2025-04-23
+ * Common validators for data extraction and type checking
  */
 
 export const validators = {
   /**
-   * Check if value is a string
+   * Checks if a value is a string
    */
   isString: (value: any): boolean => {
     return typeof value === 'string';
   },
-
+  
   /**
-   * Check if value is a number
+   * Checks if a value is a number
    */
   isNumber: (value: any): boolean => {
-    return typeof value === 'number' && !isNaN(value);
+    if (typeof value === 'number') return !isNaN(value);
+    if (typeof value === 'string') return !isNaN(Number(value));
+    return false;
   },
-
+  
   /**
-   * Check if value is a valid year
+   * Checks if a value is a valid year
+   * Between 1900 and current year + 1
    */
   isYear: (value: any): boolean => {
-    const num = Number(value);
+    const year = Number(value);
     const currentYear = new Date().getFullYear();
-    return !isNaN(num) && num > 1900 && num <= currentYear + 1;
+    return !isNaN(year) && year >= 1900 && year <= currentYear + 1;
   },
-
+  
   /**
-   * Check if value is a boolean
+   * Checks if a value is a boolean
    */
   isBoolean: (value: any): boolean => {
     return typeof value === 'boolean';
+  },
+  
+  /**
+   * Checks if a value is a valid price
+   * Must be a number >= 0
+   */
+  isPrice: (value: any): boolean => {
+    const price = Number(value);
+    return !isNaN(price) && price >= 0;
   }
 };
