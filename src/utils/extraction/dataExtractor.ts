@@ -1,10 +1,11 @@
-
 /**
  * Data extraction utilities for safely handling nested API responses
- * Updated: 2025-05-03 - Enhanced extraction utilities to better handle nested API data
- * Updated: 2025-05-03 - Completely removed fallback estimation logic
+ * Updated: 2025-05-03 - Completely refactored to prioritize nested price data extraction
+ * Updated: 2025-05-03 - Removed fallback estimation logic
  * Updated: 2025-05-03 - Added better validation for price data
  */
+
+import { extractNestedPriceData, calculateBasePriceFromNested } from './pricePathExtractor';
 
 /**
  * Safely extract a value from a nested object using an array of possible paths
@@ -164,3 +165,53 @@ export const validators = {
     return isValid;
   }
 };
+
+/**
+ * Extract price data from a nested object
+ * 
+ * @param data The object containing nested price data
+ * @returns An object with extracted price data
+ */
+export function extractPriceData(data: any) {
+  if (!data) {
+    console.warn('No data provided for price extraction');
+    return {
+      valuation: 0,
+      reservePrice: 0,
+      basePrice: 0,
+      averagePrice: 0
+    };
+  }
+
+  // Extract nested price data using our new utility
+  const priceData = extractNestedPriceData(data);
+  
+  // Log the extracted price data
+  console.log('Extracted nested price data:', priceData);
+
+  // If we don't have the minimum required price data, return zeros
+  if (!priceData.price_min || !priceData.price_med) {
+    console.error('Missing required price data', {
+      hasPriceMin: !!priceData.price_min,
+      hasPriceMed: !!priceData.price_med,
+      source: 'nested_extraction'
+    });
+    
+    return {
+      valuation: 0,
+      reservePrice: 0,
+      basePrice: 0,
+      averagePrice: 0
+    };
+  }
+
+  // Calculate base price from min and median
+  const basePrice = calculateBasePriceFromNested(priceData);
+
+  return {
+    valuation: basePrice,
+    reservePrice: basePrice, // This will be calculated later using the reserve price formula
+    basePrice: basePrice,
+    averagePrice: priceData.price_med
+  };
+}
