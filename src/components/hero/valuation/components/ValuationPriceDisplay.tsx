@@ -4,9 +4,10 @@
  * - Updated 2025-05-03: Removed all fallback price estimation mechanisms
  * - Updated 2025-05-03: Simplified price display with strict validation
  * - Updated 2025-05-03: Enhanced debugging for price data availability
+ * - Updated 2025-04-23: Updated to use consolidated price utilities
  */
 
-import { formatCurrency } from "@/utils/formatters";
+import { formatCurrency } from "@/utils/priceUtils";
 import { useEffect } from "react";
 
 interface ValuationPriceDisplayProps {

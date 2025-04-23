@@ -9,11 +9,12 @@
  * - 2028-06-10: Fixed TypeScript error with undefined vin variable in normalizeValuationData
  * - 2028-06-12: Enhanced logging throughout valuation pipeline and improved fallbacks
  * - 2028-06-12: Added stronger data validation and normalization for API responses
+ * - 2025-04-23: Updated to use consolidated price utilities
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { TransmissionType } from "../../types";
-import { extractPrice, calculateReservePrice } from "@/utils/priceExtractor";
+import { extractPrice, calculateReservePrice } from "@/utils/priceUtils";
 
 /**
  * Fetch valuation data from API for seller context

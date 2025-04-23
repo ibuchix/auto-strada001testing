@@ -2,10 +2,11 @@
 /**
  * Core data normalization functionality
  * Created: 2025-04-19 - Split from valuationDataNormalizer.ts
+ * Modified: 2025-04-23 - Updated to use consolidated price utilities
  */
 
 import { ValuationData, TransmissionType } from "../../types";
-import { extractPrice, calculateReservePrice } from "@/utils/priceExtractor";
+import { extractPrice, calculateReservePrice } from "@/utils/priceUtils";
 import { findNestedProperty } from "./propertyUtils";
 
 export function normalizeValuationData(data: any): ValuationData {

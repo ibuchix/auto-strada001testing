@@ -2,9 +2,10 @@
 /**
  * Component for displaying price information in valuation results
  * Created: 2025-04-17
+ * Modified: 2025-04-23 - Updated to use consolidated price utilities
  */
 
-import { formatPrice } from '@/utils/priceExtractor';
+import { formatPrice } from '@/utils/priceUtils';
 
 interface PriceInfoDisplayProps {
   reservePrice: number;
