@@ -6,10 +6,12 @@
  * Updated: 2025-04-28 - Enhanced logging for API response debugging
  * Updated: 2025-04-29 - ADDED HIGHLY VISIBLE CONSOLE LOGGING FOR DEBUGGING
  * Updated: 2025-04-30 - Improved API response processing and price extraction
+ * Updated: 2025-04-30 - Fixed type compatibility with PriceData
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { extractPriceData } from "@/utils/valuation/priceExtractor";
+import { calculateReservePrice } from "@/utils/priceUtils";
 
 interface ValuationOptions {
   debug?: boolean;
@@ -115,17 +117,29 @@ export async function getValuation(
     // Enhanced price data extraction
     const priceData = extractPriceData(data);
     
+    if (priceData === null) {
+      console.error('%c❌ FAILED TO EXTRACT PRICE DATA', 'background: #FF5252; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
+      return {
+        success: false,
+        data: { error: 'Could not extract valid price data from the API response' },
+        error: new Error('Price data extraction failed')
+      };
+    }
+
+    // Calculate reserve price if not already set
+    const reservePrice = priceData.reservePrice || calculateReservePrice(priceData.basePrice);
+    
     // Prepare enhanced response with extracted prices
     const enhancedResponse = {
       ...data,
       // Make sure price fields are present 
-      reservePrice: priceData.reservePrice || data.reservePrice || 0,
-      valuation: priceData.valuation || data.valuation || 0,
-      basePrice: priceData.basePrice || data.basePrice || 0,
-      averagePrice: priceData.averagePrice || data.averagePrice || 0,
+      reservePrice: reservePrice,
+      valuation: priceData.valuation || priceData.basePrice,
+      basePrice: priceData.basePrice,
+      averagePrice: priceData.averagePrice || priceData.price_med,
       // Add estimation metadata
-      usingFallbackEstimation: data.usingFallbackEstimation || priceData.valuation !== data.valuation,
-      estimationMethod: data.estimationMethod || (priceData.valuation !== data.valuation ? 'enhanced_price_extraction' : undefined)
+      usingFallbackEstimation: data.usingFallbackEstimation || false,
+      estimationMethod: data.estimationMethod || 'calcValuation'
     };
     
     // Check for valid vehicle data

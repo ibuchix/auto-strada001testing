@@ -1,13 +1,15 @@
+
 /**
  * Changes made:
  * - 2025-04-24: Refactored to use strict calcValuation price extraction
+ * - 2025-04-24: Fixed type compatibility issues with TransmissionType
  */
 
 import { extractVehicleData } from './core/dataExtractor';
 import { extractPriceData } from './priceExtractor';
 import { calculateReservePrice } from '@/utils/priceUtils';
 import { inspectApiResponse } from './apiResponseInspector';
-import { ValuationData } from './valuationDataTypes';
+import { ValuationData, TransmissionType } from './valuationDataTypes';
 
 export function normalizeValuationData(rawData: any): ValuationData {
   // First, deeply inspect the API response
@@ -22,6 +24,10 @@ export function normalizeValuationData(rawData: any): ValuationData {
   // Extract vehicle data
   const vehicleData = extractVehicleData(rawData);
   
+  // Ensure transmission is a valid TransmissionType
+  const safeTransmission: TransmissionType = 
+    vehicleData.transmission === 'automatic' ? 'automatic' : 'manual';
+  
   // Extract price data - only from calcValuation
   const priceData = extractPriceData(rawData);
   
@@ -29,6 +35,7 @@ export function normalizeValuationData(rawData: any): ValuationData {
     console.error('Failed to extract valid price data from calcValuation');
     return {
       ...vehicleData,
+      transmission: safeTransmission,
       valuation: 0,
       reservePrice: 0,
       averagePrice: 0,
@@ -43,6 +50,7 @@ export function normalizeValuationData(rawData: any): ValuationData {
   
   return {
     ...vehicleData,
+    transmission: safeTransmission,
     valuation: priceData.basePrice,
     reservePrice,
     averagePrice: priceData.price_med,
