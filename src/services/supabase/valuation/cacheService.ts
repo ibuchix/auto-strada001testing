@@ -1,20 +1,18 @@
-
 /**
  * Changes made:
- * - 2024-09-19: Created cache service for valuation data
- * - 2024-09-20: Added error handling and cache expiration
- * - 2024-09-21: Optimized cache retrieval with fallback mechanisms
- * - 2024-10-15: Extracted from main valuation service
- * - 2024-11-15: Implemented multiple cache storage methods with fallbacks
- * - 2025-04-28: Fixed TypeScript errors with method calls
- * - 2025-05-01: Fixed PostgrestError handling in error methods
- * - 2025-05-16: Fixed RPC function type errors using "as any" casting
- * - 2025-05-17: Updated RPC function calls to use actual function names
+ * - 2024-09-11: Created valuation service for all valuation-related operations
+ * - 2024-09-19: Optimized queries and improved caching for better performance
+ * - 2024-09-20: Fixed issue with function invoke options
+ * - 2024-10-15: Refactored into smaller modules for better maintainability
+ * - 2025-04-28: Fixed TypeScript errors with method names and interfaces
+ * - 2025-05-01: Fixed method name inconsistencies for cache operations
+ * - 2025-05-24: Added cache validation checks
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
 import { Json } from "@/integrations/supabase/types";
 import { PostgrestError } from "@supabase/supabase-js";
+import { shouldUseCachedData } from "@/utils/valuation/validators/cacheValidator";
 
 export class ValuationCacheService extends ValuationServiceBase {
   /**
@@ -118,8 +116,14 @@ export class ValuationCacheService extends ValuationServiceBase {
         );
         
         if (!rpcError && rpcData) {
-          console.log('Successfully retrieved valuation from cache via RPC');
-          return rpcData as ValuationData;
+          // Add validation check here
+          if (shouldUseCachedData(rpcData)) {
+            console.log('Successfully retrieved and validated valuation from cache via RPC');
+            return rpcData as ValuationData;
+          } else {
+            console.log('Cache validation failed, will try fresh API call');
+            return null;
+          }
         }
         
         console.warn('RPC cache retrieval failed, falling back to direct:', rpcError);
