@@ -6,6 +6,7 @@
  * Updated: 2025-04-24 - Removed all caching functionality
  * Updated: 2025-04-24 - Fixed remaining cache references causing "using_cached_valuation" logs
  * Updated: 2025-04-24 - Added enhanced environment variable debugging
+ * Updated: 2025-04-24 - Added fallback mechanism for API credentials
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -13,7 +14,7 @@ import { corsHeaders } from "./utils/cors.ts";
 import { callValuationApi } from "./utils/api-service.ts";
 import { processValuationData } from "./utils/data-processor.ts";
 import { logOperation } from "./utils/logging.ts";
-import { checkApiCredentials, debugApiEndpoint } from "./utils/debug-helper.ts";
+import { checkApiCredentials, getApiCredentials, debugApiEndpoint } from "./utils/debug-helper.ts";
 
 serve(async (req) => {
   // Handle CORS if needed
@@ -57,7 +58,6 @@ serve(async (req) => {
       requestId,
       valid: credentialCheck.valid,
       ...credentialCheck.details,
-      envVarNames: Object.keys(Deno.env.toObject()).join(',')
     });
     
     if (!credentialCheck.valid) {
@@ -81,11 +81,10 @@ serve(async (req) => {
       );
     }
     
-    // Get API credentials
-    const apiId = Deno.env.get('CAR_API_ID') || Deno.env.get('VALUATION_API_ID') || 'AUTOSTRA';
-    const apiSecret = Deno.env.get('CAR_API_SECRET') || Deno.env.get('VALUATION_API_SECRET');
+    // Get API credentials with our enhanced helper function
+    const { apiId, apiSecret } = getApiCredentials();
     
-    if (!apiSecret) {
+    if (!apiId || !apiSecret) {
       logOperation('missing_api_secret', { 
         requestId,
         availableEnvVars: Object.keys(Deno.env.toObject())
@@ -202,7 +201,8 @@ serve(async (req) => {
         requestId,
         timestamp: new Date().toISOString(),
         originalDataKeys: Object.keys(rawData || {}),
-        extractedDataKeys: Object.keys(processedData || {})
+        extractedDataKeys: Object.keys(processedData || {}),
+        credentialDetails: credentialCheck.details
       } : undefined
     };
     
@@ -233,7 +233,8 @@ serve(async (req) => {
         error: errorMessage,
         errorStack: error.stack,
         errorType: error.name,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        environmentVariables: Object.keys(Deno.env.toObject())
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -3,6 +3,7 @@
  * API service utilities for get-vehicle-valuation
  * Updated: 2025-04-29 - Enhanced error handling and logging
  * Updated: 2025-05-15 - Removed all references to caching, ensure direct API calls
+ * Updated: 2025-04-24 - Added fallback mechanism for API credentials
  */
 
 import { logOperation } from './logging.ts';
@@ -26,21 +27,35 @@ export async function callValuationApi(
   requestId: string
 ): Promise<ValuationApiResponse> {
   try {
+    // Log API credentials status before making the call
+    logOperation('api_call_credentials', {
+      requestId,
+      hasApiId: !!apiId,
+      hasApiSecret: !!apiSecret,
+      apiIdLength: apiId?.length || 0,
+      apiSecretLength: apiSecret?.length || 0,
+      usingHardcodedValues: apiId === 'AUTOSTRA' && apiSecret === 'A4FTFH54C3E37P2D34A16A7A4V41XKBF'
+    });
+    
+    // Fallback to hardcoded values if needed
+    const effectiveApiId = apiId || 'AUTOSTRA';
+    const effectiveApiSecret = apiSecret || 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
+    
     // Calculate checksum for API
-    const checksumContent = apiId + apiSecret + vin;
+    const checksumContent = effectiveApiId + effectiveApiSecret + vin;
     const checksum = await calculateMd5(checksumContent);
     
     logOperation('api_call_details', {
       requestId,
       vin,
       mileage,
-      apiId,
+      apiId: effectiveApiId,
       checksumGenerated: true,
       timestamp: new Date().toISOString()
     });
     
     // Build API URL
-    const valApiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    const valApiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${effectiveApiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
     
     logOperation('api_call_start', { 
       requestId, 
@@ -52,6 +67,7 @@ export async function callValuationApi(
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
+        'User-Agent': 'AutostradaAppV1'
       },
     });
     
