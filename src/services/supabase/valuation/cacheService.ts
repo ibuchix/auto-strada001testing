@@ -9,6 +9,7 @@
  * - 2025-05-24: Added cache validation checks
  * - 2025-05-25: Added fallback to fresh API call when cache is invalid
  * - 2025-05-26: Added automatic cache cleanup for invalid entries
+ * - 2025-05-27: Added detailed cache data structure logging
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
@@ -22,7 +23,17 @@ export class ValuationCacheService extends ValuationServiceBase {
    */
   async storeInCache(vin: string, mileage: number, valuationData: ValuationData): Promise<boolean> {
     try {
-      console.log('Attempting to store valuation in cache:', { vin, mileage });
+      console.log('Attempting to store valuation in cache:', { 
+        vin, 
+        mileage,
+        dataStructure: {
+          hasData: !!valuationData,
+          topLevelKeys: Object.keys(valuationData || {}),
+          hasPriceFields: !!(valuationData?.price_min || valuationData?.price_med),
+          hasValuation: !!valuationData?.valuation,
+          hasVehicleInfo: !!(valuationData?.make && valuationData?.model)
+        }
+      });
       
       // Try to use the security definer function first (most reliable)
       try {
@@ -130,9 +141,37 @@ export class ValuationCacheService extends ValuationServiceBase {
         return null;
       }
       
+      console.log('Fresh valuation data structure:', {
+        hasData: !!data,
+        topLevelKeys: Object.keys(data),
+        dataTypes: Object.entries(data).reduce((acc, [key, value]) => ({
+          ...acc,
+          [key]: typeof value
+        }), {}),
+        nestedStructures: Object.entries(data).reduce((acc, [key, value]) => ({
+          ...acc,
+          [key]: value && typeof value === 'object' ? 'nested object' : 'primitive'
+        }), {}),
+        priceFields: Object.entries(data).filter(([key]) => 
+          key.toLowerCase().includes('price') || 
+          key.toLowerCase().includes('value') ||
+          key.toLowerCase().includes('valuation')
+        ).reduce((acc, [key, value]) => ({
+          ...acc,
+          [key]: value
+        }), {})
+      });
+      
       // Validate fresh data
       if (!shouldUseCachedData(data)) {
-        console.warn('Fresh API data failed validation');
+        console.warn('Fresh API data failed validation:', {
+          hasRequiredFields: {
+            make: !!data.make,
+            model: !!data.model,
+            year: !!data.year,
+            pricing: !!(data.price_min || data.price_med || data.valuation)
+          }
+        });
         return null;
       }
       
@@ -151,6 +190,8 @@ export class ValuationCacheService extends ValuationServiceBase {
    */
   async getFromCache(vin: string, mileage: number): Promise<ValuationData | null> {
     try {
+      console.log('Starting cache retrieval for:', { vin, mileage });
+      
       // Before retrieving, clean up invalid entries
       await this.cleanupInvalidCache();
       
@@ -165,6 +206,17 @@ export class ValuationCacheService extends ValuationServiceBase {
         );
         
         if (!rpcError && rpcData) {
+          console.log('RPC cache retrieval result:', {
+            success: true,
+            dataStructure: {
+              hasData: !!rpcData,
+              topLevelKeys: Object.keys(rpcData),
+              hasPricingData: !!(rpcData.price_min || rpcData.price_med || rpcData.valuation),
+              hasVehicleInfo: !!(rpcData.make && rpcData.model),
+              timestamp: rpcData.created_at || 'unknown'
+            }
+          });
+          
           // Validate cached data
           if (shouldUseCachedData(rpcData)) {
             console.log('Successfully retrieved and validated valuation from cache via RPC');
@@ -175,9 +227,15 @@ export class ValuationCacheService extends ValuationServiceBase {
           return await this.fetchFreshValuation(vin, mileage);
         }
         
-        console.warn('RPC cache retrieval failed, falling back to direct:', rpcError);
+        console.warn('RPC cache retrieval failed:', {
+          error: rpcError,
+          attempted: { vin, mileage }
+        });
       } catch (rpcException) {
-        console.warn('Exception in RPC cache retrieval:', rpcException);
+        console.warn('Exception in RPC cache retrieval:', {
+          error: rpcException,
+          context: { vin, mileage }
+        });
       }
       
       // Fallback 1: Direct query
@@ -191,6 +249,17 @@ export class ValuationCacheService extends ValuationServiceBase {
           .maybeSingle();
         
         if (!error && data && data.valuation_data) {
+          console.log('Direct cache retrieval result:', {
+            success: true,
+            dataStructure: {
+              hasData: !!data.valuation_data,
+              topLevelKeys: Object.keys(data.valuation_data),
+              hasPricingData: !!(data.valuation_data.price_min || data.valuation_data.price_med || data.valuation_data.valuation),
+              hasVehicleInfo: !!(data.valuation_data.make && data.valuation_data.model),
+              timestamp: data.valuation_data.created_at || 'unknown'
+            }
+          });
+          
           // Validate direct query data
           if (shouldUseCachedData(data.valuation_data)) {
             console.log('Successfully retrieved and validated valuation from cache via direct query');
@@ -221,6 +290,17 @@ export class ValuationCacheService extends ValuationServiceBase {
         );
         
         if (!funcError && funcData && funcData.data) {
+          console.log('Edge function cache retrieval result:', {
+            success: true,
+            dataStructure: {
+              hasData: !!funcData.data,
+              topLevelKeys: Object.keys(funcData.data),
+              hasPricingData: !!(funcData.data.price_min || funcData.data.price_med || funcData.data.valuation),
+              hasVehicleInfo: !!(funcData.data.make && funcData.data.model),
+              timestamp: funcData.data.created_at || 'unknown'
+            }
+          });
+          
           // Validate edge function data
           if (shouldUseCachedData(funcData.data)) {
             console.log('Successfully retrieved and validated valuation from cache via edge function');
