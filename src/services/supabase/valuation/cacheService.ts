@@ -7,6 +7,7 @@
  * - 2025-04-28: Fixed TypeScript errors with method names and interfaces
  * - 2025-05-01: Fixed method name inconsistencies for cache operations
  * - 2025-05-24: Added cache validation checks
+ * - 2025-05-25: Added fallback to fresh API call when cache is invalid
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
@@ -101,7 +102,51 @@ export class ValuationCacheService extends ValuationServiceBase {
   }
   
   /**
-   * Get valuation data from cache with multiple fallback methods
+   * Fetch fresh valuation data from API
+   */
+  private async fetchFreshValuation(vin: string, mileage: number): Promise<ValuationData | null> {
+    console.log('Fetching fresh valuation data for:', { vin, mileage });
+    
+    try {
+      const { data, error } = await this.supabase.functions.invoke(
+        'get-vehicle-valuation',
+        {
+          body: { 
+            vin, 
+            mileage,
+            includeRawResponse: true
+          }
+        }
+      );
+      
+      if (error) {
+        console.error('Error fetching fresh valuation:', error);
+        return null;
+      }
+      
+      if (!data) {
+        console.warn('No data returned from fresh valuation call');
+        return null;
+      }
+      
+      // Validate fresh data
+      if (!shouldUseCachedData(data)) {
+        console.warn('Fresh API data failed validation');
+        return null;
+      }
+      
+      // Store valid fresh data in cache
+      await this.storeInCache(vin, mileage, data);
+      
+      return data as ValuationData;
+    } catch (error) {
+      console.error('Exception fetching fresh valuation:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get valuation data from cache with fallback to fresh API call
    */
   async getFromCache(vin: string, mileage: number): Promise<ValuationData | null> {
     try {
@@ -116,14 +161,14 @@ export class ValuationCacheService extends ValuationServiceBase {
         );
         
         if (!rpcError && rpcData) {
-          // Add validation check here
+          // Validate cached data
           if (shouldUseCachedData(rpcData)) {
             console.log('Successfully retrieved and validated valuation from cache via RPC');
             return rpcData as ValuationData;
-          } else {
-            console.log('Cache validation failed, will try fresh API call');
-            return null;
           }
+          
+          console.log('Cache validation failed, will try fresh API call');
+          return await this.fetchFreshValuation(vin, mileage);
         }
         
         console.warn('RPC cache retrieval failed, falling back to direct:', rpcError);
@@ -142,8 +187,14 @@ export class ValuationCacheService extends ValuationServiceBase {
           .maybeSingle();
         
         if (!error && data && data.valuation_data) {
-          console.log('Successfully retrieved valuation from cache via direct query');
-          return data.valuation_data as ValuationData;
+          // Validate direct query data
+          if (shouldUseCachedData(data.valuation_data)) {
+            console.log('Successfully retrieved and validated valuation from cache via direct query');
+            return data.valuation_data as ValuationData;
+          }
+          
+          console.log('Direct cache validation failed, will try fresh API call');
+          return await this.fetchFreshValuation(vin, mileage);
         }
         
         console.warn('Direct cache retrieval failed:', error || 'No data found');
@@ -166,8 +217,14 @@ export class ValuationCacheService extends ValuationServiceBase {
         );
         
         if (!funcError && funcData && funcData.data) {
-          console.log('Successfully retrieved valuation from cache via edge function');
-          return funcData.data as ValuationData;
+          // Validate edge function data
+          if (shouldUseCachedData(funcData.data)) {
+            console.log('Successfully retrieved and validated valuation from cache via edge function');
+            return funcData.data as ValuationData;
+          }
+          
+          console.log('Edge function cache validation failed, will try fresh API call');
+          return await this.fetchFreshValuation(vin, mileage);
         }
         
         console.warn('Edge function cache retrieval failed:', funcError || 'No data returned');
@@ -175,8 +232,10 @@ export class ValuationCacheService extends ValuationServiceBase {
         console.warn('Exception in edge function cache retrieval:', funcException);
       }
       
-      console.log('No cached valuation found after trying all methods');
-      return null;
+      // All cache methods failed, try fresh API call
+      console.log('All cache methods failed, trying fresh API call');
+      return await this.fetchFreshValuation(vin, mileage);
+      
     } catch (error: any) {
       this.handleCacheError(error instanceof PostgrestError ? error.message : String(error), "Failed to retrieve valuation from cache");
       return null;
