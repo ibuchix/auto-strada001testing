@@ -4,6 +4,7 @@
  * Updated: 2025-04-25 - Enhanced price data extraction and error handling
  * Updated: 2025-04-28 - Added extensive debugging and response validation
  * Updated: 2025-05-01 - Added raw API response inclusion for debugging
+ * Updated: 2025-04-24 - Removed all caching functionality
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -77,10 +78,10 @@ serve(async (req) => {
     // Debug the API endpoint that will be called
     debugApiEndpoint(vin, mileage, requestId);
     
-    // Call external valuation API
+    // Call external valuation API - always fetch fresh data
     logOperation('calling_external_api', { requestId, vin, mileage });
     const apiResponseStart = performance.now();
-    const apiResponse = await callValuationApi(vin, mileage, requestId);
+    const apiResponse = await callValuationApi(vin, mileage, apiId, apiSecret, requestId);
     const apiResponseTime = performance.now() - apiResponseStart;
     
     // Log API response details

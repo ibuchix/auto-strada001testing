@@ -16,11 +16,6 @@ class ValuationService {
     return this.apiService.getValuation(vin, mileage, gearbox);
   }
   
-  async storeValuationCache(): Promise<void> {
-    // No-op method, cache is disabled
-    return;
-  }
-  
   async getSellerValuation(vin: string, mileage: number, gearbox: string, userId: string): Promise<ValuationData | null> {
     return this.apiService.getSellerValuation(vin, mileage, gearbox, userId);
   }

@@ -7,17 +7,16 @@
 
 import { logOperation } from './logging.ts';
 
-export function getCachedValidation(): any | null {
-  // Caching disabled - always return null to force API call
+// These functions have been completely removed as part of the cache removal initiative
+// They are kept as empty functions to prevent breaking existing imports
+export function getCachedValidation(): null {
   return null;
 }
 
 export function cacheValidation(): void {
-  // Caching disabled - no storage needed
   return;
 }
 
 function pruneExpiredCache(): void {
-  // Caching disabled - no cleanup needed
   return;
 }

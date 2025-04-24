@@ -1,10 +1,11 @@
+
 /**
- * Handler for cache-related operations
+ * Handler for cache-related operations - now only maintains API compatibility
+ * Updated: 2025-04-24 - Removed all caching functionality
  */
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { logOperation } from '../../_shared/logging.ts';
-import { cacheValidation, getCachedValidation } from '../utils/cache.ts';
 
 export interface CacheResult {
   success: boolean;
@@ -18,7 +19,7 @@ export async function handleCacheOperations(
   requestData: any,
   requestId: string
 ): Promise<CacheResult> {
-  const { vin, mileage } = requestData;
+  const { vin } = requestData;
   
   // Validate required fields
   if (!vin) {
@@ -35,168 +36,27 @@ export async function handleCacheOperations(
   }
   
   try {
-    // Handle different cache operations
+    // Handle different cache operations - all now return empty results
+    // as caching functionality has been removed
     switch (operation) {
       case 'cache_valuation': {
-        // Make sure we have valuation data
-        if (!requestData.valuation_data) {
-          logOperation('cache_operation_error', {
-            requestId,
-            operation,
-            error: 'Missing valuation_data parameter'
-          }, 'error');
-          
-          return {
-            success: false,
-            error: "Valuation data is required"
-          };
-        }
-        
-        // Handle in-memory cache
-        cacheValidation(vin, requestData.valuation_data, mileage);
-        
-        // Also store in database for persistence
-        try {
-          const { error } = await supabase.rpc(
-            'store_vin_valuation_cache',
-            {
-              p_vin: vin,
-              p_mileage: mileage || 0,
-              p_valuation_data: requestData.valuation_data,
-              p_log_id: requestId
-            }
-          );
-          
-          if (error) {
-            logOperation('db_cache_store_error', {
-              requestId,
-              vin,
-              error: error.message
-            }, 'warn');
-            
-            // Try direct insertion/update as fallback
-            const { error: directError } = await supabase
-              .from('vin_valuation_cache')
-              .upsert({
-                vin,
-                mileage: mileage || 0, 
-                valuation_data: requestData.valuation_data
-              });
-              
-            if (directError) {
-              logOperation('direct_cache_store_error', {
-                requestId,
-                vin,
-                error: directError.message
-              }, 'warn');
-            }
-          }
-        } catch (dbError) {
-          // Log but continue since we already stored in memory cache
-          logOperation('db_cache_store_exception', {
-            requestId,
-            vin,
-            error: dbError.message
-          }, 'warn');
-        }
-        
-        logOperation('cache_store_complete', {
+        logOperation('cache_operation_skipped', {
           requestId,
-          vin,
-          mileage
+          operation,
+          reason: 'Caching removed'
         });
         
         return {
           success: true,
-          data: { cached: true }
+          data: { cached: false }
         };
       }
         
       case 'get_cached_valuation': {
-        // Check in-memory cache first
-        const memoryCache = getCachedValidation(vin, mileage);
-        
-        if (memoryCache) {
-          logOperation('memory_cache_hit', {
-            requestId,
-            vin
-          });
-          
-          return {
-            success: true,
-            data: memoryCache
-          };
-        }
-        
-        // Try database cache
-        try {
-          const { data, error } = await supabase.rpc(
-            'get_vin_valuation_cache',
-            {
-              p_vin: vin,
-              p_mileage: mileage || 0,
-              p_log_id: requestId
-            }
-          );
-          
-          if (!error && data) {
-            // Store in memory cache for faster future access
-            cacheValidation(vin, data, mileage);
-            
-            logOperation('db_cache_hit', {
-              requestId,
-              vin
-            });
-            
-            return {
-              success: true,
-              data
-            };
-          }
-          
-          // Try direct query if RPC failed
-          if (error) {
-            logOperation('rpc_cache_error', {
-              requestId,
-              vin,
-              error: error.message
-            }, 'warn');
-            
-            const { data: directData, error: directError } = await supabase
-              .from('vin_valuation_cache')
-              .select('valuation_data')
-              .eq('vin', vin)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-              
-            if (!directError && directData?.valuation_data) {
-              // Store in memory cache
-              cacheValidation(vin, directData.valuation_data, mileage);
-              
-              logOperation('direct_db_cache_hit', {
-                requestId,
-                vin
-              });
-              
-              return {
-                success: true,
-                data: directData.valuation_data
-              };
-            }
-          }
-        } catch (dbError) {
-          logOperation('db_cache_query_exception', {
-            requestId,
-            vin,
-            error: dbError.message
-          }, 'warn');
-        }
-        
-        // No cache hit anywhere
         logOperation('cache_miss', {
           requestId,
-          vin
+          vin,
+          reason: 'Caching removed'
         });
         
         return {

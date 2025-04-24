@@ -8,6 +8,7 @@
  * - 2024-07-22: Refactored into smaller modules for better maintainability
  * - 2025-07-04: Further refactored into dedicated service modules
  * - 2025-12-22: Fixed valuation data processing and property name consistency
+ * - 2025-04-24: Removed all caching functionality
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
@@ -15,8 +16,7 @@ import { Database } from '../_shared/database.types.ts';
 import { 
   checkRateLimit, 
   logOperation, 
-  ValidationError, 
-  getCachedValidation
+  ValidationError
 } from './utils.ts';
 import { fetchExternalValuation, calculateReservePrice } from './external-api.ts';
 import { 
@@ -62,36 +62,7 @@ export const validateVin = async (
       };
     }
 
-    // Check cache first before API calls
-    const cachedData = getCachedValidation(vin, mileage);
-    if (cachedData) {
-      logOperation('using_cached_validation', { requestId, vin, mileage });
-      
-      // If the cached data indicates the vehicle already exists
-      if (cachedData.isExisting) {
-        return {
-          success: true,
-          data: {
-            isExisting: true,
-            error: 'This vehicle has already been listed'
-          }
-        };
-      }
-      
-      // If we have a valid cached valuation, process the result
-      if (cachedData.make && cachedData.model && cachedData.year) {
-        // Ensure consistent property names for valuation/reservePrice
-        if (cachedData.valuation !== undefined && cachedData.reservePrice === undefined) {
-          cachedData.reservePrice = cachedData.valuation;
-        } else if (cachedData.reservePrice !== undefined && cachedData.valuation === undefined) {
-          cachedData.valuation = cachedData.reservePrice;
-        }
-        
-        return await processValidationResult(supabase, vin, userId, cachedData, mileage, requestId);
-      }
-    }
-
-    // Get valuation from external API
+    // Get valuation from external API - always fetch fresh data
     const data = await fetchExternalValuation(vin, mileage, requestId);
     logOperation('external_valuation_received', { 
       requestId, 
@@ -134,7 +105,7 @@ export const validateVin = async (
     // Get reserve price
     const reservePrice = await calculateReservePrice(supabase, basePrice, requestId);
     
-    // Add the reserve price to the data for caching
+    // Add the reserve price to the data
     const valuationData = {
       ...data,
       reservePrice,

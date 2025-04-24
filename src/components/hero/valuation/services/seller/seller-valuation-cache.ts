@@ -1,15 +1,16 @@
 
 /**
  * Changes made:
- * - 2025-04-24: Removed caching mechanism to ensure direct API calls
+ * - 2025-04-24: Removed caching mechanism completely
  */
 
-export async function getSellerValuationCache(): Promise<any | null> {
-  // Caching disabled - always return null to force API call
+// All seller valuation cache functionality has been removed
+// Empty implementations maintained for API compatibility
+
+export async function getSellerValuationCache(): Promise<null> {
   return null;
 }
 
 export async function storeSellerValuationCache(): Promise<void> {
-  // Caching disabled - no storage needed
   return;
 }

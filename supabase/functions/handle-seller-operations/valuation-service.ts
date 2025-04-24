@@ -1,9 +1,9 @@
 // This file contains service functions for fetching vehicle valuations
+// Updated: 2025-04-24 - Removed all caching functionality
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 import { logOperation } from './utils/logging.ts';
-import { getCachedValidation, cacheValidation } from './utils/cache.ts';
 
 export interface ValuationResult {
   success: boolean;
@@ -20,16 +20,6 @@ export async function fetchVehicleValuation(
   requestId: string
 ): Promise<ValuationResult> {
   try {
-    // Check if data is in cache first
-    const cachedData = await getCachedValidation(vin, mileage);
-    if (cachedData) {
-      logOperation('using_cached_validation', { requestId, vin });
-      return {
-        success: true,
-        data: cachedData
-      };
-    }
-    
     // Get API credentials 
     const apiId = Deno.env.get("CAR_API_ID");
     const apiSecret = Deno.env.get("CAR_API_SECRET");
@@ -106,9 +96,6 @@ export async function fetchVehicleValuation(
         reservePrice: reservePrice,
         averagePrice: valuationData.price_med || valuation
       };
-      
-      // Store in cache for future use
-      await cacheValidation(vin, mileage, vehicleData);
       
       logOperation('api_request_success', { 
         requestId, 

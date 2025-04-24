@@ -1,6 +1,8 @@
+
 /**
  * Valuation handler for seller operations
  * Updated: 2025-04-21 - Fixed import paths to use local utils instead of shared
+ * Updated: 2025-04-24 - Removed all caching code to ensure direct API calls
  */
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -103,109 +105,31 @@ export async function handleValuationRequest(
       };
     }
     
-    // Try to get cached valuation first (non-blocking)
-    let cachedValuationResult = null;
-    try {
-      // Log cache lookup attempt
-      logOperation('cache_lookup_start', { 
-        requestId, 
-        vin,
-        mileage,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Attempt to get cached valuation with a timeout to avoid blocking main flow
-      const cacheStartTime = performance.now();
-      const cachePromise = supabase.functions.invoke('handle-seller-operations', {
-        body: {
-          operation: 'get_cached_valuation',
-          vin,
-          mileage
-        }
-      });
-      
-      // Set a timeout to ensure non-blocking behavior
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Cache lookup timed out')), 1500);
-      });
-      
-      // Race the cache lookup against the timeout
-      const cacheResult = await Promise.race([cachePromise, timeoutPromise])
-        .catch(error => {
-          logOperation('cache_lookup_skip', { 
-            requestId, 
-            reason: error.message,
-            duration: (performance.now() - cacheStartTime).toFixed(2) + 'ms',
-            timestamp: new Date().toISOString()
-          }, 'info');
-          return null;
-        });
-      
-      perfTracker.checkpoint('cache_lookup');
-      
-      if (cacheResult?.data?.success && cacheResult?.data?.data) {
-        logOperation('using_cached_valuation', { 
-          requestId, 
-          vin,
-          cacheLookupTimeMs: (performance.now() - cacheStartTime).toFixed(2),
-          dataKeys: Object.keys(cacheResult.data.data),
-          timestamp: new Date().toISOString()
-        });
-        
-        cachedValuationResult = cacheResult.data.data;
-        
-        // Ensure consistent property names in cached data
-        if (cachedValuationResult.valuation !== undefined && cachedValuationResult.reservePrice === undefined) {
-          cachedValuationResult.reservePrice = cachedValuationResult.valuation;
-        } else if (cachedValuationResult.reservePrice !== undefined && cachedValuationResult.valuation === undefined) {
-          cachedValuationResult.valuation = cachedValuationResult.reservePrice;
-        }
-      }
-    } catch (cacheError) {
-      // Log but continue with regular valuation flow
-      logOperation('cache_lookup_error', { 
-        requestId, 
-        error: cacheError.message,
-        stack: cacheError.stack,
-        timestamp: new Date().toISOString()
-      }, 'warn');
-    }
+    // Log external API request start
+    logOperation('external_valuation_start', { 
+      requestId, 
+      vin,
+      mileage,
+      gearbox,
+      timestamp: new Date().toISOString()
+    });
     
-    // Use cached data if available or fetch from external service
-    let valuationResult;
-    if (cachedValuationResult) {
-      valuationResult = {
-        success: true,
-        data: cachedValuationResult
-      };
-      perfTracker.checkpoint('using_cached_data');
-    } else {
-      // Log external API request start
-      logOperation('external_valuation_start', { 
-        requestId, 
-        vin,
-        mileage,
-        gearbox,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Time the external API call
-      const apiStartTime = performance.now();
-      valuationResult = await fetchVehicleValuation(vin, mileage, gearbox, requestId);
-      const apiCallDuration = performance.now() - apiStartTime;
-      
-      perfTracker.checkpoint('external_api_call');
-      
-      // Log external API result
-      logOperation('external_valuation_result', { 
-        requestId, 
-        vin,
-        success: valuationResult.success,
-        error: valuationResult.error || null,
-        durationMs: apiCallDuration.toFixed(2),
-        timestamp: new Date().toISOString()
-      });
-    }
+    // Time the external API call - always call external API, no caching
+    const apiStartTime = performance.now();
+    const valuationResult = await fetchVehicleValuation(vin, mileage, gearbox, requestId);
+    const apiCallDuration = performance.now() - apiStartTime;
+    
+    perfTracker.checkpoint('external_api_call');
+    
+    // Log external API result
+    logOperation('external_valuation_result', { 
+      requestId, 
+      vin,
+      success: valuationResult.success,
+      error: valuationResult.error || null,
+      durationMs: apiCallDuration.toFixed(2),
+      timestamp: new Date().toISOString()
+    });
     
     if (!valuationResult.success) {
       perfTracker.complete('failure', { 
@@ -230,34 +154,7 @@ export async function handleValuationRequest(
       }
     }
     
-    // Store in cache asynchronously - don't await, fire and forget
-    if (!cachedValuationResult) {
-      // Log cache store attempt
-      logOperation('cache_store_start', { 
-        requestId, 
-        vin,
-        timestamp: new Date().toISOString()
-      }, 'debug');
-      
-      // Fire and forget - don't block the main flow
-      supabase.functions.invoke('handle-seller-operations', {
-        body: {
-          operation: 'cache_valuation',
-          vin,
-          mileage,
-          valuation_data: valuationResult.data
-        }
-      }).catch(error => {
-        // Just log the error, don't let it affect the main flow
-        logOperation('cache_store_error', { 
-          requestId, 
-          error: error.message,
-          timestamp: new Date().toISOString()
-        }, 'warn');
-      });
-    }
-    
-    // Store in VIN reservations if not already present - also async
+    // Store in VIN reservations if not already present
     try {
       // Log reservation attempt
       logOperation('creating_vin_reservation', { 
@@ -267,7 +164,7 @@ export async function handleValuationRequest(
         timestamp: new Date().toISOString()
       }, 'debug');
       
-      // Fire and forget - don't await the result
+      // Store reservation
       supabase
         .from('vin_reservations')
         .insert({
@@ -307,7 +204,7 @@ export async function handleValuationRequest(
     }
     
     perfTracker.complete('success', { 
-      source: cachedValuationResult ? 'cache' : 'external_api',
+      source: 'external_api',
       vin,
       hasData: !!valuationResult.data,
       dataFields: valuationResult.data ? Object.keys(valuationResult.data) : []
@@ -317,7 +214,6 @@ export async function handleValuationRequest(
       requestId, 
       vin,
       success: true,
-      fromCache: !!cachedValuationResult,
       timestamp: new Date().toISOString()
     });
     
