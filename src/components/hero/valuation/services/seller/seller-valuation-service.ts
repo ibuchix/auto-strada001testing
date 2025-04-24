@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-11-21: Extracted from seller-valuation.ts as part of refactoring
@@ -13,7 +12,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ValuationResult, TransmissionType } from "../../types";
 import { hasEssentialData, handleApiError, storeReservationId } from "../utils/validation-helpers";
-import { getSellerValuationCache, storeSellerValuationCache } from "./seller-valuation-cache";
 import { fetchSellerValuationData } from "./seller-valuation-api";
 
 /**
@@ -122,51 +120,8 @@ export async function processSellerValuation(
       };
     }
     
-    // Try to get cached valuation
-    console.log('Attempting to retrieve cached valuation for:', { vin, mileage });
-    
-    try {
-      const cachedData = await getSellerValuationCache(vin, mileage);
-      
-      if (cachedData) {
-        console.log('Using cached valuation data for VIN:', vin);
-        console.log('Cache hit details:', {
-          hasReservePrice: !!cachedData.reservePrice,
-          hasValuation: !!cachedData.valuation,
-          make: cachedData.make,
-          model: cachedData.model
-        });
-        
-        const enhancedCachedData = ensureValidReservePrice(cachedData);
-        console.log('Enhanced cached data:', enhancedCachedData);
-        
-        // Even with cached data, we might need to create a reservation
-        try {
-          if (!enhancedCachedData.isExisting) {
-            await createReservationFromCachedData(vin, userId, enhancedCachedData);
-          }
-        } catch (error) {
-          console.error('Reservation error with cached data:', error);
-          // Continue with the cached data even if reservation process fails
-        }
-        
-        return {
-          success: true,
-          data: {
-            ...enhancedCachedData,
-            vin,
-            transmission: gearbox
-          }
-        };
-      }
-    } catch (cacheError) {
-      // Cache retrieval should never block main flow
-      console.error('Cache retrieval error:', cacheError);
-      console.log('Continuing with API call after cache error');
-    }
-    
-    // No cache found, proceed with API call
-    console.log('No cache found, fetching valuation from API for VIN:', vin);
+    // No cache check - proceed directly with API call
+    console.log('Fetching valuation from API for VIN:', vin);
     
     try {
       const response = await fetchSellerValuationData(vin, mileage, gearbox, userId);
@@ -248,19 +203,6 @@ export async function processSellerValuation(
       
       // Log the normalized data to ensure it has the necessary properties
       console.log('Normalized valuation data:', normalizedData);
-      
-      // Try to cache the data but do it in non-blocking way
-      try {
-        // FIX: Create a Promise and handle it properly to avoid void.catch error
-        Promise.resolve()
-          .then(() => storeSellerValuationCache(vin, mileage, normalizedData))
-          .catch(cacheError => {
-            console.warn('Cache storage failed but continuing main flow:', cacheError);
-          });
-      } catch (cacheError) {
-        // Cache storage should never block main flow
-        console.warn('Exception during cache storage attempt:', cacheError);
-      }
       
       console.log('Returning complete valuation data for seller context');
       return {
