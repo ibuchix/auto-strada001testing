@@ -3,6 +3,7 @@
  * Edge function for vehicle valuation
  * Updated: 2025-04-25 - Enhanced price data extraction and error handling
  * Updated: 2025-04-28 - Added extensive debugging and response validation
+ * Updated: 2025-05-01 - Added raw API response inclusion for debugging
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -25,7 +26,7 @@ serve(async (req) => {
     
     // Parse request data
     const requestJson = await req.json();
-    const { vin, mileage, gearbox, debug = true } = requestJson; // Default debug to true for troubleshooting
+    const { vin, mileage, gearbox, debug = true, includeRawResponse = true } = requestJson; // Default debug to true for troubleshooting
     
     // Log received parameters
     logOperation('request_received', {
@@ -34,6 +35,7 @@ serve(async (req) => {
       mileage,
       gearbox,
       debug,
+      includeRawResponse,
       timestamp: new Date().toISOString()
     });
     
@@ -110,7 +112,9 @@ serve(async (req) => {
           success: false,
           error: apiResponse.error || 'Failed to get valuation',
           apiSource: 'error',
-          errorDetails: apiResponse.error
+          errorDetails: apiResponse.error,
+          // Include the raw response even on error if requested
+          rawApiResponse: includeRawResponse ? apiResponse.rawResponse : undefined
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -165,6 +169,8 @@ serve(async (req) => {
       apiSource: processedData.basePrice > 0 ? 'auto_iso' : 'estimation',
       usingFallbackEstimation: processedData.basePrice === 0,
       gearbox: gearbox || processedData.transmission || 'manual',
+      // Include the original API response if requested
+      rawApiResponse: includeRawResponse ? apiResponse.rawResponse : undefined,
       debug: debug ? {
         requestId,
         timestamp: new Date().toISOString(),
@@ -181,7 +187,8 @@ serve(async (req) => {
       hasModel: !!finalResponse.model,
       hasYear: !!finalResponse.year,
       hasPrices: finalResponse.basePrice > 0 || finalResponse.reservePrice > 0,
-      usingFallback: finalResponse.usingFallbackEstimation
+      usingFallback: finalResponse.usingFallbackEstimation,
+      includesRawResponse: includeRawResponse
     });
     
     return new Response(

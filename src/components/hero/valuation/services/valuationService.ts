@@ -7,11 +7,13 @@
  * Updated: 2025-04-29 - ADDED HIGHLY VISIBLE CONSOLE LOGGING FOR DEBUGGING
  * Updated: 2025-04-30 - Improved API response processing and price extraction
  * Updated: 2025-04-30 - Fixed type compatibility with PriceData
+ * Updated: 2025-05-01 - Added detailed API response inspection
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { extractPriceData } from "@/utils/valuation/priceExtractor";
+import { extractPriceData, deepScanForPrices } from "@/utils/valuation/priceExtractor";
 import { calculateReservePrice } from "@/utils/priceUtils";
+import { inspectApiResponse } from "@/utils/valuation/apiResponseInspector";
 
 interface ValuationOptions {
   debug?: boolean;
@@ -56,8 +58,9 @@ export async function getValuation(
           vin, 
           mileage, 
           gearbox,
-          debug: options.debug || true, // Always enable debug for troubleshooting
-          requestId
+          debug: true, // Always enable debug for troubleshooting
+          requestId,
+          includeRawResponse: true // Ask for the raw response to be included
         }
       }
     );
@@ -68,23 +71,10 @@ export async function getValuation(
     console.log('%c📝 RAW RESPONSE JSON:', 'color: #2196F3; font-weight: bold');
     console.log(JSON.stringify(data, null, 2));
     
-    // Log response structure with clear formatting
-    console.log('%c🔍 RESPONSE STRUCTURE ANALYSIS:', 'background: #9C27B0; color: white; font-size: 12px; padding: 3px 6px; border-radius: 4px');
-    console.table({
-      hasData: !!data,
-      isObject: typeof data === 'object',
-      topLevelKeys: data ? Object.keys(data) : [],
-      hasMake: data?.make ? 'yes' : 'no',
-      hasModel: data?.model ? 'yes' : 'no',
-      hasYear: data?.year ? 'yes' : 'no',
-      hasPriceFields: !!(data?.price_min || data?.price_med || data?.basePrice),
-      hasReservePrice: data?.reservePrice ? 'yes' : 'no',
-      hasValuation: data?.valuation ? 'yes' : 'no',
-      errorPresent: data?.error ? 'yes' : 'no',
-      apiSource: data?.apiSource || 'unknown',
-      usingFallback: data?.usingFallbackEstimation ? 'yes' : 'no'
-    });
-
+    // Use our inspector utility to analyze the response
+    inspectApiResponse(data, 'VALUATION-SERVICE');
+    
+    // Check for error in the Edge Function response
     if (error) {
       console.error('%c❌ API ERROR:', 'background: #FF5252; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', error);
       return {
@@ -109,9 +99,22 @@ export async function getValuation(
       console.error('%c❌ API RETURNED ERROR:', 'background: #FF5252; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px', data.error);
       return {
         success: false,
-        data: { error: data.error },
+        data: { 
+          error: data.error, 
+          vin,
+          transmission: gearbox
+        },
         error: new Error(data.error)
       };
+    }
+
+    // Check if rawApiResponse was included
+    if (data.rawApiResponse) {
+      console.log('%c🔍 RAW API RESPONSE FROM EXTERNAL SERVICE:', 'background: #9C27B0; color: white; font-size: 12px; padding: 3px 6px; border-radius: 4px');
+      console.log(data.rawApiResponse);
+      
+      // Inspect the raw API response
+      inspectApiResponse(data.rawApiResponse, 'EXTERNAL-API');
     }
 
     // Enhanced price data extraction
@@ -119,9 +122,18 @@ export async function getValuation(
     
     if (priceData === null) {
       console.error('%c❌ FAILED TO EXTRACT PRICE DATA', 'background: #FF5252; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
+      
+      // Deep scan for any price fields to help debug
+      const priceFields = deepScanForPrices(data);
+      console.log('Price fields found anywhere in the response:', priceFields);
+      
       return {
         success: false,
-        data: { error: 'Could not extract valid price data from the API response' },
+        data: { 
+          error: 'Could not extract valid price data from the API response',
+          vin,
+          transmission: gearbox 
+        },
         error: new Error('Price data extraction failed')
       };
     }

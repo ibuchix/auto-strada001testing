@@ -1,10 +1,14 @@
 
+/**
+ * API service functions for vehicle valuation
+ * Updated: 2025-04-29 - ENHANCED LOGGING FOR DEBUGGING
+ * Updated: 2025-05-01 - Added raw response preservation
+ */
 import { logOperation } from "./logging.ts";
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 
 /**
  * Call the external valuation API
- * Updated: 2025-04-29 - ENHANCED LOGGING FOR DEBUGGING
  */
 export async function callValuationApi(vin: string, mileage: number, requestId: string) {
   try {
@@ -27,7 +31,8 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
       logOperation('missing_api_secret', { requestId }, 'error');
       return {
         success: false,
-        error: "Missing API secret key"
+        error: "Missing API secret key",
+        rawResponse: null
       };
     }
     
@@ -96,7 +101,8 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
         
         return {
           success: false,
-          error: `API responded with status: ${response.status}`
+          error: `API responded with status: ${response.status}`,
+          rawResponse: responseText
         };
       }
       
@@ -104,9 +110,12 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
       const responseText = await response.text();
       logOperation('api_response_text', {
         requestId,
-        responseText,
+        responseTextLength: responseText.length,  // Don't log the whole text to avoid overwhelming logs
         timestamp: new Date().toISOString()
       });
+      
+      // Store the raw response text for debugging
+      const rawResponse = responseText;
       
       let valuationData;
       try {
@@ -143,7 +152,8 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
         
         return {
           success: false,
-          error: `Failed to parse API response: ${parseError.message}`
+          error: `Failed to parse API response: ${parseError.message}`,
+          rawResponse
         };
       }
       
@@ -156,7 +166,8 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
         
         return {
           success: false,
-          error: valuationData.error
+          error: valuationData.error,
+          rawResponse
         };
       }
       
@@ -169,7 +180,8 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
       
       return {
         success: true,
-        data: valuationData
+        data: valuationData,
+        rawResponse
       };
     } catch (fetchError) {
       clearTimeout(timeoutId);
@@ -178,7 +190,8 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
         logOperation('api_timeout', { requestId }, 'error');
         return {
           success: false,
-          error: "API request timed out"
+          error: "API request timed out",
+          rawResponse: null
         };
       }
       
@@ -191,7 +204,8 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
       
       return {
         success: false,
-        error: `Fetch error: ${fetchError.message}`
+        error: `Fetch error: ${fetchError.message}`,
+        rawResponse: null
       };
     }
   } catch (error) {
@@ -204,7 +218,8 @@ export async function callValuationApi(vin: string, mileage: number, requestId: 
     
     return {
       success: false,
-      error: `Error in API service: ${error.message}`
+      error: `Error in API service: ${error.message}`,
+      rawResponse: null
     };
   }
 }

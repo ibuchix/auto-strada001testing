@@ -1,37 +1,66 @@
 
 /**
  * API Response Inspector Utility
- * Created: 2025-04-24
- * Purpose: Deep inspection of API responses to ensure proper data extraction
+ * Created: 2025-04-25
+ * 
+ * This utility inspects API responses to help debug issues with data extraction.
  */
 
-export function inspectApiResponse(data: any, source: string) {
+/**
+ * Inspect an API response and log useful debugging information
+ */
+export function inspectApiResponse(response: any, source: string = 'UNKNOWN'): void {
   console.group(`[${source}] API Response Inspection`);
   
-  // Log complete raw response
-  console.log('Complete raw response:', JSON.stringify(data, null, 2));
+  // Check if response exists
+  if (!response) {
+    console.error(`[${source}] Empty response received`);
+    console.groupEnd();
+    return;
+  }
   
-  // Analyze structure
-  console.log('Response structure:', {
-    hasData: !!data,
-    topLevelKeys: data ? Object.keys(data) : [],
-    hasFunctionResponse: !!data?.functionResponse,
-    hasValuation: !!data?.functionResponse?.valuation,
-    hasCalcValuation: !!data?.functionResponse?.valuation?.calcValuation
-  });
+  // Log basic structure
+  console.log(`[${source}] Response type:`, typeof response);
+  console.log(`[${source}] Top-level keys:`, Object.keys(response));
   
-  // If we have calcValuation, inspect it
-  if (data?.functionResponse?.valuation?.calcValuation) {
-    const calcValuation = data.functionResponse.valuation.calcValuation;
-    console.log('CalcValuation data found:', {
-      price_min: calcValuation.price_min,
-      price_med: calcValuation.price_med,
-      price: calcValuation.price,
-      hasValidPrices: typeof calcValuation.price_min === 'number' && 
-                     typeof calcValuation.price_med === 'number'
-    });
+  // Check for error
+  if (response.error) {
+    console.error(`[${source}] Error found in response:`, response.error);
+  }
+  
+  // Check for functionResponse structure (main data path)
+  if (response.functionResponse) {
+    console.log(`[${source}] functionResponse exists with keys:`, Object.keys(response.functionResponse));
+    
+    const valuation = response.functionResponse.valuation;
+    if (valuation) {
+      console.log(`[${source}] valuation object exists with keys:`, Object.keys(valuation));
+      
+      if (valuation.calcValuation) {
+        console.log(`[${source}] calcValuation found:`, valuation.calcValuation);
+      } else {
+        console.warn(`[${source}] calcValuation missing from valuation object`);
+      }
+    } else {
+      console.warn(`[${source}] valuation object missing from functionResponse`);
+    }
   } else {
-    console.warn('No calcValuation data found in response');
+    console.warn(`[${source}] functionResponse missing from API response`);
+  }
+  
+  // Check for direct price fields
+  const priceFields = ['price_min', 'price_med', 'price_max', 'basePrice', 'valuation', 'reservePrice'];
+  const foundPriceFields = priceFields.filter(field => response[field] !== undefined);
+  
+  if (foundPriceFields.length > 0) {
+    console.log(`[${source}] Direct price fields found:`, 
+      foundPriceFields.reduce((acc: any, field) => {
+        acc[field] = response[field];
+        return acc;
+      }, {})
+    );
+  } else {
+    console.warn(`[${source}] No direct price fields found at top level`);
   }
   
   console.groupEnd();

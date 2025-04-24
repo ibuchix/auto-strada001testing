@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-04-24: Refactored to use strict calcValuation price extraction
  * - 2025-04-24: Fixed type compatibility issues with TransmissionType
+ * - 2025-04-25: Added API response inspection and improved error handling
  */
 
 import { extractVehicleData } from './core/dataExtractor';
@@ -21,12 +22,24 @@ export function normalizeValuationData(rawData: any): ValuationData {
     return createEmptyValuation();
   }
   
+  // Check if the API returned an error directly
+  if (rawData.error) {
+    console.error('API returned error:', rawData.error);
+    return {
+      ...createEmptyValuation(),
+      noData: true,
+      error: rawData.error
+    };
+  }
+  
   // Extract vehicle data
   const vehicleData = extractVehicleData(rawData);
   
   // Ensure transmission is a valid TransmissionType
   const safeTransmission: TransmissionType = 
-    vehicleData.transmission === 'automatic' ? 'automatic' : 'manual';
+    (vehicleData.transmission === 'automatic' || vehicleData.transmission === 'manual') 
+    ? vehicleData.transmission as TransmissionType 
+    : 'manual';
   
   // Extract price data - only from calcValuation
   const priceData = extractPriceData(rawData);
@@ -65,7 +78,7 @@ function createEmptyValuation(): ValuationData {
     model: '',
     year: 0,
     vin: '',
-    transmission: 'manual',
+    transmission: 'manual' as TransmissionType,
     mileage: 0,
     valuation: 0,
     reservePrice: 0,
