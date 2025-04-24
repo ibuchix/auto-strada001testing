@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-09-11: Created valuation service for all valuation-related operations
@@ -9,13 +10,18 @@
  * - 2025-05-24: Added cache validation checks
  * - 2025-05-25: Added fallback to fresh API call when cache is invalid
  * - 2025-05-26: Added automatic cache cleanup for invalid entries
- * - 2025-05-27: Added detailed cache data structure logging
+ * - 2025-05-27: Added detailed cache data structure logging with type safety
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
 import { Json } from "@/integrations/supabase/types";
 import { PostgrestError } from "@supabase/supabase-js";
 import { shouldUseCachedData } from "@/utils/valuation/validators/cacheValidator";
+
+// Type guard to check if value is an object
+function isJsonObject(value: Json): value is { [key: string]: Json } {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 export class ValuationCacheService extends ValuationServiceBase {
   /**
@@ -206,14 +212,23 @@ export class ValuationCacheService extends ValuationServiceBase {
         );
         
         if (!rpcError && rpcData) {
+          // Use type guard to safely access object properties
           console.log('RPC cache retrieval result:', {
             success: true,
             dataStructure: {
               hasData: !!rpcData,
-              topLevelKeys: Object.keys(rpcData),
-              hasPricingData: !!(rpcData.price_min || rpcData.price_med || rpcData.valuation),
-              hasVehicleInfo: !!(rpcData.make && rpcData.model),
-              timestamp: rpcData.created_at || 'unknown'
+              topLevelKeys: isJsonObject(rpcData) ? Object.keys(rpcData) : [],
+              hasPricingData: isJsonObject(rpcData) && (
+                rpcData.price_min !== undefined || 
+                rpcData.price_med !== undefined || 
+                rpcData.valuation !== undefined
+              ),
+              hasVehicleInfo: isJsonObject(rpcData) && (
+                rpcData.make !== undefined && 
+                rpcData.model !== undefined
+              ),
+              timestamp: isJsonObject(rpcData) && rpcData.created_at ? 
+                String(rpcData.created_at) : 'unknown'
             }
           });
           
@@ -249,21 +264,31 @@ export class ValuationCacheService extends ValuationServiceBase {
           .maybeSingle();
         
         if (!error && data && data.valuation_data) {
+          const valData = data.valuation_data;
+          
           console.log('Direct cache retrieval result:', {
             success: true,
             dataStructure: {
-              hasData: !!data.valuation_data,
-              topLevelKeys: Object.keys(data.valuation_data),
-              hasPricingData: !!(data.valuation_data.price_min || data.valuation_data.price_med || data.valuation_data.valuation),
-              hasVehicleInfo: !!(data.valuation_data.make && data.valuation_data.model),
-              timestamp: data.valuation_data.created_at || 'unknown'
+              hasData: !!valData,
+              topLevelKeys: isJsonObject(valData) ? Object.keys(valData) : [],
+              hasPricingData: isJsonObject(valData) && (
+                valData.price_min !== undefined || 
+                valData.price_med !== undefined || 
+                valData.valuation !== undefined
+              ),
+              hasVehicleInfo: isJsonObject(valData) && (
+                valData.make !== undefined && 
+                valData.model !== undefined
+              ),
+              timestamp: isJsonObject(valData) && valData.created_at ? 
+                String(valData.created_at) : 'unknown'
             }
           });
           
           // Validate direct query data
-          if (shouldUseCachedData(data.valuation_data)) {
+          if (shouldUseCachedData(valData)) {
             console.log('Successfully retrieved and validated valuation from cache via direct query');
-            return data.valuation_data as ValuationData;
+            return valData as ValuationData;
           }
           
           console.log('Direct cache validation failed, will try fresh API call');
@@ -290,21 +315,31 @@ export class ValuationCacheService extends ValuationServiceBase {
         );
         
         if (!funcError && funcData && funcData.data) {
+          const edgeData = funcData.data;
+          
           console.log('Edge function cache retrieval result:', {
             success: true,
             dataStructure: {
-              hasData: !!funcData.data,
-              topLevelKeys: Object.keys(funcData.data),
-              hasPricingData: !!(funcData.data.price_min || funcData.data.price_med || funcData.data.valuation),
-              hasVehicleInfo: !!(funcData.data.make && funcData.data.model),
-              timestamp: funcData.data.created_at || 'unknown'
+              hasData: !!edgeData,
+              topLevelKeys: isJsonObject(edgeData) ? Object.keys(edgeData) : [],
+              hasPricingData: isJsonObject(edgeData) && (
+                edgeData.price_min !== undefined || 
+                edgeData.price_med !== undefined || 
+                edgeData.valuation !== undefined
+              ),
+              hasVehicleInfo: isJsonObject(edgeData) && (
+                edgeData.make !== undefined && 
+                edgeData.model !== undefined
+              ),
+              timestamp: isJsonObject(edgeData) && edgeData.created_at ? 
+                String(edgeData.created_at) : 'unknown'
             }
           });
           
           // Validate edge function data
-          if (shouldUseCachedData(funcData.data)) {
+          if (shouldUseCachedData(edgeData)) {
             console.log('Successfully retrieved and validated valuation from cache via edge function');
-            return funcData.data as ValuationData;
+            return edgeData as ValuationData;
           }
           
           console.log('Edge function cache validation failed, will try fresh API call');
@@ -411,3 +446,4 @@ export class ValuationCacheService extends ValuationServiceBase {
 
 // Export a singleton instance
 export const valuationCacheService = new ValuationCacheService();
+
