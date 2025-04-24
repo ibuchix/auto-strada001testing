@@ -1,6 +1,10 @@
 
+/**
+ * Changes made:
+ * - 2025-04-24: Removed caching mechanism to ensure direct API calls
+ */
+
 import { ValuationApiService, valuationApiService } from "./valuation/apiService";
-import { ValuationCacheService, valuationCacheService } from "./valuation/cacheService";
 import { ValuationListingService, valuationListingService } from "./valuation/listingService";
 import { ValuationData } from "./valuation/valuationServiceBase";
 

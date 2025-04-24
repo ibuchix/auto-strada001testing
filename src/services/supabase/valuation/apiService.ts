@@ -1,11 +1,14 @@
 
+/**
+ * Changes made:
+ * - 2025-04-24: Removed caching mechanism to ensure direct API calls
+ */
+
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
-import { createClient } from "@supabase/supabase-js";
 
 export class ValuationApiService extends ValuationServiceBase {
   async getValuation(vin: string, mileage: number, gearbox: string): Promise<ValuationData | null> {
     try {
-      // Remove cache check entirely
       const { data, error } = await this.supabase.functions.invoke('get-vehicle-valuation', {
         body: { 
           vin, 
