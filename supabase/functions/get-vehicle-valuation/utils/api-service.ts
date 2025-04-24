@@ -2,7 +2,7 @@
 /**
  * API service utilities for get-vehicle-valuation
  * Updated: 2025-04-29 - Enhanced error handling and logging
- * Updated: 2025-04-24 - Removed all caching functionality
+ * Updated: 2025-05-15 - Removed all references to caching, ensure direct API calls
  */
 
 import { logOperation } from './logging.ts';
@@ -12,11 +12,11 @@ export interface ValuationApiResponse {
   success: boolean;
   data?: any;
   error?: string;
-  rawResponse?: string;  // Added to store full raw response for debugging
+  rawResponse?: string;
 }
 
 /**
- * Makes a direct call to the valuation API - no caching
+ * Makes a direct call to the valuation API
  */
 export async function callValuationApi(
   vin: string,
@@ -42,7 +42,6 @@ export async function callValuationApi(
     // Build API URL
     const valApiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
     
-    // Always call external API directly
     logOperation('api_call_start', { 
       requestId, 
       timestamp: new Date().toISOString() 
@@ -56,10 +55,8 @@ export async function callValuationApi(
       },
     });
     
-    // Get response text for logging/debugging
     const responseText = await response.text();
     
-    // Log API response metrics
     logOperation('api_response_received', {
       requestId,
       status: response.status,
@@ -68,13 +65,12 @@ export async function callValuationApi(
       timestamp: new Date().toISOString()
     });
     
-    // Check HTTP status
     if (!response.ok) {
       logOperation('api_http_error', { 
         requestId, 
         status: response.status,
         statusText: response.statusText,
-        responseText: responseText.substring(0, 300) // limit size
+        responseText: responseText.substring(0, 300)
       }, 'error');
       
       return {
@@ -85,10 +81,8 @@ export async function callValuationApi(
     }
     
     try {
-      // Try to parse as JSON
       const jsonData = JSON.parse(responseText);
       
-      // Check for API-level error
       if (jsonData.error) {
         logOperation('api_json_error', { 
           requestId, 
@@ -103,7 +97,6 @@ export async function callValuationApi(
         };
       }
       
-      // Success!
       logOperation('api_call_success', { 
         requestId,
         dataSize: responseText.length
@@ -115,11 +108,10 @@ export async function callValuationApi(
         rawResponse: responseText
       };
     } catch (parseError) {
-      // JSON parsing error
       logOperation('api_json_parse_error', { 
         requestId, 
         error: parseError.message,
-        responseText: responseText.substring(0, 300) // limit size
+        responseText: responseText.substring(0, 300)
       }, 'error');
       
       return {
@@ -129,7 +121,6 @@ export async function callValuationApi(
       };
     }
   } catch (error) {
-    // Network or other errors
     logOperation('api_call_exception', { 
       requestId, 
       error: error.message,
