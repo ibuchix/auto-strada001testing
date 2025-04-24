@@ -8,6 +8,7 @@
  * - 2025-05-01: Fixed method name inconsistencies for cache operations
  * - 2025-05-24: Added cache validation checks
  * - 2025-05-25: Added fallback to fresh API call when cache is invalid
+ * - 2025-05-26: Added automatic cache cleanup for invalid entries
  */
 
 import { ValuationServiceBase, ValuationData } from "./valuationServiceBase";
@@ -150,6 +151,9 @@ export class ValuationCacheService extends ValuationServiceBase {
    */
   async getFromCache(vin: string, mileage: number): Promise<ValuationData | null> {
     try {
+      // Before retrieving, clean up invalid entries
+      await this.cleanupInvalidCache();
+      
       // Try to use the security definer function first (most reliable)
       try {
         const { data: rpcData, error: rpcError } = await this.supabase.rpc(
@@ -247,7 +251,56 @@ export class ValuationCacheService extends ValuationServiceBase {
    */
   private handleCacheError(error: string, defaultMessage: string): void {
     console.error(`${defaultMessage}:`, error);
-    // Don't throw or show toast here - we want silent fallbacks for cache operations
+  }
+  
+  /**
+   * Clean up invalid cache entries
+   */
+  private async cleanupInvalidCache(): Promise<void> {
+    try {
+      console.log('Starting cache cleanup...');
+      
+      // Get all cache entries
+      const { data: entries, error } = await this.supabase
+        .from('vin_valuation_cache')
+        .select('id, vin, valuation_data')
+        .limit(100); // Process in batches
+      
+      if (error) {
+        console.warn('Failed to fetch cache entries for cleanup:', error);
+        return;
+      }
+      
+      if (!entries?.length) {
+        console.log('No cache entries to clean up');
+        return;
+      }
+      
+      // Find invalid entries
+      const invalidEntryIds = entries
+        .filter(entry => !shouldUseCachedData(entry.valuation_data))
+        .map(entry => entry.id);
+      
+      if (invalidEntryIds.length > 0) {
+        console.log(`Found ${invalidEntryIds.length} invalid cache entries to clean up`);
+        
+        // Delete invalid entries
+        const { error: deleteError } = await this.supabase
+          .from('vin_valuation_cache')
+          .delete()
+          .in('id', invalidEntryIds);
+        
+        if (deleteError) {
+          console.warn('Failed to delete invalid cache entries:', deleteError);
+        } else {
+          console.log(`Successfully cleaned up ${invalidEntryIds.length} invalid cache entries`);
+        }
+      } else {
+        console.log('No invalid cache entries found');
+      }
+    } catch (error) {
+      console.error('Error during cache cleanup:', error);
+    }
   }
   
   /**
