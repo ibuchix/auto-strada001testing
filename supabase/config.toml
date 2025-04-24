@@ -32,6 +32,15 @@ verify_jwt = true
 VALUATION_API_ID = "AUTOSTRA"
 VALUATION_API_SECRET = "A4FTFH54C3E37P2D34A16A7A4V41XKBF"
 
+[functions.get-vehicle-valuation]
+verify_jwt = false
+
+[functions.get-vehicle-valuation.environment]
+VALUATION_API_ID = "AUTOSTRA"
+VALUATION_API_SECRET = "A4FTFH54C3E37P2D34A16A7A4V41XKBF"
+CAR_API_ID = "AUTOSTRA"
+CAR_API_SECRET = "A4FTFH54C3E37P2D34A16A7A4V41XKBF"
+
 [studio]
 # Port to use for Supabase Studio.
 port = 54324
