@@ -3,6 +3,7 @@
  * Valuation handler for seller operations
  * Updated: 2025-04-21 - Fixed import paths to use local utils instead of shared
  * Updated: 2025-04-24 - Removed all caching code to ensure direct API calls
+ * Updated: 2025-04-24 - Fixed remaining cache references in log operations
  */
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -56,7 +57,8 @@ export async function handleValuationRequest(
     });
     
     if (existingCheck.isExistingReservation) {
-      logOperation('using_existing_reservation', { 
+      // This is not a cache - it's a valid business record
+      logOperation('found_existing_reservation', { 
         requestId, 
         vin,
         timestamp: new Date().toISOString(),
@@ -106,7 +108,7 @@ export async function handleValuationRequest(
     }
     
     // Log external API request start
-    logOperation('external_valuation_start', { 
+    logOperation('direct_api_valuation_start', { 
       requestId, 
       vin,
       mileage,

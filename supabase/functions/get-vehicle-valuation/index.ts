@@ -5,13 +5,13 @@
  * Updated: 2025-04-28 - Added extensive debugging and response validation
  * Updated: 2025-05-01 - Added raw API response inclusion for debugging
  * Updated: 2025-04-24 - Removed all caching functionality
+ * Updated: 2025-04-24 - Fixed remaining cache references causing "using_cached_valuation" logs
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "./utils/cors.ts";
 import { callValuationApi } from "./utils/api-service.ts";
 import { processValuationData } from "./utils/data-processor.ts";
-import { calculateReservePrice } from "./utils/price-calculator.ts";
 import { logOperation } from "./utils/logging.ts";
 import { checkApiCredentials, debugApiEndpoint } from "./utils/debug-helper.ts";
 
@@ -27,7 +27,7 @@ serve(async (req) => {
     
     // Parse request data
     const requestJson = await req.json();
-    const { vin, mileage, gearbox, debug = true, includeRawResponse = true } = requestJson; // Default debug to true for troubleshooting
+    const { vin, mileage, gearbox, debug = true, includeRawResponse = true } = requestJson;
     
     // Log received parameters
     logOperation('request_received', {
@@ -75,10 +75,24 @@ serve(async (req) => {
       );
     }
     
+    // Get API credentials
+    const apiId = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
+    const apiSecret = Deno.env.get('CAR_API_SECRET');
+    if (!apiSecret) {
+      logOperation('missing_api_secret', { requestId }, 'error');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'API secret key is missing'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     // Debug the API endpoint that will be called
     debugApiEndpoint(vin, mileage, requestId);
     
-    // Call external valuation API - always fetch fresh data
+    // Call external valuation API directly - ALWAYS fetch fresh data
     logOperation('calling_external_api', { requestId, vin, mileage });
     const apiResponseStart = performance.now();
     const apiResponse = await callValuationApi(vin, mileage, apiId, apiSecret, requestId);
