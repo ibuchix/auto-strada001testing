@@ -1,4 +1,3 @@
-
 /**
  * Edge function for vehicle valuation
  * Updated: 2025-04-25 - Enhanced price data extraction and error handling
@@ -6,6 +5,7 @@
  * Updated: 2025-05-01 - Added raw API response inclusion for debugging
  * Updated: 2025-04-24 - Removed all caching functionality
  * Updated: 2025-04-24 - Fixed remaining cache references causing "using_cached_valuation" logs
+ * Updated: 2025-04-24 - Added enhanced environment variable debugging
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -51,16 +51,21 @@ serve(async (req) => {
       );
     }
     
-    // Verify API credentials are available
+    // Enhanced environment variable checking with detailed logging
     const credentialCheck = checkApiCredentials(requestId);
     logOperation('credential_check', {
       requestId,
       valid: credentialCheck.valid,
-      ...credentialCheck.details
+      ...credentialCheck.details,
+      envVarNames: Object.keys(Deno.env.toObject()).join(',')
     });
     
     if (!credentialCheck.valid) {
-      logOperation('api_credentials_invalid', { requestId }, 'error');
+      logOperation('api_credentials_invalid', { 
+        requestId,
+        details: credentialCheck.details
+      }, 'error');
+      
       return new Response(
         JSON.stringify({
           success: false,
@@ -69,21 +74,28 @@ serve(async (req) => {
           usingFallbackEstimation: true,
           make: '',
           model: '',
-          year: 0
+          year: 0,
+          credentialDetails: credentialCheck.details
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
     // Get API credentials
-    const apiId = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
-    const apiSecret = Deno.env.get('CAR_API_SECRET');
+    const apiId = Deno.env.get('CAR_API_ID') || Deno.env.get('VALUATION_API_ID') || 'AUTOSTRA';
+    const apiSecret = Deno.env.get('CAR_API_SECRET') || Deno.env.get('VALUATION_API_SECRET');
+    
     if (!apiSecret) {
-      logOperation('missing_api_secret', { requestId }, 'error');
+      logOperation('missing_api_secret', { 
+        requestId,
+        availableEnvVars: Object.keys(Deno.env.toObject())
+      }, 'error');
+      
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'API secret key is missing'
+          error: 'API secret key is missing',
+          availableEnvVars: Object.keys(Deno.env.toObject())
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
