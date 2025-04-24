@@ -2,6 +2,7 @@
 /**
  * Data processing utilities for vehicle valuation
  * Updated: 2025-04-29 - ENHANCED LOGGING FOR DEBUGGING
+ * Updated: 2025-04-24 - Fixed nested JSON structure traversal and price extraction
  */
 
 import { logOperation } from "./logging.ts";
@@ -35,24 +36,61 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
     };
   }
   
-  // Extract nested data if available
-  const functionResponse = rawData.functionResponse || {};
+  // Attempt to parse the raw response if it's a string (some APIs return JSON as string)
+  let parsedData = rawData;
+  if (typeof rawData === 'string') {
+    try {
+      parsedData = JSON.parse(rawData);
+      logOperation('parsed_string_response', {
+        requestId,
+        success: true
+      });
+    } catch (e) {
+      logOperation('failed_to_parse_string_response', {
+        requestId,
+        error: e.message
+      }, 'error');
+    }
+  }
+  
+  // Check for JSON response wrapped in rawResponse field
+  if (rawData.rawResponse && typeof rawData.rawResponse === 'string') {
+    try {
+      const parsedRawResponse = JSON.parse(rawData.rawResponse);
+      if (parsedRawResponse) {
+        logOperation('found_nested_raw_response', {
+          requestId,
+          hasNestedFunctionResponse: !!parsedRawResponse.functionResponse
+        });
+        parsedData = parsedRawResponse;
+      }
+    } catch (e) {
+      logOperation('failed_to_parse_raw_response', {
+        requestId,
+        error: e.message
+      }, 'error');
+    }
+  }
+  
+  // Extract nested data from correct path
+  const functionResponse = parsedData.functionResponse || {};
   const userParams = functionResponse.userParams || {};
   const calcValuation = functionResponse.valuation?.calcValuation || {};
   
   // Log detailed extraction paths
   logOperation('data_extraction_paths', {
     requestId,
-    hasFunctionResponse: !!rawData.functionResponse,
+    hasFunctionResponse: !!parsedData.functionResponse,
     hasUserParams: !!functionResponse.userParams,
     hasCalcValuation: !!functionResponse.valuation?.calcValuation,
+    calcValuationKeys: Object.keys(functionResponse.valuation?.calcValuation || {}),
     timestamp: new Date().toISOString()
   });
   
-  // Extract vehicle details (try multiple paths)
-  const make = rawData.make || userParams.make || '';
-  const model = rawData.model || userParams.model || '';
-  const year = rawData.year || userParams.yearOfProduction || 0;
+  // Extract vehicle details from userParams first, then fall back to other fields
+  const make = userParams.make || parsedData.make || '';
+  const model = userParams.model || parsedData.model || '';
+  const year = userParams.year || parsedData.year || 0;
   
   // Log the extracted basic vehicle data
   logOperation('extracted_vehicle_data', {
@@ -65,21 +103,18 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
     timestamp: new Date().toISOString()
   });
   
-  // Extract price data (try multiple paths)
-  const priceMin = rawData.price_min || calcValuation.price_min || 0;
-  const priceMed = rawData.price_med || calcValuation.price_med || 0;
-  const directValuation = rawData.valuation || 0;
+  // Extract price data from calcValuation
+  const priceMin = calcValuation.price_min || 0;
+  const priceMed = calcValuation.price_med || 0;
+  const directPrice = calcValuation.price || 0;
   
   // Log all price-related fields found
-  logOperation('all_price_fields', {
+  logOperation('price_calculation', {
     requestId,
-    directValuation,
     priceMin,
     priceMed,
-    rawReservePrice: rawData.reservePrice,
-    rawBasePrice: rawData.basePrice,
-    rawAveragePrice: rawData.averagePrice,
-    timestamp: new Date().toISOString()
+    directPrice,
+    isUsingFallback: false
   });
   
   // Calculate base price if we have price min and med
@@ -96,12 +131,12 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       calculatedBasePrice: basePrice,
       timestamp: new Date().toISOString()
     });
-  } else if (directValuation > 0) {
+  } else if (directPrice > 0) {
     // Use direct valuation
-    basePrice = directValuation;
+    basePrice = directPrice;
     logOperation('using_direct_valuation', {
       requestId,
-      directValuation,
+      directPrice,
       timestamp: new Date().toISOString()
     });
   } else if (make && model && year > 0) {
@@ -130,29 +165,36 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
   // Calculate reserve price
   const reservePrice = calculateReservePrice(basePrice);
   
-  // Log final processed data
-  logOperation('processed_data_result', {
+  // Log final formula and result
+  logOperation('reserve_price_calculated', {
     requestId,
-    make,
-    model,
-    year,
     basePrice,
+    percentage: basePrice <= 15000 ? 0.65 : 0.46,
     reservePrice,
-    usingFallbackEstimation,
-    timestamp: new Date().toISOString()
+    formula: `${basePrice} - (${basePrice} × ${basePrice <= 15000 ? 0.65 : 0.46})`
   });
   
-  // Return processed data
-  return {
+  // Log final processed data
+  const result = {
     make,
     model,
     year,
-    transmission: userParams.transmission || rawData.transmission || '',
+    transmission: userParams.transmission || parsedData.transmission || '',
     vin,
     mileage,
     basePrice,
     reservePrice,
-    valuation: directValuation || basePrice,
+    price: basePrice,
+    valuation: directPrice || basePrice,
+    averagePrice: priceMed || basePrice,
     usingFallbackEstimation
   };
+  
+  logOperation('final_result', {
+    requestId,
+    result
+  });
+  
+  // Return processed data
+  return result;
 }

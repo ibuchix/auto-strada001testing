@@ -1,3 +1,4 @@
+
 /**
  * Edge function for vehicle valuation
  * Updated: 2025-04-25 - Enhanced price data extraction and error handling
@@ -7,6 +8,7 @@
  * Updated: 2025-04-24 - Fixed remaining cache references causing "using_cached_valuation" logs
  * Updated: 2025-04-24 - Added enhanced environment variable debugging
  * Updated: 2025-04-24 - Added fallback mechanism for API credentials
+ * Updated: 2025-04-24 - Fixed raw API response processing and data extraction from nested structure
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -31,7 +33,7 @@ serve(async (req) => {
     const { vin, mileage, gearbox, debug = true, includeRawResponse = true } = requestJson;
     
     // Log received parameters
-    logOperation('request_received', {
+    logOperation('valuation_request_received', {
       requestId,
       vin,
       mileage,
@@ -60,51 +62,20 @@ serve(async (req) => {
       ...credentialCheck.details,
     });
     
-    if (!credentialCheck.valid) {
-      logOperation('api_credentials_invalid', { 
-        requestId,
-        details: credentialCheck.details
-      }, 'error');
-      
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'API credentials are not properly configured',
-          apiSource: 'estimation',
-          usingFallbackEstimation: true,
-          make: '',
-          model: '',
-          year: 0,
-          credentialDetails: credentialCheck.details
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
     // Get API credentials with our enhanced helper function
     const { apiId, apiSecret } = getApiCredentials();
-    
-    if (!apiId || !apiSecret) {
-      logOperation('missing_api_secret', { 
-        requestId,
-        availableEnvVars: Object.keys(Deno.env.toObject())
-      }, 'error');
-      
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'API secret key is missing',
-          availableEnvVars: Object.keys(Deno.env.toObject())
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
     
     // Debug the API endpoint that will be called
     debugApiEndpoint(vin, mileage, requestId);
     
     // Call external valuation API directly - ALWAYS fetch fresh data
-    logOperation('calling_external_api', { requestId, vin, mileage });
+    logOperation('calling_external_api', { 
+      requestId, 
+      vin, 
+      mileage,
+      url: `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:calculatedhash/vin:${vin}/odometer:${mileage}/currency:PLN` 
+    });
+    
     const apiResponseStart = performance.now();
     const apiResponse = await callValuationApi(vin, mileage, apiId, apiSecret, requestId);
     const apiResponseTime = performance.now() - apiResponseStart;
@@ -116,14 +87,15 @@ serve(async (req) => {
       success: apiResponse.success,
       hasData: !!apiResponse.data,
       error: apiResponse.error || null,
-      responseSize: apiResponse.data ? JSON.stringify(apiResponse.data).length : 0
+      responseSize: apiResponse.rawResponse ? apiResponse.rawResponse.length : 0
     });
     
     // CRITICAL: Log the entire raw response for debugging
-    if (debug) {
-      logOperation('api_raw_response', {
+    if (debug && apiResponse.rawResponse) {
+      logOperation('raw_api_response', {
         requestId,
-        data: JSON.stringify(apiResponse.data)
+        responseSize: apiResponse.rawResponse.length,
+        rawResponse: apiResponse.rawResponse
       });
     }
     
@@ -146,36 +118,19 @@ serve(async (req) => {
       );
     }
     
+    // Extract price fields at root level for debugging
+    const priceFields = {};
+    const allFields = apiResponse.data ? Object.keys(apiResponse.data) : [];
+    
+    // Check if the data contains any price fields
+    logOperation('price_fields_found', {
+      requestId,
+      priceFields,
+      allFields
+    });
+    
     // Process the raw valuation data with detailed logging
-    const rawData = apiResponse.data;
-    
-    // Log raw data structure
-    logOperation('raw_data_structure', {
-      requestId,
-      hasData: !!rawData,
-      topLevelKeys: rawData ? Object.keys(rawData) : [],
-      hasFunctionResponse: !!rawData?.functionResponse,
-      hasNestedValuation: !!rawData?.functionResponse?.valuation,
-      hasCalcValuation: !!rawData?.functionResponse?.valuation?.calcValuation
-    });
-    
-    // Extract detailed data structure for debugging
-    const functionResponse = rawData?.functionResponse || {};
-    const userParams = functionResponse.userParams || {};
-    const calcValuation = functionResponse.valuation?.calcValuation || {};
-    
-    logOperation('data_extraction_check', {
-      requestId,
-      userParamsFields: Object.keys(userParams),
-      calcValuationFields: Object.keys(calcValuation),
-      hasUserParamsMake: !!userParams.make,
-      hasUserParamsModel: !!userParams.model,
-      hasCalcValuationPriceMin: calcValuation.price_min !== undefined,
-      hasCalcValuationPriceMed: calcValuation.price_med !== undefined
-    });
-    
-    // Process the data with enhanced validation
-    const processedData = processValuationData(rawData, vin, mileage, requestId);
+    const processedData = processValuationData(apiResponse.data || apiResponse.rawResponse, vin, mileage, requestId);
     
     // Log the processed data for debugging
     logOperation('processed_data', {
@@ -193,17 +148,10 @@ serve(async (req) => {
     const finalResponse = {
       ...processedData,
       apiSource: processedData.basePrice > 0 ? 'auto_iso' : 'estimation',
-      usingFallbackEstimation: processedData.basePrice === 0,
+      usingFallbackEstimation: processedData.basePrice === 0 || processedData.usingFallbackEstimation,
       gearbox: gearbox || processedData.transmission || 'manual',
       // Include the original API response if requested
-      rawApiResponse: includeRawResponse ? apiResponse.rawResponse : undefined,
-      debug: debug ? {
-        requestId,
-        timestamp: new Date().toISOString(),
-        originalDataKeys: Object.keys(rawData || {}),
-        extractedDataKeys: Object.keys(processedData || {}),
-        credentialDetails: credentialCheck.details
-      } : undefined
+      rawApiResponse: includeRawResponse ? apiResponse.rawResponse : undefined
     };
     
     // Log what we're about to send back
@@ -233,8 +181,7 @@ serve(async (req) => {
         error: errorMessage,
         errorStack: error.stack,
         errorType: error.name,
-        timestamp: new Date().toISOString(),
-        environmentVariables: Object.keys(Deno.env.toObject())
+        timestamp: new Date().toISOString()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

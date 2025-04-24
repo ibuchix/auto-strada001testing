@@ -4,6 +4,7 @@
  * Updated: 2025-04-29 - Enhanced error handling and logging
  * Updated: 2025-05-15 - Removed all references to caching, ensure direct API calls
  * Updated: 2025-04-24 - Added fallback mechanism for API credentials
+ * Updated: 2025-04-24 - Improved raw response handling and data parsing
  */
 
 import { logOperation } from './logging.ts';
@@ -97,6 +98,7 @@ export async function callValuationApi(
     }
     
     try {
+      // Parse JSON response if possible
       const jsonData = JSON.parse(responseText);
       
       if (jsonData.error) {
@@ -112,6 +114,18 @@ export async function callValuationApi(
           rawResponse: responseText
         };
       }
+      
+      // Analyze the structure to find where price data might be
+      const hasFunctionResponse = !!jsonData.functionResponse;
+      const hasCalcValuation = !!jsonData.functionResponse?.valuation?.calcValuation;
+      
+      logOperation('response_structure_analysis', {
+        requestId,
+        hasFunctionResponse,
+        hasCalcValuation,
+        topLevelKeys: Object.keys(jsonData),
+        nestedKeys: hasFunctionResponse ? Object.keys(jsonData.functionResponse) : []
+      });
       
       logOperation('api_call_success', { 
         requestId,
