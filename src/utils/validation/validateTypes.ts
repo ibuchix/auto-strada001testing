@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-05-03: Updated to use new nested price extraction
@@ -7,7 +6,7 @@
  */
 
 import { TransmissionType } from "@/components/hero/valuation/types";
-import { extractValue, validators } from "@/utils/extraction/dataExtractor";
+import { extractData, validators } from "@/utils/extraction/dataExtractor";
 import { extractNestedPriceData, calculateBasePriceFromNested } from "@/utils/extraction/pricePathExtractor";
 
 interface ValidationResult {
@@ -45,21 +44,21 @@ export function validateValuationData(data: any): ValidationResult {
   // Extract price data using our dedicated utility
   const priceData = extractNestedPriceData(data);
   
-  // Extract vehicle data
-  const make = extractValue(data, [
+  // Extract vehicle data focusing on nested paths
+  const make = extractData(data, [
     'functionResponse.userParams.make',
-    'make'
-  ], '', validators.isString);
+    'functionResponse.userParams.manufacturer'
+  ], '');
   
-  const model = extractValue(data, [
+  const model = extractData(data, [
     'functionResponse.userParams.model',
-    'model'
-  ], '', validators.isString);
+    'functionResponse.userParams.modelName'
+  ], '');
   
-  const year = extractValue(data, [
+  const year = extractData(data, [
     'functionResponse.userParams.year',
-    'year'
-  ], 0, validators.isYear);
+    'functionResponse.userParams.productionYear'
+  ], 0);
 
   // Calculate base price using our dedicated utility
   const basePrice = calculateBasePriceFromNested(priceData);
@@ -68,12 +67,20 @@ export function validateValuationData(data: any): ValidationResult {
   const normalizedData = {
     make,
     model,
-    year,
-    vin: data.vin || '',
-    transmission: normalizeTransmission(data.transmission),
-    mileage: extractValue(data, ['mileage'], 0, validators.isNumber),
+    year: Number(year),
+    vin: extractData(data, ['vin'], ''),
+    transmission: normalizeTransmission(
+      extractData(data, [
+        'functionResponse.userParams.gearbox', 
+        'transmission'
+      ], 'manual')
+    ),
+    mileage: extractData(data, [
+      'functionResponse.userParams.odometer', 
+      'mileage'
+    ], 0),
     valuation: basePrice,
-    reservePrice: basePrice, // Will be calculated later using the reserve price formula
+    reservePrice: basePrice,
     averagePrice: priceData.price_med || 0,
     basePrice
   };

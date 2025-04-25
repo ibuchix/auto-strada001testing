@@ -1,37 +1,42 @@
 
 /**
  * Vehicle data extraction utility
- * Created: 2025-05-01
- * Updated: 2025-04-25 - Completely rewritten to properly handle nested JSON structure
+ * Updated: 2025-04-25 - Completely rewritten to extract from nested JSON
  */
 
-/**
- * Extract basic vehicle data from the API response
- * Directly accesses the nested structure from functionResponse.userParams
- */
-export function extractVehicleData(rawData: any): any {
-  // First check if we have a string response that needs parsing
-  let data = rawData;
-  if (typeof rawData === 'string') {
-    try {
-      data = JSON.parse(rawData);
-    } catch (e) {
-      console.error('Failed to parse raw JSON string:', e);
-      return {};
+export function extractData(
+  data: any, 
+  paths: string[], 
+  defaultValue: any = null
+): any {
+  if (!data) return defaultValue;
+
+  for (const path of paths) {
+    const pathParts = path.split('.');
+    let currentValue = data;
+
+    for (const part of pathParts) {
+      if (currentValue && typeof currentValue === 'object' && part in currentValue) {
+        currentValue = currentValue[part];
+      } else {
+        currentValue = null;
+        break;
+      }
+    }
+
+    if (currentValue !== null && currentValue !== undefined) {
+      return currentValue;
     }
   }
 
-  // Access the nested userParams directly
-  const userParams = data?.functionResponse?.userParams || {};
-  
-  console.log('[DATA-EXTRACTOR] Accessing userParams:', userParams);
-  
-  return {
-    make: userParams.make || '',
-    model: userParams.model || '',
-    year: Number(userParams.year) || new Date().getFullYear(),
-    vin: data.vin || '',
-    transmission: userParams.gearbox || 'manual',
-    mileage: Number(userParams.odometer) || 0
-  };
+  return defaultValue;
 }
+
+export const validators = {
+  isString: (value: any) => typeof value === 'string',
+  isNumber: (value: any) => typeof value === 'number' && !isNaN(value),
+  isYear: (value: any) => {
+    const year = Number(value);
+    return !isNaN(year) && year > 1900 && year <= new Date().getFullYear();
+  }
+};
