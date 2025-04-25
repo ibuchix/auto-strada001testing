@@ -2,6 +2,7 @@
 /**
  * Data processing utilities for vehicle valuation
  * Updated: 2025-05-06 - Fixed data extraction from nested API response
+ * Updated: 2025-05-07 - Added direct extraction of nested API data
  */
 
 import { logOperation } from "./logging.ts";
@@ -30,73 +31,90 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       }
     }
 
-    // First get the functionResponse object which contains all the data
+    // DIRECT EXTRACTION: We know exactly where the data is based on the observed API structure
+    // First, get the functionResponse object which contains all the data
     const functionResponse = data?.functionResponse;
     if (!functionResponse) {
-      console.error(`[DATA-PROCESSOR][${requestId}] Missing functionResponse object`);
-      throw new Error('Invalid API response structure');
+      console.error(`[DATA-PROCESSOR][${requestId}] Missing functionResponse object in:`, 
+        JSON.stringify(data).substring(0, 200) + '...');
+      throw new Error('Invalid API response structure - missing functionResponse');
     }
 
-    // Extract vehicle details from userParams
+    // Extract vehicle details DIRECTLY from userParams
     const userParams = functionResponse.userParams;
     if (!userParams) {
-      console.error(`[DATA-PROCESSOR][${requestId}] Missing userParams in functionResponse`);
-      throw new Error('Missing vehicle details');
+      console.error(`[DATA-PROCESSOR][${requestId}] Missing userParams in functionResponse:`, 
+        JSON.stringify(functionResponse).substring(0, 200) + '...');
+      throw new Error('Missing vehicle details - no userParams');
     }
 
-    console.log(`[DATA-PROCESSOR][${requestId}] Found vehicle details:`, {
+    // Log the extracted vehicle details
+    console.log(`[DATA-PROCESSOR][${requestId}] EXTRACTED vehicle details:`, {
       make: userParams.make,
       model: userParams.model,
       year: userParams.year
     });
 
-    // Extract pricing data from calcValuation
+    // DIRECT EXTRACTION: Get pricing data directly from calcValuation
     const calcValuation = functionResponse.valuation?.calcValuation;
     if (!calcValuation) {
-      console.error(`[DATA-PROCESSOR][${requestId}] Missing calcValuation in functionResponse`);
-      throw new Error('Missing price data');
+      console.error(`[DATA-PROCESSOR][${requestId}] Missing calcValuation in functionResponse:`, 
+        JSON.stringify(functionResponse.valuation || {}).substring(0, 200) + '...');
+      throw new Error('Missing price data - no calcValuation');
     }
 
-    console.log(`[DATA-PROCESSOR][${requestId}] Found price data:`, {
+    // Log the extracted price data
+    console.log(`[DATA-PROCESSOR][${requestId}] EXTRACTED price data:`, {
       price_min: calcValuation.price_min,
-      price_med: calcValuation.price_med
+      price_med: calcValuation.price_med,
+      price: calcValuation.price
     });
 
+    // Ensure we have minimum price data
+    if (!calcValuation.price_min || !calcValuation.price_med) {
+      console.error(`[DATA-PROCESSOR][${requestId}] Invalid price data:`, calcValuation);
+      throw new Error('Missing price data values');
+    }
+
     // Calculate base price from min and median
-    const basePrice = (calcValuation.price_min + calcValuation.price_med) / 2;
-    console.log(`[DATA-PROCESSOR][${requestId}] Calculated base price:`, basePrice);
+    const priceMin = Number(calcValuation.price_min);
+    const priceMed = Number(calcValuation.price_med);
+    const basePrice = (priceMin + priceMed) / 2;
+    
+    console.log(`[DATA-PROCESSOR][${requestId}] Calculated base price:`, {
+      priceMin,
+      priceMed,
+      basePrice
+    });
 
     // Calculate reserve price
     const reservePrice = calculateReservePrice(basePrice);
     console.log(`[DATA-PROCESSOR][${requestId}] Calculated reserve price:`, reservePrice);
 
-    // Prepare the result object with all required data
+    // Prepare the result object with all required data - DIRECT MAPPING
     const result = {
       vin,
-      make: userParams.make,
-      model: userParams.model,
-      year: userParams.year,
+      make: userParams.make || '',
+      model: userParams.model || '',
+      year: userParams.year || 0,
       mileage,
       transmission: userParams.gearbox || 'manual',
       basePrice,
       valuation: basePrice,
       reservePrice,
-      averagePrice: calcValuation.price_med,
-      // Include raw nested data for debugging
+      averagePrice: priceMed,
+      // Include simplified raw nested data for debugging
       rawNestedData: {
-        userParams,
-        calcValuation
+        make: userParams.make,
+        model: userParams.model,
+        year: userParams.year,
+        price_min: calcValuation.price_min,
+        price_med: calcValuation.price_med
       }
     };
 
-    // Log the final structured result
-    console.log(`[DATA-PROCESSOR][${requestId}] Final result:`, {
-      make: result.make,
-      model: result.model,
-      year: result.year,
-      basePrice: result.basePrice,
-      reservePrice: result.reservePrice
-    });
+    // Additional logging to verify the final output
+    console.log(`[DATA-PROCESSOR][${requestId}] FINAL RESULT:`, JSON.stringify(result));
 
     return result;
   } catch (error) {

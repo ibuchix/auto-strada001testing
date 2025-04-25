@@ -2,6 +2,7 @@
 /**
  * Edge function for vehicle valuation
  * Updated: 2025-05-05 - Complete rewrite of JSON parsing and error handling
+ * Updated: 2025-05-07 - Enhanced to include detailed response info
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -75,13 +76,25 @@ serve(async (req) => {
     logOperation('raw_response_received', {
       requestId,
       responseSize: apiResponse.rawResponse ? apiResponse.rawResponse.length : 0,
-      hasData: !!apiResponse.data
+      hasData: !!apiResponse.data,
+      responsePreview: typeof apiResponse.rawResponse === 'string' ? 
+        apiResponse.rawResponse.substring(0, 200) + '...' : 'non-string response'
     });
     
     // Process the valuation data from the raw response
     try {
       // Process the raw API response
       const processedData = processValuationData(apiResponse.rawResponse, vin, mileage, requestId);
+      
+      // Log the final processed data
+      logOperation('final_processed_data', {
+        requestId,
+        make: processedData.make,
+        model: processedData.model,
+        year: processedData.year,
+        basePrice: processedData.basePrice,
+        reservePrice: processedData.reservePrice
+      });
       
       // Return the processed data
       return new Response(
