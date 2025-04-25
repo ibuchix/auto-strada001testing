@@ -1,166 +1,95 @@
 
 /**
- * API service utilities for get-vehicle-valuation
- * Updated: 2025-04-29 - Enhanced error handling and logging
- * Updated: 2025-05-15 - Removed all references to caching, ensure direct API calls
- * Updated: 2025-04-25 - Fixed raw API response handling to preserve nested data
- * Updated: 2025-04-24 - Added fallback mechanism for API credentials
- * Updated: 2025-04-24 - Improved raw response handling and data parsing
+ * API service for vehicle valuation
+ * Updated: 2025-05-05 - Enhanced raw response handling
  */
 
-import { logOperation } from './logging.ts';
-import { calculateMd5 } from './checksum.ts';
+import { logOperation } from "./logging.ts";
 
-export interface ValuationApiResponse {
-  success: boolean;
-  data?: any;
-  error?: string;
-  rawResponse?: string;
-}
-
-/**
- * Makes a direct call to the valuation API
- */
 export async function callValuationApi(
   vin: string,
   mileage: number,
   apiId: string,
   apiSecret: string,
   requestId: string
-): Promise<ValuationApiResponse> {
+): Promise<{
+  success: boolean;
+  data?: any;
+  rawResponse?: string;
+  error?: string;
+}> {
   try {
-    // Log API credentials status before making the call
-    logOperation('api_call_credentials', {
-      requestId,
-      hasApiId: !!apiId,
-      hasApiSecret: !!apiSecret,
-      apiIdLength: apiId?.length || 0,
-      apiSecretLength: apiSecret?.length || 0,
-      usingHardcodedValues: apiId === 'AUTOSTRA' && apiSecret === 'A4FTFH54C3E37P2D34A16A7A4V41XKBF'
-    });
-    
-    // Fallback to hardcoded values if needed
-    const effectiveApiId = apiId || 'AUTOSTRA';
-    const effectiveApiSecret = apiSecret || 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
-    
-    // Calculate checksum for API
-    const checksumContent = effectiveApiId + effectiveApiSecret + vin;
+    // Calculate checksum
+    const checksumContent = apiId + apiSecret + vin;
     const checksum = await calculateMd5(checksumContent);
     
-    logOperation('api_call_details', {
-      requestId,
-      vin,
-      mileage,
-      apiId: effectiveApiId,
-      checksumGenerated: true,
-      timestamp: new Date().toISOString()
-    });
-    
     // Build API URL
-    const valApiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${effectiveApiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
     
-    logOperation('api_call_start', { 
-      requestId, 
-      timestamp: new Date().toISOString() 
+    logOperation('api_request_prepared', {
+      requestId,
+      url: apiUrl
     });
     
-    const response = await fetch(valApiUrl, {
+    // Make the API call
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'AutostradaAppV1'
-      },
-    });
-    
-    const responseText = await response.text();
-    
-    logOperation('api_response_received', {
-      requestId,
-      status: response.status,
-      contentType: response.headers.get('content-type'),
-      responseSize: responseText.length,
-      timestamp: new Date().toISOString()
+        'Accept': 'application/json'
+      }
     });
     
     if (!response.ok) {
-      logOperation('api_http_error', { 
-        requestId, 
+      logOperation('api_http_error', {
+        requestId,
         status: response.status,
-        statusText: response.statusText,
-        responseText: responseText.substring(0, 300)
+        statusText: response.statusText
       }, 'error');
       
       return {
         success: false,
-        error: `HTTP error ${response.status}: ${response.statusText}`,
-        rawResponse: responseText
+        error: `API returned status ${response.status}: ${response.statusText}`
       };
     }
     
+    // Get the raw response text
+    const rawResponseText = await response.text();
+    
+    // Log response characteristics
+    logOperation('api_response_received', {
+      requestId,
+      responseLength: rawResponseText.length,
+      firstChars: rawResponseText.substring(0, 30) + '...'
+    });
+    
+    // Try to parse the response as JSON
     try {
-      // Parse JSON response if possible
-      const jsonData = JSON.parse(responseText);
+      const jsonData = JSON.parse(rawResponseText);
       
-      if (jsonData.error) {
-        logOperation('api_json_error', { 
-          requestId, 
-          error: jsonData.error 
-        }, 'error');
-        
-        return {
-          success: false,
-          error: jsonData.error,
-          data: jsonData,
-          rawResponse: responseText
-        };
-      }
-      
-      // Analyze the structure to find where price data might be
-      const hasFunctionResponse = !!jsonData.functionResponse;
-      const hasCalcValuation = !!jsonData.functionResponse?.valuation?.calcValuation;
-      
-      logOperation('response_structure_analysis', {
-        requestId,
-        hasFunctionResponse,
-        hasCalcValuation,
-        topLevelKeys: Object.keys(jsonData),
-        nestedKeys: hasFunctionResponse ? Object.keys(jsonData.functionResponse) : [],
-        hasUserParams: !!jsonData.functionResponse?.userParams,
-        hasValuation: !!jsonData.functionResponse?.valuation,
-        calcValuationKeys: jsonData.functionResponse?.valuation?.calcValuation ? 
-          Object.keys(jsonData.functionResponse.valuation.calcValuation) : []
-      });
-      
-      logOperation('api_call_success', { 
-        requestId,
-        dataSize: responseText.length
-      });
-      
-      // Include both the parsed JSON and the raw response
+      // Return both the parsed data and the raw response
       return {
         success: true,
         data: jsonData,
-        rawResponse: responseText
+        rawResponse: rawResponseText
       };
     } catch (parseError) {
-      logOperation('api_json_parse_error', { 
-        requestId, 
+      logOperation('json_parse_error', {
+        requestId,
         error: parseError.message,
-        responseText: responseText.substring(0, 300)
+        rawPreview: rawResponseText.substring(0, 100)
       }, 'error');
       
+      // Even if parsing failed, return the raw response
       return {
         success: false,
-        error: `Failed to parse API response: ${parseError.message}`,
-        rawResponse: responseText
+        error: 'Failed to parse API response as JSON',
+        rawResponse: rawResponseText
       };
     }
   } catch (error) {
-    logOperation('api_call_exception', { 
-      requestId, 
-      error: error.message,
-      stack: error.stack
+    logOperation('api_call_error', {
+      requestId,
+      error: error.message
     }, 'error');
     
     return {
@@ -168,4 +97,13 @@ export async function callValuationApi(
       error: `API call failed: ${error.message}`
     };
   }
+}
+
+// Calculate MD5 hash
+async function calculateMd5(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('MD5', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }

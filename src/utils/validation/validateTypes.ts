@@ -1,13 +1,10 @@
 
 /**
  * Changes made:
- * - 2025-05-02: Complete rewrite to directly access nested JSON structure
- * - 2025-05-02: Added explicit path extraction for functionResponse structure
- * - 2025-05-02: Removed fallback mechanisms in favor of direct extraction
+ * - 2025-05-05: Complete rewrite to handle any form of the nested API response
  */
 
 import { TransmissionType } from "@/components/hero/valuation/types";
-import { extractData, validators } from "@/utils/extraction/dataExtractor";
 import { extractNestedPriceData, calculateBasePriceFromNested } from "@/utils/extraction/pricePathExtractor";
 
 interface ValidationResult {
@@ -28,14 +25,12 @@ export function normalizeTransmission(transmission: string | undefined): Transmi
 }
 
 /**
- * Validates and normalizes valuation data specifically targeting the nested structure
- * from the external API response
+ * Validates and normalizes valuation data from ANY form of the API response
  */
 export function validateValuationData(data: any): ValidationResult {
   console.log('Validating data:', JSON.stringify(data, null, 2));
   
   if (!data) {
-    console.warn('Validation called with empty data');
     return {
       normalizedData: {},
       hasError: true,
@@ -44,79 +39,67 @@ export function validateValuationData(data: any): ValidationResult {
     };
   }
 
-  // First, check if we have the expected nested structure
-  const hasFunctionResponse = !!data.functionResponse;
-  const hasUserParams = !!data.functionResponse?.userParams;
-  const hasCalculationData = !!data.functionResponse?.valuation?.calcValuation;
+  // Step 1: Extract vehicle data from various possible paths
+  let make, model, year, vin, transmission, mileage;
   
-  console.log('Data structure check:', {
-    hasFunctionResponse,
-    hasUserParams,
-    hasCalculationData,
-    topLevelKeys: Object.keys(data)
-  });
+  // First priority: Check direct fields (processed by our edge function)
+  make = data.make;
+  model = data.model;
+  year = data.year;
+  vin = data.vin;
+  transmission = data.transmission || data.gearbox || 'manual';
+  mileage = data.mileage || data.odometer || 0;
   
-  if (!hasFunctionResponse) {
-    console.error('Missing functionResponse in API data');
-    return {
-      normalizedData: {
-        error: 'Missing required data structure in API response',
-        vin: data.vin || ''
-      },
-      hasError: true,
-      shouldShowError: true, 
-      hasValuation: false
-    };
+  // Second priority: Check nested functionResponse structure
+  if (!make || !model || !year) {
+    const userParams = data?.functionResponse?.userParams ||
+                      data?.rawNestedData?.userParams;
+    
+    if (userParams) {
+      make = make || userParams.make;
+      model = model || userParams.model;
+      year = year || userParams.year;
+      transmission = transmission || userParams.gearbox || 'manual';
+      mileage = mileage || userParams.odometer || 0;
+    }
   }
-
-  // Extract vehicle data directly from userParams
-  const userParams = data.functionResponse.userParams || {};
-  const make = userParams.make || '';
-  const model = userParams.model || '';
-  const year = Number(userParams.year) || 0;
-  const vin = data.vin || '';
   
-  console.log('Extracted vehicle data:', { make, model, year, vin });
+  // Third priority: Check for error info
+  const hasErrorMessage = !!data.error;
+  const vinFromError = data.vin; // Often included even in error responses
 
-  // Extract price data directly from calcValuation
+  // Step 2: Extract price data from calcValuation
   const priceData = extractNestedPriceData(data);
-  console.log('Extracted price data:', priceData);
   
   // Calculate base price
   const basePrice = calculateBasePriceFromNested(priceData);
   
-  // Get transmission
-  const transmission = normalizeTransmission(
-    userParams.gearbox || data.functionResponse?.userParams?.gearbox || 'manual'
-  );
+  // Calculate reserve price
+  const reservePrice = calculateReservePrice(basePrice);
 
-  // Construct normalized data
+  // Step 3: Construct normalized data
   const normalizedData = {
-    make,
-    model,
-    year: Number(year),
-    vin,
-    transmission,
-    mileage: Number(userParams.odometer || 0),
-    valuation: basePrice,
-    reservePrice: basePrice, // Will be replaced with calculation
+    make: make || '',
+    model: model || '',
+    year: Number(year) || 0,
+    vin: vin || vinFromError || '',
+    transmission: normalizeTransmission(transmission),
+    mileage: Number(mileage) || 0,
+    valuation: basePrice || 0,
+    reservePrice: reservePrice || 0,
     averagePrice: priceData.price_med || 0,
-    basePrice
+    basePrice: basePrice || 0,
+    // Error info
+    error: data.error || '',
+    noData: !make || !model || !year || basePrice <= 0
   };
 
-  // Determine if we have valid data
-  const hasRequiredVehicleData = Boolean(make && model && year);
-  const hasRequiredPriceData = Boolean(priceData.price_min && priceData.price_med);
+  // Step 4: Determine validation result
+  const hasRequiredVehicleData = Boolean(normalizedData.make && normalizedData.model && normalizedData.year > 0);
+  const hasRequiredPriceData = Boolean(normalizedData.basePrice > 0);
   
   const hasValuation = hasRequiredVehicleData && hasRequiredPriceData;
-  const hasError = !hasValuation;
-  
-  console.log('Validation result:', {
-    hasRequiredVehicleData,
-    hasRequiredPriceData,
-    hasValuation,
-    hasError
-  });
+  const hasError = !hasValuation || hasErrorMessage;
   
   return {
     normalizedData,
@@ -124,4 +107,35 @@ export function validateValuationData(data: any): ValidationResult {
     shouldShowError: hasError,
     hasValuation
   };
+}
+
+/**
+ * Calculate reserve price based on base price tiers
+ */
+function calculateReservePrice(basePrice: number): number {
+  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
+    return 0;
+  }
+  
+  let percentageDiscount;
+  
+  // Determine percentage based on price tier
+  if (basePrice <= 15000) percentageDiscount = 0.65;
+  else if (basePrice <= 20000) percentageDiscount = 0.46;
+  else if (basePrice <= 30000) percentageDiscount = 0.37;
+  else if (basePrice <= 50000) percentageDiscount = 0.27;
+  else if (basePrice <= 60000) percentageDiscount = 0.27;
+  else if (basePrice <= 70000) percentageDiscount = 0.22;
+  else if (basePrice <= 80000) percentageDiscount = 0.23;
+  else if (basePrice <= 100000) percentageDiscount = 0.24;
+  else if (basePrice <= 130000) percentageDiscount = 0.20;
+  else if (basePrice <= 160000) percentageDiscount = 0.185;
+  else if (basePrice <= 200000) percentageDiscount = 0.22;
+  else if (basePrice <= 250000) percentageDiscount = 0.17;
+  else if (basePrice <= 300000) percentageDiscount = 0.18;
+  else if (basePrice <= 400000) percentageDiscount = 0.18;
+  else if (basePrice <= 500000) percentageDiscount = 0.16;
+  else percentageDiscount = 0.145; // 500,001+
+  
+  return Math.round(basePrice - (basePrice * percentageDiscount));
 }

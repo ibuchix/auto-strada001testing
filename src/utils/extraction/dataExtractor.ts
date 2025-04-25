@@ -1,11 +1,11 @@
 
 /**
  * Vehicle data extraction utility
- * Updated: 2025-05-02 - Completely rewritten for reliable nested JSON extraction
+ * Updated: 2025-05-05 - Complete rewrite for reliable nested JSON extraction
  */
 
 /**
- * Extract data from nested paths with specific targeting of the nested structure
+ * Extract data from nested paths, focusing specifically on the functionResponse structure
  */
 export function extractData(
   data: any, 
@@ -17,10 +17,20 @@ export function extractData(
     return defaultValue;
   }
   
-  // Log the top-level structure we're working with
+  // Log the structure we're working with
   console.log('Extracting data from structure with keys:', Object.keys(data));
   console.log('Looking for paths:', paths);
 
+  // First check if we have a raw nested API response to work with
+  if (data.functionResponse) {
+    console.log('Found functionResponse at top level, extracting directly');
+    data = { data: data }; // Wrap for consistency with other structures
+  } else if (data.rawNestedData) {
+    console.log('Found rawNestedData, extracting from there');
+    data = { data: data.rawNestedData };
+  }
+
+  // Try each path in order
   for (const path of paths) {
     const pathParts = path.split('.');
     let currentValue = data;
