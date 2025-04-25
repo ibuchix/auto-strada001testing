@@ -1,211 +1,129 @@
 
 /**
  * Data processing utilities for vehicle valuation
- * Updated: 2025-04-29 - ENHANCED LOGGING FOR DEBUGGING
- * Updated: 2025-04-25 - Fixed extraction of nested JSON data from functionResponse
- * Updated: 2025-04-24 - Fixed nested JSON structure traversal and price extraction
+ * Updated: 2025-04-25 - Completely rewritten to properly handle nested JSON structure
  */
 
 import { logOperation } from "./logging.ts";
-import { estimateBasePriceByModel } from "./price-estimator.ts";
-import { calculateReservePrice } from "./price-calculator.ts";
 
-/**
- * Extract and process valuation data from API response
- */
 export function processValuationData(rawData: any, vin: string, mileage: number, requestId: string) {
-  // Deep analysis of the response structure
-  logOperation('data_processor_input', {
-    requestId,
-    hasRawData: !!rawData,
-    rawDataKeys: rawData ? Object.keys(rawData) : [],
-    rawDataSize: rawData ? JSON.stringify(rawData).length : 0,
-    timestamp: new Date().toISOString()
-  });
-  
-  // Safety check for null data
-  if (!rawData) {
-    logOperation('process_data_null_input', { requestId }, 'error');
-    return {
-      make: '',
-      model: '',
-      year: 0,
-      basePrice: 0,
-      reservePrice: 0,
-      valuation: 0,
-      usingFallbackEstimation: true
-    };
-  }
-  
-  // Attempt to parse the raw response if it's a string (some APIs return JSON as string)
-  let parsedData = rawData;
-  if (typeof rawData === 'string') {
-    try {
-      parsedData = JSON.parse(rawData);
-      logOperation('parsed_string_response', {
-        requestId,
-        success: true
-      });
-    } catch (e) {
-      logOperation('failed_to_parse_string_response', {
-        requestId,
-        error: e.message
-      }, 'error');
-    }
-  }
-  
-  // Check for JSON response wrapped in rawResponse field
-  if (rawData.rawResponse && typeof rawData.rawResponse === 'string') {
-    try {
-      const parsedRawResponse = JSON.parse(rawData.rawResponse);
-      if (parsedRawResponse) {
-        logOperation('found_nested_raw_response', {
-          requestId,
-          hasNestedFunctionResponse: !!parsedRawResponse.functionResponse
-        });
-        parsedData = parsedRawResponse;
+  try {
+    // Parse the raw response if it's a string
+    let data = rawData;
+    if (typeof rawData === 'string') {
+      try {
+        data = JSON.parse(rawData);
+      } catch (e) {
+        logOperation('json_parse_error', { 
+          requestId, 
+          error: e.message 
+        }, 'error');
+        throw new Error('Failed to parse API response');
       }
-    } catch (e) {
-      logOperation('failed_to_parse_raw_response', {
-        requestId,
-        error: e.message
-      }, 'error');
     }
-  }
 
-  // Log the parsed structure for debugging
-  logOperation('parsed_data_structure', {
-    requestId,
-    hasFunctionResponse: !!parsedData.functionResponse,
-    functionResponseKeys: parsedData.functionResponse ? Object.keys(parsedData.functionResponse) : [],
-    hasValuation: !!parsedData.functionResponse?.valuation,
-    hasCalcValuation: !!parsedData.functionResponse?.valuation?.calcValuation,
-    timestamp: new Date().toISOString()
-  });
-  
-  // Extract nested data from correct path
-  const functionResponse = parsedData.functionResponse || {};
-  const userParams = functionResponse.userParams || {};
-  const calcValuation = functionResponse.valuation?.calcValuation || {};
-  
-  // Log detailed extraction paths
-  logOperation('data_extraction_paths', {
-    requestId,
-    hasFunctionResponse: !!parsedData.functionResponse,
-    hasUserParams: !!functionResponse.userParams,
-    hasCalcValuation: !!functionResponse.valuation?.calcValuation,
-    calcValuationKeys: Object.keys(functionResponse.valuation?.calcValuation || {}),
-    timestamp: new Date().toISOString()
-  });
-  
-  // Extract vehicle details from userParams first, then fall back to other fields
-  const make = userParams.make || parsedData.make || '';
-  const model = userParams.model || parsedData.model || '';
-  const year = userParams.year || parsedData.year || new Date().getFullYear();
-  
-  // Log the extracted basic vehicle data
-  logOperation('extracted_vehicle_data', {
-    requestId,
-    make,
-    model,
-    year,
-    vin,
-    mileage,
-    timestamp: new Date().toISOString()
-  });
-  
-  // Extract price data from calcValuation
-  const priceMin = Number(calcValuation.price_min) || 0;
-  const priceMed = Number(calcValuation.price_med) || 0;
-  const directPrice = Number(calcValuation.price) || 0;
-  
-  // Log all price-related fields found
-  logOperation('price_calculation', {
-    requestId,
-    priceMin,
-    priceMed,
-    directPrice,
-    isUsingFallback: false,
-    calcValuationData: calcValuation
-  });
-  
-  // Calculate base price if we have price min and med
-  let basePrice = 0;
-  let usingFallbackEstimation = false;
-  
-  if (priceMin > 0 && priceMed > 0) {
-    // Use API price data (average of min and med)
-    basePrice = (priceMin + priceMed) / 2;
-    logOperation('using_api_price_data', {
+    // Log the data structure we're working with
+    logOperation('processing_valuation_data', {
+      requestId,
+      hasUserParams: !!data?.functionResponse?.userParams,
+      hasCalcValuation: !!data?.functionResponse?.valuation?.calcValuation
+    });
+
+    // Direct access to nested data
+    const userParams = data?.functionResponse?.userParams;
+    const calcValuation = data?.functionResponse?.valuation?.calcValuation;
+
+    if (!userParams || !calcValuation) {
+      logOperation('missing_required_data', {
+        requestId,
+        hasUserParams: !!userParams,
+        hasCalcValuation: !!calcValuation
+      }, 'error');
+      throw new Error('Missing required valuation data');
+    }
+
+    // Extract vehicle details directly from userParams
+    const make = userParams.make || '';
+    const model = userParams.model || '';
+    const year = Number(userParams.year) || new Date().getFullYear();
+
+    // Extract price data directly from calcValuation
+    const priceMin = Number(calcValuation.price_min) || 0;
+    const priceMed = Number(calcValuation.price_med) || 0;
+
+    // Calculate base price
+    const basePrice = (priceMin + priceMed) / 2;
+
+    logOperation('price_calculation', {
       requestId,
       priceMin,
       priceMed,
-      calculatedBasePrice: basePrice,
-      timestamp: new Date().toISOString()
+      basePrice
     });
-  } else if (directPrice > 0) {
-    // Use direct valuation
-    basePrice = directPrice;
-    logOperation('using_direct_valuation', {
+
+    // Calculate reserve price based on base price
+    let reservePercentage = 0.65; // Default for prices under 15,000 PLN
+    if (basePrice > 500000) reservePercentage = 0.145;
+    else if (basePrice > 400000) reservePercentage = 0.16;
+    else if (basePrice > 300000) reservePercentage = 0.18;
+    else if (basePrice > 250000) reservePercentage = 0.18;
+    else if (basePrice > 200000) reservePercentage = 0.17;
+    else if (basePrice > 160000) reservePercentage = 0.22;
+    else if (basePrice > 130000) reservePercentage = 0.185;
+    else if (basePrice > 100000) reservePercentage = 0.20;
+    else if (basePrice > 80000) reservePercentage = 0.24;
+    else if (basePrice > 70000) reservePercentage = 0.23;
+    else if (basePrice > 60000) reservePercentage = 0.22;
+    else if (basePrice > 50000) reservePercentage = 0.27;
+    else if (basePrice > 30000) reservePercentage = 0.27;
+    else if (basePrice > 20000) reservePercentage = 0.37;
+    else if (basePrice > 15000) reservePercentage = 0.46;
+
+    const reservePrice = basePrice - (basePrice * reservePercentage);
+
+    logOperation('reserve_price_calculated', {
       requestId,
-      directPrice,
-      timestamp: new Date().toISOString()
+      basePrice,
+      percentage: reservePercentage,
+      reservePrice,
+      formula: `${basePrice} - (${basePrice} × ${reservePercentage})`
     });
-  } else if (make && model && year > 0) {
-    // Estimate price based on vehicle details
-    basePrice = estimateBasePriceByModel(make, model, year, requestId);
-    usingFallbackEstimation = true;
-    logOperation('using_estimated_price', {
-      requestId,
+
+    const result = {
+      vin,
       make,
       model,
       year,
-      estimatedBasePrice: basePrice,
-      timestamp: new Date().toISOString()
-    });
-  } else {
-    // Default fallback
-    basePrice = 50000; // Sensible default
-    usingFallbackEstimation = true;
-    logOperation('using_default_price', {
+      mileage,
+      price: basePrice,
+      valuation: basePrice,
+      reservePrice: Math.round(reservePrice),
+      averagePrice: priceMed
+    };
+
+    logOperation('final_result', {
       requestId,
-      defaultBasePrice: basePrice,
-      timestamp: new Date().toISOString()
+      result
     });
+
+    return result;
+  } catch (error) {
+    logOperation('data_processing_error', {
+      requestId,
+      error: error.message,
+      stack: error.stack
+    }, 'error');
+    
+    return {
+      vin,
+      mileage,
+      make: '',
+      model: '',
+      year: new Date().getFullYear(),
+      price: 0,
+      valuation: 0,
+      reservePrice: 0,
+      averagePrice: 0
+    };
   }
-  
-  // Calculate reserve price
-  const reservePrice = calculateReservePrice(basePrice);
-  
-  // Log final formula and result
-  logOperation('reserve_price_calculated', {
-    requestId,
-    basePrice,
-    reservePrice,
-    formula: `${basePrice} - (${basePrice} × ${basePrice <= 15000 ? 0.65 : 0.46})`
-  });
-  
-  // Log final processed data
-  const result = {
-    make,
-    model,
-    year,
-    transmission: userParams.transmission || parsedData.transmission || '',
-    vin,
-    mileage,
-    basePrice,
-    reservePrice,
-    price: basePrice,
-    valuation: directPrice || basePrice,
-    averagePrice: priceMed || basePrice,
-    usingFallbackEstimation
-  };
-  
-  logOperation('final_result', {
-    requestId,
-    result
-  });
-  
-  // Return processed data
-  return result;
 }
