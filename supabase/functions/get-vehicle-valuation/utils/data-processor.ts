@@ -1,115 +1,74 @@
 
 /**
  * Data processing utilities for vehicle valuation
- * Updated: 2025-05-05 - Rewritten for direct nested data access
+ * Updated: 2025-05-05 - Enhanced error handling and validation
  */
 
 import { logOperation } from "./logging.ts";
 import { calculateReservePrice } from "./utils.ts";
+import { validateValuationResponse } from "./validation.ts";
 
 export function processValuationData(rawData: any, vin: string, mileage: number, requestId: string) {
   try {
-    // First parse the raw response if it's a string
-    let data = rawData;
-    if (typeof rawData === 'string') {
-      try {
-        data = JSON.parse(rawData);
-      } catch (e) {
-        logOperation('json_parse_error', { 
-          requestId, 
-          error: e.message 
-        }, 'error');
-        throw new Error('Failed to parse API response');
-      }
-    }
-
-    // Log the raw data structure for debugging
-    logOperation('raw_data_structure', {
-      requestId,
-      hasUserParams: !!data?.functionResponse?.userParams,
-      hasCalcValuation: !!data?.functionResponse?.valuation?.calcValuation,
-      apiStatus: data?.apiStatus
-    });
-
-    // Extract vehicle details from userParams
-    const userParams = data?.functionResponse?.userParams;
-    const calcValuation = data?.functionResponse?.valuation?.calcValuation;
-
-    if (!userParams || !calcValuation) {
-      logOperation('missing_required_data', {
-        requestId,
-        hasUserParams: !!userParams,
-        hasCalcValuation: !!calcValuation
-      }, 'error');
-      throw new Error('Missing required data in API response');
-    }
-
-    // Extract and validate vehicle details
-    const make = String(userParams.make || '');
-    const model = String(userParams.model || '');
-    const year = parseInt(userParams.year, 10) || 0;
+    // First validate the response
+    const validation = validateValuationResponse(rawData);
     
-    logOperation('vehicle_data_extracted', {
+    // Log validation results
+    logOperation('validation_result', {
       requestId,
-      make,
-      model,
-      year
+      isValid: validation.isValid,
+      errorCount: validation.errors.length,
+      errors: validation.errors
     });
 
-    // Extract and validate price data
-    const priceMin = parseInt(calcValuation.price_min, 10) || 0;
-    const priceMed = parseInt(calcValuation.price_med, 10) || 0;
-    const price = parseInt(calcValuation.price, 10) || 0;
+    if (!validation.isValid) {
+      // Log detailed validation errors
+      validation.errors.forEach(error => {
+        logOperation('validation_error', {
+          requestId,
+          code: error.code,
+          message: error.message,
+          path: error.path,
+          value: error.value
+        }, 'error');
+      });
 
-    logOperation('price_data_extracted', {
-      requestId,
-      priceMin,
-      priceMed,
-      price
-    });
-
-    // Validate essential data
-    if (!make || !model || year <= 0) {
-      throw new Error('Missing vehicle details in API response');
+      throw new Error(validation.errors.map(e => e.message).join('; '));
     }
 
-    if (priceMin <= 0 || priceMed <= 0) {
-      throw new Error('Invalid price data in API response');
-    }
+    const { data } = validation;
 
-    // Calculate base price and reserve price
-    const basePrice = (priceMin + priceMed) / 2;
+    // Calculate base price from validated data
+    const basePrice = (data.price_min + data.price_med) / 2;
     const reservePrice = calculateReservePrice(basePrice);
 
-    logOperation('price_calculation', {
+    // Log successful processing
+    logOperation('data_processing_success', {
       requestId,
-      priceMin,
-      priceMed,
+      vin,
+      make: data.make,
+      model: data.model,
+      year: data.year,
       basePrice,
       reservePrice
     });
 
-    // Return the processed data
+    // Return processed data
     return {
       vin,
-      make,
-      model,
-      year,
+      make: data.make,
+      model: data.model,
+      year: data.year,
       mileage,
-      transmission: userParams.gearbox || 'manual',
-      capacity: userParams.capacity,
-      fuel: userParams.fuel,
-      price: basePrice,
-      price_min: priceMin,
-      price_med: priceMed,
+      transmission: data.transmission,
       basePrice,
       valuation: basePrice,
       reservePrice,
-      averagePrice: priceMed,
-      // Include raw nested data for debugging
+      averagePrice: data.price_med,
+      // Include raw data for debugging
       rawNestedData: {
-        userParams,
-        calcValuation
+        userParams: validation.data.rawResponse.functionResponse.userParams,
+        calcValuation: validation.data.rawResponse.functionResponse.valuation.calcValuation
       }
     };
   } catch (error) {
@@ -121,3 +80,4 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
     throw error;
   }
 }
+
