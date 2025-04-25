@@ -2,6 +2,7 @@
 /**
  * Data processing utilities for vehicle valuation
  * Updated: 2025-04-29 - ENHANCED LOGGING FOR DEBUGGING
+ * Updated: 2025-04-25 - Fixed extraction of nested JSON data from functionResponse
  * Updated: 2025-04-24 - Fixed nested JSON structure traversal and price extraction
  */
 
@@ -71,6 +72,16 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       }, 'error');
     }
   }
+
+  // Log the parsed structure for debugging
+  logOperation('parsed_data_structure', {
+    requestId,
+    hasFunctionResponse: !!parsedData.functionResponse,
+    functionResponseKeys: parsedData.functionResponse ? Object.keys(parsedData.functionResponse) : [],
+    hasValuation: !!parsedData.functionResponse?.valuation,
+    hasCalcValuation: !!parsedData.functionResponse?.valuation?.calcValuation,
+    timestamp: new Date().toISOString()
+  });
   
   // Extract nested data from correct path
   const functionResponse = parsedData.functionResponse || {};
@@ -90,7 +101,7 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
   // Extract vehicle details from userParams first, then fall back to other fields
   const make = userParams.make || parsedData.make || '';
   const model = userParams.model || parsedData.model || '';
-  const year = userParams.year || parsedData.year || 0;
+  const year = userParams.year || parsedData.year || new Date().getFullYear();
   
   // Log the extracted basic vehicle data
   logOperation('extracted_vehicle_data', {
@@ -104,9 +115,9 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
   });
   
   // Extract price data from calcValuation
-  const priceMin = calcValuation.price_min || 0;
-  const priceMed = calcValuation.price_med || 0;
-  const directPrice = calcValuation.price || 0;
+  const priceMin = Number(calcValuation.price_min) || 0;
+  const priceMed = Number(calcValuation.price_med) || 0;
+  const directPrice = Number(calcValuation.price) || 0;
   
   // Log all price-related fields found
   logOperation('price_calculation', {
@@ -114,7 +125,8 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
     priceMin,
     priceMed,
     directPrice,
-    isUsingFallback: false
+    isUsingFallback: false,
+    calcValuationData: calcValuation
   });
   
   // Calculate base price if we have price min and med
@@ -169,7 +181,6 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
   logOperation('reserve_price_calculated', {
     requestId,
     basePrice,
-    percentage: basePrice <= 15000 ? 0.65 : 0.46,
     reservePrice,
     formula: `${basePrice} - (${basePrice} × ${basePrice <= 15000 ? 0.65 : 0.46})`
   });

@@ -1,6 +1,7 @@
 
 /**
  * Edge function for vehicle valuation
+ * Updated: 2025-04-25 - Fixed JSON parsing of nested API response
  * Updated: 2025-04-25 - Enhanced price data extraction and error handling
  * Updated: 2025-04-28 - Added extensive debugging and response validation
  * Updated: 2025-05-01 - Added raw API response inclusion for debugging
@@ -118,19 +119,28 @@ serve(async (req) => {
       );
     }
     
-    // Extract price fields at root level for debugging
-    const priceFields = {};
-    const allFields = apiResponse.data ? Object.keys(apiResponse.data) : [];
+    // Check if we have a valid data object or just a raw response string
+    let dataToProcess = apiResponse.data;
     
-    // Check if the data contains any price fields
-    logOperation('price_fields_found', {
-      requestId,
-      priceFields,
-      allFields
-    });
+    // If we're getting object with no price data but with raw response, try to parse that
+    if ((!dataToProcess || !dataToProcess.functionResponse) && apiResponse.rawResponse) {
+      try {
+        // Try to use the raw response directly
+        logOperation('using_raw_response', { 
+          requestId, 
+          reason: 'Missing functionResponse in data object' 
+        });
+        dataToProcess = apiResponse.rawResponse;
+      } catch (err) {
+        logOperation('raw_parsing_error', { 
+          requestId, 
+          error: err.message 
+        }, 'error');
+      }
+    }
     
     // Process the raw valuation data with detailed logging
-    const processedData = processValuationData(apiResponse.data || apiResponse.rawResponse, vin, mileage, requestId);
+    const processedData = processValuationData(dataToProcess, vin, mileage, requestId);
     
     // Log the processed data for debugging
     logOperation('processed_data', {

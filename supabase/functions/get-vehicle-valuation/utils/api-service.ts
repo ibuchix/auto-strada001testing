@@ -3,6 +3,7 @@
  * API service utilities for get-vehicle-valuation
  * Updated: 2025-04-29 - Enhanced error handling and logging
  * Updated: 2025-05-15 - Removed all references to caching, ensure direct API calls
+ * Updated: 2025-04-25 - Fixed raw API response handling to preserve nested data
  * Updated: 2025-04-24 - Added fallback mechanism for API credentials
  * Updated: 2025-04-24 - Improved raw response handling and data parsing
  */
@@ -124,7 +125,11 @@ export async function callValuationApi(
         hasFunctionResponse,
         hasCalcValuation,
         topLevelKeys: Object.keys(jsonData),
-        nestedKeys: hasFunctionResponse ? Object.keys(jsonData.functionResponse) : []
+        nestedKeys: hasFunctionResponse ? Object.keys(jsonData.functionResponse) : [],
+        hasUserParams: !!jsonData.functionResponse?.userParams,
+        hasValuation: !!jsonData.functionResponse?.valuation,
+        calcValuationKeys: jsonData.functionResponse?.valuation?.calcValuation ? 
+          Object.keys(jsonData.functionResponse.valuation.calcValuation) : []
       });
       
       logOperation('api_call_success', { 
@@ -132,6 +137,7 @@ export async function callValuationApi(
         dataSize: responseText.length
       });
       
+      // Include both the parsed JSON and the raw response
       return {
         success: true,
         data: jsonData,
