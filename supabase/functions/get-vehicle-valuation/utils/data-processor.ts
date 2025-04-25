@@ -1,7 +1,7 @@
 
 /**
  * Data processing utilities for vehicle valuation
- * Updated: 2025-05-06 - Added detailed logging throughout extraction process
+ * Updated: 2025-05-06 - Fixed data extraction from nested API response
  */
 
 import { logOperation } from "./logging.ts";
@@ -10,7 +10,7 @@ import { validateValuationResponse } from "./validation.ts";
 
 export function processValuationData(rawData: any, vin: string, mileage: number, requestId: string) {
   try {
-    // Log the raw data received
+    // Log raw response for debugging
     console.log(`[DATA-PROCESSOR][${requestId}] Processing raw data:`, {
       dataType: typeof rawData,
       isNull: rawData === null,
@@ -18,134 +18,86 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       dataLength: typeof rawData === 'string' ? rawData.length : (rawData ? JSON.stringify(rawData).length : 0)
     });
 
-    if (typeof rawData === 'string' && rawData.length > 0) {
-      console.log(`[DATA-PROCESSOR][${requestId}] String data sample:`, rawData.substring(0, 200) + '...');
-    } else if (rawData && typeof rawData === 'object') {
-      console.log(`[DATA-PROCESSOR][${requestId}] Object keys:`, Object.keys(rawData));
-      
-      // Log critical paths for debugging
-      console.log(`[DATA-PROCESSOR][${requestId}] Key path check:`, {
-        hasFunctionResponse: !!rawData.functionResponse,
-        hasUserParams: !!rawData.functionResponse?.userParams,
-        hasValuation: !!rawData.functionResponse?.valuation,
-        hasCalcValuation: !!rawData.functionResponse?.valuation?.calcValuation
-      });
-      
-      // Log critical data that should be present
-      if (rawData.functionResponse?.userParams) {
-        console.log(`[DATA-PROCESSOR][${requestId}] User params found:`, {
-          make: rawData.functionResponse.userParams.make,
-          model: rawData.functionResponse.userParams.model,
-          year: rawData.functionResponse.userParams.year
-        });
-      }
-      
-      if (rawData.functionResponse?.valuation?.calcValuation) {
-        console.log(`[DATA-PROCESSOR][${requestId}] Pricing data found:`, {
-          price_min: rawData.functionResponse.valuation.calcValuation.price_min,
-          price_med: rawData.functionResponse.valuation.calcValuation.price_med
-        });
+    // Parse string response if needed
+    let data = rawData;
+    if (typeof rawData === 'string') {
+      try {
+        data = JSON.parse(rawData);
+        console.log(`[DATA-PROCESSOR][${requestId}] Successfully parsed string response`);
+      } catch (e) {
+        console.error(`[DATA-PROCESSOR][${requestId}] Failed to parse string response:`, e);
+        throw new Error('Invalid response format');
       }
     }
 
-    // First validate the response
-    console.log(`[DATA-PROCESSOR][${requestId}] Starting validation`);
-    const validation = validateValuationResponse(rawData);
-    
-    // Log validation results
-    console.log(`[DATA-PROCESSOR][${requestId}] Validation result:`, {
-      isValid: validation.isValid,
-      errorCount: validation.errors.length
-    });
-    
-    logOperation('validation_result', {
-      requestId,
-      isValid: validation.isValid,
-      errorCount: validation.errors.length,
-      errors: validation.errors
-    });
-
-    if (!validation.isValid) {
-      // Log detailed validation errors
-      console.log(`[DATA-PROCESSOR][${requestId}] Validation errors:`, validation.errors);
-      
-      validation.errors.forEach(error => {
-        logOperation('validation_error', {
-          requestId,
-          code: error.code,
-          message: error.message,
-          path: error.path,
-          value: error.value
-        }, 'error');
-      });
-
-      throw new Error(validation.errors.map(e => e.message).join('; '));
+    // First get the functionResponse object which contains all the data
+    const functionResponse = data?.functionResponse;
+    if (!functionResponse) {
+      console.error(`[DATA-PROCESSOR][${requestId}] Missing functionResponse object`);
+      throw new Error('Invalid API response structure');
     }
 
-    const { data } = validation;
-    console.log(`[DATA-PROCESSOR][${requestId}] Validated data:`, {
-      make: data.make,
-      model: data.model,
-      year: data.year,
-      price_min: data.price_min,
-      price_med: data.price_med
+    // Extract vehicle details from userParams
+    const userParams = functionResponse.userParams;
+    if (!userParams) {
+      console.error(`[DATA-PROCESSOR][${requestId}] Missing userParams in functionResponse`);
+      throw new Error('Missing vehicle details');
+    }
+
+    console.log(`[DATA-PROCESSOR][${requestId}] Found vehicle details:`, {
+      make: userParams.make,
+      model: userParams.model,
+      year: userParams.year
     });
 
-    // Calculate base price from validated data
-    console.log(`[DATA-PROCESSOR][${requestId}] Calculating base price from:`, {
-      price_min: data.price_min,
-      price_med: data.price_med
+    // Extract pricing data from calcValuation
+    const calcValuation = functionResponse.valuation?.calcValuation;
+    if (!calcValuation) {
+      console.error(`[DATA-PROCESSOR][${requestId}] Missing calcValuation in functionResponse`);
+      throw new Error('Missing price data');
+    }
+
+    console.log(`[DATA-PROCESSOR][${requestId}] Found price data:`, {
+      price_min: calcValuation.price_min,
+      price_med: calcValuation.price_med
     });
-    
-    const basePrice = (data.price_min + data.price_med) / 2;
-    console.log(`[DATA-PROCESSOR][${requestId}] Base price calculated:`, basePrice);
-    
+
+    // Calculate base price from min and median
+    const basePrice = (calcValuation.price_min + calcValuation.price_med) / 2;
+    console.log(`[DATA-PROCESSOR][${requestId}] Calculated base price:`, basePrice);
+
     // Calculate reserve price
-    console.log(`[DATA-PROCESSOR][${requestId}] Calculating reserve price from base price:`, basePrice);
     const reservePrice = calculateReservePrice(basePrice);
-    console.log(`[DATA-PROCESSOR][${requestId}] Reserve price calculated:`, reservePrice);
+    console.log(`[DATA-PROCESSOR][${requestId}] Calculated reserve price:`, reservePrice);
 
-    // Log successful processing
-    logOperation('data_processing_success', {
-      requestId,
-      vin,
-      make: data.make,
-      model: data.model,
-      year: data.year,
-      basePrice,
-      reservePrice
-    });
-
-    // Prepare the final data object
+    // Prepare the result object with all required data
     const result = {
       vin,
-      make: data.make,
-      model: data.model,
-      year: data.year,
+      make: userParams.make,
+      model: userParams.model,
+      year: userParams.year,
       mileage,
-      transmission: data.transmission,
+      transmission: userParams.gearbox || 'manual',
       basePrice,
       valuation: basePrice,
       reservePrice,
-      averagePrice: data.price_med,
-      // Include raw data for debugging
+      averagePrice: calcValuation.price_med,
+      // Include raw nested data for debugging
       rawNestedData: {
-        userParams: validation.data.rawResponse.functionResponse.userParams,
-        calcValuation: validation.data.rawResponse.functionResponse.valuation.calcValuation
+        userParams,
+        calcValuation
       }
     };
-    
-    // Log the final result object before returning
-    console.log(`[DATA-PROCESSOR][${requestId}] Final result object:`, {
-      vin: result.vin,
+
+    // Log the final structured result
+    console.log(`[DATA-PROCESSOR][${requestId}] Final result:`, {
       make: result.make,
       model: result.model,
       year: result.year,
       basePrice: result.basePrice,
-      reservePrice: result.reservePrice,
-      hasRawData: !!result.rawNestedData
+      reservePrice: result.reservePrice
     });
-    
+
     return result;
   } catch (error) {
     console.error(`[DATA-PROCESSOR][${requestId}] Error processing data:`, {
@@ -153,11 +105,6 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       stack: error.stack
     });
     
-    logOperation('data_processing_error', {
-      requestId,
-      error: error.message,
-      stack: error.stack
-    }, 'error');
     throw error;
   }
 }
