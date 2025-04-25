@@ -1,7 +1,7 @@
 
 /**
  * Data processing utilities for vehicle valuation
- * Updated: 2025-04-25 - Completely rewritten to properly handle nested JSON structure
+ * Updated: 2025-05-02 - Completely rewritten to directly work with nested JSON structure
  */
 
 import { logOperation } from "./logging.ts";
@@ -26,10 +26,11 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
     logOperation('processing_valuation_data', {
       requestId,
       hasUserParams: !!data?.functionResponse?.userParams,
-      hasCalcValuation: !!data?.functionResponse?.valuation?.calcValuation
+      hasCalcValuation: !!data?.functionResponse?.valuation?.calcValuation,
+      topLevelKeys: Object.keys(data)
     });
 
-    // Direct access to nested data
+    // DIRECTLY access nested data path - no alternatives
     const userParams = data?.functionResponse?.userParams;
     const calcValuation = data?.functionResponse?.valuation?.calcValuation;
 
@@ -37,9 +38,11 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       logOperation('missing_required_data', {
         requestId,
         hasUserParams: !!userParams,
-        hasCalcValuation: !!calcValuation
+        hasCalcValuation: !!calcValuation,
+        functionResponseKeys: data?.functionResponse ? Object.keys(data.functionResponse) : [],
+        rawDataKeys: Object.keys(data)
       }, 'error');
-      throw new Error('Missing required valuation data');
+      throw new Error('Missing required valuation data in nested structure');
     }
 
     // Extract vehicle details directly from userParams
@@ -47,7 +50,7 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
     const model = userParams.model || '';
     const year = Number(userParams.year) || new Date().getFullYear();
 
-    // Extract price data directly from calcValuation
+    // Extract price data directly from calcValuation - no fallbacks
     const priceMin = Number(calcValuation.price_min) || 0;
     const priceMed = Number(calcValuation.price_med) || 0;
 
@@ -89,6 +92,7 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       formula: `${basePrice} - (${basePrice} × ${reservePercentage})`
     });
 
+    // Return the final processed result
     const result = {
       vin,
       make,
@@ -98,12 +102,18 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       price: basePrice,
       valuation: basePrice,
       reservePrice: Math.round(reservePrice),
-      averagePrice: priceMed
+      averagePrice: priceMed,
+      // Include these fields to help with debugging
+      basePrice,
+      functionResponse: data.functionResponse // Keep the nested structure for reference
     };
 
     logOperation('final_result', {
       requestId,
-      result
+      result: {
+        ...result,
+        functionResponse: '<<included but not logged>>' // Don't log the entire structure again
+      }
     });
 
     return result;
@@ -123,7 +133,8 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
       price: 0,
       valuation: 0,
       reservePrice: 0,
-      averagePrice: 0
+      averagePrice: 0,
+      error: error.message
     };
   }
 }

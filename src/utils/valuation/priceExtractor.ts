@@ -1,9 +1,7 @@
 
 /**
  * Price extraction utility focused on calcValuation data
- * Created: 2025-04-24
- * Updated: 2025-04-24 - Enhanced with better type safety and improved exports
- * Updated: 2025-04-25 - Added error handling and better diagnostics
+ * Updated: 2025-05-02 - Complete rewrite to directly target nested calcValuation 
  */
 
 export interface PriceData {
@@ -17,49 +15,47 @@ export interface PriceData {
   noData?: boolean;
 }
 
+/**
+ * Extract price data ONLY from the nested calcValuation object
+ */
 export function extractPriceData(data: any): PriceData | null {
-  // First, log the raw response for debugging
-  console.log('[PRICE-EXTRACTOR] Raw API response (stringified):', JSON.stringify(data, null, 2));
-  console.log('[PRICE-EXTRACTOR] Raw API response data type:', typeof data);
+  console.log('[PRICE-EXTRACTOR] Starting price extraction from nested structure');
+  console.log('[PRICE-EXTRACTOR] Raw data type:', typeof data);
   
-  // Check if we received an error response
-  if (data?.error) {
-    console.error('[PRICE-EXTRACTOR] API returned an error:', data.error);
+  if (!data) {
+    console.error('[PRICE-EXTRACTOR] No data provided');
     return null;
   }
   
-  // Log the structure of what we received to help debug
-  console.log('[PRICE-EXTRACTOR] Analyzing API response structure:', {
+  // Log structure of what we received
+  console.log('[PRICE-EXTRACTOR] Data structure:', {
     hasData: !!data,
     isObject: typeof data === 'object',
-    topLevelKeys: data ? Object.keys(data) : [],
-    hasFunctionResponse: !!data?.functionResponse,
-    hasValuation: !!data?.functionResponse?.valuation,
-    hasCalcValuation: !!data?.functionResponse?.valuation?.calcValuation
+    topLevelKeys: Object.keys(data),
+    hasFunctionResponse: !!data.functionResponse
   });
 
-  // Use deepScanForPrices to find any price data in the response
-  const priceFields = deepScanForPrices(data);
-  console.log('[PRICE-EXTRACTOR] Deep scanning for price fields:', priceFields);
-  
-  // Get calcValuation - only source of truth for prices
+  // ONLY look for the specific nested path
   const calcValuation = data?.functionResponse?.valuation?.calcValuation;
   
   if (!calcValuation) {
-    console.warn('[PRICE-EXTRACTOR] No calcValuation found in response');
+    console.error('[PRICE-EXTRACTOR] Missing calcValuation at data.functionResponse.valuation.calcValuation');
     
-    // Log the path structure we were expecting
-    if (data?.functionResponse) {
-      console.log('[PRICE-EXTRACTOR] functionResponse exists but is missing expected data:', {
-        hasValuation: !!data.functionResponse.valuation,
-        valuationKeys: data.functionResponse.valuation ? Object.keys(data.functionResponse.valuation) : 'missing'
-      });
+    if (data.functionResponse) {
+      console.log('[PRICE-EXTRACTOR] functionResponse exists but has keys:', Object.keys(data.functionResponse));
+      if (data.functionResponse.valuation) {
+        console.log('[PRICE-EXTRACTOR] valuation exists with keys:', Object.keys(data.functionResponse.valuation));
+      } else {
+        console.log('[PRICE-EXTRACTOR] valuation is missing in functionResponse');
+      }
     } else {
       console.log('[PRICE-EXTRACTOR] functionResponse path is missing entirely');
     }
     
     return null;
   }
+  
+  console.log('[PRICE-EXTRACTOR] Found calcValuation:', calcValuation);
   
   // Extract and validate price data
   const price_min = Number(calcValuation.price_min);
@@ -82,8 +78,7 @@ export function extractPriceData(data: any): PriceData | null {
     basePrice,
     // Adding derived fields to maintain compatibility
     valuation: basePrice,
-    averagePrice: price_med,
-    // Reserve price will be calculated separately
+    averagePrice: price_med
   };
 }
 
@@ -123,30 +118,28 @@ export function deepScanForPrices(obj: any): Record<string, number> {
 /**
  * Utility to help extract nested data from an API response
  * Tries multiple possible paths and returns the first non-empty value
+ * This is used for more general data extraction
  */
 export function extractData(data: any, fieldPaths: string[], defaultValue: any = null): any {
   if (!data) return defaultValue;
-  
-  console.log(`Extracting data for paths: [${fieldPaths.join(', ')}]`, data);
   
   for (const path of fieldPaths) {
     try {
       // Split the path and navigate through the object
       const parts = path.split('.');
       let value = data;
+      let valid = true;
       
       for (const part of parts) {
         if (value && typeof value === 'object' && part in value) {
           value = value[part];
         } else {
-          console.log(`No value found at path ${path}, trying next option`);
-          value = undefined;
+          valid = false;
           break;
         }
       }
       
-      if (value !== undefined) {
-        console.log(`Found value at path ${path}:`, value);
+      if (valid && value !== undefined) {
         return value;
       }
     } catch (err) {
@@ -154,6 +147,5 @@ export function extractData(data: any, fieldPaths: string[], defaultValue: any =
     }
   }
   
-  console.log(`No value found for any paths [${fieldPaths.join(', ')}], using default:`, defaultValue);
   return defaultValue;
 }

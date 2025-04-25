@@ -1,4 +1,9 @@
 
+/**
+ * Price extraction utility specific for nested API response structure
+ * Updated: 2025-05-02 - Completely rewritten to directly target nested JSON paths
+ */
+
 interface PriceData {
   price?: number;
   price_min?: number;
@@ -7,7 +12,12 @@ interface PriceData {
   price_med?: number;
 }
 
+/**
+ * Extract price data exclusively from nested calcValuation object
+ */
 export function extractNestedPriceData(rawData: any): PriceData {
+  console.log('RAW DATA FOR PRICE EXTRACTION:', JSON.stringify(rawData, null, 2));
+  
   // Parse if string
   let data = rawData;
   if (typeof rawData === 'string') {
@@ -18,14 +28,24 @@ export function extractNestedPriceData(rawData: any): PriceData {
       return {};
     }
   }
-
-  // Directly access nested calcValuation object
+  
+  // ONLY target the specific nested path for calcValuation
   const calcValuation = data?.functionResponse?.valuation?.calcValuation;
   
   if (!calcValuation) {
-    console.error('Failed to find calcValuation in response');
+    console.error('Failed to find calcValuation at data.functionResponse.valuation.calcValuation');
+    // Log the structure to help debug the issue
+    console.log('Data structure received:', {
+      hasData: !!data,
+      hasFunctionResponse: !!data?.functionResponse,
+      hasValuation: !!data?.functionResponse?.valuation,
+      topLevelKeys: data ? Object.keys(data) : []
+    });
     return {};
   }
+  
+  // Log the found calcValuation for debugging
+  console.log('Found calcValuation:', calcValuation);
 
   return {
     price: Number(calcValuation.price),
@@ -36,8 +56,16 @@ export function extractNestedPriceData(rawData: any): PriceData {
   };
 }
 
+/**
+ * Calculate base price from nested data using reliable and simple logic
+ */
 export function calculateBasePriceFromNested(priceData: PriceData): number {
   console.log('Calculating base price from nested data:', priceData);
+  
+  if (!priceData || Object.keys(priceData).length === 0) {
+    console.error('Empty price data provided to calculateBasePriceFromNested');
+    return 0;
+  }
   
   // Use direct price calculation from min and median values
   if (priceData.price_min && priceData.price_med) {

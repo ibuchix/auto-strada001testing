@@ -1,8 +1,9 @@
+
 /**
  * Changes made:
- * - 2025-05-03: Updated to use new nested price extraction
- * - 2025-05-03: Removed all fallback price estimation
- * - 2025-04-23: Now uses dedicated pricePathExtractor utility
+ * - 2025-05-02: Complete rewrite to directly access nested JSON structure
+ * - 2025-05-02: Added explicit path extraction for functionResponse structure
+ * - 2025-05-02: Removed fallback mechanisms in favor of direct extraction
  */
 
 import { TransmissionType } from "@/components/hero/valuation/types";
@@ -27,10 +28,12 @@ export function normalizeTransmission(transmission: string | undefined): Transmi
 }
 
 /**
- * Validates and normalizes valuation data from API response
- * Uses centralized extraction utilities and requires valid API data
+ * Validates and normalizes valuation data specifically targeting the nested structure
+ * from the external API response
  */
 export function validateValuationData(data: any): ValidationResult {
+  console.log('Validating data:', JSON.stringify(data, null, 2));
+  
   if (!data) {
     console.warn('Validation called with empty data');
     return {
@@ -41,46 +44,62 @@ export function validateValuationData(data: any): ValidationResult {
     };
   }
 
-  // Extract price data using our dedicated utility
-  const priceData = extractNestedPriceData(data);
+  // First, check if we have the expected nested structure
+  const hasFunctionResponse = !!data.functionResponse;
+  const hasUserParams = !!data.functionResponse?.userParams;
+  const hasCalculationData = !!data.functionResponse?.valuation?.calcValuation;
   
-  // Extract vehicle data focusing on nested paths
-  const make = extractData(data, [
-    'functionResponse.userParams.make',
-    'functionResponse.userParams.manufacturer'
-  ], '');
+  console.log('Data structure check:', {
+    hasFunctionResponse,
+    hasUserParams,
+    hasCalculationData,
+    topLevelKeys: Object.keys(data)
+  });
   
-  const model = extractData(data, [
-    'functionResponse.userParams.model',
-    'functionResponse.userParams.modelName'
-  ], '');
-  
-  const year = extractData(data, [
-    'functionResponse.userParams.year',
-    'functionResponse.userParams.productionYear'
-  ], 0);
+  if (!hasFunctionResponse) {
+    console.error('Missing functionResponse in API data');
+    return {
+      normalizedData: {
+        error: 'Missing required data structure in API response',
+        vin: data.vin || ''
+      },
+      hasError: true,
+      shouldShowError: true, 
+      hasValuation: false
+    };
+  }
 
-  // Calculate base price using our dedicated utility
+  // Extract vehicle data directly from userParams
+  const userParams = data.functionResponse.userParams || {};
+  const make = userParams.make || '';
+  const model = userParams.model || '';
+  const year = Number(userParams.year) || 0;
+  const vin = data.vin || '';
+  
+  console.log('Extracted vehicle data:', { make, model, year, vin });
+
+  // Extract price data directly from calcValuation
+  const priceData = extractNestedPriceData(data);
+  console.log('Extracted price data:', priceData);
+  
+  // Calculate base price
   const basePrice = calculateBasePriceFromNested(priceData);
+  
+  // Get transmission
+  const transmission = normalizeTransmission(
+    userParams.gearbox || data.functionResponse?.userParams?.gearbox || 'manual'
+  );
 
   // Construct normalized data
   const normalizedData = {
     make,
     model,
     year: Number(year),
-    vin: extractData(data, ['vin'], ''),
-    transmission: normalizeTransmission(
-      extractData(data, [
-        'functionResponse.userParams.gearbox', 
-        'transmission'
-      ], 'manual')
-    ),
-    mileage: extractData(data, [
-      'functionResponse.userParams.odometer', 
-      'mileage'
-    ], 0),
+    vin,
+    transmission,
+    mileage: Number(userParams.odometer || 0),
     valuation: basePrice,
-    reservePrice: basePrice,
+    reservePrice: basePrice, // Will be replaced with calculation
     averagePrice: priceData.price_med || 0,
     basePrice
   };
@@ -91,6 +110,13 @@ export function validateValuationData(data: any): ValidationResult {
   
   const hasValuation = hasRequiredVehicleData && hasRequiredPriceData;
   const hasError = !hasValuation;
+  
+  console.log('Validation result:', {
+    hasRequiredVehicleData,
+    hasRequiredPriceData,
+    hasValuation,
+    hasError
+  });
   
   return {
     normalizedData,
