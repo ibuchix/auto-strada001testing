@@ -4,10 +4,9 @@
  * Updated: 2025-04-26 - Refactored to handle raw API response
  * Updated: 2025-04-26 - Fixed TypeScript error with price_med property
  */
-
-import { ValuationMonitoring } from '../monitoring/valuationMonitoring';
+import { ValuationMonitoring } from '../../../../services/monitoring/valuationMonitoring';
 import { supabase } from "@/integrations/supabase/client";
-import { ApiError } from "../errors/apiError";
+import { ApiError } from "../../../../services/errors/apiError";
 import { toast } from "sonner";
 
 export async function getVehicleValuation(
@@ -104,4 +103,12 @@ function calculateDataQualityScore(data: any): number {
     console.error('Error calculating data quality score:', error);
     return 0;
   }
+}
+
+export function cleanupValuationData() {
+  // Placeholder function for data cleanup
+  localStorage.removeItem('valuationData');
+  localStorage.removeItem('tempVIN');
+  localStorage.removeItem('tempMileage');
+  localStorage.removeItem('tempGearbox');
 }
