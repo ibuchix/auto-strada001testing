@@ -3,6 +3,7 @@
  * Data processing utilities for vehicle valuation
  * Updated: 2025-05-06 - Fixed data extraction from nested API response
  * Updated: 2025-05-07 - Added direct extraction of nested API data
+ * Updated: 2025-05-08 - Ensuring VIN and mileage are included in response
  */
 
 import { logOperation } from "./logging.ts";
@@ -91,13 +92,16 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
     const reservePrice = calculateReservePrice(basePrice);
     console.log(`[DATA-PROCESSOR][${requestId}] Calculated reserve price:`, reservePrice);
 
+    // Ensure mileage is passed through from input parameter
+    const processedMileage = Number(mileage) || Number(userParams.odometer) || 0;
+    
     // Prepare the result object with all required data - DIRECT MAPPING
     const result = {
-      vin,
+      vin, // Always include the input VIN
       make: userParams.make || '',
       model: userParams.model || '',
       year: userParams.year || 0,
-      mileage,
+      mileage: processedMileage, // Always include mileage
       transmission: userParams.gearbox || 'manual',
       basePrice,
       valuation: basePrice,

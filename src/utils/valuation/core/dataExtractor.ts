@@ -1,8 +1,8 @@
-
 /**
  * Vehicle data extraction utility
  * Created: 2025-05-01
  * Updated: 2025-05-07 - Improved direct data extraction from nested API structure
+ * Updated: 2025-05-08 - Added extraction of VIN and mileage from all potential locations
  * 
  * This utility safely extracts vehicle data from the API response.
  */
@@ -29,7 +29,10 @@ export function extractVehicleData(data: any) {
       make: data.make,
       model: data.model,
       year: data.year || 0,
-      transmission: data.transmission || 'manual'
+      transmission: data.transmission || 'manual',
+      // Include VIN and mileage from top level if available
+      vin: data.vin || '',
+      mileage: data.mileage || data.odometer || 0
     };
     console.log('Extracted vehicle data:', result);
     console.groupEnd();
@@ -44,7 +47,10 @@ export function extractVehicleData(data: any) {
       make: userParams.make || '',
       model: userParams.model || '',
       year: userParams.year || 0,
-      transmission: userParams.gearbox || data.transmission || 'manual'
+      transmission: userParams.gearbox || data.transmission || 'manual',
+      // Extract VIN and mileage/odometer from functionResponse
+      vin: userParams.vin || data.vin || '',
+      mileage: userParams.odometer || userParams.mileage || data.mileage || 0
     };
     console.log('Extracted vehicle data from functionResponse:', result);
     console.groupEnd();
@@ -58,16 +64,29 @@ export function extractVehicleData(data: any) {
       make: data.rawNestedData.make || '',
       model: data.rawNestedData.model || '',
       year: data.rawNestedData.year || 0,
-      transmission: data.transmission || 'manual'
+      transmission: data.transmission || 'manual',
+      // Extract VIN and mileage from rawNestedData
+      vin: data.rawNestedData.vin || data.vin || '',
+      mileage: data.rawNestedData.mileage || data.rawNestedData.odometer || data.mileage || 0
     };
     console.log('Extracted vehicle data from rawNestedData:', result);
     console.groupEnd();
     return result;
   }
 
-  console.warn('Could not find vehicle data in response');
+  // If we couldn't find structured data, look for VIN and mileage directly
+  const fallbackResult = {
+    make: '',
+    model: '',
+    year: 0,
+    transmission: 'manual',
+    vin: data.vin || '',
+    mileage: extractMileageFromAnySource(data)
+  };
+
+  console.warn('Could not find complete vehicle data in response, using fallback values:', fallbackResult);
   console.groupEnd();
-  return null;
+  return fallbackResult;
 }
 
 /**
@@ -170,4 +189,38 @@ function calculateReservePriceFromBase(basePrice: number): number {
   else percentage = 0.145;
   
   return basePrice - (basePrice * percentage);
+}
+
+/**
+ * Deeply scan for mileage value in any data structure
+ */
+function extractMileageFromAnySource(data: any): number {
+  if (!data) return 0;
+  
+  // Check for direct values
+  if (typeof data.mileage === 'number') return data.mileage;
+  if (typeof data.odometer === 'number') return data.odometer;
+  
+  // Check nested in functionResponse
+  if (data.functionResponse?.userParams?.odometer) 
+    return Number(data.functionResponse.userParams.odometer);
+    
+  if (data.functionResponse?.userParams?.mileage) 
+    return Number(data.functionResponse.userParams.mileage);
+    
+  // Try to find in rawResponse if it exists
+  if (data.rawResponse) {
+    try {
+      const parsed = typeof data.rawResponse === 'string' 
+        ? JSON.parse(data.rawResponse) 
+        : data.rawResponse;
+        
+      if (parsed.userParams?.odometer) return Number(parsed.userParams.odometer);
+      if (parsed.userParams?.mileage) return Number(parsed.userParams.mileage);
+    } catch (e) {
+      console.warn('Failed to parse rawResponse', e);
+    }
+  }
+  
+  return 0;
 }

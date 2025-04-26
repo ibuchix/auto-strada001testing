@@ -4,6 +4,7 @@
  * - 2025-04-24: Refactored to use strict calcValuation price extraction
  * - 2025-04-24: Fixed type compatibility issues with TransmissionType
  * - 2025-04-25: Added API response inspection and improved error handling
+ * - 2025-05-06: Fixed missing required fields in returned ValuationData objects
  */
 
 import { extractVehicleData } from './core/dataExtractor';
@@ -25,8 +26,15 @@ export function normalizeValuationData(rawData: any): ValuationData {
   // Check if the API returned an error directly
   if (rawData.error) {
     console.error('API returned error:', rawData.error);
+    
+    // Extract VIN and mileage if available
+    const vin = rawData.vin || '';
+    const mileage = rawData.mileage || 0;
+    
     return {
       ...createEmptyValuation(),
+      vin,              // Include required vin property
+      mileage,          // Include required mileage property
       noData: true,
       error: rawData.error
     };
@@ -44,10 +52,17 @@ export function normalizeValuationData(rawData: any): ValuationData {
   // Extract price data - only from calcValuation
   const priceData = extractPriceData(rawData);
   
+  // Extract VIN and mileage from raw data
+  const vin = rawData.vin || '';
+  const mileage = rawData.mileage || rawData.odometer || 
+                 (rawData.functionResponse?.userParams?.odometer) || 0;
+  
   if (!priceData) {
     console.error('Failed to extract valid price data from calcValuation');
     return {
       ...vehicleData,
+      vin,              // Include required vin property
+      mileage,          // Include required mileage property
       transmission: safeTransmission,
       valuation: 0,
       reservePrice: 0,
@@ -63,6 +78,8 @@ export function normalizeValuationData(rawData: any): ValuationData {
   
   return {
     ...vehicleData,
+    vin,              // Include required vin property
+    mileage,          // Include required mileage property
     transmission: safeTransmission,
     valuation: priceData.basePrice,
     reservePrice,
@@ -77,9 +94,9 @@ function createEmptyValuation(): ValuationData {
     make: '',
     model: '',
     year: 0,
-    vin: '',
+    vin: '',        // Include required vin property with empty default
     transmission: 'manual' as TransmissionType,
-    mileage: 0,
+    mileage: 0,     // Include required mileage property with 0 default
     valuation: 0,
     reservePrice: 0,
     averagePrice: 0,

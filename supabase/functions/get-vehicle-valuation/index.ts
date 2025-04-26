@@ -3,6 +3,7 @@
  * Edge function for vehicle valuation
  * Updated: 2025-05-05 - Complete rewrite of JSON parsing and error handling
  * Updated: 2025-05-07 - Enhanced to include detailed response info
+ * Updated: 2025-05-08 - Ensuring VIN and mileage are included in response
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -37,7 +38,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Missing VIN parameter'
+          error: 'Missing VIN parameter',
+          vin: '',        // Include empty VIN
+          mileage: 0      // Include zero mileage
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -52,7 +55,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'API credentials not configured'
+          error: 'API credentials not configured',
+          vin,            // Include the VIN
+          mileage: Number(mileage) || 0  // Include the mileage
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -66,7 +71,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: apiResponse.error || 'Failed to get valuation'
+          error: apiResponse.error || 'Failed to get valuation',
+          vin,            // Include the VIN
+          mileage: Number(mileage) || 0  // Include the mileage
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -84,7 +91,7 @@ serve(async (req) => {
     // Process the valuation data from the raw response
     try {
       // Process the raw API response
-      const processedData = processValuationData(apiResponse.rawResponse, vin, mileage, requestId);
+      const processedData = processValuationData(apiResponse.rawResponse, vin, Number(mileage) || 0, requestId);
       
       // Log the final processed data
       logOperation('final_processed_data', {
@@ -93,7 +100,9 @@ serve(async (req) => {
         model: processedData.model,
         year: processedData.year,
         basePrice: processedData.basePrice,
-        reservePrice: processedData.reservePrice
+        reservePrice: processedData.reservePrice,
+        vin: processedData.vin,
+        mileage: processedData.mileage
       });
       
       // Return the processed data
@@ -110,7 +119,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: processingError.message
+          error: processingError.message,
+          vin,            // Include the VIN even when error occurs
+          mileage: Number(mileage) || 0  // Include the mileage even when error occurs
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -118,10 +129,23 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in valuation function:', error);
     
+    // Try to extract vin and mileage from the request
+    let vin = '';
+    let mileage = 0;
+    try {
+      const requestBody = await req.clone().json();
+      vin = requestBody.vin || '';
+      mileage = Number(requestBody.mileage) || 0;
+    } catch (e) {
+      // Couldn't extract data from request
+    }
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Internal server error'
+        error: error.message || 'Internal server error',
+        vin,        // Include empty or extracted VIN
+        mileage     // Include zero or extracted mileage
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
