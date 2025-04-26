@@ -1,4 +1,3 @@
-
 /**
  * Edge function for vehicle valuation
  * Updated: 2025-04-26 - Completely refactored to directly return raw API values
@@ -83,121 +82,32 @@ serve(async (req) => {
     }
     
     // Get the raw response
-    const rawResponse = await response.text();
-    console.log(`Raw API response received, size: ${rawResponse.length}, requestId: ${requestId}`);
+    const rawResponseText = await response.text();
+    let rawResponse;
     
     try {
-      // Parse the raw response
-      const apiData = JSON.parse(rawResponse);
-      
-      // Check for API-level error
-      if (apiData.apiStatus !== "OK") {
-        console.error(`API status not OK: ${apiData.apiStatus}, requestId: ${requestId}`);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `API returned status: ${apiData.apiStatus}`,
-            vin,
-            mileage: Number(mileage) || 0
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      // Extract data directly from the API response
-      const userParams = apiData.functionResponse?.userParams || {};
-      const calcValuation = apiData.functionResponse?.valuation?.calcValuation || {};
-      
-      if (!userParams.make || !userParams.model) {
-        console.error(`Missing make/model in API response, requestId: ${requestId}`);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Incomplete vehicle data returned',
-            vin,
-            mileage: Number(mileage) || 0
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      if (!calcValuation.price_min || !calcValuation.price_med) {
-        console.error(`Missing price data in API response, requestId: ${requestId}`);
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'No pricing data returned',
-            make: userParams.make,
-            model: userParams.model,
-            year: parseInt(userParams.year) || 0,
-            vin,
-            mileage: Number(mileage) || 0
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      // Calculate base price (average of min and med)
-      const priceMin = parseFloat(calcValuation.price_min);
-      const priceMed = parseFloat(calcValuation.price_med);
-      const basePrice = (priceMin + priceMed) / 2;
-      
-      // Calculate reserve price according to pricing tiers
-      let reservePercentage = 0.25; // Default
-      
-      if (basePrice <= 15000) reservePercentage = 0.65;
-      else if (basePrice <= 20000) reservePercentage = 0.46;
-      else if (basePrice <= 30000) reservePercentage = 0.37;
-      else if (basePrice <= 50000) reservePercentage = 0.27;
-      else if (basePrice <= 60000) reservePercentage = 0.27;
-      else if (basePrice <= 70000) reservePercentage = 0.22;
-      else if (basePrice <= 80000) reservePercentage = 0.23;
-      else if (basePrice <= 100000) reservePercentage = 0.24;
-      else if (basePrice <= 130000) reservePercentage = 0.20;
-      else if (basePrice <= 160000) reservePercentage = 0.185;
-      else if (basePrice <= 200000) reservePercentage = 0.22;
-      else if (basePrice <= 250000) reservePercentage = 0.17;
-      else if (basePrice <= 300000) reservePercentage = 0.18;
-      else if (basePrice <= 400000) reservePercentage = 0.18;
-      else if (basePrice <= 500000) reservePercentage = 0.16;
-      else reservePercentage = 0.145;
-      
-      const reservePrice = basePrice - (basePrice * reservePercentage);
-      
-      // Create a direct response with minimal transformation
-      const result = {
-        vin,
-        make: userParams.make,
-        model: userParams.model,
-        year: parseInt(userParams.year) || 0,
-        mileage: Number(mileage) || 0,
-        transmission: gearbox || userParams.gearbox || "manual",
-        valuation: Math.round(basePrice),
-        reservePrice: Math.round(reservePrice),
-        averagePrice: Math.round(priceMed),
-        basePrice: Math.round(basePrice),
-      };
-      
-      console.log(`Processed data prepared, requestId: ${requestId}`);
-      
-      return new Response(
-        JSON.stringify(result),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      rawResponse = JSON.parse(rawResponseText);
     } catch (parseError) {
-      console.error(`Failed to parse API response: ${parseError.message}, requestId: ${requestId}`);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Failed to parse API response',
-          vin,
-          mileage: Number(mileage) || 0
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error('Failed to parse raw API response:', parseError);
+      // Return raw text if JSON parsing fails
+      rawResponse = rawResponseText;
     }
+
+    // Return the ENTIRE raw API response
+    return new Response(
+      JSON.stringify({
+        rawApiResponse: rawResponse,
+        originalRequestParams: { vin, mileage, gearbox }
+      }),
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    );
   } catch (error) {
-    console.error(`Error in valuation function: ${error.message}`);
+    console.error('Error in valuation function:', error);
     
     // Try to extract vin and mileage from the request
     let vin = '';
@@ -217,7 +127,12 @@ serve(async (req) => {
         vin,
         mileage
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
     );
   }
 });
