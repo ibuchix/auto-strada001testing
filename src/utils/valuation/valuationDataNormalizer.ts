@@ -1,90 +1,48 @@
-
 /**
  * Changes made:
- * - 2025-04-24: Refactored to use strict calcValuation price extraction
- * - 2025-04-24: Fixed type compatibility issues with TransmissionType
- * - 2025-04-25: Added API response inspection and improved error handling
- * - 2025-05-06: Fixed missing required fields in returned ValuationData objects
+ * - 2025-04-26: Simplified normalization to pass through processed data
+ * - 2025-04-26: Removed complex data extraction logic
  */
 
-import { extractVehicleData } from './core/dataExtractor';
-import { extractPriceData } from './priceExtractor';
-import { calculateReservePrice } from '@/utils/priceUtils';
-import { inspectApiResponse } from './apiResponseInspector';
 import { ValuationData, TransmissionType } from './valuationDataTypes';
 
-export function normalizeValuationData(rawData: any): ValuationData {
-  // First, deeply inspect the API response
-  inspectApiResponse(rawData, 'NORMALIZER');
-  
-  // Check for valid data
-  if (!rawData) {
-    console.error('No raw data provided to normalizer');
+export function normalizeValuationData(data: any): ValuationData {
+  // If no data provided, return empty valuation
+  if (!data) {
+    console.error('No data provided to normalizer');
     return createEmptyValuation();
   }
   
-  // Check if the API returned an error directly
-  if (rawData.error) {
-    console.error('API returned error:', rawData.error);
-    
-    // Extract VIN and mileage if available
-    const vin = rawData.vin || '';
-    const mileage = rawData.mileage || 0;
-    
+  // Check if the API returned an error
+  if (data.error) {
+    console.error('API returned error:', data.error);
     return {
       ...createEmptyValuation(),
-      vin,              // Include required vin property
-      mileage,          // Include required mileage property
+      vin: data.vin || '',
+      mileage: data.mileage || 0,
       noData: true,
-      error: rawData.error
+      error: data.error
     };
   }
-  
-  // Extract vehicle data
-  const vehicleData = extractVehicleData(rawData);
-  
+
   // Ensure transmission is a valid TransmissionType
-  const safeTransmission: TransmissionType = 
-    (vehicleData.transmission === 'automatic' || vehicleData.transmission === 'manual') 
-    ? vehicleData.transmission as TransmissionType 
+  const transmission: TransmissionType = 
+    (data.transmission === 'automatic' || data.transmission === 'manual') 
+    ? data.transmission as TransmissionType 
     : 'manual';
-  
-  // Extract price data - only from calcValuation
-  const priceData = extractPriceData(rawData);
-  
-  // Extract VIN and mileage from raw data
-  const vin = rawData.vin || '';
-  const mileage = rawData.mileage || rawData.odometer || 
-                 (rawData.functionResponse?.userParams?.odometer) || 0;
-  
-  if (!priceData) {
-    console.error('Failed to extract valid price data from calcValuation');
-    return {
-      ...vehicleData,
-      vin,              // Include required vin property
-      mileage,          // Include required mileage property
-      transmission: safeTransmission,
-      valuation: 0,
-      reservePrice: 0,
-      averagePrice: 0,
-      basePrice: 0,
-      noData: true,
-      error: 'Could not retrieve valid pricing data from valuation service'
-    };
-  }
-  
-  // Calculate reserve price using our formula
-  const reservePrice = calculateReservePrice(priceData.basePrice);
-  
+
+  // Return normalized data structure
   return {
-    ...vehicleData,
-    vin,              // Include required vin property
-    mileage,          // Include required mileage property
-    transmission: safeTransmission,
-    valuation: priceData.basePrice,
-    reservePrice,
-    averagePrice: priceData.price_med,
-    basePrice: priceData.basePrice,
+    vin: data.vin,
+    make: data.make,
+    model: data.model,
+    year: data.year,
+    mileage: data.mileage,
+    transmission,
+    valuation: data.valuation,
+    reservePrice: data.reservePrice,
+    averagePrice: data.averagePrice,
+    basePrice: data.basePrice,
     noData: false
   };
 }
