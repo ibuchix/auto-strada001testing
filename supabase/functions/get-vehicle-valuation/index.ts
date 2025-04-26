@@ -2,7 +2,8 @@
 /**
  * Changes made:
  * - 2025-04-26: Improved data extraction from nested API response
- * - 2025-04-26: Added detailed logging and validation
+ * - 2025-04-26: Fixed direct parsing of nested API data structures
+ * - 2025-04-26: Added extensive logging for troubleshooting
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -62,110 +63,137 @@ serve(async (req) => {
       rawResponse: rawResponseText
     });
 
-    let rawData;
+    // Parse the raw response and extract the necessary data
     try {
-      rawData = JSON.parse(rawResponseText);
-    } catch (error) {
-      console.error('Failed to parse API response:', error);
-      throw new Error('Invalid API response format');
-    }
-
-    // Extract data from nested structure
-    const userParams = rawData?.functionResponse?.userParams;
-    const calcValuation = rawData?.functionResponse?.valuation?.calcValuation;
-
-    if (!userParams || !calcValuation) {
-      console.error('Missing required data in API response');
-      throw new Error('Incomplete valuation data');
-    }
-
-    console.log({
-      timestamp: new Date().toISOString(),
-      operation: 'extracted_data',
-      level: 'info',
-      requestId,
-      userParams,
-      calcValuation
-    });
-
-    // Extract pricing data
-    const priceMin = Number(calcValuation.price_min) || 0;
-    const priceMed = Number(calcValuation.price_med) || 0;
-    const basePrice = (priceMin + priceMed) / 2;
-
-    console.log({
-      timestamp: new Date().toISOString(),
-      operation: 'price_calculation',
-      level: 'info',
-      requestId,
-      priceMin,
-      priceMed,
-      basePrice
-    });
-
-    // Calculate reserve price based on base price
-    let percentage = 0.65; // Default percentage for prices <= 15,000
-    if (basePrice > 500000) percentage = 0.145;
-    else if (basePrice > 400000) percentage = 0.16;
-    else if (basePrice > 300000) percentage = 0.18;
-    else if (basePrice > 250000) percentage = 0.18;
-    else if (basePrice > 200000) percentage = 0.17;
-    else if (basePrice > 160000) percentage = 0.22;
-    else if (basePrice > 130000) percentage = 0.185;
-    else if (basePrice > 100000) percentage = 0.20;
-    else if (basePrice > 80000) percentage = 0.24;
-    else if (basePrice > 70000) percentage = 0.23;
-    else if (basePrice > 60000) percentage = 0.22;
-    else if (basePrice > 50000) percentage = 0.27;
-    else if (basePrice > 30000) percentage = 0.27;
-    else if (basePrice > 20000) percentage = 0.37;
-    else if (basePrice > 15000) percentage = 0.46;
-
-    const reservePrice = basePrice - (basePrice * percentage);
-
-    console.log({
-      timestamp: new Date().toISOString(),
-      operation: 'reserve_price_calculated',
-      level: 'info',
-      requestId,
-      basePrice,
-      percentage,
-      reservePrice,
-      formula: `${basePrice} - (${basePrice} × ${percentage})`
-    });
-
-    // Prepare the final response
-    const result = {
-      success: true,
-      data: {
+      const rawData = JSON.parse(rawResponseText);
+      
+      // CRITICAL FIX: Direct access to the nested API data structure
+      const functionResponse = rawData.functionResponse;
+      
+      if (!functionResponse) {
+        throw new Error('Invalid API response structure: missing functionResponse');
+      }
+      
+      // Extract user parameters and vehicle details
+      const userParams = functionResponse.userParams;
+      
+      if (!userParams) {
+        throw new Error('Invalid API response structure: missing userParams');
+      }
+      
+      // Extract valuation data
+      const valuation = functionResponse.valuation;
+      const calcValuation = valuation?.calcValuation;
+      
+      if (!calcValuation) {
+        throw new Error('Invalid API response structure: missing calcValuation');
+      }
+      
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: 'extracted_data',
+        level: 'info',
+        requestId,
+        userParams: JSON.stringify(userParams),
+        calcValuation: JSON.stringify(calcValuation)
+      });
+      
+      // Extract price data from calcValuation
+      const price = Number(calcValuation.price) || 0;
+      const priceMin = Number(calcValuation.price_min) || 0;
+      const priceMax = Number(calcValuation.price_max) || 0;
+      const priceAvr = Number(calcValuation.price_avr) || 0;
+      const priceMed = Number(calcValuation.price_med) || 0;
+      
+      // Calculate base price as the average of min and median price
+      const basePrice = (priceMin + priceMed) / 2;
+      
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: 'price_calculation',
+        level: 'info',
+        requestId,
+        priceMin,
+        priceMed,
+        basePrice,
+        isUsingFallback: false
+      });
+      
+      // Calculate reserve price based on base price
+      let percentage = 0.65; // Default percentage for prices <= 15,000
+      if (basePrice > 500000) percentage = 0.145;
+      else if (basePrice > 400000) percentage = 0.16;
+      else if (basePrice > 300000) percentage = 0.18;
+      else if (basePrice > 250000) percentage = 0.18;
+      else if (basePrice > 200000) percentage = 0.17;
+      else if (basePrice > 160000) percentage = 0.22;
+      else if (basePrice > 130000) percentage = 0.185;
+      else if (basePrice > 100000) percentage = 0.20;
+      else if (basePrice > 80000) percentage = 0.24;
+      else if (basePrice > 70000) percentage = 0.23;
+      else if (basePrice > 60000) percentage = 0.22;
+      else if (basePrice > 50000) percentage = 0.27;
+      else if (basePrice > 30000) percentage = 0.27;
+      else if (basePrice > 20000) percentage = 0.37;
+      else if (basePrice > 15000) percentage = 0.46;
+      
+      const reservePrice = basePrice - (basePrice * percentage);
+      
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: 'reserve_price_calculated',
+        level: 'info',
+        requestId,
+        basePrice,
+        percentage,
+        reservePrice,
+        formula: `${basePrice} - (${basePrice} × ${percentage})`
+      });
+      
+      // Format result with properly extracted data
+      const result = {
         vin,
         make: userParams.make || '',
         model: userParams.model || '',
-        year: userParams.year || new Date().getFullYear(),
-        mileage: Number(mileage) || 0,
+        year: userParams.year ? Number(userParams.year) : new Date().getFullYear(),
+        mileage: Number(mileage),
         transmission: gearbox,
-        price: Math.round(calcValuation.price) || 0,
-        valuation: Math.round(basePrice) || 0,
-        reservePrice: Math.round(reservePrice) || 0,
-        averagePrice: Math.round(priceMed) || 0,
-        basePrice: Math.round(basePrice) || 0,
-        // Include raw data for debugging
+        valuation: Math.round(basePrice),
+        reservePrice: Math.round(reservePrice),
+        averagePrice: Math.round(priceMed),
+        basePrice: Math.round(basePrice),
+        // Include price details for debugging
+        price_details: {
+          price,
+          price_min: priceMin,
+          price_max: priceMax,
+          price_avr: priceAvr,
+          price_med: priceMed
+        },
+        // Include original API response for debugging
         rawApiResponse: rawResponseText
-      }
-    };
-
-    console.log({
-      timestamp: new Date().toISOString(),
-      operation: 'final_response',
-      level: 'info',
-      requestId,
-      response: result
-    });
-
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      };
+      
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: 'final_result',
+        level: 'info',
+        requestId,
+        result
+      });
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: result
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+      
+    } catch (parseError) {
+      console.error('Failed to parse API response:', parseError);
+      throw new Error(`Invalid API response format: ${parseError.message}`);
+    }
 
   } catch (error) {
     console.error('Error in valuation function:', error);

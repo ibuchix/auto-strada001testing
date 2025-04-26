@@ -4,6 +4,7 @@
  * - 2025-04-26: Enhanced data extraction and validation
  * - 2025-04-26: Added multiple data extraction paths
  * - 2025-04-26: Improved error handling and logging
+ * - 2025-04-26: Fixed direct parsing of the rawApiResponse
  */
 
 import { ValuationData, TransmissionType } from './valuationDataTypes';
@@ -53,40 +54,46 @@ export function normalizeValuationData(data: any): ValuationData {
         ? JSON.parse(data.rawApiResponse) 
         : data.rawApiResponse;
 
-      if (rawResponse?.functionResponse?.userParams && rawResponse?.functionResponse?.valuation?.calcValuation) {
+      if (rawResponse?.functionResponse) {
         const userParams = rawResponse.functionResponse.userParams;
-        const calcValuation = rawResponse.functionResponse.valuation.calcValuation;
+        let calcValuation;
+        
+        if (rawResponse.functionResponse.valuation?.calcValuation) {
+          calcValuation = rawResponse.functionResponse.valuation.calcValuation;
+        }
 
         console.log('Extracted data from rawApiResponse:', {
           userParams,
           calcValuation
         });
 
-        const priceMin = Number(calcValuation.price_min) || 0;
-        const priceMed = Number(calcValuation.price_med) || 0;
-        const basePrice = (priceMin + priceMed) / 2;
-        const reservePrice = calculateReservePrice(basePrice);
+        if (userParams && calcValuation) {
+          const priceMin = Number(calcValuation.price_min) || 0;
+          const priceMed = Number(calcValuation.price_med) || 0;
+          const basePrice = (priceMin + priceMed) / 2;
+          const reservePrice = calculateReservePrice(basePrice);
 
-        console.log('Calculated prices:', {
-          priceMin,
-          priceMed,
-          basePrice,
-          reservePrice
-        });
+          console.log('Calculated prices:', {
+            priceMin,
+            priceMed,
+            basePrice,
+            reservePrice
+          });
 
-        return {
-          make: userParams.make || '',
-          model: userParams.model || '',
-          year: userParams.year || new Date().getFullYear(),
-          vin: data.vin || '',
-          transmission: (data.transmission || 'manual') as TransmissionType,
-          mileage: Number(data.mileage) || 0,
-          valuation: basePrice,
-          reservePrice: reservePrice,
-          averagePrice: priceMed,
-          basePrice: basePrice,
-          noData: false
-        };
+          return {
+            make: userParams.make || '',
+            model: userParams.model || '',
+            year: userParams.year ? Number(userParams.year) : new Date().getFullYear(),
+            vin: data.vin || '',
+            transmission: (data.transmission || 'manual') as TransmissionType,
+            mileage: Number(data.mileage) || 0,
+            valuation: basePrice,
+            reservePrice: reservePrice,
+            averagePrice: priceMed,
+            basePrice: basePrice,
+            noData: false
+          };
+        }
       }
     }
 
