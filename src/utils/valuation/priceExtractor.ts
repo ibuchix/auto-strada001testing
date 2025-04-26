@@ -1,7 +1,9 @@
+
 /**
  * Changes made:
  * - 2025-04-26: Added support for raw API response structure
  * - 2025-04-30: Enhanced deep scanning for price fields
+ * - 2025-04-30: Fixed TypeScript error with price_med property
  */
 
 /**
@@ -54,7 +56,7 @@ export function extractPriceData(data: any): {
         basePrice,
         valuation: data.valuation || basePrice,
         reservePrice: data.reservePrice || calculateReservePrice(basePrice),
-        averagePrice: data.averagePrice || data.price_med || basePrice
+        averagePrice: data.averagePrice || (data.price_med ? data.price_med : basePrice)
       };
     }
     

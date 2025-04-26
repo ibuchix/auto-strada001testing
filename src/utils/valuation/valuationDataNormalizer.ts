@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-04-26: Completely refactored to handle raw API response
+ * - 2025-04-26: Fixed TypeScript error with price_med property
  */
 
 import { ValuationData, TransmissionType } from './valuationDataTypes';
