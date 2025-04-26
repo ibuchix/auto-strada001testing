@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-04-20: Added direct VIN validation as fallback
@@ -8,6 +7,7 @@
  * - 2025-04-25: ADDED DEBUG MODE AND API RESPONSE INSPECTION TO FIX PRICE DATA ISSUES
  * - 2025-04-29: ADDED HIGHLY VISIBLE CONSOLE LOGS FOR DEBUGGING
  * - 2025-04-30: Fixed import for deepScanForPrices utility
+ * - 2025-04-26: Fixed error property missing in return object
  */
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
@@ -215,7 +215,11 @@ export const useValuationRequest = ({
         // Use direct result if it has valid data
         if (directResult && directResult.make && directResult.model) {
           console.log('%c✅ USING FALLBACK API RESULT', 'background: #8BC34A; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
-          result = { success: true, data: directResult };
+          result = { 
+            success: true, 
+            data: directResult,
+            error: null  // Add the error property to match expected type
+          };
         } else {
           console.warn('%c⚠️ FALLBACK API ALSO FAILED', 'background: #FF9800; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px');
         }
