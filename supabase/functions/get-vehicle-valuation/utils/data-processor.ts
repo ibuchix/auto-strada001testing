@@ -1,8 +1,8 @@
 
 /**
  * Changes made:
- * - 2025-04-26: Simplified data processing to directly use raw API response
- * - 2025-04-26: Added direct extraction of price data from calcValuation
+ * - 2025-04-26: Completely redesigned to directly use raw API response
+ * - 2025-04-26: Simplified data extraction with direct path targeting
  */
 
 export function processValuationData(rawData: any, vin: string, mileage: number, requestId: string) {
@@ -10,22 +10,49 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
     // Parse the raw response if it's a string
     const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
     
-    // Get the function response which contains all our needed data
-    const functionResponse = data.functionResponse;
-    if (!functionResponse) {
+    // Log the data to help with debugging
+    console.log(`[DATA-PROCESSOR][${requestId}] Processing data:`, {
+      hasData: !!data,
+      dataType: typeof data,
+      keys: data ? Object.keys(data) : []
+    });
+
+    // Check if we have the expected structure
+    if (!data || !data.functionResponse) {
       throw new Error('Invalid API response - missing functionResponse');
     }
-
-    // Extract vehicle data from userParams
-    const userParams = functionResponse.userParams;
-    const calcValuation = functionResponse.valuation?.calcValuation;
-
-    if (!userParams || !calcValuation) {
-      throw new Error('Missing required data from API response');
+    
+    // Get direct reference to the key structures we need
+    const userParams = data.functionResponse.userParams || {};
+    const calcValuation = data.functionResponse.valuation?.calcValuation || {};
+    
+    // Log what we found for debugging
+    console.log(`[DATA-PROCESSOR][${requestId}] Extracted data:`, {
+      userParams: !!userParams,
+      calcValuation: !!calcValuation
+    });
+    
+    // Directly get the values we need from the response
+    const make = userParams.make || '';
+    const model = userParams.model || '';
+    const year = parseInt(userParams.year) || 0;
+    const actualMileage = mileage || parseInt(userParams.odometer) || 0;
+    const transmission = userParams.gearbox || 'manual';
+    
+    // Get price data - provide fallbacks but log warnings if missing
+    const priceMin = parseFloat(calcValuation.price_min) || 0;
+    const priceMed = parseFloat(calcValuation.price_med) || 0;
+    
+    if (!priceMin || !priceMed) {
+      console.warn(`[DATA-PROCESSOR][${requestId}] Missing price data:`, {
+        priceMin,
+        priceMed,
+        calcValuation
+      });
     }
-
+    
     // Calculate base price (average of min and median)
-    const basePrice = (Number(calcValuation.price_min) + Number(calcValuation.price_med)) / 2;
+    const basePrice = (priceMin + priceMed) / 2;
     
     // Calculate reserve price based on our pricing tiers
     let reservePercentage = 0.25; // Default percentage
@@ -48,24 +75,31 @@ export function processValuationData(rawData: any, vin: string, mileage: number,
     else reservePercentage = 0.145;
 
     const reservePrice = basePrice - (basePrice * reservePercentage);
+    
+    // Log the calculated values
+    console.log(`[DATA-PROCESSOR][${requestId}] Calculated values:`, {
+      basePrice,
+      reservePercentage,
+      reservePrice: Math.round(reservePrice)
+    });
 
-    // Return properly structured data with all required fields
+    // Return a simple object with all the data we need
     return {
       vin,
-      make: userParams.make || '',
-      model: userParams.model || '',
-      year: Number(userParams.year) || 0,
-      mileage: Number(mileage) || Number(userParams.odometer) || 0,
-      transmission: userParams.gearbox || 'manual',
-      valuation: basePrice,
+      make,
+      model,
+      year,
+      mileage: actualMileage,
+      transmission,
+      valuation: Math.round(basePrice),
       reservePrice: Math.round(reservePrice),
-      averagePrice: Number(calcValuation.price_med),
+      averagePrice: Math.round(priceMed),
       basePrice: Math.round(basePrice),
       // Include raw calculation data for transparency
       rawPricing: {
-        min: calcValuation.price_min,
+        min: priceMin,
         max: calcValuation.price_max,
-        median: calcValuation.price_med,
+        median: priceMed,
         average: calcValuation.price_avr
       }
     };

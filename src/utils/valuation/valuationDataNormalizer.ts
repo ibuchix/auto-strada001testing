@@ -1,7 +1,8 @@
+
 /**
  * Changes made:
- * - 2025-04-26: Simplified normalization to pass through processed data
- * - 2025-04-26: Removed complex data extraction logic
+ * - 2025-04-26: Completely simplified to pass through processed data directly
+ * - 2025-04-26: Removed complex extraction logic
  */
 
 import { ValuationData, TransmissionType } from './valuationDataTypes';
