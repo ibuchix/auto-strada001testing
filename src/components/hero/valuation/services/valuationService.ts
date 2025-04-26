@@ -4,6 +4,7 @@
  * Updated: 2025-04-26 - Refactored to handle raw API response
  * Updated: 2025-04-26 - Fixed TypeScript error with price_med property
  * Updated: 2025-04-26 - Added named export for getValuation
+ * Updated: 2025-04-26 - Added success property to return value for type consistency
  */
 import { ValuationMonitoring } from '../../../../services/monitoring/valuationMonitoring';
 import { supabase } from "@/integrations/supabase/client";
@@ -68,12 +69,17 @@ export async function getVehicleValuation(
       executionTimeMs: executionTime
     });
 
-    return { data, error: null };
+    return {
+      success: true, // Add success flag for type consistency
+      data,
+      error: null
+    };
   } catch (error) {
     console.error('[VALUATION-API] Service error:', error);
     toast.error('Failed to get vehicle valuation');
     
     return {
+      success: false, // Add success flag for type consistency 
       data: null,
       error: error instanceof Error ? error : new Error('Unknown error in valuation service')
     };
