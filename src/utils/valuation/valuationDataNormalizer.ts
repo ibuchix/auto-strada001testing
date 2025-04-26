@@ -1,8 +1,8 @@
 
 /**
  * Changes made:
- * - 2025-04-26: Completely simplified to pass through processed data directly
- * - 2025-04-26: Removed complex extraction logic
+ * - 2025-04-26: Completely removed all extraction logic
+ * - 2025-04-26: Simply verifies and passes through the data
  */
 
 import { ValuationData, TransmissionType } from './valuationDataTypes';
@@ -26,13 +26,28 @@ export function normalizeValuationData(data: any): ValuationData {
     };
   }
 
+  // Check if we have critical data (make, model, prices)
+  if (!data.make || !data.model || !data.valuation) {
+    console.error('Missing critical data in API response');
+    return {
+      ...createEmptyValuation(),
+      vin: data.vin || '',
+      mileage: data.mileage || 0,
+      make: data.make || '',
+      model: data.model || '',
+      year: data.year || 0,
+      noData: true,
+      error: 'Incomplete vehicle data returned'
+    };
+  }
+
   // Ensure transmission is a valid TransmissionType
   const transmission: TransmissionType = 
     (data.transmission === 'automatic' || data.transmission === 'manual') 
     ? data.transmission as TransmissionType 
     : 'manual';
 
-  // Return normalized data structure
+  // Return the data directly - minimal transformation
   return {
     vin: data.vin,
     make: data.make,
@@ -53,9 +68,9 @@ function createEmptyValuation(): ValuationData {
     make: '',
     model: '',
     year: 0,
-    vin: '',        // Include required vin property with empty default
+    vin: '',
     transmission: 'manual' as TransmissionType,
-    mileage: 0,     // Include required mileage property with 0 default
+    mileage: 0,
     valuation: 0,
     reservePrice: 0,
     averagePrice: 0,
