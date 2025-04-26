@@ -3,6 +3,7 @@
  * Enhanced valuation service with monitoring
  * Updated: 2025-04-26 - Refactored to handle raw API response
  * Updated: 2025-04-26 - Fixed TypeScript error with price_med property
+ * Updated: 2025-04-26 - Added named export for getValuation
  */
 import { ValuationMonitoring } from '../../../../services/monitoring/valuationMonitoring';
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +13,8 @@ import { toast } from "sonner";
 export async function getVehicleValuation(
   vin: string, 
   mileage: number, 
-  gearbox: string
+  gearbox: string,
+  options?: { debug?: boolean; requestId?: string }
 ) {
   const startTime = performance.now();
 
@@ -25,7 +27,9 @@ export async function getVehicleValuation(
         body: { 
           vin, 
           mileage, 
-          gearbox
+          gearbox,
+          debug: options?.debug,
+          requestId: options?.requestId
         }
       }
     );
@@ -112,3 +116,6 @@ export function cleanupValuationData() {
   localStorage.removeItem('tempMileage');
   localStorage.removeItem('tempGearbox');
 }
+
+// Export getVehicleValuation with alias getValuation for backward compatibility
+export const getValuation = getVehicleValuation;
