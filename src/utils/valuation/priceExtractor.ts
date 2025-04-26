@@ -1,158 +1,165 @@
-
 /**
- * Price extraction utility focused on calcValuation data
- * Updated: 2025-05-05 - Complete rewrite to handle any form of the nested API response
+ * Changes made:
+ * - 2025-04-26: Added support for raw API response structure
+ * - 2025-04-30: Enhanced deep scanning for price fields
  */
 
-export interface PriceData {
-  price_min: number;
-  price_med: number;
+/**
+ * Extract price data from various API response formats
+ */
+export function extractPriceData(data: any): {
   basePrice: number;
-  // Add these fields for type compatibility
-  reservePrice?: number;
-  valuation?: number;
-  averagePrice?: number;
-  noData?: boolean;
-}
-
-/**
- * Extract price data from the API response
- */
-export function extractPriceData(data: any): PriceData | null {
-  console.log('[PRICE-EXTRACTOR] Starting price extraction');
-  
+  valuation: number;
+  reservePrice: number;
+  averagePrice: number;
+} | null {
   if (!data) {
-    console.error('[PRICE-EXTRACTOR] No data provided');
+    console.error('No data provided to price extractor');
     return null;
   }
-  
-  // Check if we already have processed data at top level
-  if (data.price_min !== undefined && data.price_med !== undefined) {
-    console.log('[PRICE-EXTRACTOR] Found price data directly at top level');
-    return {
-      price_min: Number(data.price_min),
-      price_med: Number(data.price_med),
-      basePrice: data.basePrice || ((Number(data.price_min) + Number(data.price_med)) / 2)
-    };
-  }
-  
-  // First attempt: Look for calcValuation in functionResponse
-  const calcValuation = data?.functionResponse?.valuation?.calcValuation;
-  
-  if (calcValuation) {
-    console.log('[PRICE-EXTRACTOR] Found calcValuation in functionResponse');
-    const price_min = Number(calcValuation.price_min);
-    const price_med = Number(calcValuation.price_med);
-    
-    if (!isNaN(price_min) && !isNaN(price_med) && price_min > 0 && price_med > 0) {
-      const basePrice = (price_min + price_med) / 2;
-      return { price_min, price_med, basePrice };
-    }
-  }
-  
-  // Second attempt: Look for rawNestedData
-  const nestedCalcValuation = data?.rawNestedData?.calcValuation;
-  
-  if (nestedCalcValuation) {
-    console.log('[PRICE-EXTRACTOR] Found calcValuation in rawNestedData');
-    const price_min = Number(nestedCalcValuation.price_min);
-    const price_med = Number(nestedCalcValuation.price_med);
-    
-    if (!isNaN(price_min) && !isNaN(price_med) && price_min > 0 && price_med > 0) {
-      const basePrice = (price_min + price_med) / 2;
-      return { price_min, price_med, basePrice };
-    }
-  }
-  
-  // Third attempt: Try to parse rawApiResponse
-  if (data.rawApiResponse) {
-    try {
-      const parsedRaw = JSON.parse(data.rawApiResponse);
-      const rawCalcValuation = parsedRaw?.functionResponse?.valuation?.calcValuation;
+
+  try {
+    // Check if we have the raw API response structure
+    if (data.rawApiResponse) {
+      console.log('Extracting from raw API response');
       
-      if (rawCalcValuation) {
-        console.log('[PRICE-EXTRACTOR] Found calcValuation in rawApiResponse');
-        const price_min = Number(rawCalcValuation.price_min);
-        const price_med = Number(rawCalcValuation.price_med);
+      // Parse the raw response if it's a string
+      const rawResponse = typeof data.rawApiResponse === 'string' 
+        ? JSON.parse(data.rawApiResponse) 
+        : data.rawApiResponse;
+      
+      // Extract from nested structure
+      const valuationData = rawResponse?.functionResponse?.valuation?.calcValuation;
+      
+      if (valuationData) {
+        // Calculate the base price as average of min and median prices
+        const basePrice = Math.round((valuationData.price_min + valuationData.price_med) / 2);
         
-        if (!isNaN(price_min) && !isNaN(price_med) && price_min > 0 && price_med > 0) {
-          const basePrice = (price_min + price_med) / 2;
-          return { price_min, price_med, basePrice };
-        }
+        return {
+          basePrice,
+          valuation: valuationData.price || basePrice,
+          reservePrice: calculateReservePrice(basePrice),
+          averagePrice: valuationData.price_avr || valuationData.price_med
+        };
       }
-    } catch (e) {
-      console.error('[PRICE-EXTRACTOR] Failed to parse rawApiResponse:', e);
     }
+    
+    // Fall back to direct fields if available
+    if (data.valuation || data.basePrice || data.reservePrice) {
+      console.log('Extracting from direct price fields');
+      
+      const basePrice = data.basePrice || data.valuation || 0;
+      
+      return {
+        basePrice,
+        valuation: data.valuation || basePrice,
+        reservePrice: data.reservePrice || calculateReservePrice(basePrice),
+        averagePrice: data.averagePrice || data.price_med || basePrice
+      };
+    }
+    
+    // Last resort: deep scan for any price fields
+    const priceFields = deepScanForPrices(data);
+    if (Object.keys(priceFields).length > 0) {
+      console.log('Extracting from deep scan price fields');
+      
+      const basePrice = priceFields.basePrice || 
+                        priceFields.price_med || 
+                        priceFields.price || 
+                        0;
+      
+      return {
+        basePrice,
+        valuation: priceFields.valuation || priceFields.price || basePrice,
+        reservePrice: priceFields.reservePrice || calculateReservePrice(basePrice),
+        averagePrice: priceFields.averagePrice || priceFields.price_avr || basePrice
+      };
+    }
+    
+    console.error('No price data found in response');
+    return null;
+  } catch (error) {
+    console.error('Error extracting price data:', error);
+    return null;
   }
-  
-  // Log all price fields found in the response
-  console.log('Price fields found anywhere in the response:', deepScanForPrices(data));
-  
-  console.error('[PRICE-EXTRACTOR] Could not extract valid price data from any source');
-  return null;
 }
 
 /**
- * Deep scans an object for price-related fields - used for debugging
+ * Calculate reserve price based on base price
  */
-export function deepScanForPrices(obj: any): Record<string, number> {
+function calculateReservePrice(basePrice: number): number {
+  if (!basePrice || basePrice <= 0) return 0;
+  
+  // Determine the percentage based on price tier
+  let percentage = 0;
+  
+  if (basePrice <= 15000) {
+    percentage = 0.65;
+  } else if (basePrice <= 20000) {
+    percentage = 0.46;
+  } else if (basePrice <= 30000) {
+    percentage = 0.37;
+  } else if (basePrice <= 50000) {
+    percentage = 0.27;
+  } else if (basePrice <= 60000) {
+    percentage = 0.27;
+  } else if (basePrice <= 70000) {
+    percentage = 0.22;
+  } else if (basePrice <= 80000) {
+    percentage = 0.23;
+  } else if (basePrice <= 100000) {
+    percentage = 0.24;
+  } else if (basePrice <= 130000) {
+    percentage = 0.20;
+  } else if (basePrice <= 160000) {
+    percentage = 0.185;
+  } else if (basePrice <= 200000) {
+    percentage = 0.22;
+  } else if (basePrice <= 250000) {
+    percentage = 0.17;
+  } else if (basePrice <= 300000) {
+    percentage = 0.18;
+  } else if (basePrice <= 400000) {
+    percentage = 0.18;
+  } else if (basePrice <= 500000) {
+    percentage = 0.16;
+  } else {
+    percentage = 0.145; // 500,001+
+  }
+  
+  // Calculate and round to the nearest whole number
+  return Math.round(basePrice - (basePrice * percentage));
+}
+
+/**
+ * Deep scan an object for any price-related fields
+ */
+export function deepScanForPrices(obj: any, prefix = '', result: Record<string, number> = {}): Record<string, number> {
   if (!obj || typeof obj !== 'object') {
-    return {};
+    return result;
   }
-
-  const priceFields: Record<string, number> = {};
-  const priceKeys = ['price', 'price_min', 'price_med', 'price_max', 'price_avr', 
-                     'valuation', 'basePrice', 'reservePrice', 'averagePrice'];
-
-  function scan(o: any, path: string) {
-    if (!o || typeof o !== 'object') return;
-
-    for (const key of Object.keys(o)) {
-      const currentPath = path ? `${path}.${key}` : key;
-      
-      if (priceKeys.includes(key) && typeof o[key] === 'number' && o[key] > 0) {
-        priceFields[currentPath] = o[key];
-      }
-      
-      if (typeof o[key] === 'object' && o[key] !== null) {
-        scan(o[key], currentPath);
-      }
-    }
-  }
-
-  scan(obj, '');
-  return priceFields;
-}
-
-/**
- * Utility to extract nested data from an API response
- */
-export function extractData(data: any, fieldPaths: string[], defaultValue: any = null): any {
-  if (!data) return defaultValue;
   
-  for (const path of fieldPaths) {
-    try {
-      // Split the path and navigate through the object
-      const parts = path.split('.');
-      let value = data;
-      let valid = true;
-      
-      for (const part of parts) {
-        if (value && typeof value === 'object' && part in value) {
-          value = value[part];
-        } else {
-          valid = false;
-          break;
-        }
-      }
-      
-      if (valid && value !== undefined) {
-        return value;
-      }
-    } catch (err) {
-      console.log(`Error extracting data from path ${path}:`, err);
+  // Price-related field names to look for
+  const priceFieldNames = [
+    'price', 'valuation', 'basePrice', 'reservePrice', 'averagePrice',
+    'price_min', 'price_med', 'price_avr', 'price_max'
+  ];
+  
+  for (const key in obj) {
+    const value = obj[key];
+    const fullPath = prefix ? `${prefix}.${key}` : key;
+    
+    // If it's a number and the key contains a price-related term
+    if (typeof value === 'number' && 
+        (priceFieldNames.includes(key) || key.toLowerCase().includes('price'))) {
+      result[key] = value;
+    }
+    
+    // Recursively scan nested objects
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      deepScanForPrices(value, fullPath, result);
     }
   }
   
-  return defaultValue;
+  return result;
 }
