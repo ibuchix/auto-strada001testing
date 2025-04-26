@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-04-26: Completely refactored to handle raw API response
  * - 2025-04-26: Fixed TypeScript error with price_med property
+ * - 2025-04-28: Enhanced data extraction from edge function response
  */
 
 import { ValuationData, TransmissionType } from './valuationDataTypes';
@@ -28,6 +29,26 @@ export function normalizeValuationData(data: any): ValuationData {
   }
 
   try {
+    console.log('Normalizing valuation data, data keys:', Object.keys(data));
+    
+    // Check if the data already has preprocessed fields directly on the root object
+    if (data.make && data.model && data.reservePrice) {
+      console.log('Using preprocessed fields from edge function');
+      return {
+        make: data.make || '',
+        model: data.model || '',
+        year: data.year || 0,
+        vin: data.originalRequestParams?.vin || '',
+        transmission: (data.originalRequestParams?.gearbox || 'manual') as TransmissionType,
+        mileage: data.originalRequestParams?.mileage || 0,
+        valuation: data.valuation || data.basePrice || 0,
+        reservePrice: data.reservePrice || 0,
+        averagePrice: data.averagePrice || data.price_med || 0,
+        basePrice: data.basePrice || 0,
+        noData: false
+      };
+    }
+
     // Extract the function response from raw API data
     let rawResponse;
     try {
@@ -35,6 +56,8 @@ export function normalizeValuationData(data: any): ValuationData {
       rawResponse = typeof data.rawApiResponse === 'string' 
         ? JSON.parse(data.rawApiResponse) 
         : data.rawApiResponse;
+      
+      console.log('Parsed raw API response, keys:', Object.keys(rawResponse || {}));
     } catch (e) {
       console.error('Failed to parse raw API response:', e);
       return createEmptyValuation();
@@ -43,6 +66,9 @@ export function normalizeValuationData(data: any): ValuationData {
     // Extract user params and valuation data
     const userParams = rawResponse?.functionResponse?.userParams;
     const valuationData = rawResponse?.functionResponse?.valuation?.calcValuation;
+
+    console.log('User params:', userParams);
+    console.log('Valuation data:', valuationData);
 
     if (!userParams || !valuationData) {
       console.error('Missing critical data in API response');
