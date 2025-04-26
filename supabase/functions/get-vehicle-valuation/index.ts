@@ -3,6 +3,7 @@
  * Edge function for vehicle valuation
  * Updated: 2025-04-26 - Completely refactored to directly return raw API values
  * Updated: 2025-04-28 - Fixed data extraction from raw API response
+ * Updated: 2025-04-30 - Fixed JSON parsing and direct data extraction
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -85,34 +86,189 @@ serve(async (req) => {
     
     // Get the raw response
     const rawResponseText = await response.text();
-    let rawResponse;
+    console.log(`Raw API response received, requestId: ${requestId}`);
     
+    // Parse the raw response
+    let rawData;
     try {
-      rawResponse = JSON.parse(rawResponseText);
-      console.log(`Raw API response received and parsed, requestId: ${requestId}`);
+      rawData = JSON.parse(rawResponseText);
+      console.log(`Raw API response parsed, requestId: ${requestId}`);
     } catch (parseError) {
-      console.error('Failed to parse raw API response:', parseError);
-      // Return raw text if JSON parsing fails
-      rawResponse = rawResponseText;
+      console.error(`Failed to parse API response as JSON: ${parseError}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Failed to parse API response',
+          vin,
+          mileage: Number(mileage) || 0
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-
-    // Extract the actual data we need from the response
-    const extractedData = extractValuationData(rawResponse, vin, Number(mileage), gearbox, requestId);
     
-    // Return both the extracted data and raw API response
-    return new Response(
-      JSON.stringify({
-        rawApiResponse: rawResponse,
-        ...extractedData,
-        originalRequestParams: { vin, mileage, gearbox }
-      }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
+    // Log the raw API response (limited size for debugging)
+    const responseSize = rawResponseText.length;
+    console.log({
+      timestamp: new Date().toISOString(),
+      operation: "raw_api_response",
+      level: "info",
+      requestId,
+      responseSize,
+      rawResponse: rawResponseText
+    });
+    
+    // Extract valuation data from the response
+    try {
+      // Check if we have the expected data structure
+      if (!rawData.functionResponse) {
+        console.error(`Missing functionResponse in API data, requestId: ${requestId}`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Invalid API response structure',
+            vin,
+            mileage: Number(mileage) || 0
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    );
+      
+      // Extract user parameters
+      const userParams = rawData.functionResponse.userParams;
+      if (!userParams) {
+        console.error(`Missing userParams in API data, requestId: ${requestId}`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Missing vehicle parameters in API response',
+            vin,
+            mileage: Number(mileage) || 0
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Extract price data
+      let priceMin = 0;
+      let priceMed = 0;
+      let basePrice = 0;
+      
+      // Look for price data in calcValuation
+      if (rawData.functionResponse.valuation?.calcValuation) {
+        const calcValuation = rawData.functionResponse.valuation.calcValuation;
+        priceMin = Number(calcValuation.price_min) || 0;
+        priceMed = Number(calcValuation.price_med) || 0;
+        
+        // Log found price fields
+        console.log({
+          timestamp: new Date().toISOString(),
+          operation: "price_fields_found",
+          level: "info",
+          requestId,
+          priceFields: {
+            price: calcValuation.price,
+            price_min: calcValuation.price_min,
+            price_max: calcValuation.price_max,
+            price_avr: calcValuation.price_avr,
+            price_med: calcValuation.price_med
+          }
+        });
+      } else {
+        // Log no price fields found
+        console.log({
+          timestamp: new Date().toISOString(),
+          operation: "price_fields_found",
+          level: "info",
+          requestId,
+          priceFields: {},
+          allFields: Object.keys(rawData)
+        });
+      }
+      
+      // Calculate base price (average of min and median)
+      if (priceMin > 0 && priceMed > 0) {
+        basePrice = (priceMin + priceMed) / 2;
+      }
+      
+      // Log price calculation
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: "price_calculation",
+        level: "info",
+        requestId,
+        priceMin,
+        priceMed,
+        basePrice,
+        isUsingFallback: false
+      });
+      
+      // Calculate reserve price
+      const reservePrice = calculateReservePrice(basePrice);
+      
+      // Log reserve price calculation
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: "reserve_price_calculated",
+        level: "info",
+        requestId,
+        basePrice,
+        percentage: basePrice <= 15000 ? 0.65 : 0.46, // simplified for logging
+        reservePrice,
+        formula: `${basePrice} - (${basePrice} × ${basePrice <= 15000 ? 0.65 : 0.46})`
+      });
+      
+      // Create the final result object
+      const result = {
+        make: userParams.make || '',
+        model: userParams.model || '',
+        year: userParams.year || new Date().getFullYear(),
+        valuation: Math.round(basePrice),
+        reservePrice: Math.round(reservePrice), 
+        basePrice: Math.round(basePrice),
+        averagePrice: Math.round(priceMed),
+        price_min: Math.round(priceMin),
+        price_med: Math.round(priceMed),
+        vin,
+        originalRequestParams: { vin, mileage, gearbox },
+        rawApiResponse: rawResponseText
+      };
+
+      // Log the final result
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: "final_result",
+        level: "info",
+        requestId,
+        result: {
+          vin,
+          make: result.make,
+          model: result.model,
+          year: result.year,
+          mileage,
+          price: basePrice,
+          valuation: basePrice,
+          reservePrice: reservePrice,
+          averagePrice: priceMed
+        }
+      });
+      
+      return new Response(
+        JSON.stringify(result),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (extractError) {
+      console.error(`Error extracting data: ${extractError}, requestId: ${requestId}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Error extracting vehicle data',
+          rawApiResponse: rawResponseText,
+          vin,
+          mileage: Number(mileage) || 0
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
   } catch (error) {
     console.error('Error in valuation function:', error);
     
@@ -156,83 +312,6 @@ async function calculateChecksum(apiId: string, apiSecret: string, vin: string):
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Helper function to extract and transform the valuation data
-function extractValuationData(rawResponse: any, vin: string, mileage: number, gearbox: string, requestId: string) {
-  try {
-    // Check if we have the expected structure
-    if (!rawResponse || !rawResponse.functionResponse) {
-      console.log(`Incomplete API response structure, requestId: ${requestId}`);
-      return { 
-        make: '',
-        model: '',
-        year: new Date().getFullYear(),
-        valuation: 0,
-        reservePrice: 0,
-        averagePrice: 0
-      };
-    }
-    
-    // Extract user params
-    const userParams = rawResponse.functionResponse.userParams;
-    
-    // Extract calculated valuation data
-    const calcValuation = rawResponse.functionResponse.valuation?.calcValuation;
-    
-    if (!userParams || !calcValuation) {
-      console.log(`Missing critical valuation data, requestId: ${requestId}`);
-      return {
-        make: '',
-        model: '',
-        year: new Date().getFullYear(),
-        valuation: 0,
-        reservePrice: 0,
-        averagePrice: 0
-      };
-    }
-    
-    // Extract base data
-    const make = userParams.make || '';
-    const model = userParams.model || '';
-    const year = userParams.year || new Date().getFullYear();
-    
-    // Extract pricing data
-    const priceMin = calcValuation.price_min || 0;
-    const priceMed = calcValuation.price_med || 0;
-    const price = calcValuation.price || 0;
-    
-    // Calculate base price (average of min and median)
-    const basePrice = (priceMin + priceMed) / 2;
-    
-    // Calculate reserve price based on the pricing tiers
-    const reservePrice = calculateReservePrice(basePrice);
-    
-    console.log(`Extracted data: make=${make}, model=${model}, year=${year}, basePrice=${basePrice}, reservePrice=${reservePrice}, requestId: ${requestId}`);
-    
-    return {
-      make,
-      model, 
-      year,
-      valuation: price || basePrice,
-      basePrice,
-      reservePrice,
-      averagePrice: priceMed,
-      price_min: priceMin,
-      price_med: priceMed
-    };
-  } catch (error) {
-    console.error(`Error extracting valuation data: ${error.message}, requestId: ${requestId}`);
-    return { 
-      make: '',
-      model: '',
-      year: new Date().getFullYear(),
-      valuation: 0,
-      reservePrice: 0,
-      averagePrice: 0,
-      error: 'Failed to extract valuation data'
-    };
-  }
-}
-
 // Calculate reserve price based on basePrice tiers
 function calculateReservePrice(basePrice: number): number {
   if (!basePrice || basePrice <= 0) return 0;
@@ -273,10 +352,6 @@ function calculateReservePrice(basePrice: number): number {
     percentage = 0.145; // 500,001+
   }
   
-  // Log the calculation for debugging
-  const formula = `${basePrice} - (${basePrice} × ${percentage})`;
-  const result = Math.round(basePrice - (basePrice * percentage));
-  console.log(`Price calculation: basePrice=${basePrice}, percentage=${percentage}, formula="${formula}", result=${result}`);
-  
-  return result;
+  // Calculate the reserve price: PriceX - (PriceX × PercentageY)
+  return Math.round(basePrice - (basePrice * percentage));
 }

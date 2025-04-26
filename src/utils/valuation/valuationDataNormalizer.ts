@@ -4,14 +4,15 @@
  * - 2025-04-26: Completely refactored to handle raw API response
  * - 2025-04-26: Fixed TypeScript error with price_med property
  * - 2025-04-28: Enhanced data extraction from edge function response
+ * - 2025-04-30: Fixed direct extraction of data from edge function response
  */
 
 import { ValuationData, TransmissionType } from './valuationDataTypes';
 import { calculateReservePrice } from '@/utils/priceUtils';
 
 export function normalizeValuationData(data: any): ValuationData {
-  // Check if we have the raw API response
-  if (!data || (!data.rawApiResponse && !data.error)) {
+  // Check if we have any data at all
+  if (!data) {
     console.error('No data provided to normalizer');
     return createEmptyValuation();
   }
@@ -31,16 +32,24 @@ export function normalizeValuationData(data: any): ValuationData {
   try {
     console.log('Normalizing valuation data, data keys:', Object.keys(data));
     
-    // Check if the data already has preprocessed fields directly on the root object
-    if (data.make && data.model && data.reservePrice) {
-      console.log('Using preprocessed fields from edge function');
+    // DIRECTLY USE VALUES FROM THE EDGE FUNCTION
+    // The edge function now sends properly extracted and formatted values
+    // No need for complex parsing - just use what the edge function provides
+    if (data.make && data.model) {
+      console.log('Direct fields from edge function found! Using them:', {
+        make: data.make,
+        model: data.model,
+        basePrice: data.basePrice,
+        reservePrice: data.reservePrice
+      });
+      
       return {
         make: data.make || '',
         model: data.model || '',
         year: data.year || 0,
-        vin: data.originalRequestParams?.vin || '',
-        transmission: (data.originalRequestParams?.gearbox || 'manual') as TransmissionType,
-        mileage: data.originalRequestParams?.mileage || 0,
+        vin: data.originalRequestParams?.vin || data.vin || '',
+        transmission: (data.originalRequestParams?.gearbox || data.gearbox || 'manual') as TransmissionType,
+        mileage: data.originalRequestParams?.mileage || data.mileage || 0,
         valuation: data.valuation || data.basePrice || 0,
         reservePrice: data.reservePrice || 0,
         averagePrice: data.averagePrice || data.price_med || 0,
@@ -48,62 +57,80 @@ export function normalizeValuationData(data: any): ValuationData {
         noData: false
       };
     }
-
-    // Extract the function response from raw API data
-    let rawResponse;
-    try {
-      // Handle case where rawApiResponse might be a string
-      rawResponse = typeof data.rawApiResponse === 'string' 
-        ? JSON.parse(data.rawApiResponse) 
-        : data.rawApiResponse;
-      
-      console.log('Parsed raw API response, keys:', Object.keys(rawResponse || {}));
-    } catch (e) {
-      console.error('Failed to parse raw API response:', e);
-      return createEmptyValuation();
-    }
-
-    // Extract user params and valuation data
-    const userParams = rawResponse?.functionResponse?.userParams;
-    const valuationData = rawResponse?.functionResponse?.valuation?.calcValuation;
-
-    console.log('User params:', userParams);
-    console.log('Valuation data:', valuationData);
-
-    if (!userParams || !valuationData) {
-      console.error('Missing critical data in API response');
-      return {
-        ...createEmptyValuation(),
-        noData: true,
-        error: 'Incomplete data received from API'
-      };
-    }
-
-    // Calculate the base price as average of min and median prices
-    const basePrice = Math.round((valuationData.price_min + valuationData.price_med) / 2);
     
-    // Calculate reserve price based on the base price
-    const reservePrice = calculateReservePrice(basePrice);
-
+    // If we don't have direct fields, try to parse from rawApiResponse
+    console.log('No direct fields found, trying to extract from rawApiResponse');
+    if (data.rawApiResponse) {
+      let rawResponse;
+      try {
+        // Handle case where rawApiResponse might be a string
+        rawResponse = typeof data.rawApiResponse === 'string' 
+          ? JSON.parse(data.rawApiResponse) 
+          : data.rawApiResponse;
+        
+        console.log('Raw API Response parsed successfully');
+      } catch (e) {
+        console.error('Failed to parse raw API response:', e);
+        return createEmptyValuation();
+      }
+      
+      if (rawResponse?.functionResponse?.userParams && rawResponse?.functionResponse?.valuation?.calcValuation) {
+        const userParams = rawResponse.functionResponse.userParams;
+        const calcValuation = rawResponse.functionResponse.valuation.calcValuation;
+        
+        console.log('Found valid data structure in rawApiResponse:', {
+          userParams: {
+            make: userParams.make,
+            model: userParams.model,
+            year: userParams.year
+          },
+          calcValuation: {
+            price_min: calcValuation.price_min,
+            price_med: calcValuation.price_med
+          }
+        });
+        
+        // Calculate base price
+        const priceMin = Number(calcValuation.price_min) || 0;
+        const priceMed = Number(calcValuation.price_med) || 0;
+        const basePrice = (priceMin + priceMed) / 2;
+        const reservePrice = calculateReservePrice(basePrice);
+        
+        console.log('Calculated prices from raw data:', {
+          basePrice,
+          reservePrice
+        });
+        
+        return {
+          make: userParams.make || '',
+          model: userParams.model || '',
+          year: userParams.year || new Date().getFullYear(),
+          vin: data.originalRequestParams?.vin || data.vin || '',
+          transmission: (data.originalRequestParams?.gearbox || data.gearbox || 'manual') as TransmissionType,
+          mileage: data.originalRequestParams?.mileage || data.mileage || 0,
+          valuation: basePrice,
+          reservePrice: reservePrice,
+          averagePrice: priceMed,
+          basePrice: basePrice,
+          noData: false
+        };
+      }
+    }
+    
+    console.warn('Could not find valid valuation data structure');
     return {
-      make: userParams.make || '',
-      model: userParams.model || '',
-      year: userParams.year || 0,
-      vin: data.originalRequestParams?.vin || '',
-      transmission: (data.originalRequestParams?.gearbox || 'manual') as TransmissionType,
-      mileage: data.originalRequestParams?.mileage || 0,
-      valuation: valuationData.price || basePrice,
-      reservePrice,
-      averagePrice: valuationData.price_avr || valuationData.price_med,
-      basePrice,
-      noData: false
+      ...createEmptyValuation(),
+      vin: data.originalRequestParams?.vin || data.vin || '',
+      mileage: data.originalRequestParams?.mileage || data.mileage || 0,
+      noData: true,
+      error: 'Could not extract vehicle data'
     };
   } catch (error) {
     console.error('Error normalizing valuation data:', error);
     return {
       ...createEmptyValuation(),
-      vin: data.originalRequestParams?.vin || '',
-      mileage: data.originalRequestParams?.mileage || 0,
+      vin: data.originalRequestParams?.vin || data.vin || '',
+      mileage: data.originalRequestParams?.mileage || data.mileage || 0,
       noData: true,
       error: 'Failed to process valuation data'
     };
