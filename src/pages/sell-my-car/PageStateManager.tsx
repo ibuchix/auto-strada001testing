@@ -1,8 +1,8 @@
-
 /**
  * Changes made:
  * - 2025-04-05: Simplified state management and removed unnecessary logic
  * - 2025-04-05: Improved handling of valuation data
+ * - 2025-04-27: Updated ValuationResult import path
  */
 
 import { useEffect } from "react";
@@ -11,6 +11,7 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ErrorDisplay } from "@/components/sellers/ErrorDisplay";
 import { toast } from "sonner";
+import { ValuationResult } from "@/components/hero/ValuationResult";
 
 interface PageStateManagerProps {
   isValid: boolean;
