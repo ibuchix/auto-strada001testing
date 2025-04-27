@@ -136,6 +136,132 @@ export function extractVehicleDetails(data: any): VehicleDetails {
 }
 
 /**
+ * Extract nested price data from API response
+ * @param data The API response data 
+ * @returns An object containing all available price data
+ */
+export function extractNestedPriceData(data: any): PriceData {
+  const result: PriceData = {};
+  
+  try {
+    // Check for nested structure in functionResponse
+    if (data?.functionResponse?.valuation?.calcValuation) {
+      const calcValuation = data.functionResponse.valuation.calcValuation;
+      
+      if (typeof calcValuation.price !== 'undefined') result.price = Number(calcValuation.price);
+      if (typeof calcValuation.price_min !== 'undefined') result.price_min = Number(calcValuation.price_min);
+      if (typeof calcValuation.price_max !== 'undefined') result.price_max = Number(calcValuation.price_max);
+      if (typeof calcValuation.price_avr !== 'undefined') result.price_avr = Number(calcValuation.price_avr);
+      if (typeof calcValuation.price_med !== 'undefined') result.price_med = Number(calcValuation.price_med);
+      
+      return result;
+    }
+    
+    // Check for nested structure in rawApiResponse
+    if (typeof data?.rawApiResponse === 'string') {
+      try {
+        const parsed = JSON.parse(data.rawApiResponse);
+        if (parsed?.functionResponse?.valuation?.calcValuation) {
+          const calcValuation = parsed.functionResponse.valuation.calcValuation;
+          
+          if (typeof calcValuation.price !== 'undefined') result.price = Number(calcValuation.price);
+          if (typeof calcValuation.price_min !== 'undefined') result.price_min = Number(calcValuation.price_min);
+          if (typeof calcValuation.price_max !== 'undefined') result.price_max = Number(calcValuation.price_max);
+          if (typeof calcValuation.price_avr !== 'undefined') result.price_avr = Number(calcValuation.price_avr);
+          if (typeof calcValuation.price_med !== 'undefined') result.price_med = Number(calcValuation.price_med);
+          
+          return result;
+        }
+      } catch (e) {
+        console.error('Failed to parse rawApiResponse:', e);
+      }
+    } else if (data?.rawApiResponse?.functionResponse?.valuation?.calcValuation) {
+      const calcValuation = data.rawApiResponse.functionResponse.valuation.calcValuation;
+      
+      if (typeof calcValuation.price !== 'undefined') result.price = Number(calcValuation.price);
+      if (typeof calcValuation.price_min !== 'undefined') result.price_min = Number(calcValuation.price_min);
+      if (typeof calcValuation.price_max !== 'undefined') result.price_max = Number(calcValuation.price_max);
+      if (typeof calcValuation.price_avr !== 'undefined') result.price_avr = Number(calcValuation.price_avr);
+      if (typeof calcValuation.price_med !== 'undefined') result.price_med = Number(calcValuation.price_med);
+      
+      return result;
+    }
+    
+    // Direct access for pre-processed data
+    if (typeof data?.price !== 'undefined') result.price = Number(data.price);
+    if (typeof data?.price_min !== 'undefined') result.price_min = Number(data.price_min);
+    if (typeof data?.price_max !== 'undefined') result.price_max = Number(data.price_max);
+    if (typeof data?.price_avr !== 'undefined') result.price_avr = Number(data.price_avr); 
+    if (typeof data?.price_med !== 'undefined') result.price_med = Number(data.price_med);
+    
+    return result;
+  } catch (error) {
+    console.error('Error extracting nested price data:', error);
+    return result;
+  }
+}
+
+/**
+ * Calculate base price from nested price data
+ * Uses the official formula: (price_min + price_med) / 2
+ * @param priceData The price data object
+ * @returns The calculated base price or 0 if no valid data
+ */
+export function calculateBasePriceFromNested(priceData: PriceData): number {
+  try {
+    // If we have both price_min and price_med, use the official formula
+    if (typeof priceData.price_min === 'number' && 
+        typeof priceData.price_med === 'number' &&
+        !isNaN(priceData.price_min) && 
+        !isNaN(priceData.price_med) &&
+        priceData.price_min > 0 &&
+        priceData.price_med > 0) {
+      
+      const basePrice = (priceData.price_min + priceData.price_med) / 2;
+      console.log('Calculated base price from min and median:', basePrice);
+      return basePrice;
+    }
+    
+    // If we have just the price, use that
+    if (typeof priceData.price === 'number' && !isNaN(priceData.price) && priceData.price > 0) {
+      console.log('Using price directly as base price:', priceData.price);
+      return priceData.price;
+    }
+    
+    // If we have just the median price, use that
+    if (typeof priceData.price_med === 'number' && !isNaN(priceData.price_med) && priceData.price_med > 0) {
+      console.log('Using median price as base price:', priceData.price_med);
+      return priceData.price_med;
+    }
+    
+    // If we have just the average price, use that
+    if (typeof priceData.price_avr === 'number' && !isNaN(priceData.price_avr) && priceData.price_avr > 0) {
+      console.log('Using average price as base price:', priceData.price_avr);
+      return priceData.price_avr;
+    }
+    
+    // If we have just the min price, use that
+    if (typeof priceData.price_min === 'number' && !isNaN(priceData.price_min) && priceData.price_min > 0) {
+      console.log('Using min price as base price:', priceData.price_min);
+      return priceData.price_min;
+    }
+    
+    // If we have just the max price, use that
+    if (typeof priceData.price_max === 'number' && !isNaN(priceData.price_max) && priceData.price_max > 0) {
+      console.log('Using max price as base price:', priceData.price_max);
+      return priceData.price_max;
+    }
+    
+    // No valid price found
+    console.error('No valid price data found for base price calculation');
+    return 0;
+  } catch (error) {
+    console.error('Error calculating base price from nested data:', error);
+    return 0;
+  }
+}
+
+/**
  * Calculate reserve price based on base price using the tiered percentage system
  * @param basePrice The base price to calculate from
  * @returns The calculated reserve price
@@ -166,3 +292,4 @@ export function calculateReservePrice(basePrice: number): number {
   // Calculate: PriceX – (PriceX x PercentageY)
   return Math.round(basePrice - (basePrice * percentage));
 }
+
