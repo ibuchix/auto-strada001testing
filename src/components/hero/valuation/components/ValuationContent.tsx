@@ -1,18 +1,17 @@
 
 /**
  * Changes made:
- * - 2025-05-03: Fixed import error with heroicons
- * - 2025-05-03: Removed unused imports and simplified error handling
- * - 2025-05-03: Enhanced error messaging for invalid valuation data
+ * - 2025-04-27: Added debugging logs for props
+ * - 2025-04-27: Enhanced price validation and display
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { normalizeTransmission } from "@/utils/validation/validateTypes";
-import { XCircle } from "lucide-react"; // Using lucide-react instead of heroicons
+import { XCircle } from "lucide-react";
 
 interface ValuationContentProps {
   make: string;
@@ -52,15 +51,23 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
   const navigate = useNavigate();
   const normalizedTransmission = normalizeTransmission(transmission);
 
-  const handleContinue = () => {
-    if (onContinue) {
-      onContinue();
-    } else if (isLoggedIn) {
-      navigate("/sell-my-car?from=valuation");
-    } else {
-      navigate("/auth");
-    }
-  };
+  // Debug logging
+  useEffect(() => {
+    console.log('ValuationContent received props:', {
+      make, 
+      model, 
+      year, 
+      vin,
+      reservePrice,
+      averagePrice,
+      hasPricingData: reservePrice > 0 || averagePrice > 0,
+      transmission: normalizedTransmission,
+      mileage,
+      hasValuation,
+      isLoggedIn,
+      apiSource
+    });
+  }, [make, model, year, vin, reservePrice, averagePrice, transmission, mileage, hasValuation, isLoggedIn, apiSource]);
 
   if (isLoading) {
     return (
@@ -111,14 +118,15 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
 
           <div className="mt-6">
             <Button 
-              onClick={handleContinue}
+              onClick={onContinue}
               className="w-full"
+              variant="default"
             >
               {isLoggedIn ? "Continue to Listing" : "Sign In to Continue"}
             </Button>
             <button
               onClick={onClose}
-              className="w-full mt-3 text-center text-sm text-gray-600 hover:underline"
+              className="w-full mt-3 text-sm text-gray-600 hover:underline"
             >
               Cancel
             </button>
