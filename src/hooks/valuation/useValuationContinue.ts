@@ -1,5 +1,11 @@
 
-import { useNavigate } from 'react-router-dom';
+/**
+ * Changes made:
+ * - 2025-04-27: Consolidated duplicate hooks into single source of truth
+ * - 2025-04-27: Updated navigation logic and data persistence
+ */
+
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
 import { toast } from "sonner";
 
@@ -25,19 +31,22 @@ export const useValuationContinue = () => {
       return;
     }
 
-    // Restore localStorage operations
+    // Store car data in both localStorage and sessionStorage for redundancy
     try {
       localStorage.setItem('valuationData', JSON.stringify(carData));
       localStorage.setItem('tempVIN', carData.vin || '');
       localStorage.setItem('tempMileage', carData.mileage?.toString() || '');
       localStorage.setItem('tempGearbox', carData.transmission || '');
-      console.log('Car data stored successfully in localStorage');
+      
+      sessionStorage.setItem('carDataFromVinCheck', JSON.stringify(carData));
+      console.log('Car data stored successfully');
 
       // Navigate to the sell-my-car page
       navigate('/sell-my-car', { 
         state: { 
           fromValuation: true,
-          valuationData: carData
+          fromVinCheck: true,
+          carData
         }
       });
 

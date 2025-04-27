@@ -1,8 +1,8 @@
-
 /**
  * Changes made:
  * - 2025-04-27: Consolidated duplicate ValuationResult components into a single component
  * - 2025-04-27: Enhanced error handling and logging
+ * - 2025-04-27: Updated useValuationContinue import path
  */
 
 import { useNavigate } from "react-router-dom";
