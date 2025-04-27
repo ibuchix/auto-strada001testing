@@ -1,4 +1,9 @@
 
+/**
+ * Changes made:
+ * - 2025-04-27: Updated to use normalized valuation data
+ */
+
 import React from 'react';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +13,7 @@ import { useValuationContinue } from "@/components/hero/valuation/hooks/useValua
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { ValuationErrorDialog } from "@/components/hero/valuation/components/dialogs/ValuationErrorDialog";
 import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
+import { normalizeValuationData } from "@/utils/valuation/valuationDataNormalizer";
 import { 
   NoValuationDataError, 
   InvalidValuationDataError,
@@ -75,18 +81,25 @@ export const ValuationResult = ({
 
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0', 10);
   
-  if (valuationResult.error || valuationResult?.noData) {
+  // Normalize the valuation data
+  const normalizedResult = normalizeValuationData(
+    valuationResult,
+    valuationResult.vin || '',
+    mileage
+  );
+  
+  if (normalizedResult.error || normalizedResult.noData) {
     let error;
-    if (valuationResult.noData) {
-      error = new NoValuationDataError(valuationResult.vin || '');
-    } else if (!valuationResult.make || !valuationResult.model || !valuationResult.year) {
+    if (normalizedResult.noData) {
+      error = new NoValuationDataError(normalizedResult.vin || '');
+    } else if (!normalizedResult.make || !normalizedResult.model || !normalizedResult.year) {
       error = new InvalidValuationDataError(
-        valuationResult.vin || '', 
-        valuationResult
+        normalizedResult.vin || '', 
+        normalizedResult
       );
     } else {
       error = new ValuationError({
-        message: valuationResult.error || "An unexpected error occurred",
+        message: normalizedResult.error || "An unexpected error occurred",
         retry: true
       });
     }
@@ -94,7 +107,7 @@ export const ValuationResult = ({
     console.error('Valuation error:', {
       type: error.constructor.name,
       message: error.message,
-      details: valuationResult
+      details: normalizedResult
     });
 
     return (
@@ -114,21 +127,6 @@ export const ValuationResult = ({
     );
   }
 
-  const normalizedResult = {
-    make: valuationResult.make || 'Unknown Make',
-    model: valuationResult.model || 'Unknown Model',
-    year: valuationResult.year || new Date().getFullYear(),
-    vin: valuationResult.vin || '',
-    transmission: valuationResult.transmission === 'automatic' ? 'automatic' : 'manual',
-    reservePrice: valuationResult.reservePrice || valuationResult.valuation || 0,
-    averagePrice: valuationResult.averagePrice || valuationResult.valuation || 0
-  };
-
-  console.log('Normalized valuation data:', {
-    ...normalizedResult,
-    timestamp: new Date().toISOString()
-  });
-
   return (
     <ValuationContent
       make={normalizedResult.make}
@@ -142,7 +140,7 @@ export const ValuationResult = ({
       hasValuation={true}
       isLoggedIn={isLoggedIn}
       onClose={onClose}
-      onContinue={() => handleContinue(valuationResult)}
+      onContinue={() => handleContinue(normalizedResult)}
     />
   );
 };
