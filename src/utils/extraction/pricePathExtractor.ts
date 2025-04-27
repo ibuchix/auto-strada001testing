@@ -1,8 +1,19 @@
 
 /**
- * Price extraction utility specific for nested API response structure
- * Updated: 2025-05-06 - Added detailed logging and path tracking
+ * Enhanced price extractor for nested API response
+ * Updated: 2025-04-27 - Complete rewrite with improved data extraction
  */
+
+interface VehicleDetails {
+  make: string;
+  model: string;
+  year: number;
+  vin: string;
+  transmission: 'manual' | 'automatic';
+  mileage: number;
+  fuel?: string;
+  capacity?: string;
+}
 
 interface PriceData {
   price?: number;
@@ -13,175 +24,145 @@ interface PriceData {
 }
 
 /**
- * Extract price data exclusively from nested calcValuation object
+ * Extract price from the nested API response
+ * @param data The API response data
+ * @returns The extracted price or null if not found
  */
-export function extractNestedPriceData(rawData: any): PriceData {
-  const requestId = Math.random().toString(36).substring(2, 10);
-  console.group(`[PRICE-EXTRACTOR][${requestId}] Extracting nested price data`);
-  console.log('[PRICE-EXTRACTOR] Raw data received:', typeof rawData);
+export function extractPrice(data: any): number | null {
+  console.log('Extracting price from data:', JSON.stringify(data).substring(0, 200) + '...');
   
-  // Parse if string
-  let data = rawData;
-  if (typeof rawData === 'string') {
-    try {
-      console.log('[PRICE-EXTRACTOR] Attempting to parse string data, first 100 chars:', 
-        rawData.substring(0, 100));
-      data = JSON.parse(rawData);
-      console.log('[PRICE-EXTRACTOR] Successfully parsed string data');
-    } catch (e) {
-      console.error('[PRICE-EXTRACTOR] Failed to parse raw JSON:', e);
-      console.groupEnd();
-      return {};
+  try {
+    // Check if we have the new nested structure
+    if (data?.functionResponse?.valuation?.calcValuation?.price) {
+      const price = Number(data.functionResponse.valuation.calcValuation.price);
+      console.log('Found price in nested structure:', price);
+      return price;
     }
-  }
-  
-  // Log important structure info
-  console.log('[PRICE-EXTRACTOR] Examining data structure with keys:', Object.keys(data || {}));
-  
-  // Track which extraction path succeeded
-  let extractionPath = null;
-  let priceData: PriceData = {};
-  
-  // DIRECT PATH: Look specifically for the calcValuation nested object
-  // First, check if data itself is the response from our edge function
-  if (data?.price_min !== undefined && data?.price_med !== undefined) {
-    extractionPath = 'top_level';
-    console.log('[PRICE-EXTRACTOR] Found price data directly at top level');
-    priceData = {
-      price: Number(data.price || data.basePrice),
-      price_min: Number(data.price_min),
-      price_max: Number(data.price_max || 0),
-      price_avr: Number(data.price_avr || 0),
-      price_med: Number(data.price_med)
-    };
-  }
-  
-  // Next, check if we have the raw calcValuation from the API directly
-  else if (data?.functionResponse?.valuation?.calcValuation) {
-    extractionPath = 'nested_calcValuation';
-    console.log('[PRICE-EXTRACTOR] Found nested calcValuation');
-    const calcValuation = data.functionResponse.valuation.calcValuation;
-    priceData = {
-      price: Number(calcValuation.price),
-      price_min: Number(calcValuation.price_min),
-      price_max: Number(calcValuation.price_max),
-      price_avr: Number(calcValuation.price_avr),
-      price_med: Number(calcValuation.price_med)
-    };
-  }
-  
-  // Next, check if we have nested data in rawNestedData
-  else if (data?.rawNestedData?.calcValuation) {
-    extractionPath = 'rawNestedData';
-    console.log('[PRICE-EXTRACTOR] Found calcValuation in rawNestedData');
-    const calcValuation = data.rawNestedData.calcValuation;
-    priceData = {
-      price: Number(calcValuation.price),
-      price_min: Number(calcValuation.price_min),
-      price_max: Number(calcValuation.price_max),
-      price_avr: Number(calcValuation.price_avr),
-      price_med: Number(calcValuation.price_med)
-    };
-  }
-  
-  // Next, check for raw API response pattern
-  else if (data?.rawApiResponse) {
-    try {
-      console.log('[PRICE-EXTRACTOR] Found rawApiResponse, attempting to parse');
-      const parsedRaw = JSON.parse(data.rawApiResponse);
-      if (parsedRaw?.functionResponse?.valuation?.calcValuation) {
-        extractionPath = 'rawApiResponse';
-        console.log('[PRICE-EXTRACTOR] Found calcValuation in rawApiResponse');
-        const calcValuation = parsedRaw.functionResponse.valuation.calcValuation;
-        priceData = {
-          price: Number(calcValuation.price),
-          price_min: Number(calcValuation.price_min),
-          price_max: Number(calcValuation.price_max),
-          price_avr: Number(calcValuation.price_avr),
-          price_med: Number(calcValuation.price_med)
-        };
-      }
-    } catch (e) {
-      console.error('[PRICE-EXTRACTOR] Failed to parse rawApiResponse:', e);
-    }
-  }
-  
-  // Log extraction results
-  if (extractionPath) {
-    console.log(`[PRICE-EXTRACTOR] Successfully extracted price data via ${extractionPath}:`, priceData);
-  } else {
-    // Log failure
-    console.error('[PRICE-EXTRACTOR] Could not find price data in any expected location');
-    const allPriceFields = findAllPriceFields(data);
-    console.log('[PRICE-EXTRACTOR] Price fields found anywhere in the response:', allPriceFields);
-  }
-  
-  // Validate extracted data
-  if (priceData.price_min && priceData.price_med) {
-    console.log('[PRICE-EXTRACTOR] Extracted valid price data:', {
-      price_min: priceData.price_min,
-      price_med: priceData.price_med
-    });
-  } else {
-    console.warn('[PRICE-EXTRACTOR] Extracted price data is incomplete:', priceData);
-  }
-  
-  console.groupEnd();
-  return priceData;
-}
-
-/**
- * Calculate base price from nested data using reliable and simple logic
- */
-export function calculateBasePriceFromNested(priceData: PriceData): number {
-  console.log('Calculating base price from nested data:', priceData);
-  
-  if (!priceData || Object.keys(priceData).length === 0) {
-    console.error('[PRICE-EXTRACTOR] Empty price data provided');
-    return 0;
-  }
-  
-  // Use direct price calculation from min and median values
-  if (priceData.price_min && priceData.price_med) {
-    const basePrice = (Number(priceData.price_min) + Number(priceData.price_med)) / 2;
-    console.log('Calculated base price:', basePrice);
-    return basePrice;
-  }
-  
-  // Fallback to direct price if available
-  if (priceData.price && !isNaN(Number(priceData.price))) {
-    console.log('Using direct price:', priceData.price);
-    return Number(priceData.price);
-  }
-  
-  console.error('[PRICE-EXTRACTOR] Could not calculate base price - no valid price data');
-  return 0;
-}
-
-/**
- * Helper function to find all price-related fields in an object
- */
-function findAllPriceFields(obj: any): Record<string, any> {
-  const result: Record<string, any> = {};
-  
-  function scan(o: any, path: string = '') {
-    if (!o || typeof o !== 'object') return;
     
-    for (const key of Object.keys(o)) {
-      const currentPath = path ? `${path}.${key}` : key;
-      
-      // Check if this is a price-related field
-      if (/price|valuation|cost|value/i.test(key) && (typeof o[key] === 'number' || !isNaN(Number(o[key])))) {
-        result[currentPath] = o[key];
-      }
-      
-      // Recurse into objects
-      if (o[key] && typeof o[key] === 'object') {
-        scan(o[key], currentPath);
-      }
+    // Check for median price in nested structure
+    if (data?.functionResponse?.valuation?.calcValuation?.price_med) {
+      const price = Number(data.functionResponse.valuation.calcValuation.price_med);
+      console.log('Found median price in nested structure:', price);
+      return price;
     }
+    
+    // Check for average price in nested structure
+    if (data?.functionResponse?.valuation?.calcValuation?.price_avr) {
+      const price = Number(data.functionResponse.valuation.calcValuation.price_avr);
+      console.log('Found average price in nested structure:', price);
+      return price;
+    }
+    
+    // Check for min price in nested structure
+    if (data?.functionResponse?.valuation?.calcValuation?.price_min) {
+      const price = Number(data.functionResponse.valuation.calcValuation.price_min);
+      console.log('Found min price in nested structure:', price);
+      return price;
+    }
+    
+    // Check for max price in nested structure
+    if (data?.functionResponse?.valuation?.calcValuation?.price_max) {
+      const price = Number(data.functionResponse.valuation.calcValuation.price_max);
+      console.log('Found max price in nested structure:', price);
+      return price;
+    }
+    
+    // Check for direct price fields (legacy format)
+    if (data?.price && typeof data.price === 'number' && data.price > 0) {
+      console.log('Found direct price:', data.price);
+      return data.price;
+    }
+    
+    if (data?.basePrice && typeof data.basePrice === 'number' && data.basePrice > 0) {
+      console.log('Found basePrice:', data.basePrice);
+      return data.basePrice;
+    }
+    
+    if (data?.valuation && typeof data.valuation === 'number' && data.valuation > 0) {
+      console.log('Found valuation:', data.valuation);
+      return data.valuation;
+    }
+    
+    // If no price found, log error and return null
+    console.error('No valid price found in response');
+    return null;
+  } catch (error) {
+    console.error('Error extracting price:', error);
+    return null;
   }
+}
+
+/**
+ * Extract vehicle details from the nested API response
+ * @param data The API response data
+ * @returns The extracted vehicle details
+ */
+export function extractVehicleDetails(data: any): VehicleDetails {
+  try {
+    // Check if we have the new nested structure
+    if (data?.functionResponse?.userParams) {
+      return {
+        make: data.functionResponse.userParams.make || '',
+        model: data.functionResponse.userParams.model || '',
+        year: Number(data.functionResponse.userParams.year) || 0,
+        vin: data.vin || '',
+        transmission: data.functionResponse.userParams.gearbox || 'manual',
+        mileage: Number(data.functionResponse.userParams.odometer) || 0,
+        fuel: data.functionResponse.userParams.fuel || '',
+        capacity: data.functionResponse.userParams.capacity || ''
+      };
+    }
+    
+    // Fallback to direct fields (legacy format)
+    return {
+      make: data.make || '',
+      model: data.model || '',
+      year: Number(data.year) || 0,
+      vin: data.vin || '',
+      transmission: data.transmission || 'manual',
+      mileage: Number(data.mileage) || 0
+    };
+  } catch (error) {
+    console.error('Error extracting vehicle details:', error);
+    return {
+      make: '',
+      model: '',
+      year: 0,
+      vin: '',
+      transmission: 'manual',
+      mileage: 0
+    };
+  }
+}
+
+/**
+ * Calculate reserve price based on base price using the tiered percentage system
+ * @param basePrice The base price to calculate from
+ * @returns The calculated reserve price
+ */
+export function calculateReservePrice(basePrice: number): number {
+  if (!basePrice || basePrice <= 0) return 0;
   
-  scan(obj);
-  return result;
+  let percentage: number;
+  
+  // Use the official tiered percentage system
+  if (basePrice <= 15000) percentage = 0.65;
+  else if (basePrice <= 20000) percentage = 0.46;
+  else if (basePrice <= 30000) percentage = 0.37;
+  else if (basePrice <= 50000) percentage = 0.27;
+  else if (basePrice <= 60000) percentage = 0.27;
+  else if (basePrice <= 70000) percentage = 0.22;
+  else if (basePrice <= 80000) percentage = 0.23;
+  else if (basePrice <= 100000) percentage = 0.24;
+  else if (basePrice <= 130000) percentage = 0.20;
+  else if (basePrice <= 160000) percentage = 0.185;
+  else if (basePrice <= 200000) percentage = 0.22;
+  else if (basePrice <= 250000) percentage = 0.17;
+  else if (basePrice <= 300000) percentage = 0.18;
+  else if (basePrice <= 400000) percentage = 0.18;
+  else if (basePrice <= 500000) percentage = 0.16;
+  else percentage = 0.145;
+
+  // Calculate: PriceX – (PriceX x PercentageY)
+  return Math.round(basePrice - (basePrice * percentage));
 }
