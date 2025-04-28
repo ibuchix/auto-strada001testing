@@ -1,256 +1,160 @@
 
 /**
  * Vehicle Valuation Edge Function
- * Updated: 2025-05-01 - Fixed request parsing and validation errors
+ * Updated: 2025-04-28 - Added enhanced error handling and logging
  */
+
 import { corsHeaders } from './utils/cors.ts';
+import { logOperation } from './utils/logging.ts';
 import { validateRequest, isValidVin, isValidMileage } from './utils/validation.ts';
+import { ValuationError, handleApiError, formatErrorResponse } from './utils/error-handling.ts';
 import md5 from "https://cdn.skypack.dev/md5@2.3.0";
 
 const API_ID = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
 const API_SECRET = Deno.env.get('CAR_API_SECRET') || 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
 
 Deno.serve(async (req) => {
-  console.log({
-    timestamp: new Date().toISOString(),
-    operation: 'request_received',
-    level: 'info'
+  const requestId = crypto.randomUUID();
+  logOperation('request_received', {
+    requestId,
+    method: req.method,
+    url: req.url
   });
 
-  // Handle CORS preflight requests
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders,
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Log the raw request for debugging
-    console.log('[get-vehicle-valuation] Received request:', {
-      method: req.method,
-      headers: Object.fromEntries(req.headers.entries()),
-      url: req.url
-    });
-
-    // Parse the request body
+    // Parse and validate request
     let requestData;
     try {
       const requestText = await req.text();
-      console.log('[get-vehicle-valuation] Raw request body:', requestText);
+      logOperation('request_body_received', {
+        requestId,
+        bodyLength: requestText.length,
+        body: requestText.substring(0, 200) // Log first 200 chars for debugging
+      });
       
-      // Handle empty request body
-      if (!requestText || requestText.trim() === '') {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Empty request body',
-            code: 'EMPTY_REQUEST'
-          }),
-          {
-            status: 400,
-            headers: {
-              'Content-Type': 'application/json',
-              ...corsHeaders
-            }
-          }
-        );
+      if (!requestText) {
+        throw new ValuationError('Empty request body', 'EMPTY_REQUEST');
       }
       
       requestData = JSON.parse(requestText);
     } catch (e) {
-      console.error('[get-vehicle-valuation] JSON parse error:', e);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Invalid JSON in request body',
-          details: e.message
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        }
+      logOperation('request_parse_error', {
+        requestId,
+        error: e instanceof Error ? e.message : String(e)
+      }, 'error');
+      
+      throw new ValuationError(
+        'Invalid JSON in request body',
+        'PARSE_ERROR',
+        [{ field: 'body', message: 'Must be valid JSON' }]
       );
     }
 
-    // Log parsed request data with full details for debugging
-    console.log('[get-vehicle-valuation] Parsed request data:', 
-      JSON.stringify(requestData, null, 2)
-    );
-
-    // Basic validation for request structure
-    if (!requestData) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Request body is required',
-          code: 'INVALID_REQUEST'
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        }
+    // Validate VIN
+    const vin = requestData?.vin;
+    if (!vin) {
+      throw new ValuationError(
+        'VIN is required',
+        'MISSING_VIN',
+        [{ field: 'vin', message: 'VIN must be provided' }]
       );
     }
 
-    // Enhanced VIN validation with clear error message
-    if (!('vin' in requestData) || !requestData.vin) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'VIN parameter is missing or empty',
-          code: 'MISSING_VIN'
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        }
+    if (!isValidVin(vin)) {
+      throw new ValuationError(
+        'Invalid VIN format',
+        'INVALID_VIN',
+        [{
+          field: 'vin',
+          message: 'VIN must be 17 characters and contain only letters and numbers',
+          value: vin
+        }]
       );
     }
 
-    // Mileage validation
-    if (!('mileage' in requestData)) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Mileage parameter is missing',
-          code: 'MISSING_MILEAGE'
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        }
+    // Validate mileage
+    const mileage = requestData?.mileage;
+    if (mileage === undefined || mileage === null) {
+      throw new ValuationError(
+        'Mileage is required',
+        'MISSING_MILEAGE',
+        [{ field: 'mileage', message: 'Mileage must be provided' }]
       );
     }
 
-    // Extract and validate parameters
-    const vin = String(requestData.vin).trim();
-    
-    // Convert mileage to number and validate
-    let mileage;
-    if (typeof requestData.mileage === 'string') {
-      mileage = parseInt(requestData.mileage, 10);
-    } else {
-      mileage = Number(requestData.mileage);
-    }
-    
-    if (isNaN(mileage) || mileage < 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Invalid mileage value. Must be a positive number.',
-          code: 'INVALID_MILEAGE'
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        }
+    const numericMileage = Number(mileage);
+    if (!isValidMileage(numericMileage)) {
+      throw new ValuationError(
+        'Invalid mileage value',
+        'INVALID_MILEAGE',
+        [{
+          field: 'mileage',
+          message: 'Mileage must be a positive number under 1,000,000',
+          value: mileage
+        }]
       );
     }
-    
-    const gearbox = requestData.gearbox || 'manual';
-    
-    console.log('[get-vehicle-valuation] Validated parameters:', {
-      vin,
-      mileage,
-      gearbox
-    });
 
-    // Calculate checksum
+    // Calculate checksum and build API URL
     const checksumContent = API_ID + API_SECRET + vin;
     const checksum = md5(checksumContent);
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${numericMileage}/currency:PLN`;
 
-    // Build API URL
-    const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-    
-    console.log(`[get-vehicle-valuation] Calling external API for VIN ${vin}`);
-    
-    // Make request to external API
-    const apiResponse = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Auto-Strada-Proxy/1.0'
-      }
+    logOperation('calling_external_api', {
+      requestId,
+      vin,
+      mileage: numericMileage
     });
-    
-    // Log API response status for debugging
-    console.log(`[get-vehicle-valuation] API responded with status: ${apiResponse.status}`);
+
+    // Call external API
+    const apiResponse = await fetch(apiUrl);
     
     if (!apiResponse.ok) {
       const errorText = await apiResponse.text();
-      console.error(`[get-vehicle-valuation] API Error:`, {
+      logOperation('external_api_error', {
+        requestId,
         status: apiResponse.status,
-        body: errorText
-      });
+        statusText: apiResponse.statusText,
+        responseBody: errorText
+      }, 'error');
       
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `External API returned error: ${apiResponse.status} ${apiResponse.statusText}`,
-          details: errorText
-        }),
-        { 
-          status: 502, // Bad Gateway - to indicate a problem with the upstream server
-          headers: { 
-            'Content-Type': 'application/json',
-            ...corsHeaders 
-          } 
-        }
+      throw new ValuationError(
+        'External valuation service error',
+        'API_ERROR',
+        [{
+          field: 'api',
+          message: `API responded with status ${apiResponse.status}`,
+          value: apiResponse.statusText
+        }]
       );
     }
-    
-    // Get response data
+
     const apiData = await apiResponse.json();
-    console.log(`[get-vehicle-valuation] Successfully processed API response`);
-    
-    // Process the response
+    logOperation('api_response_received', {
+      requestId,
+      hasData: !!apiData,
+      dataKeys: Object.keys(apiData)
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
-        data: apiData,
-        source: 'edge-function'
-      }),
-      { 
-        status: 200, 
-        headers: { 
-          'Content-Type': 'application/json',
-          ...corsHeaders 
-        } 
-      }
-    );
-  } catch (error) {
-    console.error('[get-vehicle-valuation] Unexpected error:', error);
-    
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'An unexpected error occurred',
-        details: error.message,
-        stack: error.stack
+        data: apiData
       }),
       {
-        status: 500,
+        status: 200,
         headers: {
           'Content-Type': 'application/json',
           ...corsHeaders
         }
       }
     );
+  } catch (error) {
+    return handleApiError(error, requestId);
   }
 });
