@@ -9,8 +9,12 @@ const corsHeaders = {
 };
 
 // API credentials
-const API_ID = Deno.env.get("VALUATION_API_ID") || "";
+const API_ID = Deno.env.get("VALUATION_API_ID") || "AUTOSTRA";
 const API_SECRET = Deno.env.get("VALUATION_API_SECRET") || "";
+
+if (!API_SECRET) {
+  console.error('Missing VALUATION_API_SECRET environment variable');
+}
 
 serve(async (req) => {
   const requestId = crypto.randomUUID();
