@@ -2,6 +2,7 @@
 /**
  * Utility for extracting price information from complex nested API responses
  * Created: 2025-04-30 - Added to help with valuation API debugging
+ * Updated: 2025-04-30 - Fixed type error with string/number comparison
  */
 
 /**
@@ -47,15 +48,19 @@ export function deepScanForPrices(
       // If the value is a number or can be parsed as a number
       if (
         (typeof value === 'number' || 
-        (typeof value === 'string' && !isNaN(parseFloat(value)))) && 
-        value > 0
+        (typeof value === 'string' && !isNaN(parseFloat(value)))) 
       ) {
-        // Check if the key name is related to pricing
-        const isPriceField = priceFieldPatterns.some(pattern => pattern.test(key));
+        // Convert to number for comparison
+        const numValue = typeof value === 'number' ? value : parseFloat(value);
         
-        if (isPriceField) {
-          const numValue = typeof value === 'number' ? value : parseFloat(value);
-          result[currentPath] = numValue;
+        // Only include positive values
+        if (numValue > 0) {
+          // Check if the key name is related to pricing
+          const isPriceField = priceFieldPatterns.some(pattern => pattern.test(key));
+          
+          if (isPriceField) {
+            result[currentPath] = numValue;
+          }
         }
       }
       
