@@ -2,20 +2,22 @@
 /**
  * VIN validation service
  * Updated: 2025-04-28 - Added proper URL encoding for VIN parameters
+ * Updated: 2025-04-28 - Fixed type inconsistencies and added storage function
  */
 
 import { supabase } from "@/integrations/supabase/client";
 
 export interface VehicleData {
-  make: string;
-  model: string;
-  year: number;
+  make?: string;
+  model?: string;
+  year?: number;
   transmission?: string;
   mileage?: number;
   valuation?: number;
   reservePrice?: number;
   averagePrice?: number;
   error?: string;
+  vin?: string;
 }
 
 export const validateVin = async ({ 
@@ -73,4 +75,17 @@ export const getVINErrorMessage = (vin: string): string | null => {
   if (cleanVin.length < 5) return "VIN must be at least 5 characters long";
   if (cleanVin.length > 17) return "VIN cannot be longer than 17 characters";
   return null;
+};
+
+// Add the missing function for retrieving stored validation data
+export const getStoredValidationData = (): VehicleData | null => {
+  try {
+    const storedData = localStorage.getItem('valuationData');
+    if (!storedData) return null;
+    
+    return JSON.parse(storedData) as VehicleData;
+  } catch (error) {
+    console.error('Error retrieving stored validation data:', error);
+    return null;
+  }
 };

@@ -4,6 +4,7 @@
  * - Updated to use the standardized vehicle data storage and retrieval
  * - Added proper type handling for form values
  * - Improved form field initialization with more robust data fetching
+ * - 2025-04-28: Fixed import for getStoredValidationData
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";

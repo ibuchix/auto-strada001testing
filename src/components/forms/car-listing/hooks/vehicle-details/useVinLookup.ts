@@ -7,17 +7,18 @@
  * - 2025-04-06: Enhanced error handling and user feedback
  * - 2025-04-07: Improved data storage and validation
  * - 2025-04-07: Added structured result data for better integration
+ * - 2025-04-28: Fixed TypeScript typing issues between different VehicleData interfaces
  */
 import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
-import { validateVin, VehicleData, isValidVinFormat } from "@/services/supabase/valuation/vinValidationService";
-import { getVehicleData, storeVehicleData } from "@/services/vehicleDataService";
+import { validateVin, VehicleData as ValidationVehicleData, isValidVinFormat } from "@/services/supabase/valuation/vinValidationService";
+import { getVehicleData, storeVehicleData, VehicleData as StorageVehicleData } from "@/services/vehicleDataService";
 
 export const useVinLookup = (form: UseFormReturn<CarListingFormData>) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [storedVehicleData, setStoredVehicleData] = useState<VehicleData | null>(() => {
+  const [storedVehicleData, setStoredVehicleData] = useState<StorageVehicleData | null>(() => {
     // Initialize with any existing vehicle data
     return getVehicleData();
   });
@@ -76,7 +77,7 @@ export const useVinLookup = (form: UseFormReturn<CarListingFormData>) => {
       }
       
       // Update local state
-      setStoredVehicleData(vehicleData);
+      setStoredVehicleData(vehicleData as StorageVehicleData);
       
       // Show success notification
       toast.success("VIN validation successful", {
