@@ -1,10 +1,31 @@
 
 /**
  * API service for vehicle valuation
- * Updated: 2025-05-05 - Enhanced raw response handling
+ * Created: 2025-05-05 - Enhanced raw response handling
+ * Updated: 2025-05-06 - Added credentials validation
  */
 
 import { logOperation } from "./logging.ts";
+
+/**
+ * Validates if the API credentials are properly configured
+ */
+export function validateApiCredentials(apiId: string | undefined, apiSecret: string | undefined): boolean {
+  // Check if API ID is present
+  if (!apiId || apiId.trim() === '') {
+    console.error('API ID not configured');
+    return false;
+  }
+  
+  // Check if API secret is present
+  if (!apiSecret || apiSecret.trim() === '') {
+    console.error('API secret not configured');
+    return false;
+  }
+  
+  // More sophisticated validation could be added here
+  return true;
+}
 
 export async function callValuationApi(
   vin: string,
@@ -19,6 +40,14 @@ export async function callValuationApi(
   error?: string;
 }> {
   try {
+    // Validate API credentials first
+    if (!validateApiCredentials(apiId, apiSecret)) {
+      return {
+        success: false,
+        error: 'API credentials not properly configured'
+      };
+    }
+    
     // Calculate checksum
     const checksumContent = apiId + apiSecret + vin;
     const checksum = await calculateMd5(checksumContent);

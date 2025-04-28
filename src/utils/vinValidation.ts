@@ -1,139 +1,135 @@
 
 /**
- * Utility functions for VIN validation
- * Created: 2025-04-10
- * Updated: 2025-04-18 - Enhanced error messaging and format normalization
- * Updated: 2025-04-19 - Improved VIN normalization to handle common input errors
+ * VIN validation utilities
+ * Created: 2025-04-28
  */
 
 /**
- * Validates the format of a Vehicle Identification Number (VIN)
- * 
- * @param vin The VIN to validate
- * @returns Boolean indicating if the VIN has a valid format
+ * Normalizes a VIN by removing spaces and converting to uppercase
  */
-export function isValidVIN(vin: string): boolean {
-  if (!vin) {
-    return false;
-  }
-  
-  // Normalize the VIN first
-  const normalizedVin = normalizeVIN(vin);
-  
-  // Basic validation - VIN should be 17 characters and contain only valid characters
-  if (normalizedVin.length !== 17) {
-    return false;
-  }
-  
-  // VINs should only contain alphanumeric characters, excluding I, O, and Q
-  // which are not used to avoid confusion with 1 and 0
-  const validPattern = /^[A-HJ-NPR-Z0-9]{17}$/i;
-  return validPattern.test(normalizedVin);
+export function normalizeVIN(vin: string): string {
+  if (!vin) return '';
+  return vin.replace(/\s+/g, '').toUpperCase();
 }
 
 /**
- * Get a helpful error message for an invalid VIN
- * 
- * @param vin The VIN to validate
- * @returns Error message or null if VIN is valid
+ * Validates whether a string is a valid Vehicle Identification Number (VIN)
  */
-export function getVINErrorMessage(vin: string): string | null {
-  if (!vin) {
-    return "VIN is required";
-  }
+export function isValidVIN(vin: string): boolean {
+  if (!vin) return false;
   
   // Normalize the VIN first
   const normalizedVin = normalizeVIN(vin);
   
-  if (normalizedVin.length !== 17) {
-    return `VIN must be exactly 17 characters (currently ${normalizedVin.length})`;
+  // Most VINs are 17 characters, but some older or international models might be different
+  // We're being fairly permissive here
+  return normalizedVin.length >= 10 && normalizedVin.length <= 17 && /^[A-Z0-9]+$/i.test(normalizedVin);
+}
+
+/**
+ * Gets a specific error message for invalid VINs
+ * Returns null if the VIN is valid
+ */
+export function getVINErrorMessage(vin: string): string | null {
+  if (!vin) return 'VIN is required';
+  
+  const normalizedVin = normalizeVIN(vin);
+  
+  if (normalizedVin.length < 10) {
+    return 'VIN is too short (minimum 10 characters)';
   }
   
-  if (!/^[A-HJ-NPR-Z0-9]{17}$/i.test(normalizedVin)) {
-    // Check for specific invalid characters to provide more helpful error messages
-    const invalidChars = normalizedVin.match(/[^A-HJ-NPR-Z0-9]/gi);
-    if (invalidChars) {
-      return `VIN contains invalid characters: ${invalidChars.join(', ')}. Only letters (except I, O, Q) and numbers are allowed.`;
-    }
-    
-    return "VIN contains invalid characters. Only letters (except I, O, Q) and numbers are allowed.";
+  if (normalizedVin.length > 17) {
+    return 'VIN is too long (maximum 17 characters)';
+  }
+  
+  if (!/^[A-Z0-9]+$/i.test(normalizedVin)) {
+    return 'VIN can only contain letters and numbers';
   }
   
   return null;
 }
 
 /**
- * Normalize a VIN to the standardized format
- * 
- * @param vin The VIN to normalize
- * @returns Normalized VIN
+ * Extracts basic vehicle info from a VIN
+ * Note: This is a simplified implementation and won't work for all manufacturers
  */
-export function normalizeVIN(vin: string): string {
-  if (!vin) return '';
+export function extractBasicVehicleInfo(vin: string): {
+  manufacturer: string;
+  country: string;
+  year: number | null;
+} {
+  const normalizedVin = normalizeVIN(vin);
   
-  // Remove whitespace, dashes, and convert to uppercase
-  let normalized = vin.trim().toUpperCase().replace(/[\s-]/g, '');
+  // Default values
+  const result = {
+    manufacturer: 'Unknown',
+    country: 'Unknown',
+    year: null
+  };
   
-  // Replace commonly confused characters
-  normalized = normalized.replace(/[IOQ]/g, (match) => {
-    // Common replacements for confused characters
-    if (match === 'I') return '1';
-    if (match === 'O') return '0';
-    if (match === 'Q') return '0';
-    return match;
-  });
+  // Only proceed if we have a VIN of reasonable length
+  if (normalizedVin.length < 10) return result;
   
-  return normalized;
-}
-
-/**
- * Checks if a VIN is likely a test/sample VIN
- * Some systems use placeholder VINs for testing that may not validate through normal services
- * 
- * @param vin The VIN to check
- * @returns Boolean indicating if the VIN appears to be a test VIN
- */
-export function isTestVIN(vin: string): boolean {
-  if (!vin) return false;
+  // First character often indicates country of origin
+  const firstChar = normalizedVin.charAt(0);
+  switch (firstChar) {
+    case 'J': result.country = 'Japan'; break;
+    case 'K': result.country = 'Korea'; break;
+    case 'L': result.country = 'China'; break;
+    case 'S': 
+      // S can be UK, Germany, or others
+      if (normalizedVin.startsWith('SB')) result.country = 'UK'; 
+      else result.country = 'Germany';
+      break;
+    case 'V': result.country = 'France/Spain'; break;
+    case 'W': result.country = 'Germany'; break;
+    case '1':
+    case '4':
+    case '5': result.country = 'USA'; break;
+    case '2': result.country = 'Canada'; break;
+    case '3': result.country = 'Mexico'; break;
+    default: result.country = 'Other';
+  }
   
-  const normalized = normalizeVIN(vin);
+  // Manufacturer is often in the first 3 characters
+  const firstThree = normalizedVin.substring(0, 3);
+  if (firstThree === 'WBA' || firstThree === 'WBS' || firstThree === 'WBY') {
+    result.manufacturer = 'BMW';
+  } else if (firstThree === 'WVW' || firstThree === 'WV2') {
+    result.manufacturer = 'Volkswagen';
+  } else if (firstThree === 'WD3' || firstThree === 'WDB' || firstThree === 'WDD') {
+    result.manufacturer = 'Mercedes-Benz';
+  } else if (firstThree === 'WAU' || firstThree === 'WA1') {
+    result.manufacturer = 'Audi';
+  } else if (firstThree === 'SB1') {
+    result.manufacturer = 'Toyota';
+  } else if (firstThree === 'JN1' || firstThree === 'JF1') {
+    result.manufacturer = 'Nissan';
+  } else if (firstThree === 'JMZ') {
+    result.manufacturer = 'Mazda';
+  } else if (firstThree === 'JHM') {
+    result.manufacturer = 'Honda';
+  }
   
-  // Common patterns for test VINs
-  const testPatterns = [
-    /^TEST/i,
-    /^SAMPLE/i,
-    /^DEMO/i,
-    /^123/,
-    /^000/,
-    /^111/,
-    /^ZZZ/,
-    /^XXX/,
-    /TESTVIN/i
-  ];
+  // Try to extract model year from the 10th character
+  // This follows the standard pattern for model years since 2010
+  if (normalizedVin.length >= 10) {
+    const yearChar = normalizedVin.charAt(9);
+    // A is 2010, B is 2011, etc. (I, O, Q, U, Z are skipped)
+    const yearMap: Record<string, number> = {
+      'A': 2010, 'B': 2011, 'C': 2012, 'D': 2013, 'E': 2014,
+      'F': 2015, 'G': 2016, 'H': 2017, 'J': 2018, 'K': 2019,
+      'L': 2020, 'M': 2021, 'N': 2022, 'P': 2023, 'R': 2024,
+      'S': 2025, 'T': 2026, 'V': 2027, 'W': 2028, 'X': 2029, 'Y': 2030,
+      '1': 2001, '2': 2002, '3': 2003, '4': 2004, '5': 2005,
+      '6': 2006, '7': 2007, '8': 2008, '9': 2009, '0': 2000
+    };
+    
+    if (yearMap[yearChar]) {
+      result.year = yearMap[yearChar];
+    }
+  }
   
-  return testPatterns.some(pattern => pattern.test(normalized));
-}
-
-/**
- * Check if a VIN looks realistic enough to attempt validation
- * This helps filter out obviously invalid inputs before making API requests
- * 
- * @param vin The VIN to check
- * @returns Boolean indicating if the VIN is realistic enough to validate
- */
-export function isRealisticVIN(vin: string): boolean {
-  if (!vin) return false;
-  
-  const normalized = normalizeVIN(vin);
-  
-  // Must be 17 characters
-  if (normalized.length !== 17) return false;
-  
-  // Must not be a test VIN
-  if (isTestVIN(normalized)) return false;
-  
-  // Must not contain obviously repeated patterns
-  if (/(.)\1{5,}/.test(normalized)) return false; // 6+ of the same character in a row
-  
-  return true;
+  return result;
 }

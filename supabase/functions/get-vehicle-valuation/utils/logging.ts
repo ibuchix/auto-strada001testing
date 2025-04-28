@@ -1,92 +1,83 @@
 
 /**
- * Logging utilities for get-vehicle-valuation
- * Created: 2025-04-19 - Extracted from inline implementation
+ * Centralized logging utility for edge functions
+ * Created: 2025-04-28
  */
 
-export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 /**
- * Log operation with structured data
- * @param operation Name of the operation being performed
- * @param details Additional details to include in the log
- * @param level Log level
+ * Log an operation with structured data
  */
 export function logOperation(
-  operation: string, 
-  details: Record<string, any> = {},
+  operation: string,
+  data: Record<string, any>,
   level: LogLevel = 'info'
 ): void {
-  const logEntry = {
+  const logData = {
     timestamp: new Date().toISOString(),
     operation,
     level,
-    ...details
+    ...data
   };
   
-  switch (level) {
-    case 'error':
-      console.error(JSON.stringify(logEntry));
-      break;
-    case 'warn':
-      console.warn(JSON.stringify(logEntry));
-      break;
-    case 'debug':
-      console.debug(JSON.stringify(logEntry));
-      break;
-    default:
-      console.log(JSON.stringify(logEntry));
+  // Using console.log for all levels to ensure data appears in Supabase logs
+  if (level === 'error') {
+    console.error(logData);
+  } else if (level === 'warn') {
+    console.warn(logData);
+  } else {
+    console.log(logData);
   }
 }
 
 /**
- * Create a performance tracker for monitoring execution times
- * @param requestId Unique identifier for the request
- * @param operationName Name of the operation being tracked
+ * Log an API request
  */
-export function createPerformanceTracker(requestId: string, operationName: string = 'operation') {
-  const startTime = performance.now();
-  const checkpoints: Record<string, number> = {};
-  
-  return {
-    /**
-     * Record a checkpoint with the current time
-     * @param name Name of the checkpoint
-     * @returns Elapsed time since start in milliseconds
-     */
-    checkpoint: (name: string): number => {
-      const now = performance.now();
-      const elapsed = now - startTime;
-      checkpoints[name] = elapsed;
-      
-      // Log the checkpoint
-      logOperation('performance_checkpoint', {
-        requestId,
-        operation: operationName,
-        checkpoint: name,
-        elapsedMs: elapsed.toFixed(2)
-      }, 'debug');
-      
-      return elapsed;
-    },
-    
-    /**
-     * Complete the performance tracking
-     * @param status Status of the operation
-     * @param details Additional details to include in the log
-     */
-    complete: (status: 'success' | 'failure' | 'error', details: Record<string, any> = {}): void => {
-      const endTime = performance.now();
-      const totalDuration = endTime - startTime;
-      
-      logOperation('performance_complete', {
-        requestId,
-        operation: operationName,
-        status,
-        durationMs: totalDuration.toFixed(2),
-        checkpoints,
-        ...details
-      }, status === 'error' ? 'error' : 'info');
-    }
-  };
+export function logApiRequest(
+  endpoint: string,
+  params: Record<string, any>,
+  requestId: string
+): void {
+  logOperation('api_request', {
+    endpoint,
+    params,
+    requestId
+  });
+}
+
+/**
+ * Log an API response
+ */
+export function logApiResponse(
+  endpoint: string,
+  status: number,
+  data: any,
+  requestId: string,
+  duration: number
+): void {
+  logOperation('api_response', {
+    endpoint,
+    status,
+    responseSize: typeof data === 'string' ? data.length : JSON.stringify(data).length,
+    requestId,
+    durationMs: duration
+  });
+}
+
+/**
+ * Log an error
+ */
+export function logError(
+  message: string,
+  error: Error | unknown,
+  context: Record<string, any> = {}
+): void {
+  logOperation('error', {
+    message,
+    errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+    errorMessage: error instanceof Error ? error.message : String(error),
+    errorStack: error instanceof Error ? error.stack : undefined,
+    ...context
+  }, 'error');
 }

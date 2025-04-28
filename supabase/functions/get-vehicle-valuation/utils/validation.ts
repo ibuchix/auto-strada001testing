@@ -3,14 +3,16 @@
  * Validation utilities for get-vehicle-valuation
  * Created: 2025-04-19 - Extracted from inline implementation
  * Updated: 2025-04-28 - Fixed VIN validation to handle more manufacturer formats
+ * Updated: 2025-04-28 - Further improved VIN validation to be more permissive
  */
 
 export function isValidVin(vin: string): boolean {
   if (!vin || typeof vin !== 'string') return false;
   
-  // More permissive VIN validation - allow alphanumeric characters
-  // Many European and Asian manufacturers use different VIN formats
-  return /^[A-Za-z0-9]{11,17}$/i.test(vin);
+  // Very permissive VIN validation - most VINs are 17 characters, but some 
+  // older or international models might have different formats
+  // Just ensure it's alphanumeric and a reasonable length
+  return vin.length >= 10 && vin.length <= 17 && /^[A-Za-z0-9]+$/i.test(vin);
 }
 
 export function isValidMileage(mileage: any): boolean {
@@ -29,8 +31,20 @@ export function validateRequest(data: any): { valid: boolean; error?: string } {
     return { valid: false, error: 'Request body is required' };
   }
   
+  // Additional request validation logging for debugging
+  console.log({
+    timestamp: new Date().toISOString(),
+    operation: 'validating_request',
+    level: 'info',
+    hasVin: !!data.vin,
+    vinLength: data.vin ? data.vin.length : 0,
+    vinValue: data.vin,
+    hasMileage: data.mileage !== undefined,
+    mileageValue: data.mileage
+  });
+  
   if (!isValidVin(data.vin)) {
-    return { valid: false, error: 'Invalid VIN format. Must be between 11-17 alphanumeric characters.' };
+    return { valid: false, error: 'Invalid VIN format. Must be between 10-17 alphanumeric characters.' };
   }
   
   if (!isValidMileage(data.mileage)) {

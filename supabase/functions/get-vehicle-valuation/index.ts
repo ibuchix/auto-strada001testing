@@ -6,6 +6,7 @@
  * - 2025-04-26: Added extensive logging for troubleshooting
  * - 2025-04-28: Updated VIN validation to be more permissive
  * - 2025-04-28: Added better error handling for API responses
+ * - 2025-04-28: Added detailed request logging for debugging
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -20,18 +21,43 @@ serve(async (req) => {
 
   try {
     const requestId = crypto.randomUUID();
-    const requestBody = await req.json();
-    const { vin, mileage, gearbox = 'manual' } = requestBody;
     
+    // Log the raw request for debugging
     console.log({
       timestamp: new Date().toISOString(),
-      operation: 'valuation_request_received',
+      operation: 'raw_request',
       level: 'info',
       requestId,
-      vin,
-      mileage,
-      gearbox
+      method: req.method,
+      url: req.url
     });
+
+    // Parse request body
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: 'request_received',
+        level: 'info',
+        requestId,
+        vin: requestBody?.vin,
+        mileage: String(requestBody?.mileage || 0),
+        gearbox: requestBody?.gearbox || 'manual'
+      });
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid request format. JSON body required.',
+          code: 'INVALID_REQUEST'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+    
+    const { vin, mileage, gearbox = 'manual' } = requestBody;
 
     // Validate the request data
     const validation = validateRequest(requestBody);
