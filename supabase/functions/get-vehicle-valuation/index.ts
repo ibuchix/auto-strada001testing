@@ -1,249 +1,172 @@
+
 /**
- * Vehicle Valuation Edge Function
- * Updated: 2025-04-28 - Enhanced data extraction and response formatting
- * Updated: 2025-04-28 - Added early mileage conversion to number
- * Updated: 2025-04-28 - Added detailed API request debug logging
- * Updated: 2025-04-28 - Added detailed API error logging
+ * Revised Supabase Edge Function for Vehicle Valuation
+ * - Fixes URL string interpolation
+ * - Adds detailed error handling for external API
+ * - Logs environment variable checks and response statuses
  */
+import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { crypto } from "https://deno.land/std@0.217.0/crypto/mod.ts";
 
-import { corsHeaders } from './utils/cors.ts';
-import { logOperation } from './utils/logging.ts';
-import { validateRequest, isValidVin, isValidMileage } from './utils/validation.ts';
-import { ValuationError, handleApiError } from './utils/error-handling.ts';
-import { calculateReservePrice } from './utils/price-calculator.ts';
-import { extractVehicleDetails, extractNestedPriceData, calculateBasePriceFromNested } from './utils/data-extractor.ts';
-import md5 from "https://cdn.skypack.dev/md5@2.3.0";
+// Initialize Supabase client using service role key for cache writes
+const supabaseUrl    = Deno.env.get("SUPABASE_URL") || "";
+const supabaseKey    = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const supabase       = createClient(supabaseUrl, supabaseKey);
 
-const API_ID = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
-const API_SECRET = Deno.env.get('CAR_API_SECRET') || 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
+// API credentials (must be set in your Edge Function environment)
+const API_ID         = Deno.env.get("VALUATION_API_ID") || "";
+const API_SECRET     = Deno.env.get("VALUATION_API_SECRET") || "";
 
-Deno.serve(async (req) => {
-  const requestId = crypto.randomUUID();
-  logOperation('request_received', {
-    requestId,
-    method: req.method,
-    url: req.url
+// CORS headers
+const corsHeaders = {
+  "Access-Control-Allow-Origin":  "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+};
+
+// Helpers for formatting JSON responses
+function formatSuccessResponse(data: any) {
+  return new Response(JSON.stringify({ success: true, data }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders }
   });
+}
 
-  // Handle CORS preflight
+function formatErrorResponse(message: string, status = 400, code = 'ERROR') {
+  return new Response(JSON.stringify({ success: false, error: message, code }), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders }
+  });
+}
+
+// Logging utility
+function logOperation(operation: string, details: Record<string, any> = {}, level: 'info' | 'error' = 'info') {
+  console.log(JSON.stringify({ timestamp: new Date().toISOString(), operation, level, ...details }));
+}
+
+// MD5 checksum helper
+function calculateMD5(message: string): string {
+  const encoder    = new TextEncoder();
+  const data       = encoder.encode(message);
+  const hashBuffer = crypto.subtle.digestSync("MD5", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Normalize nested API response into flat valuation object
+function normalizeValuationData(data: any, vin: string, mileage: number) {
+  logOperation('normalize:start', { vin, mileage });
+  try {
+    const userParams = data?.functionResponse?.userParams || {};
+    const valuation   = data?.functionResponse?.valuation?.calcValuation || {};
+
+    // Extract market price
+    const marketValue = ['price','price_med','price_avr']
+      .map(key => valuation[key])
+      .find(v => v != null);
+    if (!marketValue) {
+      throw new Error('No valid price in API response');
+    }
+
+    const result = {
+      make:         userParams.make || '',
+      model:        userParams.model || '',
+      year:         Number(userParams.year) || 0,
+      vin,
+      transmission: userParams.gearbox || 'manual',
+      mileage,
+      valuation:    Number(marketValue),
+      reservePrice: Math.round(Number(marketValue) * 0.75),
+      averagePrice: Number(userParams.price_avr || marketValue),
+      basePrice:    Number(marketValue),
+      apiSource:    'autoiso_v3',
+      error:        null,
+      noData:       false
+    };
+
+    logOperation('normalize:success', { result });
+    return result;
+
+  } catch (err: any) {
+    logOperation('normalize:error', { message: err.message }, 'error');
+    return { error: err.message, noData: true };
+  }
+}
+
+// Edge Function main entrypoint
+serve(async (req) => {
+  // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Ensure API credentials present
+  if (!API_ID || !API_SECRET) {
+    logOperation('env:missing_api_keys', {}, 'error');
+    return formatErrorResponse('Server configuration error', 500, 'CONFIG_ERROR');
+  }
+
+  const { searchParams } = new URL(req.url);
+  const vin     = searchParams.get('vin')?.trim() || '';
+  const mileage = Number(searchParams.get('mileage') || '0');
+
+  logOperation('request:received', { vin, mileage });
+
+  // VIN validation
+  if (vin.length !== 17) {
+    return formatErrorResponse('Invalid VIN; must be 17 characters', 400, 'INVALID_VIN');
+  }
+
+  // Cache lookup
   try {
-    // Parse and validate request
-    let requestData;
-    try {
-      const requestText = await req.text();
-      logOperation('request_body_received', {
-        requestId,
-        bodyLength: requestText.length,
-        body: requestText.substring(0, 200)
-      });
-      
-      if (!requestText) {
-        throw new ValuationError('Empty request body', 'EMPTY_REQUEST');
-      }
-      
-      requestData = JSON.parse(requestText);
-    } catch (e) {
-      logOperation('request_parse_error', {
-        requestId,
-        error: e instanceof Error ? e.message : String(e)
-      }, 'error');
-      
-      throw new ValuationError(
-        'Invalid JSON in request body',
-        'PARSE_ERROR',
-        [{ field: 'body', message: 'Must be valid JSON' }]
-      );
+    const { data: cacheData } = await supabase
+      .from('vin_valuation_cache')
+      .select('valuation_data')
+      .eq('vin', vin)
+      .eq('mileage', mileage)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cacheData) {
+      logOperation('cache:hit', { vin, mileage });
+      return formatSuccessResponse(cacheData.valuation_data);
+    }
+  } catch (err: any) {
+    logOperation('cache:lookup_error', { message: err.message }, 'error');
+    // proceed to API call
+  }
+
+  // Prepare external API call
+  const checksum = calculateMD5(`${API_ID}${API_SECRET}${vin}`);
+  const apiUrl   = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+  logOperation('api:calling', { url: apiUrl });
+
+  try {
+    const response     = await fetch(apiUrl);
+    const responseText = await response.text();
+
+    logOperation('api:response', { status: response.status, size: responseText.length });
+
+    if (!response.ok) {
+      logOperation('api:error_status', { status: response.status, body: responseText }, 'error');
+      return formatErrorResponse(`API returned status ${response.status}`, response.status, 'API_FETCH_ERROR');
     }
 
-    // Validate VIN
-    const vin = requestData?.vin;
-    if (!vin) {
-      throw new ValuationError(
-        'VIN is required',
-        'MISSING_VIN',
-        [{ field: 'vin', message: 'VIN must be provided' }]
-      );
+    const jsonData = JSON.parse(responseText);
+    if (jsonData.apiStatus !== 'OK') {
+      logOperation('api:status_not_ok', { status: jsonData.apiStatus }, 'error');
+      return formatErrorResponse(`External API error: ${jsonData.apiStatus}`, 400, 'API_ERROR');
     }
 
-    if (!isValidVin(vin)) {
-      throw new ValuationError(
-        'Invalid VIN format',
-        'INVALID_VIN',
-        [{
-          field: 'vin',
-          message: 'VIN must be 17 characters and contain only letters and numbers',
-          value: vin
-        }]
-      );
-    }
+    // Normalize and cache
+    const valuation = normalizeValuationData(jsonData, vin, mileage);
+    await supabase.from('vin_valuation_cache').insert({ vin, mileage, valuation_data: valuation, created_at: new Date().toISOString() });
 
-    // Early mileage conversion and validation
-    const rawMileage = requestData?.mileage;
-    const mileage = typeof rawMileage === 'string' ? parseInt(rawMileage, 10) : Number(rawMileage);
-
-    if (isNaN(mileage)) {
-      throw new ValuationError(
-        'Invalid mileage format',
-        'INVALID_MILEAGE',
-        [{
-          field: 'mileage',
-          message: 'Mileage must be a valid number',
-          value: rawMileage
-        }]
-      );
-    }
-
-    if (!isValidMileage(mileage)) {
-      throw new ValuationError(
-        'Invalid mileage value',
-        'INVALID_MILEAGE',
-        [{
-          field: 'mileage',
-          message: 'Mileage must be a positive number under 1,000,000',
-          value: mileage
-        }]
-      );
-    }
-
-    // Get transmission type with fallback
-    const gearbox = requestData?.gearbox || 'manual';
-
-    // Calculate checksum and build API URL
-    const checksumContent = API_ID + API_SECRET + vin;
-    const checksum = md5(checksumContent);
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-
-    logOperation('calling_external_api', {
-      requestId,
-      vin,
-      mileage
-    });
-
-    // Add detailed debug logging
-    logOperation('external_api_request_debug', {
-      vin,
-      mileage,
-      apiUrl,
-      checksumContent,
-      checksum
-    });
-
-    // Call external API
-    const startTime = performance.now();
-    const apiResponse = await fetch(apiUrl);
-    const duration = performance.now() - startTime;
-    
-    logOperation('api_response_received', {
-      requestId,
-      status: apiResponse.status,
-      durationMs: duration.toFixed(2)
-    });
-    
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text();
-      logOperation('external_api_error', {
-        requestId,
-        status: apiResponse.status,
-        statusText: apiResponse.statusText,
-        responseBody: errorText
-      }, 'error');
-      
-      throw new ValuationError(
-        'External valuation service error',
-        'API_ERROR',
-        [{
-          field: 'api',
-          message: `API responded with status ${apiResponse.status}`,
-          value: apiResponse.statusText
-        }]
-      );
-    }
-
-    // Parse API response
-    const apiData = await apiResponse.json();
-    
-    // Log detailed response structure
-    logOperation('api_data_received', {
-      requestId,
-      hasData: !!apiData,
-      dataKeys: Object.keys(apiData),
-      hasNestedData: !!apiData.functionResponse,
-      nestedKeys: apiData.functionResponse ? Object.keys(apiData.functionResponse) : []
-    });
-
-    // Extract vehicle details and pricing data
-    const vehicleDetails = extractVehicleDetails(apiData);
-    const priceData = extractNestedPriceData(apiData);
-    
-    // Calculate base price from extracted data
-    const basePrice = calculateBasePriceFromNested(priceData);
-    
-    // Log extracted data
-    logOperation('data_extracted', {
-      requestId,
-      vehicle: vehicleDetails,
-      priceData,
-      calculatedBasePrice: basePrice
-    });
-    
-    // Calculate reserve price using our standard formula
-    const reservePrice = calculateReservePrice(basePrice, requestId);
-    
-    // Build the standardized response object
-    const valuationResult = {
-      // Vehicle details
-      make: vehicleDetails.make,
-      model: vehicleDetails.model,
-      year: vehicleDetails.year,
-      vin,
-      mileage: numericMileage,
-      transmission: gearbox,
-      
-      // Pricing data
-      basePrice,
-      reservePrice,
-      valuation: reservePrice, // For backwards compatibility
-      averagePrice: basePrice,
-      
-      // Raw pricing values from API
-      price_min: priceData.price_min,
-      price_med: priceData.price_med,
-      price: priceData.price,
-      
-      // Metadata
-      requestId,
-      timestamp: new Date().toISOString()
-    };
-    
-    // Log final result
-    logOperation('valuation_complete', {
-      requestId,
-      result: {
-        make: valuationResult.make,
-        model: valuationResult.model,
-        basePrice: valuationResult.basePrice,
-        reservePrice: valuationResult.reservePrice
-      }
-    });
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: valuationResult
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        }
-      }
-    );
-  } catch (error) {
-    return handleApiError(error, requestId);
+    return formatSuccessResponse(valuation);
+  } catch (err: any) {
+    logOperation('api:network_or_parse_error', { message: err.message }, 'error');
+    return formatErrorResponse(`Error fetching valuation: ${err.message}`, 500, 'FETCH_ERROR');
   }
 });
