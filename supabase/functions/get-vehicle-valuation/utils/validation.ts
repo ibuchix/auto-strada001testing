@@ -1,7 +1,7 @@
 
 /**
  * Validation utilities for get-vehicle-valuation
- * Updated: 2025-04-30 - Further enhanced validation with better error messages
+ * Updated: 2025-04-30 - Improved VIN validation to be more flexible
  */
 
 export function isValidVin(vin: string): boolean {
@@ -77,12 +77,20 @@ export function validateRequest(data: any): { valid: boolean; error?: string } {
   // Convert empty strings, nulls to clearly defined invalid values for better error messages
   const vin = data.vin || '';
   
-  // VIN validation with informative error
-  if (!isValidVin(vin)) {
+  // More flexible VIN validation with informative error
+  const cleanedVin = String(vin).trim().replace(/[^A-Z0-9]/gi, '');
+  if (cleanedVin.length < 5) {
     return { 
       valid: false, 
-      error: vin === '' ? 'VIN cannot be empty' : 
-             `Invalid VIN format: "${vin}". Must be between 5-17 alphanumeric characters.` 
+      error: cleanedVin === '' ? 'VIN cannot be empty' : 
+             `VIN too short after sanitization: "${cleanedVin}". Must be at least 5 alphanumeric characters.` 
+    };
+  }
+
+  if (cleanedVin.length > 17) {
+    return {
+      valid: false,
+      error: `VIN too long: "${cleanedVin}". Must be at most 17 characters.`
     };
   }
 

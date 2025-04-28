@@ -2,6 +2,7 @@
 /**
  * Updated edge function for vehicle valuation with nested JSON support
  * This file handles the VIN validation and valuation API call with proper handling of nested JSON responses
+ * Updated: 2025-04-28 - Improved VIN validation to be more flexible
  */
 
 import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
@@ -181,7 +182,7 @@ serve(async (req)=>{
 
   try {
     const url = new URL(req.url);
-    const vin = url.searchParams.get("vin");
+    let vin = url.searchParams.get("vin");
     const mileage = url.searchParams.get("mileage") || "0";
 
     logOperation('request_received', {
@@ -189,9 +190,20 @@ serve(async (req)=>{
       mileage
     });
 
-    // Validate VIN
-    if (!vin || vin.length !== 17) {
-      return formatErrorResponse("Invalid VIN", 400, "INVALID_VIN");
+    // More flexible VIN validation
+    if (!vin) {
+      return formatErrorResponse("Missing VIN parameter", 400, "MISSING_VIN");
+    }
+
+    // Sanitize the VIN (remove whitespace, special characters)
+    vin = vin.toString().trim().replace(/[^A-Z0-9]/gi, '');
+
+    // Log the sanitized VIN
+    logOperation('sanitized_vin', { vin, vinLength: vin.length });
+
+    // Check if VIN is still valid after sanitization
+    if (vin.length < 10) {  // Most VINs are 17 chars, but some older ones might be shorter
+      return formatErrorResponse("VIN too short after sanitization", 400, "INVALID_VIN");
     }
 
     // Check cache first

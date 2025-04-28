@@ -1,18 +1,23 @@
 
 /**
  * Shared validation utilities
- * Created: 2025-04-19
+ * Updated: 2025-04-28 - Improved VIN validation to be more flexible
  */
 
 /**
- * Validate VIN format
+ * Validate VIN format with flexible approach
  * @param vin Vehicle Identification Number
  * @returns Boolean indicating valid VIN
  */
 export function isValidVin(vin: string): boolean {
-  return typeof vin === 'string' 
-    && vin.length === 17 
-    && /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
+  // Handle null/undefined/empty
+  if (!vin) return false;
+  
+  // Clean and normalize the VIN
+  const cleanVin = String(vin).trim().toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/gi, '');
+  
+  // Accept any alphanumeric string between 5-17 characters
+  return cleanVin.length >= 5 && cleanVin.length <= 17;
 }
 
 /**
