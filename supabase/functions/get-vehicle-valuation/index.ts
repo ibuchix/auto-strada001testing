@@ -1,10 +1,22 @@
+
+/**
+ * Vehicle Valuation Edge Function
+ * Updated: 2025-04-29 - Enhanced validation and error handling
+ */
 import { corsHeaders } from './utils/cors.ts';
+import { validateRequest } from './utils/validation.ts';
 import md5 from "https://cdn.skypack.dev/md5@2.3.0";
 
 const API_ID = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
 const API_SECRET = Deno.env.get('CAR_API_SECRET') || 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
 
 Deno.serve(async (req) => {
+  console.log({
+    timestamp: new Date().toISOString(),
+    operation: 'request_received',
+    level: 'info'
+  });
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -48,61 +60,32 @@ Deno.serve(async (req) => {
     // Log parsed request data
     console.log('[get-vehicle-valuation] Parsed request data:', requestData);
 
-    // Validate required parameters
+    // Validate request data
+    const validation = validateRequest(requestData);
+    if (!validation.valid) {
+      console.error('[get-vehicle-valuation] Validation error:', validation.error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: validation.error,
+          code: 'INVALID_REQUEST',
+          receivedData: requestData
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        }
+      );
+    }
+
+    // Extract validated parameters
     const { vin, mileage, gearbox = 'manual' } = requestData;
-
-    if (!vin) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Missing required parameter: vin',
-          receivedParams: { vin, mileage, gearbox }
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        }
-      );
-    }
-
-    if (mileage === undefined || mileage === null) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Missing required parameter: mileage',
-          receivedParams: { vin, mileage, gearbox }
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        }
-      );
-    }
-
-    // Validate mileage is a positive number
+    
+    // Normalize mileage to number
     const numericMileage = Number(mileage);
-    if (isNaN(numericMileage) || numericMileage < 0) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Invalid mileage value. Must be a positive number.',
-          receivedValue: mileage
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        }
-      );
-    }
 
     // Calculate checksum
     const checksumContent = API_ID + API_SECRET + vin;
@@ -115,7 +98,7 @@ Deno.serve(async (req) => {
     });
 
     // Build API URL
-    const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${numericMileage}/currency:PLN`;
     
     console.log(`[get-vehicle-valuation] Calling external API for VIN ${vin}`);
     

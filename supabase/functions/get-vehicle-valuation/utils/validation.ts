@@ -1,8 +1,7 @@
 
 /**
  * Validation utilities for get-vehicle-valuation
- * Updated: 2025-04-30 - Improved VIN validation to be more flexible
- * Updated: 2025-05-01 - Enhanced error handling for incomplete requests
+ * Created: 2025-04-30 - Added more robust validation for VIN and request parameters
  */
 
 export function isValidVin(vin: string): boolean {

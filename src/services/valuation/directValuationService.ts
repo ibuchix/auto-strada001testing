@@ -1,12 +1,11 @@
 
 /**
  * Direct valuation service
- * Created: 2025-05-08 - Added reliable direct API client for vehicle valuation
- * Updated: 2025-05-10 - Fixed crypto-js dependency issue
- * Updated: 2025-05-11 - Implemented CORS proxy solution for direct API access
+ * Updated: 2025-05-11 - Fixed to use edge function properly
  */
 
 import { calculateReservePrice } from '@/utils/valuation/valuationCalculator';
+import { supabase } from "@/integrations/supabase/client";
 import md5 from 'crypto-js/md5';
 import { toast } from 'sonner';
 
@@ -14,8 +13,8 @@ import { toast } from 'sonner';
 export type ValuationMethod = 'direct-api' | 'edge-function' | 'fallback';
 
 /**
- * Make a direct API call to the valuation service through a CORS proxy
- * This bypasses CORS restrictions and handles API interaction directly
+ * Make a direct API call to the valuation service through our edge function
+ * This bypasses CORS restrictions and handles API interaction securely
  */
 export async function getDirectValuation(
   vin: string,
@@ -31,62 +30,39 @@ export async function getDirectValuation(
   console.log('[DirectValuation] Starting direct API valuation for:', { vin, mileage, gearbox });
   
   try {
-    // API credentials (normally these would be in an edge function)
-    const API_ID = 'AUTOSTRA';
-    const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
-    
-    // Calculate checksum for API authentication
-    const checksumContent = API_ID + API_SECRET + vin;
-    const checksum = md5(checksumContent).toString();
-    
-    // Instead of directly calling the API, we'll use our edge function as a CORS proxy
-    // This is a reliable approach that doesn't require external services
-    const proxyUrl = `/api/get-vehicle-valuation`;
-    
+    // Use the Supabase edge function which will handle CORS properly
     console.log('[DirectValuation] Calling valuation via Edge Function proxy');
     
-    // Make API request through our proxy
-    const response = await fetch(proxyUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
+      body: {
         vin,
         mileage,
         gearbox,
-        debug: false
-      })
+        debug: true
+      }
     });
     
     // Check for successful response
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[DirectValuation] API error:', {
-        status: response.status,
-        error: errorText
-      });
+    if (error) {
+      console.error('[DirectValuation] Edge function error:', error);
       
       return {
         success: false,
-        error: `API error: ${response.status} - ${errorText}`,
+        error: `API error: ${error.message || 'Unknown error'}`,
         method: 'direct-api'
       };
     }
     
     // Parse API response
-    const responseData = await response.json();
-    
-    if (!responseData.success) {
+    if (!data || !data.data) {
       return {
         success: false,
-        error: responseData.error || 'Unknown error',
+        error: 'No data received from API',
         method: 'direct-api'
       };
     }
     
-    const rawData = responseData.data;
+    const rawData = data.data;
     console.log('[DirectValuation] Raw API response received:', {
       dataSize: JSON.stringify(rawData).length,
       keys: Object.keys(rawData)
