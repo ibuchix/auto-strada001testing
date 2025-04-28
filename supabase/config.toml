@@ -1,1 +1,9 @@
+
 project_id = "sdvakfhmoaoucmhbhwvy"
+
+[functions.get-vehicle-valuation]
+verify_jwt = false
+
+[functions.get-vehicle-valuation.environment]
+CAR_API_ID = "AUTOSTRA"
+CAR_API_SECRET = "A4FTFH54C3E37P2D34A16A7A4V41XKBF"

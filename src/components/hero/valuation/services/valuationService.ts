@@ -5,9 +5,11 @@
  * Updated: 2025-04-29 - Fixed request format to match edge function expectations
  * Updated: 2025-04-30 - Enhanced error handling and debugging
  * Updated: 2025-05-01 - Fixed parameter handling to prevent null VIN issues
+ * Updated: 2025-05-02 - Added direct API client as fallback for edge function
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { getDirectValuation } from "@/services/valuation/directValuationService";
 
 export async function getValuation(
   vin: string,
@@ -38,47 +40,63 @@ export async function getValuation(
       mileage = 0; // Default to 0 if invalid
     }
 
-    // Use body parameter for the request instead of URL params
-    const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
-      body: {
-        vin: cleanVin,
-        mileage: Number(mileage), // Ensure it's a number
-        gearbox: gearbox || 'manual', // Ensure default if undefined
-        debug: options.debug || false
-      }
-    });
+    // First try edge function
+    let result;
+    
+    try {
+      // Use body parameter for the request instead of URL params
+      const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
+        body: {
+          vin: cleanVin,
+          mileage: Number(mileage), // Ensure it's a number
+          gearbox: gearbox || 'manual', // Ensure default if undefined
+          debug: options.debug || false
+        }
+      });
 
-    if (error) {
-      console.error('[Valuation] Edge function error:', error);
-      
-      // Log more detailed error information when available
-      if (error.message) {
-        console.error('[Valuation] Error message:', error.message);
+      if (error) {
+        console.error('[Valuation] Edge function error:', error);
+        
+        // Log more detailed error information when available
+        if (error.message) {
+          console.error('[Valuation] Error message:', error.message);
+        }
+        
+        if (error.context) {
+          console.error('[Valuation] Error context:', error.context);
+        }
+        
+        throw error;
       }
       
-      if (error.context) {
-        console.error('[Valuation] Error context:', error.context);
-      }
+      result = { success: true, data };
+    } catch (edgeFunctionError) {
+      // If edge function fails, try direct API
+      console.log('[Valuation] Edge function failed, trying direct API instead');
+      result = await getDirectValuation(cleanVin, mileage, gearbox);
       
-      throw error;
+      // If direct API succeeded, log this as a useful metric
+      if (result.success) {
+        console.log('[Valuation] Direct API call succeeded where edge function failed');
+      }
     }
 
     // Add validation for the response
-    if (!data) {
-      console.error('[Valuation] No data returned from edge function');
+    if (!result.data) {
+      console.error('[Valuation] No data returned from valuation services');
       throw new Error('No data returned from valuation service');
     }
 
     console.log('[Valuation] Received successful response:', {
-      dataReceived: !!data,
-      dataSize: data ? JSON.stringify(data).length : 0,
-      hasValidMake: data?.make ? true : false,
-      hasValidModel: data?.model ? true : false
+      dataReceived: !!result.data,
+      dataSize: result.data ? JSON.stringify(result.data).length : 0,
+      hasValidMake: result.data?.make ? true : false,
+      hasValidModel: result.data?.model ? true : false
     });
 
     return {
       success: true,
-      data: data
+      data: result.data
     };
   } catch (error: any) {
     console.error('[Valuation] Service error:', error);
