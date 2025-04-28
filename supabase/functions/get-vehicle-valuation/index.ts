@@ -1,7 +1,7 @@
-
 /**
  * Vehicle Valuation Edge Function
  * Updated: 2025-04-28 - Enhanced data extraction and response formatting
+ * Updated: 2025-04-28 - Added early mileage conversion to number
  */
 
 import { corsHeaders } from './utils/cors.ts';
@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       logOperation('request_body_received', {
         requestId,
         bodyLength: requestText.length,
-        body: requestText.substring(0, 200) // Log first 200 chars for debugging
+        body: requestText.substring(0, 200)
       });
       
       if (!requestText) {
@@ -79,18 +79,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate mileage
-    const mileage = requestData?.mileage;
-    if (mileage === undefined || mileage === null) {
+    // Early mileage conversion and validation
+    const rawMileage = requestData?.mileage;
+    const mileage = typeof rawMileage === 'string' ? parseInt(rawMileage, 10) : Number(rawMileage);
+
+    if (isNaN(mileage)) {
       throw new ValuationError(
-        'Mileage is required',
-        'MISSING_MILEAGE',
-        [{ field: 'mileage', message: 'Mileage must be provided' }]
+        'Invalid mileage format',
+        'INVALID_MILEAGE',
+        [{
+          field: 'mileage',
+          message: 'Mileage must be a valid number',
+          value: rawMileage
+        }]
       );
     }
 
-    const numericMileage = Number(mileage);
-    if (!isValidMileage(numericMileage)) {
+    if (!isValidMileage(mileage)) {
       throw new ValuationError(
         'Invalid mileage value',
         'INVALID_MILEAGE',
@@ -108,12 +113,12 @@ Deno.serve(async (req) => {
     // Calculate checksum and build API URL
     const checksumContent = API_ID + API_SECRET + vin;
     const checksum = md5(checksumContent);
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${numericMileage}/currency:PLN`;
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
 
     logOperation('calling_external_api', {
       requestId,
       vin,
-      mileage: numericMileage
+      mileage
     });
 
     // Call external API
