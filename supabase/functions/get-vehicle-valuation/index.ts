@@ -1,106 +1,107 @@
-
-/**
- * Changes made:
- * - 2025-04-26: Improved data extraction from nested API response
- * - 2025-04-26: Fixed direct parsing of nested API data structures
- * - 2025-04-26: Added extensive logging for troubleshooting
- * - 2025-04-28: Updated VIN validation to be more permissive
- * - 2025-04-28: Added better error handling for API responses
- * - 2025-04-28: Added detailed request logging for debugging
- */
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "./utils/cors.ts";
 import { validateRequest } from "./utils/validation.ts";
+import { logOperation } from "./utils/logging.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Content-Type': 'application/json'
+};
 
 serve(async (req) => {
+  const requestId = crypto.randomUUID();
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const requestId = crypto.randomUUID();
-    
-    // Log the raw request for debugging
-    console.log({
-      timestamp: new Date().toISOString(),
-      operation: 'raw_request',
-      level: 'info',
+    // Detailed request logging
+    logOperation('request_received', {
       requestId,
       method: req.method,
+      contentType: req.headers.get('content-type'),
       url: req.url
     });
 
-    // Parse request body
     let requestBody;
     try {
-      requestBody = await req.json();
-      console.log({
-        timestamp: new Date().toISOString(),
-        operation: 'request_received',
-        level: 'info',
+      // Explicitly wait for the request body text
+      const bodyText = await req.text();
+      
+      // Log raw request body for debugging
+      logOperation('request_body_received', {
         requestId,
-        vin: requestBody?.vin,
-        mileage: String(requestBody?.mileage || 0),
-        gearbox: requestBody?.gearbox || 'manual'
+        bodyLength: bodyText.length,
+        bodyPreview: bodyText.substring(0, 200)
+      });
+
+      // Parse JSON only if we have a body
+      requestBody = bodyText ? JSON.parse(bodyText) : null;
+      
+      // Log parsed body
+      logOperation('request_body_parsed', {
+        requestId,
+        parsedBody: requestBody,
+        hasVin: Boolean(requestBody?.vin),
+        hasMileage: Boolean(requestBody?.mileage),
+        hasGearbox: Boolean(requestBody?.gearbox)
       });
     } catch (parseError) {
-      console.error('Error parsing request body:', parseError);
+      logOperation('request_parse_error', {
+        requestId,
+        error: parseError.message
+      }, 'error');
+
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Invalid request format. JSON body required.',
+          error: 'Invalid request format. Expected JSON body.',
           code: 'INVALID_REQUEST'
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
-    
-    const { vin, mileage, gearbox = 'manual' } = requestBody;
 
     // Validate the request data
     const validation = validateRequest(requestBody);
     if (!validation.valid) {
-      console.log({
-        timestamp: new Date().toISOString(),
-        operation: 'validation_failed',
-        level: 'error',
+      logOperation('validation_failed', {
         requestId,
         error: validation.error,
-        vin,
-        mileage
-      });
-      
+        requestData: requestBody
+      }, 'error');
+
       return new Response(
         JSON.stringify({
           success: false,
           error: validation.error || 'Invalid request data',
           code: 'VALIDATION_ERROR'
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     // Calculate checksum and make API request
     const apiId = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET') || 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
-    const checksumInput = `${apiId}${apiSecret}${vin}`;
+    const checksumInput = `${apiId}${apiSecret}${requestBody?.vin}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(checksumInput);
     const hashBuffer = await crypto.subtle.digest('MD5', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${requestBody?.vin}/odometer:${requestBody?.mileage}/currency:PLN`;
 
     console.log({
       timestamp: new Date().toISOString(),
       operation: 'calling_external_api',
       level: 'info',
       requestId,
-      vin,
-      mileage,
+      vin: requestBody?.vin,
+      mileage: String(requestBody?.mileage || 0),
       url: apiUrl
     });
 
@@ -318,7 +319,7 @@ serve(async (req) => {
         make: userParams.make || '',
         model: userParams.model || '',
         year: userParams.year ? Number(userParams.year) : new Date().getFullYear(),
-        mileage: Number(mileage),
+        mileage: Number(requestBody?.mileage),
         transmission: gearbox,
         valuation: Math.round(basePrice),
         reservePrice: Math.round(reservePrice),
@@ -371,14 +372,19 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('Error in valuation function:', error);
+    logOperation('unhandled_error', {
+      requestId,
+      error: error.message,
+      stack: error.stack
+    }, 'error');
+
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Failed to process valuation request',
+        error: 'An unexpected error occurred',
         code: 'SERVER_ERROR'
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 });
