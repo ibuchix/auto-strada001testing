@@ -1,180 +1,76 @@
 
 /**
- * Enhanced VIN Validation Service
- * 
- * Changes:
- * - Improved error handling in validateVin function
- * - Added retry logic for transient errors
- * - Enhanced logging for better diagnostics
- * - Added option to bypass existence check
+ * VIN validation service
+ * Updated: 2025-04-28 - Added proper URL encoding for VIN parameters
  */
 
 import { supabase } from "@/integrations/supabase/client";
-import { VehicleData, storeVehicleData, getVehicleData, clearVehicleData } from "@/services/vehicleDataService";
 
-export interface VinValidationRequest {
-  vin: string;
-  mileage: number;
-  userId?: string;
-  allowExisting?: boolean; // New parameter to bypass existence check
-}
-
-export type { VehicleData };
-
-export interface VinValidationResponse {
-  success: boolean;
-  data?: VehicleData & {
-    isValid?: boolean;
-    vehicleExists?: boolean;
-    reservationExists?: boolean;
-    requiresValuation?: boolean;
-    reservationId?: string;
-    valuationData?: any;
-  };
+export interface VehicleData {
+  make: string;
+  model: string;
+  year: number;
+  transmission?: string;
+  mileage?: number;
+  valuation?: number;
+  reservePrice?: number;
+  averagePrice?: number;
   error?: string;
-  errorCode?: string;
 }
 
-/**
- * Store validation data in localStorage with a standardized structure
- * Now delegates to the centralized vehicle data service
- */
-export function storeValidationData(data: VehicleData) {
-  return storeVehicleData(data);
-}
-
-/**
- * Retrieve validation data from localStorage
- * Now delegates to the centralized vehicle data service
- */
-export function getStoredValidationData(): VehicleData | null {
-  return getVehicleData();
-}
-
-/**
- * Clear validation data from localStorage
- * Now delegates to the centralized vehicle data service
- */
-export function clearValidationData() {
-  clearVehicleData();
-}
-
-/**
- * Validates a VIN against the Supabase Edge Function with retry logic
- * 
- * @param params - Validation request parameters
- * @param retryCount - Number of retries for transient errors (default: 2)
- * @returns Promise with validation results
- */
-export async function validateVin(
-  params: VinValidationRequest, 
-  retryCount = 2
-): Promise<VinValidationResponse> {
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-  
+export const validateVin = async ({ 
+  vin, 
+  mileage, 
+  gearbox = 'manual' 
+}: { 
+  vin: string; 
+  mileage: number; 
+  gearbox?: string; 
+}): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
-    console.log(`[VIN Validation][${requestId}] Validating VIN:`, params.vin, {
-      mileage: params.mileage,
-      allowExisting: params.allowExisting,
-      timestamp: new Date().toISOString()
-    });
+    // Clean and encode the VIN
+    const cleanVin = vin.trim().replace(/\s+/g, '');
+    const encodedVin = encodeURIComponent(cleanVin);
     
-    const { data, error } = await supabase.functions.invoke<any>('validate-vin', {
-      body: {
-        ...params,
-        requestId // Pass request ID for better tracing
+    const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
+      body: { 
+        vin: encodedVin,
+        mileage: mileage,
+        gearbox: gearbox
       }
     });
-    
+
     if (error) {
-      console.error(`[VIN Validation][${requestId}] Error:`, error);
-      
-      // Check for specific error types that might be retryable
-      const isRetryableError = 
-        error.message?.includes('timeout') || 
-        error.message?.includes('network') ||
-        error.message?.includes('rate limit') ||
-        error.status === 429 ||
-        error.status === 503;
-      
-      // Retry logic for transient errors
-      if (isRetryableError && retryCount > 0) {
-        console.log(`[VIN Validation][${requestId}] Retrying (${retryCount} attempts left)...`);
-        
-        // Exponential backoff - wait longer between retries
-        const backoffMs = Math.pow(2, 3 - retryCount) * 500;
-        await new Promise(resolve => setTimeout(resolve, backoffMs));
-        
-        return validateVin(params, retryCount - 1);
-      }
-      
+      console.error('VIN validation error:', error);
       return {
         success: false,
-        error: error.message || 'Error validating VIN',
-        errorCode: error.code || 'FUNCTION_ERROR'
+        error: error.message || 'Failed to validate VIN'
       };
     }
-    
-    // If successful, store the data using our standardized storage service
-    if (data) {
-      console.log(`[VIN Validation][${requestId}] Success:`, {
-        make: data.make,
-        model: data.model,
-        year: data.year,
-        cached: data.cached,
-        vehicleExists: data.vehicleExists
-      });
-      
-      const vehicleData: VehicleData = {
-        vin: params.vin,
-        mileage: params.mileage,
-        make: data.make,
-        model: data.model,
-        year: data.year,
-        transmission: data.transmission || 'manual',
-        cached: data.cached,
-        reservePrice: data.reservePrice || data.valuation,
-        valuation: data.valuation || data.reservePrice,
-        averagePrice: data.averagePrice || data.basePrice
-      };
-      
-      storeValidationData(vehicleData);
-    }
-    
-    // Return the data from the function call
+
     return {
       success: true,
       data
     };
-  } catch (error) {
-    console.error(`[VIN Validation][${requestId}] Unexpected error:`, error);
-    
-    // Retry logic for unexpected errors
-    if (retryCount > 0) {
-      console.log(`[VIN Validation][${requestId}] Retrying after unexpected error (${retryCount} attempts left)...`);
-      
-      // Exponential backoff - wait longer between retries
-      const backoffMs = Math.pow(2, 3 - retryCount) * 500;
-      await new Promise(resolve => setTimeout(resolve, backoffMs));
-      
-      return validateVin(params, retryCount - 1);
-    }
-    
+  } catch (error: any) {
+    console.error('Unexpected error during VIN validation:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unexpected error validating VIN',
-      errorCode: 'UNEXPECTED_ERROR'
+      error: error.message || 'An unexpected error occurred'
     };
   }
-}
+};
 
-/**
- * Check if a VIN format is valid (basic check)
- * 
- * @param vin - Vehicle Identification Number to check
- * @returns Boolean indicating if format is valid
- */
-export function isValidVinFormat(vin: string): boolean {
-  // Basic validation - VINs should be 17 characters and contain only valid characters
-  return /^[A-HJ-NPR-Z0-9]{17}$/i.test(vin);
-}
+export const isValidVinFormat = (vin: string): boolean => {
+  if (!vin) return false;
+  const cleanVin = vin.trim().replace(/[^A-Z0-9]/gi, '');
+  return cleanVin.length >= 5 && cleanVin.length <= 17;
+};
+
+export const getVINErrorMessage = (vin: string): string | null => {
+  if (!vin) return "VIN is required";
+  const cleanVin = vin.trim().replace(/[^A-Z0-9]/gi, '');
+  if (cleanVin.length < 5) return "VIN must be at least 5 characters long";
+  if (cleanVin.length > 17) return "VIN cannot be longer than 17 characters";
+  return null;
+};

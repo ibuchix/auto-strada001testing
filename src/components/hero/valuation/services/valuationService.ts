@@ -1,127 +1,57 @@
 
 /**
- * Enhanced valuation service with monitoring
- * Updated: 2025-04-26 - Refactored to handle raw API response
- * Updated: 2025-04-26 - Fixed TypeScript error with price_med property
- * Updated: 2025-04-26 - Added named export for getValuation
- * Updated: 2025-04-26 - Added success property to return value for type consistency
+ * Valuation service for handling vehicle valuations
+ * Updated: 2025-04-28 - Added proper URL encoding for VIN parameters
  */
-import { ValuationMonitoring } from '../../../../services/monitoring/valuationMonitoring';
+
 import { supabase } from "@/integrations/supabase/client";
-import { ApiError } from "../../../../services/errors/apiError";
-import { toast } from "sonner";
 
-export async function getVehicleValuation(
-  vin: string, 
-  mileage: number, 
-  gearbox: string,
-  options?: { debug?: boolean; requestId?: string }
+export async function getValuation(
+  vin: string,
+  mileage: number,
+  gearbox: string = 'manual',
+  options: { debug?: boolean; requestId?: string } = {}
 ) {
-  const startTime = performance.now();
-
   try {
-    console.log('[VALUATION-API] Getting valuation for:', { vin, mileage, gearbox });
+    // Clean and encode the VIN
+    const cleanVin = vin.trim().replace(/\s+/g, '');
+    const encodedVin = encodeURIComponent(cleanVin);
     
-    const { data, error } = await supabase.functions.invoke(
-      'get-vehicle-valuation',
-      {
-        body: { 
-          vin, 
-          mileage, 
-          gearbox,
-          debug: options?.debug,
-          requestId: options?.requestId
-        }
-      }
-    );
-    
-    const executionTime = performance.now() - startTime;
-
-    if (error) {
-      console.error('[VALUATION-API] Error:', error);
-      
-      ValuationMonitoring.trackValuation({
-        vin,
-        hasPricingData: false,
-        usedFallbackValues: false,
-        dataQualityScore: 0,
-        executionTimeMs: executionTime
-      });
-
-      throw new ApiError({
-        message: 'Failed to get vehicle valuation',
-        originalError: error
-      });
-    }
-
-    // Log the complete raw response for debugging
-    console.log('[VALUATION-API] Raw API response:', data);
-
-    // Calculate data quality score
-    const qualityScore = calculateDataQualityScore(data);
-
-    // Track metrics
-    ValuationMonitoring.trackValuation({
-      vin,
-      hasPricingData: !!data?.rawApiResponse,
-      usedFallbackValues: false,
-      dataQualityScore: qualityScore,
-      executionTimeMs: executionTime
+    console.log(`[Valuation][${options.requestId || 'N/A'}] Requesting valuation for:`, {
+      vin: encodedVin,
+      mileage,
+      gearbox,
+      timestamp: new Date().toISOString()
     });
 
+    const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
+      body: {
+        vin: encodedVin,
+        mileage,
+        gearbox,
+        debug: options.debug
+      }
+    });
+
+    if (error) throw error;
+
     return {
-      success: true, // Add success flag for type consistency
-      data,
-      error: null
+      success: true,
+      data: data
     };
-  } catch (error) {
-    console.error('[VALUATION-API] Service error:', error);
-    toast.error('Failed to get vehicle valuation');
-    
+  } catch (error: any) {
+    console.error('Valuation error:', error);
     return {
-      success: false, // Add success flag for type consistency 
-      data: null,
-      error: error instanceof Error ? error : new Error('Unknown error in valuation service')
+      success: false,
+      error: error.message || 'Failed to get valuation'
     };
-  }
-}
-
-function calculateDataQualityScore(data: any): number {
-  if (!data?.rawApiResponse) return 0;
-  
-  try {
-    const response = typeof data.rawApiResponse === 'string' 
-      ? JSON.parse(data.rawApiResponse) 
-      : data.rawApiResponse;
-      
-    const userParams = response?.functionResponse?.userParams;
-    const valuationData = response?.functionResponse?.valuation?.calcValuation;
-    
-    let score = 0;
-    let checks = 0;
-
-    // Check for essential fields
-    if (userParams?.make) { score++; checks++; }
-    if (userParams?.model) { score++; checks++; }
-    if (userParams?.year) { score++; checks++; }
-    if (valuationData?.price) { score++; checks++; }
-    if (valuationData?.price_med) { score++; checks++; }
-    if (valuationData?.price_min) { score++; checks++; }
-
-    return checks > 0 ? score / checks : 0;
-  } catch (error) {
-    console.error('Error calculating data quality score:', error);
-    return 0;
   }
 }
 
 export function cleanupValuationData() {
-  // Placeholder function for data cleanup
   localStorage.removeItem('valuationData');
   localStorage.removeItem('tempVIN');
   localStorage.removeItem('tempMileage');
   localStorage.removeItem('tempGearbox');
+  localStorage.removeItem('valuationTimestamp');
 }
-
-// Export getVehicleValuation with alias getValuation for backward compatibility
-export const getValuation = getVehicleValuation;
