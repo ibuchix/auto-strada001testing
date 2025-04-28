@@ -2,6 +2,7 @@
  * Vehicle Valuation Edge Function
  * Updated: 2025-04-28 - Enhanced data extraction and response formatting
  * Updated: 2025-04-28 - Added early mileage conversion to number
+ * Updated: 2025-04-28 - Added detailed API request debug logging
  */
 
 import { corsHeaders } from './utils/cors.ts';
@@ -119,6 +120,15 @@ Deno.serve(async (req) => {
       requestId,
       vin,
       mileage
+    });
+
+    // Add detailed debug logging
+    logOperation('external_api_request_debug', {
+      vin,
+      mileage,
+      apiUrl,
+      checksumContent,
+      checksum
     });
 
     // Call external API
