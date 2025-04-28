@@ -1,389 +1,70 @@
+
 /**
  * VIN Validation Edge Function
- * Updated: 2025-04-19 - Switched to use shared utilities from central repository
+ * Updated: 2025-04-28 - Refactored for better organization and error handling
  */
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { 
-  corsHeaders, 
-  handleCorsOptions,
-  formatSuccessResponse,
-  formatErrorResponse, 
-  formatServerErrorResponse,
-  ValidationError,
-  isValidVin,
-  isValidMileage,
-  logOperation,
-  checkRateLimit,
-  calculateMd5
-} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
+import { corsHeaders } from './utils/cors.ts';
+import { logOperation, logRequestDiagnostics } from './utils/logging.ts';
+import { validateRequest } from './utils/validation.ts';
+import { handleApiError } from './utils/error-handling.ts';
+import { getValuation } from './services/valuation-service.ts';
 
-// Create Supabase client
-const createSupabaseClient = () => {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+Deno.serve(async (req) => {
+  const requestId = crypto.randomUUID();
   
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
-  }
-  
-  return createClient(supabaseUrl, supabaseKey);
-};
-
-// Calculate MD5 hash using Web Crypto API
-async function calculateMD5(input: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('MD5', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Main function handler
-serve(async (req: Request) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { vin, mileage, userId, allowExisting = false, requestId = crypto.randomUUID() } = await req.json();
-    
-    logOperation('validate_vin_request_received', { 
-      requestId, 
-      vin, 
-      mileage, 
-      allowExisting,
-      timestamp: new Date().toISOString()
+    logOperation('vin_validation_request_received', { 
+      requestId,
+      method: req.method,
+      url: req.url
     });
 
-    // Apply rate limiting
-    if (checkRateLimit(vin)) {
-      logOperation('rate_limit_exceeded', { requestId, vin }, 'warn');
-      return formatErrorResponse("Rate limit exceeded. Please try again later.", 429, "RATE_LIMIT_EXCEEDED");
-    }
-
-    // Basic validation
-    if (!isValidVin(vin)) {
-      return formatErrorResponse("Invalid VIN format. VIN must be 17 characters long and contain only letters and numbers.", 400, "INVALID_VIN");
-    }
+    // Parse and validate request
+    const requestText = await req.text();
+    logRequestDiagnostics(requestId, req, requestText);
     
-    if (!isValidMileage(mileage)) {
-      return formatErrorResponse("Invalid mileage value. Mileage must be a positive number under 1,000,000.", 400, "INVALID_MILEAGE");
-    }
-    
-    // Create Supabase client
-    const supabase = createSupabaseClient();
-    
-    // Check if vehicle with this VIN already exists
-    const { data: existingVehicles, error: vehicleError } = await supabase
-      .from('cars')
-      .select('id, vin')
-      .eq('vin', vin)
-      .limit(1);
-    
-    if (vehicleError) {
-      logOperation('vehicle_check_error', { 
-        requestId,
-        error: vehicleError.message,
-        details: vehicleError
-      }, 'error');
-      
-      return formatServerErrorResponse(vehicleError);
-    }
-    
-    const vehicleExists = existingVehicles && existingVehicles.length > 0;
-    
-    // If vehicle exists and we're not allowing existing, return an error
-    if (vehicleExists && !allowExisting) {
-      logOperation('vehicle_already_exists', { requestId, vin }, 'warn');
-      
-      return formatErrorResponse(
-        "A vehicle with this VIN already exists in our system.",
-        400,
-        "VEHICLE_EXISTS"
-      );
-    }
-    
-    // Get valuation data
-    const apiId = Deno.env.get("VALUATION_API_ID") || "";
-    const apiSecret = Deno.env.get("VALUATION_API_SECRET") || "";
-    
-    if (!apiId || !apiSecret) {
-      logOperation('missing_valuation_credentials', { requestId }, 'error');
-      
-      return formatServerErrorResponse(
-        "Missing API credentials for valuation service",
-        500,
-        "CONFIG_ERROR"
-      );
-    }
-    
-    // Calculate checksum for valuation API
-    const checksumContent = apiId + apiSecret + vin;
-    const checksum = await calculateMD5(checksumContent);
-    
-    // Log API request details for debugging
-    logOperation('calling_valuation_api', { 
-      requestId, 
-      vin,
-      mileage,
-      apiId,
-      apiEndpoint: "https://bp.autoiso.pl/api/v3/getVinValuation/",
-      checksumGenerated: true
-    });
-    
-    // Call external valuation API
-    const valuationUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
-    
+    let requestData;
     try {
-      const response = await fetch(valuationUrl);
-      
-      if (!response.ok) {
-        logOperation('valuation_api_http_error', { 
-          requestId,
-          status: response.status,
-          statusText: response.statusText
-        }, 'error');
-        
-        return formatErrorResponse(
-          `Valuation API responded with status: ${response.status} ${response.statusText}`,
-          response.status,
-          "API_ERROR"
-        );
-      }
-      
-      const responseText = await response.text();
-      logOperation('valuation_api_raw_response', { 
-        requestId,
-        responseSize: responseText.length,
-        responseSample: responseText.substring(0, 200) + (responseText.length > 200 ? '...' : '')
-      });
-      
-      let valuationData;
-      try {
-        valuationData = JSON.parse(responseText);
-      } catch (parseError) {
-        logOperation('valuation_api_parse_error', { 
-          requestId,
-          error: parseError.message,
-          responseText: responseText.substring(0, 500)
-        }, 'error');
-        
-        return formatErrorResponse(
-          "Failed to parse valuation API response",
-          400,
-          "PARSE_ERROR"
-        );
-      }
-      
-      if (!valuationData) {
-        logOperation('empty_valuation_data', { requestId }, 'error');
-        return formatErrorResponse(
-          "Received empty response from valuation API",
-          400,
-          "EMPTY_RESPONSE"
-        );
-      }
-      
-      if (valuationData.error) {
-        logOperation('valuation_api_returned_error', { 
-          requestId,
-          error: valuationData.error
-        }, 'error');
-        
-        return formatErrorResponse(
-          valuationData.error || "Failed to get valuation from external service",
-          400,
-          "VALUATION_ERROR"
-        );
-      }
-      
-      // Log received data for debugging
-      logOperation('valuation_data_received', { 
-        requestId,
-        dataKeys: Object.keys(valuationData),
-        hasBasicInfo: !!(valuationData.make && valuationData.model && valuationData.year),
-        hasPricing: !!(valuationData.price_min !== undefined || valuationData.price_med !== undefined || valuationData.price !== undefined),
-        rawSample: JSON.stringify(valuationData).substring(0, 200) + '...'
-      });
-      
-      // Extract essential data with fallbacks for missing properties
-      const make = valuationData.make || valuationData.manufacturer || '';
-      const model = valuationData.model || valuationData.modelName || '';
-      const year = valuationData.year || valuationData.productionYear || new Date().getFullYear();
-      const transmission = valuationData.transmission || 'manual';
-      
-      // Calculate base price (average of min and median prices)
-      // Handle different possible price field names
-      let priceMin = 0;
-      let priceMed = 0;
-      
-      if (valuationData.price_min !== undefined) {
-        priceMin = parseFloat(valuationData.price_min);
-      } else if (valuationData.priceMin !== undefined) {
-        priceMin = parseFloat(valuationData.priceMin);
-      } else if (valuationData.minimum_price !== undefined) {
-        priceMin = parseFloat(valuationData.minimum_price);
-      } else if (valuationData.price !== undefined) {
-        priceMin = parseFloat(valuationData.price);
-      }
-      
-      if (valuationData.price_med !== undefined) {
-        priceMed = parseFloat(valuationData.price_med);
-      } else if (valuationData.priceMed !== undefined) {
-        priceMed = parseFloat(valuationData.priceMed);
-      } else if (valuationData.median_price !== undefined) {
-        priceMed = parseFloat(valuationData.median_price);
-      } else if (valuationData.price !== undefined) {
-        priceMed = parseFloat(valuationData.price);
-      }
-      
-      // Fallback: if we don't have min/med prices but have a general price
-      if ((priceMin === 0 || priceMed === 0) && valuationData.price) {
-        const price = parseFloat(valuationData.price);
-        if (price > 0) {
-          priceMin = price;
-          priceMed = price;
-        }
-      }
-      
-      // If we still don't have prices, check for any field that might contain price data
-      if (priceMin === 0 || priceMed === 0) {
-        for (const [key, value] of Object.entries(valuationData)) {
-          if (typeof value === 'number' && 
-              (key.toLowerCase().includes('price') || key.toLowerCase().includes('value')) && 
-              value > 0) {
-            if (priceMin === 0) priceMin = value;
-            if (priceMed === 0) priceMed = value;
-          }
-        }
-      }
-      
-      logOperation('price_extraction', { 
-        requestId,
-        priceMin,
-        priceMed,
-        originalPriceMin: valuationData.price_min,
-        originalPriceMed: valuationData.price_med,
-        priceFields: Object.keys(valuationData).filter(k => 
-          k.toLowerCase().includes('price') || 
-          k.toLowerCase().includes('value')
-        )
-      });
-      
-      // Check if we have valid pricing data
-      if (priceMin <= 0 || priceMed <= 0) {
-        logOperation('invalid_pricing_data', { 
-          requestId,
-          priceMin,
-          priceMed,
-          rawData: JSON.stringify(valuationData).substring(0, 500) + '...'
-        }, 'warn');
-        
-        // If we don't have make/model but no pricing, we still return the data we have
-        if (!make || !model) {
-          return formatErrorResponse(
-            "Could not retrieve valid pricing data for this vehicle",
-            400,
-            "INVALID_PRICING"
-          );
-        }
-        
-        // If we have make/model but no pricing, set default values for pricing
-        priceMin = 30000;
-        priceMed = 30000;
-        
-        logOperation('using_default_pricing', {
-          requestId,
-          make,
-          model
-        }, 'warn');
-      }
-      
-      const basePrice = (priceMin + priceMed) / 2;
-      
-      // Calculate reserve price based on our pricing tiers
-      let reservePercentage = 0.25; // Default percentage
-      
-      if (basePrice <= 15000) reservePercentage = 0.65;
-      else if (basePrice <= 20000) reservePercentage = 0.46;
-      else if (basePrice <= 30000) reservePercentage = 0.37;
-      else if (basePrice <= 50000) reservePercentage = 0.27;
-      else if (basePrice <= 60000) reservePercentage = 0.27;
-      else if (basePrice <= 70000) reservePercentage = 0.22;
-      else if (basePrice <= 80000) reservePercentage = 0.23;
-      else if (basePrice <= 100000) reservePercentage = 0.24;
-      else if (basePrice <= 130000) reservePercentage = 0.20;
-      else if (basePrice <= 160000) reservePercentage = 0.185;
-      else if (basePrice <= 200000) reservePercentage = 0.22;
-      else if (basePrice <= 250000) reservePercentage = 0.17;
-      else if (basePrice <= 300000) reservePercentage = 0.18;
-      else if (basePrice <= 400000) reservePercentage = 0.18;
-      else if (basePrice <= 500000) reservePercentage = 0.16;
-      else reservePercentage = 0.145;
-      
-      const reservePrice = basePrice - (basePrice * reservePercentage);
-      
-      // Log received data for debugging
-      logOperation('reserve_price_calculated', { 
-        requestId,
-        basePrice,
-        reservePercentage,
-        reservePrice: Math.round(reservePrice),
-        tiersUsed: true
-      });
-      
-      // Return the successful result with consistent structure
-      return formatSuccessResponse({
-        vin,
-        vehicleExists,
-        make,
-        model,
-        year,
-        transmission,
-        averagePrice: Math.round(priceMed || basePrice),
-        basePrice: Math.round(basePrice),
-        reservePrice: Math.round(reservePrice),
-        // Include nested structure to match Auto ISO API format
-        functionResponse: {
-          userParams: {
-            make,
-            model,
-            year
-          },
-          valuation: {
-            calcValuation: {
-              price_min: priceMin,
-              price_med: priceMed
-            }
-          }
-        },
-        // Also include flat structure for backward compatibility
-        valuation: Math.round(basePrice),
-        price_min: Math.round(priceMin),
-        price_med: Math.round(priceMed)
-      });
-    } catch (apiError) {
-      logOperation('valuation_api_exception', { 
-        requestId,
-        error: apiError instanceof Error ? apiError.message : String(apiError),
-        stack: apiError instanceof Error ? apiError.stack : null
-      }, 'error');
-      
-      return formatServerErrorResponse(
-        apiError,
-        500,
-        "API_ERROR"
-      );
+      requestData = JSON.parse(requestText);
+    } catch (e) {
+      throw new Error('Invalid JSON in request body');
     }
+
+    // Validate input
+    validateRequest(requestData, requestId);
+
+    // Get valuation data
+    const result = await getValuation({
+      vin: requestData.vin,
+      mileage: Number(requestData.mileage),
+      requestId
+    });
+
+    logOperation('vin_validation_complete', {
+      requestId,
+      vin: requestData.vin,
+      success: true
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: result
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      }
+    );
   } catch (error) {
-    logOperation('unhandled_exception', { 
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : null
-    }, 'error');
-    
-    return formatServerErrorResponse(error);
+    return handleApiError(error, requestId);
   }
 });
