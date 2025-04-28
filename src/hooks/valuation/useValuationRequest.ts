@@ -2,6 +2,7 @@
 /**
  * Valuation request hook
  * Created: 2025-05-10 - Fixed function signatures and improved API handling
+ * Updated: 2025-05-10 - Added comprehensive error handling and logging
  */
 
 import { useState, useCallback } from 'react';
@@ -23,6 +24,8 @@ export function useValuationRequest() {
     setError(null);
     
     try {
+      console.log('[ValuationRequest] Starting valuation request for:', { vin, mileage, gearbox });
+      
       // First validate the parameters
       const validationResult = validateValuationParams(
         vin,
@@ -49,9 +52,13 @@ export function useValuationRequest() {
       }
       
       setResult(response.data);
+      console.log('[ValuationRequest] Successful valuation:', response.data);
+      
       return response.data;
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to get valuation';
+      console.error('[ValuationRequest] Error:', errorMsg);
+      
       setError(errorMsg);
       toast.error(errorMsg);
       return null;

@@ -2,10 +2,11 @@
 /**
  * Direct valuation service
  * Created: 2025-05-08 - Added reliable direct API client for vehicle valuation
+ * Updated: 2025-05-10 - Fixed crypto-js dependency issue
  */
 
 import { calculateReservePrice } from '@/utils/valuation/valuationCalculator';
-import { md5 } from 'crypto-js';
+import md5 from 'crypto-js/md5';
 import { toast } from 'sonner';
 
 // Define valuation method for tracking purposes

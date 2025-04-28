@@ -1,47 +1,49 @@
 
 /**
- * Changes made:
- * - 2024-12-20: Created valuation error handling hook extracted from useValuationForm
+ * Valuation error handling hook
+ * Created: 2025-05-10
  */
 
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
-import { cleanupValuationData } from "@/components/hero/valuation/services/valuationService";
 
-/**
- * Hook for handling valuation error scenarios and recovery
- */
-export const useValuationErrorHandling = () => {
+export function useValuationErrorHandling() {
   const [retryCount, setRetryCount] = useState(0);
+  const [lastError, setLastError] = useState<string | null>(null);
 
-  const handleError = useCallback((error: any) => {
-    // Increment retry count
-    setRetryCount(prev => prev + 1);
+  const handleError = useCallback((errorMessage: string) => {
+    setLastError(errorMessage);
     
-    // After 3 retries, offer manual valuation option
-    if (retryCount >= 2) {
-      toast.error("Valuation service unavailable", {
-        description: "We're having trouble connecting to our valuation service. Would you like to try manual valuation?",
-        action: {
-          label: "Try Manual",
-          onClick: () => {
-            cleanupValuationData();
-            window.location.href = '/manual-valuation';
-          }
-        }
+    if (errorMessage.includes('rate limit') || errorMessage.includes('too many requests')) {
+      toast.error("Too many requests", {
+        description: "Please wait a moment before trying again.",
+      });
+    } else if (errorMessage.includes('timeout') || errorMessage === 'Request timed out') {
+      toast.error("Valuation request timed out", {
+        description: "The service took too long to respond. Please try again.",
+      });
+    } else {
+      toast.error("Valuation failed", {
+        description: errorMessage || "Failed to get vehicle valuation. Please try again.",
       });
     }
-    
-    return retryCount;
-  }, [retryCount]);
+  }, []);
 
   const resetRetryCount = useCallback(() => {
     setRetryCount(0);
+    setLastError(null);
+  }, []);
+
+  const incrementRetryCount = useCallback(() => {
+    setRetryCount(prev => prev + 1);
   }, []);
 
   return {
     retryCount,
+    lastError,
     handleError,
-    resetRetryCount
+    resetRetryCount,
+    incrementRetryCount,
+    hasReachedMaxRetries: retryCount >= 3
   };
-};
+}

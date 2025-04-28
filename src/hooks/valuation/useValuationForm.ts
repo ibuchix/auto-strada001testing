@@ -4,6 +4,7 @@
  * - 2024-12-20: Refactored from original useValuationForm into smaller composable hooks
  * - 2024-04-04: Fixed type imports
  * - 2025-04-06: Fixed property naming to match useValuationState hook
+ * - 2025-05-10: Fixed executeRequest implementation to use requestValuation
  */
 
 import { useForm } from "react-hook-form";
@@ -44,21 +45,28 @@ export const useValuationForm = (): UseValuationFormResult => {
   const { handleError, resetRetryCount } = useValuationErrorHandling();
 
   // Valuation request handling
-  const { executeRequest } = useValuationRequest({
-    onSuccess: (result) => {
-      setValuationResult(result);
-      setDialogOpen(true); // Fixed: using setDialogOpen
-      resetRetryCount();
-    },
-    onError: (error) => {
-      handleError(error);
-    },
-    setIsLoading
-  });
+  const { requestValuation } = useValuationRequest();
 
   // Form submission handler
   const onSubmit = async (data: ValuationFormData) => {
-    await executeRequest(data);
+    setIsLoading(true);
+    try {
+      const result = await requestValuation(
+        data.vin, 
+        data.mileage, 
+        data.gearbox
+      );
+      
+      if (result) {
+        setValuationResult(result);
+        setDialogOpen(true);
+        resetRetryCount();
+      }
+    } catch (error) {
+      handleError(error instanceof Error ? error.message : 'Valuation request failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Reset form and state

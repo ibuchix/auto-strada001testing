@@ -1,70 +1,36 @@
 
 /**
- * Changes made:
- * - 2025-04-27: Consolidated duplicate hooks into single source of truth
- * - 2025-04-27: Updated navigation logic and data persistence
+ * Hook for handling continuation actions after valuation
+ * Created: 2025-05-10
  */
 
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/components/AuthProvider";
+import { useCallback } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/components/AuthProvider";
 
-export const useValuationContinue = () => {
+export function useValuationContinue() {
   const navigate = useNavigate();
   const { session } = useAuth();
   const isLoggedIn = !!session;
 
-  const handleContinue = (carData: any) => {
-    console.log('Continue button clicked with data:', carData);
+  const handleContinue = useCallback((valuationData: any) => {
+    // Store in localStorage for use in the form
+    localStorage.setItem('valuationData', JSON.stringify(valuationData));
+    localStorage.setItem('valuationTimestamp', Date.now().toString());
 
     if (!isLoggedIn) {
+      navigate('/auth');
       toast.info("Please sign in to continue", {
-        description: "Create an account or sign in to list your car",
-        duration: 5000
+        description: "Create an account or sign in to list your vehicle for auction."
       });
-      navigate('/auth', { 
-        state: { 
-          redirectAfter: '/sell-my-car',
-          carData
-        }
-      });
-      return;
+    } else {
+      navigate('/sell-my-car?from=valuation');
     }
+  }, [navigate, isLoggedIn]);
 
-    // Store car data in both localStorage and sessionStorage for redundancy
-    try {
-      localStorage.setItem('valuationData', JSON.stringify(carData));
-      localStorage.setItem('tempVIN', carData.vin || '');
-      localStorage.setItem('tempMileage', carData.mileage?.toString() || '');
-      localStorage.setItem('tempGearbox', carData.transmission || '');
-      
-      sessionStorage.setItem('carDataFromVinCheck', JSON.stringify(carData));
-      console.log('Car data stored successfully');
-
-      // Navigate to the sell-my-car page
-      navigate('/sell-my-car', { 
-        state: { 
-          fromValuation: true,
-          fromVinCheck: true,
-          carData
-        }
-      });
-
-      toast.success("Ready to list your car", {
-        description: "Please complete the listing form",
-        duration: 3000
-      });
-    } catch (error) {
-      console.error('Failed to store car data:', error);
-      toast.error("Something went wrong", {
-        description: "Please try again or contact support",
-        duration: 5000
-      });
-    }
+  return {
+    handleContinue,
+    isLoggedIn
   };
-
-  return { 
-    handleContinue, 
-    isLoggedIn 
-  };
-};
+}
