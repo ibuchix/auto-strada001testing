@@ -3,6 +3,7 @@
  * Valuation service for handling vehicle valuations
  * Updated: 2025-04-28 - Added proper URL encoding for VIN parameters
  * Updated: 2025-04-29 - Fixed request format to match edge function expectations
+ * Updated: 2025-04-30 - Enhanced error handling and debugging
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +22,7 @@ export async function getValuation(
       vin: cleanVin,
       mileage,
       gearbox,
+      debug: options.debug,
       timestamp: new Date().toISOString()
     });
 
@@ -34,14 +36,50 @@ export async function getValuation(
       }
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('[Valuation] Edge function error:', error);
+      
+      // Log more detailed error information when available
+      if (error.message) {
+        console.error('[Valuation] Error message:', error.message);
+      }
+      
+      if (error.context) {
+        console.error('[Valuation] Error context:', error.context);
+      }
+      
+      throw error;
+    }
+
+    // Add validation for the response
+    if (!data) {
+      console.error('[Valuation] No data returned from edge function');
+      throw new Error('No data returned from valuation service');
+    }
+
+    console.log('[Valuation] Received successful response:', {
+      dataReceived: !!data,
+      dataSize: data ? JSON.stringify(data).length : 0,
+      hasValidMake: data?.make ? true : false,
+      hasValidModel: data?.model ? true : false
+    });
 
     return {
       success: true,
       data: data
     };
   } catch (error: any) {
-    console.error('Valuation error:', error);
+    console.error('[Valuation] Service error:', error);
+    
+    // Enhance logging with more detailed error information
+    if (error.message) {
+      console.error('[Valuation] Error message:', error.message);
+    }
+    
+    if (error.status) {
+      console.error('[Valuation] Error status:', error.status);
+    }
+    
     return {
       success: false,
       error: error.message || 'Failed to get valuation'

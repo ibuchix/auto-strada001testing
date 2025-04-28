@@ -1,175 +1,94 @@
 
 /**
- * Enhanced VIN Debugging Utility
- * Created: 2025-04-20
- * Purpose: Provides detailed logging throughout the VIN check process to identify data transformation issues
+ * Enhanced debugging utilities for VIN validation and valuation
+ * Created: 2025-04-30 - Added deep validation response inspection
  */
-
-interface VehicleDebugData {
-  make?: string;
-  model?: string;
-  year?: number | string;
-  vin?: string;
-  transmission?: string;
-  mileage?: number;
-  price?: number;
-  valuation?: number;
-  reservePrice?: number;
-}
-
-interface ApiCallMetrics {
-  requestId: string;
-  startTime: number;
-  endTime?: number;
-  success?: boolean;
-  errorType?: string;
-  stage: string;
-}
-
-const apiCallMetrics = new Map<string, ApiCallMetrics>();
 
 /**
- * Debug the UI rendering decisions
- * @param component The component name
- * @param props The component props
- * @param decisions The rendering decisions
+ * Deeply scan an object for price-related fields
  */
-export function debugUiRendering(
-  component: string,
-  props: Record<string, any>,
-  decisions: Record<string, any> = {}
-): void {
-  console.log(`[UI_DEBUG][${component.toUpperCase()}] ${new Date().toISOString()}`);
-  console.log('Component props:', props);
-  console.log('Rendering decisions:', decisions);
-}
-
-/**
- * Debug the data flow in the valuation process
- */
-export function debugValuationCalculation(
-  stage: string,
-  basePrice: number,
-  reservePrice: number,
-  valuation: number,
-  averagePrice: number,
-  metadata: Record<string, any> = {}
-): void {
-  console.log(`[DEBUG][VALUATION_CALC][${stage}]`, {
-    basePrice,
-    reservePrice,
-    valuation,
-    averagePrice,
-    ...metadata,
-    timestamp: new Date().toISOString()
+export function deepScanForPrices(data: any, path: string = '', result: Record<string, any> = {}): Record<string, any> {
+  if (!data || typeof data !== 'object') return result;
+  
+  // Direct price-related fields to check
+  const priceFields = ['price', 'price_med', 'price_min', 'price_max', 'price_avr', 
+                     'valuation', 'basePrice', 'averagePrice', 'reservePrice', 'value'];
+                     
+  // Check current object for price fields
+  Object.entries(data).forEach(([key, value]) => {
+    const currentPath = path ? `${path}.${key}` : key;
+    
+    if (priceFields.includes(key) && (typeof value === 'number' || !isNaN(Number(value)))) {
+      result[currentPath] = value;
+    }
+    
+    // Recursively check nested objects, but not arrays to avoid circular references
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      deepScanForPrices(value, currentPath, result);
+    }
   });
+  
+  return result;
 }
 
 /**
- * Detailed API response logger for debugging VIN check issues
+ * Debug the API response for VIN validation
  */
-export function debugVinApiResponse(stage: string, data: any): void {
-  console.group(`[VIN_DEBUG][${stage.toUpperCase()}] ${new Date().toISOString()}`);
+export function debugVinApiResponse(event: string, data: any): void {
+  console.group(`🔍 VIN API Response Debug [${event}]`);
   
   try {
-    // Log basic info
-    console.log('Basic data:', {
-      hasData: !!data,
-      dataType: typeof data,
-      isArray: Array.isArray(data),
-      topLevelKeys: data ? Object.keys(data) : 'N/A'
+    console.log('Response received:', !!data);
+    
+    if (!data) {
+      console.warn('Empty response data');
+      console.groupEnd();
+      return;
+    }
+    
+    // Basic data check
+    console.log('Basic data structure:', {
+      hasModel: !!data.model,
+      hasMake: !!data.make,
+      hasYear: !!data.year,
+      hasMileage: !!data.mileage,
+      hasVin: !!data.vin,
+      hasTransmission: !!data.transmission,
+      hasError: !!data.error
     });
     
-    // Extract and log vehicle details
-    const vehicleDetails = {
-      make: data?.make || 'MISSING',
-      model: data?.model || 'MISSING',
-      year: data?.year || data?.productionYear || 'MISSING',
-      vin: data?.vin || 'MISSING',
-      transmission: data?.transmission || data?.gearbox || 'MISSING'
-    };
-    console.log('Vehicle details:', vehicleDetails);
+    // Price data check
+    console.log('Pricing data:', {
+      hasBasePrice: typeof data.basePrice === 'number' && data.basePrice > 0,
+      hasValuation: typeof data.valuation === 'number' && data.valuation > 0,
+      hasReservePrice: typeof data.reservePrice === 'number' && data.reservePrice > 0,
+      hasAveragePrice: typeof data.averagePrice === 'number' && data.averagePrice > 0
+    });
     
-    // Extract and log all price-related fields
-    const priceFields: Record<string, any> = {};
-    if (data && typeof data === 'object') {
-      // Check direct price fields
-      for (const [key, value] of Object.entries(data)) {
-        if (
-          (key.toLowerCase().includes('price') || 
-           key.toLowerCase().includes('value') ||
-           key.toLowerCase().includes('valuation')) && 
-          (typeof value === 'number' || typeof value === 'string')
-        ) {
-          priceFields[key] = value;
-        }
-      }
-      
-      // Check nested objects for price fields
-      const nestedObjects = ['valuationDetails', 'data', 'apiData', 'result', 'response'];
-      for (const nestedKey of nestedObjects) {
-        if (data[nestedKey] && typeof data[nestedKey] === 'object') {
-          for (const [key, value] of Object.entries(data[nestedKey])) {
-            if (
-              (key.toLowerCase().includes('price') || 
-               key.toLowerCase().includes('value') ||
-               key.toLowerCase().includes('valuation')) && 
-              (typeof value === 'number' || typeof value === 'string')
-            ) {
-              priceFields[`${nestedKey}.${key}`] = value;
-            }
-          }
-        }
+    // Extract all price-related fields from the response
+    const priceFields = deepScanForPrices(data);
+    
+    if (Object.keys(priceFields).length > 0) {
+      console.log('💰 All price fields found:', priceFields);
+    } else {
+      console.warn('⚠️ No price fields found in the response');
+    }
+    
+    // Show raw API response if available (for deep debugging)
+    if (data.rawApiResponse) {
+      try {
+        const parsedRaw = typeof data.rawApiResponse === 'string' 
+          ? JSON.parse(data.rawApiResponse) 
+          : data.rawApiResponse;
+        console.log('Raw API structure keys:', Object.keys(parsedRaw));
+      } catch (e) {
+        console.log('Could not parse raw API response');
       }
     }
-    console.log('Price-related fields:', priceFields);
     
-    // Check data quality
-    const dataQualityScore = calculateDataQualityScore(data);
-    console.log('Data quality score:', dataQualityScore);
-    
-    // Log the full data structure for reference (limited depth)
-    console.log('Full data structure:', JSON.stringify(data, null, 2));
   } catch (error) {
-    console.error('Error in debugVinApiResponse:', error);
-  } finally {
-    console.groupEnd();
+    console.error('Error during API response debug:', error);
   }
+  
+  console.groupEnd();
 }
-
-/**
- * Calculate data quality score
- */
-function calculateDataQualityScore(data: any): number {
-  if (!data) return 0;
-  
-  let score = 0;
-  let totalChecks = 0;
-  
-  // Check essential fields
-  const essentialFields = ['make', 'model', 'year', 'vin'];
-  for (const field of essentialFields) {
-    if (data[field]) {
-      score++;
-    }
-    totalChecks++;
-  }
-  
-  // Check price data
-  if (
-    data.price_min !== undefined || 
-    data.price_med !== undefined || 
-    data.valuation !== undefined
-  ) {
-    score++;
-  }
-  totalChecks++;
-  
-  // Check for fallback values
-  if (data.usedFallback || data.usedDefaultPrice) {
-    score -= 0.5;
-  }
-  
-  return totalChecks > 0 ? Math.max(0, score / totalChecks) : 0;
-}
-

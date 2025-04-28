@@ -4,13 +4,14 @@
  * Updated: 2025-04-28 - Added proper URL encoding for VIN parameters
  * Updated: 2025-04-28 - Fixed type inconsistencies and added storage function
  * Updated: 2025-04-29 - Fixed request format to match edge function expectations
+ * Updated: 2025-04-30 - Enhanced error handling and logging
  */
 
 import { supabase } from "@/integrations/supabase/client";
 
 export interface VehicleData {
-  make?: string;
-  model?: string;
+  make: string;
+  model: string;
   year?: number;
   transmission?: string;
   mileage?: number;
@@ -34,7 +35,7 @@ export const validateVin = async ({
     // Clean and encode the VIN
     const cleanVin = vin.trim().replace(/\s+/g, '');
     
-    console.log(`Calling VIN validation for: ${cleanVin}, mileage: ${mileage}, gearbox: ${gearbox}`);
+    console.log(`[VIN-Validation] Calling VIN validation for: ${cleanVin}, mileage: ${mileage}, gearbox: ${gearbox}`);
     
     // IMPORTANT: Use body parameter for POST request instead of URL params
     const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
@@ -46,19 +47,47 @@ export const validateVin = async ({
     });
 
     if (error) {
-      console.error('VIN validation error:', error);
+      console.error('[VIN-Validation] Supabase function error:', error);
+      
+      // Add more detailed error logging
+      if (error.message) {
+        console.error('[VIN-Validation] Error message:', error.message);
+      }
+      
+      if (error.context) {
+        console.error('[VIN-Validation] Error context:', error.context);
+      }
+      
       return {
         success: false,
         error: error.message || 'Failed to validate VIN'
       };
     }
 
+    // Log successful response data for debugging
+    console.log('[VIN-Validation] Response received:', {
+      dataReceived: !!data,
+      hasSuccess: data?.success !== undefined,
+      hasError: data?.error !== undefined,
+      hasVehicleData: !!(data?.make && data?.model)
+    });
+
     return {
       success: true,
       data
     };
   } catch (error: any) {
-    console.error('Unexpected error during VIN validation:', error);
+    console.error('[VIN-Validation] Unexpected error:', error);
+    
+    // Enhanced error logging
+    if (error.message) {
+      console.error('[VIN-Validation] Error message:', error.message);
+    }
+    
+    if (error.stack) {
+      console.error('[VIN-Validation] Stack trace:', error.stack);
+    }
+    
     return {
       success: false,
       error: error.message || 'An unexpected error occurred'
@@ -80,7 +109,7 @@ export const getVINErrorMessage = (vin: string): string | null => {
   return null;
 };
 
-// Add the missing function for retrieving stored validation data
+// Add the function for retrieving stored validation data
 export const getStoredValidationData = (): VehicleData | null => {
   try {
     const storedData = localStorage.getItem('valuationData');
@@ -88,7 +117,7 @@ export const getStoredValidationData = (): VehicleData | null => {
     
     return JSON.parse(storedData) as VehicleData;
   } catch (error) {
-    console.error('Error retrieving stored validation data:', error);
+    console.error('[VIN-Validation] Error retrieving stored validation data:', error);
     return null;
   }
 };

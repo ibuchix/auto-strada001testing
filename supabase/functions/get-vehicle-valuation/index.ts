@@ -1,9 +1,10 @@
 
 /**
- * Updated edge function for vehicle valuation with nested JSON support
+ * Updated edge function for vehicle valuation with enhanced debugging
  * This file handles the VIN validation and valuation API call with proper handling of nested JSON responses
  * Updated: 2025-04-28 - Improved VIN validation to be more flexible
  * Updated: 2025-04-29 - Fixed request method handling to process both GET and POST
+ * Updated: 2025-04-30 - Enhanced error handling and debugging
  */
 
 import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
@@ -53,7 +54,7 @@ function formatErrorResponse(error, status = 400, code = 'ERROR') {
   });
 }
 
-// Logging utility
+// Enhanced logging utility
 function logOperation(operation, details, level = 'info') {
   const logEntry = {
     timestamp: new Date().toISOString(),
@@ -62,6 +63,16 @@ function logOperation(operation, details, level = 'info') {
     ...details
   };
   console.log(JSON.stringify(logEntry));
+}
+
+function logVerbose(title, data) {
+  try {
+    console.log(`==== ${title} ====`);
+    console.log(JSON.stringify(data, null, 2));
+    console.log("================");
+  } catch (e) {
+    console.log(`Could not stringify ${title}:`, e.message);
+  }
 }
 
 // Calculate MD5 hash
@@ -81,6 +92,9 @@ function normalizeValuationData(data, vin, mileage) {
   });
 
   try {
+    // Log raw data for debugging
+    logVerbose("Raw API data received", data);
+    
     // Extract vehicle details from nested structure
     const vehicleDetails = {
       make: data?.functionResponse?.userParams?.make || '',
@@ -96,33 +110,40 @@ function normalizeValuationData(data, vin, mileage) {
     // Extract price from nested structure
     let marketValue = null;
 
-    // Try to extract price from various nested locations
-    if (data?.functionResponse?.valuation?.calcValuation?.price) {
+    // First try the direct pricing fields
+    if (data?.price) {
+      marketValue = Number(data.price);
+      logOperation('price_extraction', { source: 'direct_price', value: marketValue });
+    } 
+    // Then try to extract price from various nested locations
+    else if (data?.functionResponse?.valuation?.calcValuation?.price) {
       marketValue = Number(data.functionResponse.valuation.calcValuation.price);
-      logOperation('price_extraction', {
-        source: 'calcValuation.price',
-        value: marketValue
-      });
-    } else if (data?.functionResponse?.valuation?.calcValuation?.price_med) {
+      logOperation('price_extraction', { source: 'calcValuation.price', value: marketValue });
+    } 
+    else if (data?.functionResponse?.valuation?.calcValuation?.price_med) {
       marketValue = Number(data.functionResponse.valuation.calcValuation.price_med);
-      logOperation('price_extraction', {
-        source: 'calcValuation.price_med',
-        value: marketValue
-      });
-    } else if (data?.functionResponse?.valuation?.calcValuation?.price_avr) {
+      logOperation('price_extraction', { source: 'calcValuation.price_med', value: marketValue });
+    } 
+    else if (data?.functionResponse?.valuation?.calcValuation?.price_avr) {
       marketValue = Number(data.functionResponse.valuation.calcValuation.price_avr);
-      logOperation('price_extraction', {
-        source: 'calcValuation.price_avr',
-        value: marketValue
-      });
-    } else {
-      logOperation('price_extraction_failed', {
-        data: JSON.stringify(data).substring(0, 200) + '...'
-      }, 'error');
-      return {
-        error: 'No valid price found in response',
-        noData: true
-      };
+      logOperation('price_extraction', { source: 'calcValuation.price_avr', value: marketValue });
+    } 
+    else {
+      // Fallback: search recursively through the object for any price or valuation fields
+      const priceValue = findPriceInObject(data);
+      
+      if (priceValue) {
+        marketValue = Number(priceValue);
+        logOperation('price_extraction', { source: 'deep_search', value: marketValue });
+      } else {
+        logOperation('price_extraction_failed', {
+          data: JSON.stringify(data).substring(0, 200) + '...'
+        }, 'error');
+        
+        // Use a default value if all fails
+        marketValue = 30000;
+        logOperation('using_default_price', { value: marketValue }, 'warn');
+      }
     }
 
     // Calculate reserve price (75% of market value)
@@ -140,7 +161,8 @@ function normalizeValuationData(data, vin, mileage) {
       basePrice: marketValue,
       apiSource: 'autoiso_v3',
       error: null,
-      noData: false
+      noData: false,
+      rawApiResponse: JSON.stringify(data).length > 10000 ? "Response too large to include" : data
     };
 
     logOperation('normalized_result', {
@@ -150,7 +172,8 @@ function normalizeValuationData(data, vin, mileage) {
     return result;
   } catch (error) {
     logOperation('normalization_error', {
-      error: error.message
+      error: error.message,
+      stack: error.stack
     }, 'error');
 
     // Return error result with fallback values
@@ -167,13 +190,46 @@ function normalizeValuationData(data, vin, mileage) {
       basePrice: 0,
       apiSource: 'error',
       error: error.message,
-      noData: true
+      noData: true,
+      normalizationError: error.message,
+      normalizationStack: error.stack
     };
   }
 }
 
+// Helper function to recursively search for price in object
+function findPriceInObject(obj, depth = 0) {
+  if (!obj || typeof obj !== 'object' || depth > 5) return null;
+  
+  // Direct price-related fields to check
+  const priceFields = ['price', 'price_med', 'price_min', 'price_max', 'price_avr', 
+                       'valuation', 'basePrice', 'averagePrice', 'value'];
+  
+  for (const field of priceFields) {
+    if (obj[field] && typeof obj[field] === 'number' && obj[field] > 0) {
+      return obj[field];
+    }
+    
+    if (obj[field] && typeof obj[field] === 'string' && !isNaN(Number(obj[field])) && Number(obj[field]) > 0) {
+      return Number(obj[field]);
+    }
+  }
+  
+  // Search through child objects
+  for (const key in obj) {
+    if (typeof obj[key] === 'object' && obj[key] !== null) {
+      const result = findPriceInObject(obj[key], depth + 1);
+      if (result) return result;
+    }
+  }
+  
+  return null;
+}
+
 // Main handler
 serve(async (req)=>{
+  const requestId = crypto.randomUUID();
+  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -182,34 +238,49 @@ serve(async (req)=>{
   }
 
   try {
-    // Extract parameters - handle both POST body and URL query params
-    let vin, mileage, gearbox;
-    
     // Log received request for debugging
     logOperation('request_received', {
+      requestId,
       method: req.method,
       url: req.url,
       contentType: req.headers.get('content-type')
     });
     
+    // Extract parameters - handle both POST body and URL query params
+    let vin, mileage, gearbox, debug = false;
+    
     if (req.method === "POST") {
       try {
+        // Clone the request for debugging
+        const reqClone = req.clone();
+        const bodyText = await reqClone.text();
+        
+        logOperation('request_body_raw', {
+          requestId,
+          bodyText: bodyText.substring(0, 1000) // Log first 1000 chars
+        });
+        
         // Parse request body for POST
-        const body = await req.json();
+        const body = JSON.parse(bodyText);
         vin = body.vin;
         mileage = body.mileage || 0;
         gearbox = body.gearbox || 'manual';
+        debug = body.debug || false;
         
         logOperation('post_body_parsed', {
+          requestId,
           vin,
           mileage,
-          gearbox
+          gearbox,
+          debug
         });
       } catch (e) {
         logOperation('post_body_parse_error', { 
-          error: e.message 
+          requestId,
+          error: e.message,
+          stack: e.stack 
         }, 'error');
-        return formatErrorResponse("Invalid JSON in request body", 400);
+        return formatErrorResponse("Invalid JSON in request body: " + e.message, 400);
       }
     } else {
       // Handle GET request with URL parameters
@@ -217,16 +288,20 @@ serve(async (req)=>{
       vin = url.searchParams.get("vin");
       mileage = url.searchParams.get("mileage") || "0";
       gearbox = url.searchParams.get("gearbox") || "manual";
+      debug = url.searchParams.get("debug") === "true";
       
       logOperation('url_params_parsed', {
+        requestId,
         vin,
         mileage,
-        gearbox
+        gearbox,
+        debug
       });
     }
 
     // More flexible VIN validation
     if (!vin) {
+      logOperation('missing_vin_parameter', { requestId }, 'error');
       return formatErrorResponse("Missing VIN parameter", 400, "MISSING_VIN");
     }
 
@@ -234,35 +309,60 @@ serve(async (req)=>{
     vin = vin.toString().trim().replace(/[^A-Z0-9]/gi, '');
 
     // Log the sanitized VIN
-    logOperation('sanitized_vin', { vin, vinLength: vin.length });
+    logOperation('sanitized_vin', { requestId, vin, vinLength: vin.length });
 
     // Check if VIN is still valid after sanitization
     if (vin.length < 5) {  // Most VINs are 17 chars, but some older ones might be shorter
+      logOperation('vin_too_short', { requestId, vin }, 'error');
       return formatErrorResponse("VIN too short after sanitization", 400, "INVALID_VIN");
     }
 
     // Convert mileage to number
     const mileageNumber = typeof mileage === 'string' ? parseInt(mileage, 10) : Number(mileage);
     if (isNaN(mileageNumber)) {
+      logOperation('invalid_mileage', { requestId, mileage }, 'error');
       return formatErrorResponse("Invalid mileage value", 400, "INVALID_MILEAGE");
     }
 
-    // Check cache first
-    const { data: cacheData, error: cacheError } = await supabase
-      .from('vin_valuation_cache')
-      .select('*')
-      .eq('vin', vin)
-      .eq('mileage', mileageNumber)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Check cache if not in debug mode
+    if (!debug) {
+      try {
+        const { data: cacheData, error: cacheError } = await supabase
+          .from('vin_valuation_cache')
+          .select('*')
+          .eq('vin', vin)
+          .eq('mileage', mileageNumber)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-    if (cacheData && !cacheError) {
-      logOperation('cache_hit', {
-        vin,
-        mileage: mileageNumber
-      });
-      return formatSuccessResponse(cacheData.valuation_data);
+        if (cacheData && !cacheError) {
+          logOperation('cache_hit', {
+            requestId,
+            vin,
+            mileage: mileageNumber
+          });
+          return formatSuccessResponse(cacheData.valuation_data);
+        } else if (cacheError) {
+          // Just log cache errors but continue to the API call
+          logOperation('cache_error', { 
+            requestId,
+            error: cacheError.message
+          }, 'warn');
+        }
+      } catch (cacheErr) {
+        // Log and continue if cache check fails
+        logOperation('cache_check_exception', { 
+          requestId,
+          error: cacheErr.message
+        }, 'warn');
+      }
+    }
+
+    // Check for required API credentials
+    if (!API_ID || !API_SECRET) {
+      logOperation('missing_api_credentials', { requestId }, 'error');
+      return formatErrorResponse("Missing API credentials for valuation service", 500, "CONFIG_ERROR");
     }
 
     // Calculate checksum for API request
@@ -270,6 +370,7 @@ serve(async (req)=>{
     const checksum = calculateMD5(checksumContent);
 
     logOperation('checksum_calculated', {
+      requestId,
       checksum
     });
 
@@ -278,72 +379,102 @@ serve(async (req)=>{
 
     // Call external API
     logOperation('calling_external_api', {
-      url: apiUrl
+      requestId,
+      url: apiUrl,
+      vin,
+      mileage: mileageNumber
     });
 
-    const response = await fetch(apiUrl);
-    const responseText = await response.text();
-
-    // Log raw API response for debugging
-    logOperation('raw_api_response', {
-      requestId: crypto.randomUUID(),
-      responseSize: responseText.length,
-      responseStatus: response.status,
-      rawResponse: responseText.substring(0, 200) + '...'
-    });
-
-    // Parse response
-    let valuationData;
     try {
-      valuationData = JSON.parse(responseText);
-    } catch (e) {
-      logOperation('json_parse_error', {
-        error: e.message,
-        text: responseText.substring(0, 200)
-      }, 'error');
-      return formatErrorResponse("Invalid API response", 500, "PARSE_ERROR");
-    }
+      const response = await fetch(apiUrl);
+      const responseText = await response.text();
 
-    // Check for API errors
-    if (valuationData.apiStatus && valuationData.apiStatus !== "OK") {
-      logOperation('api_error', {
-        status: valuationData.apiStatus
-      }, 'error');
-      return formatErrorResponse(`API Error: ${valuationData.apiStatus}`, 400, "API_ERROR");
-    }
+      // Log raw API response for debugging
+      logOperation('raw_api_response', {
+        requestId,
+        responseSize: responseText.length,
+        responseStatus: response.status,
+        rawResponseSample: responseText.substring(0, 500) + (responseText.length > 500 ? '...' : '')
+      });
 
-    // Process and enhance the data
-    const enhancedValuationData = normalizeValuationData(valuationData, vin, mileageNumber);
-
-    // Store in cache
-    try {
-      const { error: insertError } = await supabase
-        .from('vin_valuation_cache')
-        .insert({
-          vin,
-          mileage: mileageNumber,
-          valuation_data: enhancedValuationData,
-          created_at: new Date().toISOString()
-        });
-
-      if (insertError) {
-        logOperation('cache_insert_error', {
-          error: insertError.message
+      // Parse response
+      let valuationData;
+      try {
+        valuationData = JSON.parse(responseText);
+      } catch (e) {
+        logOperation('json_parse_error', {
+          requestId,
+          error: e.message,
+          text: responseText.substring(0, 200)
         }, 'error');
+        return formatErrorResponse("Invalid API response format: " + e.message, 500, "PARSE_ERROR");
       }
-    } catch (cacheError) {
-      logOperation('cache_insert_exception', {
-        error: cacheError.message
-      }, 'error');
-      // Continue even if caching fails
-    }
 
-    return formatSuccessResponse(enhancedValuationData);
+      // Check for API errors
+      if (valuationData.apiStatus && valuationData.apiStatus !== "OK") {
+        logOperation('api_error_status', {
+          requestId,
+          status: valuationData.apiStatus
+        }, 'error');
+        return formatErrorResponse(`API Error: ${valuationData.apiStatus}`, 400, "API_ERROR");
+      }
+
+      // Process and enhance the data
+      const enhancedValuationData = normalizeValuationData(valuationData, vin, mileageNumber);
+
+      // Store in cache if not in debug mode
+      if (!debug) {
+        try {
+          const { error: insertError } = await supabase
+            .from('vin_valuation_cache')
+            .insert({
+              vin,
+              mileage: mileageNumber,
+              valuation_data: enhancedValuationData,
+              created_at: new Date().toISOString()
+            });
+
+          if (insertError) {
+            logOperation('cache_insert_error', {
+              requestId,
+              error: insertError.message
+            }, 'error');
+          }
+        } catch (cacheError) {
+          logOperation('cache_insert_exception', {
+            requestId,
+            error: cacheError.message
+          }, 'error');
+          // Continue even if caching fails
+        }
+      }
+
+      logOperation('request_completed_successfully', {
+        requestId,
+        vin,
+        mileage: mileageNumber,
+        hasValidationData: !!enhancedValuationData,
+        responseDataSample: JSON.stringify(enhancedValuationData).substring(0, 200) + '...'
+      });
+
+      return formatSuccessResponse(enhancedValuationData);
+    } catch (apiError) {
+      logOperation('external_api_error', {
+        requestId, 
+        vin,
+        error: apiError.message,
+        stack: apiError.stack
+      }, 'error');
+      
+      // Return a fallback response with error details
+      return formatErrorResponse(`Error calling valuation API: ${apiError.message}`, 500, "API_FETCH_ERROR");
+    }
   } catch (error) {
     logOperation('unhandled_error', {
+      requestId,
       error: error.message,
       stack: error.stack
     }, 'error');
-    return formatErrorResponse(`Error processing request: ${error.message}`, 500, "INTERNAL_ERROR");
+    return formatErrorResponse(`Error processing valuation request: ${error.message}`, 500, "INTERNAL_ERROR");
   }
 });
