@@ -1,121 +1,92 @@
 
 /**
  * Validation utilities for get-vehicle-valuation
- * Updated: 2025-05-01 - Improved VIN validation and enhanced error messages
+ * Created: 2025-04-28 - Added comprehensive input validation
  */
 
+import { ValuationError } from './error-handling.ts';
+import { logOperation } from './logging.ts';
+
+/**
+ * Validate VIN format
+ * @param vin Vehicle identification number to validate
+ * @returns boolean indicating if the VIN is valid
+ */
 export function isValidVin(vin: string): boolean {
-  // First, basic null/undefined check
-  if (vin === null || vin === undefined) {
+  if (!vin || typeof vin !== 'string') {
     return false;
   }
   
-  // Convert to string if it's not already
-  const vinString = String(vin);
-  
-  // Clean the VIN string
-  const cleanVin = vinString.trim().toUpperCase();
-  
-  // Empty check
-  if (cleanVin.length === 0) {
-    return false;
-  }
-  
-  // More permissive VIN validation - accepts shorter VINs for testing
-  // At least 5 characters of alphanumeric content
-  return cleanVin.length >= 5 && 
-         cleanVin.length <= 17 && 
-         /^[A-Z0-9]+$/i.test(cleanVin);
+  const cleanVin = vin.trim().toUpperCase();
+  return cleanVin.length === 17 && /^[A-HJ-NPR-Z0-9]{17}$/.test(cleanVin);
 }
 
-export function isValidMileage(mileage: any): boolean {
-  // Handle string or number input
-  if (mileage === null || mileage === undefined || mileage === '') {
-    return false;
-  }
-  
-  let mileageNum;
-  if (typeof mileage === 'string') {
-    mileageNum = parseInt(mileage, 10);
-  } else {
-    mileageNum = Number(mileage);
-  }
-  
-  // Check if conversion was successful and value is in reasonable range
-  return !isNaN(mileageNum) && mileageNum >= 0 && mileageNum <= 1000000;
+/**
+ * Validate mileage value
+ * @param mileage Vehicle mileage to validate
+ * @returns boolean indicating if the mileage is valid
+ */
+export function isValidMileage(mileage: number): boolean {
+  return typeof mileage === 'number' && 
+         !isNaN(mileage) && 
+         mileage >= 0 && 
+         mileage <= 1000000;
 }
 
-export function validateRequest(data: any): { valid: boolean; error?: string } {
-  // Basic request validation
+/**
+ * Validate request parameters
+ * @param data Request data to validate
+ * @param requestId Request identifier for logging
+ */
+export function validateRequest(data: any, requestId: string): void {
   if (!data) {
-    return { 
-      valid: false, 
-      error: 'Request body is required' 
-    };
+    throw new ValuationError('Request body is required', 'MISSING_BODY');
   }
-  
-  // Detailed validation logging for debugging
-  console.log({
-    timestamp: new Date().toISOString(),
-    operation: 'validating_request_details',
-    dataType: typeof data,
-    dataIsObject: data instanceof Object,
-    dataKeys: Object.keys(data),
-    vinPresent: 'vin' in data,
-    vinValue: data.vin,
-    vinType: typeof data.vin,
-    vinLength: data.vin ? String(data.vin).length : 0,
-    mileagePresent: 'mileage' in data,
-    mileageValue: data.mileage,
-    mileageType: typeof data.mileage,
-    gearboxPresent: 'gearbox' in data,
-    gearboxValue: data.gearbox
+
+  logOperation('validating_request', {
+    requestId,
+    hasVin: !!data.vin,
+    hasMileage: data.mileage !== undefined,
+    vinLength: data.vin?.length
   });
 
-  // Check VIN presence, with clear error
-  if (!('vin' in data)) {
-    return { 
-      valid: false, 
-      error: 'VIN parameter is missing in request' 
-    };
+  if (!data.vin) {
+    throw new ValuationError(
+      'VIN is required',
+      'MISSING_VIN',
+      [{ field: 'vin', message: 'VIN must be provided' }]
+    );
   }
 
-  // Convert empty strings, nulls to clearly defined invalid values for better error messages
-  const vin = data.vin || '';
-  
-  // More flexible VIN validation with informative error
-  if (!isValidVin(vin)) {
-    const cleanedVin = String(vin).trim().replace(/[^A-Z0-9]/gi, '');
-    return { 
-      valid: false, 
-      error: cleanedVin === '' ? 'VIN cannot be empty' : 
-             `Invalid VIN format: "${vin}". Must be at least 5 alphanumeric characters.` 
-    };
+  if (!isValidVin(data.vin)) {
+    throw new ValuationError(
+      'Invalid VIN format',
+      'INVALID_VIN',
+      [{
+        field: 'vin',
+        message: 'VIN must be 17 characters and contain only valid characters',
+        value: data.vin
+      }]
+    );
   }
 
-  // Check mileage presence
-  if (!('mileage' in data)) {
-    return { 
-      valid: false, 
-      error: 'Mileage parameter is missing in request' 
-    };
+  if (data.mileage === undefined || data.mileage === null) {
+    throw new ValuationError(
+      'Mileage is required',
+      'MISSING_MILEAGE',
+      [{ field: 'mileage', message: 'Mileage must be provided' }]
+    );
   }
 
-  // Mileage validation
-  if (!isValidMileage(data.mileage)) {
-    return { 
-      valid: false, 
-      error: data.mileage === '' || data.mileage === null || data.mileage === undefined ? 
-             'Mileage cannot be empty' :
-             'Invalid mileage. Must be a number between 0 and 1,000,000.' 
-    };
+  if (!isValidMileage(Number(data.mileage))) {
+    throw new ValuationError(
+      'Invalid mileage value',
+      'INVALID_MILEAGE',
+      [{
+        field: 'mileage',
+        message: 'Mileage must be a positive number under 1,000,000',
+        value: data.mileage
+      }]
+    );
   }
-
-  // Accept any gearbox value if present, default if missing
-  if (!('gearbox' in data)) {
-    data.gearbox = 'manual'; // Set default
-    console.log('Missing gearbox parameter, defaulting to "manual"');
-  }
-
-  return { valid: true };
 }

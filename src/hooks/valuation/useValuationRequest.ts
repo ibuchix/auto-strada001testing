@@ -1,14 +1,13 @@
 
 /**
  * Valuation request hook
- * Updated: 2025-04-28 - Enhanced parameter validation and error handling
+ * Updated: 2025-04-28 - Enhanced valuation request to handle nested response data
  */
 
 import { useState, useCallback } from 'react';
-import { getDirectValuation } from '@/services/valuation/directValuationService';
 import { toast } from 'sonner';
-import { validateValuationParams } from '@/utils/debugging/enhanced_vin_debugging';
 import { supabase } from '@/integrations/supabase/client';
+import { validateValuationParams } from '@/utils/debugging/enhanced_vin_debugging';
 
 export function useValuationRequest() {
   const [isLoading, setIsLoading] = useState(false);
@@ -51,7 +50,7 @@ export function useValuationRequest() {
         gearbox: cleanGearbox
       });
 
-      // Attempt edge function call
+      // Make direct edge function call
       const { data: edgeFunctionData, error: edgeFunctionError } = await supabase.functions.invoke(
         'get-vehicle-valuation',
         {
@@ -65,14 +64,35 @@ export function useValuationRequest() {
       );
       
       if (edgeFunctionError) {
+        console.error(`[ValuationRequest][${requestId}] Edge function error:`, edgeFunctionError);
         throw edgeFunctionError;
       }
 
       if (!edgeFunctionData || !edgeFunctionData.success) {
+        console.error(`[ValuationRequest][${requestId}] API error:`, edgeFunctionData);
         throw new Error(edgeFunctionData?.error || 'Failed to get valuation');
       }
       
-      console.log(`[ValuationRequest][${requestId}] Success:`, edgeFunctionData);
+      // Log successful response and data structure
+      console.log(`[ValuationRequest][${requestId}] Success:`, {
+        data: edgeFunctionData.data,
+        hasDataObject: !!edgeFunctionData.data,
+        hasVehicleDetails: !!(edgeFunctionData.data?.make && edgeFunctionData.data?.model),
+        hasPricing: !!(edgeFunctionData.data?.reservePrice || edgeFunctionData.data?.valuation)
+      });
+      
+      // Validate critical data is present
+      if (!edgeFunctionData.data?.make || !edgeFunctionData.data?.model) {
+        console.error(`[ValuationRequest][${requestId}] Missing vehicle details in response:`, edgeFunctionData.data);
+        throw new Error('Vehicle details not found in valuation response');
+      }
+
+      if (!edgeFunctionData.data?.reservePrice && !edgeFunctionData.data?.valuation) {
+        console.error(`[ValuationRequest][${requestId}] Missing pricing data in response:`, edgeFunctionData.data);
+        throw new Error('Pricing information not found in valuation response');
+      }
+      
+      // Set result with standardized data
       setResult(edgeFunctionData.data);
       return edgeFunctionData.data;
       
