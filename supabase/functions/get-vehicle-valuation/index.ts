@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { validateRequest } from "./utils/validation.ts";
 import { logOperation } from "./utils/logging.ts";
@@ -17,39 +18,57 @@ serve(async (req) => {
   }
 
   try {
-    // Detailed request logging
+    // Log request received with complete details
     logOperation('request_received', {
       requestId,
       method: req.method,
+      url: req.url,
       contentType: req.headers.get('content-type'),
-      url: req.url
+      timestamp: new Date().toISOString()
     });
 
-    let requestBody;
+    // COMPLETELY REFACTORED REQUEST PARSING LOGIC
+    let requestData;
     try {
-      // Explicitly wait for the request body text
+      // Get request body as text first - no assumptions
       const bodyText = await req.text();
       
-      // Log raw request body for debugging
-      logOperation('request_body_received', {
+      // Detailed logging of raw request body
+      logOperation('request_body_raw', {
         requestId,
         bodyLength: bodyText.length,
-        bodyPreview: bodyText.substring(0, 200)
+        bodyPreview: bodyText.substring(0, 200) + (bodyText.length > 200 ? '...' : '')
       });
-
-      // Parse JSON only if we have a body
-      requestBody = bodyText ? JSON.parse(bodyText) : null;
       
-      // Log parsed body
-      logOperation('request_body_parsed', {
+      // Skip parsing if body is empty
+      if (!bodyText || bodyText.trim() === '') {
+        throw new Error('Request body is empty');
+      }
+      
+      // Parse JSON - with detailed error logging
+      try {
+        requestData = JSON.parse(bodyText);
+      } catch (jsonError) {
+        logOperation('json_parse_error', {
+          requestId, 
+          error: jsonError.message,
+          bodyText: bodyText.substring(0, 500)
+        }, 'error');
+        
+        throw new Error(`Invalid JSON format: ${jsonError.message}`);
+      }
+      
+      // Log parsed data details for debugging
+      logOperation('request_data_parsed', {
         requestId,
-        parsedBody: requestBody,
-        hasVin: Boolean(requestBody?.vin),
-        hasMileage: Boolean(requestBody?.mileage),
-        hasGearbox: Boolean(requestBody?.gearbox)
+        hasData: !!requestData,
+        dataKeys: requestData ? Object.keys(requestData) : [],
+        vin: requestData?.vin || 'missing',
+        mileage: requestData?.mileage || 'missing',
+        gearbox: requestData?.gearbox || 'missing'
       });
     } catch (parseError) {
-      logOperation('request_parse_error', {
+      logOperation('request_parse_fatal_error', {
         requestId,
         error: parseError.message
       }, 'error');
@@ -57,20 +76,49 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Invalid request format. Expected JSON body.',
+          error: `Invalid request format: ${parseError.message}`,
           code: 'INVALID_REQUEST'
         }),
         { status: 400, headers: corsHeaders }
       );
     }
 
-    // Validate the request data
-    const validation = validateRequest(requestBody);
+    // Enhanced validation
+    if (!requestData) {
+      logOperation('validation_failed', {
+        requestId,
+        error: 'Empty request data'
+      }, 'error');
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Request body is empty or invalid',
+          code: 'EMPTY_REQUEST'
+        }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Normalize VIN (remove spaces, convert to uppercase)
+    if (requestData.vin) {
+      requestData.vin = requestData.vin.toString().trim().toUpperCase();
+    }
+
+    // Normalize mileage to number
+    if (requestData.mileage !== undefined) {
+      requestData.mileage = typeof requestData.mileage === 'string' 
+        ? parseInt(requestData.mileage, 10) 
+        : requestData.mileage;
+    }
+    
+    // Validate the request data with improved validation
+    const validation = validateRequest(requestData);
     if (!validation.valid) {
       logOperation('validation_failed', {
         requestId,
         error: validation.error,
-        requestData: requestBody
+        requestData
       }, 'error');
 
       return new Response(
@@ -86,22 +134,19 @@ serve(async (req) => {
     // Calculate checksum and make API request
     const apiId = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
     const apiSecret = Deno.env.get('CAR_API_SECRET') || 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
-    const checksumInput = `${apiId}${apiSecret}${requestBody?.vin}`;
+    const checksumInput = `${apiId}${apiSecret}${requestData.vin}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(checksumInput);
     const hashBuffer = await crypto.subtle.digest('MD5', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${requestBody?.vin}/odometer:${requestBody?.mileage}/currency:PLN`;
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${requestData.vin}/odometer:${requestData.mileage}/currency:PLN`;
 
-    console.log({
-      timestamp: new Date().toISOString(),
-      operation: 'calling_external_api',
-      level: 'info',
+    logOperation('calling_external_api', {
       requestId,
-      vin: requestBody?.vin,
-      mileage: String(requestBody?.mileage || 0),
+      vin: requestData.vin,
+      mileage: String(requestData.mileage || 0),
       url: apiUrl
     });
 
@@ -109,10 +154,7 @@ serve(async (req) => {
       const response = await fetch(apiUrl);
       const rawResponseText = await response.text();
       
-      console.log({
-        timestamp: new Date().toISOString(),
-        operation: 'raw_api_response',
-        level: 'info',
+      logOperation('raw_api_response', {
         requestId,
         responseSize: rawResponseText.length,
         responseStatus: response.status,
@@ -130,40 +172,31 @@ serve(async (req) => {
       try {
         rawData = JSON.parse(rawResponseText);
       } catch (parseError) {
-        console.log({
-          timestamp: new Date().toISOString(),
-          operation: 'json_parse_error',
-          level: 'error',
+        logOperation('json_parse_error', {
           requestId,
           error: parseError.message,
           rawResponse: rawResponseText.substring(0, 200)
-        });
+        }, 'error');
         throw new Error('Invalid JSON response from API');
       }
       
       // Check for API error response
       if (rawData.error) {
-        console.log({
-          timestamp: new Date().toISOString(),
-          operation: 'api_returned_error',
-          level: 'error',
+        logOperation('api_returned_error', {
           requestId,
           apiError: rawData.error
-        });
+        }, 'error');
         throw new Error(`API Error: ${rawData.error}`);
       }
-      
-      // CRITICAL FIX: Direct access to the nested API data structure
+
+      // Extract function response
       const functionResponse = rawData.functionResponse;
       
       if (!functionResponse) {
-        console.log({
-          timestamp: new Date().toISOString(),
-          operation: 'missing_function_response',
-          level: 'error',
+        logOperation('missing_function_response', {
           requestId,
           availableKeys: Object.keys(rawData)
-        });
+        }, 'error');
         throw new Error('Invalid API response structure: missing functionResponse');
       }
       
@@ -171,50 +204,28 @@ serve(async (req) => {
       const userParams = functionResponse.userParams;
       
       if (!userParams) {
-        console.log({
-          timestamp: new Date().toISOString(),
-          operation: 'missing_user_params',
-          level: 'error',
+        logOperation('missing_user_params', {
           requestId,
           availableKeys: Object.keys(functionResponse)
-        });
+        }, 'error');
         throw new Error('Invalid API response structure: missing userParams');
       }
-      
-      // Log each component to better trace the issue
-      console.log({
-        timestamp: new Date().toISOString(),
-        operation: 'user_params_extracted',
-        level: 'info',
-        requestId,
-        make: userParams.make,
-        model: userParams.model,
-        year: userParams.year,
-        hasMake: !!userParams.make,
-        hasModel: !!userParams.model
-      });
       
       // Extract valuation data - be more tolerant of partial data
       const valuation = functionResponse.valuation || {};
       let calcValuation = valuation.calcValuation || {};
       
       if (Object.keys(calcValuation).length === 0) {
-        console.log({
-          timestamp: new Date().toISOString(),
-          operation: 'missing_calc_valuation',
-          level: 'warn',
+        logOperation('missing_calc_valuation', {
           requestId,
           valuationKeys: Object.keys(valuation)
-        });
+        }, 'warn');
         
         // Try to use alternate data sources
         if (rawData.price || rawData.price_min || rawData.price_med) {
-          console.log({
-            timestamp: new Date().toISOString(),
-            operation: 'using_fallback_pricing',
-            level: 'info',
+          logOperation('using_fallback_pricing', {
             requestId
-          });
+          }, 'info');
           
           calcValuation = {
             price: rawData.price || 0,
@@ -225,15 +236,6 @@ serve(async (req) => {
           };
         }
       }
-      
-      console.log({
-        timestamp: new Date().toISOString(),
-        operation: 'extracted_data',
-        level: 'info',
-        requestId,
-        userParams: JSON.stringify(userParams),
-        calcValuation: JSON.stringify(calcValuation)
-      });
       
       // Extract price data from calcValuation
       const price = Number(calcValuation.price) || 0;
@@ -255,32 +257,17 @@ serve(async (req) => {
         }
       } else if (hasVehicleInfo) {
         // If we have vehicle info but no pricing, use a default value
-        // This prevents errors and allows the user to continue with manual pricing
         basePrice = 25000; // Default placeholder value
-        console.log({
-          timestamp: new Date().toISOString(),
-          operation: 'using_default_price',
-          level: 'warn',
+        logOperation('using_default_price', {
           requestId,
           make: userParams.make,
           model: userParams.model,
           defaultPrice: basePrice
-        });
+        }, 'warn');
       } else {
         // No data at all - throw error
         throw new Error('No vehicle or pricing data available for this VIN');
       }
-      
-      console.log({
-        timestamp: new Date().toISOString(),
-        operation: 'price_calculation',
-        level: 'info',
-        requestId,
-        priceMin,
-        priceMed,
-        basePrice,
-        isUsingFallback: !hasPricingData
-      });
       
       // Calculate reserve price based on base price
       let percentage = 0.65; // Default percentage for prices <= 15,000
@@ -302,25 +289,14 @@ serve(async (req) => {
       
       const reservePrice = basePrice - (basePrice * percentage);
       
-      console.log({
-        timestamp: new Date().toISOString(),
-        operation: 'reserve_price_calculated',
-        level: 'info',
-        requestId,
-        basePrice,
-        percentage,
-        reservePrice,
-        formula: `${basePrice} - (${basePrice} × ${percentage})`
-      });
-      
       // Format result with properly extracted data
       const result = {
-        vin,
+        vin: requestData.vin,
         make: userParams.make || '',
         model: userParams.model || '',
         year: userParams.year ? Number(userParams.year) : new Date().getFullYear(),
-        mileage: Number(requestBody?.mileage),
-        transmission: gearbox,
+        mileage: Number(requestData.mileage),
+        transmission: requestData.gearbox,
         valuation: Math.round(basePrice),
         reservePrice: Math.round(reservePrice),
         averagePrice: Math.round(priceMed || basePrice),
@@ -333,14 +309,11 @@ serve(async (req) => {
           price_avr: priceAvr,
           price_med: priceMed
         },
-        // Include original API response for debugging
+        // Include raw API response for debugging
         rawApiResponse: rawResponseText
       };
       
-      console.log({
-        timestamp: new Date().toISOString(),
-        operation: 'final_result',
-        level: 'info',
+      logOperation('final_result', {
         requestId,
         result: {
           make: result.make,
@@ -356,18 +329,23 @@ serve(async (req) => {
           success: true,
           data: result
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: corsHeaders }
       );
       
     } catch (apiError) {
-      console.error('API request error:', apiError);
+      logOperation('api_request_error', {
+        requestId,
+        error: apiError.message,
+        stack: apiError.stack
+      }, 'error');
+      
       return new Response(
         JSON.stringify({
           success: false,
           error: apiError.message || 'Failed to get valuation from external API',
           code: 'API_ERROR'
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: corsHeaders, status: 500 }
       );
     }
 

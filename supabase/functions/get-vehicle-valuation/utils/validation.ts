@@ -1,26 +1,42 @@
 
 /**
  * Validation utilities for get-vehicle-valuation
- * Updated: 2025-04-28 - Improved request validation and logging
+ * Updated: 2025-04-30 - Further enhanced validation with better error messages
  */
 
 export function isValidVin(vin: string): boolean {
-  if (!vin || typeof vin !== 'string') {
+  // First, basic null/undefined check
+  if (vin === null || vin === undefined) {
     return false;
   }
   
-  // Clean the VIN string
-  const cleanVin = vin.trim().toUpperCase();
+  // Convert to string if it's not already
+  const vinString = String(vin);
   
-  // Very permissive VIN validation
-  return cleanVin.length >= 10 && 
+  // Clean the VIN string
+  const cleanVin = vinString.trim().toUpperCase();
+  
+  // Empty check
+  if (cleanVin.length === 0) {
+    return false;
+  }
+  
+  // Super permissive VIN validation - literally any alphanumeric string between 5-17 chars
+  // This should accept even partial or custom VINs
+  return cleanVin.length >= 5 && 
          cleanVin.length <= 17 && 
          /^[A-Z0-9]+$/i.test(cleanVin);
 }
 
 export function isValidMileage(mileage: any): boolean {
   // Handle string or number input
-  const mileageNum = typeof mileage === 'string' ? parseInt(mileage, 10) : mileage;
+  if (mileage === null || mileage === undefined || mileage === '') {
+    return false;
+  }
+  
+  const mileageNum = typeof mileage === 'string' ? parseInt(mileage, 10) : Number(mileage);
+  
+  // Check if conversion was successful and value is in reasonable range
   return !isNaN(mileageNum) && mileageNum >= 0 && mileageNum <= 1000000;
 }
 
@@ -31,40 +47,67 @@ export function validateRequest(data: any): { valid: boolean; error?: string } {
       error: 'Request body is required' 
     };
   }
-
-  // Log validation attempt with detailed data structure
+  
+  // Detailed validation logging for debugging
   console.log({
     timestamp: new Date().toISOString(),
-    operation: 'validating_request',
-    requestType: typeof data,
-    hasVin: Boolean(data.vin),
+    operation: 'validating_request_details',
+    dataType: typeof data,
+    dataIsObject: data instanceof Object,
+    dataKeys: Object.keys(data),
+    vinPresent: 'vin' in data,
+    vinValue: data.vin,
     vinType: typeof data.vin,
-    vinLength: data.vin ? data.vin.length : 0,
-    hasMileage: data.mileage !== undefined,
-    mileageType: typeof data.mileage,
+    vinLength: data.vin ? String(data.vin).length : 0,
+    mileagePresent: 'mileage' in data,
     mileageValue: data.mileage,
-    hasGearbox: Boolean(data.gearbox)
+    mileageType: typeof data.mileage,
+    gearboxPresent: 'gearbox' in data,
+    gearboxValue: data.gearbox
   });
 
-  if (!data.vin) {
+  // Check VIN presence, with clear error
+  if (!('vin' in data)) {
     return { 
       valid: false, 
-      error: 'VIN is required' 
+      error: 'VIN parameter is missing in request' 
     };
   }
 
-  if (!isValidVin(data.vin)) {
+  // Convert empty strings, nulls to clearly defined invalid values for better error messages
+  const vin = data.vin || '';
+  
+  // VIN validation with informative error
+  if (!isValidVin(vin)) {
     return { 
       valid: false, 
-      error: `Invalid VIN format: "${data.vin}". Must be between 10-17 alphanumeric characters.` 
+      error: vin === '' ? 'VIN cannot be empty' : 
+             `Invalid VIN format: "${vin}". Must be between 5-17 alphanumeric characters.` 
     };
   }
 
+  // Check mileage presence
+  if (!('mileage' in data)) {
+    return { 
+      valid: false, 
+      error: 'Mileage parameter is missing in request' 
+    };
+  }
+
+  // Mileage validation
   if (!isValidMileage(data.mileage)) {
     return { 
       valid: false, 
-      error: 'Invalid mileage. Must be a number between 0 and 1,000,000.' 
+      error: data.mileage === '' || data.mileage === null || data.mileage === undefined ? 
+             'Mileage cannot be empty' :
+             'Invalid mileage. Must be a number between 0 and 1,000,000.' 
     };
+  }
+
+  // Accept any gearbox value if present, default if missing
+  if (!('gearbox' in data)) {
+    data.gearbox = 'manual'; // Set default
+    console.log('Missing gearbox parameter, defaulting to "manual"');
   }
 
   return { valid: true };
