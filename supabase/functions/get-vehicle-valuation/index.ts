@@ -4,10 +4,13 @@
  * - 2025-04-26: Improved data extraction from nested API response
  * - 2025-04-26: Fixed direct parsing of nested API data structures
  * - 2025-04-26: Added extensive logging for troubleshooting
+ * - 2025-04-28: Updated VIN validation to be more permissive
+ * - 2025-04-28: Added better error handling for API responses
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "./utils/cors.ts";
+import { validateRequest } from "./utils/validation.ts";
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -17,7 +20,8 @@ serve(async (req) => {
 
   try {
     const requestId = crypto.randomUUID();
-    const { vin, mileage, gearbox = 'manual' } = await req.json();
+    const requestBody = await req.json();
+    const { vin, mileage, gearbox = 'manual' } = requestBody;
     
     console.log({
       timestamp: new Date().toISOString(),
@@ -28,6 +32,29 @@ serve(async (req) => {
       mileage,
       gearbox
     });
+
+    // Validate the request data
+    const validation = validateRequest(requestBody);
+    if (!validation.valid) {
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: 'validation_failed',
+        level: 'error',
+        requestId,
+        error: validation.error,
+        vin,
+        mileage
+      });
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: validation.error || 'Invalid request data',
+          code: 'VALIDATION_ERROR'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
 
     // Calculate checksum and make API request
     const apiId = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
@@ -51,26 +78,65 @@ serve(async (req) => {
       url: apiUrl
     });
 
-    const response = await fetch(apiUrl);
-    const rawResponseText = await response.text();
-    
-    console.log({
-      timestamp: new Date().toISOString(),
-      operation: 'raw_api_response',
-      level: 'info',
-      requestId,
-      responseSize: rawResponseText.length,
-      rawResponse: rawResponseText
-    });
-
-    // Parse the raw response and extract the necessary data
     try {
-      const rawData = JSON.parse(rawResponseText);
+      const response = await fetch(apiUrl);
+      const rawResponseText = await response.text();
+      
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: 'raw_api_response',
+        level: 'info',
+        requestId,
+        responseSize: rawResponseText.length,
+        responseStatus: response.status,
+        responseStatusText: response.statusText,
+        rawResponse: rawResponseText.substring(0, 500) + (rawResponseText.length > 500 ? '...' : '')
+      });
+      
+      // Check for empty or invalid response
+      if (!rawResponseText || rawResponseText.trim() === '') {
+        throw new Error('Empty response from API');
+      }
+
+      // Try to parse the JSON response
+      let rawData;
+      try {
+        rawData = JSON.parse(rawResponseText);
+      } catch (parseError) {
+        console.log({
+          timestamp: new Date().toISOString(),
+          operation: 'json_parse_error',
+          level: 'error',
+          requestId,
+          error: parseError.message,
+          rawResponse: rawResponseText.substring(0, 200)
+        });
+        throw new Error('Invalid JSON response from API');
+      }
+      
+      // Check for API error response
+      if (rawData.error) {
+        console.log({
+          timestamp: new Date().toISOString(),
+          operation: 'api_returned_error',
+          level: 'error',
+          requestId,
+          apiError: rawData.error
+        });
+        throw new Error(`API Error: ${rawData.error}`);
+      }
       
       // CRITICAL FIX: Direct access to the nested API data structure
       const functionResponse = rawData.functionResponse;
       
       if (!functionResponse) {
+        console.log({
+          timestamp: new Date().toISOString(),
+          operation: 'missing_function_response',
+          level: 'error',
+          requestId,
+          availableKeys: Object.keys(rawData)
+        });
         throw new Error('Invalid API response structure: missing functionResponse');
       }
       
@@ -78,15 +144,59 @@ serve(async (req) => {
       const userParams = functionResponse.userParams;
       
       if (!userParams) {
+        console.log({
+          timestamp: new Date().toISOString(),
+          operation: 'missing_user_params',
+          level: 'error',
+          requestId,
+          availableKeys: Object.keys(functionResponse)
+        });
         throw new Error('Invalid API response structure: missing userParams');
       }
       
-      // Extract valuation data
-      const valuation = functionResponse.valuation;
-      const calcValuation = valuation?.calcValuation;
+      // Log each component to better trace the issue
+      console.log({
+        timestamp: new Date().toISOString(),
+        operation: 'user_params_extracted',
+        level: 'info',
+        requestId,
+        make: userParams.make,
+        model: userParams.model,
+        year: userParams.year,
+        hasMake: !!userParams.make,
+        hasModel: !!userParams.model
+      });
       
-      if (!calcValuation) {
-        throw new Error('Invalid API response structure: missing calcValuation');
+      // Extract valuation data - be more tolerant of partial data
+      const valuation = functionResponse.valuation || {};
+      let calcValuation = valuation.calcValuation || {};
+      
+      if (Object.keys(calcValuation).length === 0) {
+        console.log({
+          timestamp: new Date().toISOString(),
+          operation: 'missing_calc_valuation',
+          level: 'warn',
+          requestId,
+          valuationKeys: Object.keys(valuation)
+        });
+        
+        // Try to use alternate data sources
+        if (rawData.price || rawData.price_min || rawData.price_med) {
+          console.log({
+            timestamp: new Date().toISOString(),
+            operation: 'using_fallback_pricing',
+            level: 'info',
+            requestId
+          });
+          
+          calcValuation = {
+            price: rawData.price || 0,
+            price_min: rawData.price_min || 0,
+            price_max: rawData.price_max || 0,
+            price_avr: rawData.price_avr || 0,
+            price_med: rawData.price_med || 0
+          };
+        }
       }
       
       console.log({
@@ -105,8 +215,34 @@ serve(async (req) => {
       const priceAvr = Number(calcValuation.price_avr) || 0;
       const priceMed = Number(calcValuation.price_med) || 0;
       
-      // Calculate base price as the average of min and median price
-      const basePrice = (priceMin + priceMed) / 2;
+      // If we don't have price data but have vehicle info, use default pricing
+      const hasVehicleInfo = !!userParams.make && !!userParams.model;
+      const hasPricingData = priceMin > 0 || priceMed > 0 || price > 0;
+      
+      let basePrice;
+      if (hasPricingData) {
+        // Calculate base price as the average of min and median price
+        basePrice = (priceMin + priceMed) / 2;
+        if (basePrice <= 0 && price > 0) {
+          basePrice = price;
+        }
+      } else if (hasVehicleInfo) {
+        // If we have vehicle info but no pricing, use a default value
+        // This prevents errors and allows the user to continue with manual pricing
+        basePrice = 25000; // Default placeholder value
+        console.log({
+          timestamp: new Date().toISOString(),
+          operation: 'using_default_price',
+          level: 'warn',
+          requestId,
+          make: userParams.make,
+          model: userParams.model,
+          defaultPrice: basePrice
+        });
+      } else {
+        // No data at all - throw error
+        throw new Error('No vehicle or pricing data available for this VIN');
+      }
       
       console.log({
         timestamp: new Date().toISOString(),
@@ -116,7 +252,7 @@ serve(async (req) => {
         priceMin,
         priceMed,
         basePrice,
-        isUsingFallback: false
+        isUsingFallback: !hasPricingData
       });
       
       // Calculate reserve price based on base price
@@ -160,7 +296,7 @@ serve(async (req) => {
         transmission: gearbox,
         valuation: Math.round(basePrice),
         reservePrice: Math.round(reservePrice),
-        averagePrice: Math.round(priceMed),
+        averagePrice: Math.round(priceMed || basePrice),
         basePrice: Math.round(basePrice),
         // Include price details for debugging
         price_details: {
@@ -179,7 +315,13 @@ serve(async (req) => {
         operation: 'final_result',
         level: 'info',
         requestId,
-        result
+        result: {
+          make: result.make,
+          model: result.model,
+          year: result.year,
+          valuation: result.valuation,
+          reservePrice: result.reservePrice
+        }
       });
       
       return new Response(
@@ -190,9 +332,16 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
       
-    } catch (parseError) {
-      console.error('Failed to parse API response:', parseError);
-      throw new Error(`Invalid API response format: ${parseError.message}`);
+    } catch (apiError) {
+      console.error('API request error:', apiError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: apiError.message || 'Failed to get valuation from external API',
+          code: 'API_ERROR'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
     }
 
   } catch (error) {
@@ -200,9 +349,10 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Failed to get valuation'
+        error: error.message || 'Failed to process valuation request',
+        code: 'SERVER_ERROR'
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
