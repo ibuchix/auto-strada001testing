@@ -1,5 +1,3 @@
-
-// get-vehicle-valuation/index.ts
 import { corsHeaders } from './utils/cors.ts';
 import md5 from "https://cdn.skypack.dev/md5@2.3.0";
 
@@ -16,31 +14,106 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Log the raw request for debugging
+    console.log('[get-vehicle-valuation] Received request:', {
+      method: req.method,
+      headers: Object.fromEntries(req.headers.entries()),
+    });
+
     // Parse the request body
-    const requestData = await req.json();
-    const { vin, mileage, gearbox } = requestData;
-    
-    // Validate required parameters
-    if (!vin || !mileage) {
+    const requestText = await req.text();
+    console.log('[get-vehicle-valuation] Raw request body:', requestText);
+
+    let requestData;
+    try {
+      requestData = JSON.parse(requestText);
+    } catch (e) {
+      console.error('[get-vehicle-valuation] JSON parse error:', e);
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Missing required parameters: vin and mileage are required' 
+        JSON.stringify({
+          success: false,
+          error: 'Invalid JSON in request body',
+          details: e.message
         }),
-        { 
-          status: 400, 
-          headers: { 
+        {
+          status: 400,
+          headers: {
             'Content-Type': 'application/json',
-            ...corsHeaders 
-          } 
+            ...corsHeaders
+          }
         }
       );
     }
-    
+
+    // Log parsed request data
+    console.log('[get-vehicle-valuation] Parsed request data:', requestData);
+
+    // Validate required parameters
+    const { vin, mileage, gearbox = 'manual' } = requestData;
+
+    if (!vin) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Missing required parameter: vin',
+          receivedParams: { vin, mileage, gearbox }
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        }
+      );
+    }
+
+    if (mileage === undefined || mileage === null) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Missing required parameter: mileage',
+          receivedParams: { vin, mileage, gearbox }
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        }
+      );
+    }
+
+    // Validate mileage is a positive number
+    const numericMileage = Number(mileage);
+    if (isNaN(numericMileage) || numericMileage < 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid mileage value. Must be a positive number.',
+          receivedValue: mileage
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        }
+      );
+    }
+
     // Calculate checksum
     const checksumContent = API_ID + API_SECRET + vin;
     const checksum = md5(checksumContent);
-    
+
+    console.log('[get-vehicle-valuation] Making API request for:', {
+      vin,
+      mileage: numericMileage,
+      gearbox
+    });
+
     // Build API URL
     const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
     
@@ -74,21 +147,20 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    // Handle errors
-    console.error(`[get-vehicle-valuation] Error:`, error);
+    console.error('[get-vehicle-valuation] Unexpected error:', error);
     
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message || 'An unknown error occurred',
-        errorCode: error.code || 'UNKNOWN_ERROR'
+      JSON.stringify({
+        success: false,
+        error: 'An unexpected error occurred',
+        details: error.message
       }),
-      { 
-        status: 500, 
-        headers: { 
+      {
+        status: 500,
+        headers: {
           'Content-Type': 'application/json',
-          ...corsHeaders 
-        } 
+          ...corsHeaders
+        }
       }
     );
   }
