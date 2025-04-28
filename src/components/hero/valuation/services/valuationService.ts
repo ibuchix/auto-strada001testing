@@ -2,6 +2,7 @@
 /**
  * Valuation service for handling vehicle valuations
  * Updated: 2025-04-28 - Added proper URL encoding for VIN parameters
+ * Updated: 2025-04-29 - Fixed request format to match edge function expectations
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -15,18 +16,18 @@ export async function getValuation(
   try {
     // Clean and encode the VIN
     const cleanVin = vin.trim().replace(/\s+/g, '');
-    const encodedVin = encodeURIComponent(cleanVin);
     
     console.log(`[Valuation][${options.requestId || 'N/A'}] Requesting valuation for:`, {
-      vin: encodedVin,
+      vin: cleanVin,
       mileage,
       gearbox,
       timestamp: new Date().toISOString()
     });
 
+    // Use body parameter for the request instead of URL params
     const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
       body: {
-        vin: encodedVin,
+        vin: cleanVin,
         mileage,
         gearbox,
         debug: options.debug

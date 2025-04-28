@@ -3,6 +3,7 @@
  * Enhanced valuation service with monitoring
  * Updated: 2025-04-26 - Refactored to handle raw API response
  * Updated: 2025-04-26 - Added success property to return value for type consistency
+ * Updated: 2025-04-29 - Fixed request format to use POST body instead of URL params
  */
 
 import { ValuationMonitoring } from '../monitoring/valuationMonitoring';
@@ -20,6 +21,7 @@ export async function getVehicleValuation(
   try {
     console.log('[VALUATION-API] Getting valuation for:', { vin, mileage, gearbox });
     
+    // Use body parameter for the request
     const { data, error } = await supabase.functions.invoke(
       'get-vehicle-valuation',
       {

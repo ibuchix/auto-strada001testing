@@ -3,6 +3,7 @@
  * VIN validation service
  * Updated: 2025-04-28 - Added proper URL encoding for VIN parameters
  * Updated: 2025-04-28 - Fixed type inconsistencies and added storage function
+ * Updated: 2025-04-29 - Fixed request format to match edge function expectations
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -32,11 +33,13 @@ export const validateVin = async ({
   try {
     // Clean and encode the VIN
     const cleanVin = vin.trim().replace(/\s+/g, '');
-    const encodedVin = encodeURIComponent(cleanVin);
     
+    console.log(`Calling VIN validation for: ${cleanVin}, mileage: ${mileage}, gearbox: ${gearbox}`);
+    
+    // IMPORTANT: Use body parameter for POST request instead of URL params
     const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
       body: { 
-        vin: encodedVin,
+        vin: cleanVin,
         mileage: mileage,
         gearbox: gearbox
       }

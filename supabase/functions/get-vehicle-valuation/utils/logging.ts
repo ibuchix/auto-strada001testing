@@ -23,11 +23,11 @@ export function logOperation(
   
   // Using console.log for all levels to ensure data appears in Supabase logs
   if (level === 'error') {
-    console.error(logData);
+    console.error(JSON.stringify(logData));
   } else if (level === 'warn') {
-    console.warn(logData);
+    console.warn(JSON.stringify(logData));
   } else {
-    console.log(logData);
+    console.log(JSON.stringify(logData));
   }
 }
 

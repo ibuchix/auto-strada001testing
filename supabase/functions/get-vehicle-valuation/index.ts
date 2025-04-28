@@ -3,6 +3,7 @@
  * Updated edge function for vehicle valuation with nested JSON support
  * This file handles the VIN validation and valuation API call with proper handling of nested JSON responses
  * Updated: 2025-04-28 - Improved VIN validation to be more flexible
+ * Updated: 2025-04-29 - Fixed request method handling to process both GET and POST
  */
 
 import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
@@ -181,14 +182,48 @@ serve(async (req)=>{
   }
 
   try {
-    const url = new URL(req.url);
-    let vin = url.searchParams.get("vin");
-    const mileage = url.searchParams.get("mileage") || "0";
-
+    // Extract parameters - handle both POST body and URL query params
+    let vin, mileage, gearbox;
+    
+    // Log received request for debugging
     logOperation('request_received', {
-      vin,
-      mileage
+      method: req.method,
+      url: req.url,
+      contentType: req.headers.get('content-type')
     });
+    
+    if (req.method === "POST") {
+      try {
+        // Parse request body for POST
+        const body = await req.json();
+        vin = body.vin;
+        mileage = body.mileage || 0;
+        gearbox = body.gearbox || 'manual';
+        
+        logOperation('post_body_parsed', {
+          vin,
+          mileage,
+          gearbox
+        });
+      } catch (e) {
+        logOperation('post_body_parse_error', { 
+          error: e.message 
+        }, 'error');
+        return formatErrorResponse("Invalid JSON in request body", 400);
+      }
+    } else {
+      // Handle GET request with URL parameters
+      const url = new URL(req.url);
+      vin = url.searchParams.get("vin");
+      mileage = url.searchParams.get("mileage") || "0";
+      gearbox = url.searchParams.get("gearbox") || "manual";
+      
+      logOperation('url_params_parsed', {
+        vin,
+        mileage,
+        gearbox
+      });
+    }
 
     // More flexible VIN validation
     if (!vin) {
@@ -202,8 +237,14 @@ serve(async (req)=>{
     logOperation('sanitized_vin', { vin, vinLength: vin.length });
 
     // Check if VIN is still valid after sanitization
-    if (vin.length < 10) {  // Most VINs are 17 chars, but some older ones might be shorter
+    if (vin.length < 5) {  // Most VINs are 17 chars, but some older ones might be shorter
       return formatErrorResponse("VIN too short after sanitization", 400, "INVALID_VIN");
+    }
+
+    // Convert mileage to number
+    const mileageNumber = typeof mileage === 'string' ? parseInt(mileage, 10) : Number(mileage);
+    if (isNaN(mileageNumber)) {
+      return formatErrorResponse("Invalid mileage value", 400, "INVALID_MILEAGE");
     }
 
     // Check cache first
@@ -211,7 +252,7 @@ serve(async (req)=>{
       .from('vin_valuation_cache')
       .select('*')
       .eq('vin', vin)
-      .eq('mileage', Number(mileage))
+      .eq('mileage', mileageNumber)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -219,7 +260,7 @@ serve(async (req)=>{
     if (cacheData && !cacheError) {
       logOperation('cache_hit', {
         vin,
-        mileage
+        mileage: mileageNumber
       });
       return formatSuccessResponse(cacheData.valuation_data);
     }
@@ -233,7 +274,7 @@ serve(async (req)=>{
     });
 
     // Construct API URL
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileageNumber}/currency:PLN`;
 
     // Call external API
     logOperation('calling_external_api', {
@@ -247,7 +288,8 @@ serve(async (req)=>{
     logOperation('raw_api_response', {
       requestId: crypto.randomUUID(),
       responseSize: responseText.length,
-      rawResponse: responseText
+      responseStatus: response.status,
+      rawResponse: responseText.substring(0, 200) + '...'
     });
 
     // Parse response
@@ -263,7 +305,7 @@ serve(async (req)=>{
     }
 
     // Check for API errors
-    if (valuationData.apiStatus !== "OK") {
+    if (valuationData.apiStatus && valuationData.apiStatus !== "OK") {
       logOperation('api_error', {
         status: valuationData.apiStatus
       }, 'error');
@@ -271,22 +313,29 @@ serve(async (req)=>{
     }
 
     // Process and enhance the data
-    const enhancedValuationData = normalizeValuationData(valuationData, vin, Number(mileage));
+    const enhancedValuationData = normalizeValuationData(valuationData, vin, mileageNumber);
 
     // Store in cache
-    const { error: insertError } = await supabase
-      .from('vin_valuation_cache')
-      .insert({
-        vin,
-        mileage: Number(mileage),
-        valuation_data: enhancedValuationData,
-        created_at: new Date().toISOString()
-      });
+    try {
+      const { error: insertError } = await supabase
+        .from('vin_valuation_cache')
+        .insert({
+          vin,
+          mileage: mileageNumber,
+          valuation_data: enhancedValuationData,
+          created_at: new Date().toISOString()
+        });
 
-    if (insertError) {
-      logOperation('cache_insert_error', {
-        error: insertError.message
+      if (insertError) {
+        logOperation('cache_insert_error', {
+          error: insertError.message
+        }, 'error');
+      }
+    } catch (cacheError) {
+      logOperation('cache_insert_exception', {
+        error: cacheError.message
       }, 'error');
+      // Continue even if caching fails
     }
 
     return formatSuccessResponse(enhancedValuationData);
