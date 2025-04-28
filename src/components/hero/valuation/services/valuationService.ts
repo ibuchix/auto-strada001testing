@@ -6,6 +6,7 @@
  * Updated: 2025-04-30 - Enhanced error handling and debugging
  * Updated: 2025-05-01 - Fixed parameter handling to prevent null VIN issues
  * Updated: 2025-05-02 - Added direct API client as fallback for edge function
+ * Updated: 2025-05-10 - Prioritized direct API calls over edge functions
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -40,9 +41,27 @@ export async function getValuation(
       mileage = 0; // Default to 0 if invalid
     }
 
-    // First try edge function
-    let result;
+    // Use direct API call first (most reliable)
+    try {
+      console.log('[Valuation] Attempting direct API call');
+      const directResult = await getDirectValuation(cleanVin, Number(mileage), gearbox);
+      
+      if (directResult.success && directResult.data) {
+        console.log('[Valuation] Direct API call succeeded');
+        return {
+          success: true,
+          data: directResult.data,
+          method: 'direct-api'
+        };
+      } else {
+        console.log('[Valuation] Direct API call failed, trying edge function');
+      }
+    } catch (directApiError) {
+      console.error('[Valuation] Direct API error:', directApiError);
+      // Fall back to edge function if direct API fails
+    }
     
+    // Try edge function as backup
     try {
       // Use body parameter for the request instead of URL params
       const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
@@ -69,35 +88,12 @@ export async function getValuation(
         throw error;
       }
       
-      result = { success: true, data };
+      return { success: true, data, method: 'edge-function' };
     } catch (edgeFunctionError) {
-      // If edge function fails, try direct API
-      console.log('[Valuation] Edge function failed, trying direct API instead');
-      result = await getDirectValuation(cleanVin, mileage, gearbox);
-      
-      // If direct API succeeded, log this as a useful metric
-      if (result.success) {
-        console.log('[Valuation] Direct API call succeeded where edge function failed');
-      }
+      // All attempts failed, throw the error
+      console.error('[Valuation] All valuation methods failed');
+      throw edgeFunctionError;
     }
-
-    // Add validation for the response
-    if (!result.data) {
-      console.error('[Valuation] No data returned from valuation services');
-      throw new Error('No data returned from valuation service');
-    }
-
-    console.log('[Valuation] Received successful response:', {
-      dataReceived: !!result.data,
-      dataSize: result.data ? JSON.stringify(result.data).length : 0,
-      hasValidMake: result.data?.make ? true : false,
-      hasValidModel: result.data?.model ? true : false
-    });
-
-    return {
-      success: true,
-      data: result.data
-    };
   } catch (error: any) {
     console.error('[Valuation] Service error:', error);
     

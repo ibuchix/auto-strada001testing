@@ -2,6 +2,7 @@
 /**
  * Enhanced VIN Debugging Utilities
  * Created: 2025-05-02 - Provides detailed debugging tools for VIN validation
+ * Updated: 2025-05-10 - Fixed debugVinApiResponse function signature
  */
 
 import { normalizeVIN } from "../vinValidation";

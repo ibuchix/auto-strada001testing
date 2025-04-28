@@ -1,22 +1,13 @@
+
 /**
- * Changes made:
- * - 2025-04-20: Created direct VIN validation service to bypass edge functions
- * - Added detailed error handling and fallback mechanisms
+ * Direct VIN service
+ * Created: 2025-04-20 - Created direct VIN validation service to bypass edge functions
+ * Updated: 2025-05-10 - Fixed function signatures and improved API response handling
  */
 
 import { calculateReservePrice } from '@/utils/valuation/valuationCalculator';
 import { ValuationData } from '@/utils/valuation/valuationDataTypes';
-import { debugVinApiResponse } from '@/utils/debugging/enhanced_vin_debugging';
 import { createHash } from 'crypto';
-
-interface ApiResponse {
-  make?: string;
-  model?: string;
-  year?: number;
-  price_min?: number;
-  price_med?: number;
-  error?: string;
-}
 
 /**
  * Enhanced VIN validation service with direct API integration
@@ -32,18 +23,15 @@ export async function validateVinDirectly(
     
     if (result && result.make && result.model) {
       console.log('Successfully retrieved data from Auto ISO API');
-      debugVinApiResponse('auto_iso_success', result);
       return transformAutoIsoResponse(result, vin, mileage);
     }
     
     console.log('Primary API returned incomplete data, trying fallback API');
-    debugVinApiResponse('auto_iso_failed', result);
     
     const fallbackResult = await fetchFromFallbackApi(vin);
     return transformFallbackResponse(fallbackResult, vin, mileage);
   } catch (error) {
     console.error('Error in direct VIN validation:', error);
-    debugVinApiResponse('validation_error', { error });
     throw new Error(`VIN validation failed: ${error.message}`);
   }
 }
@@ -51,7 +39,7 @@ export async function validateVinDirectly(
 /**
  * Fetch data from Auto ISO API
  */
-async function fetchFromAutoIsoApi(vin: string, mileage: number): Promise<ApiResponse> {
+async function fetchFromAutoIsoApi(vin: string, mileage: number): Promise<any> {
   const API_ID = 'AUTOSTRA';
   const API_SECRET = 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
   
@@ -71,7 +59,6 @@ async function fetchFromAutoIsoApi(vin: string, mileage: number): Promise<ApiRes
     }
     
     const data = await response.json();
-    debugVinApiResponse('auto_iso_raw_response', data);
     return data;
   } catch (error) {
     console.error('Auto ISO API error:', error);
@@ -83,27 +70,49 @@ async function fetchFromAutoIsoApi(vin: string, mileage: number): Promise<ApiRes
  * Transform Auto ISO API response into standardized format
  */
 function transformAutoIsoResponse(
-  data: ApiResponse,
+  data: any,
   vin: string,
   mileage: number
 ): ValuationData {
-  const basePrice = data.price_min && data.price_med
-    ? (Number(data.price_min) + Number(data.price_med)) / 2
-    : 0;
+  // Extract pricing data
+  let priceMin = 0;
+  let priceMed = 0;
+
+  // Try to extract from nested functionResponse first
+  const calcValuation = data.functionResponse?.valuation?.calcValuation;
+  if (calcValuation) {
+    priceMin = Number(calcValuation.price_min) || 0;
+    priceMed = Number(calcValuation.price_med) || 0;
+  } else {
+    // Fall back to top-level properties
+    priceMin = Number(data.price_min) || 0;
+    priceMed = Number(data.price_med) || 0;
+  }
+
+  // Calculate base price
+  const basePrice = priceMin && priceMed
+    ? (priceMin + priceMed) / 2
+    : Number(data.price) || Number(data.valuation) || 0;
 
   const valuation = basePrice;
   const reservePrice = calculateReservePrice(basePrice);
   
+  // Get vehicle details from nested or direct properties
+  const userParams = data.functionResponse?.userParams || {};
+  const make = userParams.make || data.make || '';
+  const model = userParams.model || data.model || '';
+  const year = userParams.year || data.productionYear || data.year || 0;
+  
   return {
     vin: vin,
-    make: data.make || '',
-    model: data.model || '',
-    year: Number(data.year) || 0,
+    make: make,
+    model: model,
+    year: Number(year),
     transmission: 'manual', // Default value, can be updated later
     mileage: mileage,
     valuation: valuation,
     reservePrice: reservePrice,
-    averagePrice: Number(data.price_med) || valuation,
+    averagePrice: Number(priceMed) || valuation,
     basePrice: basePrice,
   };
 }
@@ -111,11 +120,9 @@ function transformAutoIsoResponse(
 /**
  * Fallback API integration
  * Currently returns basic data structure
- * Can be enhanced with additional API integration if needed
  */
-async function fetchFromFallbackApi(vin: string): Promise<ApiResponse> {
+async function fetchFromFallbackApi(vin: string): Promise<any> {
   // This is a placeholder for future fallback API integration
-  // For now, it returns a minimal data structure
   return {
     make: '',
     model: '',
@@ -128,7 +135,7 @@ async function fetchFromFallbackApi(vin: string): Promise<ApiResponse> {
  * Transform fallback API response into standardized format
  */
 function transformFallbackResponse(
-  data: ApiResponse,
+  data: any,
   vin: string,
   mileage: number
 ): ValuationData {
