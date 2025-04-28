@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { validateRequest } from "./utils/validation.ts";
 import { logOperation } from "./utils/logging.ts";
@@ -8,6 +7,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Content-Type': 'application/json'
 };
+
+// API credentials
+const API_ID = Deno.env.get("VALUATION_API_ID") || "";
+const API_SECRET = Deno.env.get("VALUATION_API_SECRET") || "";
 
 serve(async (req) => {
   const requestId = crypto.randomUUID();
@@ -132,16 +135,14 @@ serve(async (req) => {
     }
 
     // Calculate checksum and make API request
-    const apiId = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
-    const apiSecret = Deno.env.get('CAR_API_SECRET') || 'A4FTFH54C3E37P2D34A16A7A4V41XKBF';
-    const checksumInput = `${apiId}${apiSecret}${requestData.vin}`;
+    const checksumInput = `${API_ID}${API_SECRET}${requestData.vin}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(checksumInput);
     const hashBuffer = await crypto.subtle.digest('MD5', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const checksum = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${apiId}/checksum:${checksum}/vin:${requestData.vin}/odometer:${requestData.mileage}/currency:PLN`;
+    const apiUrl = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${requestData.vin}/odometer:${requestData.mileage}/currency:PLN`;
 
     logOperation('calling_external_api', {
       requestId,
