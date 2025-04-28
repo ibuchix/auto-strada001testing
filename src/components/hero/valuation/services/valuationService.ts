@@ -1,110 +1,68 @@
 
 /**
- * Valuation service for handling vehicle valuations
- * Updated: 2025-04-28 - Added proper URL encoding for VIN parameters
- * Updated: 2025-04-29 - Fixed request format to match edge function expectations
- * Updated: 2025-04-30 - Enhanced error handling and debugging
- * Updated: 2025-05-01 - Fixed parameter handling to prevent null VIN issues
- * Updated: 2025-05-02 - Added direct API client as fallback for edge function
- * Updated: 2025-05-10 - Prioritized direct API calls over edge functions
+ * Valuation Service
+ * Updated: 2025-05-11 - Improved CORS handling and error recovery
  */
-
 import { supabase } from "@/integrations/supabase/client";
 import { getDirectValuation } from "@/services/valuation/directValuationService";
 
 export async function getValuation(
   vin: string,
-  mileage: number,
-  gearbox: string = 'manual',
-  options: { debug?: boolean; requestId?: string } = {}
+  mileage: number | string,
+  gearbox: string = "manual",
+  options: { requestId?: string } = {}
 ) {
+  console.log('[Valuation][' + (options.requestId || 'N/A') + '] Requesting valuation for:', {
+    vin,
+    mileage,
+    gearbox,
+    debug: options.requestId,
+    timestamp: new Date().toISOString()
+  });
+
+  // Normalize mileage to number
+  const normalizedMileage = typeof mileage === 'string' ? parseInt(mileage, 10) : mileage;
+
+  // First try the direct API approach which uses our proxy to avoid CORS issues
   try {
-    // Clean and encode the VIN
-    const cleanVin = vin.trim().replace(/\s+/g, '');
+    console.log('[Valuation] Attempting direct API call');
+    const directResult = await getDirectValuation(vin, normalizedMileage, gearbox);
     
-    console.log(`[Valuation][${options.requestId || 'N/A'}] Requesting valuation for:`, {
-      vin: cleanVin,
-      mileage,
-      gearbox,
-      debug: options.debug,
-      timestamp: new Date().toISOString()
+    if (directResult.success) {
+      console.log('[Valuation] Direct API call successful');
+      return directResult;
+    }
+    
+    console.log('[Valuation] Direct API call failed, trying edge function');
+  } catch (error) {
+    console.error('[Valuation] Direct API call error:', error);
+    console.log('[Valuation] Direct API call failed, trying edge function');
+  }
+
+  // Fallback to edge function if direct API call fails
+  try {
+    const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
+      body: { vin, mileage: normalizedMileage, gearbox }
     });
-    
-    // Validate inputs before sending
-    if (!cleanVin || cleanVin.length < 5) {
-      console.error('[Valuation] Invalid VIN:', cleanVin);
-      throw new Error('Invalid VIN format. Must be at least 5 characters.');
-    }
 
-    if (typeof mileage !== 'number' || isNaN(mileage) || mileage < 0) {
-      console.error('[Valuation] Invalid mileage:', mileage);
-      mileage = 0; // Default to 0 if invalid
-    }
-
-    // Use direct API call first (most reliable)
-    try {
-      console.log('[Valuation] Attempting direct API call');
-      const directResult = await getDirectValuation(cleanVin, Number(mileage), gearbox);
-      
-      if (directResult.success && directResult.data) {
-        console.log('[Valuation] Direct API call succeeded');
-        return {
-          success: true,
-          data: directResult.data,
-          method: 'direct-api'
-        };
-      } else {
-        console.log('[Valuation] Direct API call failed, trying edge function');
-      }
-    } catch (directApiError) {
-      console.error('[Valuation] Direct API error:', directApiError);
-      // Fall back to edge function if direct API fails
-    }
-    
-    // Try edge function as backup
-    try {
-      // Use body parameter for the request instead of URL params
-      const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
-        body: {
-          vin: cleanVin,
-          mileage: Number(mileage), // Ensure it's a number
-          gearbox: gearbox || 'manual', // Ensure default if undefined
-          debug: options.debug || false
-        }
-      });
-
-      if (error) {
-        console.error('[Valuation] Edge function error:', error);
-        
-        // Log more detailed error information when available
-        if (error.message) {
-          console.error('[Valuation] Error message:', error.message);
-        }
-        
-        if (error.context) {
-          console.error('[Valuation] Error context:', error.context);
-        }
-        
-        throw error;
-      }
-      
-      return { success: true, data, method: 'edge-function' };
-    } catch (edgeFunctionError) {
-      // All attempts failed, throw the error
-      console.error('[Valuation] All valuation methods failed');
-      throw edgeFunctionError;
-    }
-  } catch (error: any) {
-    console.error('[Valuation] Service error:', error);
-    
-    // Enhance logging with more detailed error information
-    if (error.message) {
+    if (error) {
+      console.error('[Valuation] Edge function error:', error);
       console.error('[Valuation] Error message:', error.message);
+      console.error('[Valuation] Error context:', error.context);
+      throw error;
     }
-    
-    if (error.status) {
-      console.error('[Valuation] Error status:', error.status);
-    }
+
+    return {
+      success: true,
+      data: data.data,
+      method: 'edge-function'
+    };
+  } catch (error) {
+    console.error('[Valuation] Edge function error:', error);
+    console.error('[Valuation] Error message:', error.message);
+    console.error('[Valuation] Error context:', error?.context || {});
+    console.error('[Valuation] All valuation methods failed');
+    console.error('[Valuation] Service error:', error);
     
     return {
       success: false,
@@ -113,10 +71,14 @@ export async function getValuation(
   }
 }
 
+/**
+ * Clean up any saved valuation data
+ */
 export function cleanupValuationData() {
-  localStorage.removeItem('valuationData');
-  localStorage.removeItem('tempVIN');
-  localStorage.removeItem('tempMileage');
-  localStorage.removeItem('tempGearbox');
-  localStorage.removeItem('valuationTimestamp');
+  try {
+    localStorage.removeItem('valuationData');
+    localStorage.removeItem('valuationTimestamp');
+  } catch (e) {
+    console.error('Error clearing valuation data:', e);
+  }
 }

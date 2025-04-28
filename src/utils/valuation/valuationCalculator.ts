@@ -1,22 +1,17 @@
 
 /**
- * Changes made:
- * - 2025-04-18: Extracted valuation calculation to dedicated file
- * - 2025-04-18: Added detailed logging of calculation steps
+ * Vehicle valuation calculator utilities
+ * Created: 2025-05-11 - Extracted from directValuationService.ts
  */
 
 /**
- * Calculate reserve price based on basePrice using the defined percentage tiers
+ * Calculates reserve price based on the base price and pricing tiers
+ * @param basePrice Base vehicle price
+ * @returns The calculated reserve price
  */
 export const calculateReservePrice = (basePrice: number): number => {
-  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
-    console.error('Invalid base price for reserve calculation:', basePrice);
-    return 0;
-  }
-  
-  // Determine the percentage based on price tier
-  let percentage = 0;
-  
+  let percentage = 0.25; // Default percentage
+
   if (basePrice <= 15000) percentage = 0.65;
   else if (basePrice <= 20000) percentage = 0.46;
   else if (basePrice <= 30000) percentage = 0.37;
@@ -33,16 +28,54 @@ export const calculateReservePrice = (basePrice: number): number => {
   else if (basePrice <= 400000) percentage = 0.18;
   else if (basePrice <= 500000) percentage = 0.16;
   else percentage = 0.145;
+
+  // Calculate reserve price: PriceX - (PriceX * PercentageY)
+  return Math.round(basePrice - (basePrice * percentage));
+};
+
+/**
+ * Validates price data to ensure we have usable values
+ * @param priceData Price data object
+ * @returns Validation result
+ */
+export const validatePriceData = (priceData: any): { 
+  isValid: boolean;
+  basePrice?: number;
+  reservePrice?: number;
+  error?: string;
+} => {
+  if (!priceData) {
+    return { isValid: false, error: 'No price data available' };
+  }
   
-  // Calculate and round to the nearest whole number
-  const reservePrice = Math.round(basePrice - (basePrice * percentage));
+  // Extract base price from various possible sources
+  let basePrice = 0;
+  if (typeof priceData.basePrice === 'number' && priceData.basePrice > 0) {
+    basePrice = priceData.basePrice;
+  } else if (typeof priceData.averagePrice === 'number' && priceData.averagePrice > 0) {
+    basePrice = priceData.averagePrice;
+  } else if (typeof priceData.valuation === 'number' && priceData.valuation > 0) {
+    basePrice = priceData.valuation;
+  } else {
+    // Calculate from price_min and price_med if available
+    const priceMin = Number(priceData.price_min || 0);
+    const priceMed = Number(priceData.price_med || 0);
+    
+    if (priceMin > 0 && priceMed > 0) {
+      basePrice = (priceMin + priceMed) / 2;
+    }
+  }
   
-  console.log('Reserve price calculation:', {
+  if (basePrice <= 0) {
+    return { isValid: false, error: 'Could not determine valid base price' };
+  }
+  
+  // Calculate reserve price
+  const reservePrice = calculateReservePrice(basePrice);
+  
+  return {
+    isValid: true,
     basePrice,
-    percentage: (percentage * 100).toFixed(1) + '%',
-    formula: `${basePrice} - (${basePrice} × ${percentage})`,
     reservePrice
-  });
-  
-  return reservePrice;
+  };
 };

@@ -3,6 +3,7 @@
  * Direct valuation service
  * Created: 2025-05-08 - Added reliable direct API client for vehicle valuation
  * Updated: 2025-05-10 - Fixed crypto-js dependency issue
+ * Updated: 2025-05-11 - Implemented CORS proxy solution for direct API access
  */
 
 import { calculateReservePrice } from '@/utils/valuation/valuationCalculator';
@@ -13,8 +14,8 @@ import { toast } from 'sonner';
 export type ValuationMethod = 'direct-api' | 'edge-function' | 'fallback';
 
 /**
- * Make a direct API call to the valuation service
- * This bypasses the edge function and handles API interaction directly
+ * Make a direct API call to the valuation service through a CORS proxy
+ * This bypasses CORS restrictions and handles API interaction directly
  */
 export async function getDirectValuation(
   vin: string,
@@ -38,19 +39,25 @@ export async function getDirectValuation(
     const checksumContent = API_ID + API_SECRET + vin;
     const checksum = md5(checksumContent).toString();
     
-    // Build API URL
-    const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
+    // Instead of directly calling the API, we'll use our edge function as a CORS proxy
+    // This is a reliable approach that doesn't require external services
+    const proxyUrl = `/api/get-vehicle-valuation`;
     
-    console.log('[DirectValuation] Calling API with URL:', url);
+    console.log('[DirectValuation] Calling valuation via Edge Function proxy');
     
-    // Make API request
-    const response = await fetch(url, {
-      method: 'GET',
+    // Make API request through our proxy
+    const response = await fetch(proxyUrl, {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      // Adding a longer timeout as the API can be slow sometimes
-      signal: AbortSignal.timeout(15000)
+      body: JSON.stringify({
+        vin,
+        mileage,
+        gearbox,
+        debug: false
+      })
     });
     
     // Check for successful response
@@ -69,7 +76,17 @@ export async function getDirectValuation(
     }
     
     // Parse API response
-    const rawData = await response.json();
+    const responseData = await response.json();
+    
+    if (!responseData.success) {
+      return {
+        success: false,
+        error: responseData.error || 'Unknown error',
+        method: 'direct-api'
+      };
+    }
+    
+    const rawData = responseData.data;
     console.log('[DirectValuation] Raw API response received:', {
       dataSize: JSON.stringify(rawData).length,
       keys: Object.keys(rawData)

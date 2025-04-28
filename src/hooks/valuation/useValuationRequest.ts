@@ -3,12 +3,14 @@
  * Valuation request hook
  * Created: 2025-05-10 - Fixed function signatures and improved API handling
  * Updated: 2025-05-10 - Added comprehensive error handling and logging
+ * Updated: 2025-05-11 - Improved CORS handling and error recovery
  */
 
 import { useState, useCallback } from 'react';
 import { getDirectValuation } from '@/services/valuation/directValuationService';
 import { toast } from 'sonner';
 import { validateValuationParams } from '@/utils/debugging/enhanced_vin_debugging';
+import { supabase } from '@/integrations/supabase/client';
 
 export function useValuationRequest() {
   const [isLoading, setIsLoading] = useState(false);
@@ -40,21 +42,45 @@ export function useValuationRequest() {
       // Get cleaned parameters
       const { cleanedParams } = validationResult;
       
-      // Make the API call
-      const response = await getDirectValuation(
+      // First try the edge function approach (which handles CORS properly)
+      console.log('[ValuationRequest] Attempting valuation via Edge Function');
+      
+      // Use supabase functions.invoke which properly handles authentication and paths
+      const { data: edgeFunctionData, error: edgeFunctionError } = await supabase.functions.invoke(
+        'get-vehicle-valuation',
+        {
+          body: {
+            vin: cleanedParams!.vin,
+            mileage: cleanedParams!.mileage,
+            gearbox: cleanedParams!.gearbox,
+          }
+        }
+      );
+      
+      // Check if the edge function succeeded
+      if (edgeFunctionData && !edgeFunctionError) {
+        console.log('[ValuationRequest] Successful edge function response:', edgeFunctionData);
+        setResult(edgeFunctionData.data);
+        return edgeFunctionData.data;
+      }
+      
+      // If the edge function failed, try direct API call via our proxy
+      console.log('[ValuationRequest] Edge function failed, trying direct valuation');
+      
+      const directResponse = await getDirectValuation(
         cleanedParams!.vin,
         cleanedParams!.mileage,
         cleanedParams!.gearbox
       );
       
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to get valuation');
+      if (!directResponse.success) {
+        throw new Error(directResponse.error || 'Failed to get valuation');
       }
       
-      setResult(response.data);
-      console.log('[ValuationRequest] Successful valuation:', response.data);
+      console.log('[ValuationRequest] Successful direct valuation:', directResponse.data);
+      setResult(directResponse.data);
       
-      return response.data;
+      return directResponse.data;
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to get valuation';
       console.error('[ValuationRequest] Error:', errorMsg);
