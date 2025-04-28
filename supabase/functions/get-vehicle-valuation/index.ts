@@ -1,10 +1,10 @@
 
 /**
  * Vehicle Valuation Edge Function
- * Updated: 2025-04-29 - Enhanced validation and error handling
+ * Updated: 2025-05-01 - Fixed request parsing and validation errors
  */
 import { corsHeaders } from './utils/cors.ts';
-import { validateRequest } from './utils/validation.ts';
+import { validateRequest, isValidVin, isValidMileage } from './utils/validation.ts';
 import md5 from "https://cdn.skypack.dev/md5@2.3.0";
 
 const API_ID = Deno.env.get('CAR_API_ID') || 'AUTOSTRA';
@@ -30,14 +30,33 @@ Deno.serve(async (req) => {
     console.log('[get-vehicle-valuation] Received request:', {
       method: req.method,
       headers: Object.fromEntries(req.headers.entries()),
+      url: req.url
     });
 
     // Parse the request body
-    const requestText = await req.text();
-    console.log('[get-vehicle-valuation] Raw request body:', requestText);
-
     let requestData;
     try {
+      const requestText = await req.text();
+      console.log('[get-vehicle-valuation] Raw request body:', requestText);
+      
+      // Handle empty request body
+      if (!requestText || requestText.trim() === '') {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Empty request body',
+            code: 'EMPTY_REQUEST'
+          }),
+          {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          }
+        );
+      }
+      
       requestData = JSON.parse(requestText);
     } catch (e) {
       console.error('[get-vehicle-valuation] JSON parse error:', e);
@@ -57,19 +76,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Log parsed request data
-    console.log('[get-vehicle-valuation] Parsed request data:', requestData);
+    // Log parsed request data with full details for debugging
+    console.log('[get-vehicle-valuation] Parsed request data:', 
+      JSON.stringify(requestData, null, 2)
+    );
 
-    // Validate request data
-    const validation = validateRequest(requestData);
-    if (!validation.valid) {
-      console.error('[get-vehicle-valuation] Validation error:', validation.error);
+    // Basic validation for request structure
+    if (!requestData) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: validation.error,
-          code: 'INVALID_REQUEST',
-          receivedData: requestData
+          error: 'Request body is required',
+          code: 'INVALID_REQUEST'
         }),
         {
           status: 400,
@@ -81,24 +99,84 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Extract validated parameters
-    const { vin, mileage, gearbox = 'manual' } = requestData;
+    // Enhanced VIN validation with clear error message
+    if (!('vin' in requestData) || !requestData.vin) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'VIN parameter is missing or empty',
+          code: 'MISSING_VIN'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        }
+      );
+    }
+
+    // Mileage validation
+    if (!('mileage' in requestData)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Mileage parameter is missing',
+          code: 'MISSING_MILEAGE'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        }
+      );
+    }
+
+    // Extract and validate parameters
+    const vin = String(requestData.vin).trim();
     
-    // Normalize mileage to number
-    const numericMileage = Number(mileage);
+    // Convert mileage to number and validate
+    let mileage;
+    if (typeof requestData.mileage === 'string') {
+      mileage = parseInt(requestData.mileage, 10);
+    } else {
+      mileage = Number(requestData.mileage);
+    }
+    
+    if (isNaN(mileage) || mileage < 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid mileage value. Must be a positive number.',
+          code: 'INVALID_MILEAGE'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          }
+        }
+      );
+    }
+    
+    const gearbox = requestData.gearbox || 'manual';
+    
+    console.log('[get-vehicle-valuation] Validated parameters:', {
+      vin,
+      mileage,
+      gearbox
+    });
 
     // Calculate checksum
     const checksumContent = API_ID + API_SECRET + vin;
     const checksum = md5(checksumContent);
 
-    console.log('[get-vehicle-valuation] Making API request for:', {
-      vin,
-      mileage: numericMileage,
-      gearbox
-    });
-
     // Build API URL
-    const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${numericMileage}/currency:PLN`;
+    const url = `https://bp.autoiso.pl/api/v3/getVinValuation/apiuid:${API_ID}/checksum:${checksum}/vin:${vin}/odometer:${mileage}/currency:PLN`;
     
     console.log(`[get-vehicle-valuation] Calling external API for VIN ${vin}`);
     
@@ -111,8 +189,35 @@ Deno.serve(async (req) => {
       }
     });
     
+    // Log API response status for debugging
+    console.log(`[get-vehicle-valuation] API responded with status: ${apiResponse.status}`);
+    
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      console.error(`[get-vehicle-valuation] API Error:`, {
+        status: apiResponse.status,
+        body: errorText
+      });
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `External API returned error: ${apiResponse.status} ${apiResponse.statusText}`,
+          details: errorText
+        }),
+        { 
+          status: 502, // Bad Gateway - to indicate a problem with the upstream server
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders 
+          } 
+        }
+      );
+    }
+    
     // Get response data
     const apiData = await apiResponse.json();
+    console.log(`[get-vehicle-valuation] Successfully processed API response`);
     
     // Process the response
     return new Response(
@@ -136,7 +241,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: false,
         error: 'An unexpected error occurred',
-        details: error.message
+        details: error.message,
+        stack: error.stack
       }),
       {
         status: 500,

@@ -1,7 +1,7 @@
 
 /**
  * Validation utilities for get-vehicle-valuation
- * Created: 2025-04-30 - Added more robust validation for VIN and request parameters
+ * Updated: 2025-05-01 - Improved VIN validation and enhanced error messages
  */
 
 export function isValidVin(vin: string): boolean {
@@ -21,8 +21,8 @@ export function isValidVin(vin: string): boolean {
     return false;
   }
   
-  // Super permissive VIN validation - literally any alphanumeric string between 5-17 chars
-  // This should accept even partial or custom VINs
+  // More permissive VIN validation - accepts shorter VINs for testing
+  // At least 5 characters of alphanumeric content
   return cleanVin.length >= 5 && 
          cleanVin.length <= 17 && 
          /^[A-Z0-9]+$/i.test(cleanVin);
@@ -34,7 +34,12 @@ export function isValidMileage(mileage: any): boolean {
     return false;
   }
   
-  const mileageNum = typeof mileage === 'string' ? parseInt(mileage, 10) : Number(mileage);
+  let mileageNum;
+  if (typeof mileage === 'string') {
+    mileageNum = parseInt(mileage, 10);
+  } else {
+    mileageNum = Number(mileage);
+  }
   
   // Check if conversion was successful and value is in reasonable range
   return !isNaN(mileageNum) && mileageNum >= 0 && mileageNum <= 1000000;
@@ -79,19 +84,12 @@ export function validateRequest(data: any): { valid: boolean; error?: string } {
   const vin = data.vin || '';
   
   // More flexible VIN validation with informative error
-  const cleanedVin = String(vin).trim().replace(/[^A-Z0-9]/gi, '');
-  if (cleanedVin.length < 5) {
+  if (!isValidVin(vin)) {
+    const cleanedVin = String(vin).trim().replace(/[^A-Z0-9]/gi, '');
     return { 
       valid: false, 
       error: cleanedVin === '' ? 'VIN cannot be empty' : 
-             `VIN too short after sanitization: "${cleanedVin}". Must be at least 5 alphanumeric characters.` 
-    };
-  }
-
-  if (cleanedVin.length > 17) {
-    return {
-      valid: false,
-      error: `VIN too long: "${cleanedVin}". Must be at most 17 characters.`
+             `Invalid VIN format: "${vin}". Must be at least 5 alphanumeric characters.` 
     };
   }
 

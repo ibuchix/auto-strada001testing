@@ -1,7 +1,7 @@
 
 /**
  * Direct valuation service
- * Updated: 2025-05-11 - Fixed to use edge function properly
+ * Updated: 2025-05-01 - Fixed request format and error handling
  */
 
 import { calculateReservePrice } from '@/utils/valuation/valuationCalculator';
@@ -27,7 +27,31 @@ export async function getDirectValuation(
   method: ValuationMethod;
   rawData?: any;
 }> {
-  console.log('[DirectValuation] Starting direct API valuation for:', { vin, mileage, gearbox });
+  console.log('[DirectValuation] Starting direct API valuation for:', { 
+    vin, 
+    mileage: typeof mileage === 'number' ? mileage : Number(mileage), 
+    gearbox 
+  });
+  
+  // Ensure proper data types
+  const validVin = String(vin).trim();
+  const numericMileage = typeof mileage === 'number' ? mileage : Number(mileage);
+  
+  if (!validVin) {
+    return {
+      success: false,
+      error: 'VIN is required',
+      method: 'direct-api'
+    };
+  }
+  
+  if (isNaN(numericMileage) || numericMileage < 0) {
+    return {
+      success: false,
+      error: 'Mileage must be a positive number',
+      method: 'direct-api'
+    };
+  }
   
   try {
     // Use the Supabase edge function which will handle CORS properly
@@ -35,9 +59,9 @@ export async function getDirectValuation(
     
     const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
       body: {
-        vin,
-        mileage,
-        gearbox,
+        vin: validVin,
+        mileage: numericMileage,
+        gearbox: gearbox || 'manual',
         debug: true
       }
     });
