@@ -1,8 +1,10 @@
+
 /**
  * Changes made:
  * - 2025-04-27: Consolidated duplicate ValuationResult components into a single component
  * - 2025-04-27: Enhanced error handling and logging
  * - 2025-04-27: Updated useValuationContinue import path
+ * - 2025-04-28: Fixed type incompatibility between different TransmissionType definitions
  */
 
 import { useNavigate } from "react-router-dom";
@@ -144,6 +146,10 @@ export const ValuationResult = ({
     );
   }
 
+  // Convert the transmission type to match the ValuationContent component's expected format
+  // This ensures compatibility between different TransmissionType definitions in the codebase
+  const compatibleTransmission = normalizedData.transmission === 'manual' ? 'manual' : 'automatic';
+
   // Only show valuation content if we have valid data
   return (
     <ValuationContent
@@ -151,7 +157,7 @@ export const ValuationResult = ({
       model={normalizedData.model}
       year={normalizedData.year}
       vin={normalizedData.vin}
-      transmission={normalizedData.transmission}
+      transmission={compatibleTransmission}
       mileage={mileage}
       reservePrice={normalizedData.reservePrice}
       averagePrice={normalizedData.averagePrice || 0}
