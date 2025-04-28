@@ -5,6 +5,7 @@
  * Updated: 2025-04-26 - Added success property to return value for type consistency
  * Updated: 2025-04-29 - Fixed request format to use POST body instead of URL params
  * Updated: 2025-04-30 - Enhanced error logging and debugging
+ * Updated: 2025-05-01 - Fixed request handling and parameter validation
  */
 
 import { ValuationMonitoring } from '../monitoring/valuationMonitoring';
@@ -21,16 +22,31 @@ export async function getVehicleValuation(
   const requestId = Math.random().toString(36).substring(2, 10);
 
   try {
-    console.log(`[VALUATION-API][${requestId}] Getting valuation for:`, { vin, mileage, gearbox });
+    // Input validation
+    if (!vin || typeof vin !== 'string' || vin.trim().length < 5) {
+      console.error(`[VALUATION-API][${requestId}] Invalid VIN:`, vin);
+      throw new Error('Invalid VIN format');
+    }
+    
+    // Clean and standardize inputs
+    const cleanVin = vin.trim().replace(/\s+/g, '');
+    const cleanMileage = typeof mileage === 'number' && !isNaN(mileage) ? mileage : 0;
+    const cleanGearbox = gearbox || 'manual';
+    
+    console.log(`[VALUATION-API][${requestId}] Getting valuation for:`, { 
+      vin: cleanVin, 
+      mileage: cleanMileage, 
+      gearbox: cleanGearbox 
+    });
     
     // Use body parameter for the request with request ID for tracing
     const { data, error } = await supabase.functions.invoke(
       'get-vehicle-valuation',
       {
         body: { 
-          vin, 
-          mileage, 
-          gearbox,
+          vin: cleanVin, 
+          mileage: cleanMileage, 
+          gearbox: cleanGearbox,
           debug: true, // Enable debug mode for detailed response
           requestId
         }
@@ -49,7 +65,7 @@ export async function getVehicleValuation(
       });
       
       ValuationMonitoring.trackValuation({
-        vin,
+        vin: cleanVin,
         hasPricingData: false,
         usedFallbackValues: false,
         dataQualityScore: 0,
@@ -70,7 +86,7 @@ export async function getVehicleValuation(
 
     // Track metrics
     ValuationMonitoring.trackValuation({
-      vin,
+      vin: cleanVin,
       hasPricingData: !!data?.rawApiResponse,
       usedFallbackValues: false,
       dataQualityScore: qualityScore,

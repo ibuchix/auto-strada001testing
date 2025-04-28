@@ -5,6 +5,7 @@
  * Updated: 2025-04-28 - Fixed type inconsistencies and added storage function
  * Updated: 2025-04-29 - Fixed request format to match edge function expectations
  * Updated: 2025-04-30 - Enhanced error handling and logging
+ * Updated: 2025-05-01 - Fixed parameter validation before sending to edge function
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -35,14 +36,41 @@ export const validateVin = async ({
     // Clean and encode the VIN
     const cleanVin = vin.trim().replace(/\s+/g, '');
     
+    // Validate inputs before sending
+    if (!cleanVin || cleanVin.length < 5) {
+      console.error('[VIN-Validation] Invalid VIN:', cleanVin);
+      return {
+        success: false,
+        error: 'Invalid VIN format. Must be at least 5 characters.'
+      };
+    }
+
+    if (typeof mileage !== 'number' || isNaN(mileage) || mileage < 0) {
+      console.error('[VIN-Validation] Invalid mileage:', mileage);
+      // Use a default value but continue
+      mileage = 0;
+    }
+    
     console.log(`[VIN-Validation] Calling VIN validation for: ${cleanVin}, mileage: ${mileage}, gearbox: ${gearbox}`);
+    
+    // Generate a request ID for tracing
+    const requestId = `val_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
+    
+    // Log complete request data for debugging
+    console.log('[VIN-Validation] Request payload:', {
+      vin: cleanVin,
+      mileage,
+      gearbox,
+      requestId
+    });
     
     // IMPORTANT: Use body parameter for POST request instead of URL params
     const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
       body: { 
         vin: cleanVin,
-        mileage: mileage,
-        gearbox: gearbox
+        mileage: Number(mileage),
+        gearbox: gearbox || 'manual',
+        requestId
       }
     });
 

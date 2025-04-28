@@ -4,6 +4,7 @@
  * Updated: 2025-04-28 - Added proper URL encoding for VIN parameters
  * Updated: 2025-04-29 - Fixed request format to match edge function expectations
  * Updated: 2025-04-30 - Enhanced error handling and debugging
+ * Updated: 2025-05-01 - Fixed parameter handling to prevent null VIN issues
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -25,14 +26,25 @@ export async function getValuation(
       debug: options.debug,
       timestamp: new Date().toISOString()
     });
+    
+    // Validate inputs before sending
+    if (!cleanVin || cleanVin.length < 5) {
+      console.error('[Valuation] Invalid VIN:', cleanVin);
+      throw new Error('Invalid VIN format. Must be at least 5 characters.');
+    }
+
+    if (typeof mileage !== 'number' || isNaN(mileage) || mileage < 0) {
+      console.error('[Valuation] Invalid mileage:', mileage);
+      mileage = 0; // Default to 0 if invalid
+    }
 
     // Use body parameter for the request instead of URL params
     const { data, error } = await supabase.functions.invoke('get-vehicle-valuation', {
       body: {
         vin: cleanVin,
-        mileage,
-        gearbox,
-        debug: options.debug
+        mileage: Number(mileage), // Ensure it's a number
+        gearbox: gearbox || 'manual', // Ensure default if undefined
+        debug: options.debug || false
       }
     });
 

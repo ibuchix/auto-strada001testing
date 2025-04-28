@@ -2,6 +2,7 @@
 /**
  * Validation utilities for get-vehicle-valuation
  * Updated: 2025-04-30 - Improved VIN validation to be more flexible
+ * Updated: 2025-05-01 - Enhanced error handling for incomplete requests
  */
 
 export function isValidVin(vin: string): boolean {
@@ -41,6 +42,7 @@ export function isValidMileage(mileage: any): boolean {
 }
 
 export function validateRequest(data: any): { valid: boolean; error?: string } {
+  // Basic request validation
   if (!data) {
     return { 
       valid: false, 

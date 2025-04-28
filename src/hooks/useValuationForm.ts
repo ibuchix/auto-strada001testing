@@ -1,6 +1,8 @@
+
 /**
  * Changes made:
  * - 2025-04-22: Removed localStorage operations to debug nested API data issues
+ * - 2025-05-01: Enhanced parameter validation and improved error handling
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -11,6 +13,7 @@ import { toast } from "sonner";
 import { getValuation, cleanupValuationData } from "@/components/hero/valuation/services/valuationService";
 import { useRealtime } from "@/components/RealtimeProvider";
 import { isValidVIN, normalizeVIN, getVINErrorMessage } from "@/utils/vinValidation";
+import { validateValuationParams } from "@/utils/debugging/enhanced_vin_debugging";
 
 export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
   const [isLoading, setIsLoading] = useState(false);
@@ -48,25 +51,31 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
   // Handle form submission
   const handleSubmit = async (data: ValuationFormData) => {
     const startTime = performance.now();
-    const normalizedVin = normalizeVIN(data.vin);
     
     console.log(`[ValuationForm][${requestIdRef.current}] Starting valuation form submission:`, {
-      vin: normalizedVin,
-      original_vin: data.vin,
+      vin: data.vin,
       mileage: data.mileage,
       gearbox: data.gearbox,
       context,
       timestamp: new Date().toISOString()
     });
     
-    // Validate VIN format first
-    const vinErrorMessage = getVINErrorMessage(normalizedVin);
-    if (vinErrorMessage) {
-      toast.error("Invalid VIN", {
-        description: vinErrorMessage
+    // Validate and clean parameters
+    const validationResult = validateValuationParams(
+      data.vin,
+      parseInt(String(data.mileage), 10),
+      data.gearbox
+    );
+    
+    if (!validationResult.valid) {
+      toast.error("Validation error", {
+        description: validationResult.error || "Please check your input values"
       });
       return;
     }
+    
+    // Get the cleaned parameters
+    const { vin, mileage, gearbox } = validationResult.cleanedParams!;
     
     // Clear any existing timeout
     if (timeoutRef.current) {
@@ -85,25 +94,23 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
     }, 20000); // 20 second timeout
     
     try {
-      // Parse mileage to ensure it's a number
-      const mileage = parseInt(data.mileage) || 0;
-      
       console.log(`[ValuationForm][${requestIdRef.current}] Calling getValuation with parameters:`, {
-        vin: normalizedVin,
+        vin,
         mileage,
-        gearbox: data.gearbox,
+        gearbox,
         timestamp: new Date().toISOString()
       });
       
       const result = await getValuation(
-        normalizedVin,
+        vin,
         mileage,
-        data.gearbox
+        gearbox,
+        { requestId: requestIdRef.current }
       );
 
       console.log(`[ValuationForm][${requestIdRef.current}] Valuation result:`, {
         success: result.success,
-        errorPresent: result.data && 'error' in result.data,
+        errorPresent: result.error !== undefined,
         dataSize: result.data ? JSON.stringify(result.data).length : 0,
         dataFields: result.data ? Object.keys(result.data) : [],
         processingTime: `${(performance.now() - startTime).toFixed(2)}ms`,
@@ -116,7 +123,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         timeoutRef.current = null;
       }
 
-      if (result.success && result.data && !result.data.error) {
+      if (result.success && result.data) {
         // Verify minimum data presence
         if (!result.data.make && !result.data.model) {
           console.warn(`[ValuationForm][${requestIdRef.current}] Missing critical data in response:`, {
@@ -128,8 +135,8 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
           setValuationResult({
             noData: true,
             error: "No data found for this VIN",
-            vin: normalizedVin,
-            transmission: data.gearbox
+            vin,
+            transmission: gearbox
           });
           setShowDialog(true);
           return;
@@ -140,7 +147,7 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
           ...result.data,
           reservePrice: result.data.reservePrice || result.data.valuation,
           valuation: result.data.valuation || result.data.reservePrice,
-          vin: normalizedVin
+          vin: vin
         };
         
         setValuationResult(normalizedResult);
@@ -148,14 +155,10 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         setRetryCount(0); // Reset retry counter on success
       } else {
         // Check if error exists in the data object using safe property access
-        let errorMessage = "Valuation failed";
+        let errorMessage = result.error || "Valuation failed";
         
-        if (result.data && typeof result.data === 'object') {
-          if ('error' in result.data) {
-            errorMessage = result.data.error;
-          } else if (Object.keys(result.data).length === 0) {
-            errorMessage = "No data found for this VIN";
-          }
+        if (result.data && typeof result.data === 'object' && 'error' in result.data) {
+          errorMessage = result.data.error;
         }
         
         console.error(`[ValuationForm][${requestIdRef.current}] Valuation failed:`, {
@@ -167,8 +170,8 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
         setValuationResult({
           error: errorMessage,
           noData: errorMessage.includes("No data"),
-          vin: normalizedVin,
-          transmission: data.gearbox
+          vin,
+          transmission: gearbox
         });
         setShowDialog(true);
       }
@@ -190,8 +193,8 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
       setValuationResult({
         error: error.message || "Failed to get vehicle valuation",
         noData: error.message?.includes("No data"),
-        vin: normalizedVin,
-        transmission: data.gearbox
+        vin,
+        transmission: gearbox
       });
       setShowDialog(true);
     } finally {
