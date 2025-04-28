@@ -1,9 +1,7 @@
 
 /**
  * Valuation request hook
- * Created: 2025-05-10 - Fixed function signatures and improved API handling
- * Updated: 2025-05-10 - Added comprehensive error handling and logging
- * Updated: 2025-05-11 - Improved CORS handling and error recovery
+ * Updated: 2025-04-28 - Enhanced parameter validation and error handling
  */
 
 import { useState, useCallback } from 'react';
@@ -25,68 +23,66 @@ export function useValuationRequest() {
     setIsLoading(true);
     setError(null);
     
+    const requestId = crypto.randomUUID();
+    console.log(`[ValuationRequest][${requestId}] Starting request:`, { vin, mileage, gearbox });
+    
     try {
-      console.log('[ValuationRequest] Starting valuation request for:', { vin, mileage, gearbox });
+      // Clean and validate parameters
+      const cleanVin = String(vin).trim().toUpperCase();
+      const cleanMileage = typeof mileage === 'string' ? parseInt(mileage.replace(/[^0-9]/g, ''), 10) : mileage;
+      const cleanGearbox = gearbox.toLowerCase() as 'manual' | 'automatic';
       
-      // First validate the parameters
-      const validationResult = validateValuationParams(
-        vin,
-        typeof mileage === 'string' ? parseInt(mileage, 10) : mileage,
-        gearbox
-      );
-      
-      if (!validationResult.valid) {
-        throw new Error(validationResult.error || 'Invalid input parameters');
+      // Validate parameters before making the request
+      if (cleanVin.length !== 17 || !/^[A-HJ-NPR-Z0-9]{17}$/.test(cleanVin)) {
+        throw new Error('Invalid VIN format');
       }
       
-      // Get cleaned parameters
-      const { cleanedParams } = validationResult;
+      if (isNaN(cleanMileage) || cleanMileage < 0 || cleanMileage > 1000000) {
+        throw new Error('Invalid mileage value');
+      }
       
-      // First try the edge function approach (which handles CORS properly)
-      console.log('[ValuationRequest] Attempting valuation via Edge Function');
+      if (!['manual', 'automatic'].includes(cleanGearbox)) {
+        throw new Error('Invalid transmission type');
+      }
       
-      // Use supabase functions.invoke which properly handles authentication and paths
+      console.log(`[ValuationRequest][${requestId}] Using cleaned parameters:`, {
+        vin: cleanVin,
+        mileage: cleanMileage,
+        gearbox: cleanGearbox
+      });
+
+      // Attempt edge function call
       const { data: edgeFunctionData, error: edgeFunctionError } = await supabase.functions.invoke(
         'get-vehicle-valuation',
         {
           body: {
-            vin: cleanedParams!.vin,
-            mileage: cleanedParams!.mileage,
-            gearbox: cleanedParams!.gearbox,
+            vin: cleanVin,
+            mileage: cleanMileage,
+            gearbox: cleanGearbox,
+            requestId
           }
         }
       );
       
-      // Check if the edge function succeeded
-      if (edgeFunctionData && !edgeFunctionError) {
-        console.log('[ValuationRequest] Successful edge function response:', edgeFunctionData);
-        setResult(edgeFunctionData.data);
-        return edgeFunctionData.data;
+      if (edgeFunctionError) {
+        throw edgeFunctionError;
+      }
+
+      if (!edgeFunctionData || !edgeFunctionData.success) {
+        throw new Error(edgeFunctionData?.error || 'Failed to get valuation');
       }
       
-      // If the edge function failed, try direct API call via our proxy
-      console.log('[ValuationRequest] Edge function failed, trying direct valuation');
+      console.log(`[ValuationRequest][${requestId}] Success:`, edgeFunctionData);
+      setResult(edgeFunctionData.data);
+      return edgeFunctionData.data;
       
-      const directResponse = await getDirectValuation(
-        cleanedParams!.vin,
-        cleanedParams!.mileage,
-        cleanedParams!.gearbox
-      );
-      
-      if (!directResponse.success) {
-        throw new Error(directResponse.error || 'Failed to get valuation');
-      }
-      
-      console.log('[ValuationRequest] Successful direct valuation:', directResponse.data);
-      setResult(directResponse.data);
-      
-      return directResponse.data;
     } catch (err: any) {
-      const errorMsg = err.message || 'Failed to get valuation';
-      console.error('[ValuationRequest] Error:', errorMsg);
-      
-      setError(errorMsg);
-      toast.error(errorMsg);
+      console.error(`[ValuationRequest][${requestId}] Error:`, err);
+      const errorMessage = err.message || 'Failed to get valuation';
+      setError(errorMessage);
+      toast.error('Validation Error', {
+        description: errorMessage
+      });
       return null;
     } finally {
       setIsLoading(false);
