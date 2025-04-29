@@ -1,154 +1,94 @@
 
 /**
  * Changes made:
- * - Enhanced form event handling for better performance
- * - Added optimized form validation with React Hook Form
- * - Improved mobile handling with enhanced UI feedback
- * - 2025-04-20: Fixed type imports to use correct location
- * - 2025-05-03: Added onReset prop to component interface
+ * - 2025-04-29: Removed FormProvider wrapper to prevent nested form issue
  */
 
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { ChevronRight, Loader2 } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { ValuationFormData } from "@/types/validation";
-import { UseFormReturn } from "react-hook-form";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useCallback } from "react";
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-interface ValuationInputProps {
-  form: UseFormReturn<ValuationFormData> & {
-    formState: { isSubmitting: boolean };
-  };
-  isLoading: boolean;
-  onSubmit?: (e: React.FormEvent) => void;
-  onReset?: () => void;  // Added onReset prop to the interface
-}
+const ValuationInput = ({ onSubmit }: { onSubmit: (data: any) => void }) => {
+  const formSchema = z.object({
+    vin: z.string().min(17).max(17),
+    mileage: z.string().min(1),
+    gearbox: z.enum(['manual', 'automatic']),
+  });
 
-export const ValuationInput = ({ form, isLoading, onSubmit, onReset }: ValuationInputProps) => {
-  const isMobile = useIsMobile();
-  
-  // Optimized event handler with proper type
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isLoading && onSubmit) {
-      onSubmit(e);
-    }
-  }, [onSubmit, isLoading]);
-  
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      vin: '',
+      mileage: '',
+      gearbox: 'manual',
+    },
+  });
+
+  const handleSubmit = form.handleSubmit((data) => {
+    onSubmit(data);
+  });
+
   return (
-    <Form {...form}>
-      <form onSubmit={handleSubmit} className="space-y-6 max-w-sm mx-auto">
-        <div className="space-y-4">
-          <FormField
-            control={form.control}
-            name="vin"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder="ENTER VIN"
-                    className={`${isMobile ? 'h-14' : 'h-12'} text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md`}
-                    disabled={isLoading}
-                    maxLength={17}
-                    autoComplete="off"
-                  />
-                </FormControl>
-                <FormMessage className={isMobile ? "text-sm mt-1" : ""} />
-              </FormItem>
-            )}
+    <div className="space-y-4">
+      <div className="grid gap-3">
+        <div>
+          <Input 
+            {...form.register('vin')}
+            placeholder="Enter your VIN"
+            className="h-12 bg-white"
+            maxLength={17}
           />
-
-          <FormField
-            control={form.control}
-            name="mileage"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input
-                    {...field}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d*"
-                    placeholder="ENTER MILEAGE (KM)"
-                    className={`${isMobile ? 'h-14' : 'h-12'} text-center text-lg border-2 border-secondary/20 bg-white placeholder:text-secondary/70 rounded-md`}
-                    disabled={isLoading}
-                    autoComplete="off"
-                  />
-                </FormControl>
-                <FormMessage className={isMobile ? "text-sm mt-1" : ""} />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="gearbox"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    className={`flex gap-6 justify-center bg-white border-2 border-secondary/20 rounded-md ${isMobile ? 'p-5' : 'p-4'}`}
-                    disabled={isLoading}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <RadioGroupItem 
-                        value="manual" 
-                        id="manual" 
-                        className={isMobile ? "h-6 w-6" : ""}
-                      />
-                      <Label 
-                        htmlFor="manual" 
-                        className={`font-medium cursor-pointer ${isMobile ? 'text-base' : ''}`}
-                      >
-                        Manual
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <RadioGroupItem 
-                        value="automatic" 
-                        id="automatic" 
-                        className={isMobile ? "h-6 w-6" : ""}
-                      />
-                      <Label 
-                        htmlFor="automatic" 
-                        className={`font-medium cursor-pointer ${isMobile ? 'text-base' : ''}`}
-                      >
-                        Automatic
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage className={isMobile ? "text-sm mt-1" : ""} />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <Button
-          type="submit"
-          className={`w-full ${isMobile ? 'h-14' : 'h-12'} bg-secondary hover:bg-secondary/90 text-white text-lg rounded-md flex items-center justify-center gap-2`}
-          disabled={isLoading || form.formState.isSubmitting}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              GETTING VALUATION...
-            </>
-          ) : (
-            <>
-              VALUE YOUR CAR
-              <ChevronRight className="w-5 h-5" />
-            </>
+          {form.formState.errors.vin && (
+            <p className="text-red-500 text-sm mt-1">Valid VIN required (17 characters)</p>
           )}
+        </div>
+        
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Input 
+              {...form.register('mileage')}
+              placeholder="Mileage" 
+              className="h-12 bg-white"
+              type="number"
+            />
+            {form.formState.errors.mileage && (
+              <p className="text-red-500 text-sm mt-1">Mileage required</p>
+            )}
+          </div>
+          
+          <div>
+            <Select 
+              defaultValue="manual"
+              onValueChange={(value) => form.setValue('gearbox', value as 'manual' | 'automatic')}
+            >
+              <SelectTrigger className="h-12 bg-white">
+                <SelectValue placeholder="Gearbox" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manual">Manual</SelectItem>
+                <SelectItem value="automatic">Automatic</SelectItem>
+              </SelectContent>
+            </Select>
+            {form.formState.errors.gearbox && (
+              <p className="text-red-500 text-sm mt-1">Please select gearbox type</p>
+            )}
+          </div>
+        </div>
+        
+        <Button 
+          type="submit" 
+          className="h-12 w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
+          onClick={handleSubmit}
+        >
+          Get Valuation
         </Button>
-      </form>
-    </Form>
+      </div>
+    </div>
   );
 };
+
+export default ValuationInput;

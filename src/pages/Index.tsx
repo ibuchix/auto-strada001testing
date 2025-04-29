@@ -5,6 +5,7 @@
  * - 2024-09-08: Fixed export syntax to ensure proper module resolution
  * - 2024-03-28: Fixed component to ensure proper rendering
  * - 2025-05-05: Fixed IndexPage structure and added RealtimeProvider
+ * - 2025-04-29: Removed unnecessary import causing nested provider issues
  */
 
 import React from 'react';

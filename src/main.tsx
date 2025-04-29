@@ -4,15 +4,13 @@
  * - 2024-08-16: Added ErrorProvider for centralized error handling
  * - 2025-04-05: Updated to use new error handling system
  * - 2025-05-05: Fixed structure to ensure proper routing and provider nesting
+ * - 2025-04-29: Fixed provider nesting order to prevent rendering issues
  */
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from './components/AuthProvider';
-import { RealtimeProvider } from './components/RealtimeProvider';
-import { TransactionProvider } from './components/transaction/TransactionProvider';
 import { ThemeProvider } from './components/ui/theme-provider';
 import App from './App';
 import './index.css';
