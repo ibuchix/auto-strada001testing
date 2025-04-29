@@ -9,6 +9,7 @@
  * - 2025-04-30: Disabled average price display
  * - 2025-04-30: Fixed export to named export
  * - 2025-05-03: Added additional logging to troubleshoot dialog rendering
+ * - 2025-05-04: Refactored into smaller components
  */
 
 import { useNavigate } from "react-router-dom";
@@ -16,12 +17,12 @@ import { toast } from "sonner";
 import { ValuationContent } from "./valuation/components/ValuationContent";
 import { useValuationContinue } from "@/hooks/valuation/useValuationContinue";
 import { useState, useEffect } from "react";
-import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { ValuationErrorDialog } from "./valuation/components/dialogs/ValuationErrorDialog";
-import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
 import { normalizeValuationData } from "@/utils/valuation/valuationDataNormalizer";
 import { normalizeTransmission } from "@/utils/validation/validateTypes";
 import { useValuationLogger } from "@/hooks/valuation/useValuationLogger";
+import { ValuationErrorDialog } from "./valuation/components/dialogs/ValuationErrorDialog";
+import { useValuationErrorDialog } from "@/hooks/valuation/useValuationErrorDialog";
+import { ValuationLoadingState } from "./valuation/components/ValuationLoadingState";
 
 interface ValuationResultProps {
   result?: any;
@@ -86,20 +87,12 @@ export const ValuationResult = ({
   // Show loading indicator while validating
   if (!result) {
     console.log("No valuation result provided, showing loading indicator");
-    return (
-      <div className="p-6 text-center">
-        <LoadingIndicator message="Processing valuation..." />
-      </div>
-    );
+    return <ValuationLoadingState message="Processing valuation..." />;
   }
   
   if (isValidatingData) {
     console.log("Still validating data, showing loading indicator");
-    return (
-      <div className="p-6 text-center">
-        <LoadingIndicator message="Processing valuation data..." />
-      </div>
-    );
+    return <ValuationLoadingState message="Processing valuation data..." />;
   }
   
   console.log("Proceeding with data validation and display", {

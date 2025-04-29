@@ -6,14 +6,17 @@
  * - 2025-04-29: Fixed display issues and added more detailed debugging
  * - 2025-04-30: Removed duplicate close button and market price display
  * - 2025-05-03: Completely removed header close button to fix duplicate buttons issue
+ * - 2025-05-04: Refactored to use smaller component pieces
  */
 
 import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
-import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { normalizeTransmission } from "@/utils/validation/validateTypes";
+import { ValuationResultHeader } from "./ValuationResultHeader";
+import { VehicleInformation } from "./VehicleInformation";
+import { ValuationActions } from "./ValuationActions";
+import { IncompleteDataDisplay } from "./IncompleteDataDisplay";
+import { ValuationLoadingState } from "./ValuationLoadingState";
 
 interface ValuationContentProps {
   make: string;
@@ -50,7 +53,6 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
   onClose,
   onContinue,
 }) => {
-  const navigate = useNavigate();
   const normalizedTransmission = normalizeTransmission(transmission);
 
   // Debug logging
@@ -72,11 +74,7 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
   }, [make, model, year, vin, reservePrice, averagePrice, transmission, mileage, hasValuation, isLoggedIn, apiSource]);
 
   if (isLoading) {
-    return (
-      <div className="p-6 text-center">
-        <LoadingIndicator message="Processing valuation..." />
-      </div>
-    );
+    return <ValuationLoadingState message="Processing valuation..." />;
   }
 
   // Check if we have all required data
@@ -86,25 +84,18 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Your Vehicle Valuation</h2>
-        {/* Close button removed to prevent duplication with Dialog's built-in close button */}
-      </div>
+      <ValuationResultHeader title="Your Vehicle Valuation" />
 
       {hasRequiredData ? (
         <div>
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold">
-              {year} {make} {model}
-            </h3>
-            <div className="text-sm text-gray-600 mt-1">
-              <div>VIN: {vin}</div>
-              <div className="mt-1">
-                Transmission: {normalizedTransmission === "automatic" ? "Automatic" : "Manual"}
-              </div>
-              <div className="mt-1">Mileage: {mileage.toLocaleString()} km</div>
-            </div>
-          </div>
+          <VehicleInformation
+            make={make}
+            model={model}
+            year={year}
+            vin={vin}
+            transmission={normalizedTransmission}
+            mileage={mileage}
+          />
 
           <ValuationPriceDisplay
             reservePrice={reservePrice}
@@ -114,44 +105,20 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
             errorDetails={errorDetails}
           />
 
-          <div className="mt-6">
-            <Button 
-              onClick={onContinue}
-              className="w-full"
-              variant="default"
-            >
-              {isLoggedIn ? "Continue to Listing" : "Sign In to Continue"}
-            </Button>
-            <button
-              onClick={onClose}
-              className="w-full mt-3 text-sm text-gray-600 hover:underline"
-            >
-              Cancel
-            </button>
-          </div>
+          <ValuationActions
+            isLoggedIn={isLoggedIn}
+            onContinue={onContinue}
+            onClose={onClose}
+          />
         </div>
       ) : (
-        <div className="p-4 bg-red-50 rounded-md border border-red-200">
-          <p className="text-red-700 font-medium">Incomplete valuation data</p>
-          <p className="text-sm text-red-600 mt-1">
-            We couldn't retrieve complete valuation information for this vehicle. Please try again or 
-            use manual valuation.
-          </p>
-          <p className="text-xs text-red-500 mt-2">
-            Debug info: Make: {make || "missing"}, Model: {model || "missing"}, 
-            Year: {year || "missing"}, Reserve Price: {reservePrice || "missing"}
-          </p>
-          
-          <div className="mt-6">
-            <Button 
-              onClick={onClose}
-              className="w-full"
-              variant="outline"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
+        <IncompleteDataDisplay
+          make={make}
+          model={model}
+          year={year}
+          reservePrice={reservePrice}
+          onClose={onClose}
+        />
       )}
     </div>
   );
