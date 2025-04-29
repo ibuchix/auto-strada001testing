@@ -50,12 +50,12 @@ export function ValuationTester() {
       });
       
       // Use the raw fetch API to get more details on errors
-      const functionUrl = `${supabase.functions.url}/get-vehicle-valuation`;
+      const functionUrl = `${window.location.protocol}//${window.location.host}/.supabase/functions/get-vehicle-valuation`;
       const response = await fetch(functionUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.auth.session()?.access_token || ''}`,
+          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token') || ''}`,
         },
         body: JSON.stringify({ 
           vin, 
