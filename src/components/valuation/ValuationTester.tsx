@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 export function ValuationTester() {
   const [vin, setVin] = useState('WAUZZZ8K79A090954');
@@ -50,57 +51,60 @@ export function ValuationTester() {
         timestamp: new Date().toISOString()
       });
       
-      // Use the raw fetch API to get more details on errors
-      const functionUrl = `${window.location.protocol}//${window.location.host}/.supabase/functions/get-vehicle-valuation`;
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token') || ''}`,
-        },
-        body: JSON.stringify({ 
-          vin, 
-          mileage: Number(mileage), 
-          gearbox
-        })
-      });
+      const { data, error } = await supabase.functions.invoke(
+        'get-vehicle-valuation',
+        {
+          body: { 
+            vin, 
+            mileage: Number(mileage), 
+            gearbox
+          }
+        }
+      );
       
-      // Log raw response information before processing
-      console.log('🚦 Response status:', response.status);
-      console.log('🚦 Response status text:', response.statusText);
-      
-      const responseText = await response.text();
-      console.log('📦 Raw response body:', responseText);
-      
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-        console.log('📦 Parsed response data:', responseData);
-      } catch (parseError) {
-        console.error('📦 Failed to parse response as JSON:', parseError);
-        setErrorDetails(`Failed to parse response: ${responseText}`);
-        throw new Error('Invalid JSON response from server');
+      if (error) {
+        throw error;
       }
       
-      // Check for error in the response
-      if (!response.ok) {
-        console.error('🚫 Error response:', responseData);
-        const errorMessage = responseData?.error || response.statusText || 'Unknown error';
-        setErrorDetails(JSON.stringify(responseData, null, 2));
-        throw new Error(errorMessage);
-      }
+      console.log('📦 Response data:', data);
       
       // Success path
-      setResult(responseData);
+      setResult(data);
       toast.success('Valuation retrieved successfully');
       
     } catch (err: any) {
       console.error('❌ Error testing valuation:', err);
-      toast.error('Valuation Error', {
-        description: err.message || 'Failed to get valuation'
-      });
       
-      if (!errorDetails && err.message) {
+      // Handle FunctionsHttpError specifically to get the response body
+      if (err instanceof FunctionsHttpError) {
+        try {
+          // Get the raw text response from the error
+          const errorText = await err.response.text();
+          console.error(`🛑 Edge function response (${err.status}): ${errorText}`);
+          
+          // Try to parse as JSON if possible
+          try {
+            const errorJson = JSON.parse(errorText);
+            setErrorDetails(JSON.stringify(errorJson, null, 2));
+            toast.error('Valuation Error', {
+              description: errorJson.error || 'Failed to get valuation'
+            });
+          } catch (parseError) {
+            // If not valid JSON, just use the text
+            setErrorDetails(errorText);
+            toast.error('Valuation Error', {
+              description: 'Failed to get valuation'
+            });
+          }
+        } catch (textError) {
+          setErrorDetails(`Could not read error response: ${textError.message}`);
+        }
+      } else {
+        // Handle other types of errors
+        toast.error('Valuation Error', {
+          description: err.message || 'Failed to get valuation'
+        });
+        
         setErrorDetails(`Error: ${err.message}`);
       }
     } finally {
@@ -184,3 +188,4 @@ export function ValuationTester() {
     </Card>
   );
 }
+
