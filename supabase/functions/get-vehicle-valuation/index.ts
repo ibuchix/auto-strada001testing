@@ -5,6 +5,7 @@
  * - Fixes URL string interpolation
  * - Adds detailed error handling for external API
  * - Logs environment variable checks and response statuses
+ * - Removes external GitHub dependencies to avoid rate limits
  */
 import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";

@@ -1,9 +1,42 @@
 
 project_id = "sdvakfhmoaoucmhbhwvy"
 
-[functions.get-vehicle-valuation]
-verify_jwt = false
+[api]
+enabled = true
+max_rows = 1000
 
-[functions.get-vehicle-valuation.environment]
-CAR_API_ID = "AUTOSTRA"
-CAR_API_SECRET = "A4FTFH54C3E37P2D34A16A7A4V41XKBF"
+[[edge_functions]]
+name = "process-image"
+verify_jwt = true
+
+[[edge_functions]]
+name = "create-car-listing"
+verify_jwt = true
+
+[[edge_functions]]
+name = "send-dealer-welcome"
+verify_jwt = true
+
+[[edge_functions]]
+name = "email-templates"
+verify_jwt = true
+
+[[edge_functions]]
+name = "send-email"
+verify_jwt = true
+
+[[edge_functions]]
+name = "get-vehicle-valuation"
+verify_jwt = true
+
+[[edge_functions]]
+name = "handle-seller-operations"
+verify_jwt = true
+
+[[edge_functions]]
+name = "send-valuation-notification"
+verify_jwt = true
+
+[[edge_functions]]
+name = "validate-vin"
+verify_jwt = true

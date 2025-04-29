@@ -1,17 +1,60 @@
+
 /**
  * Edge function for sending valuation notifications
- * Updated: 2025-04-19 - Switched to use shared utilities from central repository
+ * Updated: 2025-04-29 - Removed external GitHub dependencies to avoid rate limits
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { 
-  corsHeaders,
-  handleCorsOptions,
-  logOperation,
-  formatSuccessResponse,
-  formatErrorResponse,
-  validateRequest
-} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
+
+// CORS headers for cross-origin requests
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+};
+
+// Handle CORS preflight requests
+function handleCorsOptions() {
+  return new Response(null, {
+    headers: corsHeaders,
+    status: 204,
+  });
+}
+
+// Logging utility
+function logOperation(operation: string, details: Record<string, any> = {}, level: 'info' | 'warn' | 'error' = 'info') {
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    operation,
+    level,
+    ...details
+  }));
+}
+
+// Response formatting utilities
+function formatSuccessResponse(data: any) {
+  return new Response(
+    JSON.stringify({ success: true, data }),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
+    }
+  );
+}
+
+function formatErrorResponse(error: string, status = 400) {
+  return new Response(
+    JSON.stringify({ 
+      success: false, 
+      error,
+      code: 'ERROR'
+    }),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status
+    }
+  );
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
