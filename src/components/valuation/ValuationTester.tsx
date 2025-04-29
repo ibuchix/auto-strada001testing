@@ -3,6 +3,7 @@
  * A testing interface for the get-vehicle-valuation edge function
  * Created: 2025-04-28
  * Updated: 2025-04-29 - Added gearbox parameter to fix 400 Bad Request error
+ * Updated: 2025-04-30 - Enhanced error handling to display detailed API errors
  */
 
 import { useState } from 'react';
