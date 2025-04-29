@@ -5,6 +5,7 @@
  * - Updated 2025-05-03: Simplified price display with strict validation
  * - Updated 2025-05-03: Enhanced debugging for price data availability
  * - Updated 2025-04-23: Updated to use consolidated price utilities
+ * - Updated 2025-04-29: Removed market price display as per business requirements
  */
 
 import { formatCurrency } from "@/utils/priceUtils";
@@ -20,7 +21,7 @@ interface ValuationPriceDisplayProps {
 
 export const ValuationPriceDisplay = ({ 
   reservePrice, 
-  showAveragePrice = false,
+  showAveragePrice = false, // We'll ignore this prop now
   averagePrice,
   errorDetails,
   apiSource = 'auto_iso'
@@ -43,14 +44,9 @@ export const ValuationPriceDisplay = ({
   const validReservePrice = typeof reservePrice === 'number' && !isNaN(reservePrice) && reservePrice > 0 
     ? reservePrice 
     : 0;
-    
-  const validAveragePrice = typeof averagePrice === 'number' && !isNaN(averagePrice) && averagePrice > 0
-    ? averagePrice 
-    : 0;
   
   // Determine if we have valid prices to display
   const hasValidReservePrice = validReservePrice > 0;
-  const hasValidAveragePrice = validAveragePrice > 0 && showAveragePrice;
   
   return (
     <div className="mt-4 p-5 bg-gray-50 rounded-lg border border-gray-100">
@@ -60,16 +56,7 @@ export const ValuationPriceDisplay = ({
             <h3 className="text-sm font-medium text-gray-500">Reserve Price</h3>
             <p className="text-2xl font-bold text-DC143C">{formatCurrency(validReservePrice)}</p>
           </div>
-        ) : null}
-        
-        {hasValidAveragePrice ? (
-          <div>
-            <h3 className="text-sm font-medium text-gray-500">Market Value</h3>
-            <p className="text-xl font-semibold text-gray-700">{formatCurrency(validAveragePrice)}</p>
-          </div>
-        ) : null}
-        
-        {!hasValidReservePrice && !hasValidAveragePrice && (
+        ) : (
           <div>
             <h3 className="text-sm font-medium text-gray-500">Price Information</h3>
             <p className="text-base text-gray-700">Price data not available</p>

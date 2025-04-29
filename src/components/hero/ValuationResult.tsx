@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-04-27: Consolidated duplicate ValuationResult components into a single component
@@ -6,6 +5,7 @@
  * - 2025-04-27: Updated useValuationContinue import path
  * - 2025-04-28: Fixed type incompatibility between different TransmissionType definitions
  * - 2025-04-29: Fixed loading state handling and added console debugging for valuation data
+ * - 2025-04-30: Disabled average price display
  */
 
 import { useNavigate } from "react-router-dom";

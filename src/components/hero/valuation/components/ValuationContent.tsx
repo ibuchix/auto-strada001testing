@@ -4,6 +4,7 @@
  * - 2025-04-27: Added debugging logs for props
  * - 2025-04-27: Enhanced price validation and display
  * - 2025-04-29: Fixed display issues and added more detailed debugging
+ * - 2025-04-30: Removed duplicate close button and market price display
  */
 
 import React, { useEffect } from "react";
@@ -61,7 +62,7 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
       vin,
       reservePrice,
       averagePrice,
-      hasPricingData: reservePrice > 0 || averagePrice > 0,
+      hasPricingData: reservePrice > 0,
       transmission: normalizedTransmission,
       mileage,
       hasValuation,
@@ -114,7 +115,7 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
           <ValuationPriceDisplay
             reservePrice={reservePrice}
             averagePrice={averagePrice}
-            showAveragePrice={true}
+            showAveragePrice={false} // Never show average/market price
             apiSource={apiSource}
             errorDetails={errorDetails}
           />
