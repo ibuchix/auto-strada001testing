@@ -78,9 +78,9 @@ export function ValuationTester() {
       // Handle FunctionsHttpError specifically to get the response body
       if (err instanceof FunctionsHttpError) {
         try {
-          // Get the raw text response from the error
-          const errorText = await err.response.text();
-          console.error(`🛑 Edge function response (${err.status}): ${errorText}`);
+          // Get the raw text response
+          const errorText = await err.text();
+          console.error(`🛑 Edge function response (${err.code}): ${errorText}`);
           
           // Try to parse as JSON if possible
           try {
