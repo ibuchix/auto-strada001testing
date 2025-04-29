@@ -5,6 +5,7 @@
  * Updated: 2025-04-07 - Fixed error fallback function type
  * Updated: 2025-04-08 - Fixed fallback function React.ReactNode issue
  * Updated: 2025-04-11 - Ensured ErrorFallback function explicitly returns ReactNode
+ * Updated: 2025-04-29 - Added ValuationTest route
  */
 
 import { Routes, Route } from "react-router-dom";
@@ -23,6 +24,7 @@ import Privacy from "@/pages/Privacy";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import ManualValuation from "@/pages/ManualValuation";
+import ValuationTestPage from "@/pages/ValuationTest";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ResetPassword } from "@/components/auth/ResetPassword";
@@ -76,6 +78,7 @@ function App() {
               <Route path="/auth/update-password" element={<UpdatePassword />} />
               <Route path="/seller-registration-repair" element={<SellerRegistrationRepairPage />} />
               <Route path="/diagnostics" element={<DiagnosticsPage />} />
+              <Route path="/valuation-test" element={<ValuationTestPage />} />
             </Routes>
             <Toaster />
           </TransactionProvider>

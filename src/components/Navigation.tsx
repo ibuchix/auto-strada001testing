@@ -1,115 +1,102 @@
 
 /**
- * Changes made:
- * - 2024-07-02: Fixed the userRole state to properly detect and pass user role to NavLinks
- * - 2024-07-05: Updated to use both profile and user metadata for role detection
+ * Navigation component
+ * Updated: 2025-04-29 - Added ValuationTest page link
  */
-
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/components/AuthProvider";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
-import { useEffect, useState } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { NavLinks } from "./navigation/NavLinks";
-import { MobileNav } from "./navigation/MobileNav";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { NavLinks } from "@/components/navigation/NavLinks";
+import { MobileNav } from "@/components/navigation/MobileNav";
 
 export const Navigation = () => {
-  const { session } = useAuth();
-  const { toast } = useToast();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const isMobile = useIsMobile();
-
-  useEffect(() => {
-    if (session) {
-      const fetchUserRole = async () => {
-        // First check user metadata
-        if (session.user.user_metadata?.role) {
-          setUserRole(session.user.user_metadata.role);
-          return;
-        }
-
-        // If not in metadata, check profiles table
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-
-        if (!error && profile) {
-          setUserRole(profile.role);
-          
-          // Update user metadata to match profile role for future reference
-          if (profile.role && !session.user.user_metadata?.role) {
-            await supabase.auth.updateUser({
-              data: { role: profile.role }
-            });
-          }
-        } else {
-          console.error('Error fetching user role:', error);
-          
-          // Check if user is a seller by checking the sellers table
-          const { data: seller, error: sellerError } = await supabase
-            .from('sellers')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
-            
-          if (!sellerError && seller) {
-            setUserRole('seller');
-            
-            // Create profile and update metadata
-            await supabase.rpc('register_seller', {
-              p_user_id: session.user.id
-            });
-          }
-        }
-      };
-
-      fetchUserRole();
-    } else {
-      // Reset role when logged out
-      setUserRole(null);
-    }
-  }, [session]);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Signed out",
-      description: "You have been successfully signed out.",
-    });
-  };
+  const { user, signOut } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 w-full bg-white shadow-sm z-50">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2">
-            <img 
-              src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" 
-              alt="Auto-Strada Logo" 
-              className="h-8" 
-            />
-          </Link>
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
+      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <Link to="/" className="flex items-center space-x-2">
+          <span className="text-2xl font-bold text-[#DC143C]">Autostrada</span>
+        </Link>
+
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center gap-6">
+          <NavLinks />
           
-          {isMobile ? (
-            <MobileNav 
-              userRole={userRole} 
-              onSignOut={handleSignOut} 
-              session={!!session} 
-            />
-          ) : (
-            <div className="hidden md:flex items-center space-x-8">
-              <NavLinks 
-                userRole={userRole} 
-                onSignOut={handleSignOut} 
-                session={!!session} 
-              />
+          {user ? (
+            <div className="flex items-center gap-4">
+              <Link 
+                to={user.user_metadata?.role === 'dealer' ? '/dashboard/dealer' : '/dashboard/seller'}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                Dashboard
+              </Link>
+              <Button variant="outline" onClick={signOut}>
+                Sign Out
+              </Button>
             </div>
+          ) : (
+            <Link to="/auth">
+              <Button>Sign In</Button>
+            </Link>
           )}
         </div>
+        
+        {/* Development tools section */}
+        <div className="hidden md:flex items-center ml-4 border-l pl-4 border-gray-200">
+          <Link to="/diagnostics" className="text-sm text-gray-500 hover:text-gray-700 mr-3">
+            Diagnostics
+          </Link>
+          <Link to="/valuation-test" className="text-sm text-gray-500 hover:text-gray-700">
+            Valuation Test
+          </Link>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="md:hidden">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="text-gray-600"
+          >
+            {mobileMenuOpen ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile Menu Dropdown */}
+      {mobileMenuOpen && <MobileNav closeMenu={() => setMobileMenuOpen(false)} />}
     </nav>
   );
 };
