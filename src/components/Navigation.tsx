@@ -1,8 +1,8 @@
 
 /**
  * Navigation component
- * Updated: 2025-04-29 - Added ValuationTest page link
  * Updated: 2025-04-29 - Fixed auth hook usage and component prop types
+ * Updated: 2025-05-04 - Removed diagnostic and valuation test links
  */
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
@@ -32,16 +32,6 @@ export const Navigation = () => {
             onSignOut={signOut}
             session={!!session} 
           />
-        </div>
-        
-        {/* Development tools section */}
-        <div className="hidden md:flex items-center ml-4 border-l pl-4 border-gray-200">
-          <Link to="/diagnostics" className="text-sm text-gray-500 hover:text-gray-700 mr-3">
-            Diagnostics
-          </Link>
-          <Link to="/valuation-test" className="text-sm text-gray-500 hover:text-gray-700">
-            Valuation Test
-          </Link>
         </div>
 
         {/* Mobile Navigation */}
@@ -95,4 +85,4 @@ export const Navigation = () => {
       )}
     </nav>
   );
-};
+}

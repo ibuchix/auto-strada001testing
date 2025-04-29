@@ -7,6 +7,7 @@
  * Updated: 2025-05-01 - Fixed FunctionsHttpError handling to use context.json()
  * Updated: 2025-05-02 - Fixed TypeScript error by using 'code' property instead of 'status'
  * Updated: 2025-05-03 - Added display of reserve price calculation details
+ * Updated: 2025-05-04 - This component is no longer accessible from the UI
  */
 
 import { useState } from 'react';
