@@ -5,6 +5,7 @@
  * - Added optimized form validation with React Hook Form
  * - Improved mobile handling with enhanced UI feedback
  * - 2025-04-20: Fixed type imports to use correct location
+ * - 2025-05-03: Added onReset prop to component interface
  */
 
 import { Input } from "@/components/ui/input";
@@ -23,16 +24,17 @@ interface ValuationInputProps {
     formState: { isSubmitting: boolean };
   };
   isLoading: boolean;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit?: (e: React.FormEvent) => void;
+  onReset?: () => void;  // Added onReset prop to the interface
 }
 
-export const ValuationInput = ({ form, isLoading, onSubmit }: ValuationInputProps) => {
+export const ValuationInput = ({ form, isLoading, onSubmit, onReset }: ValuationInputProps) => {
   const isMobile = useIsMobile();
   
   // Optimized event handler with proper type
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoading) {
+    if (!isLoading && onSubmit) {
       onSubmit(e);
     }
   }, [onSubmit, isLoading]);
