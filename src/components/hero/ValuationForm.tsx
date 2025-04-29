@@ -2,11 +2,13 @@
 /**
  * Changes made:
  * - 2025-04-29: Fixed form structure to prevent nested forms
+ * - 2025-04-30: Fixed import of ValuationResult (using named import)
+ * - 2025-04-30: Fixed parameter types in onSubmit handler
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import ValuationInput from './ValuationInput';
-import ValuationResult from './ValuationResult';
+import { ValuationResult } from './ValuationResult';
 import { useValuationForm } from '@/hooks/valuation/useValuationForm';
 
 export const ValuationForm = () => {
@@ -23,7 +25,7 @@ export const ValuationForm = () => {
   return (
     <div className="w-full max-w-md mx-auto bg-white/5 backdrop-blur-lg rounded-xl p-5 shadow-lg">
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <ValuationInput onSubmit={form.handleSubmit(onSubmit)} />
+        <ValuationInput form={form} />
       </form>
 
       {valuationResult && (

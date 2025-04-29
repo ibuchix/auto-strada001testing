@@ -7,6 +7,7 @@
  * - 2025-04-28: Fixed type incompatibility between different TransmissionType definitions
  * - 2025-04-29: Fixed loading state handling and added console debugging for valuation data
  * - 2025-04-30: Disabled average price display
+ * - 2025-04-30: Fixed export to named export
  * - 2025-05-03: Added additional logging to troubleshoot dialog rendering
  */
 
@@ -23,33 +24,17 @@ import { normalizeTransmission } from "@/utils/validation/validateTypes";
 import { useValuationLogger } from "@/hooks/valuation/useValuationLogger";
 
 interface ValuationResultProps {
-  valuationResult: {
-    make?: string;
-    model?: string;
-    year?: number;
-    vin?: string;
-    transmission?: string;
-    valuation?: number;
-    averagePrice?: number;
-    reservePrice?: number;
-    isExisting?: boolean;
-    error?: string;
-    noData?: boolean;
-    apiSource?: string;
-    errorDetails?: string;
-    data?: any; // For nested data structure
-    functionResponse?: any; // For nested functionResponse
-  } | null;
-  onContinue: () => void;
-  onClose: () => void;
-  onRetry?: () => void;
+  result?: any;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onReset?: () => void;
 }
 
 export const ValuationResult = ({ 
-  valuationResult, 
-  onContinue, 
-  onClose,
-  onRetry 
+  result, 
+  open = false,
+  onOpenChange,
+  onReset
 }: ValuationResultProps) => {
   const [isValidatingData, setIsValidatingData] = useState(true);
   const { 
@@ -61,11 +46,11 @@ export const ValuationResult = ({
   const { handleContinue, isLoggedIn } = useValuationContinue();
 
   // Enhanced debug logging
-  console.log("ValuationResult component rendering with data:", valuationResult);
+  console.log("ValuationResult component rendering with data:", result);
   
   // Enhanced logging of the valuation result
   useValuationLogger({
-    data: valuationResult,
+    data: result,
     stage: 'ValuationResult-Initial',
     enabled: true,
     inspectNested: true
@@ -79,13 +64,27 @@ export const ValuationResult = ({
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [valuationResult]);
+  }, [result]);
   
   // Get mileage from localStorage
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0', 10);
 
+  // Close the dialog when requested
+  const onClose = () => {
+    if (onOpenChange) {
+      onOpenChange(false);
+    }
+  };
+
+  // Handle retry action
+  const onRetry = () => {
+    if (onReset) {
+      onReset();
+    }
+  };
+
   // Show loading indicator while validating
-  if (!valuationResult) {
+  if (!result) {
     console.log("No valuation result provided, showing loading indicator");
     return (
       <div className="p-6 text-center">
@@ -104,18 +103,18 @@ export const ValuationResult = ({
   }
   
   console.log("Proceeding with data validation and display", {
-    hasError: !!valuationResult.error,
-    hasNoData: !!valuationResult.noData,
-    make: valuationResult.make,
-    model: valuationResult.model,
-    year: valuationResult.year,
-    reservePrice: valuationResult.reservePrice
+    hasError: !!result.error,
+    hasNoData: !!result.noData,
+    make: result.make,
+    model: result.model,
+    year: result.year,
+    reservePrice: result.reservePrice
   });
   
   // Normalize the valuation data
   const normalizedData = normalizeValuationData(
-    valuationResult,
-    valuationResult.vin || '',
+    result,
+    result.vin || '',
     mileage
   );
 
@@ -144,22 +143,21 @@ export const ValuationResult = ({
     
     return (
       <ValuationErrorDialog
-        isOpen={true}
+        isOpen={open}
         onClose={() => {
           setErrorDialogOpen(false);
           onClose();
         }}
         onRetry={() => {
           setErrorDialogOpen(false);
-          if (onRetry) onRetry();
+          onRetry();
         }}
         onManualValuation={() => {
           setErrorDialogOpen(false);
           if (isVinError) {
             navigate('/manual-valuation');
           } else {
-            if (onRetry) onRetry();
-            else onClose();
+            onRetry();
           }
         }}
         error={errorMessage}

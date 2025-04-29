@@ -5,6 +5,7 @@
  * - 2024-04-04: Fixed type imports
  * - 2025-04-06: Fixed property naming to match useValuationState hook
  * - 2025-05-10: Fixed executeRequest implementation to use requestValuation
+ * - 2025-04-30: Fixed type definition for onSubmit to match React Hook Form
  */
 
 import { useForm } from "react-hook-form";
@@ -34,8 +35,8 @@ export const useValuationForm = (): UseValuationFormResult => {
   const {
     isLoading,
     setIsLoading,
-    dialogOpen, // Fixed: using dialogOpen instead of showDialog
-    setDialogOpen, // Fixed: using setDialogOpen instead of setShowDialog
+    dialogOpen,
+    setDialogOpen,
     valuationResult,
     setValuationResult,
     resetState
@@ -79,10 +80,10 @@ export const useValuationForm = (): UseValuationFormResult => {
   return {
     form,
     isLoading,
-    showDialog: dialogOpen, // Fixed: mapping dialogOpen to showDialog for API consistency
-    setShowDialog: setDialogOpen, // Fixed: mapping setDialogOpen to setShowDialog
+    showDialog: dialogOpen,
+    setShowDialog: setDialogOpen,
     valuationResult,
-    onSubmit: form.handleSubmit(onSubmit),
+    onSubmit,
     resetForm,
   };
 };

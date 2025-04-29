@@ -2,36 +2,21 @@
 /**
  * Changes made:
  * - 2025-04-29: Removed FormProvider wrapper to prevent nested form issue
+ * - 2025-04-30: Refactored to accept form from parent and fix type issues
  */
 
 import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { UseFormReturn } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ValuationFormData } from '@/types/validation';
 
-const ValuationInput = ({ onSubmit }: { onSubmit: (data: any) => void }) => {
-  const formSchema = z.object({
-    vin: z.string().min(17).max(17),
-    mileage: z.string().min(1),
-    gearbox: z.enum(['manual', 'automatic']),
-  });
+interface ValuationInputProps {
+  form: UseFormReturn<ValuationFormData>;
+}
 
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      vin: '',
-      mileage: '',
-      gearbox: 'manual',
-    },
-  });
-
-  const handleSubmit = form.handleSubmit((data) => {
-    onSubmit(data);
-  });
-
+const ValuationInput = ({ form }: ValuationInputProps) => {
   return (
     <div className="space-y-4">
       <div className="grid gap-3">
@@ -82,7 +67,6 @@ const ValuationInput = ({ onSubmit }: { onSubmit: (data: any) => void }) => {
         <Button 
           type="submit" 
           className="h-12 w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
-          onClick={handleSubmit}
         >
           Get Valuation
         </Button>
