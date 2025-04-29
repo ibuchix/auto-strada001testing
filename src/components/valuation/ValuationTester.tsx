@@ -5,6 +5,7 @@
  * Updated: 2025-04-29 - Added gearbox parameter to fix 400 Bad Request error
  * Updated: 2025-04-30 - Enhanced error handling to display detailed API errors
  * Updated: 2025-05-01 - Fixed FunctionsHttpError handling to use context.json()
+ * Updated: 2025-05-02 - Fixed TypeScript error by using 'code' property instead of 'status'
  */
 
 import { useState } from 'react';
@@ -81,7 +82,7 @@ export function ValuationTester() {
         try {
           // Use context.json() to get the error details
           const errorJson = await err.context.json();
-          console.error(`🛑 Edge function error (${err.status}):`, errorJson);
+          console.error(`🛑 Edge function error (${err.code}):`, errorJson);
           
           setErrorDetails(JSON.stringify(errorJson, null, 2));
           toast.error('Valuation Error', {
