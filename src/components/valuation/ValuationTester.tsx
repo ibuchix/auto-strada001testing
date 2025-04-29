@@ -4,6 +4,7 @@
  * Created: 2025-04-28
  * Updated: 2025-04-29 - Added gearbox parameter to fix 400 Bad Request error
  * Updated: 2025-04-30 - Enhanced error handling to display detailed API errors
+ * Updated: 2025-05-01 - Fixed FunctionsHttpError handling to use context.json()
  */
 
 import { useState } from 'react';
@@ -78,26 +79,22 @@ export function ValuationTester() {
       // Handle FunctionsHttpError specifically to get the response body
       if (err instanceof FunctionsHttpError) {
         try {
-          // Get the raw text response
-          const errorText = await err.text();
-          console.error(`🛑 Edge function response (${err.code}): ${errorText}`);
+          // Use context.json() to get the error details
+          const errorJson = await err.context.json();
+          console.error(`🛑 Edge function error (${err.status}):`, errorJson);
           
-          // Try to parse as JSON if possible
-          try {
-            const errorJson = JSON.parse(errorText);
-            setErrorDetails(JSON.stringify(errorJson, null, 2));
-            toast.error('Valuation Error', {
-              description: errorJson.error || 'Failed to get valuation'
-            });
-          } catch (parseError) {
-            // If not valid JSON, just use the text
-            setErrorDetails(errorText);
-            toast.error('Valuation Error', {
-              description: 'Failed to get valuation'
-            });
-          }
-        } catch (textError) {
-          setErrorDetails(`Could not read error response: ${textError.message}`);
+          setErrorDetails(JSON.stringify(errorJson, null, 2));
+          toast.error('Valuation Error', {
+            description: errorJson.error || 'Failed to get valuation'
+          });
+        } catch (parseError) {
+          // Fallback if JSON parsing fails
+          console.error('Error parsing JSON from FunctionsHttpError:', parseError);
+          setErrorDetails(`Error parsing response: ${parseError.message}`);
+          
+          toast.error('Valuation Error', {
+            description: 'Failed to get valuation'
+          });
         }
       } else {
         // Handle other types of errors
