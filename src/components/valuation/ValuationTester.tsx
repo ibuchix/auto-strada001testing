@@ -20,6 +20,7 @@ export function ValuationTester() {
   const [gearbox, setGearbox] = useState('manual');
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   const testValuation = async () => {
     if (!vin || vin.length !== 17) {
@@ -37,29 +38,70 @@ export function ValuationTester() {
     }
 
     setLoading(true);
+    setErrorDetails(null);
     
     try {
-      const { data, error } = await supabase.functions.invoke(
-        'get-vehicle-valuation',
-        {
-          body: { 
-            vin, 
-            mileage: Number(mileage),
-            gearbox // Include the gearbox parameter
-          }
-        }
-      );
+      // Make the request
+      console.log('📤 Sending valuation request:', { 
+        vin, 
+        mileage: Number(mileage), 
+        gearbox,
+        timestamp: new Date().toISOString()
+      });
       
-      if (error) throw error;
+      // Use the raw fetch API to get more details on errors
+      const functionUrl = `${supabase.functions.url}/get-vehicle-valuation`;
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase.auth.session()?.access_token || ''}`,
+        },
+        body: JSON.stringify({ 
+          vin, 
+          mileage: Number(mileage), 
+          gearbox
+        })
+      });
       
-      setResult(data);
+      // Log raw response information before processing
+      console.log('🚦 Response status:', response.status);
+      console.log('🚦 Response status text:', response.statusText);
+      
+      const responseText = await response.text();
+      console.log('📦 Raw response body:', responseText);
+      
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+        console.log('📦 Parsed response data:', responseData);
+      } catch (parseError) {
+        console.error('📦 Failed to parse response as JSON:', parseError);
+        setErrorDetails(`Failed to parse response: ${responseText}`);
+        throw new Error('Invalid JSON response from server');
+      }
+      
+      // Check for error in the response
+      if (!response.ok) {
+        console.error('🚫 Error response:', responseData);
+        const errorMessage = responseData?.error || response.statusText || 'Unknown error';
+        setErrorDetails(JSON.stringify(responseData, null, 2));
+        throw new Error(errorMessage);
+      }
+      
+      // Success path
+      setResult(responseData);
       toast.success('Valuation retrieved successfully');
       
     } catch (err: any) {
-      console.error('Error testing valuation:', err);
+      console.error('❌ Error testing valuation:', err);
       toast.error('Valuation Error', {
         description: err.message || 'Failed to get valuation'
       });
+      
+      if (!errorDetails && err.message) {
+        setErrorDetails(`Error: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -116,6 +158,17 @@ export function ValuationTester() {
           {loading ? 'Testing...' : 'Get Valuation'}
         </Button>
       </div>
+
+      {errorDetails && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold text-red-600 mb-2">Error Details:</h3>
+          <div className="bg-red-50 border border-red-200 p-4 rounded-md">
+            <pre className="whitespace-pre-wrap overflow-auto max-h-96 text-sm text-red-800">
+              {errorDetails}
+            </pre>
+          </div>
+        </div>
+      )}
 
       {result && (
         <div className="mt-6">
