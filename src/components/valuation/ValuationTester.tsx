@@ -6,6 +6,7 @@
  * Updated: 2025-04-30 - Enhanced error handling to display detailed API errors
  * Updated: 2025-05-01 - Fixed FunctionsHttpError handling to use context.json()
  * Updated: 2025-05-02 - Fixed TypeScript error by using 'code' property instead of 'status'
+ * Updated: 2025-05-03 - Added display of reserve price calculation details
  */
 
 import { useState } from 'react';
@@ -59,7 +60,8 @@ export function ValuationTester() {
           body: { 
             vin, 
             mileage: Number(mileage), 
-            gearbox
+            gearbox,
+            debug: true // Enable detailed response
           }
         }
       );
@@ -108,6 +110,39 @@ export function ValuationTester() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to calculate which price tier was used
+  const getPriceTier = (basePrice: number) => {
+    if (!basePrice) return null;
+    
+    if (basePrice <= 15000) return { range: '0 - 15,000 PLN', percentage: '65%' };
+    else if (basePrice <= 20000) return { range: '15,001 - 20,000 PLN', percentage: '46%' };
+    else if (basePrice <= 30000) return { range: '20,001 - 30,000 PLN', percentage: '37%' };
+    else if (basePrice <= 50000) return { range: '30,001 - 50,000 PLN', percentage: '27%' };
+    else if (basePrice <= 60000) return { range: '50,001 - 60,000 PLN', percentage: '27%' };
+    else if (basePrice <= 70000) return { range: '60,001 - 70,000 PLN', percentage: '22%' };
+    else if (basePrice <= 80000) return { range: '70,001 - 80,000 PLN', percentage: '23%' };
+    else if (basePrice <= 100000) return { range: '80,001 - 100,000 PLN', percentage: '24%' };
+    else if (basePrice <= 130000) return { range: '100,001 - 130,000 PLN', percentage: '20%' };
+    else if (basePrice <= 160000) return { range: '130,001 - 160,000 PLN', percentage: '18.5%' };
+    else if (basePrice <= 200000) return { range: '160,001 - 200,000 PLN', percentage: '22%' };
+    else if (basePrice <= 250000) return { range: '200,001 - 250,000 PLN', percentage: '17%' };
+    else if (basePrice <= 300000) return { range: '250,001 - 300,000 PLN', percentage: '18%' };
+    else if (basePrice <= 400000) return { range: '300,001 - 400,000 PLN', percentage: '18%' };
+    else if (basePrice <= 500000) return { range: '400,001 - 500,000 PLN', percentage: '16%' };
+    else return { range: '500,001+ PLN', percentage: '14.5%' };
+  };
+
+  // Calculate the expected reserve price for display purposes
+  const calculateExpectedReservePrice = (basePrice: number) => {
+    if (!basePrice) return null;
+    
+    const tier = getPriceTier(basePrice);
+    if (!tier) return null;
+    
+    const percentageValue = parseFloat(tier.percentage.replace('%', '')) / 100;
+    return Math.round(basePrice - (basePrice * percentageValue));
   };
 
   return (
@@ -175,7 +210,65 @@ export function ValuationTester() {
 
       {result && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-2">Result:</h3>
+          <h3 className="text-lg font-semibold mb-2">Vehicle Information:</h3>
+          <div className="bg-muted p-4 rounded-md mb-4">
+            <dl className="space-y-2">
+              <div className="grid grid-cols-2">
+                <dt className="font-medium">Make:</dt>
+                <dd>{result.make}</dd>
+              </div>
+              <div className="grid grid-cols-2">
+                <dt className="font-medium">Model:</dt>
+                <dd>{result.model}</dd>
+              </div>
+              <div className="grid grid-cols-2">
+                <dt className="font-medium">Year:</dt>
+                <dd>{result.year}</dd>
+              </div>
+              <div className="grid grid-cols-2">
+                <dt className="font-medium">Mileage:</dt>
+                <dd>{result.mileage} km</dd>
+              </div>
+            </dl>
+          </div>
+          
+          <h3 className="text-lg font-semibold mb-2">Valuation Details:</h3>
+          <div className="bg-muted p-4 rounded-md mb-4">
+            <dl className="space-y-2">
+              <div className="grid grid-cols-2">
+                <dt className="font-medium">Market Value:</dt>
+                <dd>{result.valuation?.toLocaleString()} PLN</dd>
+              </div>
+              <div className="grid grid-cols-2">
+                <dt className="font-medium">Base Price:</dt>
+                <dd>{result.basePrice?.toLocaleString()} PLN</dd>
+              </div>
+              <div className="grid grid-cols-2">
+                <dt className="font-medium">Price Tier:</dt>
+                <dd>{getPriceTier(result.basePrice)?.range}</dd>
+              </div>
+              <div className="grid grid-cols-2">
+                <dt className="font-medium">Discount Rate:</dt>
+                <dd>{getPriceTier(result.basePrice)?.percentage}</dd>
+              </div>
+              <div className="grid grid-cols-2 text-primary">
+                <dt className="font-medium">Reserve Price:</dt>
+                <dd className="font-bold">{result.reservePrice?.toLocaleString()} PLN</dd>
+              </div>
+              
+              {result.basePrice && result.reservePrice && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-sm">
+                    <span className="font-medium">Reserve Price Calculation:</span><br />
+                    BasePrice - (BasePrice × DiscountRate)<br />
+                    {result.basePrice?.toLocaleString()} - ({result.basePrice?.toLocaleString()} × {getPriceTier(result.basePrice)?.percentage}) = {result.reservePrice?.toLocaleString()} PLN
+                  </p>
+                </div>
+              )}
+            </dl>
+          </div>
+          
+          <h3 className="text-lg font-semibold mb-2">Raw Response:</h3>
           <div className="bg-muted p-4 rounded-md">
             <pre className="whitespace-pre-wrap overflow-auto max-h-96 text-sm">
               {JSON.stringify(result, null, 2)}

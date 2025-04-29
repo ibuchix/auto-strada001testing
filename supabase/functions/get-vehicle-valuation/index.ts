@@ -2,9 +2,10 @@
 /**
  * Revised Supabase Edge Function for Vehicle Valuation
  * - Supports GET (query params) and POST (JSON body)
- * - Fixes URL string interpolation
+ * - Implements proper reserve price calculation based on tiered pricing model
  * - Adds detailed error handling for external API
  * - Logs environment variable checks and response statuses
+ * - Stores raw API response for diagnostics
  */
 import { serve } from "https://deno.land/std@0.217.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
@@ -55,23 +56,64 @@ function calculateMD5(message: string): string {
     .map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * Calculate reserve price based on tiered pricing model
+ * 
+ * Formula: PriceX – (PriceX x PercentageY)
+ * where PriceX is the base price (avg of price_min + price_med)
+ * and PercentageY depends on the PriceX value tier
+ */
+function calculateReservePrice(basePrice: number): number {
+  // Determine percentage based on price range
+  let percentageY: number;
+  
+  if (basePrice <= 15000) percentageY = 0.65;
+  else if (basePrice <= 20000) percentageY = 0.46;
+  else if (basePrice <= 30000) percentageY = 0.37;
+  else if (basePrice <= 50000) percentageY = 0.27; 
+  else if (basePrice <= 60000) percentageY = 0.27;
+  else if (basePrice <= 70000) percentageY = 0.22;
+  else if (basePrice <= 80000) percentageY = 0.23;
+  else if (basePrice <= 100000) percentageY = 0.24;
+  else if (basePrice <= 130000) percentageY = 0.20;
+  else if (basePrice <= 160000) percentageY = 0.185;
+  else if (basePrice <= 200000) percentageY = 0.22;
+  else if (basePrice <= 250000) percentageY = 0.17;
+  else if (basePrice <= 300000) percentageY = 0.18;
+  else if (basePrice <= 400000) percentageY = 0.18;
+  else if (basePrice <= 500000) percentageY = 0.16;
+  else percentageY = 0.145; // for values above 500,000 PLN
+  
+  // Apply formula: PriceX – (PriceX x PercentageY)
+  return Math.round(basePrice - (basePrice * percentageY));
+}
+
 // Normalize nested API response into flat valuation object
 function normalizeValuationData(data: any, vin: string, mileage: number) {
   logOperation('normalize:start', { vin, mileage });
   try {
     const userParams = data?.functionResponse?.userParams || {};
-    const valuation   = data?.functionResponse?.valuation?.calcValuation || {};
+    const valuation = data?.functionResponse?.valuation?.calcValuation || {};
 
-    // Extract market price
-    const marketValue = ['price','price_med','price_avr']
-      .map(key => valuation[key])
-      .find(v => v != null);
+    // Extract required price values with fallbacks
+    const price_min = Number(valuation.price_min) || 0;
+    const price_med = Number(valuation.price_med) || 0;
+    const price_avr = Number(valuation.price_avr) || 0;
+    
+    // Calculate base price (PriceX) as average of price_min and price_med 
+    // per the requirements: price_min + price_med divided by 2
+    const basePrice = price_min && price_med ? (price_min + price_med) / 2 : 
+                      (valuation.price || price_avr || 0);
+
+    // Get market value for display purposes
+    const marketValue = basePrice || price_avr || valuation.price || 0;
+    
     if (!marketValue) {
       throw new Error('No valid price in API response');
     }
     
-    // Extract average price specifically from price_avr in calcValuation
-    const averagePrice = valuation.price_avr ? Number(valuation.price_avr) : Number(marketValue);
+    // Calculate reserve price using the required formula and percentages
+    const reservePrice = calculateReservePrice(basePrice);
 
     const result = {
       make:         userParams.make || '',
@@ -81,15 +123,23 @@ function normalizeValuationData(data: any, vin: string, mileage: number) {
       transmission: userParams.gearbox || 'manual',
       mileage,
       valuation:    Number(marketValue),
-      reservePrice: Math.round(Number(marketValue) * 0.75),
-      averagePrice: averagePrice,
-      basePrice:    Number(marketValue),
+      reservePrice: reservePrice,
+      averagePrice: Number(price_avr || marketValue),
+      minPrice:     price_min,
+      maxPrice:     Number(valuation.price_max || 0),
+      basePrice:    basePrice,
       apiSource:    'autoiso_v3',
       error:        null,
-      noData:       false
+      noData:       false,
+      rawApiResponse: data // Include raw response for diagnostics
     };
 
-    logOperation('normalize:success', { result });
+    logOperation('normalize:success', { 
+      result: {
+        ...result,
+        rawApiResponse: `[${typeof data}:${Object.keys(data).length} keys]` // Don't log entire raw API response
+      }
+    });
     return result;
 
   } catch (err: any) {
@@ -114,11 +164,22 @@ serve(async (req) => {
   // Extract vin & mileage from GET query or POST JSON
   let vin = '';
   let mileage = 0;
+  let gearbox = 'manual';
+
   if (req.method === 'POST') {
     try {
       const body = await req.json();
       vin = body.vin?.trim() || '';
       mileage = Number(body.mileage) || 0;
+      gearbox = body.gearbox || 'manual';
+      
+      if (body.debug) {
+        logOperation('debug_mode:enabled', { 
+          vin, 
+          mileage, 
+          requestId: body.requestId || 'none' 
+        });
+      }
     } catch (_e) {
       vin = '';
       mileage = 0;
@@ -127,8 +188,9 @@ serve(async (req) => {
     const url = new URL(req.url);
     vin = url.searchParams.get('vin')?.trim() || '';
     mileage = Number(url.searchParams.get('mileage') || '0');
+    gearbox = url.searchParams.get('gearbox') || 'manual';
   }
-  logOperation('request:received', { vin, mileage });
+  logOperation('request:received', { vin, mileage, gearbox });
 
   // Validate VIN
   if (vin.length !== 17) {
@@ -161,7 +223,7 @@ serve(async (req) => {
   logOperation('api:calling', { url: apiUrl });
 
   try {
-    const response     = await fetch(apiUrl);
+    const response = await fetch(apiUrl);
     const responseText = await response.text();
 
     logOperation('api:response', { status: response.status, size: responseText.length });
