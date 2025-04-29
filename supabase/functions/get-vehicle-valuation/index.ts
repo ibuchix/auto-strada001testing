@@ -1,6 +1,7 @@
 
 /**
  * Revised Supabase Edge Function for Vehicle Valuation
+ * - Supports GET (query params) and POST (JSON body)
  * - Fixes URL string interpolation
  * - Adds detailed error handling for external API
  * - Logs environment variable checks and response statuses
@@ -107,13 +108,26 @@ serve(async (req) => {
     return formatErrorResponse('Server configuration error', 500, 'CONFIG_ERROR');
   }
 
-  const { searchParams } = new URL(req.url);
-  const vin     = searchParams.get('vin')?.trim() || '';
-  const mileage = Number(searchParams.get('mileage') || '0');
-
+  // Extract vin & mileage from GET query or POST JSON
+  let vin = '';
+  let mileage = 0;
+  if (req.method === 'POST') {
+    try {
+      const body = await req.json();
+      vin = body.vin?.trim() || '';
+      mileage = Number(body.mileage) || 0;
+    } catch (_e) {
+      vin = '';
+      mileage = 0;
+    }
+  } else {
+    const url = new URL(req.url);
+    vin = url.searchParams.get('vin')?.trim() || '';
+    mileage = Number(url.searchParams.get('mileage') || '0');
+  }
   logOperation('request:received', { vin, mileage });
 
-  // VIN validation
+  // Validate VIN
   if (vin.length !== 17) {
     return formatErrorResponse('Invalid VIN; must be 17 characters', 400, 'INVALID_VIN');
   }
