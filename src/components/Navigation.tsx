@@ -2,17 +2,21 @@
 /**
  * Navigation component
  * Updated: 2025-04-29 - Added ValuationTest page link
+ * Updated: 2025-04-29 - Fixed auth hook usage and component prop types
  */
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { NavLinks } from "@/components/navigation/NavLinks";
 import { MobileNav } from "@/components/navigation/MobileNav";
+import { useAuth } from "@/components/AuthProvider";
 
 export const Navigation = () => {
-  const { user, signOut } = useAuth();
+  const { session, isSeller, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Determine user role from session metadata or isSeller
+  const userRole = session?.user?.user_metadata?.role || (isSeller ? 'seller' : null);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
@@ -23,25 +27,11 @@ export const Navigation = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-6">
-          <NavLinks />
-          
-          {user ? (
-            <div className="flex items-center gap-4">
-              <Link 
-                to={user.user_metadata?.role === 'dealer' ? '/dashboard/dealer' : '/dashboard/seller'}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                Dashboard
-              </Link>
-              <Button variant="outline" onClick={signOut}>
-                Sign Out
-              </Button>
-            </div>
-          ) : (
-            <Link to="/auth">
-              <Button>Sign In</Button>
-            </Link>
-          )}
+          <NavLinks 
+            userRole={userRole}
+            onSignOut={signOut}
+            session={!!session} 
+          />
         </div>
         
         {/* Development tools section */}
@@ -96,7 +86,13 @@ export const Navigation = () => {
       </div>
 
       {/* Mobile Menu Dropdown */}
-      {mobileMenuOpen && <MobileNav closeMenu={() => setMobileMenuOpen(false)} />}
+      {mobileMenuOpen && (
+        <MobileNav 
+          userRole={userRole} 
+          onSignOut={signOut} 
+          session={!!session} 
+        />
+      )}
     </nav>
   );
 };

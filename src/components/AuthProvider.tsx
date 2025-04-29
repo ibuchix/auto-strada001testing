@@ -9,6 +9,7 @@
  * - 2024-11-16: Updated to work with Row Level Security policies
  * - 2025-07-14: Enhanced metadata-based seller detection without verification
  * - 2025-07-21: Improved seller detection reliability and added additional logging
+ * - 2025-04-29: Added signOut function to context
  */
 
 import { createContext, useContext, useEffect } from "react";
@@ -25,6 +26,7 @@ interface AuthContextType {
   isSeller: boolean;
   isOffline: boolean;
   refreshSellerStatus: () => Promise<boolean>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -32,13 +34,19 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   isSeller: false,
   isOffline: false,
-  refreshSellerStatus: async () => false
+  refreshSellerStatus: async () => false,
+  signOut: async () => {}
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Use the refactored hook directly in the provider
   const { session, isLoading, isSeller, refreshSellerStatus } = useSellerSession();
   const { isOffline } = useOfflineStatus();
+  
+  // Handle sign out
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
   
   // Debug the auth state to help with troubleshooting
   useEffect(() => {
@@ -83,7 +91,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           isLoading, 
           isSeller,
           isOffline,
-          refreshSellerStatus
+          refreshSellerStatus,
+          signOut
         }}
       >
         {children}
