@@ -1,36 +1,47 @@
 
 /**
- * Hook for handling continuation actions after valuation
+ * Hook for handling the continuation flow after valuation
  * Created: 2025-05-10
  */
 
 import { useNavigate } from "react-router-dom";
-import { useCallback } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/components/AuthProvider";
+import { useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export function useValuationContinue() {
   const navigate = useNavigate();
-  const { session } = useAuth();
-  const isLoggedIn = !!session;
+  const isLoggedIn = !!supabase.auth.getSession;
 
   const handleContinue = useCallback((valuationData: any) => {
-    // Store in localStorage for use in the form
-    localStorage.setItem('valuationData', JSON.stringify(valuationData));
-    localStorage.setItem('valuationTimestamp', Date.now().toString());
-
-    if (!isLoggedIn) {
-      navigate('/auth');
-      toast.info("Please sign in to continue", {
-        description: "Create an account or sign in to list your vehicle for auction."
+    // Store data in localStorage for the next step
+    if (valuationData) {
+      localStorage.setItem('valuationData', JSON.stringify(valuationData));
+    }
+    
+    // Navigate based on auth status
+    if (isLoggedIn) {
+      navigate('/sell-my-car', { 
+        state: { 
+          fromValuation: true,
+          valuationData 
+        } 
       });
     } else {
-      navigate('/sell-my-car?from=valuation');
+      toast.info("Please sign in to continue", {
+        description: "Create an account or sign in to proceed with listing your vehicle."
+      });
+      navigate('/auth', {
+        state: {
+          from: 'valuation',
+          returnTo: '/sell-my-car'
+        }
+      });
     }
   }, [navigate, isLoggedIn]);
 
   return {
-    handleContinue,
-    isLoggedIn
+    isLoggedIn,
+    handleContinue
   };
 }

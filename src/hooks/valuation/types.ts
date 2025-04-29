@@ -2,6 +2,7 @@
 /**
  * Types for valuation hooks
  * Created: 2025-04-30
+ * Updated: 2025-05-10 - Added new hook types
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -10,10 +11,14 @@ import { ValuationFormData } from "@/types/validation";
 export interface UseValuationStateResult {
   isLoading: boolean;
   setIsLoading: (isLoading: boolean) => void;
-  dialogOpen: boolean;
-  setDialogOpen: (open: boolean) => void;
+  showDialog: boolean;
+  setShowDialog: (open: boolean) => void;
   valuationResult: any | null;
   setValuationResult: (result: any | null) => void;
+  retryCount: number;
+  setRetryCount: (count: number) => void;
+  incrementRetryCount: () => void;
+  resetRetryCount: () => void;
   resetState: () => void;
 }
 
@@ -25,4 +30,11 @@ export interface UseValuationFormResult {
   valuationResult: any | null;
   onSubmit: (data: ValuationFormData) => void;
   resetForm: () => void;
+}
+
+export interface UseValuationRequestResult {
+  executeRequest: (vin: string, mileage: number | string, gearbox: string) => Promise<any>;
+  isLoading: boolean;
+  requestId: string;
+  cleanup: () => void;
 }

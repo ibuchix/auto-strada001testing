@@ -4,27 +4,36 @@
  * Created: 2025-05-10
  */
 
-import { useState } from "react";
-import { UseValuationStateResult } from "./types";
+import { useState, useCallback } from "react";
 
-export function useValuationState(): UseValuationStateResult {
+export function useValuationState() {
   const [isLoading, setIsLoading] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
   const [valuationResult, setValuationResult] = useState<any>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  const resetState = () => {
+  const resetState = useCallback(() => {
     setIsLoading(false);
-    setDialogOpen(false);
+    setShowDialog(false);
     setValuationResult(null);
-  };
+    setRetryCount(0);
+  }, []);
+
+  const incrementRetryCount = useCallback(() => {
+    setRetryCount(prev => prev + 1);
+  }, []);
 
   return {
     isLoading,
     setIsLoading,
-    dialogOpen,
-    setDialogOpen,
+    showDialog,
+    setShowDialog,
     valuationResult,
     setValuationResult,
+    retryCount,
+    setRetryCount,
+    incrementRetryCount,
+    resetRetryCount: () => setRetryCount(0),
     resetState
   };
 }

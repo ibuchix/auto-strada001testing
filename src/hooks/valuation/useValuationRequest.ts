@@ -1,124 +1,130 @@
 
 /**
- * Valuation request hook
- * Updated: 2025-04-28 - Enhanced valuation request to handle nested response data
+ * Valuation request hook to handle API interactions
+ * Created: 2025-05-10
  */
 
-import { useState, useCallback } from 'react';
-import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { validateValuationParams } from '@/utils/debugging/enhanced_vin_debugging';
+import { useState, useRef, useCallback } from "react";
+import { toast } from "sonner";
+import { getValuation } from "@/components/hero/valuation/services/valuationService";
+import { validateValuationParams } from "@/utils/debugging/enhanced_vin_debugging";
 
 export function useValuationRequest() {
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const requestIdRef = useRef<string>(Math.random().toString(36).substring(2, 10));
 
-  const requestValuation = useCallback(async (
+  const executeRequest = useCallback(async (
     vin: string,
     mileage: number | string,
-    gearbox: string = 'manual'
+    gearbox: string
   ) => {
-    setIsLoading(true);
-    setError(null);
+    const startTime = performance.now();
     
-    const requestId = crypto.randomUUID();
-    console.log(`[ValuationRequest][${requestId}] Starting request:`, { vin, mileage, gearbox });
+    console.log(`[ValuationRequest][${requestIdRef.current}] Starting request:`, {
+      vin,
+      mileage,
+      gearbox,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Validate and clean parameters
+    const validationResult = validateValuationParams(
+      vin,
+      typeof mileage === 'string' ? parseInt(mileage, 10) : mileage,
+      gearbox
+    );
+    
+    if (!validationResult.valid) {
+      return {
+        success: false, 
+        error: validationResult.error || "Please check your input values"
+      };
+    }
+    
+    // Get the cleaned parameters
+    const { vin: cleanVin, mileage: cleanMileage, gearbox: cleanGearbox } = validationResult.cleanedParams!;
+    
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    setIsLoading(true);
+    
+    // Set a timeout to cancel the operation if it takes too long
+    timeoutRef.current = setTimeout(() => {
+      setIsLoading(false);
+      console.warn(`[ValuationRequest][${requestIdRef.current}] Request timed out after 20 seconds`);
+      return {
+        success: false,
+        error: "Request timed out"
+      };
+    }, 20000); // 20 second timeout
     
     try {
-      // Clean and validate parameters
-      const cleanVin = String(vin).trim().toUpperCase();
-      const cleanMileage = typeof mileage === 'string' ? parseInt(mileage.replace(/[^0-9]/g, ''), 10) : mileage;
-      const cleanGearbox = gearbox.toLowerCase() as 'manual' | 'automatic';
-      
-      // Validate parameters before making the request
-      if (cleanVin.length !== 17 || !/^[A-HJ-NPR-Z0-9]{17}$/.test(cleanVin)) {
-        throw new Error('Invalid VIN format');
-      }
-      
-      if (isNaN(cleanMileage) || cleanMileage < 0 || cleanMileage > 1000000) {
-        throw new Error('Invalid mileage value');
-      }
-      
-      if (!['manual', 'automatic'].includes(cleanGearbox)) {
-        throw new Error('Invalid transmission type');
-      }
-      
-      console.log(`[ValuationRequest][${requestId}] Using cleaned parameters:`, {
+      console.log(`[ValuationRequest][${requestIdRef.current}] Calling getValuation with parameters:`, {
         vin: cleanVin,
         mileage: cleanMileage,
-        gearbox: cleanGearbox
+        gearbox: cleanGearbox,
+        timestamp: new Date().toISOString()
       });
-
-      // Make direct edge function call
-      const { data: edgeFunctionData, error: edgeFunctionError } = await supabase.functions.invoke(
-        'get-vehicle-valuation',
-        {
-          body: {
-            vin: cleanVin,
-            mileage: cleanMileage,
-            gearbox: cleanGearbox,
-            requestId
-          }
-        }
+      
+      const result = await getValuation(
+        cleanVin,
+        cleanMileage,
+        cleanGearbox,
+        { requestId: requestIdRef.current }
       );
-      
-      if (edgeFunctionError) {
-        console.error(`[ValuationRequest][${requestId}] Edge function error:`, edgeFunctionError);
-        throw edgeFunctionError;
-      }
 
-      if (!edgeFunctionData || !edgeFunctionData.success) {
-        console.error(`[ValuationRequest][${requestId}] API error:`, edgeFunctionData);
-        throw new Error(edgeFunctionData?.error || 'Failed to get valuation');
-      }
-      
-      // Log successful response and data structure
-      console.log(`[ValuationRequest][${requestId}] Success:`, {
-        data: edgeFunctionData.data,
-        hasDataObject: !!edgeFunctionData.data,
-        hasVehicleDetails: !!(edgeFunctionData.data?.make && edgeFunctionData.data?.model),
-        hasPricing: !!(edgeFunctionData.data?.reservePrice || edgeFunctionData.data?.valuation)
+      console.log(`[ValuationRequest][${requestIdRef.current}] Valuation result:`, {
+        success: result.success,
+        errorPresent: result.error !== undefined,
+        dataSize: result.data ? JSON.stringify(result.data).length : 0,
+        dataFields: result.data ? Object.keys(result.data) : [],
+        processingTime: `${(performance.now() - startTime).toFixed(2)}ms`,
+        timestamp: new Date().toISOString()
       });
-      
-      // Validate critical data is present
-      if (!edgeFunctionData.data?.make || !edgeFunctionData.data?.model) {
-        console.error(`[ValuationRequest][${requestId}] Missing vehicle details in response:`, edgeFunctionData.data);
-        throw new Error('Vehicle details not found in valuation response');
+
+      // Clear timeout since we got a response
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
 
-      if (!edgeFunctionData.data?.reservePrice && !edgeFunctionData.data?.valuation) {
-        console.error(`[ValuationRequest][${requestId}] Missing pricing data in response:`, edgeFunctionData.data);
-        throw new Error('Pricing information not found in valuation response');
-      }
-      
-      // Set result with standardized data
-      setResult(edgeFunctionData.data);
-      return edgeFunctionData.data;
-      
+      return result;
     } catch (err: any) {
-      console.error(`[ValuationRequest][${requestId}] Error:`, err);
-      const errorMessage = err.message || 'Failed to get valuation';
-      setError(errorMessage);
-      toast.error('Validation Error', {
-        description: errorMessage
-      });
-      return null;
+      console.error(`[ValuationRequest][${requestIdRef.current}] Error:`, err);
+      
+      // Clear timeout since we got a response
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      
+      return {
+        success: false,
+        error: err.message || 'Failed to get vehicle valuation',
+        data: null
+      };
     } finally {
+      const totalDuration = performance.now() - startTime;
+      console.log(`[ValuationRequest][${requestIdRef.current}] Request completed in ${totalDuration.toFixed(2)}ms`);
       setIsLoading(false);
     }
   }, []);
 
-  const reset = useCallback(() => {
-    setResult(null);
-    setError(null);
+  const cleanup = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
   }, []);
 
   return {
-    requestValuation,
+    executeRequest,
     isLoading,
-    result,
-    error,
-    reset
+    requestId: requestIdRef.current,
+    cleanup
   };
 }

@@ -22,6 +22,10 @@ export function useValuationErrorHandling() {
       toast.error("Valuation request timed out", {
         description: "The service took too long to respond. Please try again.",
       });
+    } else if (errorMessage.includes('WebSocket') || errorMessage.includes('connection')) {
+      toast.error("Connection issue detected", {
+        description: "Please check your internet connection and try again.",
+      });
     } else {
       toast.error("Valuation failed", {
         description: errorMessage || "Failed to get vehicle valuation. Please try again.",

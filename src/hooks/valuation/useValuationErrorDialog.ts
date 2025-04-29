@@ -1,28 +1,29 @@
 
 /**
- * Hook for handling valuation error dialog state
- * Created: 2025-04-19
+ * Hook for managing valuation error dialog state
+ * Created: 2025-05-10
  */
 
 import { useState, useCallback } from "react";
 
-export const useValuationErrorDialog = () => {
+export function useValuationErrorDialog() {
   const [isOpen, setIsOpen] = useState(false);
+  const [errorType, setErrorType] = useState<"vin" | "data" | "price" | "general">("general");
+  const [errorMessage, setErrorMessage] = useState("");
   
-  const handleClose = useCallback(() => {
-    console.log('Closing error dialog');
-    setIsOpen(false);
-  }, []);
-  
-  const handleRetry = useCallback(() => {
-    console.log('Retry action from error dialog');
-    setIsOpen(false);
+  const showError = useCallback((message: string, type: "vin" | "data" | "price" | "general" = "general") => {
+    setErrorMessage(message);
+    setErrorType(type);
+    setIsOpen(true);
   }, []);
   
   return {
     isOpen,
     setIsOpen,
-    handleClose,
-    handleRetry
+    errorType,
+    setErrorType,
+    errorMessage, 
+    setErrorMessage,
+    showError
   };
-};
+}
