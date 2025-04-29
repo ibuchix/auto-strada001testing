@@ -5,6 +5,7 @@
  * - 2025-04-30: Fixed import of ValuationResult (using named import)
  * - 2025-04-30: Fixed parameter types in onSubmit handler
  * - 2025-05-10: Updated import paths for refactored hooks
+ * - 2025-05-15: Fixed onSubmit handler to properly use form.handleSubmit
  */
 
 import React from 'react';
@@ -25,7 +26,7 @@ export const ValuationForm = () => {
 
   return (
     <div className="w-full max-w-md mx-auto bg-white/5 backdrop-blur-lg rounded-xl p-5 shadow-lg">
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <ValuationInput form={form} />
       </form>
 

@@ -2,6 +2,7 @@
 /**
  * Main valuation form hook - coordinates other hooks
  * Updated: 2025-05-10 - Refactored to use smaller hooks
+ * Updated: 2025-05-15 - Fixed type incompatibility with form submission handler
  */
 
 import { useForm } from "react-hook-form";
@@ -64,7 +65,7 @@ export const useValuationForm = (): UseValuationFormResult => {
     };
   }, [isConnected, requestId, cleanupRequest]);
 
-  // Form submission handler
+  // Form submission handler - Now properly typed to handle ValuationFormData
   const onSubmit = async (data: ValuationFormData) => {
     setIsLoading(true);
     
@@ -166,7 +167,7 @@ export const useValuationForm = (): UseValuationFormResult => {
     showDialog,
     setShowDialog,
     valuationResult,
-    onSubmit: form.handleSubmit(onSubmit),
+    onSubmit: onSubmit, // Return the actual function, not wrapped in form.handleSubmit
     resetForm,
   };
 };

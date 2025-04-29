@@ -3,6 +3,7 @@
  * Types for valuation hooks
  * Created: 2025-04-30
  * Updated: 2025-05-10 - Added new hook types
+ * Updated: 2025-05-15 - Fixed form submission handler types
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -28,7 +29,7 @@ export interface UseValuationFormResult {
   showDialog: boolean;
   setShowDialog: (open: boolean) => void;
   valuationResult: any | null;
-  onSubmit: (data: ValuationFormData) => void;
+  onSubmit: (data: ValuationFormData) => Promise<void>; // Clear signature for submission handler
   resetForm: () => void;
 }
 
