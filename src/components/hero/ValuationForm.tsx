@@ -4,6 +4,7 @@
  * - 2025-04-27: Enhanced form validation and error handling 
  * - 2025-04-29: Added loading indicator and timeout handling
  * - 2025-05-03: Updated dialog usage to prevent duplicate close buttons
+ * - 2025-05-04: Removed title and description text to restore previous design
  */
 
 import React, { useState } from "react";
@@ -36,13 +37,6 @@ export const ValuationForm = () => {
         onSubmit={onSubmit}
         className="bg-white rounded-lg shadow-md p-6 relative z-10 w-full max-w-lg mx-auto"
       >
-        <div className="text-left mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Check Your Car's Value</h2>
-          <p className="text-gray-600 mt-1">
-            Get an instant valuation by entering your VIN
-          </p>
-        </div>
-
         <ValuationInput
           form={form}
           isLoading={isLoading}
