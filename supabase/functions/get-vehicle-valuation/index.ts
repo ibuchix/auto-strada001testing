@@ -69,6 +69,9 @@ function normalizeValuationData(data: any, vin: string, mileage: number) {
     if (!marketValue) {
       throw new Error('No valid price in API response');
     }
+    
+    // Extract average price specifically from price_avr in calcValuation
+    const averagePrice = valuation.price_avr ? Number(valuation.price_avr) : Number(marketValue);
 
     const result = {
       make:         userParams.make || '',
@@ -79,7 +82,7 @@ function normalizeValuationData(data: any, vin: string, mileage: number) {
       mileage,
       valuation:    Number(marketValue),
       reservePrice: Math.round(Number(marketValue) * 0.75),
-      averagePrice: Number(userParams.price_avr || marketValue),
+      averagePrice: averagePrice,
       basePrice:    Number(marketValue),
       apiSource:    'autoiso_v3',
       error:        null,
