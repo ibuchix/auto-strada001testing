@@ -2,11 +2,12 @@
 /**
  * Changes made:
  * - 2025-04-28: Enhanced form validation and error handling
+ * - 2025-04-29: Fixed dialog state handling to ensure results are displayed
  */
 
 import { ValuationInput } from "./ValuationInput";
 import { ValuationResult } from "./ValuationResult";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useEnhancedValuationForm } from "@/hooks/valuation/useEnhancedValuationForm";
 
 export const ValuationForm = () => {
@@ -31,6 +32,15 @@ export const ValuationForm = () => {
     resetForm();
   };
 
+  console.log("[ValuationForm] Current state:", { 
+    showDialog, 
+    isLoading, 
+    hasValuationResult: !!valuationResult,
+    valuationResultSample: valuationResult ? 
+      `${valuationResult.make || "?"} ${valuationResult.model || "?"} ${valuationResult.year || "?"}` : 
+      "none" 
+  });
+
   return (
     <div className="w-full max-w-md mx-auto">
       <ValuationInput 
@@ -39,14 +49,16 @@ export const ValuationForm = () => {
         onSubmit={onSubmit}
       />
       <Dialog open={showDialog} onOpenChange={handleDialogClose}>
-        {valuationResult && (
-          <ValuationResult 
-            valuationResult={valuationResult}
-            onContinue={handleContinue}
-            onClose={handleDialogClose}
-            onRetry={handleRetry}
-          />
-        )}
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
+          {valuationResult && (
+            <ValuationResult 
+              valuationResult={valuationResult}
+              onContinue={handleContinue}
+              onClose={handleDialogClose}
+              onRetry={handleRetry}
+            />
+          )}
+        </DialogContent>
       </Dialog>
     </div>
   );

@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-04-27: Added debugging logs for props
  * - 2025-04-27: Enhanced price validation and display
+ * - 2025-04-29: Fixed display issues and added more detailed debugging
  */
 
 import React, { useEffect } from "react";
@@ -79,6 +80,8 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
 
   // Check if we have all required data
   const hasRequiredData = make && model && year > 0 && reservePrice > 0;
+  
+  console.log("ValuationContent rendering with hasRequiredData:", hasRequiredData);
 
   return (
     <div className="p-6">
@@ -138,6 +141,10 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
           <p className="text-sm text-red-600 mt-1">
             We couldn't retrieve complete valuation information for this vehicle. Please try again or 
             use manual valuation.
+          </p>
+          <p className="text-xs text-red-500 mt-2">
+            Debug info: Make: {make || "missing"}, Model: {model || "missing"}, 
+            Year: {year || "missing"}, Reserve Price: {reservePrice || "missing"}
           </p>
           
           <div className="mt-6">

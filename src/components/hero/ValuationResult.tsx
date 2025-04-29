@@ -5,6 +5,7 @@
  * - 2025-04-27: Enhanced error handling and logging
  * - 2025-04-27: Updated useValuationContinue import path
  * - 2025-04-28: Fixed type incompatibility between different TransmissionType definitions
+ * - 2025-04-29: Fixed loading state handling and added console debugging for valuation data
  */
 
 import { useNavigate } from "react-router-dom";
@@ -56,6 +57,9 @@ export const ValuationResult = ({
   
   const navigate = useNavigate();
   const { handleContinue, isLoggedIn } = useValuationContinue();
+
+  // Enhanced debug logging
+  console.log("ValuationResult component rendering with data:", valuationResult);
   
   // Enhanced logging of the valuation result
   useValuationLogger({
@@ -65,31 +69,46 @@ export const ValuationResult = ({
     inspectNested: true
   });
   
-  console.log("Raw valuation result in ValuationResult:", {
-    hasData: !!valuationResult,
-    makePresent: valuationResult?.make ? "yes" : "no",
-    modelPresent: valuationResult?.model ? "yes" : "no",
-    yearPresent: valuationResult?.year ? "yes" : "no",
-    reservePricePresent: valuationResult?.reservePrice ? "yes" : "no",
-    valuationPresent: valuationResult?.valuation ? "yes" : "no",
-    apiSource: valuationResult?.apiSource || 'unknown',
-    errorDetails: valuationResult?.errorDetails || 'none',
-    hasNestedData: !!valuationResult?.data,
-    hasFunctionResponse: !!valuationResult?.functionResponse,
-    timestamp: new Date().toISOString()
-  });
-
+  // Set isValidatingData to false after render to allow UI to update
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsValidatingData(false);
+      console.log("Validation data state set to false, UI should update");
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [valuationResult]);
+  
   // Get mileage from localStorage
   const mileage = parseInt(localStorage.getItem('tempMileage') || '0', 10);
 
   // Show loading indicator while validating
-  if (!valuationResult || isValidatingData) {
+  if (!valuationResult) {
+    console.log("No valuation result provided, showing loading indicator");
     return (
       <div className="p-6 text-center">
         <LoadingIndicator message="Processing valuation..." />
       </div>
     );
   }
+  
+  if (isValidatingData) {
+    console.log("Still validating data, showing loading indicator");
+    return (
+      <div className="p-6 text-center">
+        <LoadingIndicator message="Processing valuation data..." />
+      </div>
+    );
+  }
+  
+  console.log("Proceeding with data validation and display", {
+    hasError: !!valuationResult.error,
+    hasNoData: !!valuationResult.noData,
+    make: valuationResult.make,
+    model: valuationResult.model,
+    year: valuationResult.year,
+    reservePrice: valuationResult.reservePrice
+  });
   
   // Normalize the valuation data
   const normalizedData = normalizeValuationData(
@@ -119,9 +138,11 @@ export const ValuationResult = ({
       errorDescription = "An error occurred during the valuation process. Please try again.";
     }
     
+    console.log("Showing error dialog", { errorMessage, errorDescription });
+    
     return (
       <ValuationErrorDialog
-        isOpen={errorDialogOpen}
+        isOpen={true}
         onClose={() => {
           setErrorDialogOpen(false);
           onClose();
@@ -149,6 +170,14 @@ export const ValuationResult = ({
   // Convert the transmission type to match the ValuationContent component's expected format
   // This ensures compatibility between different TransmissionType definitions in the codebase
   const compatibleTransmission = normalizedData.transmission === 'manual' ? 'manual' : 'automatic';
+  
+  console.log("Showing valuation content with normalized data:", {
+    make: normalizedData.make,
+    model: normalizedData.model,
+    year: normalizedData.year,
+    reservePrice: normalizedData.reservePrice,
+    averagePrice: normalizedData.averagePrice
+  });
 
   // Only show valuation content if we have valid data
   return (

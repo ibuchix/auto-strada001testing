@@ -3,6 +3,7 @@
  * Enhanced valuation form hook
  * Created: 2025-04-23
  * This hook properly manages form state to avoid React queue errors
+ * Updated: 2025-04-29 - Fixed state handling to ensure dialog displays with results
  */
 
 import { useState, useCallback } from "react";
@@ -60,18 +61,28 @@ export const useEnhancedValuationForm = () => {
       if (result.success && result.data) {
         // Store the full result
         setValuationResult(result.data);
-        setShowDialog(true);
         localStorage.setItem("valuationData", JSON.stringify(result.data));
+        
+        // Ensure we show the dialog AFTER setting the result
+        setTimeout(() => {
+          setShowDialog(true);
+          console.log("Dialog should be visible now");
+        }, 100);
       } else {
         // Handle error case
-        const errorMessage = result.data?.error || "Failed to get valuation";
+        const errorMessage = result.error || "Failed to get valuation";
         toast.error(errorMessage);
         setValuationResult({
           error: errorMessage,
           vin: data.vin,
           transmission: data.gearbox
         });
-        setShowDialog(true);
+        
+        // Show error dialog
+        setTimeout(() => {
+          setShowDialog(true);
+          console.log("Error dialog should be visible now");
+        }, 100);
       }
     } catch (error: any) {
       console.error("Valuation error:", error);
@@ -81,7 +92,12 @@ export const useEnhancedValuationForm = () => {
         vin: data.vin,
         transmission: data.gearbox
       });
-      setShowDialog(true);
+      
+      // Show error dialog
+      setTimeout(() => {
+        setShowDialog(true);
+        console.log("Exception dialog should be visible now");
+      }, 100);
     } finally {
       setIsLoading(false);
     }
@@ -89,6 +105,7 @@ export const useEnhancedValuationForm = () => {
 
   // Handler for continuing to car listing
   const handleContinue = useCallback(() => {
+    console.log("Continue to listing triggered");
     setShowDialog(false);
     navigate('/sell-my-car?from=valuation');
   }, [navigate]);
@@ -99,6 +116,7 @@ export const useEnhancedValuationForm = () => {
     setValuationResult(null);
     setShowDialog(false);
     cleanupValuationData();
+    console.log("Form reset complete");
   }, [form]);
 
   return {
