@@ -4,6 +4,7 @@
  * Created: 2025-04-17
  * Updated: 2025-04-17 - Improved with standardized types and better error handling
  * Updated: 2025-04-17 - Fixed type issues with errorDetails and valuation props
+ * Updated: 2025-05-03 - Added hideCloseButton prop to prevent duplicate close buttons
  */
 
 import { useNavigate } from "react-router-dom";

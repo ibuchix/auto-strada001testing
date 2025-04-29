@@ -5,6 +5,7 @@
  * - 2025-04-27: Enhanced price validation and display
  * - 2025-04-29: Fixed display issues and added more detailed debugging
  * - 2025-04-30: Removed duplicate close button and market price display
+ * - 2025-05-03: Completely removed header close button to fix duplicate buttons issue
  */
 
 import React, { useEffect } from "react";
@@ -13,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { normalizeTransmission } from "@/utils/validation/validateTypes";
-import { XCircle } from "lucide-react";
 
 interface ValuationContentProps {
   make: string;
@@ -88,13 +88,7 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Your Vehicle Valuation</h2>
-        <button
-          onClick={onClose}
-          className="p-1 rounded-full hover:bg-gray-200"
-          aria-label="Close"
-        >
-          <XCircle className="h-6 w-6" />
-        </button>
+        {/* Close button removed to prevent duplication with Dialog's built-in close button */}
       </div>
 
       {hasRequiredData ? (

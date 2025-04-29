@@ -1,14 +1,22 @@
 
 /**
  * Changes made:
- * - 2025-04-28: Enhanced form validation and error handling
- * - 2025-04-29: Fixed dialog state handling to ensure results are displayed
+ * - 2025-04-27: Enhanced form validation and error handling 
+ * - 2025-04-29: Added loading indicator and timeout handling
+ * - 2025-05-03: Updated dialog usage to prevent duplicate close buttons
  */
 
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { ValuationInput } from "./ValuationInput";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { 
+  Dialog,
+  DialogContent
+} from "@/components/ui/dialog";
 import { ValuationResult } from "./ValuationResult";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useEnhancedValuationForm } from "@/hooks/valuation/useEnhancedValuationForm";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 
 export const ValuationForm = () => {
   const {
@@ -19,47 +27,41 @@ export const ValuationForm = () => {
     valuationResult,
     onSubmit,
     handleContinue,
-    resetForm
+    resetForm,
   } = useEnhancedValuationForm();
 
-  const handleDialogClose = () => {
-    console.log("[ValuationForm] Dialog close triggered");
-    setShowDialog(false);
-  };
-
-  const handleRetry = () => {
-    console.log("[ValuationForm] Retry triggered");
-    resetForm();
-  };
-
-  console.log("[ValuationForm] Current state:", { 
-    showDialog, 
-    isLoading, 
-    hasValuationResult: !!valuationResult,
-    valuationResultSample: valuationResult ? 
-      `${valuationResult.make || "?"} ${valuationResult.model || "?"} ${valuationResult.year || "?"}` : 
-      "none" 
-  });
-
   return (
-    <div className="w-full max-w-md mx-auto">
-      <ValuationInput 
-        form={form}
-        isLoading={isLoading}
+    <>
+      <form
         onSubmit={onSubmit}
-      />
-      <Dialog open={showDialog} onOpenChange={handleDialogClose}>
-        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
+        className="bg-white rounded-lg shadow-md p-6 relative z-10 w-full max-w-lg mx-auto"
+      >
+        <div className="text-left mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Check Your Car's Value</h2>
+          <p className="text-gray-600 mt-1">
+            Get an instant valuation by entering your VIN
+          </p>
+        </div>
+
+        <ValuationInput
+          form={form}
+          isLoading={isLoading}
+          onReset={resetForm}
+        />
+      </form>
+
+      {/* Use Dialog with hideCloseButton prop to prevent duplicate buttons */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden" hideCloseButton>
           {valuationResult && (
-            <ValuationResult 
+            <ValuationResult
               valuationResult={valuationResult}
+              onClose={() => setShowDialog(false)}
               onContinue={handleContinue}
-              onClose={handleDialogClose}
-              onRetry={handleRetry}
             />
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
