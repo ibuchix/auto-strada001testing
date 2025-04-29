@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-08-16: Added ErrorProvider for centralized error handling
  * - 2025-04-05: Updated to use new error handling system
+ * - 2025-05-05: Fixed structure to ensure proper routing and provider nesting
  */
 
 import React from 'react';
@@ -32,13 +33,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <ThemeProvider defaultTheme="light" storageKey="autostrada-theme">
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <RealtimeProvider>
-              <TransactionProvider>
-                <App />
-              </TransactionProvider>
-            </RealtimeProvider>
-          </AuthProvider>
+          <App />
         </QueryClientProvider>
       </ThemeProvider>
     </BrowserRouter>

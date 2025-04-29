@@ -6,6 +6,7 @@
  * Updated: 2025-04-08 - Fixed fallback function React.ReactNode issue
  * Updated: 2025-04-11 - Ensured ErrorFallback function explicitly returns ReactNode
  * Updated: 2025-05-04 - Removed DiagnosticsPage and ValuationTest routes
+ * Updated: 2025-05-05 - Fixed IndexPage rendering issue
  */
 
 import { Routes, Route } from "react-router-dom";
@@ -55,30 +56,31 @@ function App() {
     <ErrorBoundary fallback={ErrorFallback}>
       <ErrorProvider>
         <AuthProvider>
-          <TransactionProvider>
-            <Routes>
-              <Route path="/" element={<IndexPage />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/sellers" element={<Sellers />} />
-              <Route path="/dealers" element={<Dealers />} />
-              <Route path="/dashboard/seller" element={<SellerDashboard />} />
-              <Route path="/dashboard/dealer" element={<DealerDashboard />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/sell-my-car" element={<SellMyCar />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/dealer-signup" element={<DealerSignup />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/manual-valuation" element={<ManualValuation />} />
-              <Route path="/auth/reset-password" element={<ResetPassword />} />
-              <Route path="/auth/update-password" element={<UpdatePassword />} />
-              <Route path="/seller-registration-repair" element={<SellerRegistrationRepairPage />} />
-              {/* DiagnosticsPage and ValuationTest routes removed */}
-            </Routes>
-            <Toaster />
-          </TransactionProvider>
+          <RealtimeProvider>
+            <TransactionProvider>
+              <Routes>
+                <Route path="/" element={<IndexPage />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/sellers" element={<Sellers />} />
+                <Route path="/dealers" element={<Dealers />} />
+                <Route path="/dashboard/seller" element={<SellerDashboard />} />
+                <Route path="/dashboard/dealer" element={<DealerDashboard />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/sell-my-car" element={<SellMyCar />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/dealer-signup" element={<DealerSignup />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/manual-valuation" element={<ManualValuation />} />
+                <Route path="/auth/reset-password" element={<ResetPassword />} />
+                <Route path="/auth/update-password" element={<UpdatePassword />} />
+                <Route path="/seller-registration-repair" element={<SellerRegistrationRepairPage />} />
+              </Routes>
+              <Toaster />
+            </TransactionProvider>
+          </RealtimeProvider>
         </AuthProvider>
       </ErrorProvider>
     </ErrorBoundary>

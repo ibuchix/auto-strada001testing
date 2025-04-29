@@ -4,6 +4,7 @@
  * - 2024-09-07: Added proper component implementation with default export
  * - 2024-09-08: Fixed export syntax to ensure proper module resolution
  * - 2024-03-28: Fixed component to ensure proper rendering
+ * - 2025-05-05: Fixed IndexPage structure and added RealtimeProvider
  */
 
 import React from 'react';
@@ -15,7 +16,6 @@ import { BottomCTA } from '@/components/BottomCTA';
 import { VerifiedDealers } from '@/components/VerifiedDealers';
 import { Navigation } from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
-import { RealtimeProvider } from '@/components/RealtimeProvider';
 
 const IndexPage = () => {
   return (
