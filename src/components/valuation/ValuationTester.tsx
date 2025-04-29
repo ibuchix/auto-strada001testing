@@ -2,6 +2,7 @@
 /**
  * A testing interface for the get-vehicle-valuation edge function
  * Created: 2025-04-28
+ * Updated: 2025-04-29 - Added gearbox parameter to fix 400 Bad Request error
  */
 
 import { useState } from 'react';
@@ -10,10 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 export function ValuationTester() {
   const [vin, setVin] = useState('WAUZZZ8K79A090954');
   const [mileage, setMileage] = useState('80000');
+  const [gearbox, setGearbox] = useState('manual');
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -40,7 +44,8 @@ export function ValuationTester() {
         {
           body: { 
             vin, 
-            mileage: Number(mileage) 
+            mileage: Number(mileage),
+            gearbox // Include the gearbox parameter
           }
         }
       );
@@ -85,6 +90,22 @@ export function ValuationTester() {
             type="number" 
             min="0"
           />
+        </div>
+        
+        <div>
+          <Label className="block text-sm font-medium mb-1">Gearbox Type</Label>
+          <Select 
+            value={gearbox} 
+            onValueChange={setGearbox}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select gearbox type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="manual">Manual</SelectItem>
+              <SelectItem value="automatic">Automatic</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         
         <Button 
