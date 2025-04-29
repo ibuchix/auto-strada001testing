@@ -82,7 +82,7 @@ export function ValuationTester() {
         try {
           // Use context.json() to get the error details
           const errorJson = await err.context.json();
-          console.error(`🛑 Edge function error (${err.code}):`, errorJson);
+          console.error(`🛑 Edge function error (${err.message}):`, errorJson);
           
           setErrorDetails(JSON.stringify(errorJson, null, 2));
           toast.error('Valuation Error', {
