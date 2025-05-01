@@ -7,6 +7,7 @@
  * - Updated 2025-05-03: Enhanced debugging for price data availability
  * - Updated 2025-05-23: Simplified UI by removing detailed calculation information
  * - Updated 2025-05-24: Fixed mileage display and formatting in price calculation text
+ * - Updated 2025-05-25: Enhanced mileage display to always show actual entered value
  */
 
 import { formatPrice, calculateReservePrice } from "@/utils/valuation/reservePriceCalculator";
@@ -68,7 +69,7 @@ export const ValuationPriceDisplay = ({
             <h3 className="text-sm font-medium text-gray-500">Your Reserve Price</h3>
             <p className="text-2xl font-bold text-DC143C">{formatPrice(ourReservePrice)}</p>
             <p className="text-xs text-gray-500 mt-1">
-              Calculated based on mileage: {mileage?.toLocaleString() || 0} km
+              Calculated based on mileage: {mileage ? mileage.toLocaleString() : '0'} km
             </p>
           </div>
         ) : (

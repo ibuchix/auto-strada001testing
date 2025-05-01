@@ -11,6 +11,7 @@
  * - 2025-05-03: Added additional logging to troubleshoot dialog rendering
  * - 2025-05-04: Refactored into smaller components
  * - 2025-05-24: Fixed mileage retrieval and propagation to child components
+ * - 2025-05-25: Fixed to use mileage from API data instead of localStorage
  */
 
 import { useNavigate } from "react-router-dom";
@@ -68,8 +69,10 @@ export const ValuationResult = ({
     return () => clearTimeout(timer);
   }, [result]);
   
-  // Get mileage from localStorage
-  const mileage = parseInt(localStorage.getItem('tempMileage') || '0', 10);
+  // Get mileage directly from API response data, with fallback to localStorage if needed
+  const mileage = result?.data?.mileage || 
+                  result?.mileage || 
+                  parseInt(localStorage.getItem('tempMileage') || '0', 10);
 
   // Close the dialog when requested
   const onClose = () => {

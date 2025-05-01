@@ -1,8 +1,8 @@
-
 /**
  * Changes made:
  * - 2025-04-22: Removed localStorage operations to debug nested API data issues
  * - 2025-05-01: Enhanced parameter validation and improved error handling
+ * - 2025-05-25: Fixed mileage handling to ensure it gets passed correctly to the valuation result
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -77,6 +77,11 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
     // Get the cleaned parameters
     const { vin, mileage, gearbox } = validationResult.cleanedParams!;
     
+    // Store mileage in localStorage for later retrieval
+    localStorage.setItem('tempMileage', String(mileage));
+    localStorage.setItem('tempVIN', vin);
+    localStorage.setItem('tempGearbox', gearbox);
+    
     // Clear any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -142,12 +147,13 @@ export const useValuationForm = (context: 'home' | 'seller' = 'home') => {
           return;
         }
       
-        // Set the result with normalized property names
+        // Set the result with normalized property names and include mileage
         const normalizedResult = {
           ...result.data,
           reservePrice: result.data.reservePrice || result.data.valuation,
           valuation: result.data.valuation || result.data.reservePrice,
-          vin: vin
+          vin: vin,
+          mileage: mileage // Ensure mileage is explicitly included in result
         };
         
         setValuationResult(normalizedResult);

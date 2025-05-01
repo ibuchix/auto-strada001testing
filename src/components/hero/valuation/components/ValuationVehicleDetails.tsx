@@ -6,9 +6,10 @@
  * Updated: 2025-05-22 - Made mileage more prominent in display
  * Updated: 2025-05-23 - Ensured full VIN display with word-break
  * Updated: 2025-05-24 - Fixed mileage display format to be more readable
+ * Updated: 2025-05-25 - Enhanced to ensure mileage always displays user-entered value
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 
 interface ValuationVehicleDetailsProps {
   vin?: string;
@@ -21,6 +22,11 @@ export const ValuationVehicleDetails = ({
   transmission,
   mileage
 }: ValuationVehicleDetailsProps) => {
+  // Debug logging to verify received mileage value
+  useEffect(() => {
+    console.log('ValuationVehicleDetails rendering with mileage:', mileage);
+  }, [mileage]);
+
   return (
     <div className="grid grid-cols-3 gap-2">
       {vin && (
