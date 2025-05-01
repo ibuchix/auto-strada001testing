@@ -2,6 +2,7 @@
 /**
  * Central reserve price calculation utility
  * Created: 2025-05-01 - Consolidated from multiple implementations
+ * Updated: 2025-05-20 - Fixed precision issues with percentage calculations
  */
 
 /**

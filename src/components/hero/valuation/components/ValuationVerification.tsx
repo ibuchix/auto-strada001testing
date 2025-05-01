@@ -1,98 +1,114 @@
 
 /**
- * Component for verifying and displaying reserve price accuracy
- * Created: 2025-05-18
+ * ValuationVerification Component
+ * Created: 2025-05-20 - Added to verify reserve price calculations in valuation dialog
  */
 
-import { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { validateValuationReservePrice } from "@/utils/valuation/reservePriceValidator";
-import { calculateReservePrice, formatPrice } from "@/utils/valuation/reservePriceCalculator";
-import { Info, CheckCircle, AlertCircle } from "lucide-react";
+import React, { useEffect, useState } from 'react';
+import { validateReservePrice } from '@/utils/valuation/reservePriceValidator';
+import { formatPrice } from '@/utils/valuation/reservePriceCalculator';
+import { AlertCircle } from 'lucide-react';
 
 interface ValuationVerificationProps {
-  valuationData: any;
+  valuationData: {
+    make?: string;
+    model?: string;
+    year?: number;
+    vin?: string;
+    transmission?: 'manual' | 'automatic';
+    mileage?: number;
+    reservePrice?: number;
+    averagePrice?: number;
+    basePrice?: number;
+  };
 }
 
-export const ValuationVerification: React.FC<ValuationVerificationProps> = ({ valuationData }) => {
-  const [showVerification, setShowVerification] = useState(false);
-  const [verified, setVerified] = useState<ReturnType<typeof validateValuationReservePrice> | null>(null);
+export const ValuationVerification = ({ valuationData }: ValuationVerificationProps) => {
+  const [showDetails, setShowDetails] = useState(false);
+  const [verification, setVerification] = useState<any>(null);
   
-  const handleVerify = () => {
-    if (!valuationData) return;
-    
-    const result = validateValuationReservePrice(valuationData);
-    setVerified(result);
-    setShowVerification(true);
-  };
+  useEffect(() => {
+    if (valuationData?.basePrice && valuationData?.reservePrice) {
+      // Validate the reserve price against our pricing rules
+      const validation = validateReservePrice(
+        valuationData.basePrice, 
+        valuationData.reservePrice
+      );
+      
+      setVerification(validation);
+      
+      // Log validation for debugging
+      console.log('Reserve price validation:', validation);
+    }
+  }, [valuationData]);
   
-  if (!showVerification) {
-    return (
-      <div className="mt-4">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={handleVerify}
-          className="flex items-center gap-2 text-xs"
-        >
-          <Info size={14} />
-          Verify Reserve Price Calculation
-        </Button>
-      </div>
-    );
+  // Only render if we have verification data
+  if (!verification || !valuationData.basePrice || !valuationData.reservePrice) {
+    return null;
   }
   
-  if (!verified) {
-    return (
-      <Alert variant="destructive" className="mt-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Verification Error</AlertTitle>
-        <AlertDescription>
-          Insufficient data to verify the reserve price calculation.
-        </AlertDescription>
-      </Alert>
-    );
+  // If the price is correct within tolerance, don't show anything
+  if (verification.isValid) {
+    return null;
   }
   
-  const { validation, basePrice, reservePrice } = verified;
-  const { 
-    isValid, 
-    expectedReservePrice, 
-    discrepancy, 
-    discrepancyPercent, 
-    priceTier, 
-    appliedPercentage 
-  } = validation;
+  // Calculate absolute discrepancy for display
+  const discrepancy = Math.abs(verification.discrepancy);
+  const isHigher = valuationData.reservePrice > verification.expectedReservePrice;
   
   return (
-    <div className="mt-4 space-y-3">
-      <Alert variant={isValid ? "default" : "destructive"} className="relative">
-        {isValid ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-        <AlertTitle>
-          {isValid ? "Verified Price" : "Price Discrepancy Detected"}
-        </AlertTitle>
-        <AlertDescription className="text-xs space-y-1">
-          <div className="font-medium">Base Price: {formatPrice(basePrice)}</div>
-          <div>Price Tier: {priceTier} ({appliedPercentage}% discount)</div>
-          <div>Displayed Price: {formatPrice(reservePrice)}</div>
-          <div>Expected Price: {formatPrice(expectedReservePrice)}</div>
-          {!isValid && (
-            <div className="text-red-500">
-              Discrepancy: {formatPrice(discrepancy)} ({discrepancyPercent.toFixed(2)}%)
+    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+      <div className="flex items-start gap-2">
+        <AlertCircle className="h-5 w-5 text-amber-700 mt-0.5" />
+        <div className="flex-1">
+          <h4 className="font-semibold text-amber-900">Price Discrepancy Detected</h4>
+          <p className="text-sm text-amber-900 mt-1">
+            Base Price: {formatPrice(valuationData.basePrice)}
+          </p>
+          
+          <div className="mt-2 space-y-1">
+            <p className="text-sm text-amber-900">
+              Price Tier: {verification.priceTier} ({verification.appliedPercentage}% discount)
+            </p>
+            <p className="text-sm text-amber-900">
+              Displayed Price: {formatPrice(valuationData.reservePrice)}
+            </p>
+            <p className="text-sm text-amber-900">
+              Expected Price: {formatPrice(verification.expectedReservePrice)}
+            </p>
+            <p className="text-sm text-red-600 font-medium">
+              Discrepancy: {formatPrice(discrepancy)} ({verification.discrepancyPercent.toFixed(2)}%)
+            </p>
+          </div>
+          
+          <button 
+            className="mt-3 text-sm font-medium text-amber-700 hover:text-amber-900"
+            onClick={() => setShowDetails(!showDetails)}
+          >
+            {showDetails ? 'Hide Details' : 'Show Details'}
+          </button>
+          
+          {showDetails && (
+            <div className="mt-3 text-xs border-t border-amber-200 pt-2">
+              <p className="text-amber-900">
+                Our reserve price calculation follows this formula:
+              </p>
+              <p className="text-amber-900 mt-1">
+                1. Base price = (price_min + price_med) / 2
+              </p>
+              <p className="text-amber-900 mt-1">
+                2. Reserve price = Base price - (Base price × Percentage discount)
+              </p>
+              <p className="text-amber-900 mt-1">
+                3. For a base price of {formatPrice(valuationData.basePrice)}, the discount should be {verification.appliedPercentage}%
+              </p>
+              <p className="text-amber-900 mt-1">
+                4. Expected result: {formatPrice(valuationData.basePrice)} - ({formatPrice(valuationData.basePrice)} × {verification.appliedPercentage / 100}) = {formatPrice(verification.expectedReservePrice)}
+              </p>
             </div>
           )}
-        </AlertDescription>
-      </Alert>
-      
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        onClick={() => setShowVerification(false)}
-        className="text-xs"
-      >
-        Hide Details
-      </Button>
+        </div>
+      </div>
     </div>
   );
 };

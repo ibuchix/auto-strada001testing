@@ -2,6 +2,7 @@
 /**
  * Utility for validating reserve price calculations
  * Created: 2025-05-18 - Added validation against pricing rules
+ * Updated: 2025-05-20 - Enhanced price tier validation with more accurate discrepancy detection
  */
 
 import { calculateReservePrice } from './reservePriceCalculator';
@@ -94,7 +95,7 @@ export function validateReservePrice(
   return {
     isValid,
     expectedReservePrice,
-    discrepancy,
+    discrepancy: reservePrice - expectedReservePrice,
     discrepancyPercent,
     priceTier,
     appliedPercentage

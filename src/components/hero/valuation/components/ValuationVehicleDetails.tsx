@@ -2,6 +2,7 @@
 /**
  * ValuationVehicleDetails Component
  * Created: 2025-05-01 - Added to display vehicle details in valuation dialog
+ * Updated: 2025-05-20 - Enhanced mileage display to handle zero values
  */
 
 import React from 'react';
@@ -33,7 +34,7 @@ export const ValuationVehicleDetails = ({
       
       <div className="rounded-md p-2 bg-gray-50 border border-gray-100">
         <p className="text-xs text-gray-500 font-medium">Mileage</p>
-        <p className="text-sm font-medium">{mileage.toLocaleString()} km</p>
+        <p className="text-sm font-medium">{mileage === 0 ? '0' : mileage.toLocaleString()} km</p>
       </div>
     </div>
   );
