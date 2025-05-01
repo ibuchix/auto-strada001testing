@@ -4,6 +4,7 @@
  * Added in 2025-08-03
  * Updated in 2028-05-15: Added better error reporting and reset functionality
  * Updated in 2028-05-15: Enhanced with recovery options and detailed error display
+ * Updated in 2025-06-03: Fixed onError type definition to match implementation
  */
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { AlertTriangle } from "lucide-react";
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
-  onError?: (error: Error, errorInfo: ErrorInfo) => void;
+  onError?: (error: Error) => void; // Updated to accept only Error parameter
   resetOnPropsChange?: boolean;
   boundary?: string; // Identifier for the boundary location
 }
@@ -48,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ errorInfo });
     
     if (this.props.onError) {
-      this.props.onError(error, errorInfo);
+      this.props.onError(error);
     }
   }
 

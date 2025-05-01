@@ -8,6 +8,7 @@
  * - 2025-04-07: Improved performance with memoization
  * - 2025-04-08: Fixed import issues and type errors
  * - 2025-06-02: Fixed ErrorBoundary props to match component API
+ * - 2025-06-03: Updated onError handler to match ErrorBoundary's interface
  */
 import { memo, ReactNode } from "react";
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
