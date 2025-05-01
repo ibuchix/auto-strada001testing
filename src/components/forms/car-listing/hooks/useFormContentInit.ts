@@ -4,6 +4,7 @@
  * - 2024-06-10: Extracted initialization logic from FormContent.tsx
  * - Created a specialized hook for form content initialization and setup
  * - 2025-05-31: Added fromValuation prop to initialization options
+ * - 2025-06-01: Implemented loading valuation data during initialization
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -81,8 +82,43 @@ export const useFormContentInit = ({
     });
   }, []);
 
-  // If there's valuation data, we could add code here to pre-populate the form
-  // This is where we'd use the fromValuation flag to implement special handling
+  // Load valuation data into form if coming from valuation
+  useEffect(() => {
+    if (fromValuation && !draftId) {
+      try {
+        // Try to get valuation data from localStorage
+        const valuationDataStr = localStorage.getItem('valuationData');
+        
+        if (valuationDataStr) {
+          const valuationData = JSON.parse(valuationDataStr);
+          console.log("Loading form with valuation data:", {
+            make: valuationData.make,
+            model: valuationData.model,
+            vin: valuationData.vin ? valuationData.vin.substring(0, 4) + '...' : undefined
+          });
+          
+          // Pre-populate form with valuation data
+          if (valuationData.vin) form.setValue('vin', valuationData.vin);
+          if (valuationData.make) form.setValue('make', valuationData.make);
+          if (valuationData.model) form.setValue('model', valuationData.model);
+          if (valuationData.year) form.setValue('year', valuationData.year);
+          if (valuationData.mileage) form.setValue('mileage', valuationData.mileage);
+          if (valuationData.transmission) form.setValue('transmission', 
+            valuationData.transmission === 'manual' || valuationData.transmission === 'automatic' 
+              ? valuationData.transmission 
+              : undefined
+          );
+          
+          // Show success message
+          toast.success("Vehicle data loaded from valuation", {
+            description: `${valuationData.year || ''} ${valuationData.make || ''} ${valuationData.model || ''}`.trim()
+          });
+        }
+      } catch (err) {
+        console.error("Error loading valuation data:", err);
+      }
+    }
+  }, [fromValuation, form, draftId]);
 
   return {
     isLoadingDraft,

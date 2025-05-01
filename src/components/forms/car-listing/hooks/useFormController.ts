@@ -1,4 +1,3 @@
-
 /**
  * Form Controller Hook
  * - Created 2025-04-09: Extracted from FormContent.tsx to centralize form state management
@@ -6,6 +5,7 @@
  * - 2025-04-10: Fixed TypeScript errors with form submission handling
  * - 2025-04-11: Resolved type issues with handleSubmit return value
  * - 2025-04-12: Fixed initialization issues causing form to get stuck in loading state
+ * - 2025-06-01: Added fromValuation prop to support valuation data
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
@@ -24,13 +24,15 @@ interface UseFormControllerProps {
   draftId?: string;
   onDraftError?: (error: Error) => void;
   retryCount?: number;
+  fromValuation?: boolean;
 }
 
 export const useFormController = ({
   session,
   draftId,
   onDraftError,
-  retryCount = 0
+  retryCount = 0,
+  fromValuation = false
 }: UseFormControllerProps) => {
   const navigate = useNavigate();
   
@@ -67,7 +69,8 @@ export const useFormController = ({
     form,
     draftId,
     onDraftError,
-    retryCount
+    retryCount,
+    fromValuation
   });
 
   // Update carId and lastSaved from draft loading - use refs to prevent render-time updates
