@@ -3,6 +3,7 @@
  * Hook for handling valuation API requests
  * Created: 2025-05-10
  * Updated: 2025-05-17 - Updated mileage parameter type to be consistent (string)
+ * Updated: 2025-05-18 - Fixed function signature to match service implementation
  */
 
 import { useState, useCallback } from 'react';
@@ -19,14 +20,11 @@ export function useValuationRequest() {
       console.log(`[ValuationRequest][${requestId}] Executing request for VIN: ${vin}`);
 
       try {
-        // Convert mileage to number for API call if needed
-        const mileageValue = parseInt(mileage) || 0;
-        
+        // Pass mileage directly as string to match updated type requirements
         const result = await getVehicleValuation(
           vin, 
-          mileageValue.toString(), 
-          gearbox,
-          { requestId }
+          mileage, 
+          gearbox
         );
         
         return result;
