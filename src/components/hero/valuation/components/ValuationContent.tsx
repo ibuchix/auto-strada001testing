@@ -2,6 +2,7 @@
 /**
  * ValuationContent Component
  * Updated: 2025-05-18 - Added price calculation verification feature
+ * Updated: 2025-05-20 - Fixed import for ValuationVehicleDetails component
  */
 
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
