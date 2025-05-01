@@ -5,9 +5,10 @@
  * - 2028-11-14: Fixed TypeScript error with loadInitialData property
  * - 2028-05-18: Fixed initialization state handling to prevent stuck loading state
  * - 2025-05-28: Added enhanced debugging and fixed issues with valuation data
+ * - 2025-05-30: Added force initialization mechanisms to prevent stuck states
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { getFormDefaults } from "./useFormDefaults";
@@ -40,16 +41,40 @@ export const useFormInitialization = ({ form, stepNavigation }: UseFormInitializ
     hasInitializedHooks: false,
     initAttempts: 0
   });
+  
+  // Use ref to prevent repeated initialization
+  const initializingRef = useRef(false);
+  const forceInitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize form with defaults
   const initializeForm = useCallback(async () => {
+    // Prevent multiple initializations simultaneously
+    if (initializingRef.current) {
+      console.log('FormInitialization: Already initializing, skipping');
+      return;
+    }
+    
     try {
+      initializingRef.current = true;
+      
       console.log('FormInitialization: Starting form initialization (attempt #' + (initState.initAttempts + 1) + ')');
       setInitState(prev => ({ 
         ...prev, 
         isInitializing: true,
         initAttempts: prev.initAttempts + 1 
       }));
+      
+      // Set up a force initialize timer
+      if (!forceInitTimeoutRef.current) {
+        forceInitTimeoutRef.current = setTimeout(() => {
+          console.log('FormInitialization: Force initialization timer triggered');
+          setInitState({
+            isInitializing: false,
+            hasInitializedHooks: true,
+            initAttempts: initState.initAttempts + 1
+          });
+        }, 4000);
+      }
       
       const defaults = await getFormDefaults();
       console.log('FormInitialization: Got form defaults', {
@@ -94,11 +119,21 @@ export const useFormInitialization = ({ form, stepNavigation }: UseFormInitializ
     } finally {
       // Mark initialization as complete
       console.log('FormInitialization: Initialization complete, setting isInitializing to false');
+      
+      // Clear force init timeout if it exists
+      if (forceInitTimeoutRef.current) {
+        clearTimeout(forceInitTimeoutRef.current);
+        forceInitTimeoutRef.current = null;
+      }
+      
       setInitState(prev => ({ 
         ...prev, 
         isInitializing: false, 
         hasInitializedHooks: true 
       }));
+      
+      // Reset the initializing lock
+      initializingRef.current = false;
     }
   }, [form, initState.initAttempts]);
   
@@ -117,9 +152,17 @@ export const useFormInitialization = ({ form, stepNavigation }: UseFormInitializ
         }
         return prev;
       });
+      
+      // Also reset the initializing lock
+      initializingRef.current = false;
     }, 5000); // 5 second safety timeout
     
-    return () => clearTimeout(safetyTimeout);
+    return () => {
+      clearTimeout(safetyTimeout);
+      if (forceInitTimeoutRef.current) {
+        clearTimeout(forceInitTimeoutRef.current);
+      }
+    };
   }, [initializeForm]);
   
   // Periodic saving of key form values

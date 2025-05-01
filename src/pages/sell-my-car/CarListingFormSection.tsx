@@ -9,6 +9,7 @@
  * - Fixed form initialization to prevent constant reinitialization
  * - 2025-05-28: Fixed valuation data handling and loading flow
  * - 2025-05-29: Fixed infinite re-render by adding useRef to track initialization
+ * - 2025-05-30: Added force render mechanism to prevent stuck state
  */
 import { useEffect, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
@@ -31,6 +32,8 @@ export const CarListingFormSection = ({
   const [isInitialized, setIsInitialized] = useState(false);
   // Use a ref to track if initialization has happened to prevent re-renders
   const initializeAttemptedRef = useRef(false);
+  // Force render timer reference
+  const forceRenderTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Check for car data from VIN check or valuation in location state - run once only
   useEffect(() => {
@@ -46,6 +49,12 @@ export const CarListingFormSection = ({
       fromValuation,
       locationState: location.state
     });
+    
+    // If not initialized after 3 seconds, force render
+    forceRenderTimerRef.current = setTimeout(() => {
+      console.log("CarListingFormSection: Force initialization after timeout");
+      setIsInitialized(true);
+    }, 3000);
     
     // Prioritize data sources - first location.state, then sessionStorage
     const fromVinCheck = location.state?.fromVinCheck || location.state?.fromValuation;
@@ -102,7 +111,15 @@ export const CarListingFormSection = ({
       console.log("CarListingFormSection: No car data found from any source");
     }
     
+    // Set initialization complete
     setIsInitialized(true);
+    
+    // Clean up timer
+    return () => {
+      if (forceRenderTimerRef.current) {
+        clearTimeout(forceRenderTimerRef.current);
+      }
+    };
   }, [location.state, pageId, renderCount, fromValuation]);
 
   return (
@@ -115,7 +132,7 @@ export const CarListingFormSection = ({
             : "Please fill out this form to list your car for auction."
           }
         </p>
-        <CarListingForm />
+        <CarListingForm key={`form-${isInitialized ? 'ready' : 'loading'}-${renderCount}`} />
       </div>
     </PageLayout>
   );

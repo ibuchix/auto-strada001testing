@@ -5,12 +5,14 @@
  * - 2025-04-05: Streamlined data retrieval from valuation flow
  * - 2025-05-28: Enhanced debugging to fix form initialization issues
  * - 2025-05-29: Fixed infinite re-render issue by adding proper dependency arrays and state guards
+ * - 2025-05-30: Added force transition timers and controls to prevent stuck loading
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSellerCarListingValidation } from "@/hooks/seller/useSellerCarListingValidation";
 import { PageStateManager } from "./sell-my-car/PageStateManager";
 import { useSearchParams, useLocation } from "react-router-dom";
+import { toast } from "sonner";
 
 const SellMyCar = () => {
   const [searchParams] = useSearchParams();
@@ -22,6 +24,10 @@ const SellMyCar = () => {
     fromValuation: false,
     timestamp: Date.now()
   });
+
+  // Store initialization state in ref to prevent loops
+  const initCompletedRef = useRef(false);
+  const forceInitTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     isValid,
@@ -39,7 +45,8 @@ const SellMyCar = () => {
       searchParams: Object.fromEntries(searchParams.entries()),
       fromValuation,
       isValid,
-      isLoading
+      isLoading,
+      initCompleted: initCompletedRef.current
     });
     
     // Store incoming data for debugging - only do this once
@@ -64,11 +71,32 @@ const SellMyCar = () => {
     } else {
       console.log("SellMyCar: No valuation data found");
     }
+    
+    // Set up a timer to force initialization after 5 seconds
+    if (!initCompletedRef.current && !forceInitTimerRef.current) {
+      forceInitTimerRef.current = setTimeout(() => {
+        console.log("SellMyCar: Force initialization timer triggered");
+        if (!initCompletedRef.current) {
+          setInitComplete(true);
+          initCompletedRef.current = true;
+          toast.info("Listing form ready", {
+            description: "Taking longer than expected, but your form is now ready."
+          });
+        }
+      }, 5000);
+    }
   }, [location.state, searchParams, fromValuation]);
   
   // Run the initialization exactly once on mount
   useEffect(() => {
     initializeDebugInfo();
+    
+    // Clean up timer on unmount
+    return () => {
+      if (forceInitTimerRef.current) {
+        clearTimeout(forceInitTimerRef.current);
+      }
+    };
   }, [initializeDebugInfo]);
 
   // Mark initialization as complete after a short delay
@@ -79,6 +107,7 @@ const SellMyCar = () => {
     const timer = setTimeout(() => {
       console.log("SellMyCar: Initialization complete");
       setInitComplete(true);
+      initCompletedRef.current = true;
     }, 300);
     
     return () => {
@@ -90,7 +119,7 @@ const SellMyCar = () => {
   return (
     <PageStateManager
       isValid={isValid}
-      isLoading={isLoading || !initComplete}
+      isLoading={isLoading && !initCompletedRef.current}
       error={error}
       errorType={errorType}
       isVerifying={isVerifying}

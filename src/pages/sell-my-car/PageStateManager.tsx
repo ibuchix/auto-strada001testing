@@ -6,9 +6,10 @@
  * - 2025-04-27: Updated ValuationResult import path
  * - 2025-05-28: Enhanced debugging and fixed initialization issues
  * - 2025-05-29: Fixed infinite re-render by using useCallback and proper dependency arrays
+ * - 2025-05-30: Added force transition timer to ensure loading state doesn't get stuck
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { CarListingFormSection } from "./CarListingFormSection";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
@@ -41,6 +42,9 @@ export const PageStateManager = ({
     lastStateChange: ''
   });
   
+  // Force transition timer ref
+  const forceTransitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Track when component is fully mounted - run once only
   useEffect(() => {
     setDebugInfo(prev => ({
@@ -56,8 +60,23 @@ export const PageStateManager = ({
       renderCount: debugInfo.renderCount + 1
     });
     
+    // Force transition after 5 seconds if still loading
+    if (isLoading) {
+      forceTransitionTimerRef.current = setTimeout(() => {
+        console.log("PageStateManager: Force transition timer triggered, form may be stuck");
+        // This doesn't actually change props, but it forces a re-render
+        setDebugInfo(prev => ({
+          ...prev,
+          lastStateChange: 'force_transition_triggered'
+        }));
+      }, 5000);
+    }
+    
     return () => {
       console.log("PageStateManager: Component unmounting");
+      if (forceTransitionTimerRef.current) {
+        clearTimeout(forceTransitionTimerRef.current);
+      }
     };
   }, []);
   
@@ -96,6 +115,9 @@ export const PageStateManager = ({
       debugLastState: debugInfo.lastStateChange
     });
     
+    // Force transition if loading took too long and we have valid status
+    const shouldForceTransition = debugInfo.lastStateChange === 'force_transition_triggered' && isValid;
+    
     // Handle various error states with appropriate UI and actions
     if (error) {
       return (
@@ -110,7 +132,7 @@ export const PageStateManager = ({
       );
     }
 
-    if (isLoading) {
+    if (isLoading && !shouldForceTransition) {
       return (
         <LoadingIndicator 
           fullscreen 
@@ -119,7 +141,7 @@ export const PageStateManager = ({
       );
     }
 
-    if (!isValid) {
+    if (!isValid && !shouldForceTransition) {
       // This case should be rare - fallback to ensure the UI always shows something meaningful
       return <LoadingIndicator fullscreen message="Preparing vehicle listing form..." />;
     }
@@ -137,7 +159,7 @@ export const PageStateManager = ({
         fromValuation={fromValuation}
       />
     );
-  }, [isValid, isLoading, error, errorType, isVerifying, fromValuation, debugInfo.renderCount, handleRetrySellerVerification]);
+  }, [isValid, isLoading, error, errorType, isVerifying, fromValuation, debugInfo.renderCount, debugInfo.lastStateChange, handleRetrySellerVerification]);
 
   // Use the memoized rendering function
   return <>{renderPageContent()}</>;

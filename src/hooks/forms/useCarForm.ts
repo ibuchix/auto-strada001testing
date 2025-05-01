@@ -11,6 +11,7 @@
  * - 2025-12-01: Updated form typing to match schema output types
  * - 2025-05-28: Fixed valuation data loading issues and improved debugging
  * - 2025-05-29: Fixed infinite re-render by adding initialization guards
+ * - 2025-05-30: Added force loading mechanisms to prevent stuck states
  */
 
 import { useCallback, useEffect, useRef } from "react";
@@ -45,6 +46,7 @@ export function useCarForm({
   const navigate = useNavigate();
   // Use ref to track initialization to prevent loops
   const initialDataLoadedRef = useRef(false);
+  const forceDataLoadTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Load initial form values
   const initialValues = getInitialFormValues();
@@ -97,6 +99,50 @@ export function useCarForm({
   // Debug log when form is created - only once
   useEffect(() => {
     console.log("useCarForm: Form initialized with userId:", userId);
+    
+    // Set up a force data load timer
+    if (!forceDataLoadTimerRef.current) {
+      forceDataLoadTimerRef.current = setTimeout(() => {
+        if (!initialDataLoadedRef.current) {
+          console.log("useCarForm: Force data load timer triggered, calling loadInitialData");
+          initialDataLoadedRef.current = true; // Prevent further attempts
+          
+          // Try to load data as a last resort
+          try {
+            const storedValuationData = localStorage.getItem('valuationData');
+            if (storedValuationData) {
+              const parsedData = JSON.parse(storedValuationData);
+              
+              // Apply directly without using loadInitialData
+              const updatedValues: Partial<ExtendedCarSchema> = {};
+              
+              if (parsedData.make) updatedValues.make = parsedData.make;
+              if (parsedData.model) updatedValues.model = parsedData.model; 
+              if (parsedData.year) updatedValues.year = parsedData.year;
+              if (parsedData.vin) updatedValues.vin = parsedData.vin;
+              if (parsedData.mileage) updatedValues.mileage = parsedData.mileage;
+              
+              console.log("useCarForm: Emergency applying values:", updatedValues);
+              form.reset({...form.getValues(), ...updatedValues});
+              
+              toast.info("Form data restored", { 
+                duration: 3000
+              });
+            }
+          } catch (e) {
+            console.error("useCarForm: Error in emergency data load:", e);
+          }
+        }
+      }, 6000); // 6 second safety timer
+    }
+    
+    // Clean up timer on unmount
+    return () => {
+      if (forceDataLoadTimerRef.current) {
+        clearTimeout(forceDataLoadTimerRef.current);
+        forceDataLoadTimerRef.current = null;
+      }
+    };
   }, [userId]);
   
   // Load initial data from valuation if available - safely
@@ -120,6 +166,12 @@ export function useCarForm({
       
       if (!valuationDataString) {
         console.log("useCarForm: No valuation data in localStorage");
+        // Try to get from tempVIN as a last resort
+        const tempVin = localStorage.getItem('tempVIN');
+        if (tempVin) {
+          console.log("useCarForm: Found VIN in localStorage:", tempVin);
+          form.setValue('vin', tempVin);
+        }
         return;
       }
       
@@ -198,6 +250,12 @@ export function useCarForm({
       // Apply all updates at once
       if (Object.keys(updatedValues).length > 0) {
         form.reset({...form.getValues(), ...updatedValues});
+        
+        // Show success toast
+        toast.success("Vehicle data loaded", {
+          description: `${updatedValues.year || ''} ${updatedValues.make || ''} ${updatedValues.model || ''}`,
+          duration: 2000
+        });
       }
       
       // Verify data was set
