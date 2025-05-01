@@ -2,8 +2,7 @@
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { formSteps } from "./constants/formSteps";
-import { useStepNavigation } from "./hooks/useStepNavigation";
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { ValidationErrorDisplay } from "./ValidationErrorDisplay";
 import { FormNavigationControls } from "./FormNavigationControls";
 import { FormFooter } from "./FormFooter";
@@ -55,29 +54,70 @@ export const StepForm = ({
   
   const totalSteps = filteredSteps.length;
   
-  const {
-    currentStep,
-    isNavigating,
-    validationErrors,
-    completedSteps,
-    stepValidationErrors,
-    handlePrevious,
-    handleNext,
-    setCurrentStep,
-    navigationDisabled
-  } = useStepNavigation({
-    form,
-    totalSteps,
-    initialStep,
-    saveProgress: async () => {
-      await saveProgress();
-      return true;
-    },
-    filteredSteps: filteredSteps.map(step => ({
-      id: step.id,
-      validate: step.validate ? () => step.validate?.(form.getValues()) ?? true : undefined
-    }))
-  });
+  // Step navigation state
+  const [currentStep, setCurrentStepInternal] = useState(initialStep);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<number, string[]>>({});
+  const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({});
+  const [stepValidationErrors, setStepValidationErrors] = useState<Record<number, string[]>>({});
+  const [navigationDisabled, setNavigationDisabled] = useState(false);
+  
+  // Handle step change and synchronize with external state
+  const handleStepChange = useCallback((step: number) => {
+    setCurrentStepInternal(step);
+    externalSetCurrentStep(step);
+  }, [externalSetCurrentStep]);
+  
+  // Handle previous navigation
+  const handlePrevious = useCallback(async () => {
+    if (currentStep > 0) {
+      setIsNavigating(true);
+      try {
+        await saveProgress();
+        handleStepChange(currentStep - 1);
+      } catch (error) {
+        console.error("Error navigating to previous step:", error);
+      } finally {
+        setIsNavigating(false);
+      }
+    }
+  }, [currentStep, saveProgress, handleStepChange]);
+  
+  // Handle next navigation with validation
+  const handleNext = useCallback(async () => {
+    if (currentStep < totalSteps - 1) {
+      setIsNavigating(true);
+      setNavigationDisabled(true);
+      
+      try {
+        // Validate current step
+        const currentStepConfig = filteredSteps[currentStep];
+        let isValid = true;
+        
+        // Custom validation if available
+        if (currentStepConfig?.validate) {
+          isValid = currentStepConfig.validate(form.getValues());
+        }
+        
+        // Form validation
+        if (isValid) {
+          // Save and navigate
+          await saveProgress();
+          handleStepChange(currentStep + 1);
+        } else {
+          setStepValidationErrors(prev => ({
+            ...prev,
+            [currentStep]: ["Please correct the errors before continuing"]
+          }));
+        }
+      } catch (error) {
+        console.error("Error navigating to next step:", error);
+      } finally {
+        setIsNavigating(false);
+        setNavigationDisabled(false);
+      }
+    }
+  }, [currentStep, totalSteps, filteredSteps, form, saveProgress, handleStepChange]);
 
   // Calculate completion percentage
   const completionPercentage = useCompletionPercentage({
@@ -87,12 +127,6 @@ export const StepForm = ({
     totalSteps,
     filteredSteps
   });
-
-  // Handle step change and synchronize with external state
-  const handleStepChange = (step: number) => {
-    setCurrentStep(step);
-    externalSetCurrentStep(step);
-  };
 
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;

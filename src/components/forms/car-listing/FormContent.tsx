@@ -8,6 +8,7 @@
  * - 2025-04-09: Improved error boundaries and recovery mechanisms
  * - 2025-05-31: Added fromValuation prop support
  * - 2025-06-01: Added error boundary to catch postMessage and cross-origin errors
+ * - 2025-06-02: Fixed ErrorBoundary props and corresponding TypeScript errors
  */
 
 import { useCallback, memo } from "react";
@@ -56,7 +57,7 @@ export const FormContent = memo(({
   const { visibleSections } = useSectionsVisibility(form, formState.carId);
 
   // Create error handler for critical sections
-  const handleComponentError = useCallback((error: Error, errorInfo?: React.ErrorInfo) => {
+  const handleComponentError = useCallback((error: Error) => {
     console.error('Component error caught by boundary:', error);
     
     if (onDraftError && error.message.includes('draft')) {
@@ -64,7 +65,7 @@ export const FormContent = memo(({
     } else if (actions.handleFormError) {
       actions.handleFormError(error);
     } else {
-      console.error('Unhandled form error:', error, errorInfo);
+      console.error('Unhandled form error:', error);
     }
   }, [onDraftError, actions.handleFormError]);
   
@@ -160,17 +161,6 @@ export const FormContent = memo(({
               <ErrorBoundary
                 onError={handleComponentError}
                 boundary="form-content-inner"
-                fallbackRender={() => (
-                  <div className="p-4 text-center">
-                    <p className="text-red-600 mb-4">There was an error displaying the form.</p>
-                    <button 
-                      onClick={() => window.location.reload()}
-                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                    >
-                      Refresh Page
-                    </button>
-                  </div>
-                )}
               >
                 <StepControllerWithErrorBoundary />
               </ErrorBoundary>

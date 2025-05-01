@@ -7,8 +7,9 @@
  * - 2025-04-07: Added proper error handling and fallbacks 
  * - 2025-04-07: Improved performance with memoization
  * - 2025-04-08: Fixed import issues and type errors
+ * - 2025-06-02: Fixed ErrorBoundary props to match component API
  */
-import { memo } from "react";
+import { memo, ReactNode } from "react";
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -69,6 +70,19 @@ export const FormContentRenderer = memo(({
     onFormError(error);
   };
   
+  // Custom fallback component for the ErrorBoundary
+  const ErrorFallback = () => (
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Something went wrong</AlertTitle>
+        <AlertDescription>
+          There was an error loading the form content. Please try refreshing the page.
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+  
   return (
     <>
       <FormProgressSection
@@ -80,6 +94,7 @@ export const FormContentRenderer = memo(({
         completedSteps={completedSteps}
         validationErrors={stepErrors}
         onStepChange={setCurrentStep}
+        progress={progress}
       />
       
       <FormErrorSection 
@@ -91,17 +106,6 @@ export const FormContentRenderer = memo(({
         boundary="main-form-content"
         resetOnPropsChange
         onError={handleComponentError}
-        fallback={
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Something went wrong</AlertTitle>
-              <AlertDescription>
-                There was an error loading the form content. Please try refreshing the page.
-              </AlertDescription>
-            </Alert>
-          </div>
-        }
       >
         <MainFormContent
           currentStep={currentStep}

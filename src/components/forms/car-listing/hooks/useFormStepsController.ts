@@ -2,6 +2,7 @@
 /**
  * Changes made:
  * - 2025-06-01: Fixed potential error when postMessage fails
+ * - 2025-06-02: Fixed TypeScript errors with hook arguments and return values
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -40,7 +41,10 @@ export const useFormStepsController = ({
   } = useStepNavigation(form);
 
   // Filter steps based on visible sections
-  const { filteredSteps } = useFilteredSteps(STEP_FIELD_MAPPINGS, visibleSections);
+  const { filteredSteps } = useFilteredSteps({ 
+    visibleSections, 
+    setFormState: updateFormState 
+  });
 
   // Step validation logic
   const {
@@ -53,8 +57,21 @@ export const useFormStepsController = ({
   const {
     progress,
     completedStepsArray,
-    updateProgress
-  } = useStepProgress(form, filteredSteps, visibleSections);
+    updateProgress,
+    saveCurrentProgress,
+    updateSaveFunction
+  } = useStepProgress({
+    form,
+    filteredSteps,
+    visibleSections
+  });
+
+  // Set save function if provided
+  useEffect(() => {
+    if (saveProgress) {
+      updateSaveFunction(saveProgress);
+    }
+  }, [saveProgress, updateSaveFunction]);
 
   // Update form state when step changes
   useEffect(() => {

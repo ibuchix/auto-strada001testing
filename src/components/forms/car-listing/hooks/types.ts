@@ -1,31 +1,27 @@
 
 /**
- * Types for car listing form hooks
- * 
- * Changes:
- * - 2025-05-31: Added fromValuation prop to FormContentProps
- * - 2025-06-01: Updated documentation for FormContentProps with fromValuation
+ * Changes made:
+ * - 2025-06-02: Updated FormContentProps to include fromValuation prop
+ * - 2025-06-02: Added ExtendedFormReturn type for form hooks
  */
-
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
 import { Session } from "@supabase/supabase-js";
+import { UseFormReturn } from "react-hook-form";
 
-// Extended form return type with our custom methods
-export interface ExtendedFormReturn extends UseFormReturn<CarListingFormData> {
-  loadInitialData?: () => void;
-  handleReset?: () => void;
+export interface FormContentProps {
+  session: Session;
+  draftId?: string;
+  onDraftError?: (error: Error) => void;
+  retryCount?: number;
+  fromValuation?: boolean;
 }
 
-/**
- * Props for the FormContent component
- * @param session User session information
- * @param draftId Optional ID of an existing draft to load
- * @param onDraftError Optional error handler for draft loading errors
- * @param retryCount Optional counter for retry attempts
- * @param fromValuation Whether this form is being initialized from valuation data
- */
-export interface FormContentProps {
+export interface ExtendedFormReturn<T = any> extends UseFormReturn<T> {
+  loadInitialData?: () => void;
+  handleReset?: () => void;
+  [key: string]: any; // To allow spreading the remaining form properties
+}
+
+export interface UseFormControllerProps {
   session: Session;
   draftId?: string;
   onDraftError?: (error: Error) => void;
