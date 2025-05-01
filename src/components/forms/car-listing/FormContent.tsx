@@ -6,6 +6,7 @@
  * - 2025-04-09: Reduced file size by ~70% through better separation of concerns
  * - 2025-04-09: Fixed potential infinite re-render issues
  * - 2025-04-09: Improved error boundaries and recovery mechanisms
+ * - 2025-05-31: Added fromValuation prop support
  */
 
 import { useCallback, memo } from "react";
@@ -21,19 +22,14 @@ import { useFormController } from "./hooks/useFormController";
 import { useFormStepsController } from "./hooks/useFormStepsController";
 import { useFormActionHandlers } from "./hooks/useFormActionHandlers";
 import { useVehicleDataManager } from "./hooks/vehicle-details/useVehicleDataManager";
-
-interface FormContentProps {
-  session: Session;
-  draftId?: string;
-  onDraftError?: (error: Error) => void;
-  retryCount?: number;
-}
+import { FormContentProps } from "./hooks/types";
 
 export const FormContent = memo(({ 
   session, 
   draftId,
   onDraftError,
-  retryCount = 0
+  retryCount = 0,
+  fromValuation = false
 }: FormContentProps) => {
   // Form controller - handles form state, initialization and submission
   const { 
@@ -48,7 +44,8 @@ export const FormContent = memo(({
     session,
     draftId,
     onDraftError,
-    retryCount
+    retryCount,
+    fromValuation
   });
   
   // Vehicle data management - centralized

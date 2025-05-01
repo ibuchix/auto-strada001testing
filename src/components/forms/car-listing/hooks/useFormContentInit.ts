@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-10: Extracted initialization logic from FormContent.tsx
  * - Created a specialized hook for form content initialization and setup
+ * - 2025-05-31: Added fromValuation prop to initialization options
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -18,6 +19,7 @@ interface UseFormContentInitProps {
   draftId?: string;
   onDraftError?: (error: Error) => void;
   retryCount?: number;
+  fromValuation?: boolean;
 }
 
 export const useFormContentInit = ({
@@ -25,7 +27,8 @@ export const useFormContentInit = ({
   form,
   draftId,
   onDraftError,
-  retryCount = 0
+  retryCount = 0,
+  fromValuation = false
 }: UseFormContentInitProps) => {
   const [state, setState] = useState({
     isInitializing: true,
@@ -77,6 +80,9 @@ export const useFormContentInit = ({
       description: "Please try refreshing the page"
     });
   }, []);
+
+  // If there's valuation data, we could add code here to pre-populate the form
+  // This is where we'd use the fromValuation flag to implement special handling
 
   return {
     isLoadingDraft,
