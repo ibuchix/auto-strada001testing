@@ -12,6 +12,7 @@
  * - 2025-05-28: Fixed valuation data loading issues and improved debugging
  * - 2025-05-29: Fixed infinite re-render by adding initialization guards
  * - 2025-05-30: Added force loading mechanisms to prevent stuck states
+ * - 2025-05-31: Added direct localStorage access and render prevention for reliable loading
  */
 
 import { useCallback, useEffect, useRef } from "react";
@@ -28,6 +29,7 @@ type UseCarFormOptions = {
   draftId?: string;
   onSubmitSuccess?: (result: any) => void;
   onSubmitError?: (error: any) => void;
+  fromValuation?: boolean;
 };
 
 // Extended form return type with our custom methods
@@ -41,12 +43,14 @@ export function useCarForm({
   userId,
   draftId,
   onSubmitSuccess,
-  onSubmitError
+  onSubmitError,
+  fromValuation = false
 }: UseCarFormOptions): ExtendedFormReturn {
   const navigate = useNavigate();
   // Use ref to track initialization to prevent loops
   const initialDataLoadedRef = useRef(false);
   const forceDataLoadTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const componentId = useRef(Math.random().toString(36).substring(2, 8));
   
   // Load initial form values
   const initialValues = getInitialFormValues();
@@ -98,42 +102,28 @@ export function useCarForm({
   
   // Debug log when form is created - only once
   useEffect(() => {
-    console.log("useCarForm: Form initialized with userId:", userId);
+    console.log(`useCarForm[${componentId.current}]: Form initialized with userId:`, userId, {
+      fromValuation,
+      hasLoadedBefore: initialDataLoadedRef.current
+    });
     
-    // Set up a force data load timer
+    // Set up a force data load timer - quicker this time
     if (!forceDataLoadTimerRef.current) {
       forceDataLoadTimerRef.current = setTimeout(() => {
         if (!initialDataLoadedRef.current) {
-          console.log("useCarForm: Force data load timer triggered, calling loadInitialData");
+          console.log(`useCarForm[${componentId.current}]: Force data load timer triggered, calling loadInitialData`);
           initialDataLoadedRef.current = true; // Prevent further attempts
           
           // Try to load data as a last resort
-          try {
-            const storedValuationData = localStorage.getItem('valuationData');
-            if (storedValuationData) {
-              const parsedData = JSON.parse(storedValuationData);
-              
-              // Apply directly without using loadInitialData
-              const updatedValues: Partial<ExtendedCarSchema> = {};
-              
-              if (parsedData.make) updatedValues.make = parsedData.make;
-              if (parsedData.model) updatedValues.model = parsedData.model; 
-              if (parsedData.year) updatedValues.year = parsedData.year;
-              if (parsedData.vin) updatedValues.vin = parsedData.vin;
-              if (parsedData.mileage) updatedValues.mileage = parsedData.mileage;
-              
-              console.log("useCarForm: Emergency applying values:", updatedValues);
-              form.reset({...form.getValues(), ...updatedValues});
-              
-              toast.info("Form data restored", { 
-                duration: 3000
-              });
-            }
-          } catch (e) {
-            console.error("useCarForm: Error in emergency data load:", e);
-          }
+          loadDataFromStorage(true);
         }
-      }, 6000); // 6 second safety timer
+      }, 1500); // Quick timer for quicker loading
+    }
+    
+    // If fromValuation is true, try to load data immediately
+    if (fromValuation && !initialDataLoadedRef.current) {
+      console.log(`useCarForm[${componentId.current}]: fromValuation is true, loading data immediately`);
+      loadInitialData();
     }
     
     // Clean up timer on unmount
@@ -143,124 +133,97 @@ export function useCarForm({
         forceDataLoadTimerRef.current = null;
       }
     };
-  }, [userId]);
+  }, [userId, fromValuation]);
+  
+  // Helper function to load data from localStorage
+  const loadDataFromStorage = useCallback((isEmergency = false) => {
+    try {
+      // Collect all possible data sources
+      const storedValuationData = localStorage.getItem('valuationData');
+      const tempMake = localStorage.getItem('tempMake');
+      const tempModel = localStorage.getItem('tempModel');
+      const tempYear = localStorage.getItem('tempYear');
+      const tempVin = localStorage.getItem('tempVIN');
+      const tempMileage = localStorage.getItem('tempMileage');
+      const tempGearbox = localStorage.getItem('tempGearbox');
+      
+      // Try to parse the valuation data first
+      let valuationData: any = null;
+      if (storedValuationData) {
+        try {
+          valuationData = JSON.parse(storedValuationData);
+          console.log(`useCarForm[${componentId.current}]: Successfully parsed valuation data from localStorage`);
+        } catch (e) {
+          console.error(`useCarForm[${componentId.current}]: Error parsing valuation data:`, e);
+        }
+      }
+      
+      // Apply the data to the form
+      const updatedValues: Partial<ExtendedCarSchema> = {};
+      
+      // From valuation data object if available
+      if (valuationData) {
+        if (valuationData.make) updatedValues.make = valuationData.make;
+        if (valuationData.model) updatedValues.model = valuationData.model; 
+        if (valuationData.year) updatedValues.year = valuationData.year;
+        if (valuationData.vin) updatedValues.vin = valuationData.vin;
+        if (valuationData.mileage) updatedValues.mileage = valuationData.mileage;
+        if (valuationData.transmission || valuationData.gearbox) {
+          updatedValues.transmission = valuationData.transmission || valuationData.gearbox;
+        }
+      }
+      
+      // If not in valuation data, try individual items
+      if (!updatedValues.make && tempMake) updatedValues.make = tempMake;
+      if (!updatedValues.model && tempModel) updatedValues.model = tempModel;
+      if (!updatedValues.year && tempYear) updatedValues.year = parseInt(tempYear);
+      if (!updatedValues.vin && tempVin) updatedValues.vin = tempVin;
+      if (!updatedValues.mileage && tempMileage) updatedValues.mileage = parseInt(tempMileage);
+      if (!updatedValues.transmission && tempGearbox) updatedValues.transmission = tempGearbox as any;
+      
+      if (Object.keys(updatedValues).length > 0) {
+        console.log(`useCarForm[${componentId.current}]: ${isEmergency ? 'EMERGENCY ' : ''}Applying values:`, updatedValues);
+        form.reset({...form.getValues(), ...updatedValues});
+        
+        // Show toast for emergency loads only
+        if (isEmergency) {
+          toast.success("Vehicle data loaded", { 
+            description: `${updatedValues.year || ''} ${updatedValues.make || ''} ${updatedValues.model || ''}`,
+            duration: 3000
+          });
+        }
+        
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      console.error(`useCarForm[${componentId.current}]: Error in ${isEmergency ? 'emergency ' : ''}data load:`, e);
+      return false;
+    }
+  }, [form]);
   
   // Load initial data from valuation if available - safely
   const loadInitialData = useCallback(() => {
     // Guard against multiple calls in the same render cycle
     if (initialDataLoadedRef.current) {
-      console.log("useCarForm: loadInitialData already called, skipping");
+      console.log(`useCarForm[${componentId.current}]: loadInitialData already called, skipping`);
       return;
     }
     
     // Mark as loaded to prevent loops
     initialDataLoadedRef.current = true;
     
-    console.log("useCarForm: loadInitialData called");
+    console.log(`useCarForm[${componentId.current}]: loadInitialData called`);
     
-    try {
-      // Get valuation data from local storage
-      const valuationDataString = localStorage.getItem('valuationData');
-      console.log("useCarForm: valuationDataString from localStorage:", 
-        valuationDataString ? `${valuationDataString.substring(0, 50)}...` : "null");
-      
-      if (!valuationDataString) {
-        console.log("useCarForm: No valuation data in localStorage");
-        // Try to get from tempVIN as a last resort
-        const tempVin = localStorage.getItem('tempVIN');
-        if (tempVin) {
-          console.log("useCarForm: Found VIN in localStorage:", tempVin);
-          form.setValue('vin', tempVin);
-        }
-        return;
-      }
-      
-      let valuationData;
-      try {
-        valuationData = JSON.parse(valuationDataString);
-        console.log("useCarForm: Parsed valuation data successfully:", {
-          make: valuationData?.make,
-          model: valuationData?.model,
-          year: valuationData?.year,
-          vin: valuationData?.vin,
-          mileage: valuationData?.mileage
-        });
-      } catch (parseError) {
-        console.error("useCarForm: Error parsing valuation data:", parseError);
-        return;
-      }
-      
-      if (!valuationData) {
-        console.log("useCarForm: Parsed data is null/undefined");
-        return;
-      }
-      
-      // Apply valuation data to the form - setting as any to bypass type checking
-      // for fields not explicitly declared in the schema
-      console.log("useCarForm: Setting form values from valuation data");
-      
-      // Batch form updates to prevent re-renders
-      const updatedValues: Partial<ExtendedCarSchema> = {};
-      
-      if (valuationData.make) {
-        console.log("useCarForm: Setting make:", valuationData.make);
-        updatedValues.make = valuationData.make;
-      }
-      
-      if (valuationData.model) {
-        console.log("useCarForm: Setting model:", valuationData.model);
-        updatedValues.model = valuationData.model;
-      }
-      
-      if (valuationData.year) {
-        console.log("useCarForm: Setting year:", valuationData.year);
-        updatedValues.year = valuationData.year;
-      }
-      
-      if (valuationData.vin) {
-        console.log("useCarForm: Setting vin:", valuationData.vin);
-        updatedValues.vin = valuationData.vin;
-      }
-      
-      // Get mileage from valuationData first, then localStorage if needed
-      let mileage = valuationData.mileage;
-      if (!mileage) {
-        const tempMileage = localStorage.getItem('tempMileage');
-        if (tempMileage) {
-          mileage = parseInt(tempMileage);
-          console.log("useCarForm: Using mileage from tempMileage:", mileage);
-        }
-      } else {
-        console.log("useCarForm: Using mileage from valuationData:", mileage);
-      }
-      
-      if (mileage) {
-        updatedValues.mileage = mileage;
-      }
-      
-      // Get transmission/gearbox from localStorage if available
-      const gearbox = valuationData.gearbox || valuationData.transmission;
-      const tempGearbox = gearbox || localStorage.getItem('tempGearbox') as "manual" | "automatic" | null;
-      
-      if (tempGearbox) {
-        console.log("useCarForm: Setting transmission:", tempGearbox);
-        updatedValues.transmission = tempGearbox;
-      }
-      
-      // Apply all updates at once
-      if (Object.keys(updatedValues).length > 0) {
-        form.reset({...form.getValues(), ...updatedValues});
-        
-        // Show success toast
-        toast.success("Vehicle data loaded", {
-          description: `${updatedValues.year || ''} ${updatedValues.make || ''} ${updatedValues.model || ''}`,
-          duration: 2000
-        });
-      }
-      
+    // Try to load data from localStorage
+    const success = loadDataFromStorage();
+    
+    // If successfully loaded, show toast
+    if (success) {
       // Verify data was set
       const currentValues = form.getValues();
-      console.log("useCarForm: Current form values after initialization:", {
+      console.log(`useCarForm[${componentId.current}]: Current form values after initialization:`, {
         make: currentValues.make,
         model: currentValues.model,
         year: currentValues.year,
@@ -268,14 +231,19 @@ export function useCarForm({
         mileage: currentValues.mileage,
         transmission: currentValues.transmission
       });
-    } catch (error) {
-      console.error('useCarForm: Error loading initial data:', error);
+      
+      toast.success("Vehicle data loaded", {
+        description: `${currentValues.year || ''} ${currentValues.make || ''} ${currentValues.model || ''}`,
+        duration: 3000
+      });
+    } else {
+      console.log(`useCarForm[${componentId.current}]: No data found to load`);
     }
-  }, [form]);
+  }, [form, loadDataFromStorage]);
   
   // Form reset handler
   const handleReset = useCallback(() => {
-    console.log("useCarForm: handleReset called");
+    console.log(`useCarForm[${componentId.current}]: handleReset called`);
     form.reset(getInitialFormValues() as any);
     // Reset the initialization flag to allow re-initialization if needed
     initialDataLoadedRef.current = false;

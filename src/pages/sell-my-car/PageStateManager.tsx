@@ -7,9 +7,10 @@
  * - 2025-05-28: Enhanced debugging and fixed initialization issues
  * - 2025-05-29: Fixed infinite re-render by using useCallback and proper dependency arrays
  * - 2025-05-30: Added force transition timer to ensure loading state doesn't get stuck
+ * - 2025-05-31: Added direct data lookup from storage to bypass navigation issues
  */
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { CarListingFormSection } from "./CarListingFormSection";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
@@ -25,6 +26,7 @@ interface PageStateManagerProps {
   isVerifying: boolean;
   handleRetrySellerVerification: () => void;
   fromValuation?: boolean;
+  renderCount?: number;
 }
 
 export const PageStateManager = ({
@@ -34,89 +36,104 @@ export const PageStateManager = ({
   errorType,
   isVerifying,
   handleRetrySellerVerification,
-  fromValuation = false
+  fromValuation = false,
+  renderCount = 0
 }: PageStateManagerProps) => {
+  // Generate a stable component ID
+  const componentId = useMemo(() => Math.random().toString(36).substring(2, 8), []);
+  
   // Debug state to track component lifecycle
   const [debugInfo, setDebugInfo] = useState({
     renderCount: 0,
-    lastStateChange: ''
+    lastStateChange: '',
+    componentId
   });
+  
+  // State to force transition out of loading state
+  const [forceReady, setForceReady] = useState(false);
   
   // Force transition timer ref
   const forceTransitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const renderCountRef = useRef(0);
+  const hasLoadedFormRef = useRef(false);
   
   // Track when component is fully mounted - run once only
   useEffect(() => {
+    renderCountRef.current += 1;
+    
     setDebugInfo(prev => ({
       renderCount: prev.renderCount + 1,
-      lastStateChange: 'component_mounted'
+      lastStateChange: 'component_mounted',
+      componentId
     }));
     
-    console.log("PageStateManager: Component mounted with props:", {
+    console.log(`PageStateManager[${componentId}]: Component mounted with props:`, {
       isValid,
       isLoading,
       error,
       fromValuation,
-      renderCount: debugInfo.renderCount + 1
+      renderCount: renderCountRef.current,
+      externalRenderCount: renderCount
     });
     
-    // Force transition after 5 seconds if still loading
-    if (isLoading) {
+    // Force transition after 3 seconds if still loading
+    if ((isLoading || !isValid) && !forceTransitionTimerRef.current) {
       forceTransitionTimerRef.current = setTimeout(() => {
-        console.log("PageStateManager: Force transition timer triggered, form may be stuck");
-        // This doesn't actually change props, but it forces a re-render
+        console.log(`PageStateManager[${componentId}]: Force transition timer triggered, form may be stuck`);
+        setForceReady(true);
+        
+        // This toast will help the user know something is happening
+        toast.info("Preparing form", {
+          description: "Loading your vehicle data..."
+        });
+        
         setDebugInfo(prev => ({
           ...prev,
           lastStateChange: 'force_transition_triggered'
         }));
-      }, 5000);
+      }, 3000);
+    }
+    
+    // Try to directly access valuation data if navigation state is missing
+    if (fromValuation && !hasLoadedFormRef.current) {
+      // Check localStorage
+      try {
+        const storedData = localStorage.getItem('valuationData');
+        if (storedData) {
+          console.log(`PageStateManager[${componentId}]: Found valuationData in localStorage`);
+        } else {
+          console.log(`PageStateManager[${componentId}]: No valuationData in localStorage`);
+        }
+      } catch (e) {
+        console.warn(`PageStateManager[${componentId}]: Error checking localStorage:`, e);
+      }
     }
     
     return () => {
-      console.log("PageStateManager: Component unmounting");
+      console.log(`PageStateManager[${componentId}]: Component unmounting`);
       if (forceTransitionTimerRef.current) {
         clearTimeout(forceTransitionTimerRef.current);
       }
     };
-  }, []);
+  }, [componentId, isLoading, isValid, fromValuation, renderCount]);
   
-  // Handle navigation from valuation - prevent re-render loop with proper dependencies
-  useEffect(() => {
-    if (fromValuation && !isLoading && !error && isValid && debugInfo.lastStateChange !== 'from_valuation_ready') {
-      console.log("PageStateManager: Ready to render form after valuation", {
-        fromValuation,
+  // Determine which content to render - memoize to prevent re-renders
+  const renderPageContent = useCallback(() => {
+    // Only log on significant state changes or every 5 renders
+    if (debugInfo.renderCount <= 2 || debugInfo.renderCount % 5 === 0) {
+      console.log(`PageStateManager[${componentId}]: Deciding what to render (render #${debugInfo.renderCount})`, {
         isLoading,
         isValid,
-        error
-      });
-      
-      setDebugInfo(prev => ({
-        ...prev,
-        lastStateChange: 'from_valuation_ready'
-      }));
-      
-      // Show success toast for seamless experience - only once
-      toast.success("Ready to list your car", {
-        description: "Your vehicle data has been loaded",
-        duration: 3000
+        error,
+        errorType,
+        fromValuation,
+        forceReady,
+        debugLastState: debugInfo.lastStateChange
       });
     }
-  }, [fromValuation, isLoading, isValid, error, debugInfo.lastStateChange]);
-
-  // Determine which content to render based on current state - memoize to prevent re-renders
-  const renderPageContent = useCallback(() => {
-    // Log the rendering decision only when dependencies change
-    console.log("PageStateManager: Deciding what to render", {
-      isLoading,
-      isValid,
-      error,
-      errorType,
-      fromValuation,
-      debugLastState: debugInfo.lastStateChange
-    });
     
-    // Force transition if loading took too long and we have valid status
-    const shouldForceTransition = debugInfo.lastStateChange === 'force_transition_triggered' && isValid;
+    // Force transition if loading took too long
+    const shouldForceTransition = forceReady || debugInfo.lastStateChange === 'force_transition_triggered';
     
     // Handle various error states with appropriate UI and actions
     if (error) {
@@ -132,6 +149,7 @@ export const PageStateManager = ({
       );
     }
 
+    // Skip loading indicator if force ready is triggered
     if (isLoading && !shouldForceTransition) {
       return (
         <LoadingIndicator 
@@ -141,25 +159,34 @@ export const PageStateManager = ({
       );
     }
 
+    // Only show loading for invalid state if not forcing transition
     if (!isValid && !shouldForceTransition) {
-      // This case should be rare - fallback to ensure the UI always shows something meaningful
       return <LoadingIndicator fullscreen message="Preparing vehicle listing form..." />;
     }
 
-    // Valid state - render the form
-    console.log("PageStateManager: Rendering car listing form", {
+    // Valid state or forced transition - render the form
+    console.log(`PageStateManager[${componentId}]: Rendering car listing form`, {
       fromValuation,
+      forceReady,
       renderCount: debugInfo.renderCount
     });
     
+    // Mark that we've loaded the form to prevent duplicate attempts
+    hasLoadedFormRef.current = true;
+    
     return (
       <CarListingFormSection 
-        pageId="main-listing-form"
+        pageId={`listing-form-${componentId}`}
         renderCount={debugInfo.renderCount}
         fromValuation={fromValuation}
+        forceReady={shouldForceTransition}
       />
     );
-  }, [isValid, isLoading, error, errorType, isVerifying, fromValuation, debugInfo.renderCount, debugInfo.lastStateChange, handleRetrySellerVerification]);
+  }, [
+    isValid, isLoading, error, errorType, isVerifying, fromValuation, 
+    forceReady, debugInfo.renderCount, debugInfo.lastStateChange, 
+    handleRetrySellerVerification, componentId
+  ]);
 
   // Use the memoized rendering function
   return <>{renderPageContent()}</>;

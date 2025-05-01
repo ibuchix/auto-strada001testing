@@ -6,6 +6,7 @@
  * - 2025-11-03: Added retry functionality for draft loading errors
  * - 2025-11-04: Added support for loading drafts from URL parameters
  * - 2027-11-19: Fixed TypeScript error with onRetry prop
+ * - 2025-05-31: Added fromValuation prop to pass to form initialization
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -15,7 +16,11 @@ import { FormSubmissionProvider } from "./car-listing/submission/FormSubmissionP
 import { FormContent } from "./car-listing/FormContent";
 import { FormErrorHandler } from "./car-listing/FormErrorHandler";
 
-export const CarListingForm = () => {
+interface CarListingFormProps {
+  fromValuation?: boolean;
+}
+
+export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) => {
   const { session } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -33,7 +38,16 @@ export const CarListingForm = () => {
     } else if (locationDraftId) {
       console.log("Loading draft from location state:", locationDraftId);
     }
-  }, [urlDraftId, locationDraftId]);
+    
+    // Log valuation status
+    if (fromValuation || location.state?.fromValuation) {
+      console.log("CarListingForm: Form initialized with valuation data", {
+        fromProp: fromValuation,
+        fromLocationState: !!location.state?.fromValuation,
+        hasValuationData: !!localStorage.getItem('valuationData')
+      });
+    }
+  }, [urlDraftId, locationDraftId, fromValuation, location.state]);
 
   const handleDraftError = useCallback((error: Error) => {
     console.error("Draft loading error:", error);
@@ -65,6 +79,7 @@ export const CarListingForm = () => {
         draftId={draftId} 
         onDraftError={handleDraftError}
         retryCount={retryCount}
+        fromValuation={fromValuation || !!location.state?.fromValuation}
       />
     </FormSubmissionProvider>
   );

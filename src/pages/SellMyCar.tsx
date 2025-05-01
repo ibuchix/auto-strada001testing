@@ -6,6 +6,7 @@
  * - 2025-05-28: Enhanced debugging to fix form initialization issues
  * - 2025-05-29: Fixed infinite re-render issue by adding proper dependency arrays and state guards
  * - 2025-05-30: Added force transition timers and controls to prevent stuck loading
+ * - 2025-05-31: Fixed cross-origin messaging issues and reduced render count
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -28,6 +29,7 @@ const SellMyCar = () => {
   // Store initialization state in ref to prevent loops
   const initCompletedRef = useRef(false);
   const forceInitTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const renderCountRef = useRef(0);
 
   const {
     isValid,
@@ -40,13 +42,19 @@ const SellMyCar = () => {
   
   // Initialize debug info once on mount
   const initializeDebugInfo = useCallback(() => {
-    console.log("SellMyCar: Component mounted with state:", {
-      locationState: location.state,
-      searchParams: Object.fromEntries(searchParams.entries()),
+    // Increment render count
+    renderCountRef.current += 1;
+    
+    // Only perform full initialization on first or forced renders
+    if (renderCountRef.current > 3 && initCompletedRef.current) {
+      return; // Skip excessive re-initializations
+    }
+    
+    console.log("SellMyCar: Component mounting/updating", {
+      render: renderCountRef.current,
+      initCompleted: initCompletedRef.current,
       fromValuation,
-      isValid,
-      isLoading,
-      initCompleted: initCompletedRef.current
+      isValid
     });
     
     // Store incoming data for debugging - only do this once
@@ -56,36 +64,20 @@ const SellMyCar = () => {
       timestamp: Date.now()
     });
     
-    // Check for valuation data - only log once
-    const valuationData = location.state?.valuationData || 
-                          localStorage.getItem('valuationData');
-    
-    if (valuationData) {
-      console.log("SellMyCar: Found valuation data", {
-        source: location.state?.valuationData ? "location.state" : "localStorage",
-        dataType: typeof valuationData,
-        hasProperties: typeof valuationData === 'object' ? 
-          Object.keys(valuationData).length : 
-          (typeof valuationData === 'string' ? valuationData.length : 'N/A')
-      });
-    } else {
-      console.log("SellMyCar: No valuation data found");
-    }
-    
-    // Set up a timer to force initialization after 5 seconds
+    // Set up a timer to force initialization after 2.5 seconds
     if (!initCompletedRef.current && !forceInitTimerRef.current) {
       forceInitTimerRef.current = setTimeout(() => {
         console.log("SellMyCar: Force initialization timer triggered");
         if (!initCompletedRef.current) {
           setInitComplete(true);
           initCompletedRef.current = true;
-          toast.info("Listing form ready", {
-            description: "Taking longer than expected, but your form is now ready."
+          toast.info("Loading your car listing form", {
+            description: "Please wait while we prepare your form."
           });
         }
-      }, 5000);
+      }, 2500);
     }
-  }, [location.state, searchParams, fromValuation]);
+  }, [location.state, fromValuation, isValid]);
   
   // Run the initialization exactly once on mount
   useEffect(() => {
@@ -102,16 +94,17 @@ const SellMyCar = () => {
   // Mark initialization as complete after a short delay
   // This helps ensure any loading states have time to update
   useEffect(() => {
-    console.log("SellMyCar: Starting initialization timer");
+    if (initCompletedRef.current) {
+      return; // Already initialized, skip
+    }
     
     const timer = setTimeout(() => {
       console.log("SellMyCar: Initialization complete");
       setInitComplete(true);
       initCompletedRef.current = true;
-    }, 300);
+    }, 200);
     
     return () => {
-      console.log("SellMyCar: Clearing initialization timer");
       clearTimeout(timer);
     }
   }, []);
@@ -125,6 +118,7 @@ const SellMyCar = () => {
       isVerifying={isVerifying}
       handleRetrySellerVerification={handleRetrySellerVerification}
       fromValuation={fromValuation}
+      renderCount={renderCountRef.current}
     />
   );
 };

@@ -1,21 +1,24 @@
 
 /**
- * Changes made:
- * - Added ExtendedFormReturn type definition for consistency
- * - Added proper type for loadInitialData and handleReset methods
+ * Types for car listing form hooks
+ * 
+ * Changes:
+ * - 2025-05-31: Added fromValuation prop to ExtendedFormReturn type
  */
 
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 
-// Define ExtendedFormReturn for consistent usage across components
+// Extended form return type with our custom methods
 export interface ExtendedFormReturn extends UseFormReturn<CarListingFormData> {
-  loadInitialData: () => void;
-  handleReset: () => void;
+  loadInitialData?: () => void;
+  handleReset?: () => void;
 }
 
-// Add other type definitions as needed
-export interface StepConfig {
-  id: string;
-  validate?: (data: CarListingFormData) => boolean;
+export interface FormContentProps {
+  session: any;
+  draftId?: string;
+  onDraftError?: (error: Error) => void;
+  retryCount?: number;
+  fromValuation?: boolean;
 }
