@@ -1,96 +1,111 @@
 
 /**
- * Form Steps Controller Hook
- * - Created 2025-04-09: Extracted from FormContent.tsx to centralize step management
- * - Handles step navigation, progress calculation, and validation
+ * Changes made:
+ * - 2025-06-01: Fixed potential error when postMessage fails
  */
 
-import { useCallback, useMemo, useEffect } from "react";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
-import { useStepNavigation } from "./useStepNavigation";
-import { useFormProgress } from "./useFormProgress";
-import { useValidationErrorTracking } from "./useValidationErrorTracking";
-import { useFilteredSteps } from "./useFilteredSteps";
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { UseFormReturn } from 'react-hook-form';
+import { CarListingFormData } from '@/types/forms';
+import { useStepNavigation, STEP_FIELD_MAPPINGS } from './useStepNavigation';
+import { useFilteredSteps } from './useFilteredSteps';
+import { useStepValidation } from './useStepValidation';
+import { useStepProgress } from './useStepProgress';
 
 interface UseFormStepsControllerProps {
   form: UseFormReturn<CarListingFormData>;
   visibleSections: string[];
   currentStep: number;
   totalSteps: number;
-  saveProgress: () => Promise<boolean>;
-  updateFormState: (updater: any) => void;
+  saveProgress?: () => Promise<boolean>;
+  updateFormState: (state: any) => void;
 }
 
 export const useFormStepsController = ({
   form,
   visibleSections,
-  currentStep,
-  totalSteps,
+  currentStep: initialStep,
+  totalSteps: initialTotalSteps,
   saveProgress,
   updateFormState
 }: UseFormStepsControllerProps) => {
-  // Form step filtering
-  const { filteredSteps, typedStepConfigs } = useFilteredSteps({
-    visibleSections,
-    setFormState: updateFormState
-  });
-
-  // Create a stable initialization object for step navigation
-  const stepNavigationConfig = useMemo(() => ({
-    form,
+  const {
+    currentStep,
     totalSteps,
-    initialStep: currentStep,
-    saveProgress,
-    filteredSteps: typedStepConfigs
-  }), [form, totalSteps, currentStep, saveProgress, typedStepConfigs]);
+    goToNextStep,
+    goToPrevStep,
+    goToStep,
+    hasStepErrors,
+    getCurrentStepErrors
+  } = useStepNavigation(form);
 
-  // Step navigation - use memoized config
-  const stepNavigation = useStepNavigation(stepNavigationConfig);
-  
-  // Update the save function when it changes
+  // Filter steps based on visible sections
+  const { filteredSteps } = useFilteredSteps(STEP_FIELD_MAPPINGS, visibleSections);
+
+  // Step validation logic
+  const {
+    validateCurrentStep,
+    stepErrors,
+    validationErrors
+  } = useStepValidation(form, currentStep);
+
+  // Progress tracking
+  const {
+    progress,
+    completedStepsArray,
+    updateProgress
+  } = useStepProgress(form, filteredSteps, visibleSections);
+
+  // Update form state when step changes
   useEffect(() => {
-    stepNavigation.updateSaveFunction(saveProgress);
-  }, [stepNavigation, saveProgress]);
+    try {
+      // Only update if values are different
+      if (currentStep !== initialStep || totalSteps !== initialTotalSteps) {
+        updateFormState({ 
+          currentStep, 
+          totalSteps: filteredSteps.length || initialTotalSteps 
+        });
+      }
+    } catch (error) {
+      console.error('Error updating form state with step:', error);
+    }
+  }, [currentStep, totalSteps, initialStep, initialTotalSteps, filteredSteps.length, updateFormState]);
 
-  // Form progress calculation - use stable props to prevent recreation
-  const progressConfig = useMemo(() => ({
-    form,
-    currentStep: stepNavigation.currentStep,
-    filteredStepsArray: filteredSteps,
-    completedSteps: stepNavigation.completedSteps,
-    totalSteps
-  }), [form, stepNavigation.currentStep, filteredSteps, stepNavigation.completedSteps, totalSteps]);
-  
-  const { calculateFormProgress } = useFormProgress(progressConfig);
-
-  // Validation error tracking - with stable dependency
-  const { getStepValidationErrors } = useValidationErrorTracking(form);
-  
-  // Calculate progress and errors - memoize to prevent recalculation on every render
-  const progress = useMemo(() => calculateFormProgress(), [calculateFormProgress]);
-  const stepErrors = useMemo(() => getStepValidationErrors(), [getStepValidationErrors]);
-  
-  // Compute completed steps array - memoize to prevent recalculation
-  const completedStepsArray = useMemo(() => {
-    return Object.entries(stepNavigation.completedSteps)
-      .filter(([, isCompleted]) => isCompleted)
-      .map(([step]) => parseInt(step, 10));
-  }, [stepNavigation.completedSteps]);
-  
-  // Create memoized handlers for child components to prevent recreation on every render
-  const handleStepChange = useCallback((step: number) => {
-    stepNavigation.setCurrentStep(step);
-  }, [stepNavigation]);
+  // Handle step change with validation
+  const handleStepChange = useCallback(async (newStep: number) => {
+    try {
+      // Validate current step if moving forward
+      if (newStep > currentStep) {
+        const isValid = await validateCurrentStep();
+        if (!isValid) return false;
+      }
+      
+      // Save progress before changing step
+      if (saveProgress) {
+        await saveProgress().catch(err => {
+          console.warn('Failed to save progress during step change:', err);
+          // Continue with step change even if save fails
+        });
+      }
+      
+      // Update the step
+      goToStep(newStep);
+      return true;
+    } catch (error) {
+      console.error('Error during step change:', error);
+      return false;
+    }
+  }, [currentStep, goToStep, saveProgress, validateCurrentStep]);
 
   return {
-    currentStep: stepNavigation.currentStep,
-    stepNavigation,
+    currentStep,
     progress,
     stepErrors,
     completedStepsArray,
-    validationErrors: stepNavigation.stepValidationErrors || {},
+    validationErrors,
     handleStepChange,
-    filteredSteps
+    filteredSteps: filteredSteps,
+    goToNextStep,
+    goToPrevStep
   };
 };

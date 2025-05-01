@@ -7,6 +7,7 @@
  * - 2025-04-09: Fixed potential infinite re-render issues
  * - 2025-04-09: Improved error boundaries and recovery mechanisms
  * - 2025-05-31: Added fromValuation prop support
+ * - 2025-06-01: Added error boundary to catch postMessage and cross-origin errors
  */
 
 import { useCallback, memo } from "react";
@@ -53,37 +54,6 @@ export const FormContent = memo(({
   
   // Section visibility management
   const { visibleSections } = useSectionsVisibility(form, formState.carId);
-  
-  // Step management and progress tracking
-  const {
-    currentStep,
-    progress,
-    stepErrors,
-    completedStepsArray,
-    validationErrors,
-    handleStepChange,
-    filteredSteps
-  } = useFormStepsController({
-    form,
-    visibleSections,
-    currentStep: formState.currentStep,
-    totalSteps: formState.totalSteps,
-    saveProgress: actions.saveProgress,
-    updateFormState: actions.updateFormState
-  });
-
-  // Dialog management
-  const { showSaveDialog, showSuccessDialog, actions: dialogActions } = useFormDialogs();
-
-  // Form action handlers
-  const formActionConfig = {
-    handleSubmit: actions.handleSubmit,
-    saveProgress: actions.saveProgress,
-    showSaveDialog: dialogActions.showSaveDialog,
-    showSuccessDialog: dialogActions.showSuccessDialog
-  };
-  
-  const { onSubmit, handleSaveAndContinue, handleSave } = useFormActionHandlers(formActionConfig);
 
   // Create error handler for critical sections
   const handleComponentError = useCallback((error: Error, errorInfo?: React.ErrorInfo) => {
@@ -97,6 +67,75 @@ export const FormContent = memo(({
       console.error('Unhandled form error:', error, errorInfo);
     }
   }, [onDraftError, actions.handleFormError]);
+  
+  // Wrap the step controller in an error boundary
+  const StepControllerWithErrorBoundary = () => {
+    try {
+      // Step management and progress tracking
+      const {
+        currentStep,
+        progress,
+        stepErrors,
+        completedStepsArray,
+        validationErrors,
+        handleStepChange,
+        filteredSteps
+      } = useFormStepsController({
+        form,
+        visibleSections,
+        currentStep: formState.currentStep,
+        totalSteps: formState.totalSteps,
+        saveProgress: actions.saveProgress,
+        updateFormState: actions.updateFormState
+      });
+      
+      // Dialog management
+      const { showSaveDialog, showSuccessDialog, actions: dialogActions } = useFormDialogs();
+    
+      // Form action handlers
+      const formActionConfig = {
+        handleSubmit: actions.handleSubmit,
+        saveProgress: actions.saveProgress,
+        showSaveDialog: dialogActions.showSaveDialog,
+        showSuccessDialog: dialogActions.showSuccessDialog
+      };
+      
+      const { onSubmit, handleSaveAndContinue, handleSave } = useFormActionHandlers(formActionConfig);
+
+      return (
+        <FormContentRenderer
+          currentStep={currentStep}
+          setCurrentStep={handleStepChange}
+          lastSaved={formState.lastSaved}
+          carId={formState.carId}
+          isOffline={persistence.isOffline}
+          isSaving={persistence.isSaving}
+          isSubmitting={isSubmitting}
+          saveProgress={actions.saveProgress}
+          visibleSections={visibleSections}
+          stepErrors={stepErrors}
+          validationErrors={validationErrors}
+          completedSteps={completedStepsArray}
+          totalSteps={formState.totalSteps}
+          progress={progress}
+          showSuccessDialog={showSuccessDialog}
+          showSaveDialog={showSaveDialog}
+          onSuccessDialogOpenChange={(open) => !open && dialogActions.hideSuccessDialog()}
+          onSaveDialogOpenChange={(open) => !open && dialogActions.hideSaveDialog()}
+          onSaveAndContinue={handleSaveAndContinue}
+          onSave={handleSave}
+          onFormError={handleComponentError}
+        />
+      );
+    } catch (error) {
+      console.error('Error in step controller:', error);
+      return (
+        <div className="p-4 border border-red-200 rounded bg-red-50">
+          <p className="text-red-600">There was an error loading the form. Please try refreshing the page.</p>
+        </div>
+      );
+    }
+  };
 
   // Main form content - wrap in FormDataProvider and ErrorBoundary for better context sharing
   return (
@@ -113,34 +152,28 @@ export const FormContent = memo(({
             isLoadingDraft={isLoadingDraft}
             draftError={draftError}
             onDraftErrorRetry={actions.resetDraftError}
-            onFormSubmit={(data) => onSubmit(data, formState.carId)}
+            onFormSubmit={(data) => actions.handleSubmit(data, formState.carId)}
             onFormError={handleComponentError}
             layoutId={formState.carId || 'new-form'}
           >
             {!formState.isInitializing && !isLoadingDraft && (
-              <FormContentRenderer
-                currentStep={currentStep}
-                setCurrentStep={handleStepChange}
-                lastSaved={formState.lastSaved}
-                carId={formState.carId}
-                isOffline={persistence.isOffline}
-                isSaving={persistence.isSaving}
-                isSubmitting={isSubmitting}
-                saveProgress={actions.saveProgress}
-                visibleSections={visibleSections}
-                stepErrors={stepErrors}
-                validationErrors={validationErrors}
-                completedSteps={completedStepsArray}
-                totalSteps={formState.totalSteps}
-                progress={progress}
-                showSuccessDialog={showSuccessDialog}
-                showSaveDialog={showSaveDialog}
-                onSuccessDialogOpenChange={(open) => !open && dialogActions.hideSuccessDialog()}
-                onSaveDialogOpenChange={(open) => !open && dialogActions.hideSaveDialog()}
-                onSaveAndContinue={handleSaveAndContinue}
-                onSave={handleSave}
-                onFormError={handleComponentError}
-              />
+              <ErrorBoundary
+                onError={handleComponentError}
+                boundary="form-content-inner"
+                fallbackRender={() => (
+                  <div className="p-4 text-center">
+                    <p className="text-red-600 mb-4">There was an error displaying the form.</p>
+                    <button 
+                      onClick={() => window.location.reload()}
+                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      Refresh Page
+                    </button>
+                  </div>
+                )}
+              >
+                <StepControllerWithErrorBoundary />
+              </ErrorBoundary>
             )}
           </FormContentLayout>
         </FormDataProvider>
