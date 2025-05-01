@@ -5,9 +5,10 @@
  * - 2025-04-05: Improved handling of valuation data
  * - 2025-04-27: Updated ValuationResult import path
  * - 2025-05-28: Enhanced debugging and fixed initialization issues
+ * - 2025-05-29: Fixed infinite re-render by using useCallback and proper dependency arrays
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { CarListingFormSection } from "./CarListingFormSection";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
@@ -40,7 +41,7 @@ export const PageStateManager = ({
     lastStateChange: ''
   });
   
-  // Track when component is fully mounted
+  // Track when component is fully mounted - run once only
   useEffect(() => {
     setDebugInfo(prev => ({
       renderCount: prev.renderCount + 1,
@@ -60,9 +61,9 @@ export const PageStateManager = ({
     };
   }, []);
   
-  // Handle navigation from valuation
+  // Handle navigation from valuation - prevent re-render loop with proper dependencies
   useEffect(() => {
-    if (fromValuation && !isLoading && !error && isValid) {
+    if (fromValuation && !isLoading && !error && isValid && debugInfo.lastStateChange !== 'from_valuation_ready') {
       console.log("PageStateManager: Ready to render form after valuation", {
         fromValuation,
         isLoading,
@@ -75,17 +76,17 @@ export const PageStateManager = ({
         lastStateChange: 'from_valuation_ready'
       }));
       
-      // Show success toast for seamless experience
+      // Show success toast for seamless experience - only once
       toast.success("Ready to list your car", {
         description: "Your vehicle data has been loaded",
         duration: 3000
       });
     }
-  }, [fromValuation, isLoading, isValid, error]);
+  }, [fromValuation, isLoading, isValid, error, debugInfo.lastStateChange]);
 
-  // Determine which content to render based on current state
-  function renderPageContent() {
-    // Log the rendering decision
+  // Determine which content to render based on current state - memoize to prevent re-renders
+  const renderPageContent = useCallback(() => {
+    // Log the rendering decision only when dependencies change
     console.log("PageStateManager: Deciding what to render", {
       isLoading,
       isValid,
@@ -97,11 +98,6 @@ export const PageStateManager = ({
     
     // Handle various error states with appropriate UI and actions
     if (error) {
-      setDebugInfo(prev => ({
-        ...prev,
-        lastStateChange: 'rendering_error'
-      }));
-      
       return (
         <PageLayout>
           <ErrorDisplay
@@ -115,11 +111,6 @@ export const PageStateManager = ({
     }
 
     if (isLoading) {
-      setDebugInfo(prev => ({
-        ...prev,
-        lastStateChange: 'rendering_loading'
-      }));
-      
       return (
         <LoadingIndicator 
           fullscreen 
@@ -129,21 +120,11 @@ export const PageStateManager = ({
     }
 
     if (!isValid) {
-      setDebugInfo(prev => ({
-        ...prev,
-        lastStateChange: 'rendering_invalid'
-      }));
-      
       // This case should be rare - fallback to ensure the UI always shows something meaningful
       return <LoadingIndicator fullscreen message="Preparing vehicle listing form..." />;
     }
 
     // Valid state - render the form
-    setDebugInfo(prev => ({
-      ...prev,
-      lastStateChange: 'rendering_form'
-    }));
-    
     console.log("PageStateManager: Rendering car listing form", {
       fromValuation,
       renderCount: debugInfo.renderCount
@@ -156,11 +137,8 @@ export const PageStateManager = ({
         fromValuation={fromValuation}
       />
     );
-  }
+  }, [isValid, isLoading, error, errorType, isVerifying, fromValuation, debugInfo.renderCount, handleRetrySellerVerification]);
 
-  return (
-    <>
-      {renderPageContent()}
-    </>
-  );
+  // Use the memoized rendering function
+  return <>{renderPageContent()}</>;
 };

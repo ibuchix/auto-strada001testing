@@ -8,8 +8,9 @@
  * - Enhanced error handling and logging
  * - Fixed form initialization to prevent constant reinitialization
  * - 2025-05-28: Fixed valuation data handling and loading flow
+ * - 2025-05-29: Fixed infinite re-render by adding useRef to track initialization
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { CarListingForm } from "@/components/forms/CarListingForm";
 import { toast } from "sonner";
@@ -28,10 +29,16 @@ export const CarListingFormSection = ({
 }: CarListingFormSectionProps) => {
   const location = useLocation();
   const [isInitialized, setIsInitialized] = useState(false);
+  // Use a ref to track if initialization has happened to prevent re-renders
+  const initializeAttemptedRef = useRef(false);
   
-  // Check for car data from VIN check or valuation in location state
+  // Check for car data from VIN check or valuation in location state - run once only
   useEffect(() => {
-    if (isInitialized) return;
+    // Skip if already initialized or if initialization was attempted
+    if (isInitialized || initializeAttemptedRef.current) return;
+    
+    // Mark as attempted to prevent re-running this effect
+    initializeAttemptedRef.current = true;
     
     console.log("CarListingFormSection: Initializing component", { 
       pageId, 
@@ -86,7 +93,7 @@ export const CarListingFormSection = ({
         console.error("CarListingFormSection: Error saving to sessionStorage:", error);
       }
       
-      // Show a toast notification for better UX
+      // Show a toast notification for better UX - only once
       toast.success("Vehicle details loaded", {
         description: `${carData.year} ${carData.make} ${carData.model}`,
         duration: 3000
@@ -96,7 +103,7 @@ export const CarListingFormSection = ({
     }
     
     setIsInitialized(true);
-  }, [location.state, isInitialized, pageId, renderCount, fromValuation]);
+  }, [location.state, pageId, renderCount, fromValuation]);
 
   return (
     <PageLayout>

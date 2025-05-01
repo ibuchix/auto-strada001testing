@@ -10,9 +10,10 @@
  * - 2025-11-29: Fixed schema type compatibility with CarListingFormData
  * - 2025-12-01: Updated form typing to match schema output types
  * - 2025-05-28: Fixed valuation data loading issues and improved debugging
+ * - 2025-05-29: Fixed infinite re-render by adding initialization guards
  */
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFormWithValidation } from "./useFormWithValidation";
 import { CarListingFormData } from "@/types/forms";
@@ -42,6 +43,8 @@ export function useCarForm({
   onSubmitError
 }: UseCarFormOptions): ExtendedFormReturn {
   const navigate = useNavigate();
+  // Use ref to track initialization to prevent loops
+  const initialDataLoadedRef = useRef(false);
   
   // Load initial form values
   const initialValues = getInitialFormValues();
@@ -91,13 +94,22 @@ export function useCarForm({
     }
   });
   
-  // Debug log when form is created
+  // Debug log when form is created - only once
   useEffect(() => {
     console.log("useCarForm: Form initialized with userId:", userId);
   }, [userId]);
   
-  // Load initial data from valuation if available
+  // Load initial data from valuation if available - safely
   const loadInitialData = useCallback(() => {
+    // Guard against multiple calls in the same render cycle
+    if (initialDataLoadedRef.current) {
+      console.log("useCarForm: loadInitialData already called, skipping");
+      return;
+    }
+    
+    // Mark as loaded to prevent loops
+    initialDataLoadedRef.current = true;
+    
     console.log("useCarForm: loadInitialData called");
     
     try {
@@ -135,24 +147,27 @@ export function useCarForm({
       // for fields not explicitly declared in the schema
       console.log("useCarForm: Setting form values from valuation data");
       
+      // Batch form updates to prevent re-renders
+      const updatedValues: Partial<ExtendedCarSchema> = {};
+      
       if (valuationData.make) {
         console.log("useCarForm: Setting make:", valuationData.make);
-        form.setValue('make', valuationData.make);
+        updatedValues.make = valuationData.make;
       }
       
       if (valuationData.model) {
         console.log("useCarForm: Setting model:", valuationData.model);
-        form.setValue('model', valuationData.model);
+        updatedValues.model = valuationData.model;
       }
       
       if (valuationData.year) {
         console.log("useCarForm: Setting year:", valuationData.year);
-        form.setValue('year', valuationData.year);
+        updatedValues.year = valuationData.year;
       }
       
       if (valuationData.vin) {
         console.log("useCarForm: Setting vin:", valuationData.vin);
-        form.setValue('vin', valuationData.vin);
+        updatedValues.vin = valuationData.vin;
       }
       
       // Get mileage from valuationData first, then localStorage if needed
@@ -168,7 +183,7 @@ export function useCarForm({
       }
       
       if (mileage) {
-        form.setValue('mileage', mileage);
+        updatedValues.mileage = mileage;
       }
       
       // Get transmission/gearbox from localStorage if available
@@ -177,7 +192,12 @@ export function useCarForm({
       
       if (tempGearbox) {
         console.log("useCarForm: Setting transmission:", tempGearbox);
-        form.setValue('transmission', tempGearbox);
+        updatedValues.transmission = tempGearbox;
+      }
+      
+      // Apply all updates at once
+      if (Object.keys(updatedValues).length > 0) {
+        form.reset({...form.getValues(), ...updatedValues});
       }
       
       // Verify data was set
@@ -199,6 +219,8 @@ export function useCarForm({
   const handleReset = useCallback(() => {
     console.log("useCarForm: handleReset called");
     form.reset(getInitialFormValues() as any);
+    // Reset the initialization flag to allow re-initialization if needed
+    initialDataLoadedRef.current = false;
   }, [form]);
 
   return {

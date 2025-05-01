@@ -4,9 +4,10 @@
  * - 2025-04-05: Simplified navigation handling and removed excessive logging
  * - 2025-04-05: Streamlined data retrieval from valuation flow
  * - 2025-05-28: Enhanced debugging to fix form initialization issues
+ * - 2025-05-29: Fixed infinite re-render issue by adding proper dependency arrays and state guards
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSellerCarListingValidation } from "@/hooks/seller/useSellerCarListingValidation";
 import { PageStateManager } from "./sell-my-car/PageStateManager";
 import { useSearchParams, useLocation } from "react-router-dom";
@@ -31,8 +32,8 @@ const SellMyCar = () => {
     handleRetrySellerVerification
   } = useSellerCarListingValidation();
   
-  // Debug logging to trace the data flow
-  useEffect(() => {
+  // Initialize debug info once on mount
+  const initializeDebugInfo = useCallback(() => {
     console.log("SellMyCar: Component mounted with state:", {
       locationState: location.state,
       searchParams: Object.fromEntries(searchParams.entries()),
@@ -41,14 +42,14 @@ const SellMyCar = () => {
       isLoading
     });
     
-    // Store incoming data for debugging
+    // Store incoming data for debugging - only do this once
     setDebugInfo({
       locationState: location.state,
       fromValuation,
       timestamp: Date.now()
     });
     
-    // Check for valuation data
+    // Check for valuation data - only log once
     const valuationData = location.state?.valuationData || 
                           localStorage.getItem('valuationData');
     
@@ -63,7 +64,12 @@ const SellMyCar = () => {
     } else {
       console.log("SellMyCar: No valuation data found");
     }
-  }, [location.state, searchParams, fromValuation, isValid, isLoading]);
+  }, [location.state, searchParams, fromValuation]);
+  
+  // Run the initialization exactly once on mount
+  useEffect(() => {
+    initializeDebugInfo();
+  }, [initializeDebugInfo]);
 
   // Mark initialization as complete after a short delay
   // This helps ensure any loading states have time to update

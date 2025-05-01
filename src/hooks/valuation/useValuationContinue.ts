@@ -3,18 +3,30 @@
  * Hook for handling the continuation flow after valuation
  * Created: 2025-05-10
  * Updated: 2025-05-28 - Enhanced with debug logging and improved navigation
+ * Updated: 2025-05-29 - Fixed potential re-render loop in navigation handling
  */
 
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export function useValuationContinue() {
   const navigate = useNavigate();
   const isLoggedIn = !!supabase.auth.getSession;
+  // Track if navigation has been triggered to prevent multiple navigations
+  const [hasNavigated, setHasNavigated] = useState(false);
 
   const handleContinue = useCallback((valuationData: any) => {
+    // Guard against multiple navigation attempts
+    if (hasNavigated) {
+      console.log("ValuationContinue: Navigation already in progress, skipping");
+      return;
+    }
+    
+    // Mark as navigated to prevent loops
+    setHasNavigated(true);
+    
     // Debug logging
     console.log("ValuationContinue: Starting navigation with data:", {
       valuationMake: valuationData?.make,
@@ -44,7 +56,8 @@ export function useValuationContinue() {
           state: { 
             fromValuation: true,
             valuationData,
-            timestamp: Date.now() // Add timestamp to ensure state is recognized as new
+            timestamp: Date.now(), // Add timestamp to ensure state is recognized as new
+            navId: Math.random().toString(36).substr(2, 9) // Add unique navigation ID
           } 
         });
         
@@ -60,17 +73,23 @@ export function useValuationContinue() {
           state: {
             from: 'valuation',
             returnTo: '/sell-my-car',
-            valuationData
+            valuationData,
+            timestamp: Date.now(), // Add timestamp to ensure state is recognized as new
+            navId: Math.random().toString(36).substr(2, 9) // Add unique navigation ID
           }
         });
       }
     } catch (error) {
       console.error("ValuationContinue: Navigation error:", error);
+      
+      // Reset navigation state to allow retry
+      setHasNavigated(false);
+      
       toast.error("Something went wrong", {
         description: "Please try again"
       });
     }
-  }, [navigate, isLoggedIn]);
+  }, [navigate, isLoggedIn, hasNavigated]);
 
   return {
     isLoggedIn,
