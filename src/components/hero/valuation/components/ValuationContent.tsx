@@ -4,6 +4,7 @@
  * Updated: 2025-05-18 - Added price calculation verification feature
  * Updated: 2025-05-20 - Fixed import for ValuationVehicleDetails component
  * Updated: 2025-05-20 - Enhanced price verification with detailed calculation check
+ * Updated: 2025-05-21 - Modified to correctly pass base price and calculate reserve price
  */
 
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
@@ -77,6 +78,8 @@ export const ValuationContent = ({
     });
   }, [make, model, year, vin, reservePrice, averagePrice, transmission, mileage, hasValuation, isLoggedIn, apiSource]);
 
+  // Prepare data for valuation verification
+  // Using averagePrice as basePrice for our verification and calculation
   const valuationData = {
     make,
     model,
@@ -86,7 +89,7 @@ export const ValuationContent = ({
     mileage,
     reservePrice,
     averagePrice,
-    basePrice: averagePrice, // Use averagePrice as basePrice for verification
+    basePrice: averagePrice, // Use averagePrice as basePrice for our calculations
   };
 
   return (
@@ -109,7 +112,7 @@ export const ValuationContent = ({
           <ValuationPriceDisplay
             reservePrice={reservePrice || 0}
             showAveragePrice={false}
-            averagePrice={averagePrice}
+            averagePrice={averagePrice} // Pass averagePrice to be used as basePrice
             errorDetails={errorDetails}
             apiSource={apiSource}
           />

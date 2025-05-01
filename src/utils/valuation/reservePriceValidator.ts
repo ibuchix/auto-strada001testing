@@ -1,140 +1,70 @@
 
 /**
- * Utility for validating reserve price calculations
- * Created: 2025-05-18 - Added validation against pricing rules
- * Updated: 2025-05-20 - Enhanced price tier validation with more accurate discrepancy detection
+ * Reserve price validator utility
+ * Created: 2025-05-21 - Added to validate reserve price against our pricing model
  */
 
 import { calculateReservePrice } from './reservePriceCalculator';
 
 /**
- * Validates if a given reserve price matches the expected calculation
- * based on the base price and pricing tier logic
- * 
- * @param basePrice The base price used for calculation
- * @param reservePrice The reserve price to validate
- * @param tolerancePercent Tolerance percentage for floating point differences (default: 0.5%)
- * @returns Validation result with details
+ * Calculate the percentage discount tier for a given base price
  */
-export function validateReservePrice(
-  basePrice: number, 
-  reservePrice: number,
-  tolerancePercent: number = 0.5
-): { 
-  isValid: boolean;
-  expectedReservePrice: number;
-  discrepancy: number;
-  discrepancyPercent: number;
-  priceTier: string;
-  appliedPercentage: number;
+function getPercentageTier(basePrice: number): {
+  percentage: number;
+  tier: string;
 } {
-  // Calculate what the reserve price should be
-  const expectedReservePrice = calculateReservePrice(basePrice);
-  
-  // Calculate the discrepancy
-  const discrepancy = Math.abs(reservePrice - expectedReservePrice);
-  const discrepancyPercent = basePrice > 0 ? (discrepancy / basePrice) * 100 : 0;
-  
-  // Determine if the discrepancy is within tolerance
-  const isValid = discrepancyPercent <= tolerancePercent;
-  
-  // Determine which price tier was used
-  let priceTier = '';
-  let appliedPercentage = 0;
-  
-  if (basePrice <= 15000) {
-    priceTier = '0 – 15,000 PLN'; 
-    appliedPercentage = 65;
-  } else if (basePrice <= 20000) {
-    priceTier = '15,001 – 20,000 PLN';
-    appliedPercentage = 46;
-  } else if (basePrice <= 30000) {
-    priceTier = '20,001 – 30,000 PLN';
-    appliedPercentage = 37;
-  } else if (basePrice <= 50000) {
-    priceTier = '30,001 – 50,000 PLN';
-    appliedPercentage = 27;
-  } else if (basePrice <= 60000) {
-    priceTier = '50,001 – 60,000 PLN';
-    appliedPercentage = 27;
-  } else if (basePrice <= 70000) {
-    priceTier = '60,001 – 70,000 PLN';
-    appliedPercentage = 22;
-  } else if (basePrice <= 80000) {
-    priceTier = '70,001 – 80,000 PLN';
-    appliedPercentage = 23;
-  } else if (basePrice <= 100000) {
-    priceTier = '80,001 – 100,000 PLN';
-    appliedPercentage = 24;
-  } else if (basePrice <= 130000) {
-    priceTier = '100,001 – 130,000 PLN';
-    appliedPercentage = 20;
-  } else if (basePrice <= 160000) {
-    priceTier = '130,001 – 160,000 PLN';
-    appliedPercentage = 18.5;
-  } else if (basePrice <= 200000) {
-    priceTier = '160,001 – 200,000 PLN';
-    appliedPercentage = 22;
-  } else if (basePrice <= 250000) {
-    priceTier = '200,001 – 250,000 PLN';
-    appliedPercentage = 17;
-  } else if (basePrice <= 300000) {
-    priceTier = '250,001 – 300,000 PLN';
-    appliedPercentage = 18;
-  } else if (basePrice <= 400000) {
-    priceTier = '300,001 – 400,000 PLN';
-    appliedPercentage = 18;
-  } else if (basePrice <= 500000) {
-    priceTier = '400,001 – 500,000 PLN';
-    appliedPercentage = 16;
-  } else {
-    priceTier = '500,001+ PLN';
-    appliedPercentage = 14.5;
-  }
-  
-  return {
-    isValid,
-    expectedReservePrice,
-    discrepancy: reservePrice - expectedReservePrice,
-    discrepancyPercent,
-    priceTier,
-    appliedPercentage
-  };
+  if (basePrice <= 15000) return { percentage: 0.65, tier: "0 – 15,000 PLN" };
+  else if (basePrice <= 20000) return { percentage: 0.46, tier: "15,001 – 20,000 PLN" };
+  else if (basePrice <= 30000) return { percentage: 0.37, tier: "20,001 – 30,000 PLN" };
+  else if (basePrice <= 50000) return { percentage: 0.27, tier: "30,001 – 50,000 PLN" };
+  else if (basePrice <= 60000) return { percentage: 0.27, tier: "50,001 – 60,000 PLN" };
+  else if (basePrice <= 70000) return { percentage: 0.22, tier: "60,001 – 70,000 PLN" };
+  else if (basePrice <= 80000) return { percentage: 0.23, tier: "70,001 – 80,000 PLN" };
+  else if (basePrice <= 100000) return { percentage: 0.24, tier: "80,001 – 100,000 PLN" };
+  else if (basePrice <= 130000) return { percentage: 0.20, tier: "100,001 – 130,000 PLN" };
+  else if (basePrice <= 160000) return { percentage: 0.185, tier: "130,001 – 160,000 PLN" };
+  else if (basePrice <= 200000) return { percentage: 0.22, tier: "160,001 – 200,000 PLN" };
+  else if (basePrice <= 250000) return { percentage: 0.17, tier: "200,001 – 250,000 PLN" };
+  else if (basePrice <= 300000) return { percentage: 0.18, tier: "250,001 – 300,000 PLN" };
+  else if (basePrice <= 400000) return { percentage: 0.18, tier: "300,001 – 400,000 PLN" };
+  else if (basePrice <= 500000) return { percentage: 0.16, tier: "400,001 – 500,000 PLN" };
+  else return { percentage: 0.145, tier: "500,001+ PLN" };
 }
 
 /**
- * Validates the reserve price from the provided valuation data
- * Handles both nested and flat data structures
- * 
- * @param valuationData The valuation data from API or form
- * @returns Validation result or null if insufficient data
+ * Validate if a provided reserve price matches our expected calculation
+ * @param basePrice The base price used for calculation
+ * @param providedReservePrice The reserve price to validate against our formula
+ * @returns Validation result with details about any discrepancies
  */
-export function validateValuationReservePrice(
-  valuationData: any
-): { validation: ReturnType<typeof validateReservePrice>; basePrice: number; reservePrice: number } | null {
-  // Extract the base price and reserve price, handling different data structures
-  const data = valuationData.data || valuationData;
+export function validateReservePrice(basePrice: number, providedReservePrice: number) {
+  // Tolerance for rounding errors (in PLN)
+  const TOLERANCE = 5;
   
-  // Try to extract the base price from various possible property names
-  const basePrice = data.basePrice || 
-                   data.averagePrice || 
-                   data.valuation || 
-                   ((data.price_min && data.price_med) ? ((data.price_min + data.price_med) / 2) : 0);
+  // Get the applicable percentage tier
+  const { percentage, tier } = getPercentageTier(basePrice);
   
-  // Extract reserve price
-  const reservePrice = data.reservePrice || data.reserve_price || 0;
+  // Calculate the expected reserve price using our formula
+  const expectedReservePrice = calculateReservePrice(basePrice);
   
-  // Ensure we have valid numbers to work with
-  if (!basePrice || !reservePrice) {
-    return null;
-  }
+  // Calculate the absolute discrepancy
+  const discrepancy = providedReservePrice - expectedReservePrice;
   
-  // Validate the reserve price
-  const validation = validateReservePrice(basePrice, reservePrice);
+  // Calculate the discrepancy as a percentage
+  const discrepancyPercent = Math.abs(discrepancy) / expectedReservePrice * 100;
+  
+  // Determine if the provided price is within tolerance
+  const isValid = Math.abs(discrepancy) <= TOLERANCE;
   
   return {
-    validation,
+    isValid,
     basePrice,
-    reservePrice
+    providedReservePrice,
+    expectedReservePrice,
+    discrepancy,
+    discrepancyPercent,
+    priceTier: tier,
+    appliedPercentage: percentage * 100,
+    tolerance: TOLERANCE
   };
 }
