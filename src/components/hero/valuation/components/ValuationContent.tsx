@@ -5,6 +5,7 @@
  * Updated: 2025-05-20 - Fixed import for ValuationVehicleDetails component
  * Updated: 2025-05-20 - Enhanced price verification with detailed calculation check
  * Updated: 2025-05-21 - Modified to correctly pass base price and calculate reserve price
+ * Updated: 2025-05-22 - Ensured mileage is passed to price display component
  */
 
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
@@ -69,9 +70,9 @@ export const ValuationContent = ({
       vin,
       reservePrice,
       averagePrice,
+      mileage,
       hasPricingData: !!reservePrice && reservePrice > 0,
       transmission,
-      mileage,
       hasValuation,
       isLoggedIn,
       apiSource
@@ -113,6 +114,7 @@ export const ValuationContent = ({
             reservePrice={reservePrice || 0}
             showAveragePrice={false}
             averagePrice={averagePrice} // Pass averagePrice to be used as basePrice
+            mileage={mileage} // Pass mileage to price display
             errorDetails={errorDetails}
             apiSource={apiSource}
           />

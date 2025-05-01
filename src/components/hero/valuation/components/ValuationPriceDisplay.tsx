@@ -8,6 +8,7 @@
  * - Updated 2025-04-23: Updated to use consolidated price utilities
  * - Updated 2025-04-29: Removed market price display as per business requirements
  * - Updated 2025-05-21: Changed to display our calculated reserve price as "Your Reserve Price"
+ * - Updated 2025-05-22: Enhanced to better display reserve price with mileage consideration
  */
 
 import { formatPrice, calculateReservePrice } from "@/utils/valuation/reservePriceCalculator";
@@ -19,12 +20,14 @@ interface ValuationPriceDisplayProps {
   averagePrice?: number | null;
   errorDetails?: string;
   apiSource?: string;
+  mileage?: number;
 }
 
 export const ValuationPriceDisplay = ({ 
   reservePrice, 
   showAveragePrice = false, // We'll ignore this prop now
   averagePrice,
+  mileage = 0,
   errorDetails,
   apiSource = 'auto_iso'
 }: ValuationPriceDisplayProps) => {
@@ -33,6 +36,7 @@ export const ValuationPriceDisplay = ({
     console.log('ValuationPriceDisplay received values:', {
       reservePrice,
       averagePrice,
+      mileage,
       showAveragePrice,
       apiSource,
       errorDetails,
@@ -40,7 +44,7 @@ export const ValuationPriceDisplay = ({
       isAveragePriceValid: typeof averagePrice === 'number' && averagePrice > 0,
       timestamp: new Date().toISOString()
     });
-  }, [reservePrice, averagePrice, showAveragePrice, errorDetails, apiSource]);
+  }, [reservePrice, averagePrice, showAveragePrice, errorDetails, apiSource, mileage]);
 
   // Calculate our own reserve price based on our formula
   // Use averagePrice (which is our basePrice) to calculate our reserve price
@@ -65,6 +69,9 @@ export const ValuationPriceDisplay = ({
           <div>
             <h3 className="text-sm font-medium text-gray-500">Your Reserve Price</h3>
             <p className="text-2xl font-bold text-DC143C">{formatPrice(ourReservePrice)}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Calculated based on mileage: {mileage?.toLocaleString() || 0} km
+            </p>
           </div>
         ) : (
           <div>

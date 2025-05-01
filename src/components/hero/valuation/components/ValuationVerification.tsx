@@ -3,6 +3,7 @@
  * ValuationVerification Component
  * Created: 2025-05-20 - Added to verify reserve price calculations in valuation dialog
  * Updated: 2025-05-21 - Modified to acknowledge that displayed price is our calculated price
+ * Updated: 2025-05-22 - Fixed TypeScript error with ourCalculatedPrice property
  */
 
 import React, { useEffect, useState } from 'react';
@@ -42,13 +43,16 @@ export const ValuationVerification = ({ valuationData }: ValuationVerificationPr
         apiProvidedPrice
       );
       
-      // Add our calculated price to the verification
-      validation.ourCalculatedPrice = ourCalculatedPrice;
+      // Add our calculated price to the validation result
+      const enhancedValidation = {
+        ...validation,
+        ourCalculatedPrice
+      };
       
-      setVerification(validation);
+      setVerification(enhancedValidation);
       
       // Log validation for debugging
-      console.log('Reserve price validation:', validation, 'Our calculated price:', ourCalculatedPrice);
+      console.log('Reserve price validation:', enhancedValidation, 'Our calculated price:', ourCalculatedPrice);
     }
   }, [valuationData]);
   
@@ -100,6 +104,9 @@ export const ValuationVerification = ({ valuationData }: ValuationVerificationPr
               </p>
               <p className="text-blue-900 mt-1">
                 4. Your Reserve Price: {formatPrice(verification.expectedReservePrice)}
+              </p>
+              <p className="text-blue-900 mt-1">
+                5. Calculated using mileage: {valuationData.mileage?.toLocaleString() || 0} km
               </p>
             </div>
           )}

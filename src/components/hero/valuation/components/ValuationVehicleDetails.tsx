@@ -3,6 +3,7 @@
  * ValuationVehicleDetails Component
  * Created: 2025-05-01 - Added to display vehicle details in valuation dialog
  * Updated: 2025-05-20 - Enhanced mileage display to handle zero values
+ * Updated: 2025-05-22 - Made mileage more prominent in display
  */
 
 import React from 'react';
