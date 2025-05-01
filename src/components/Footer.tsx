@@ -1,3 +1,8 @@
+
+/**
+ * Footer component
+ * Updated: 2025-05-01 - Added new Auto-Strada logo
+ */
 import { Link } from "react-router-dom";
 import { Facebook, Twitter, Instagram } from "lucide-react";
 
@@ -9,9 +14,9 @@ export const Footer = () => {
           <div>
             <div className="flex items-center space-x-2 mb-6">
               <img 
-                src="/lovable-uploads/1fc7ba28-ad84-400a-97d2-4051a417b224.png" 
+                src="/lovable-uploads/ec37d903-42de-41e2-a982-e7ae5574a837.png" 
                 alt="Auto-Strada Logo" 
-                className="h-16" 
+                className="h-14" 
               />
             </div>
             <div className="flex space-x-4">

@@ -3,6 +3,7 @@
  * Navigation component
  * Updated: 2025-04-29 - Fixed auth hook usage and component prop types
  * Updated: 2025-05-04 - Removed diagnostic and valuation test links
+ * Updated: 2025-05-01 - Added new Auto-Strada logo
  */
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
@@ -22,7 +23,11 @@ export const Navigation = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center space-x-2">
-          <span className="text-2xl font-bold text-[#DC143C]">Autostrada</span>
+          <img 
+            src="/lovable-uploads/ec37d903-42de-41e2-a982-e7ae5574a837.png" 
+            alt="Auto-Strada Logo" 
+            className="h-10" 
+          />
         </Link>
 
         {/* Desktop Navigation */}
