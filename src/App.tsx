@@ -7,6 +7,7 @@
  * Updated: 2025-04-11 - Ensured ErrorFallback function explicitly returns ReactNode
  * Updated: 2025-05-04 - Removed DiagnosticsPage and ValuationTest routes
  * Updated: 2025-05-05 - Fixed IndexPage rendering issue
+ * Updated: 2025-05-01 - Added explicit index route path to ensure consistent rendering
  */
 
 import { Routes, Route } from "react-router-dom";
@@ -60,6 +61,7 @@ function App() {
             <TransactionProvider>
               <Routes>
                 <Route path="/" element={<IndexPage />} />
+                <Route path="/index" element={<IndexPage />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/sellers" element={<Sellers />} />
                 <Route path="/dealers" element={<Dealers />} />

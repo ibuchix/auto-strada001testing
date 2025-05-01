@@ -6,6 +6,7 @@
  * - 2024-03-28: Fixed component to ensure proper rendering
  * - 2025-05-05: Fixed IndexPage structure and added RealtimeProvider
  * - 2025-04-29: Removed unnecessary import causing nested provider issues
+ * - 2025-05-01: Verified component is correctly exporting as default for routing
  */
 
 import React from 'react';

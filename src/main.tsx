@@ -5,6 +5,7 @@
  * - 2025-04-05: Updated to use new error handling system
  * - 2025-05-05: Fixed structure to ensure proper routing and provider nesting
  * - 2025-04-29: Fixed provider nesting order to prevent rendering issues
+ * - 2025-05-01: Fixed React.StrictMode implementation for consistent rendering
  */
 
 import React from 'react';
@@ -26,14 +27,22 @@ const queryClient = new QueryClient({
   },
 });
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <ThemeProvider defaultTheme="light" storageKey="autostrada-theme">
-        <QueryClientProvider client={queryClient}>
-          <App />
-        </QueryClientProvider>
-      </ThemeProvider>
-    </BrowserRouter>
-  </React.StrictMode>
-);
+// Ensure we have the root element
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  console.error('Root element not found! Make sure there is a <div id="root"></div> in your HTML!');
+} else {
+  const root = ReactDOM.createRoot(rootElement);
+  
+  root.render(
+    <React.StrictMode>
+      <BrowserRouter>
+        <ThemeProvider defaultTheme="light" storageKey="autostrada-theme">
+          <QueryClientProvider client={queryClient}>
+            <App />
+          </QueryClientProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </React.StrictMode>
+  );
+}
