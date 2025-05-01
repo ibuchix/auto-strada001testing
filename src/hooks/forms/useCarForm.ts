@@ -9,9 +9,10 @@
  * - 2028-11-14: Fixed TypeScript typing for extended form return type
  * - 2025-11-29: Fixed schema type compatibility with CarListingFormData
  * - 2025-12-01: Updated form typing to match schema output types
+ * - 2025-05-28: Fixed valuation data loading issues and improved debugging
  */
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFormWithValidation } from "./useFormWithValidation";
 import { CarListingFormData } from "@/types/forms";
@@ -90,41 +91,113 @@ export function useCarForm({
     }
   });
   
+  // Debug log when form is created
+  useEffect(() => {
+    console.log("useCarForm: Form initialized with userId:", userId);
+  }, [userId]);
+  
   // Load initial data from valuation if available
   const loadInitialData = useCallback(() => {
+    console.log("useCarForm: loadInitialData called");
+    
     try {
       // Get valuation data from local storage
       const valuationDataString = localStorage.getItem('valuationData');
-      if (!valuationDataString) return;
+      console.log("useCarForm: valuationDataString from localStorage:", 
+        valuationDataString ? `${valuationDataString.substring(0, 50)}...` : "null");
       
-      const valuationData = JSON.parse(valuationDataString);
-      if (!valuationData) return;
+      if (!valuationDataString) {
+        console.log("useCarForm: No valuation data in localStorage");
+        return;
+      }
+      
+      let valuationData;
+      try {
+        valuationData = JSON.parse(valuationDataString);
+        console.log("useCarForm: Parsed valuation data successfully:", {
+          make: valuationData?.make,
+          model: valuationData?.model,
+          year: valuationData?.year,
+          vin: valuationData?.vin,
+          mileage: valuationData?.mileage
+        });
+      } catch (parseError) {
+        console.error("useCarForm: Error parsing valuation data:", parseError);
+        return;
+      }
+      
+      if (!valuationData) {
+        console.log("useCarForm: Parsed data is null/undefined");
+        return;
+      }
       
       // Apply valuation data to the form - setting as any to bypass type checking
       // for fields not explicitly declared in the schema
-      if (valuationData.make) form.setValue('make', valuationData.make);
-      if (valuationData.model) form.setValue('model', valuationData.model);
-      if (valuationData.year) form.setValue('year', valuationData.year);
-      if (valuationData.vin) form.setValue('vin', valuationData.vin);
+      console.log("useCarForm: Setting form values from valuation data");
       
-      // Get mileage from localStorage if available
-      const tempMileage = localStorage.getItem('tempMileage');
-      if (tempMileage) {
-        form.setValue('mileage', parseInt(tempMileage));
+      if (valuationData.make) {
+        console.log("useCarForm: Setting make:", valuationData.make);
+        form.setValue('make', valuationData.make);
+      }
+      
+      if (valuationData.model) {
+        console.log("useCarForm: Setting model:", valuationData.model);
+        form.setValue('model', valuationData.model);
+      }
+      
+      if (valuationData.year) {
+        console.log("useCarForm: Setting year:", valuationData.year);
+        form.setValue('year', valuationData.year);
+      }
+      
+      if (valuationData.vin) {
+        console.log("useCarForm: Setting vin:", valuationData.vin);
+        form.setValue('vin', valuationData.vin);
+      }
+      
+      // Get mileage from valuationData first, then localStorage if needed
+      let mileage = valuationData.mileage;
+      if (!mileage) {
+        const tempMileage = localStorage.getItem('tempMileage');
+        if (tempMileage) {
+          mileage = parseInt(tempMileage);
+          console.log("useCarForm: Using mileage from tempMileage:", mileage);
+        }
+      } else {
+        console.log("useCarForm: Using mileage from valuationData:", mileage);
+      }
+      
+      if (mileage) {
+        form.setValue('mileage', mileage);
       }
       
       // Get transmission/gearbox from localStorage if available
-      const tempGearbox = localStorage.getItem('tempGearbox') as "manual" | "automatic" | null;
+      const gearbox = valuationData.gearbox || valuationData.transmission;
+      const tempGearbox = gearbox || localStorage.getItem('tempGearbox') as "manual" | "automatic" | null;
+      
       if (tempGearbox) {
+        console.log("useCarForm: Setting transmission:", tempGearbox);
         form.setValue('transmission', tempGearbox);
       }
+      
+      // Verify data was set
+      const currentValues = form.getValues();
+      console.log("useCarForm: Current form values after initialization:", {
+        make: currentValues.make,
+        model: currentValues.model,
+        year: currentValues.year,
+        vin: currentValues.vin,
+        mileage: currentValues.mileage,
+        transmission: currentValues.transmission
+      });
     } catch (error) {
-      console.error('Error loading initial data:', error);
+      console.error('useCarForm: Error loading initial data:', error);
     }
   }, [form]);
   
   // Form reset handler
   const handleReset = useCallback(() => {
+    console.log("useCarForm: handleReset called");
     form.reset(getInitialFormValues() as any);
   }, [form]);
 

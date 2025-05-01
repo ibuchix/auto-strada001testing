@@ -4,6 +4,7 @@
  * - 2028-11-12: Extracted form initialization logic from FormContent.tsx
  * - 2028-11-14: Fixed TypeScript error with loadInitialData property
  * - 2028-05-18: Fixed initialization state handling to prevent stuck loading state
+ * - 2025-05-28: Added enhanced debugging and fixed issues with valuation data
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -29,30 +30,53 @@ interface UseFormInitializationProps {
 interface FormInitState {
   isInitializing: boolean;
   hasInitializedHooks: boolean;
+  initAttempts: number;
 }
 
 export const useFormInitialization = ({ form, stepNavigation }: UseFormInitializationProps) => {
   // Initialization state
   const [initState, setInitState] = useState<FormInitState>({
     isInitializing: true,
-    hasInitializedHooks: false
+    hasInitializedHooks: false,
+    initAttempts: 0
   });
 
   // Initialize form with defaults
   const initializeForm = useCallback(async () => {
     try {
-      console.log('Starting form initialization');
-      setInitState(prev => ({ ...prev, isInitializing: true }));
+      console.log('FormInitialization: Starting form initialization (attempt #' + (initState.initAttempts + 1) + ')');
+      setInitState(prev => ({ 
+        ...prev, 
+        isInitializing: true,
+        initAttempts: prev.initAttempts + 1 
+      }));
+      
       const defaults = await getFormDefaults();
+      console.log('FormInitialization: Got form defaults', {
+        hasDefaults: !!defaults,
+        makeDefault: defaults?.make,
+        modelDefault: defaults?.model
+      });
+      
       form.reset(defaults);
       
       // Try to load initial data if the method exists
       if (form.loadInitialData) {
         try {
-          console.log('Calling loadInitialData method');
+          console.log('FormInitialization: Calling loadInitialData method');
           form.loadInitialData();
+          
+          // Verify data was loaded
+          const values = form.getValues();
+          console.log('FormInitialization: Data loaded into form', {
+            make: values.make,
+            model: values.model,
+            year: values.year,
+            vin: values.vin,
+            mileage: values.mileage
+          });
         } catch (error) {
-          console.error('Form initialization error:', error);
+          console.error('FormInitialization: Form initialization error:', error);
           toast.error('Failed to load initial form data', {
             description: 'Please refresh the page or try again later',
             action: {
@@ -61,28 +85,34 @@ export const useFormInitialization = ({ form, stepNavigation }: UseFormInitializ
             }
           });
         }
+      } else {
+        console.warn('FormInitialization: No loadInitialData method found on form');
       }
     } catch (error) {
-      console.error("Failed to initialize form defaults:", error);
+      console.error("FormInitialization: Failed to initialize form defaults:", error);
       toast.error("Failed to load form defaults");
     } finally {
       // Mark initialization as complete
-      console.log('Form initialization complete, setting isInitializing to false');
-      setInitState(prev => ({ ...prev, isInitializing: false, hasInitializedHooks: true }));
+      console.log('FormInitialization: Initialization complete, setting isInitializing to false');
+      setInitState(prev => ({ 
+        ...prev, 
+        isInitializing: false, 
+        hasInitializedHooks: true 
+      }));
     }
-  }, [form]);
+  }, [form, initState.initAttempts]);
   
   // Run initialization once
   useEffect(() => {
-    console.log('Running form initialization effect');
+    console.log('FormInitialization: Running form initialization effect');
     initializeForm();
     
     // Failsafe: ensure we exit loading state after timeout
     const safetyTimeout = setTimeout(() => {
-      console.log('Safety timeout triggered for form initialization');
+      console.log('FormInitialization: Safety timeout triggered after 5 seconds');
       setInitState(prev => {
         if (prev.isInitializing) {
-          console.log('Form was still initializing after timeout, forcing to ready state');
+          console.log('FormInitialization: Form was still initializing after timeout, forcing to ready state');
           return { ...prev, isInitializing: false, hasInitializedHooks: true };
         }
         return prev;
@@ -91,7 +121,7 @@ export const useFormInitialization = ({ form, stepNavigation }: UseFormInitializ
     
     return () => clearTimeout(safetyTimeout);
   }, [initializeForm]);
-
+  
   // Periodic saving of key form values
   useEffect(() => {
     const interval = setInterval(() => {
@@ -101,7 +131,7 @@ export const useFormInitialization = ({ form, stepNavigation }: UseFormInitializ
         saveToCache(CACHE_KEYS.TEMP_VIN, formValues.vin || '');
         saveToCache(CACHE_KEYS.FORM_STEP, stepNavigation.currentStep.toString());
       } catch (error) {
-        console.error('Periodic save failed:', error);
+        console.error('FormInitialization: Periodic save failed:', error);
       }
     }, 5000);
 
@@ -110,6 +140,7 @@ export const useFormInitialization = ({ form, stepNavigation }: UseFormInitializ
 
   return {
     isInitializing: initState.isInitializing,
-    hasInitializedHooks: initState.hasInitializedHooks
+    hasInitializedHooks: initState.hasInitializedHooks,
+    initAttempts: initState.initAttempts
   };
 };

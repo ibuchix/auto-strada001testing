@@ -7,6 +7,7 @@
  * - Improved initialization to use data from location state
  * - Enhanced error handling and logging
  * - Fixed form initialization to prevent constant reinitialization
+ * - 2025-05-28: Fixed valuation data handling and loading flow
  */
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -28,62 +29,81 @@ export const CarListingFormSection = ({
   const location = useLocation();
   const [isInitialized, setIsInitialized] = useState(false);
   
-  // Check for car data from VIN check in location state
+  // Check for car data from VIN check or valuation in location state
   useEffect(() => {
     if (isInitialized) return;
     
-    const fromVinCheck = location.state?.fromVinCheck;
-    const carData = location.state?.carData;
+    console.log("CarListingFormSection: Initializing component", { 
+      pageId, 
+      renderCount, 
+      fromValuation,
+      locationState: location.state
+    });
     
-    if (fromVinCheck && carData) {
-      console.log("Received car data from VIN check:", {
+    // Prioritize data sources - first location.state, then sessionStorage
+    const fromVinCheck = location.state?.fromVinCheck || location.state?.fromValuation;
+    let carData = location.state?.carData || location.state?.valuationData;
+    
+    // If no direct data in state, try to get from storage
+    if (!carData) {
+      try {
+        // Try to get from localStorage first (for valuation data)
+        const storedValuationData = localStorage.getItem('valuationData');
+        if (storedValuationData) {
+          console.log("CarListingFormSection: Found valuationData in localStorage");
+          carData = JSON.parse(storedValuationData);
+        }
+        
+        // Fallback to sessionStorage (for VIN check data)
+        if (!carData) {
+          console.log("CarListingFormSection: Checking sessionStorage for carDataFromVinCheck");
+          const storedCarData = sessionStorage.getItem('carDataFromVinCheck');
+          if (storedCarData) {
+            carData = JSON.parse(storedCarData);
+          }
+        }
+      } catch (error) {
+        console.error("CarListingFormSection: Error parsing stored car data:", error);
+      }
+    }
+    
+    if (carData) {
+      console.log("CarListingFormSection: Car data available for form initialization:", {
         make: carData.make,
         model: carData.model,
         year: carData.year,
         vin: carData.vin,
-        hasValuation: !!carData.valuation,
-        hasReservePrice: !!carData.reservePrice
+        mileage: carData.mileage,
+        hasValuation: !!carData.valuation || !!carData.reservePrice,
+        source: fromVinCheck ? "VIN Check" : "Unknown"
       });
       
-      // Store car data in sessionStorage as backup
-      sessionStorage.setItem('carDataFromVinCheck', JSON.stringify(carData));
+      // Store car data as backup
+      try {
+        sessionStorage.setItem('carDataFromVinCheck', JSON.stringify(carData));
+        console.log("CarListingFormSection: Saved car data to sessionStorage for backup");
+      } catch (error) {
+        console.error("CarListingFormSection: Error saving to sessionStorage:", error);
+      }
       
+      // Show a toast notification for better UX
       toast.success("Vehicle details loaded", {
         description: `${carData.year} ${carData.make} ${carData.model}`,
         duration: 3000
       });
     } else {
-      // Check if we have car data in sessionStorage (fallback)
-      const storedCarData = sessionStorage.getItem('carDataFromVinCheck');
-      
-      if (storedCarData) {
-        try {
-          const parsedData = JSON.parse(storedCarData);
-          console.log("Using car data from sessionStorage:", {
-            make: parsedData.make,
-            model: parsedData.model,
-            year: parsedData.year
-          });
-          
-          toast.info("Using previously validated vehicle", {
-            description: `${parsedData.year} ${parsedData.make} ${parsedData.model}`,
-            duration: 3000
-          });
-        } catch (error) {
-          console.error("Error parsing stored car data:", error);
-        }
-      }
+      console.log("CarListingFormSection: No car data found from any source");
     }
     
     setIsInitialized(true);
-  }, [location.state, isInitialized]);
+  }, [location.state, isInitialized, pageId, renderCount, fromValuation]);
 
   return (
     <PageLayout>
       <div className="pb-20">
         <h1 className="text-3xl font-bold mb-6">List Your Car</h1>
         <p className="text-gray-600 mb-8">
-          {location.state?.fromVinCheck 
+          {location.state?.fromVinCheck || location.state?.fromValuation
             ? "We've prepared your car listing based on the valuation data. Please complete the form to list your car."
             : "Please fill out this form to list your car for auction."
           }
@@ -93,4 +113,3 @@ export const CarListingFormSection = ({
     </PageLayout>
   );
 };
-
