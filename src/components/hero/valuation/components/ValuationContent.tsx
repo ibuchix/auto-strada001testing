@@ -1,42 +1,41 @@
 
 /**
- * Changes made:
- * - 2025-04-27: Added debugging logs for props
- * - 2025-04-27: Enhanced price validation and display
- * - 2025-04-29: Fixed display issues and added more detailed debugging
- * - 2025-04-30: Removed duplicate close button and market price display
- * - 2025-05-03: Completely removed header close button to fix duplicate buttons issue
- * - 2025-05-04: Refactored to use smaller component pieces
+ * ValuationContent Component
+ * Updated: 2025-05-18 - Added price calculation verification feature
  */
 
-import React, { useEffect } from "react";
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
-import { normalizeTransmission } from "@/utils/validation/validateTypes";
-import { ValuationResultHeader } from "./ValuationResultHeader";
-import { VehicleInformation } from "./VehicleInformation";
-import { ValuationActions } from "./ValuationActions";
-import { IncompleteDataDisplay } from "./IncompleteDataDisplay";
-import { ValuationLoadingState } from "./ValuationLoadingState";
+import { ValuationVehicleDetails } from "./ValuationVehicleDetails";
+import { ValuationVerification } from "./ValuationVerification";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
 
 interface ValuationContentProps {
-  make: string;
-  model: string;
-  year: number;
-  vin: string;
-  transmission: "manual" | "automatic";
-  mileage: number;
-  reservePrice: number;
+  make?: string;
+  model?: string;
+  year?: number;
+  vin?: string;
+  transmission?: "manual" | "automatic";
+  mileage?: number;
+  reservePrice?: number;
   averagePrice?: number;
-  hasValuation: boolean;
-  isLoading?: boolean;
-  isLoggedIn: boolean;
+  hasValuation?: boolean;
+  isLoggedIn?: boolean;
   apiSource?: string;
   errorDetails?: string;
-  onClose: () => void;
-  onContinue: () => void;
+  onClose?: () => void;
+  onContinue?: () => void;
 }
 
-export const ValuationContent: React.FC<ValuationContentProps> = ({
+export const ValuationContent = ({
   make,
   model,
   year,
@@ -45,27 +44,30 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
   mileage,
   reservePrice,
   averagePrice,
-  hasValuation,
-  isLoading = false,
-  isLoggedIn,
+  hasValuation = false,
+  isLoggedIn = false,
   apiSource = "auto_iso",
   errorDetails,
   onClose,
   onContinue,
-}) => {
-  const normalizedTransmission = normalizeTransmission(transmission);
-
-  // Debug logging
+}: ValuationContentProps) => {
+  // Check if we have enough data to show content
+  const hasRequiredData = !!(make && model && year);
+  
   useEffect(() => {
-    console.log('ValuationContent received props:', {
-      make, 
-      model, 
-      year, 
+    console.log("ValuationContent rendering with hasRequiredData:", hasRequiredData);
+  }, [hasRequiredData]);
+  
+  useEffect(() => {
+    console.log("ValuationContent received props:", {
+      make,
+      model,
+      year,
       vin,
       reservePrice,
       averagePrice,
-      hasPricingData: reservePrice > 0,
-      transmission: normalizedTransmission,
+      hasPricingData: !!reservePrice && reservePrice > 0,
+      transmission,
       mileage,
       hasValuation,
       isLoggedIn,
@@ -73,53 +75,60 @@ export const ValuationContent: React.FC<ValuationContentProps> = ({
     });
   }, [make, model, year, vin, reservePrice, averagePrice, transmission, mileage, hasValuation, isLoggedIn, apiSource]);
 
-  if (isLoading) {
-    return <ValuationLoadingState message="Processing valuation..." />;
-  }
-
-  // Check if we have all required data
-  const hasRequiredData = make && model && year > 0 && reservePrice > 0;
-  
-  console.log("ValuationContent rendering with hasRequiredData:", hasRequiredData);
+  const valuationData = {
+    make,
+    model,
+    year,
+    vin,
+    transmission,
+    mileage,
+    reservePrice,
+    averagePrice,
+    basePrice: averagePrice, // Use averagePrice as basePrice for verification
+  };
 
   return (
-    <div className="p-6">
-      <ValuationResultHeader title="Your Vehicle Valuation" />
+    <Dialog open={hasRequiredData} onOpenChange={() => onClose && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-center">Your Vehicle Valuation</DialogTitle>
+          <DialogDescription className="text-center text-xl font-bold mt-2">
+            {year} {make?.toUpperCase()} {model?.toUpperCase()}
+          </DialogDescription>
+        </DialogHeader>
 
-      {hasRequiredData ? (
-        <div>
-          <VehicleInformation
-            make={make}
-            model={model}
-            year={year}
+        <div className="flex flex-col space-y-2">
+          <ValuationVehicleDetails
             vin={vin}
-            transmission={normalizedTransmission}
-            mileage={mileage}
+            transmission={transmission || "manual"}
+            mileage={mileage || 0}
           />
-
+          
           <ValuationPriceDisplay
-            reservePrice={reservePrice}
+            reservePrice={reservePrice || 0}
+            showAveragePrice={false}
             averagePrice={averagePrice}
-            showAveragePrice={false} // Never show average/market price
-            apiSource={apiSource}
             errorDetails={errorDetails}
+            apiSource={apiSource}
           />
-
-          <ValuationActions
-            isLoggedIn={isLoggedIn}
-            onContinue={onContinue}
-            onClose={onClose}
-          />
+          
+          <ValuationVerification valuationData={valuationData} />
         </div>
-      ) : (
-        <IncompleteDataDisplay
-          make={make}
-          model={model}
-          year={year}
-          reservePrice={reservePrice}
-          onClose={onClose}
-        />
-      )}
-    </div>
+
+        <DialogFooter className="flex-col sm:flex-col gap-3">
+          <Button type="submit" className="w-full" onClick={onContinue}>
+            Continue to Listing
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
