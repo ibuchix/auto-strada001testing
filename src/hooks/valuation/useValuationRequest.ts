@@ -1,130 +1,54 @@
 
 /**
- * Valuation request hook to handle API interactions
+ * Hook for handling valuation API requests
  * Created: 2025-05-10
+ * Updated: 2025-05-17 - Updated mileage parameter type to be consistent (string)
  */
 
-import { useState, useRef, useCallback } from "react";
-import { toast } from "sonner";
-import { getValuation } from "@/components/hero/valuation/services/valuationService";
-import { validateValuationParams } from "@/utils/debugging/enhanced_vin_debugging";
+import { useState, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { getVehicleValuation } from '@/services/api/valuationService';
 
 export function useValuationRequest() {
   const [isLoading, setIsLoading] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const requestIdRef = useRef<string>(Math.random().toString(36).substring(2, 10));
+  const [requestId] = useState(() => uuidv4().substring(0, 8));
 
-  const executeRequest = useCallback(async (
-    vin: string,
-    mileage: number | string,
-    gearbox: string
-  ) => {
-    const startTime = performance.now();
-    
-    console.log(`[ValuationRequest][${requestIdRef.current}] Starting request:`, {
-      vin,
-      mileage,
-      gearbox,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Validate and clean parameters
-    const validationResult = validateValuationParams(
-      vin,
-      typeof mileage === 'string' ? parseInt(mileage, 10) : mileage,
-      gearbox
-    );
-    
-    if (!validationResult.valid) {
-      return {
-        success: false, 
-        error: validationResult.error || "Please check your input values"
-      };
-    }
-    
-    // Get the cleaned parameters
-    const { vin: cleanVin, mileage: cleanMileage, gearbox: cleanGearbox } = validationResult.cleanedParams!;
-    
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    setIsLoading(true);
-    
-    // Set a timeout to cancel the operation if it takes too long
-    timeoutRef.current = setTimeout(() => {
-      setIsLoading(false);
-      console.warn(`[ValuationRequest][${requestIdRef.current}] Request timed out after 20 seconds`);
-      return {
-        success: false,
-        error: "Request timed out"
-      };
-    }, 20000); // 20 second timeout
-    
-    try {
-      console.log(`[ValuationRequest][${requestIdRef.current}] Calling getValuation with parameters:`, {
-        vin: cleanVin,
-        mileage: cleanMileage,
-        gearbox: cleanGearbox,
-        timestamp: new Date().toISOString()
-      });
-      
-      const result = await getValuation(
-        cleanVin,
-        cleanMileage,
-        cleanGearbox,
-        { requestId: requestIdRef.current }
-      );
+  const executeRequest = useCallback(
+    async (vin: string, mileage: string, gearbox: string) => {
+      setIsLoading(true);
+      console.log(`[ValuationRequest][${requestId}] Executing request for VIN: ${vin}`);
 
-      console.log(`[ValuationRequest][${requestIdRef.current}] Valuation result:`, {
-        success: result.success,
-        errorPresent: result.error !== undefined,
-        dataSize: result.data ? JSON.stringify(result.data).length : 0,
-        dataFields: result.data ? Object.keys(result.data) : [],
-        processingTime: `${(performance.now() - startTime).toFixed(2)}ms`,
-        timestamp: new Date().toISOString()
-      });
-
-      // Clear timeout since we got a response
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
+      try {
+        // Convert mileage to number for API call if needed
+        const mileageValue = parseInt(mileage) || 0;
+        
+        const result = await getVehicleValuation(
+          vin, 
+          mileageValue.toString(), 
+          gearbox,
+          { requestId }
+        );
+        
+        return result;
+      } catch (error) {
+        console.error(`[ValuationRequest][${requestId}] Error:`, error);
+        throw error;
+      } finally {
+        setIsLoading(false);
       }
-
-      return result;
-    } catch (err: any) {
-      console.error(`[ValuationRequest][${requestIdRef.current}] Error:`, err);
-      
-      // Clear timeout since we got a response
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      
-      return {
-        success: false,
-        error: err.message || 'Failed to get vehicle valuation',
-        data: null
-      };
-    } finally {
-      const totalDuration = performance.now() - startTime;
-      console.log(`[ValuationRequest][${requestIdRef.current}] Request completed in ${totalDuration.toFixed(2)}ms`);
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [requestId]
+  );
 
   const cleanup = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  }, []);
+    console.log(`[ValuationRequest][${requestId}] Cleaning up resources`);
+    // Any cleanup logic here
+  }, [requestId]);
 
   return {
     executeRequest,
     isLoading,
-    requestId: requestIdRef.current,
+    requestId,
     cleanup
   };
 }

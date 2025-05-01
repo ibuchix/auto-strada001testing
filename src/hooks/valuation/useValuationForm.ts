@@ -3,6 +3,7 @@
  * Hook for valuation form functionality
  * Updated: 2025-05-01 - Updated to use centralized reserve price calculator
  * Updated: 2025-05-02 - Fixed type mismatch between string and number for mileage
+ * Updated: 2025-05-17 - Fixed parameter types to consistently use string for mileage
  */
 
 import { useState } from 'react';
@@ -17,7 +18,7 @@ import { extractNestedPriceData, calculateBasePriceFromNested } from '@/utils/ex
 // Form schema
 const valuationFormSchema = z.object({
   vin: z.string().min(5, { message: 'VIN must be at least 5 characters' }).max(17),
-  mileage: z.string().transform(val => parseInt(val) || 0),
+  mileage: z.string().min(1, { message: 'Mileage is required' }),
   gearbox: z.enum(['manual', 'automatic']).default('manual'),
 });
 
@@ -32,7 +33,7 @@ export function useValuationForm() {
     resolver: zodResolver(valuationFormSchema),
     defaultValues: {
       vin: '',
-      mileage: '0',
+      mileage: '',
       gearbox: 'manual'
     },
   });
@@ -46,7 +47,7 @@ export function useValuationForm() {
       
       const { success, data: valuationData, error } = await getVehicleValuation(
         data.vin,
-        mileageValue,
+        mileageValue.toString(),
         data.gearbox
       );
 

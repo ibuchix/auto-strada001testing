@@ -5,6 +5,7 @@
  * Updated: 2025-05-10 - Added new hook types
  * Updated: 2025-05-15 - Fixed form submission handler types
  * Updated: 2025-05-16 - Fixed mileage type to be consistent (string)
+ * Updated: 2025-05-17 - Ensured consistent typing for ValuationFormData interface
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -40,7 +41,7 @@ export interface UseValuationFormResult {
 }
 
 export interface UseValuationRequestResult {
-  executeRequest: (vin: string, mileage: number | string, gearbox: string) => Promise<any>;
+  executeRequest: (vin: string, mileage: string, gearbox: string) => Promise<any>;
   isLoading: boolean;
   requestId: string;
   cleanup: () => void;

@@ -4,6 +4,7 @@
  * - 2025-04-29: Removed FormProvider wrapper to prevent nested form issue
  * - 2025-04-30: Refactored to accept form from parent and fix type issues
  * - 2025-05-02: Ensured mileage is handled as string type
+ * - 2025-05-17: Updated to consistently use ValuationFormData from hooks/valuation/types
  */
 
 import React from 'react';
@@ -11,13 +12,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-// Define the type to match what useValuationForm returns
-interface ValuationFormData {
-  vin?: string;
-  mileage?: string;
-  gearbox?: 'manual' | 'automatic';
-}
+import { ValuationFormData } from '@/hooks/valuation/types';
 
 interface ValuationInputProps {
   form: UseFormReturn<ValuationFormData>;
