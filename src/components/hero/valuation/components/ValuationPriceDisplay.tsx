@@ -5,11 +5,8 @@
  * - Updated 2025-05-03: Removed all fallback price estimation mechanisms
  * - Updated 2025-05-03: Simplified price display with strict validation
  * - Updated 2025-05-03: Enhanced debugging for price data availability
- * - Updated 2025-04-23: Updated to use consolidated price utilities
- * - Updated 2025-04-29: Removed market price display as per business requirements
- * - Updated 2025-05-21: Changed to display our calculated reserve price as "Your Reserve Price"
- * - Updated 2025-05-22: Enhanced to better display reserve price with mileage consideration
  * - Updated 2025-05-23: Simplified UI by removing detailed calculation information
+ * - Updated 2025-05-24: Fixed mileage display and formatting in price calculation text
  */
 
 import { formatPrice, calculateReservePrice } from "@/utils/valuation/reservePriceCalculator";

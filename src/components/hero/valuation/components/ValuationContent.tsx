@@ -7,6 +7,7 @@
  * Updated: 2025-05-21 - Modified to correctly pass base price and calculate reserve price
  * Updated: 2025-05-22 - Ensured mileage is passed to price display component
  * Updated: 2025-05-23 - Removed price verification display as per business requirements
+ * Updated: 2025-05-24 - Fixed mileage propagation to child components
  */
 
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
@@ -102,7 +103,7 @@ export const ValuationContent = ({
             reservePrice={reservePrice || 0}
             showAveragePrice={false}
             averagePrice={averagePrice} // Pass averagePrice to be used as basePrice
-            mileage={mileage} // Pass mileage to price display
+            mileage={mileage} // Explicitly pass mileage to price display
             errorDetails={errorDetails}
             apiSource={apiSource}
           />

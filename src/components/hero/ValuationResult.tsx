@@ -10,6 +10,7 @@
  * - 2025-04-30: Fixed export to named export
  * - 2025-05-03: Added additional logging to troubleshoot dialog rendering
  * - 2025-05-04: Refactored into smaller components
+ * - 2025-05-24: Fixed mileage retrieval and propagation to child components
  */
 
 import { useNavigate } from "react-router-dom";
@@ -101,7 +102,8 @@ export const ValuationResult = ({
     make: result.make,
     model: result.model,
     year: result.year,
-    reservePrice: result.reservePrice
+    reservePrice: result.reservePrice,
+    mileage: mileage // Log the mileage value
   });
   
   // Normalize the valuation data
@@ -169,7 +171,8 @@ export const ValuationResult = ({
     model: normalizedData.model,
     year: normalizedData.year,
     reservePrice: normalizedData.reservePrice,
-    averagePrice: normalizedData.averagePrice
+    averagePrice: normalizedData.averagePrice,
+    mileage: mileage // Log the mileage again to confirm it's being passed
   });
 
   // Only show valuation content if we have valid data
@@ -180,7 +183,7 @@ export const ValuationResult = ({
       year={normalizedData.year}
       vin={normalizedData.vin}
       transmission={compatibleTransmission}
-      mileage={mileage}
+      mileage={mileage} // Pass the mileage value explicitly
       reservePrice={normalizedData.reservePrice}
       averagePrice={normalizedData.averagePrice || 0}
       hasValuation={true}
