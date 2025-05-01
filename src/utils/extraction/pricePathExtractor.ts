@@ -1,8 +1,9 @@
-
 /**
  * Enhanced price extractor for nested API response
- * Updated: 2025-04-27 - Complete rewrite with improved data extraction
+ * Updated: 2025-05-01 - Now uses centralized reserve price calculator
  */
+
+import { calculateReservePrice as centralCalculateReservePrice } from '../valuation/reservePriceCalculator';
 
 interface VehicleDetails {
   make: string;
@@ -267,29 +268,5 @@ export function calculateBasePriceFromNested(priceData: PriceData): number {
  * @returns The calculated reserve price
  */
 export function calculateReservePrice(basePrice: number): number {
-  if (!basePrice || basePrice <= 0) return 0;
-  
-  let percentage: number;
-  
-  // Use the official tiered percentage system
-  if (basePrice <= 15000) percentage = 0.65;
-  else if (basePrice <= 20000) percentage = 0.46;
-  else if (basePrice <= 30000) percentage = 0.37;
-  else if (basePrice <= 50000) percentage = 0.27;
-  else if (basePrice <= 60000) percentage = 0.27;
-  else if (basePrice <= 70000) percentage = 0.22;
-  else if (basePrice <= 80000) percentage = 0.23;
-  else if (basePrice <= 100000) percentage = 0.24;
-  else if (basePrice <= 130000) percentage = 0.20;
-  else if (basePrice <= 160000) percentage = 0.185;
-  else if (basePrice <= 200000) percentage = 0.22;
-  else if (basePrice <= 250000) percentage = 0.17;
-  else if (basePrice <= 300000) percentage = 0.18;
-  else if (basePrice <= 400000) percentage = 0.18;
-  else if (basePrice <= 500000) percentage = 0.16;
-  else percentage = 0.145;
-
-  // Calculate: PriceX – (PriceX x PercentageY)
-  return Math.round(basePrice - (basePrice * percentage));
+  return centralCalculateReservePrice(basePrice);
 }
-

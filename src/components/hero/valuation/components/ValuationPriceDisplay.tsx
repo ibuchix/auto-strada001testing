@@ -1,6 +1,6 @@
-
 /**
  * ValuationPriceDisplay Component
+ * - Updated 2025-05-01: Now uses centralized price formatting utilities
  * - Updated 2025-05-03: Removed all fallback price estimation mechanisms
  * - Updated 2025-05-03: Simplified price display with strict validation
  * - Updated 2025-05-03: Enhanced debugging for price data availability
@@ -8,7 +8,7 @@
  * - Updated 2025-04-29: Removed market price display as per business requirements
  */
 
-import { formatCurrency } from "@/utils/priceUtils";
+import { formatPrice } from "@/utils/valuation/reservePriceCalculator";
 import { useEffect } from "react";
 
 interface ValuationPriceDisplayProps {
@@ -54,7 +54,7 @@ export const ValuationPriceDisplay = ({
         {hasValidReservePrice ? (
           <div>
             <h3 className="text-sm font-medium text-gray-500">Reserve Price</h3>
-            <p className="text-2xl font-bold text-DC143C">{formatCurrency(validReservePrice)}</p>
+            <p className="text-2xl font-bold text-DC143C">{formatPrice(validReservePrice)}</p>
           </div>
         ) : (
           <div>

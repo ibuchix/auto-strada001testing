@@ -1,9 +1,9 @@
-
 /**
  * Changes made:
  * - 2025-04-06: Removed excessive debug logging
  * - 2025-04-06: Simplified component with environment-aware debugging
  * - 2025-04-06: Improved error resilience and visual feedback
+ * - 2025-05-01: Now uses centralized price formatting utilities
  */
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useState } from "react";
 import { GeneralErrorHandler } from "@/components/error-handling/GeneralErrorHandler";
 import { ErrorCategory } from "@/errors/types";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
+import { formatPrice } from "@/utils/valuation/reservePriceCalculator";
 
 interface ValuationDisplayProps {
   reservePrice: number | undefined | null;
@@ -100,7 +101,7 @@ export const ValuationDisplay = ({
 
   // Ensure we have a positive number and format it
   const priceValue = Math.max(0, Number(reservePrice));
-  const formattedPrice = new Intl.NumberFormat('pl-PL').format(priceValue);
+  const formattedPrice = formatPrice(priceValue);
   
   return (
     <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 text-center">
