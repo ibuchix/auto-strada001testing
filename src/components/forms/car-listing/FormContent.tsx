@@ -9,6 +9,7 @@
  * - 2025-05-31: Added fromValuation prop support
  * - 2025-06-01: Added error boundary to catch postMessage and cross-origin errors
  * - 2025-06-02: Fixed ErrorBoundary props and corresponding TypeScript errors
+ * - 2025-06-03: Fixed function argument mismatch in ErrorBoundary component
  */
 
 import { useCallback, memo } from "react";
@@ -143,7 +144,6 @@ export const FormContent = memo(({
     <ErrorBoundary 
       onError={handleComponentError}
       boundary="form-content-outer"
-      resetOnPropsChange
     >
       <FormErrorProvider formId={formState.carId || 'new-form'}>
         <FormDataProvider form={form}>
@@ -174,3 +174,4 @@ export const FormContent = memo(({
 
 // Add display name for better debugging
 FormContent.displayName = 'FormContent';
+
