@@ -6,6 +6,7 @@
  * - 2025-04-30: Fixed parameter types in onSubmit handler
  * - 2025-05-10: Updated import paths for refactored hooks
  * - 2025-05-15: Fixed onSubmit handler to properly use form.handleSubmit
+ * - 2025-05-16: Fixed ValuationInput props to match types consistently
  */
 
 import React from 'react';

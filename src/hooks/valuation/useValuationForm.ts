@@ -2,6 +2,7 @@
 /**
  * Hook for valuation form functionality
  * Updated: 2025-05-01 - Updated to use centralized reserve price calculator
+ * Updated: 2025-05-02 - Fixed type mismatch between string and number for mileage
  */
 
 import { useState } from 'react';
@@ -40,9 +41,12 @@ export function useValuationForm() {
     setIsLoading(true);
     
     try {
+      // Parse mileage as number from string
+      const mileageValue = parseInt(data.mileage) || 0;
+      
       const { success, data: valuationData, error } = await getVehicleValuation(
         data.vin,
-        parseInt(data.mileage.toString()),
+        mileageValue,
         data.gearbox
       );
 
@@ -60,7 +64,7 @@ export function useValuationForm() {
         const result = {
           ...valuationData,
           vin: data.vin,
-          mileage: parseInt(data.mileage.toString()),
+          mileage: mileageValue,
           transmission: data.gearbox,
           reservePrice,
           basePrice

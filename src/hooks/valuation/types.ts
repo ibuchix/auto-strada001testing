@@ -4,10 +4,16 @@
  * Created: 2025-04-30
  * Updated: 2025-05-10 - Added new hook types
  * Updated: 2025-05-15 - Fixed form submission handler types
+ * Updated: 2025-05-16 - Fixed mileage type to be consistent (string)
  */
 
 import { UseFormReturn } from "react-hook-form";
-import { ValuationFormData } from "@/types/validation";
+
+export interface ValuationFormData {
+  vin?: string;
+  mileage?: string;
+  gearbox?: "manual" | "automatic";
+}
 
 export interface UseValuationStateResult {
   isLoading: boolean;
