@@ -4,6 +4,7 @@
  * Created: 2025-05-01 - Added to display vehicle details in valuation dialog
  * Updated: 2025-05-20 - Enhanced mileage display to handle zero values
  * Updated: 2025-05-22 - Made mileage more prominent in display
+ * Updated: 2025-05-23 - Ensured full VIN display with word-break
  */
 
 import React from 'react';
@@ -24,7 +25,7 @@ export const ValuationVehicleDetails = ({
       {vin && (
         <div className="rounded-md p-2 bg-gray-50 border border-gray-100">
           <p className="text-xs text-gray-500 font-medium">VIN</p>
-          <p className="text-sm font-medium">{vin}</p>
+          <p className="text-sm font-medium break-all">{vin}</p>
         </div>
       )}
       

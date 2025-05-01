@@ -9,6 +9,7 @@
  * - Updated 2025-04-29: Removed market price display as per business requirements
  * - Updated 2025-05-21: Changed to display our calculated reserve price as "Your Reserve Price"
  * - Updated 2025-05-22: Enhanced to better display reserve price with mileage consideration
+ * - Updated 2025-05-23: Simplified UI by removing detailed calculation information
  */
 
 import { formatPrice, calculateReservePrice } from "@/utils/valuation/reservePriceCalculator";

@@ -6,10 +6,12 @@
  * Updated: 2025-05-20 - Enhanced price verification with detailed calculation check
  * Updated: 2025-05-21 - Modified to correctly pass base price and calculate reserve price
  * Updated: 2025-05-22 - Ensured mileage is passed to price display component
+ * Updated: 2025-05-23 - Removed price verification display as per business requirements
  */
 
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
 import { ValuationVehicleDetails } from "./ValuationVehicleDetails";
+// Import but don't use ValuationVerification
 import { ValuationVerification } from "./ValuationVerification";
 import {
   Dialog,
@@ -79,20 +81,6 @@ export const ValuationContent = ({
     });
   }, [make, model, year, vin, reservePrice, averagePrice, transmission, mileage, hasValuation, isLoggedIn, apiSource]);
 
-  // Prepare data for valuation verification
-  // Using averagePrice as basePrice for our verification and calculation
-  const valuationData = {
-    make,
-    model,
-    year,
-    vin,
-    transmission,
-    mileage,
-    reservePrice,
-    averagePrice,
-    basePrice: averagePrice, // Use averagePrice as basePrice for our calculations
-  };
-
   return (
     <Dialog open={hasRequiredData} onOpenChange={() => onClose && onClose()}>
       <DialogContent className="sm:max-w-md">
@@ -119,7 +107,7 @@ export const ValuationContent = ({
             apiSource={apiSource}
           />
           
-          <ValuationVerification valuationData={valuationData} />
+          {/* ValuationVerification component is no longer rendered */}
         </div>
 
         <DialogFooter className="flex-col sm:flex-col gap-3">
