@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Added missing imports (toast, UseFormReturn)
@@ -7,6 +8,7 @@
  * - Maintained integration with useFormDefaults
  * - Integrated with carSchema validation
  * - 2028-11-14: Fixed TypeScript error by properly returning loadInitialData and handleReset
+ * - 2025-05-31: Updated to work with the filtered valuation data structure
  */
 
 import { useForm, UseFormReturn } from "react-hook-form";
@@ -25,6 +27,7 @@ type ValuationData = {
   year?: number | string;
   mileage?: number | string;
   transmission?: "manual" | "automatic";
+  reservePrice?: number;
   [key: string]: any; // Allow additional properties
 };
 
@@ -106,7 +109,8 @@ const getValidatedValuationData = (): ValuationData | null => {
     return {
       ...data,
       year: safeParseNumber(data.year, new Date().getFullYear()),
-      mileage: safeParseNumber(data.mileage, 0)
+      mileage: safeParseNumber(data.mileage, 0),
+      reservePrice: safeParseNumber(data.reservePrice, 0)
     };
   } catch (error) {
     console.error('Valuation data error:', error);
@@ -124,6 +128,7 @@ const applyValuationData = (
   form: UseFormReturn<CarListingFormData>, 
   data: ValuationData
 ) => {
+  // Essential fields to apply to the form
   const fields: (keyof CarListingFormData)[] = [
     'vin', 'make', 'model', 'year', 'mileage', 'transmission'
   ];
@@ -133,6 +138,15 @@ const applyValuationData = (
       form.setValue(field as any, data[field] as any);
     }
   });
+  
+  // Handle reserve price separately if needed for the form
+  if (data.reservePrice && form.getValues('reservePrice') === undefined) {
+    try {
+      form.setValue('reservePrice' as any, data.reservePrice);
+    } catch (error) {
+      console.warn('Could not set reservePrice on form', error);
+    }
+  }
 };
 
 // Export a function to get valuation data from localStorage - kept for backward compatibility

@@ -5,12 +5,39 @@
  * Updated: 2025-05-28 - Enhanced with debug logging and improved navigation
  * Updated: 2025-05-29 - Fixed potential re-render loop in navigation handling
  * Updated: 2025-05-30 - Added reliability improvements to prevent stuck states
+ * Updated: 2025-05-31 - Added data filtering to limit transmission to essential fields only
  */
 
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useCallback, useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+// Essential fields to include in the valuation data
+const ESSENTIAL_FIELDS = ['vin', 'make', 'model', 'year', 'mileage', 'transmission', 'reservePrice'];
+
+/**
+ * Filters the valuation data to include only essential fields
+ */
+const getFilteredValuationData = (valuationData: any) => {
+  if (!valuationData) return null;
+  
+  const filtered: Record<string, any> = {};
+  
+  // Extract only the essential fields
+  ESSENTIAL_FIELDS.forEach(field => {
+    if (valuationData[field] !== undefined) {
+      filtered[field] = valuationData[field];
+    }
+  });
+  
+  // Always ensure reservePrice exists (use valuation as fallback)
+  if (!filtered.reservePrice && valuationData.valuation) {
+    filtered.reservePrice = valuationData.valuation;
+  }
+  
+  return filtered;
+};
 
 export function useValuationContinue() {
   const navigate = useNavigate();
@@ -50,34 +77,38 @@ export function useValuationContinue() {
     // Mark as navigated to prevent loops
     setHasNavigated(true);
     
+    // Filter to include only essential data
+    const filteredData = getFilteredValuationData(valuationData);
+    
     // Debug logging
-    console.log("ValuationContinue: Starting navigation with data:", {
-      valuationMake: valuationData?.make,
-      valuationModel: valuationData?.model,
-      valuationYear: valuationData?.year,
-      valuationVin: valuationData?.vin,
-      valuationMileage: valuationData?.mileage,
+    console.log("ValuationContinue: Starting navigation with filtered data:", {
+      valuationMake: filteredData?.make,
+      valuationModel: filteredData?.model,
+      valuationYear: filteredData?.year,
+      valuationVin: filteredData?.vin,
+      valuationMileage: filteredData?.mileage,
+      valuationReservePrice: filteredData?.reservePrice,
       isLoggedIn,
       navigationId
     });
     
     try {
       // Store data in localStorage for the next step - use stringified JSON with error handling
-      if (valuationData) {
+      if (filteredData) {
         try {
           // Clean any previous data
           localStorage.removeItem('valuationData');
           
-          // Store the current data
-          localStorage.setItem('valuationData', JSON.stringify(valuationData));
+          // Store the filtered data
+          localStorage.setItem('valuationData', JSON.stringify(filteredData));
           
           // Also store individual values for redundancy
-          localStorage.setItem('tempVIN', valuationData.vin || '');
-          localStorage.setItem('tempMileage', valuationData.mileage?.toString() || '');
-          localStorage.setItem('tempGearbox', valuationData.transmission || '');
+          localStorage.setItem('tempVIN', filteredData.vin || '');
+          localStorage.setItem('tempMileage', filteredData.mileage?.toString() || '');
+          localStorage.setItem('tempGearbox', filteredData.transmission || '');
           
-          console.log("ValuationContinue: Successfully saved valuation data to localStorage", {
-            dataSize: JSON.stringify(valuationData).length,
+          console.log("ValuationContinue: Successfully saved filtered valuation data to localStorage", {
+            dataSize: JSON.stringify(filteredData).length,
             navigationId
           });
         } catch (error) {
@@ -95,7 +126,7 @@ export function useValuationContinue() {
         navigate('/sell-my-car', { 
           state: { 
             fromValuation: true,
-            valuationData,
+            valuationData: filteredData, // Pass the filtered data
             timestamp: Date.now(),
             navId: navigationId
           },
@@ -118,7 +149,7 @@ export function useValuationContinue() {
           state: {
             from: 'valuation',
             returnTo: '/sell-my-car',
-            valuationData,
+            valuationData: filteredData, // Pass the filtered data
             timestamp: Date.now(),
             navId: navigationId
           },

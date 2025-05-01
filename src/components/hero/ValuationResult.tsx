@@ -12,6 +12,7 @@
  * - 2025-05-04: Refactored into smaller components
  * - 2025-05-24: Fixed mileage retrieval and propagation to child components
  * - 2025-05-25: Fixed to use mileage from API data instead of localStorage
+ * - 2025-05-31: Updated to filter data when continuing to form
  */
 
 import { useNavigate } from "react-router-dom";

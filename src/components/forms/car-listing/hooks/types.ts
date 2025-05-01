@@ -3,7 +3,7 @@
  * Types for car listing form hooks
  * 
  * Changes:
- * - 2025-05-31: Added fromValuation prop to ExtendedFormReturn type
+ * - 2025-05-31: Added fromValuation prop to FormContentProps
  */
 
 import { UseFormReturn } from "react-hook-form";
