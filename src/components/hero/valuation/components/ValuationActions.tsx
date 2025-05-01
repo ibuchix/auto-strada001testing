@@ -2,34 +2,46 @@
 /**
  * ValuationActions component for displaying action buttons
  * Created: 2025-04-29
+ * Updated: 2025-05-25 - Added processing state and improved button feedback
  */
 
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 interface ValuationActionsProps {
   isLoggedIn: boolean;
   onContinue: () => void;
   onClose: () => void;
+  isProcessing?: boolean;
 }
 
 export const ValuationActions: React.FC<ValuationActionsProps> = ({
   isLoggedIn,
   onContinue,
-  onClose
+  onClose,
+  isProcessing = false
 }) => {
   return (
     <div className="mt-6">
       <Button 
         onClick={onContinue}
-        className="w-full"
-        variant="default"
+        className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90 text-white"
+        disabled={isProcessing}
       >
-        {isLoggedIn ? "Continue to Listing" : "Sign In to Continue"}
+        {isProcessing ? (
+          <span className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {isLoggedIn ? "Processing..." : "Signing In..."}
+          </span>
+        ) : (
+          isLoggedIn ? "Continue to Listing" : "Sign In to Continue"
+        )}
       </Button>
       <button
         onClick={onClose}
         className="w-full mt-3 text-sm text-gray-600 hover:underline"
+        disabled={isProcessing}
       >
         Cancel
       </button>

@@ -8,6 +8,7 @@
  * Updated: 2025-05-22 - Ensured mileage is passed to price display component
  * Updated: 2025-05-23 - Removed price verification display as per business requirements
  * Updated: 2025-05-24 - Fixed mileage propagation to child components
+ * Updated: 2025-05-25 - Improved button functionality and interactions
  */
 
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
@@ -18,12 +19,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { useEffect } from "react";
+import { ValuationActions } from "./ValuationActions";
+import { useEffect, useState } from "react";
 
 interface ValuationContentProps {
   make?: string;
@@ -60,6 +60,7 @@ export const ValuationContent = ({
 }: ValuationContentProps) => {
   // Check if we have enough data to show content
   const hasRequiredData = !!(make && model && year);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   useEffect(() => {
     console.log("ValuationContent rendering with hasRequiredData:", hasRequiredData);
@@ -82,8 +83,26 @@ export const ValuationContent = ({
     });
   }, [make, model, year, vin, reservePrice, averagePrice, transmission, mileage, hasValuation, isLoggedIn, apiSource]);
 
+  // Handle continue button click with processing state
+  const handleContinue = () => {
+    if (onContinue) {
+      setIsProcessing(true);
+      // Small timeout to show processing state
+      setTimeout(() => {
+        onContinue();
+      }, 300);
+    }
+  };
+
+  // Handle close button click
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={hasRequiredData} onOpenChange={() => onClose && onClose()}>
+    <Dialog open={hasRequiredData} onOpenChange={() => handleClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center">Your Vehicle Valuation</DialogTitle>
@@ -111,19 +130,12 @@ export const ValuationContent = ({
           {/* ValuationVerification component is no longer rendered */}
         </div>
 
-        <DialogFooter className="flex-col sm:flex-col gap-3">
-          <Button type="submit" className="w-full" onClick={onContinue}>
-            Continue to Listing
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-        </DialogFooter>
+        <ValuationActions 
+          isLoggedIn={isLoggedIn}
+          onContinue={handleContinue}
+          onClose={handleClose}
+          isProcessing={isProcessing}
+        />
       </DialogContent>
     </Dialog>
   );
