@@ -1,4 +1,3 @@
-
 /**
  * Enhanced valuation service with monitoring
  * Updated: 2025-04-26 - Refactored to handle raw API response
@@ -6,6 +5,7 @@
  * Updated: 2025-04-29 - Fixed request format to use POST body instead of URL params
  * Updated: 2025-04-30 - Enhanced error logging and debugging
  * Updated: 2025-05-01 - Fixed request handling and parameter validation
+ * Updated: 2025-05-01 - Updated mileage parameter to use string type for consistency
  */
 
 import { ValuationMonitoring } from '../monitoring/valuationMonitoring';
@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 export async function getVehicleValuation(
   vin: string, 
-  mileage: number, 
+  mileage: string, 
   gearbox: string
 ) {
   const startTime = performance.now();
@@ -30,7 +30,7 @@ export async function getVehicleValuation(
     
     // Clean and standardize inputs
     const cleanVin = vin.trim().replace(/\s+/g, '');
-    const cleanMileage = typeof mileage === 'number' && !isNaN(mileage) ? mileage : 0;
+    const cleanMileage = parseInt(String(mileage), 10) || 0;
     const cleanGearbox = gearbox || 'manual';
     
     console.log(`[VALUATION-API][${requestId}] Getting valuation for:`, { 

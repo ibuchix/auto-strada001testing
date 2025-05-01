@@ -4,6 +4,7 @@
  * Created: 2025-05-10
  * Updated: 2025-05-17 - Updated mileage parameter type to be consistent (string)
  * Updated: 2025-05-18 - Fixed function signature to match service implementation
+ * Updated: 2025-05-18 - Ensured consistent string type for mileage parameter
  */
 
 import { useState, useCallback } from 'react';

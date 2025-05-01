@@ -1,9 +1,11 @@
+
 /**
  * Hook for valuation form functionality
  * Updated: 2025-05-01 - Updated to use centralized reserve price calculator
  * Updated: 2025-05-02 - Fixed type mismatch between string and number for mileage
  * Updated: 2025-05-17 - Fixed parameter types to consistently use string for mileage
  * Updated: 2025-05-17 - Fixed argument type for getVehicleValuation call
+ * Updated: 2025-05-18 - Fixed mileage type to consistently use string in API calls
  */
 
 import { useState } from 'react';
