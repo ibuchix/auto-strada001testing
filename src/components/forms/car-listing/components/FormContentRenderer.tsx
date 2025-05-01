@@ -9,6 +9,7 @@
  * - 2025-04-08: Fixed import issues and type errors
  * - 2025-06-02: Fixed ErrorBoundary props to match component API
  * - 2025-06-03: Updated onError handler to match ErrorBoundary's interface
+ * - 2025-06-04: Updated error handling functions to be consistent
  */
 import { memo, ReactNode } from "react";
 import { ErrorBoundary } from "@/components/error-boundary/ErrorBoundary";
@@ -66,11 +67,6 @@ export const FormContentRenderer = memo(({
   onSave,
   onFormError
 }: FormContentRendererProps) => {
-  const handleComponentError = (error: Error) => {
-    console.error("Form renderer error:", error);
-    onFormError(error);
-  };
-  
   // Custom fallback component for the ErrorBoundary
   const ErrorFallback = () => (
     <div className="bg-white rounded-lg shadow-sm p-6">
@@ -106,7 +102,7 @@ export const FormContentRenderer = memo(({
       <ErrorBoundary
         boundary="main-form-content"
         resetOnPropsChange
-        onError={handleComponentError}
+        onError={onFormError}
       >
         <MainFormContent
           currentStep={currentStep}

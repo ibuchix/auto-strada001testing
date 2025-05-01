@@ -10,6 +10,7 @@
  * - 2025-06-01: Added error boundary to catch postMessage and cross-origin errors
  * - 2025-06-02: Fixed ErrorBoundary props and corresponding TypeScript errors
  * - 2025-06-03: Fixed function argument mismatch in ErrorBoundary component
+ * - 2025-06-04: Fixed TypeScript errors with onError handler
  */
 
 import { useCallback, memo } from "react";

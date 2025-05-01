@@ -1,27 +1,18 @@
 
 /**
- * Form Container component
- * - Handles displaying the appropriate components for the current step
- * - Updated to support consolidated multi-step steps
- * - Uses FormDataContext instead of direct form prop
- * - 2025-04-03: Fixed section component props to use FormDataContext
- * - 2025-04-03: Removed form prop from components that now use FormDataContext
+ * Form Container component to manage the display of form steps
+ * Created: 2025-06-04
  */
-import { memo, useMemo } from "react";
+
+import { useEffect } from "react";
+import { useFormContext } from "react-hook-form";
+import { CarListingFormData } from "@/types/forms";
+import { FormSection } from "../FormSection";
 import { formSteps } from "../constants/formSteps";
-import { VehicleDetailsSection } from "../sections/VehicleDetailsSection";
-import { PhotoUploadSection } from "../PhotoUploadSection";
-import { RimPhotosSection } from "../RimPhotosSection";
-import { VehicleStatusSection } from "../VehicleStatusSection";
-import { FeaturesSection } from "../FeaturesSection";
-import { DamageSection } from "../DamageSection";
-import { WarningLightsSection } from "../WarningLightsSection";
-import { ServiceHistorySection } from "../ServiceHistorySection";
-import { AdditionalInfoSection } from "../AdditionalInfoSection";
-import { PersonalDetailsSection } from "../PersonalDetailsSection";
-import { FinanceDetailsSection } from "../FinanceDetailsSection";
-import { SellerNotesSection } from "../SellerNotesSection";
-import { useFormData } from "../context/FormDataContext";
+import { FormSubmissionButtons } from "./FormSubmissionButtons";
+import { ImageUploadSection } from "./ImageUploadSection";
+import { useFeatureToggle } from "@/hooks/useFeatureToggle";
+import { useFormController } from "../hooks/useFormController";
 
 interface FormContainerProps {
   currentStep: number;
@@ -32,88 +23,79 @@ interface FormContainerProps {
   navigationDisabled: boolean;
   isSaving: boolean;
   carId?: string;
-  userId: string;
+  userId?: string;
 }
 
-export const FormContainer = memo(({
+export const FormContainer = ({
   currentStep,
-  carId,
-  userId,
   onNext,
   onPrevious,
   isFirstStep,
   isLastStep,
   navigationDisabled,
-  isSaving
+  isSaving,
+  carId,
+  userId
 }: FormContainerProps) => {
-  // Get form from context
-  const { form } = useFormData();
+  const form = useFormContext<CarListingFormData>();
   
-  // Get the current step configuration
+  // Get pauseAutoSave and resumeAutoSave from context
+  const controller = (window as any).__formController;
+  const pauseAutoSave = controller?.pauseAutoSave;
+  const resumeAutoSave = controller?.resumeAutoSave;
+  
+  // Store form controller in window for debug access
+  useEffect(() => {
+    if (form && !window.__DEBUG_MODE) {
+      (window as any).__formController = {
+        pauseAutoSave,
+        resumeAutoSave,
+        form
+      };
+    }
+  }, [form, pauseAutoSave, resumeAutoSave]);
+
+  // Get current step configuration
   const currentStepConfig = formSteps[currentStep];
   
-  // Map of component renderers by section ID
-  const sectionRenderers = useMemo(() => ({
-    'vehicle-details': () => <VehicleDetailsSection />,
-    'photos': () => <PhotoUploadSection carId={carId} />,
-    'rims': () => <RimPhotosSection carId={carId} />,
-    'vehicle-status': () => <VehicleStatusSection />,
-    'features': () => <FeaturesSection />,
-    'damage': () => <DamageSection carId={carId} />,
-    'warning-lights': () => <WarningLightsSection carId={carId} />,
-    'service-history': () => <ServiceHistorySection carId={carId} />,
-    'additional-info': () => <AdditionalInfoSection />,
-    'personal-details': () => <PersonalDetailsSection />,
-    'finance-details': () => <FinanceDetailsSection carId={carId} />,
-    'seller-notes': () => <SellerNotesSection />
-  }), [carId]);
-  
-  // Based on the current step's sections, render the appropriate components
-  const renderSections = () => {
-    if (!currentStepConfig) {
-      return <div className="text-red-500">Invalid step configuration</div>;
-    }
-    
-    return (
-      <div className="space-y-8">
-        {currentStepConfig.sections
-          .filter(sectionId => {
-            // Conditionally show sections based on form state
-            if (sectionId === 'damage') {
-              return form.watch('isDamaged') === true;
-            }
-            if (sectionId === 'warning-lights') {
-              return form.watch('hasWarningLights') === true;
-            }
-            if (sectionId === 'finance-details') {
-              return form.watch('hasOutstandingFinance') === true;
-            }
-            return true;
-          })
-          .map(sectionId => {
-            const renderSection = sectionRenderers[sectionId];
-            return renderSection ? (
-              <div key={sectionId} className="section-container">
-                {renderSection()}
-              </div>
-            ) : null;
-          })}
-      </div>
-    );
-  };
-
   return (
-    <div className="form-container">
-      <h2 className="text-2xl font-oswald font-bold mb-6 text-[#DC143C]">
-        {currentStepConfig?.title || 'Form Step'}
-      </h2>
-      {currentStepConfig?.description && (
-        <p className="text-sm text-gray-600 mb-6">{currentStepConfig.description}</p>
-      )}
+    <div className="space-y-8">
+      {/* Show active step content */}
+      <div className="space-y-6">
+        <h2 className="text-2xl font-semibold text-[#383B39]">
+          {currentStepConfig?.title || `Step ${currentStep + 1}`}
+        </h2>
+        
+        {currentStepConfig?.description && (
+          <p className="text-gray-600">{currentStepConfig.description}</p>
+        )}
+        
+        {/* Render the appropriate form sections for the current step */}
+        {currentStepConfig?.sections.map((sectionId) => (
+          <FormSection key={sectionId} id={sectionId} />
+        ))}
+        
+        {/* Show image upload section in the appropriate step */}
+        {currentStepConfig?.sections.includes('images') && (
+          <ImageUploadSection 
+            maxImages={10}
+            carId={carId}
+            pauseAutoSave={pauseAutoSave}
+            resumeAutoSave={resumeAutoSave}
+          />
+        )}
+      </div>
       
-      {renderSections()}
+      {/* Form navigation and submission buttons */}
+      <FormSubmissionButtons
+        isLastStep={isLastStep} 
+        isSubmitting={navigationDisabled}
+        isSaving={isSaving}
+        isOffline={false}
+        onSaveAndContinue={onNext}
+        onSave={onPrevious}
+        currentStep={currentStep}
+      />
     </div>
   );
-});
-
-FormContainer.displayName = 'FormContainer';
+};
