@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-06-01: Fixed unsafe postMessage calls and added safety checks
  * - 2025-06-01: Added error handling for cross-origin communication
+ * - 2025-06-03: Added rate limiting to URL updates to prevent history.replaceState() security errors
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -27,6 +28,11 @@ export const useStepNavigation = (form: any) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [totalSteps, setTotalSteps] = useState(STEP_FIELD_MAPPINGS.length);
   const postMessageAttemptedRef = useRef(false);
+  
+  // For rate limiting URL updates
+  const lastUrlUpdateRef = useRef(Date.now());
+  const pendingUrlUpdateRef = useRef(false);
+  const urlUpdateTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Safe postMessage function with error handling
   const safePostMessage = useCallback((data: any) => {
@@ -63,20 +69,69 @@ export const useStepNavigation = (form: any) => {
     }
   }, [location.search, totalSteps]);
 
-  // Update URL when step changes
-  useEffect(() => {
-    try {
-      // Update URL without refreshing page
-      const url = new URL(window.location.href);
-      url.searchParams.set("step", currentStep.toString());
-      window.history.replaceState({}, '', url.toString());
-      
-      // Notify parent frame safely
-      safePostMessage({ type: 'step-change', step: currentStep });
-    } catch (error) {
-      console.error("Error updating URL with step:", error);
+  // Rate-limited URL updater
+  const updateUrlSafely = useCallback((step: number) => {
+    // If there's a pending update, no need to schedule another
+    if (pendingUrlUpdateRef.current) {
+      return;
     }
-  }, [currentStep, safePostMessage]);
+    
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastUrlUpdateRef.current;
+    const minUpdateInterval = 1000; // Minimum 1 second between updates
+    
+    if (timeSinceLastUpdate >= minUpdateInterval) {
+      // It's safe to update now
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("step", step.toString());
+        window.history.replaceState({}, '', url.toString());
+        lastUrlUpdateRef.current = now;
+        
+        // Notify parent frame safely
+        safePostMessage({ type: 'step-change', step });
+      } catch (error) {
+        console.error("Error updating URL with step:", error);
+      }
+    } else {
+      // Schedule an update after the rate limit
+      pendingUrlUpdateRef.current = true;
+      
+      // Clear any existing timer
+      if (urlUpdateTimerRef.current) {
+        clearTimeout(urlUpdateTimerRef.current);
+      }
+      
+      // Schedule a new update
+      urlUpdateTimerRef.current = setTimeout(() => {
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set("step", step.toString());
+          window.history.replaceState({}, '', url.toString());
+          lastUrlUpdateRef.current = Date.now();
+          pendingUrlUpdateRef.current = false;
+          
+          // Notify parent frame safely
+          safePostMessage({ type: 'step-change', step });
+        } catch (error) {
+          console.error("Error in delayed URL update:", error);
+          pendingUrlUpdateRef.current = false;
+        }
+      }, minUpdateInterval - timeSinceLastUpdate + 50); // Add a small buffer
+    }
+  }, [safePostMessage]);
+
+  // Update URL when step changes with rate limiting
+  useEffect(() => {
+    updateUrlSafely(currentStep);
+    
+    // Clean up timer on unmount
+    return () => {
+      if (urlUpdateTimerRef.current) {
+        clearTimeout(urlUpdateTimerRef.current);
+      }
+    };
+  }, [currentStep, updateUrlSafely]);
 
   // Get current step field errors
   const getCurrentStepErrors = useCallback(() => {
