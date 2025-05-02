@@ -5,6 +5,7 @@
  * - Updated: 2025-06-09: Enhanced valuation data initialization to ensure reserve price is set
  * - Fixed: 2025-06-10: Resolved import errors and typing issues
  * - Fixed: 2025-06-11: Fixed FormNavigationControls import path
+ * - Fixed: 2025-06-12: Implemented FormDataProvider to resolve context errors
  */
 
 import { useEffect, useState } from "react";
@@ -15,6 +16,7 @@ import { FormContainer } from "./components/FormContainer";
 import { FormNavigationControls } from "./FormNavigationControls"; 
 import { useStepNavigation } from "./hooks/useStepNavigation";
 import * as z from "zod";
+import { FormDataProvider } from "./context/FormDataContext";
 
 // Create a simple schema for form validation based on CarListingFormData
 const carListingFormSchema = z.object({
@@ -235,31 +237,34 @@ export const FormContent = ({
   return (
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-12">
-        <FormContainer
-          currentStep={currentStep}
-          onNext={async () => { await goToNextStep(); }}
-          onPrevious={async () => { await goToPrevStep(); }}
-          isFirstStep={currentStep === 0}
-          isLastStep={currentStep === totalSteps - 1}
-          navigationDisabled={navigationDisabled}
-          isSaving={isSavingDraft}
-          carId={carId}
-          userId={session?.user?.id}
-        />
-        
-        <FormNavigationControls
-          currentStep={currentStep}
-          totalSteps={totalSteps}
-          onNext={goToNextStep}
-          onPrevious={goToPrevStep}
-          isFirstStep={currentStep === 0}
-          isLastStep={currentStep === totalSteps - 1}
-          navigationDisabled={navigationDisabled}
-          isSaving={isSavingDraft}
-          onSubmit={form.handleSubmit(onSubmit)}
-          hasStepErrors={hasStepErrors()}
-          getCurrentStepErrors={getCurrentStepErrors}
-        />
+        <FormDataProvider form={form}>
+          <FormContainer
+            currentStep={currentStep}
+            onNext={async () => { await goToNextStep(); }}
+            onPrevious={async () => { await goToPrevStep(); }}
+            isFirstStep={currentStep === 0}
+            isLastStep={currentStep === totalSteps - 1}
+            navigationDisabled={navigationDisabled}
+            isSaving={isSavingDraft}
+            carId={carId}
+            userId={session?.user?.id}
+          />
+          
+          <FormNavigationControls
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+            onNext={goToNextStep}
+            onPrevious={goToPrevStep}
+            isFirstStep={currentStep === 0}
+            isLastStep={currentStep === totalSteps - 1}
+            navigationDisabled={navigationDisabled}
+            isSaving={isSavingDraft}
+            isNavigating={isSubmitting || isSavingDraft}
+            onSubmit={form.handleSubmit(onSubmit)}
+            hasStepErrors={hasStepErrors()}
+            getCurrentStepErrors={getCurrentStepErrors}
+          />
+        </FormDataProvider>
       </form>
     </FormProvider>
   );

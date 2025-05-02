@@ -1,7 +1,9 @@
+
 /**
  * StepForm Component
  * Updated: 2025-06-07 - Major refactoring to improve performance and reduce unnecessary renders
  * Updated: 2025-06-11 - Fixed FormNavigationControls integration and prop handling
+ * Updated: 2025-06-12 - Fixed FormDataProvider integration to resolve context errors
  */
 
 import { UseFormReturn } from "react-hook-form";
