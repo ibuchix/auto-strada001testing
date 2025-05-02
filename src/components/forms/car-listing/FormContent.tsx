@@ -10,6 +10,7 @@
  * - Updated: 2025-05-02: Removed auto-save in favor of manual save button and final submission
  * - Added: 2025-05-02: Session timeout warning and temporary file storage
  * - Fixed: 2025-05-03: Replaced WarningTriangle with AlertTriangle and fixed saveFormToLocal return type
+ * - Fixed: 2025-06-16: Fixed AlertTriangle import
  */
 
 import { useEffect, useState } from "react";
@@ -109,7 +110,7 @@ export const FormContent = ({
   }, []);
   
   // Save form data to localStorage (not database)
-  const saveFormToLocal = async () => {
+  const saveFormToLocal = async (): Promise<boolean> => {
     try {
       const formData = form.getValues();
       localStorage.setItem('car_form_data', JSON.stringify(formData));

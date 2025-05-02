@@ -1,7 +1,7 @@
 
 /**
- * Form Navigation Controls
- * Created: 2025-05-03
+ * FormNavigationControls Component
+ * Created: 2025-06-16
  * 
  * Navigation controls for the multi-step form
  */
@@ -18,8 +18,8 @@ interface FormNavigationControlsProps {
   onNext: () => void;
   navigationDisabled: boolean;
   isSaving: boolean;
-  isNavigating?: boolean;
-  onSave: () => Promise<boolean | void>;
+  isNavigating: boolean;
+  onSave: () => Promise<boolean>;
   carId?: string;
 }
 
@@ -32,36 +32,37 @@ export const FormNavigationControls = ({
   onNext,
   navigationDisabled,
   isSaving,
-  isNavigating = false,
+  isNavigating,
   onSave,
-  carId
+  carId,
 }: FormNavigationControlsProps) => {
   return (
-    <div className="flex justify-between items-center">
+    <div className="flex flex-col md:flex-row md:justify-between gap-4 pt-4 border-t">
       <div>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           onClick={onPrevious}
-          disabled={isFirstStep || navigationDisabled || isNavigating}
+          disabled={isFirstStep || navigationDisabled}
+          className={isFirstStep ? "invisible" : ""}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Previous
         </Button>
       </div>
       
-      <div className="text-center text-sm text-gray-500">
-        Step {currentStep + 1} of {totalSteps}
-      </div>
-      
-      <div className="flex space-x-2">
+      <div className="flex gap-2 flex-col sm:flex-row">
         <Button
           type="button"
           variant="outline"
           onClick={onSave}
-          disabled={isSaving || isNavigating}
+          disabled={isSaving}
         >
-          <Save className="mr-2 h-4 w-4" />
+          {isSaving ? (
+            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
           Save Progress
         </Button>
         
@@ -69,8 +70,14 @@ export const FormNavigationControls = ({
           type="button"
           onClick={onNext}
           disabled={navigationDisabled || isNavigating}
+          className={isLastStep ? "bg-[#DC143C] hover:bg-[#DC143C]/90" : ""}
         >
-          {isLastStep ? 'Submit' : 'Next'}
+          {isNavigating ? (
+            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
+          ) : null}
+          
+          {isLastStep ? "Submit" : "Next"}
+          
           {!isLastStep && <ArrowRight className="ml-2 h-4 w-4" />}
         </Button>
       </div>

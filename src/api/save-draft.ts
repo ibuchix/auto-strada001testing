@@ -6,6 +6,7 @@
  * - 2025-11-05: Integrated with robust API client for automatic retries and error normalization
  * - Enhanced error handling with more detailed error information
  * - 2025-06-06: Fixed saveFormData import by implementing local version
+ * - 2025-06-16: Fixed TypeScript errors with form_metadata and valuation_data
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -68,7 +69,7 @@ export async function saveDraft(request: SaveDraftRequest) {
     const enhancedFormData = {
       ...formData,
       form_metadata: {
-        ...formData.form_metadata,
+        ...(formData.form_metadata || {}),
         currentStep,
         lastSavedAt: new Date().toISOString()
       }

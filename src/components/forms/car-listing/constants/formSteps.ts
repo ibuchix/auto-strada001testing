@@ -3,11 +3,14 @@
  * Form Steps Constants
  * Created: 2025-05-03
  * Updated: 2025-06-15 - Added sections property to each step
+ * Updated: 2025-06-16 - Fixed export interface for StepItem
  * 
  * Configuration for multi-step form
  */
 
-export const formSteps = [
+import { StepItem } from "@/types/forms";
+
+export const formSteps: StepItem[] = [
   {
     id: 'basic-info',
     title: 'Basic Information',

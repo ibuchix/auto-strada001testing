@@ -1,26 +1,34 @@
 
 /**
  * BasicInfoSection Component
- * Created: 2025-06-15
+ * Created: 2025-06-16
  * 
- * Basic vehicle information section for car listing form
+ * Basic information section for car listing form
  */
 
-import { FormSection } from "../FormSection";
-import { useFormData } from "../context/FormDataContext";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useFormData } from "../context/FormDataContext";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { AlertTriangle } from "lucide-react";
 
 export const BasicInfoSection = () => {
   const { form } = useFormData();
-  const currentYear = new Date().getFullYear();
   
   return (
-    <FormSection title="Vehicle Information" subtitle="Please provide the basic details of your vehicle">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold">Vehicle Details</h2>
+      
+      <Alert variant="warning" className="mb-4">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Important</AlertTitle>
+        <AlertDescription>
+          Please ensure all vehicle details match your registration documents.
+        </AlertDescription>
+      </Alert>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           control={form.control}
           name="make"
@@ -28,7 +36,7 @@ export const BasicInfoSection = () => {
             <FormItem>
               <FormLabel>Make</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., BMW, Audi" {...field} />
+                <Input placeholder="e.g. Ford, BMW, Toyota" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -42,7 +50,7 @@ export const BasicInfoSection = () => {
             <FormItem>
               <FormLabel>Model</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., X5, A4" {...field} />
+                <Input placeholder="e.g. Focus, 3 Series, Corolla" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -54,15 +62,13 @@ export const BasicInfoSection = () => {
           name="year"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Year</FormLabel>
+              <FormLabel>Year of Manufacture</FormLabel>
               <FormControl>
                 <Input 
                   type="number" 
-                  placeholder="e.g., 2020" 
-                  min={1900}
-                  max={currentYear + 1}
+                  placeholder="e.g. 2018" 
                   {...field}
-                  onChange={e => field.onChange(parseInt(e.target.value) || '')} 
+                  onChange={(e) => field.onChange(e.target.valueAsNumber)}
                 />
               </FormControl>
               <FormMessage />
@@ -79,10 +85,9 @@ export const BasicInfoSection = () => {
               <FormControl>
                 <Input 
                   type="number" 
-                  placeholder="e.g., 50000" 
-                  min={0}
+                  placeholder="e.g. 45000" 
                   {...field}
-                  onChange={e => field.onChange(parseInt(e.target.value) || '')} 
+                  onChange={(e) => field.onChange(e.target.valueAsNumber)} 
                 />
               </FormControl>
               <FormMessage />
@@ -96,10 +101,7 @@ export const BasicInfoSection = () => {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Transmission</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-              >
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select transmission type" />
@@ -108,6 +110,7 @@ export const BasicInfoSection = () => {
                 <SelectContent>
                   <SelectItem value="manual">Manual</SelectItem>
                   <SelectItem value="automatic">Automatic</SelectItem>
+                  <SelectItem value="semi-automatic">Semi-Automatic</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -120,47 +123,15 @@ export const BasicInfoSection = () => {
           name="vin"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>VIN</FormLabel>
+              <FormLabel>VIN (Vehicle Identification Number)</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="Vehicle Identification Number" 
-                  maxLength={17}
-                  {...field} 
-                />
+                <Input placeholder="e.g. WVWZZZ1KZAM059314" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
       </div>
-      
-      <div className="mt-6">
-        <FormField
-          control={form.control}
-          name="price"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Price (PLN)</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number"
-                  placeholder="e.g., 50000" 
-                  min={100}
-                  {...field}
-                  onChange={e => field.onChange(parseFloat(e.target.value) || '')} 
-                />
-              </FormControl>
-              <FormMessage />
-              <Alert variant="info" className="mt-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Set a realistic price for your vehicle. You can review similar listings in the marketplace for reference.
-                </AlertDescription>
-              </Alert>
-            </FormItem>
-          )}
-        />
-      </div>
-    </FormSection>
+    </div>
   );
 };

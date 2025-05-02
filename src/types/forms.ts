@@ -2,6 +2,7 @@
 /**
  * Form Types
  * Created: 2025-06-15
+ * Updated: 2025-06-16 - Added valuation_data, form_metadata, and additional fields
  * 
  * TypeScript types for form handling
  */
@@ -14,7 +15,7 @@ export interface CarListingFormData {
   mileage: number;
   vin: string;
   price: number;
-  transmission: 'manual' | 'automatic';
+  transmission: 'manual' | 'automatic' | 'semi-automatic';
   features?: Record<string, boolean>;
   isDamaged?: boolean;
   damageReports?: DamageReport[];
@@ -38,16 +39,35 @@ export interface CarListingFormData {
   requiredPhotosComplete?: boolean;
   sellerNotes?: string;
   warningLightPhotos?: string[];
+  isSellingOnBehalf?: boolean;
+  valuation_data?: Record<string, any>;
+  form_metadata?: {
+    currentStep?: number;
+    lastSavedAt?: string;
+    completedSteps?: number[];
+    validatedSections?: string[];
+  };
+  seller_id?: string;
+  reserve_price?: number;
+  
+  // Additional fields needed based on errors
+  seatMaterial?: string;
+  numberOfKeys?: string;
+  hasOutstandingFinance?: boolean;
+  financeProvider?: string;
+  financeEndDate?: string;
+  financeDocument?: string;
 }
-
-export type DamageType = 'scratch' | 'dent' | 'collision' | 'mechanical' | 'electrical' | 'other';
 
 export interface DamageReport {
   type: DamageType;
   description: string;
   photo: string | null;
   location?: string;
+  severity?: 'minor' | 'moderate' | 'severe';
 }
+
+export type DamageType = 'scratch' | 'dent' | 'collision' | 'mechanical' | 'electrical' | 'other';
 
 export interface ServiceHistoryFile {
   id: string;
@@ -67,3 +87,32 @@ export const defaultCarFeatures = {
   parkingSensors: false,
   sunroof: false
 };
+
+export interface CarEntity extends CarListingFormData {
+  created_at: Date;
+  updated_at: Date;
+  status: AuctionStatus;
+}
+
+export type AuctionStatus = 'draft' | 'pending' | 'active' | 'completed' | 'rejected';
+
+export interface TempStoredFile {
+  id: string;
+  file: File;
+  category: string;
+  url: string;
+  createdAt: Date;
+}
+
+export interface TemporaryFile {
+  id: string;
+  file: File;
+  url: string;
+}
+
+export interface StepItem {
+  id: string;
+  title: string;
+  description: string;
+  sections: string[];
+}

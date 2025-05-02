@@ -1,161 +1,131 @@
 
 /**
  * Temporary File Storage Service
- * Created: 2025-05-03
+ * Created: 2025-06-16
  * 
- * Service to temporarily store files in memory/localStorage during form completion
+ * Handles temporary file storage during form sessions
  */
 
-// 1 hour in milliseconds
-const SESSION_TIMEOUT = 60 * 60 * 1000;
+import { TempStoredFile } from "@/types/forms";
 
-export interface TempStoredFile {
-  id: string;
-  file: File;
-  preview: string;
-  category: string;
-  createdAt: number;
+export interface TempStorageOptions {
+  sessionDuration: number; // in minutes
 }
 
-class TempFileStorage {
-  private files: Map<string, TempStoredFile> = new Map();
-  private sessionStartTime: number;
+class TempFileStorageService {
+  private files: TempStoredFile[] = [];
+  private sessionStartTime: Date;
+  private sessionDuration: number; // in minutes
   
-  constructor() {
-    this.sessionStartTime = Date.now();
-    // Pre-populate with any files saved in sessionStorage
-    this.loadFromSession();
+  constructor(options: TempStorageOptions = { sessionDuration: 60 }) {
+    this.sessionStartTime = new Date();
+    this.sessionDuration = options.sessionDuration;
   }
   
-  /**
-   * Store a file in temporary storage
-   */
-  storeFile(file: File, category: string): TempStoredFile {
-    const id = crypto.randomUUID();
-    const preview = URL.createObjectURL(file);
+  // Add a file to temporary storage
+  async addFile(file: File, category: string): Promise<TempStoredFile> {
+    // Create a unique ID for the file
+    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
-    const storedFile: TempStoredFile = {
+    // Create object URL for preview
+    const url = URL.createObjectURL(file);
+    
+    // Create temp stored file object
+    const tempFile: TempStoredFile = {
       id,
       file,
-      preview,
       category,
-      createdAt: Date.now()
+      url,
+      createdAt: new Date()
     };
     
-    this.files.set(id, storedFile);
-    this.saveToSession();
+    // Add to files array
+    this.files.push(tempFile);
     
-    return storedFile;
+    return tempFile;
   }
   
-  /**
-   * Get a file by ID
-   */
+  // Get a file by ID
   getFile(id: string): TempStoredFile | undefined {
-    return this.files.get(id);
+    return this.files.find(file => file.id === id);
   }
   
-  /**
-   * Get all files in a specific category
-   */
-  getFilesByCategory(category: string): TempStoredFile[] {
-    return Array.from(this.files.values())
-      .filter(file => file.category === category);
-  }
-  
-  /**
-   * Get all files across all categories
-   */
+  // Get all files
   getAllFiles(): TempStoredFile[] {
-    return Array.from(this.files.values());
+    return [...this.files];
   }
   
-  /**
-   * Remove a file by ID
-   */
+  // Get files by category
+  getFilesByCategory(category: string): TempStoredFile[] {
+    return this.files.filter(file => file.category === category);
+  }
+  
+  // Remove a file by ID
   removeFile(id: string): boolean {
-    const file = this.files.get(id);
-    if (file) {
-      URL.revokeObjectURL(file.preview);
-      this.files.delete(id);
-      this.saveToSession();
+    const fileIndex = this.files.findIndex(file => file.id === id);
+    if (fileIndex !== -1) {
+      // Revoke object URL to prevent memory leaks
+      URL.revokeObjectURL(this.files[fileIndex].url);
+      
+      // Remove from array
+      this.files.splice(fileIndex, 1);
       return true;
     }
     return false;
   }
   
-  /**
-   * Clear all files in a category
-   */
-  clearCategory(category: string): void {
-    const filesToRemove = this.getFilesByCategory(category);
-    filesToRemove.forEach(file => {
-      URL.revokeObjectURL(file.preview);
-      this.files.delete(file.id);
-    });
-    this.saveToSession();
+  // Remove a file by name
+  removeFileByName(name: string): boolean {
+    const fileIndex = this.files.findIndex(file => file.file.name === name);
+    if (fileIndex !== -1) {
+      // Revoke object URL to prevent memory leaks
+      URL.revokeObjectURL(this.files[fileIndex].url);
+      
+      // Remove from array
+      this.files.splice(fileIndex, 1);
+      return true;
+    }
+    return false;
   }
   
-  /**
-   * Clear all files
-   */
+  // Clear all files
   clearAll(): void {
-    this.files.forEach(file => {
-      URL.revokeObjectURL(file.preview);
-    });
-    this.files.clear();
-    sessionStorage.removeItem('tempFiles');
+    // Revoke all object URLs
+    this.files.forEach(file => URL.revokeObjectURL(file.url));
+    
+    // Clear array
+    this.files = [];
   }
   
-  /**
-   * Get remaining session time in minutes
-   */
+  // Get session progress
+  getSessionProgress(): number {
+    const elapsedMinutes = this.getElapsedSessionTime();
+    return Math.min(100, Math.round((elapsedMinutes / this.sessionDuration) * 100));
+  }
+  
+  // Get elapsed session time in minutes
+  getElapsedSessionTime(): number {
+    const now = new Date();
+    const elapsedMs = now.getTime() - this.sessionStartTime.getTime();
+    return Math.floor(elapsedMs / (1000 * 60));
+  }
+  
+  // Get remaining session time in minutes
   getRemainingSessionTime(): number {
-    const elapsedTime = Date.now() - this.sessionStartTime;
-    const remainingTime = Math.max(0, SESSION_TIMEOUT - elapsedTime);
-    return Math.ceil(remainingTime / (60 * 1000)); // Convert to minutes
+    const elapsedMinutes = this.getElapsedSessionTime();
+    return Math.max(0, this.sessionDuration - elapsedMinutes);
   }
   
-  /**
-   * Save file metadata to session storage
-   * Note: We can't store the actual File objects or preview URLs,
-   * so we just store enough info to track what files we have
-   */
-  private saveToSession(): void {
-    try {
-      const serializable = Array.from(this.files.entries()).map(([id, file]) => ({
-        id,
-        category: file.category,
-        name: file.file.name,
-        type: file.file.type,
-        size: file.file.size,
-        createdAt: file.createdAt,
-      }));
-      sessionStorage.setItem('tempFiles', JSON.stringify(serializable));
-    } catch (error) {
-      console.error('Error saving to session storage:', error);
-    }
+  // Reset session timer
+  resetSession(): void {
+    this.sessionStartTime = new Date();
   }
   
-  /**
-   * Attempt to load file metadata from session storage
-   * Note: Actual files cannot be restored, this is mainly
-   * to track session time
-   */
-  private loadFromSession(): void {
-    try {
-      const stored = sessionStorage.getItem('tempFiles');
-      if (stored) {
-        const data = JSON.parse(stored);
-        const startTime = Math.min(...data.map((item: any) => item.createdAt)) || Date.now();
-        // Use the earliest createdAt time as the session start time
-        this.sessionStartTime = startTime;
-      }
-    } catch (error) {
-      console.error('Error loading from session storage:', error);
-    }
+  // Check if session is expired
+  isSessionExpired(): boolean {
+    return this.getRemainingSessionTime() <= 0;
   }
 }
 
-// Create a singleton instance
-export const tempFileStorage = new TempFileStorage();
+// Create singleton instance with a 60-minute session duration
+export const tempFileStorage = new TempFileStorageService({ sessionDuration: 60 });

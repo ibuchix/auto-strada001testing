@@ -2,6 +2,7 @@
 /**
  * ErrorBanner component for displaying errors at the top of pages
  * Created: 2025-04-05
+ * Updated: 2025-06-16 - Fixed error code comparison
  */
 
 import React from 'react';
@@ -106,7 +107,7 @@ function getErrorTitle(error: AppError): string {
     case 'server':
       return 'Server Error';
     case 'business':
-      if (error.code === 'valuation_error') {
+      if (error.code === ErrorCode.SUBMISSION_ERROR && error.metadata?.type === 'valuation_error') {
         return 'Valuation Error';
       }
       return 'Operation Failed';

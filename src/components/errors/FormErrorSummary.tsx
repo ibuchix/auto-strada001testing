@@ -2,6 +2,7 @@
 /**
  * FormErrorSummary component for displaying multiple validation errors
  * Created: 2025-04-05
+ * Updated: 2025-06-16 - Fixed ValidationError type usage
  */
 
 import React from 'react';
@@ -10,8 +11,12 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ValidationError } from '@/errors/classes';
 
+interface ValidationErrorWithField extends ValidationError {
+  field?: string;
+}
+
 interface FormErrorSummaryProps {
-  errors: ValidationError[] | Record<string, string> | null;
+  errors: ValidationErrorWithField[] | Record<string, string> | null;
   title?: string;
   onRetry?: () => void;
   className?: string;
@@ -34,9 +39,11 @@ export const FormErrorSummary: React.FC<FormErrorSummaryProps> = ({
   // Convert record to array format for consistent rendering
   const errorArray = Array.isArray(errors) 
     ? errors 
-    : Object.entries(errors).map(([field, message]) => 
-        new ValidationError({ message, field })
-      );
+    : Object.entries(errors).map(([field, message]) => {
+        const error = new ValidationError({ message });
+        (error as ValidationErrorWithField).field = field;
+        return error as ValidationErrorWithField;
+      });
   
   return (
     <Alert variant="destructive" className={`mb-6 ${className}`}>
@@ -49,9 +56,9 @@ export const FormErrorSummary: React.FC<FormErrorSummaryProps> = ({
           <ul className="mt-2 list-disc pl-5 space-y-1 text-sm">
             {errorArray.map((error, index) => (
               <li key={index}>
-                {error.field ? (
+                {(error as ValidationErrorWithField).field ? (
                   <span>
-                    <strong>{formatFieldName(error.field)}:</strong> {error.message}
+                    <strong>{formatFieldName((error as ValidationErrorWithField).field || '')}</strong>: {error.message}
                   </span>
                 ) : (
                   error.message

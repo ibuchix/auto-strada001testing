@@ -3,6 +3,7 @@
  * ErrorDialog component for modal error display
  * Created: 2025-04-05
  * Updated: 2025-04-05 - Fixed TypeScript type issues
+ * Updated: 2025-06-16 - Fixed error code comparison
  */
 
 import React from 'react';
@@ -17,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, WifiOff, ShieldAlert, ServerCrash } from 'lucide-react';
 import { AppError } from '@/errors/classes';
-import { ErrorCategory, RecoveryAction } from '@/errors/types';
+import { ErrorCategory, RecoveryAction, ErrorCode } from '@/errors/types';
 
 interface ErrorDialogProps {
   error: AppError | null;
@@ -138,7 +139,7 @@ function getErrorTitle(error: AppError): string {
     case 'server':
       return 'Server Error';
     case 'business':
-      if (error.code === 'valuation_error') {
+      if (error.code === ErrorCode.SUBMISSION_ERROR && error.metadata?.type === 'valuation_error') {
         return 'Valuation Error';
       }
       return 'Operation Failed';

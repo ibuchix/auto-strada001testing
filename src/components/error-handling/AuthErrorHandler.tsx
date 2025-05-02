@@ -5,13 +5,14 @@
  * - 2024-11-16: Enhanced to handle RLS permission issues
  * - 2024-08-15: Updated with consistent recovery paths and UI patterns
  * - 2025-04-05: Fixed TypeScript type issues
+ * - 2025-06-16: Fixed import and removed AuthenticationError
  */
 
 import { useNavigate } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
-import { AppError, AuthenticationError } from "@/errors/classes";
+import { AppError } from "@/errors/classes";
 
 interface AuthErrorHandlerProps {
   error?: string | AppError | null;

@@ -3,6 +3,7 @@
  * Error Types
  * Created: 2025-05-03
  * Updated: 2025-06-15 - Added ErrorCategory, RecoveryAction and RecoveryType enums
+ * Updated: 2025-06-16 - Fixed missing types and added ErrorRecovery interface
  * 
  * TypeScript types for error handling
  */
@@ -13,7 +14,16 @@ export enum ErrorCode {
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
   SERVER_VALIDATION_FAILED = 'SERVER_VALIDATION_FAILED',
   SUBMISSION_ERROR = 'SUBMISSION_ERROR',
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+  NETWORK_UNAVAILABLE = 'NETWORK_UNAVAILABLE',
+  REQUEST_TIMEOUT = 'REQUEST_TIMEOUT',
+  INVALID_VALUE = 'INVALID_VALUE',
+  INVALID_OPERATION = 'INVALID_OPERATION',
+  RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND',
+  UNEXPECTED_ERROR = 'UNEXPECTED_ERROR',
+  UNAUTHENTICATED = 'UNAUTHENTICATED',
+  UNAUTHORIZED = 'UNAUTHORIZED',
+  SERVER_ERROR = 'SERVER_ERROR'
 }
 
 export enum ErrorCategory {
@@ -23,7 +33,8 @@ export enum ErrorCategory {
   AUTHORIZATION = 'authorization',
   BUSINESS = 'business',
   SERVER = 'server',
-  UNKNOWN = 'unknown'
+  UNKNOWN = 'unknown',
+  CLIENT = 'client'
 }
 
 export enum RecoveryAction {
@@ -54,6 +65,14 @@ export interface ErrorDetails {
   code: ErrorCode;
   message: string;
   description?: string;
+}
+
+export interface ErrorRecovery {
+  type?: RecoveryType;
+  action?: RecoveryAction;
+  label: string;
+  handler?: () => void;
+  route?: string;
 }
 
 export interface RecoveryInfo {
