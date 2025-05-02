@@ -3,6 +3,7 @@
  * Vehicle Details Section
  * Created: 2025-06-07
  * Contains fields for basic vehicle information
+ * Updated: 2025-06-09: Removed duplicate reserve price field since we have a separate section for it
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";

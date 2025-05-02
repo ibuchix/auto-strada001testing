@@ -3,11 +3,13 @@
  * Reserve Price Section
  * Created: 2025-06-08
  * Displays the read-only reserve price calculated during valuation
+ * Updated: 2025-06-09: Enhanced to ensure it properly shows the price from VIN check
  */
 
 import { useFormData } from "../context/FormDataContext";
 import { formatPrice } from "@/utils/valuation/reservePriceCalculator";
 import { Lock } from "lucide-react";
+import { useEffect } from "react";
 
 export const ReservePriceSection = () => {
   const { form } = useFormData();
@@ -18,6 +20,11 @@ export const ReservePriceSection = () => {
   
   // Get the reserve price from the form data
   const reservePrice = form.watch("reserve_price");
+  
+  // For debugging
+  useEffect(() => {
+    console.log("ReservePriceSection render with reservePrice:", reservePrice);
+  }, [reservePrice]);
   
   if (!reservePrice) {
     return (

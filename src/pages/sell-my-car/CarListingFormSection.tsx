@@ -1,4 +1,3 @@
-
 /**
  * Fixed Car Listing Form Section
  * 
@@ -11,6 +10,7 @@
  * - 2025-05-29: Fixed infinite re-render by adding useRef to track initialization
  * - 2025-05-30: Added force render mechanism to prevent stuck state
  * - 2025-05-31: Added direct localStorage access to bypass navigation issues
+ * - 2025-06-09: Improved reserve price handling from valuation data
  */
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
@@ -83,6 +83,13 @@ export const CarListingFormSection = ({
           console.log(`CarListingFormSection[${componentId}]: Found valuationData in localStorage`);
           try {
             carData = JSON.parse(storedValuationData);
+            
+            // Ensure reserve_price is properly set
+            if (carData && (carData.reservePrice || carData.valuation)) {
+              const reservePrice = carData.reservePrice || carData.valuation;
+              console.log(`CarListingFormSection[${componentId}]: Found reserve price: ${reservePrice}`);
+              localStorage.setItem('tempReservePrice', reservePrice?.toString() || '');
+            }
           } catch (parseError) {
             console.error(`CarListingFormSection[${componentId}]: Error parsing valuation data:`, parseError);
           }
