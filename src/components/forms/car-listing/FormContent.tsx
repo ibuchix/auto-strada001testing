@@ -1,4 +1,3 @@
-
 /**
  * Form Content Component
  * - Manages the entire form state and initialization
@@ -6,6 +5,7 @@
  * - Fixed: 2025-06-10: Resolved import errors and typing issues
  * - Fixed: 2025-06-11: Fixed FormNavigationControls import path
  * - Fixed: 2025-06-12: Implemented FormDataProvider to resolve context errors
+ * - Enhanced: 2025-06-14: Improved reserve price data loading from valuation
  */
 
 import { useEffect, useState } from "react";
@@ -213,23 +213,34 @@ export const FormContent = ({
   // Initialize form with data - enhanced to ensure valuation data properly sets reserve price
   useEffect(() => {
     if (fromValuation) {
-      try {
-        const valuationDataStr = localStorage.getItem('valuationData');
-        if (valuationDataStr) {
-          const valuationData = JSON.parse(valuationDataStr);
-          console.log("Form initializing with valuation data:", valuationData);
-          
-          // Ensure reserve price is set from valuation data
-          if (valuationData && (valuationData.reservePrice || valuationData.valuation)) {
-            const reservePriceValue = valuationData.reservePrice || valuationData.valuation;
-            if (reservePriceValue) {
-              console.log("Setting reserve price from valuation:", reservePriceValue);
-              form.setValue("reserve_price", reservePriceValue);
-            }
+      console.log("FormContent: Initializing form with valuation data");
+      
+      // Try to get directly stored reserve price first (most reliable)
+      const directReservePrice = localStorage.getItem('tempReservePrice');
+      if (directReservePrice && !isNaN(Number(directReservePrice))) {
+        const reservePriceValue = Number(directReservePrice);
+        console.log("FormContent: Setting reserve price from direct storage:", reservePriceValue);
+        form.setValue("reserve_price", reservePriceValue);
+        return;
+      }
+      
+      // Try to get from valuationData object in localStorage
+      const valuationDataStr = localStorage.getItem('valuationData');
+      if (valuationDataStr) {
+        const valuationData = JSON.parse(valuationDataStr);
+        console.log("FormContent: Processing valuation data:", valuationData);
+        
+        // Ensure reserve price is set from valuation data
+        if (valuationData && (valuationData.reservePrice || valuationData.valuation)) {
+          const reservePriceValue = valuationData.reservePrice || valuationData.valuation;
+          if (reservePriceValue) {
+            console.log("FormContent: Setting reserve price from valuation:", reservePriceValue);
+            form.setValue("reserve_price", reservePriceValue);
+            
+            // Also store it separately for more reliable access
+            localStorage.setItem('tempReservePrice', reservePriceValue.toString());
           }
         }
-      } catch (error) {
-        console.error("Error loading valuation data:", error);
       }
     }
   }, [form, fromValuation]);

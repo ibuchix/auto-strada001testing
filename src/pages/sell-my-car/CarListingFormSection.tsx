@@ -11,6 +11,7 @@
  * - 2025-05-30: Added force render mechanism to prevent stuck state
  * - 2025-05-31: Added direct localStorage access to bypass navigation issues
  * - 2025-06-09: Improved reserve price handling from valuation data
+ * - 2025-06-14: Enhanced reserve price extraction from valuation data
  */
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
@@ -120,6 +121,7 @@ export const CarListingFormSection = ({
         vin: carData.vin && carData.vin.substring(0, 4) + '...',
         mileage: carData.mileage,
         hasValuation: !!carData.valuation || !!carData.reservePrice,
+        reservePrice: carData.reservePrice || carData.valuation,
         source: fromVinCheck ? "VIN Check" : "Unknown"
       });
       
@@ -135,6 +137,13 @@ export const CarListingFormSection = ({
         if (carData.vin) localStorage.setItem('tempVIN', carData.vin);
         if (carData.mileage) localStorage.setItem('tempMileage', carData.mileage.toString());
         if (carData.transmission) localStorage.setItem('tempGearbox', carData.transmission);
+        
+        // Make sure reserve price is stored separately for reliable access
+        if (carData.reservePrice || carData.valuation) {
+          const reservePrice = carData.reservePrice || carData.valuation;
+          localStorage.setItem('tempReservePrice', reservePrice.toString());
+          console.log(`CarListingFormSection[${componentId}]: Stored reserve price: ${reservePrice}`);
+        }
         
         console.log(`CarListingFormSection[${componentId}]: Saved car data to storage for backup`);
         dataLoadedRef.current = true;
