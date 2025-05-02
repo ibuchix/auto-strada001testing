@@ -3,6 +3,7 @@
  * Damage Details Section
  * Created: 2025-06-07
  * Contains fields for reporting vehicle damage
+ * Updated: 2025-06-08: Fixed type error with DamageType
  */
 
 import { useFormData } from "../context/FormDataContext";
@@ -13,6 +14,7 @@ import { useState } from "react";
 import { Plus, Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useFieldArray } from "react-hook-form";
+import { DamageType } from "@/types/forms";
 
 export const DamageDetailsSection = () => {
   const { form } = useFormData();
@@ -113,7 +115,7 @@ export const DamageDetailsSection = () => {
         size="sm"
         className="mt-2"
         onClick={() => append({ 
-          type: '', 
+          type: 'scratch' as DamageType, 
           location: '', 
           description: '',
           severity: 'minor'
