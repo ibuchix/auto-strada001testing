@@ -4,6 +4,7 @@
  * Created: 2025-06-07
  * Contains fields for reporting vehicle damage
  * Updated: 2025-06-08: Fixed type error with DamageType
+ * Updated: 2025-06-08: Fixed missing photo property in DamageReport
  */
 
 import { useFormData } from "../context/FormDataContext";
@@ -118,7 +119,8 @@ export const DamageDetailsSection = () => {
           type: 'scratch' as DamageType, 
           location: '', 
           description: '',
-          severity: 'minor'
+          severity: 'minor',
+          photo: null // Add the required photo property with null value
         })}
       >
         <Plus className="h-4 w-4 mr-2" />
