@@ -17,6 +17,7 @@
  * - 2025-07-14: Fixed authentication state updates to trust metadata exclusively without verification
  * - 2025-05-02: Enhanced session recovery and added explicit token refresh mechanisms
  * - 2025-05-06: Fixed infinite loop issues by simplifying the hook structure and preventing cascading updates
+ * - 2025-05-06: Fixed TypeScript error with cleanup function type
  */
 
 import { useEffect, useCallback, useState, useRef } from "react";
@@ -56,26 +57,28 @@ export const useSellerSession = () => {
         await initializeSession();
       }
       
+      // Return a cleanup function for the effect
       return () => {
         // Clean up subscription when component unmounts
-        if (mounted) {
+        if (mounted && authListener && authListener.subscription) {
           authListener.subscription.unsubscribe();
         }
       };
     };
     
-    const cleanup = setupSession();
+    // Call setupSession and handle the returned cleanup function
+    const cleanupPromise = setupSession();
     
     return () => {
       mounted = false;
       // Execute cleanup function if it exists
-      if (typeof cleanup === 'function') {
-        cleanup();
-      } else if (cleanup instanceof Promise) {
-        cleanup.then(cleanupFn => {
-          if (typeof cleanupFn === 'function') {
-            cleanupFn();
+      if (cleanupPromise) {
+        cleanupPromise.then(cleanup => {
+          if (cleanup && typeof cleanup === 'function') {
+            cleanup();
           }
+        }).catch(err => {
+          console.error("Error during auth cleanup:", err);
         });
       }
     };

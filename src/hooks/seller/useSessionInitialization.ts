@@ -7,12 +7,20 @@
  * - 2025-05-02: Enhanced session initialization with token refresh and expiration handling
  * - 2025-05-06: Fixed circular dependencies and infinite re-render loops
  * - 2025-05-06: Simplified session initialization and added guards to prevent cascading updates
+ * - 2025-05-06: Fixed TypeScript return type for auth listener
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useSellerRoleCheck } from "./useSellerRoleCheck";
+
+// Define the return type of the auth listener
+interface AuthListenerReturnType {
+  subscription: {
+    unsubscribe: () => void;
+  };
+}
 
 /**
  * Hook for initializing and managing supabase session state
@@ -26,7 +34,7 @@ export const useSessionInitialization = () => {
   // Use refs to track initialization state and prevent re-renders
   const initializingRef = useRef(false);
   const sessionCheckedRef = useRef(false);
-  const authListenerRef = useRef<{subscription: {unsubscribe: () => void}} | null>(null);
+  const authListenerRef = useRef<AuthListenerReturnType | null>(null);
 
   /**
    * Initialize session and check seller status
@@ -125,7 +133,7 @@ export const useSessionInitialization = () => {
   /**
    * Set up auth state change listener
    */
-  const setupAuthListener = useCallback(() => {
+  const setupAuthListener = useCallback((): AuthListenerReturnType => {
     // Clean up previous listener if exists
     if (authListenerRef.current) {
       authListenerRef.current.subscription.unsubscribe();
