@@ -9,6 +9,7 @@
  * - Enhanced: 2025-06-14: Improved reserve price data loading from valuation
  * - Updated: 2025-05-02: Removed auto-save in favor of manual save button and final submission
  * - Added: 2025-05-02: Session timeout warning and temporary file storage
+ * - Fixed: 2025-05-03: Replaced WarningTriangle with AlertTriangle and fixed saveFormToLocal return type
  */
 
 import { useEffect, useState } from "react";
@@ -19,7 +20,7 @@ import { FormContainer } from "./components/FormContainer";
 import { FormNavigationControls } from "./FormNavigationControls"; 
 import { useStepNavigation } from "./hooks/useStepNavigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Clock, WarningTriangle } from "lucide-react";
+import { Clock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -108,7 +109,7 @@ export const FormContent = ({
   }, []);
   
   // Save form data to localStorage (not database)
-  const saveFormToLocal = () => {
+  const saveFormToLocal = async () => {
     try {
       const formData = form.getValues();
       localStorage.setItem('car_form_data', JSON.stringify(formData));
@@ -160,7 +161,7 @@ export const FormContent = ({
       
       {/* Form introduction alert */}
       <Alert className="mb-6">
-        <WarningTriangle className="h-4 w-4" />
+        <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
           Please complete this form in one sitting. You have 1 hour to complete and submit the form.
           All files and information will be uploaded when you submit the form at the end.

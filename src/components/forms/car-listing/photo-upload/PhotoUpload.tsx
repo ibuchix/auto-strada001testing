@@ -1,187 +1,138 @@
 
 /**
- * Changes made:
- * - 2025-04-05: Refactored into smaller components for better maintainability
- * - 2025-04-05: Extracted UploadButton, ChangePhotoButton, PhotoUploadError, and PhotoStatusIcon
- * - 2025-04-05: Improved code organization and readability
+ * Photo Upload Component
+ * Created: 2025-05-03
+ * 
+ * Component for uploading individual photos with preview
  */
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { UploadProgress } from "../UploadProgress";
-import { PhotoValidationIndicator } from "../validation/PhotoValidationIndicator";
-import { UploadButton } from "./components/UploadButton";
-import { ChangePhotoButton } from "./components/ChangePhotoButton";
-import { PhotoUploadError } from "./components/PhotoUploadError";
-import { PhotoStatusIcon } from "./components/PhotoStatusIcon";
+import { Button } from "@/components/ui/button";
+import { Upload, X, ImageIcon } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 export interface PhotoUploadProps {
   id: string;
-  title?: string;
-  description?: string;
-  label?: string; // For backward compatibility
+  title: string;
+  description: string;
   isUploading: boolean;
-  isRequired?: boolean;
-  isUploaded?: boolean;
-  disabled?: boolean;
-  progress?: number;
-  onFileSelect?: (file: File) => Promise<void>;
-  onUpload?: (file: File) => Promise<string | null>;
+  progress: number;
+  currentImage?: string;
+  onUpload: (file: File) => Promise<string | null>;
+  onRemove?: () => boolean | void;
 }
 
-export const PhotoUpload = ({
-  id,
-  title,
-  description,
-  label, // For backward compatibility
-  isUploading: externalIsUploading,
-  isRequired = false,
-  isUploaded = false,
-  disabled = false,
-  progress,
-  onFileSelect,
-  onUpload
+export const PhotoUpload = ({ 
+  id, 
+  title, 
+  description, 
+  isUploading, 
+  progress, 
+  currentImage, 
+  onUpload,
+  onRemove 
 }: PhotoUploadProps) => {
-  const [localUploadProgress, setLocalUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [localIsUploaded, setLocalIsUploaded] = useState(isUploaded);
   
-  // For backward compatibility
-  const displayTitle = title || label || 'Upload Photo';
-  const displayDescription = description || 'Upload a clear photo';
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    if (!e.target.files || e.target.files.length === 0) return;
     
-    // Reset state
     setError(null);
-    setLocalUploadProgress(0);
-    setUploadedFile(file);
-
+    const file = e.target.files[0];
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError("Please upload an image file (JPG, PNG, etc.)");
+      return;
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File is too large (max 10MB)");
+      return;
+    }
+    
     try {
-      // Use onUpload if provided, otherwise onFileSelect
-      if (onUpload) {
-        const result = await onUpload(file);
-        
-        // Reset file input
-        if (result) {
-          e.target.value = '';
-          setLocalIsUploaded(true);
-        } else {
-          throw new Error("Upload failed - no file path returned");
-        }
-      } else if (onFileSelect) {
-        await onFileSelect(file);
-        
-        // Reset file input
-        e.target.value = '';
-        setLocalIsUploaded(true);
-      }
-    } catch (error: any) {
-      console.error(`Error uploading file "${id}":`, error);
-      setError(error.message || "Failed to upload file");
+      await onUpload(file);
+    } catch (err) {
+      console.error("Error uploading image:", err);
+      setError("Failed to upload image. Please try again.");
+    } finally {
+      // Reset file input
+      const fileInput = document.getElementById(id) as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
     }
   };
-
-  const handleRetry = () => {
-    // Reset error state
-    setError(null);
-    setLocalUploadProgress(0);
-    
-    // Reuse the same file if available
-    if (uploadedFile) {
-      const file = uploadedFile;
-      
-      // Attempt the upload again
-      if (onUpload) {
-        onUpload(file)
-          .then(result => {
-            if (result) {
-              setLocalIsUploaded(true);
-            }
-          })
-          .catch(error => {
-            console.error(`Error retrying upload "${id}":`, error);
-            setError(error.message || "Failed to upload file");
-          });
-      } else if (onFileSelect) {
-        onFileSelect(file)
-          .then(() => {
-            setLocalIsUploaded(true);
-          })
-          .catch(error => {
-            console.error(`Error retrying upload "${id}":`, error);
-            setError(error.message || "Failed to upload file");
-          });
-      }
-    }
-  };
-
-  // Determine if we should show the isUploaded state (either from props or local state)
-  const showUploadedState = isUploaded || localIsUploaded;
-
+  
   return (
-    <div className="space-y-2">
-      <Card 
-        className={cn(
-          "overflow-hidden transition-all duration-300 h-full border",
-          showUploadedState 
-            ? "border-success bg-gradient-to-br from-green-50 to-white shadow-sm" 
-            : "border-accent hover:border-accent/80 hover:shadow-sm"
-        )}
-      >
-        <CardContent className="p-3">
-          <div className={cn(
-            "flex flex-col items-center justify-center p-4 rounded-lg text-center h-full",
-            showUploadedState 
-              ? "bg-gradient-to-br from-green-50 to-white" 
-              : "bg-gradient-to-br from-gray-50 to-white border border-dashed border-gray-200"
-          )}>
-            <div className="mb-4">
-              <PhotoStatusIcon isUploaded={showUploadedState} />
-            </div>
+    <div className="space-y-3">
+      <div className="text-sm font-medium">
+        <div className="text-gray-900">{title}</div>
+        <div className="text-gray-500 text-xs">{description}</div>
+      </div>
+      
+      <div className={`relative aspect-video rounded-lg overflow-hidden border-2 ${error ? 'border-red-500' : currentImage ? 'border-green-500' : 'border-dashed border-gray-300'}`}>
+        {/* Image preview */}
+        {currentImage ? (
+          <div className="relative h-full">
+            <img 
+              src={currentImage} 
+              alt={title}
+              className="w-full h-full object-cover"
+            />
             
-            <div className="space-y-1">
-              <h3 className="text-sm font-medium font-oswald">
-                {displayTitle}
-              </h3>
-              <p className="text-xs text-subtitle">
-                {showUploadedState ? "Photo successfully uploaded" : displayDescription}
-              </p>
-            </div>
-            
-            <div className="mt-4 w-full">
-              {!showUploadedState ? (
-                <UploadButton 
-                  id={id}
-                  isUploading={externalIsUploading}
-                  disabled={disabled}
-                  onChange={handleFileChange}
-                />
-              ) : (
-                <ChangePhotoButton 
-                  onClick={() => setLocalIsUploaded(false)} 
-                />
-              )}
-            </div>
-            
-            {(externalIsUploading || localUploadProgress > 0) && !showUploadedState && (
-              <div className="mt-4 w-full">
-                <UploadProgress
-                  progress={localUploadProgress || progress || 0}
-                  error={!!error}
-                  onRetry={handleRetry}
-                />
-              </div>
+            {/* Remove button */}
+            {onRemove && (
+              <Button
+                type="button"
+                size="icon"
+                variant="destructive"
+                className="absolute top-2 right-2 h-7 w-7 rounded-full"
+                onClick={onRemove}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             )}
-            
-            <PhotoUploadError error={error || ""} />
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <div className="h-full w-full p-4 flex flex-col items-center justify-center text-center">
+            <input 
+              type="file" 
+              id={id} 
+              className="hidden" 
+              accept="image/*"
+              onChange={handleFileChange}
+              disabled={isUploading}
+            />
+            
+            {isUploading ? (
+              <div className="w-full p-4">
+                <div className="mb-2 text-sm font-medium text-gray-700">
+                  Uploading...
+                </div>
+                <Progress value={progress} className="h-1" />
+              </div>
+            ) : (
+              <>
+                <ImageIcon className="h-12 w-12 text-gray-400 mb-2" />
+                <label htmlFor={id} className="cursor-pointer">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="mt-2"
+                    disabled={isUploading}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Photo
+                  </Button>
+                </label>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {error && <div className="text-red-500 text-sm">{error}</div>}
     </div>
   );
 };

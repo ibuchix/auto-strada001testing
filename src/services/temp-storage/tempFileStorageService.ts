@@ -1,39 +1,37 @@
 
 /**
  * Temporary File Storage Service
- * Created: 2025-05-02
+ * Created: 2025-05-03
  * 
- * This service manages temporary file storage during the form completion process.
- * Files are stored in memory/localStorage until the form is submitted.
+ * Service to temporarily store files in memory/localStorage during form completion
  */
 
-import { v4 as uuidv4 } from 'uuid';
+// 1 hour in milliseconds
+const SESSION_TIMEOUT = 60 * 60 * 1000;
 
-// Define types for stored files
 export interface TempStoredFile {
   id: string;
   file: File;
   preview: string;
   category: string;
-  uploadedAt: Date;
+  createdAt: number;
 }
 
-// Main storage state
-class TempFileStorageService {
+class TempFileStorage {
   private files: Map<string, TempStoredFile> = new Map();
-  private sessionStartTime: Date = new Date();
-  private sessionDuration: number = 60 * 60 * 1000; // 1 hour in milliseconds
+  private sessionStartTime: number;
   
   constructor() {
-    this.setupSessionTimeout();
+    this.sessionStartTime = Date.now();
+    // Pre-populate with any files saved in sessionStorage
+    this.loadFromSession();
   }
   
   /**
    * Store a file in temporary storage
-   * @returns The ID of the stored file
    */
   storeFile(file: File, category: string): TempStoredFile {
-    const id = uuidv4();
+    const id = crypto.randomUUID();
     const preview = URL.createObjectURL(file);
     
     const storedFile: TempStoredFile = {
@@ -41,15 +39,20 @@ class TempFileStorageService {
       file,
       preview,
       category,
-      uploadedAt: new Date()
+      createdAt: Date.now()
     };
     
     this.files.set(id, storedFile);
-    
-    // Store session info in localStorage for recovery
-    this.updateLocalStorageIndex();
+    this.saveToSession();
     
     return storedFile;
+  }
+  
+  /**
+   * Get a file by ID
+   */
+  getFile(id: string): TempStoredFile | undefined {
+    return this.files.get(id);
   }
   
   /**
@@ -61,7 +64,7 @@ class TempFileStorageService {
   }
   
   /**
-   * Get all files
+   * Get all files across all categories
    */
   getAllFiles(): TempStoredFile[] {
     return Array.from(this.files.values());
@@ -73,106 +76,86 @@ class TempFileStorageService {
   removeFile(id: string): boolean {
     const file = this.files.get(id);
     if (file) {
-      // Revoke object URL to prevent memory leaks
       URL.revokeObjectURL(file.preview);
       this.files.delete(id);
-      this.updateLocalStorageIndex();
+      this.saveToSession();
       return true;
     }
     return false;
   }
   
   /**
-   * Remove all files in a category
+   * Clear all files in a category
    */
   clearCategory(category: string): void {
-    const filesToRemove = Array.from(this.files.entries())
-      .filter(([_, file]) => file.category === category);
-      
-    filesToRemove.forEach(([id, file]) => {
+    const filesToRemove = this.getFilesByCategory(category);
+    filesToRemove.forEach(file => {
       URL.revokeObjectURL(file.preview);
-      this.files.delete(id);
+      this.files.delete(file.id);
     });
-    
-    this.updateLocalStorageIndex();
+    this.saveToSession();
   }
   
   /**
-   * Clear all stored files
+   * Clear all files
    */
   clearAll(): void {
-    // Clean up object URLs
     this.files.forEach(file => {
       URL.revokeObjectURL(file.preview);
     });
-    
     this.files.clear();
-    localStorage.removeItem('car_listing_temp_files');
-    this.sessionStartTime = new Date();
+    sessionStorage.removeItem('tempFiles');
   }
   
   /**
    * Get remaining session time in minutes
    */
   getRemainingSessionTime(): number {
-    const elapsed = Date.now() - this.sessionStartTime.getTime();
-    const remaining = this.sessionDuration - elapsed;
-    return Math.max(0, Math.floor(remaining / (60 * 1000))); // Convert to minutes
+    const elapsedTime = Date.now() - this.sessionStartTime;
+    const remainingTime = Math.max(0, SESSION_TIMEOUT - elapsedTime);
+    return Math.ceil(remainingTime / (60 * 1000)); // Convert to minutes
   }
   
   /**
-   * Setup session timeout
+   * Save file metadata to session storage
+   * Note: We can't store the actual File objects or preview URLs,
+   * so we just store enough info to track what files we have
    */
-  private setupSessionTimeout(): void {
-    // Check if we have an existing session stored
-    const storedSession = localStorage.getItem('car_listing_session');
-    if (storedSession) {
-      try {
-        const parsedSession = JSON.parse(storedSession);
-        this.sessionStartTime = new Date(parsedSession.startTime);
-        
-        // If session is expired, start a new one
-        if (this.getRemainingSessionTime() <= 0) {
-          this.resetSession();
-        }
-      } catch (e) {
-        this.resetSession();
-      }
-    } else {
-      this.resetSession();
+  private saveToSession(): void {
+    try {
+      const serializable = Array.from(this.files.entries()).map(([id, file]) => ({
+        id,
+        category: file.category,
+        name: file.file.name,
+        type: file.file.type,
+        size: file.file.size,
+        createdAt: file.createdAt,
+      }));
+      sessionStorage.setItem('tempFiles', JSON.stringify(serializable));
+    } catch (error) {
+      console.error('Error saving to session storage:', error);
     }
   }
   
   /**
-   * Reset session
+   * Attempt to load file metadata from session storage
+   * Note: Actual files cannot be restored, this is mainly
+   * to track session time
    */
-  private resetSession(): void {
-    this.sessionStartTime = new Date();
-    localStorage.setItem('car_listing_session', JSON.stringify({
-      startTime: this.sessionStartTime.toISOString()
-    }));
-    this.clearAll();
-  }
-  
-  /**
-   * Update localStorage index of files
-   * This doesn't store the actual files, just metadata for recovery
-   */
-  private updateLocalStorageIndex(): void {
-    const fileIndex = Array.from(this.files.values()).map(file => ({
-      id: file.id,
-      name: file.file.name,
-      category: file.category,
-      uploadedAt: file.uploadedAt.toISOString()
-    }));
-    
+  private loadFromSession(): void {
     try {
-      localStorage.setItem('car_listing_temp_files', JSON.stringify(fileIndex));
-    } catch (e) {
-      console.error('Error storing file index to localStorage:', e);
+      const stored = sessionStorage.getItem('tempFiles');
+      if (stored) {
+        const data = JSON.parse(stored);
+        const startTime = Math.min(...data.map((item: any) => item.createdAt)) || Date.now();
+        // Use the earliest createdAt time as the session start time
+        this.sessionStartTime = startTime;
+      }
+    } catch (error) {
+      console.error('Error loading from session storage:', error);
     }
   }
 }
 
 // Create a singleton instance
-export const tempFileStorage = new TempFileStorageService();
+export const tempFileStorage = new TempFileStorage();

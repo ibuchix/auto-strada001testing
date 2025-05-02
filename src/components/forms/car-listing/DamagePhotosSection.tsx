@@ -1,56 +1,67 @@
 
 /**
  * Damage Photos Section
- * Created: 2025-05-02
+ * Created: 2025-05-03
+ * 
+ * Component for uploading photos of vehicle damage
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Upload, X, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFormData } from "./context/FormDataContext";
 import { useTemporaryFileUpload } from "@/hooks/useTemporaryFileUpload";
-import { Button } from "@/components/ui/button";
-import { X, Upload, Image } from "lucide-react";
 
 export const DamagePhotosSection = () => {
   const { form } = useFormData();
-  const isDamaged = form.watch('isDamaged');
+  const [isDamaged, setIsDamaged] = useState(false);
   
+  // Get isDamaged value from form
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'isDamaged' || name === undefined) {
+        setIsDamaged(!!value.isDamaged);
+      }
+    });
+    
+    // Initialize with current value
+    setIsDamaged(!!form.getValues('isDamaged'));
+    
+    return () => subscription.unsubscribe();
+  }, [form]);
+  
+  // Use temporary file storage for damage photos
   const { 
     files, 
     isUploading, 
     progress, 
     uploadFiles, 
-    removeFile,
-    clearFiles 
+    removeFile 
   } = useTemporaryFileUpload({
     category: 'damage_photos',
     allowMultiple: true,
     maxFiles: 10
   });
   
-  // Update form when files change
+  // Update form data when files change
   useEffect(() => {
     const fileIds = files.map(file => file.id);
     form.setValue('damagePhotos', fileIds, { shouldDirty: true });
   }, [files, form]);
   
-  // Clear photos if car is not damaged
-  useEffect(() => {
-    if (!isDamaged && files.length > 0) {
-      clearFiles();
-    }
-  }, [isDamaged, files.length, clearFiles]);
-  
-  // If car is not damaged, don't render the section
-  if (!isDamaged) {
-    return null;
-  }
-  
+  // Handle file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       uploadFiles(e.target.files);
     }
   };
+  
+  // If vehicle isn't damaged, don't show this section
+  if (!isDamaged) {
+    return null;
+  }
   
   return (
     <Card className="p-4 md:p-6">
@@ -58,86 +69,88 @@ export const DamagePhotosSection = () => {
         Damage Photos
       </h2>
       
-      <div className="space-y-6">
-        <p className="text-gray-600">
-          Since you've indicated that the vehicle has damage, please upload clear photos of all damaged areas.
-          This helps us accurately assess the vehicle condition.
-        </p>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+      <Alert className="mb-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Since you've indicated your vehicle has damage, please upload clear photos of all damaged areas.
+          This will help provide an accurate assessment.
+        </AlertDescription>
+      </Alert>
+      
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
             <h3 className="font-medium">Damage Photos</h3>
-            <input 
-              type="file" 
-              id="damage-photo-upload" 
-              multiple 
-              accept="image/*" 
-              className="hidden"
-              onChange={handleFileSelect}
-              disabled={isUploading}
-            />
-            <label htmlFor="damage-photo-upload">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isUploading}
-                className="cursor-pointer"
-                asChild
-              >
-                <span>
-                  <Upload className="h-4 w-4 mr-2" />
-                  {isUploading ? "Uploading..." : "Add Photos"}
-                </span>
-              </Button>
-            </label>
+            <p className="text-sm text-muted-foreground">
+              Upload up to 10 photos of the damaged areas
+            </p>
           </div>
           
-          {isUploading && (
-            <div className="w-full">
-              <div className="h-2 bg-gray-200 rounded-full">
-                <div 
-                  className="h-2 bg-primary rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
+          <input
+            id="damage-photos-upload"
+            type="file"
+            multiple
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileSelect}
+            disabled={isUploading || files.length >= 10}
+          />
           
-          {files.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {files.map((file) => (
-                <div key={file.id} className="relative group">
-                  <div className="aspect-square rounded-md overflow-hidden border bg-gray-100">
-                    <img 
-                      src={file.preview} 
-                      alt="Damage photo" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => removeFile(file.id)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="border-2 border-dashed rounded-lg p-6 text-center">
-              <div className="flex flex-col items-center justify-center space-y-2">
-                <Image className="h-8 w-8 text-gray-400" />
-                <p className="text-sm text-gray-500">
-                  No damage photos uploaded yet
-                </p>
-              </div>
-            </div>
-          )}
+          <label htmlFor="damage-photos-upload">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUploading || files.length >= 10}
+              className="cursor-pointer"
+              asChild
+            >
+              <span>
+                <Upload className="mr-2 h-4 w-4" />
+                Add Photos
+              </span>
+            </Button>
+          </label>
         </div>
+        
+        {isUploading && (
+          <div className="w-full">
+            <div className="h-2 bg-gray-200 rounded-full">
+              <div 
+                className="h-2 bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
+        
+        {files.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {files.map((file) => (
+              <div key={file.id} className="relative group">
+                <div className="aspect-square rounded-md overflow-hidden border bg-gray-100">
+                  <img 
+                    src={file.preview} 
+                    alt="Damage photo" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => removeFile(file.id)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center p-8 border-2 border-dashed rounded-lg">
+            <p className="text-muted-foreground">No damage photos uploaded yet</p>
+          </div>
+        )}
       </div>
     </Card>
   );

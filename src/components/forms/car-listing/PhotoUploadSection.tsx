@@ -7,12 +7,13 @@
  * - 2025-04-05: Enhanced structure and separation of concerns
  * - 2025-05-02: Updated to use temporary storage instead of uploading to database
  * - 2025-05-02: Photos will be stored in memory until form submission
+ * - 2025-05-03: Fixed missing X import from lucide-react
  */
 import React from 'react';
 import { useFormData } from './context/FormDataContext';
 import { FormSection } from './FormSection';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Info } from 'lucide-react';
+import { AlertCircle, Info, X } from 'lucide-react';
 import { useTemporaryFileUpload } from '@/hooks/useTemporaryFileUpload';
 import { RequiredPhotosGrid } from './photo-upload/RequiredPhotosGrid';
 import { Button } from '@/components/ui/button';

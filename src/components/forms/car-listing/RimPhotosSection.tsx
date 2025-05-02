@@ -8,6 +8,7 @@
  * - 2028-05-30: Fixed type issues with onUpload function return type
  * - 2025-04-03: Updated to use FormDataContext instead of requiring form prop
  * - 2025-05-02: Refactored to use temporary storage instead of direct uploads
+ * - 2025-05-03: Fixed TypeScript errors with PhotoUpload component props
  */
 
 import { useEffect, useState } from "react";

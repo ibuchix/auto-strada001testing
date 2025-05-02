@@ -5,6 +5,7 @@
  * - 2025-04-03: Fixed TransactionStatus enum usage to use proper type
  * - 2025-04-06: Fixed error code type comparisons
  * - 2025-05-02: Updated to upload temporary files when form is submitted
+ * - 2025-05-03: Fixed carId type error by adding field to submission result interface
  */
 
 import { useState } from "react";
@@ -19,6 +20,12 @@ import { TransactionStatus } from "@/services/supabase/transactions/types";
 import { tempFileStorage, TempStoredFile } from "@/services/temp-storage/tempFileStorageService";
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
+
+// Define submission result interface with carId
+interface SubmissionResult {
+  carId: string;
+  [key: string]: any;
+}
 
 // Create a simple validation function to replace the missing import
 const validateFormData = (data: CarListingFormData): string[] => {
@@ -151,7 +158,7 @@ export const useFormSubmission = (userId: string) => {
       await validateSubmission(data, userId);
       
       // Submit the car listing to get an ID (or use existing ID)
-      const submissionResult = await submitCarListing(data, userId, carId);
+      const submissionResult = await submitCarListing(data, userId, carId) as SubmissionResult;
       const submittedCarId = submissionResult.carId || carId;
       
       if (!submittedCarId) {

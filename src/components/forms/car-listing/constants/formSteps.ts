@@ -1,49 +1,27 @@
 
 /**
- * Form steps configuration
- * Created: 2025-06-05
- * Updated: 2025-06-08: Added reserve-price section to Vehicle Details step
+ * Form Steps Constants
+ * Created: 2025-05-03
+ * 
+ * Configuration for multi-step form
  */
 
-import { CarListingFormData } from "@/types/forms";
-
-export interface FormStepConfig {
-  id: string;
-  title: string;
-  description?: string;
-  sections: string[];
-  validate?: (data: CarListingFormData) => boolean;
-}
-
-export const formSteps: FormStepConfig[] = [
+export const formSteps = [
   {
-    id: "vehicle-details",
-    title: "Vehicle Details",
-    description: "Enter the basic information about your vehicle",
-    sections: ["reserve-price", "vehicle-info"]
+    id: 'basic-info',
+    title: 'Basic Information',
+    description: 'Enter the basic details about your vehicle'
   },
   {
-    id: "condition-status",
-    title: "Vehicle Condition & Status",
-    description: "Tell us about the condition of your vehicle",
-    sections: ["vehicle-status", "damage-details"]
+    id: 'condition',
+    title: 'Vehicle Condition',
+    description: 'Tell us about the condition of your vehicle'
   },
   {
-    id: "features-history",
-    title: "Features & History",
-    description: "Share information about the features and service history",
-    sections: ["features", "service-history"]
-  },
-  {
-    id: "photos",
-    title: "Vehicle Photos",
-    description: "Upload photos of your vehicle",
-    sections: ["images"]
-  },
-  {
-    id: "seller-info",
-    title: "Seller Information",
-    description: "Provide your contact information",
-    sections: ["personal-details"]
+    id: 'photos',
+    title: 'Photos & Documents',
+    description: 'Upload photos and documents for your vehicle'
   }
 ];
+
+export const SAVE_DEBOUNCE_TIME = 2000; // 2 seconds

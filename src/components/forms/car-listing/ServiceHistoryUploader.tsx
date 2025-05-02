@@ -2,6 +2,7 @@
 /**
  * Service History Document Uploader
  * Created: 2025-05-02
+ * Updated: 2025-05-03 Fixed TypeScript errors with ServiceHistoryFile types
  */
 
 import { useState } from "react";
@@ -10,6 +11,15 @@ import { Button } from "@/components/ui/button";
 import { useFormData } from "./context/FormDataContext";
 import { useTemporaryFileUpload } from "@/hooks/useTemporaryFileUpload";
 import { FileText, X, Upload, FileCheck } from "lucide-react";
+
+// Define the ServiceHistoryFile type for proper typing
+interface ServiceHistoryFile {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  uploadDate: string;
+}
 
 export const ServiceHistoryUploader = () => {
   const { form } = useFormData();
@@ -29,7 +39,10 @@ export const ServiceHistoryUploader = () => {
       // After upload completes, update the form
       const serviceHistoryFiles = form.getValues('serviceHistoryFiles') || [];
       const fileIds = uploadedFiles.map(f => f.id);
-      form.setValue('serviceHistoryFiles', [...serviceHistoryFiles, ...fileIds], { shouldDirty: true });
+      
+      // Ensure we're working with a string array
+      const currentFiles = Array.isArray(serviceHistoryFiles) ? serviceHistoryFiles : [];
+      form.setValue('serviceHistoryFiles', [...currentFiles, ...fileIds] as string[], { shouldDirty: true });
     }
   });
   
@@ -43,15 +56,16 @@ export const ServiceHistoryUploader = () => {
     // Remove file from temporary storage
     removeFile(fileId);
     
-    // Update form value
+    // Update form value - ensure we're working with string[] type
     const serviceHistoryFiles = form.getValues('serviceHistoryFiles') || [];
-    const updatedFiles = serviceHistoryFiles.filter(id => id !== fileId);
-    form.setValue('serviceHistoryFiles', updatedFiles, { shouldDirty: true });
+    const currentFiles = Array.isArray(serviceHistoryFiles) ? serviceHistoryFiles : [];
+    const updatedFiles = currentFiles.filter(id => typeof id === 'string' && id !== fileId);
+    form.setValue('serviceHistoryFiles', updatedFiles as string[], { shouldDirty: true });
   };
   
   // Initialize serviceHistoryFiles if not already set
   if (!form.getValues('serviceHistoryFiles')) {
-    form.setValue('serviceHistoryFiles', [], { shouldDirty: true });
+    form.setValue('serviceHistoryFiles', [] as string[], { shouldDirty: true });
   }
   
   return (
