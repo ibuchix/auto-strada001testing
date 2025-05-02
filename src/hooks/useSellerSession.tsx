@@ -15,9 +15,10 @@
  * - Updated to support automatic verification of all sellers
  * - 2025-07-13: Improved metadata-based seller detection to avoid unnecessary database queries
  * - 2025-07-14: Fixed authentication state updates to trust metadata exclusively without verification
+ * - 2025-05-02: Enhanced session recovery and added explicit token refresh mechanisms
  */
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useSessionInitialization } from "./seller/useSessionInitialization";
@@ -38,7 +39,11 @@ export const useSellerSession = () => {
     initializeSession,
     setupAuthListener
   } = useSessionInitialization();
-
+  
+  // Track recovery attempts to prevent infinite loops
+  const [recoveryAttempted, setRecoveryAttempted] = useState(false);
+  
+  // Enhanced session initialization with recovery mechanism
   useEffect(() => {
     let mounted = true;
     
@@ -47,7 +52,6 @@ export const useSellerSession = () => {
       await initializeSession();
       
       // If session exists, immediately set seller status from metadata
-      // No verification needed - we trust metadata completely
       if (session?.user?.user_metadata?.role === 'seller' && !isSeller) {
         console.log("Setting isSeller=true from metadata during initialization");
         setIsSeller(true);
@@ -60,6 +64,26 @@ export const useSellerSession = () => {
           is_verified: true,
           verification_status: 'verified'
         });
+      }
+      
+      // If no session but not attempted recovery yet, try to recover
+      if (!session && !recoveryAttempted && !isLoading) {
+        setRecoveryAttempted(true);
+        console.log("No session found, attempting recovery");
+        
+        try {
+          // Attempt to refresh the session in case token is still valid
+          const { data, error } = await supabase.auth.refreshSession();
+          
+          if (error) {
+            console.log("Session recovery failed:", error.message);
+          } else if (data.session) {
+            console.log("Session recovered successfully");
+            // The listener will handle updating the state
+          }
+        } catch (recoveryError) {
+          console.error("Error during session recovery:", recoveryError);
+        }
       }
     };
     
@@ -75,7 +99,7 @@ export const useSellerSession = () => {
       mounted = false;
       subscription.data.subscription.unsubscribe();
     };
-  }, [navigate, initializeSession, setupAuthListener, session, isSeller, setIsSeller]);
+  }, [navigate, initializeSession, setupAuthListener, session, isSeller, setIsSeller, recoveryAttempted, isLoading]);
 
   /**
    * Force refresh seller status - simplified to focus on metadata
