@@ -1,105 +1,98 @@
-
 /**
  * Hook for detecting changes in form data
- * Updated: 2025-06-05 - Fixed TypeScript errors for Blob handling
+ * Created: 2025-06-06 - Fixed type handling for blob objects
  */
 
-import { useRef, useCallback } from "react";
-import { CarListingFormData } from "@/types/forms";
+import { useState, useCallback, useRef } from 'react';
+import { CarListingFormData } from '@/types/forms';
 
-// List of fields that change frequently but don't need to trigger saves
-const IGNORED_FIELDS = [
-  'updated_at', 
-  'form_metadata',
-  'temp_image_data',
-  'temp_uploads'
-];
+interface UseChangeDetectionResult {
+  hasChanges: (formData: CarListingFormData, carId?: string | null) => boolean;
+  setLastSavedData: (data: CarListingFormData) => void;
+  clearLastSavedData: () => void;
+}
 
-// List of important fields that should always trigger a save when changed
-const CRITICAL_FIELDS = [
-  'vin',
-  'make',
-  'model',
-  'year',
-  'mileage',
-  'transmission',
-  'fuel_type'
-];
-
-export const useChangeDetection = () => {
-  // Ref to store the last saved data for comparison
+export const useChangeDetection = (): UseChangeDetectionResult => {
+  // Reference to last saved state to compare against
   const lastSavedDataRef = useRef<string>('');
-  const lastSavedValuesRef = useRef<Record<string, any>>({});
-
-  // Set the last saved data for future comparisons
-  const setLastSavedData = useCallback((data: CarListingFormData) => {
-    // Store the full stringified data for complete comparison
-    lastSavedDataRef.current = serializeFormData(data);
-    
-    // Also store individual field values for selective comparison
-    const values: Record<string, any> = {};
-    Object.keys(data).forEach(key => {
-      if (!IGNORED_FIELDS.includes(key)) {
-        values[key] = data[key as keyof CarListingFormData];
+  const lastSavedCarIdRef = useRef<string | null>(null);
+  
+  // Helper to safely stringify form data, excluding problematic fields
+  const safeStringifyFormData = (data: CarListingFormData): string => {
+    try {
+      // Create a copy we can safely modify
+      const sanitizedData = { ...data };
+      
+      // Remove fields that don't serialize well (like Files)
+      if (sanitizedData.serviceHistoryFiles) {
+        // For serviceHistoryFiles, only keep key properties
+        sanitizedData.serviceHistoryFiles = (sanitizedData.serviceHistoryFiles as any[])
+          .map(file => {
+            // If it's a File/Blob object
+            if (file instanceof Blob) {
+              return {
+                filename: 'file' // Use a placeholder since File.name doesn't exist on Blob
+              };
+            }
+            // If it's a file reference object
+            if (typeof file === 'object' && file !== null) {
+              return {
+                id: file.id || '',
+                url: file.url || '',
+                name: file.name || ''
+              };
+            }
+            // If it's just a string
+            return file;
+          });
       }
-    });
-    lastSavedValuesRef.current = values;
-  }, []);
-
-  // Check if the data has changed compared to the last saved data
-  const hasChanges = useCallback((data: CarListingFormData, carId?: string): boolean => {
-    // New car entries should always save
-    if (!carId) return true;
-    
-    // If we don't have previous data, consider it changed
-    if (!lastSavedDataRef.current) return true;
-    
-    // First, check critical fields for quick decision
-    for (const field of CRITICAL_FIELDS) {
-      const key = field as keyof CarListingFormData;
-      if (data[key] !== undefined && data[key] !== lastSavedValuesRef.current[field]) {
-        return true;
+      
+      // Skip large binary objects
+      if (sanitizedData.uploadedPhotos) {
+        sanitizedData.uploadedPhotos = (sanitizedData.uploadedPhotos as any[])
+          .map(photo => typeof photo === 'string' ? photo : 'blob');
       }
+      
+      // Convert to string for comparison
+      return JSON.stringify(sanitizedData);
+    } catch (error) {
+      console.error('Error stringifying form data:', error);
+      return Date.now().toString(); // Force a change to be detected
+    }
+  };
+  
+  // Check if data has changed
+  const hasChanges = useCallback((formData: CarListingFormData, carId?: string | null): boolean => {
+    // New car being created (no saved data yet)
+    if (!lastSavedDataRef.current) {
+      return true;
     }
     
-    // For more thorough check, compare serialized data
-    const currentData = serializeFormData(data);
+    // Car ID changed - indicate a change
+    if (carId !== lastSavedCarIdRef.current) {
+      return true;
+    }
+    
+    // Compare actual data
+    const currentData = safeStringifyFormData(formData);
     return currentData !== lastSavedDataRef.current;
   }, []);
-
+  
+  // Update the last saved data reference
+  const setLastSavedData = useCallback((data: CarListingFormData) => {
+    lastSavedDataRef.current = safeStringifyFormData(data);
+    lastSavedCarIdRef.current = data.id || null;
+  }, []);
+  
+  // Clear the saved data (for reset)
+  const clearLastSavedData = useCallback(() => {
+    lastSavedDataRef.current = '';
+    lastSavedCarIdRef.current = null;
+  }, []);
+  
   return {
     hasChanges,
-    setLastSavedData
+    setLastSavedData,
+    clearLastSavedData
   };
-};
-
-/**
- * Serializes form data for comparison, excluding metadata fields
- */
-const serializeFormData = (formData: CarListingFormData): string => {
-  // Create a copy to avoid modifying the original
-  const dataToSerialize = { ...formData };
-  
-  // Remove ignored fields
-  IGNORED_FIELDS.forEach(field => {
-    delete dataToSerialize[field as keyof CarListingFormData];
-  });
-  
-  // Convert any File or Blob objects to simple indicators
-  Object.keys(dataToSerialize).forEach(key => {
-    const value = dataToSerialize[key as keyof typeof dataToSerialize];
-    if (typeof value === 'object' && value !== null) {
-      // Check if it's a File or FileList
-      if (value instanceof File) {
-        dataToSerialize[key as keyof typeof dataToSerialize] = `file:${value.name}:${value.size}` as any;
-      } else if (value instanceof Blob) {
-        // Fixed: Use a safe string representation for Blob objects
-        dataToSerialize[key as keyof typeof dataToSerialize] = `blob:${value.size}:${value.type}` as any;
-      } else if (value instanceof FileList) {
-        dataToSerialize[key as keyof typeof dataToSerialize] = `filelist:${value.length}` as any;
-      }
-    }
-  });
-  
-  return JSON.stringify(dataToSerialize);
 };

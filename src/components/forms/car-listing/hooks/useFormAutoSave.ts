@@ -7,13 +7,54 @@
  * - 2025-06-18: Added isSaving state for better UI feedback
  * - 2025-06-18: Improved debounce mechanism
  * - 2025-06-18: Enhanced error handling
+ * - 2025-06-06: Fixed import by implementing local save functionality
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { saveFormData } from "../utils/formSaveUtils";
+import { supabase } from "@/integrations/supabase/client";
 import { SAVE_DEBOUNCE_TIME } from "../constants";
+
+// Local saveFormData implementation to avoid circular imports
+const saveFormDataLocal = async (
+  formData: CarListingFormData,
+  userId: string,
+  valuationData: any = {},
+  carId?: string
+) => {
+  try {
+    // Enhanced form data with metadata
+    const enhancedData = {
+      ...formData,
+      form_metadata: {
+        ...formData.form_metadata,
+        lastSavedAt: new Date().toISOString()
+      },
+      seller_id: userId,
+      valuation_data: valuationData || null
+    };
+    
+    // Save to database
+    const { data, error } = await supabase
+      .from('cars')
+      .upsert({
+        ...(carId ? { id: carId } : {}),
+        ...enhancedData
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      return { success: false, error };
+    }
+    
+    return { success: true, carId: data?.id };
+  } catch (error) {
+    console.error("Error in saveFormDataLocal:", error);
+    return { success: false, error };
+  }
+};
 
 export const useFormAutoSave = (
   form: UseFormReturn<CarListingFormData>,
@@ -39,7 +80,7 @@ export const useFormAutoSave = (
     setIsSaving(true);
 
     try {
-      const result = await saveFormData(formData, userId, valuationData, carId);
+      const result = await saveFormDataLocal(formData, userId, valuationData, carId);
       if (result.success) {
         previousDataRef.current = currentData;
         setLastSaved(new Date());

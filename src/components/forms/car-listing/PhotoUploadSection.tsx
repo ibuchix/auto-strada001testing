@@ -5,6 +5,7 @@
  * - 2025-04-05: Refactored into smaller components for better maintainability
  * - 2025-04-05: Extracted AlertMessage component, usePhotoUploadSection hook
  * - 2025-04-05: Enhanced structure and separation of concerns
+ * - 2025-06-06: Fixed FormSection props to match updated interface
  */
 import React from 'react';
 import { useFormData } from './context/FormDataContext';

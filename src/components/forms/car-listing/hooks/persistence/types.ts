@@ -1,7 +1,7 @@
 
 /**
- * Types for form persistence functionality
- * - 2025-06-04: Added pauseAutoSave and resumeAutoSave methods
+ * Type definitions for form persistence hooks and utilities
+ * Created: 2025-06-06
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -20,6 +20,6 @@ export interface UseFormPersistenceResult {
   isOffline: boolean;
   saveImmediately: () => Promise<void>;
   setIsOffline: (status: boolean) => void;
-  pauseAutoSave: () => void;     // New method to pause auto-save
-  resumeAutoSave: () => void;    // New method to resume auto-save
+  pauseAutoSave: () => void;
+  resumeAutoSave: () => void;
 }

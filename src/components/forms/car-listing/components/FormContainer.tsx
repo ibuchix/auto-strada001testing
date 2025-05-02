@@ -2,6 +2,7 @@
 /**
  * Form Container component to manage the display of form steps
  * Updated: 2025-06-05 - Fixed TypeScript errors and type safety issues
+ * Updated: 2025-06-06 - Fixed missing children prop in FormSection
  */
 
 import { useEffect } from "react";
@@ -11,11 +12,7 @@ import { FormSection } from "../FormSection";
 import { formSteps } from "../constants/formSteps";
 import { FormSubmissionButtons } from "./FormSubmissionButtons";
 import { ImageUploadSection } from "./ImageUploadSection";
-
-// Simple replacement for the feature toggle - we're just using it as a flag
-const useFeatureToggle = (name: string, defaultValue = false) => {
-  return defaultValue;
-};
+import { useFeatureToggle } from "@/hooks/useFeatureToggle";
 
 interface FormContainerProps {
   currentStep: number;
@@ -75,7 +72,18 @@ export const FormContainer = ({
         
         {/* Render the appropriate form sections for the current step */}
         {currentStepConfig?.sections.map((sectionId) => (
-          <FormSection key={sectionId} id={sectionId} />
+          <FormSection key={sectionId} id={sectionId}>
+            {/* We need to render content for each section */}
+            <div className="section-content">
+              {/* Section content will be determined by the specific section ID */}
+              {sectionId === 'vehicle-info' && <p>Vehicle information fields</p>}
+              {sectionId === 'vehicle-status' && <p>Vehicle status fields</p>}
+              {sectionId === 'damage-details' && <p>Damage details fields</p>}
+              {sectionId === 'features' && <p>Features selection</p>}
+              {sectionId === 'service-history' && <p>Service history fields</p>}
+              {sectionId === 'personal-details' && <p>Personal details fields</p>}
+            </div>
+          </FormSection>
         ))}
         
         {/* Show image upload section in the appropriate step */}

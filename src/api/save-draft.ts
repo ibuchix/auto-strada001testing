@@ -5,11 +5,12 @@
  * Changes made:
  * - 2025-11-05: Integrated with robust API client for automatic retries and error normalization
  * - Enhanced error handling with more detailed error information
+ * - 2025-06-06: Fixed saveFormData import by implementing local version
  */
 
 import { CarListingFormData } from "@/types/forms";
-import { saveFormData } from "@/components/forms/car-listing/utils/formSaveUtils";
 import { apiClient } from "@/services/api/apiClientService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SaveDraftRequest {
   formData: CarListingFormData;
@@ -17,6 +18,44 @@ interface SaveDraftRequest {
   carId?: string;
   currentStep: number;
 }
+
+// Local implementation of saveFormData to avoid import errors
+const saveFormData = async (
+  formData: CarListingFormData,
+  userId: string,
+  valuationData: any = {},
+  carId?: string
+) => {
+  try {
+    // Enhanced form data with metadata
+    const enhancedData = {
+      ...formData,
+      seller_id: userId,
+      is_draft: true,
+      valuation_data: valuationData || null,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Save to database
+    const { data, error } = await supabase
+      .from('cars')
+      .upsert({
+        ...(carId ? { id: carId } : {}),
+        ...enhancedData
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      return { success: false, error };
+    }
+    
+    return { success: true, carId: data?.id };
+  } catch (error) {
+    console.error("Error in saveFormData:", error);
+    return { success: false, error };
+  }
+};
 
 export async function saveDraft(request: SaveDraftRequest) {
   const { formData, userId, carId, currentStep } = request;

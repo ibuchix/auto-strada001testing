@@ -8,11 +8,12 @@
  * - 2025-06-04: Improved error handling for save operations
  * - 2025-06-04: Added save throttling to prevent excessive operations
  * - 2025-06-04: Enhanced caching of form data to reduce duplicate saves
+ * - 2025-06-06: Fixed import for saveFormData function
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { CACHE_KEYS, saveToCache } from "@/services/offlineCacheService";
-import { saveFormData } from "../../utils/formSaveUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 // 24 hours cache TTL
 const CACHE_TTL = 86400000;
@@ -31,6 +32,53 @@ const safePostMessage = (data: any) => {
     }
   } catch (error) {
     // Silently fail - cross-origin restrictions are expected
+  }
+};
+
+/**
+ * Internal implementation of saveFormData specifically for the persistence module
+ * This avoids circular dependencies with the main saveFormData function
+ */
+const saveFormDataInternal = async (
+  formData: CarListingFormData, 
+  userId: string, 
+  valuationData?: any, 
+  carId?: string
+): Promise<{ success: boolean; carId?: string; error?: any }> => {
+  try {
+    // Ensure we have a valid user ID
+    if (!userId) {
+      throw new Error('User ID is required to save form data');
+    }
+
+    // Prepare data for saving
+    const saveData = {
+      ...formData,
+      seller_id: userId,
+      is_draft: true,
+      // Add valuation data if available
+      valuation_data: valuationData || formData.valuation_data || null,
+      // Make sure to add current timestamp for updated_at
+      updated_at: new Date().toISOString()
+    };
+
+    // Save to database
+    const { data, error } = await supabase
+      .from('cars')
+      .upsert({
+        ...(carId ? { id: carId } : {}),
+        ...saveData
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      return { success: false, error };
+    }
+
+    return { success: true, carId: data?.id };
+  } catch (error) {
+    return { success: false, error };
   }
 };
 
@@ -87,8 +135,8 @@ export const saveProgress = async (
       throw new Error('AbortError');
     }
 
-    // Call the saveFormData function to save to database
-    const result = await saveFormData(
+    // Call our internal saveFormData implementation
+    const result = await saveFormDataInternal(
       enhancedFormData,
       userId,
       formData.valuation_data || {},

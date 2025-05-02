@@ -8,6 +8,7 @@
  * - 2025-06-04: Improved error handling
  * - 2025-06-04: Added timestamp logging for form actions
  * - 2025-06-05: Fixed TypeScript type errors and improved type safety
+ * - 2025-06-06: Fixed JSON parsing with safe type handling
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -19,6 +20,19 @@ import { Session } from "@supabase/supabase-js";
 import { useFormPersistence } from "./useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import { clearSaveCache } from "../utils/formSaveUtils";
+
+// Helper for safe JSON parsing
+const safeJsonParse = (value: any, fallback: any) => {
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return fallback;
+  
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    console.error('Error parsing JSON:', e);
+    return fallback;
+  }
+};
 
 interface UseFormControllerProps {
   session: Session;
@@ -95,7 +109,7 @@ export const useFormController = ({
     loadInitialData();
   }, [draftId, fromValuation, retryCount]);
 
-  // Load draft data from Supabase
+  // Load draft data from Supabase with safer type handling
   const loadDraftData = async (id: string) => {
     try {
       setIsLoadingDraft(true);
@@ -116,43 +130,45 @@ export const useFormController = ({
       console.log("Draft loaded successfully", {
         id: data.id,
         make: data.make,
-        model: data.model,
-        step: data.form_metadata ? 
-          (typeof data.form_metadata === 'string' ? 
-            JSON.parse(data.form_metadata).currentStep || 0 : 
-            data.form_metadata.currentStep || 0) : 0
+        model: data.model
       });
+      
+      // Safely extract form metadata
+      let currentStep = 0;
+      let formMetadata = {};
+      
+      // Handle form_metadata with safer type checking
+      if (data.form_metadata) {
+        // Parse it if it's a string
+        const metadataObj = safeJsonParse(data.form_metadata, { currentStep: 0 });
+        // Extract currentStep with fallback
+        currentStep = typeof metadataObj === 'object' && metadataObj !== null && 
+                      'currentStep' in metadataObj ? 
+                      Number(metadataObj.currentStep) || 0 : 0;
+        formMetadata = metadataObj;
+      }
+      
+      // Handle features with safer type checking
+      let features = defaultCarFeatures;
+      if (data.features) {
+        features = safeJsonParse(data.features, defaultCarFeatures);
+      }
       
       // Convert database data to form data with proper type handling
       const formData: CarListingFormData = {
-        ...data as unknown as CarListingFormData,
-        // Ensure features has proper structure
-        features: data.features ? 
-          (typeof data.features === 'string' ? 
-            JSON.parse(data.features) : data.features) as any : 
-          defaultCarFeatures,
-          
-        // Handle form metadata
-        form_metadata: data.form_metadata ? 
-          (typeof data.form_metadata === 'string' ? 
-            JSON.parse(data.form_metadata) : data.form_metadata) as any : 
-          { currentStep: 0 }
+        ...data as any,
+        features: features,
+        form_metadata: formMetadata
       };
       
       // Update form with draft data
       form.reset(formData);
       
-      // Extract form metadata safely
-      const metadata = data.form_metadata ? 
-        (typeof data.form_metadata === 'string' ? 
-          JSON.parse(data.form_metadata) : data.form_metadata) : 
-        { currentStep: 0 };
-        
-      const currentStep = typeof metadata === 'object' && metadata !== null ? 
-        metadata.currentStep || 0 : 0;
-      
-      // Check for valuation data
-      const valuationData = data.valuation_data || null;
+      // Check for valuation data with safer handling
+      let valuationData = null;
+      if (data.valuation_data) {
+        valuationData = safeJsonParse(data.valuation_data, null);
+      }
       
       // Update form state
       setFormState(prev => ({
@@ -262,11 +278,11 @@ export const useFormController = ({
       localStorage.removeItem("valuationData");
       
       return { success: true, carId: result.id };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting form:", error);
       
       toast.error("Failed to submit listing", {
-        description: error instanceof Error ? error.message : "Please try again"
+        description: error.message || "Please try again"
       });
       
       return { success: false, error };
