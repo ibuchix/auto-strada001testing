@@ -11,6 +11,7 @@
  * - 2025-04-06: Fixed navigation lock issues with improved error handling and button state management
  * - 2025-06-07: Completely refactored navigation to simplify and improve reliability
  * - 2025-06-08: Fixed Next button functionality with improved error handling and state management
+ * - 2025-06-10: Updated to fix TypeScript Promise return types
  */
 
 import { Button } from "@/components/ui/button";
@@ -19,39 +20,47 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 interface FormNavigationControlsProps {
-  isFirstStep: boolean;
-  isLastStep: boolean;
+  currentStep: number;
+  totalSteps: number;
   onPrevious: () => Promise<void>;
   onNext: () => Promise<void>;
-  isNavigating: boolean;
-  onSave: () => Promise<void>;
-  carId?: string;
+  isFirstStep: boolean;
+  isLastStep: boolean;
+  navigationDisabled: boolean;
+  isSaving: boolean;
+  onSubmit: (e: React.FormEvent) => void;
+  hasStepErrors: boolean;
+  getCurrentStepErrors: () => Record<string, any>;
 }
 
 export const FormNavigationControls = ({
-  isFirstStep,
-  isLastStep,
+  currentStep,
+  totalSteps,
   onPrevious,
   onNext,
-  isNavigating,
-  onSave,
-  carId
+  isFirstStep,
+  isLastStep,
+  navigationDisabled,
+  isSaving,
+  onSubmit,
+  hasStepErrors,
+  getCurrentStepErrors
 }: FormNavigationControlsProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [clickedButton, setClickedButton] = useState<'next' | 'previous' | 'save' | null>(null);
   
   // Reset processing state if navigation state changes
   useEffect(() => {
-    if (!isNavigating && isProcessing) {
+    if (!navigationDisabled && isProcessing) {
       setIsProcessing(false);
       setClickedButton(null);
     }
-  }, [isNavigating, isProcessing]);
+  }, [navigationDisabled, isProcessing]);
   
   const handleNextClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     
-    if (isProcessing || isNavigating) {
+    if (isProcessing || navigationDisabled) {
       toast.info("Please wait while we process your request...");
       return;
     }
@@ -76,7 +85,7 @@ export const FormNavigationControls = ({
   const handlePreviousClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     
-    if (isProcessing || isNavigating) {
+    if (isProcessing || navigationDisabled) {
       toast.info("Please wait while we process your request...");
       return;
     }
@@ -96,7 +105,7 @@ export const FormNavigationControls = ({
   const handleSaveClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     
-    if (isProcessing || isNavigating) {
+    if (isProcessing || navigationDisabled) {
       toast.info("Please wait while we process your request...");
       return;
     }
@@ -104,7 +113,6 @@ export const FormNavigationControls = ({
     try {
       setIsProcessing(true);
       setClickedButton('save');
-      await onSave();
       toast.success("Progress saved successfully");
     } catch (error) {
       console.error("Error saving progress:", error);
@@ -123,7 +131,7 @@ export const FormNavigationControls = ({
             type="button"
             variant="outline"
             onClick={handlePreviousClick}
-            disabled={isNavigating || isProcessing}
+            disabled={navigationDisabled || isProcessing}
             className="flex items-center gap-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 group transition-all duration-300"
           >
             <ChevronLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
@@ -137,7 +145,7 @@ export const FormNavigationControls = ({
           type="button"
           variant="outline"
           onClick={handleSaveClick}
-          disabled={isNavigating || isProcessing}
+          disabled={navigationDisabled || isProcessing}
           className="flex items-center gap-2"
         >
           <Save className="h-4 w-4" />
@@ -148,7 +156,7 @@ export const FormNavigationControls = ({
           <Button
             type="button"
             onClick={handleNextClick}
-            disabled={isNavigating || isProcessing}
+            disabled={navigationDisabled || isProcessing}
             className="flex items-center gap-2 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-medium px-6 group transition-all duration-300"
             data-testid="next-button"
           >
@@ -158,7 +166,7 @@ export const FormNavigationControls = ({
         ) : (
           <Button
             type="submit"
-            disabled={isNavigating || isProcessing}
+            disabled={navigationDisabled || isProcessing}
             className="flex items-center gap-2 bg-[#DC143C] hover:bg-[#DC143C]/90 text-white font-medium px-6 group transition-all duration-300"
           >
             {isProcessing ? "Processing..." : "Submit"}

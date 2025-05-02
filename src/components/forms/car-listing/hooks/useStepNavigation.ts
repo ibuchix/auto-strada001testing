@@ -4,6 +4,7 @@
  * - 2025-06-01: Fixed unsafe postMessage calls and added safety checks
  * - 2025-06-01: Added error handling for cross-origin communication
  * - 2025-06-03: Added rate limiting to URL updates to prevent history.replaceState() security errors
+ * - 2025-06-10: Updated to use Promise-based navigation functions
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -157,23 +158,32 @@ export const useStepNavigation = (form: any) => {
     return Object.keys(errors).length > 0;
   }, [getCurrentStepErrors]);
 
-  const goToNextStep = useCallback(() => {
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep((prev) => prev + 1);
-    }
+  const goToNextStep = useCallback(async () => {
+    return new Promise<void>((resolve) => {
+      if (currentStep < totalSteps - 1) {
+        setCurrentStep((prev) => prev + 1);
+      }
+      resolve();
+    });
   }, [currentStep, totalSteps]);
 
-  const goToPrevStep = useCallback(() => {
-    if (currentStep > 0) {
-      setCurrentStep((prev) => prev - 1);
-    }
+  const goToPrevStep = useCallback(async () => {
+    return new Promise<void>((resolve) => {
+      if (currentStep > 0) {
+        setCurrentStep((prev) => prev - 1);
+      }
+      resolve();
+    });
   }, [currentStep]);
 
   const goToStep = useCallback(
-    (step: number) => {
-      if (step >= 0 && step < totalSteps) {
-        setCurrentStep(step);
-      }
+    async (step: number) => {
+      return new Promise<void>((resolve) => {
+        if (step >= 0 && step < totalSteps) {
+          setCurrentStep(step);
+        }
+        resolve();
+      });
     },
     [totalSteps]
   );
