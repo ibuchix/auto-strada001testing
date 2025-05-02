@@ -1,74 +1,36 @@
 
 /**
- * Changes made:
- * - Updated to use the useFormData hook correctly with the exposed methods
- * - This component demonstrates how to use the useFormData hook methods directly
+ * Vehicle Details Section
+ * Created: 2025-06-07
+ * Contains fields for basic vehicle information
  */
 
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormData } from "../context/FormDataContext";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { toast } from "sonner";
 
 export const VehicleDetailsSection = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  // Use the form context with directly exposed methods
-  const { control, watch, setValue } = useFormData();
+  const { form } = useFormData();
   
-  // Example of watching specific form values
-  const make = watch("make");
-  const model = watch("model");
-  const year = watch("year");
+  if (!form) {
+    return <div>Loading form...</div>;
+  }
   
-  const handleAutoFill = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Simulate API call to auto-fill data
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Example of setting form values
-      setValue("make", "Toyota");
-      setValue("model", "Corolla");
-      setValue("year", 2022);
-      setValue("mileage", 15000);
-      
-      toast.success("Vehicle details auto-filled");
-    } catch (error) {
-      toast.error("Failed to auto-fill vehicle details");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 50 }, (_, i) => currentYear - i);
   
   return (
-    <Card className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Vehicle Details</h2>
-        <Button 
-          type="button" 
-          variant="outline" 
-          size="sm" 
-          onClick={handleAutoFill} 
-          disabled={isLoading}
-        >
-          {isLoading ? "Loading..." : "Auto-fill"}
-        </Button>
-      </div>
-      
+    <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormField
-          control={control}
+          control={form.control}
           name="make"
-          rules={{ required: "Make is required" }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Make</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="e.g. Toyota" />
+                <Input placeholder="e.g. BMW, Audi, Mercedes" {...field} value={field.value || ''} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -76,53 +38,66 @@ export const VehicleDetailsSection = () => {
         />
         
         <FormField
-          control={control}
+          control={form.control}
           name="model"
-          rules={{ required: "Model is required" }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Model</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="e.g. Corolla" />
+                <Input placeholder="e.g. 3 Series, A4, C-Class" {...field} value={field.value || ''} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormField
-          control={control}
+          control={form.control}
           name="year"
-          rules={{ required: "Year is required" }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Year</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                  placeholder="e.g. 2020" 
-                />
-              </FormControl>
+              <Select
+                onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                defaultValue={field.value?.toString()}
+                value={field.value?.toString()}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select year" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
         />
         
         <FormField
-          control={control}
+          control={form.control}
           name="mileage"
-          rules={{ required: "Mileage is required" }}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Mileage</FormLabel>
+              <FormLabel>Mileage (km)</FormLabel>
               <FormControl>
                 <Input 
                   type="number" 
+                  placeholder="e.g. 50000"
                   {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                  placeholder="e.g. 50000" 
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? '' : Number(e.target.value);
+                    field.onChange(value);
+                  }}
+                  value={field.value === null || field.value === undefined ? '' : field.value}
                 />
               </FormControl>
               <FormMessage />
@@ -131,13 +106,51 @@ export const VehicleDetailsSection = () => {
         />
       </div>
       
-      {make && model && year && (
-        <div className="bg-green-50 border border-green-200 rounded-md p-4">
-          <p className="text-green-800">
-            Selected Vehicle: {year} {make} {model}
-          </p>
-        </div>
-      )}
-    </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <FormField
+          control={form.control}
+          name="vin"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>VIN (Vehicle Identification Number)</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. WBAAA1305H8251545" {...field} value={field.value || ''} />
+              </FormControl>
+              <FormDescription>
+                You can find this on your vehicle registration document or on the vehicle itself
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="transmission"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Transmission</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select transmission" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="automatic">Automatic</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="semi-automatic">Semi-automatic</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+    </div>
   );
 };

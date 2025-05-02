@@ -1,4 +1,9 @@
 
+/**
+ * StepForm Component
+ * Updated: 2025-06-07 - Major refactoring to improve performance and reduce unnecessary renders
+ */
+
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { formSteps } from "./constants/formSteps";
@@ -103,6 +108,13 @@ export const StepForm = ({
         if (isValid) {
           // Save and navigate
           await saveProgress();
+          
+          // Mark current step as completed
+          setCompletedSteps(prev => ({
+            ...prev,
+            [currentStep]: true
+          }));
+          
           handleStepChange(currentStep + 1);
         } else {
           setStepValidationErrors(prev => ({
@@ -179,9 +191,7 @@ export const StepForm = ({
   };
   
   return (
-    <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6">
-      {/* We've removed FormProgressIndicator from here since it's now managed by FormContent */}
-      
+    <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6 mb-20">
       {/* Display validation errors */}
       <FormErrorSection validationErrors={stepValidationErrors} />
       

@@ -9,21 +9,25 @@
  * - 2025-06-04: Added ability to temporarily suspend auto-save during operations like image uploads
  * - 2025-06-04: Improved change detection to reduce unnecessary saves
  * - 2025-06-04: Added better error handling for cross-origin issues
+ * - 2025-06-07: Drastically reduced auto-save functionality in favor of manual saves
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { CarListingFormData } from "@/types/forms";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 import { toast } from "sonner";
-import { TimeoutDurations } from "@/utils/timeoutUtils";
 import { useDebounce } from "@/hooks/useTimeout";
 import { UseFormPersistenceProps, UseFormPersistenceResult } from "./types";
 import { saveProgress } from "./saveUtils";
 import { useChangeDetection } from "./useChangeDetection";
 
-// Increased these durations to reduce save frequency
-const AUTO_SAVE_INTERVAL = 60000; // Changed from 10 seconds to 60 seconds
-const SAVE_DEBOUNCE = 3000; // Changed from 500ms to 3 seconds
+// Greatly increased auto-save interval to reduce frequency
+const AUTO_SAVE_INTERVAL = 300000; // 5 minutes instead of 1 minute
+const SAVE_DEBOUNCE = 5000; // 5 seconds instead of 3 seconds
+
+// Local storage key pattern
+const getLocalStorageKey = (userId: string, carId?: string) => 
+  `form_data_${userId}_${carId || 'new'}`;
 
 export const useFormPersistence = ({
   form,
@@ -34,11 +38,11 @@ export const useFormPersistence = ({
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [customOfflineStatus, setCustomOfflineStatus] = useState<boolean | null>(null);
-  const [autoSavePaused, setAutoSavePaused] = useState(false); // New state to control auto-save
+  const [autoSavePaused, setAutoSavePaused] = useState(false);
   const networkStatus = useOfflineStatus();
   const abortControllerRef = useRef<AbortController>();
   const pendingSaveRef = useRef<Promise<any> | null>(null);
-  const consecutiveErrorsRef = useRef(0); // Track errors to prevent excessive retries
+  const consecutiveErrorsRef = useRef(0);
   
   // Use change detection hook
   const { hasChanges, setLastSavedData } = useChangeDetection();
@@ -68,10 +72,41 @@ export const useFormPersistence = ({
     setAutoSavePaused(false);
   }, []);
 
+  // Save to local storage function
+  const saveToLocalStorage = useCallback((formData: CarListingFormData) => {
+    try {
+      const key = getLocalStorageKey(userId, carId);
+      localStorage.setItem(key, JSON.stringify({
+        formData,
+        timestamp: new Date().toISOString()
+      }));
+      console.log('Form data saved to local storage');
+    } catch (error) {
+      console.error('Error saving to local storage:', error);
+    }
+  }, [userId, carId]);
+
+  // Load from local storage function
+  const loadFromLocalStorage = useCallback(() => {
+    try {
+      const key = getLocalStorageKey(userId, carId);
+      const storedData = localStorage.getItem(key);
+      
+      if (storedData) {
+        const { formData, timestamp } = JSON.parse(storedData);
+        console.log('Loaded data from local storage, timestamp:', new Date(timestamp));
+        return formData;
+      }
+    } catch (error) {
+      console.error('Error loading from local storage:', error);
+    }
+    return null;
+  }, [userId, carId]);
+
   // Safe function to handle postMessage errors
   const safePostMessage = useCallback((data: any) => {
     try {
-      if (window.parent !== window) {
+      if (window !== window.parent) {
         // Only attempt postMessage if we're in an iframe
         window.parent.postMessage(data, '*');
       }
@@ -95,17 +130,26 @@ export const useFormPersistence = ({
   const saveFn = useCallback(async () => {
     const { userId, carId, currentStep, isOffline } = essentialValues;
     
-    if (!userId || isOffline) return;
+    if (!userId) return;
     
     const formData = form.getValues();
+    
+    // Always save to local storage first (even when offline)
+    saveToLocalStorage(formData);
+    
+    // If offline, don't try to save to database
+    if (isOffline) {
+      setLastSaved(new Date());
+      return;
+    }
     
     // Skip save if auto-save is paused (unless it's a manual save)
     if (autoSavePaused && !pendingSaveRef.current) {
       return;
     }
     
-    // Skip save if no changes detected
-    if (!hasChanges(formData, carId)) {
+    // Skip save if no changes detected and it's not a manual save
+    if (!hasChanges(formData, carId) && !pendingSaveRef.current) {
       return; 
     }
 
@@ -166,33 +210,49 @@ export const useFormPersistence = ({
     } finally {
       setIsSaving(false);
     }
-  }, [essentialValues, form, hasChanges, setLastSavedData, safePostMessage, autoSavePaused]);
+  }, [essentialValues, form, hasChanges, setLastSavedData, safePostMessage, autoSavePaused, saveToLocalStorage]);
 
   // Use our enhanced useDebounce hook with proper type safety
   const debouncedSave = useDebounce(saveFn, SAVE_DEBOUNCE);
 
   // Auto-save triggers - now conditional on autoSavePaused
+  // Greatly reduced frequency - only watch for significant changes
   useEffect(() => {
     if (!essentialValues.userId || autoSavePaused) return;
     
-    const formData = form.getValues();
-    const unsubscribe = form.watch(() => {
-      if (hasChanges(formData, carId)) {
-        debouncedSave();
+    // Save to local storage on every significant change
+    const saveLocally = () => {
+      saveToLocalStorage(form.getValues());
+    };
+    
+    // Watch only key fields that represent significant changes
+    const keyFieldsToWatch = [
+      'make', 'model', 'year', 'vin', 'mileage',
+      'isDamaged', 'hasWarningLights', 'isRegisteredInPoland',
+      'name', 'address', 'mobileNumber'
+    ];
+    
+    const unsubscribe = form.watch((value, { name }) => {
+      // Only trigger if a key field has changed
+      if (keyFieldsToWatch.includes(name as string)) {
+        saveLocally();
       }
     });
     
     return () => unsubscribe.unsubscribe();
-  }, [form, debouncedSave, hasChanges, essentialValues.userId, carId, autoSavePaused]);
+  }, [form, saveToLocalStorage, essentialValues.userId, autoSavePaused]);
 
-  // Periodic save insurance - also conditional on autoSavePaused
+  // Very infrequent periodic save - only for backup
   useEffect(() => {
     if (!essentialValues.userId || autoSavePaused) return;
     
     const intervalTimer = setInterval(() => {
+      // Always save to local storage, but only save to database if there are changes
+      saveToLocalStorage(form.getValues());
+      
       const formData = form.getValues();
-      if (hasChanges(formData, carId)) {
-        saveFn();
+      if (hasChanges(formData, carId) && !isOffline) {
+        debouncedSave();
       }
     }, AUTO_SAVE_INTERVAL);
     
@@ -200,15 +260,32 @@ export const useFormPersistence = ({
       clearInterval(intervalTimer);
       abortControllerRef.current?.abort();
     };
-  }, [saveFn, hasChanges, essentialValues.userId, carId, form, autoSavePaused]);
+  }, [debouncedSave, hasChanges, essentialValues.userId, carId, form, autoSavePaused, isOffline, saveToLocalStorage]);
 
   // Offline recovery handler
   useEffect(() => {
     if (!isOffline && lastSaved) {
       const formData = form.getValues();
-      if (hasChanges(formData, carId)) saveFn();
+      if (hasChanges(formData, carId)) debouncedSave();
     }
-  }, [isOffline, saveFn, lastSaved, hasChanges, carId, form]);
+  }, [isOffline, debouncedSave, lastSaved, hasChanges, carId, form]);
+
+  // Load initial data from local storage if available (helps restore unsaved changes)
+  useEffect(() => {
+    if (essentialValues.userId) {
+      const localData = loadFromLocalStorage();
+      if (localData) {
+        // Only update form if no data has been entered yet
+        const currentValues = form.getValues();
+        const hasEnteredData = currentValues.make || currentValues.model || currentValues.year;
+        
+        if (!hasEnteredData) {
+          form.reset(localData);
+          console.log('Restored unsaved form data from local storage');
+        }
+      }
+    }
+  }, [essentialValues.userId, form, loadFromLocalStorage]);
 
   // Implementation for immediate save with proper Promise handling
   const saveImmediately = useCallback(async (): Promise<void> => {
@@ -236,7 +313,7 @@ export const useFormPersistence = ({
     isOffline,
     saveImmediately,
     setIsOffline,
-    pauseAutoSave,  // New method to pause auto-save
-    resumeAutoSave  // New method to resume auto-save
+    pauseAutoSave,
+    resumeAutoSave
   };
 };
