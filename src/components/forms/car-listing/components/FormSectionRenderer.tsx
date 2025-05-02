@@ -3,6 +3,7 @@
  * Form Section Renderer component
  * Created: 2025-06-07
  * Maps section IDs to their appropriate component implementations
+ * Updated: 2025-06-08: Added ReservePriceSection component
  */
 
 import React from 'react';
@@ -16,6 +17,7 @@ import { PersonalDetailsSection } from '../sections/PersonalDetailsSection';
 import { SellerNotesSection } from '../SellerNotesSection';
 import { AdditionalInfoSection } from '../AdditionalInfoSection';
 import { ImageUploadSection } from './ImageUploadSection';
+import { ReservePriceSection } from '../sections/ReservePriceSection';
 
 interface FormSectionRendererProps {
   sectionId: string;
@@ -66,6 +68,9 @@ export const FormSectionRenderer = ({
       
     case 'additional-info':
       return <AdditionalInfoSection />;
+      
+    case 'reserve-price':
+      return <ReservePriceSection />;
       
     case 'images':
       return (

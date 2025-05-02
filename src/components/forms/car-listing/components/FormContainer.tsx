@@ -4,6 +4,7 @@
  * Updated: 2025-06-05 - Fixed TypeScript errors and type safety issues
  * Updated: 2025-06-06 - Fixed missing children prop in FormSection
  * Updated: 2025-06-07 - Completely refactored to use FormSectionRenderer and fixed section rendering
+ * Updated: 2025-06-08 - Removed duplicate FormSubmissionButtons to fix duplicate save buttons
  */
 
 import { useEffect } from "react";
@@ -11,7 +12,6 @@ import { useFormContext } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { FormSection } from "../FormSection";
 import { formSteps } from "../constants/formSteps";
-import { FormSubmissionButtons } from "./FormSubmissionButtons";
 import { FormSectionRenderer } from "./FormSectionRenderer";
 import { useFeatureToggle } from "@/hooks/useFeatureToggle";
 
@@ -98,16 +98,7 @@ export const FormContainer = ({
         ))}
       </div>
       
-      {/* Form navigation and submission buttons */}
-      <FormSubmissionButtons
-        isLastStep={isLastStep} 
-        isSubmitting={navigationDisabled}
-        isSaving={isSaving}
-        isOffline={false}
-        onSaveAndContinue={onNext}
-        onSave={onPrevious}
-        currentStep={currentStep}
-      />
+      {/* Removed duplicate FormSubmissionButtons - navigation is now handled by FormNavigationControls only */}
     </div>
   );
 };
@@ -133,6 +124,8 @@ function getSectionTitle(sectionId: string): string {
       return 'Additional Information';
     case 'images':
       return 'Vehicle Photos';
+    case 'reserve-price':
+      return 'Reserve Price';
     default:
       return sectionId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
@@ -149,6 +142,8 @@ function getSectionSubtitle(sectionId: string): string | undefined {
       return 'Upload clear photos of your vehicle (min. 4 photos required)';
     case 'service-history':
       return 'Information about your vehicle service history';
+    case 'reserve-price':
+      return 'The minimum price your vehicle will be sold for';
     default:
       return undefined;
   }
