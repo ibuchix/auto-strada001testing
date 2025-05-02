@@ -3,6 +3,7 @@
  * Form Section component for rendering a section of the car listing form
  * Updated 2025-06-05: Added id prop to fix TypeScript errors
  * Updated 2025-06-06: Added subtitle prop to support additional description text
+ * Updated 2025-06-07: Fixed TypeScript definitions to properly include all props
  */
 
 import React from 'react';

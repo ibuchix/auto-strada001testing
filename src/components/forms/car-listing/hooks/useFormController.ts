@@ -9,6 +9,7 @@
  * - 2025-06-04: Added timestamp logging for form actions
  * - 2025-06-05: Fixed TypeScript type errors and improved type safety
  * - 2025-06-06: Fixed JSON parsing with safe type handling
+ * - 2025-06-07: Fixed valuation_data property access with type casting
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -154,20 +155,21 @@ export const useFormController = ({
         features = safeJsonParse(data.features, defaultCarFeatures);
       }
       
-      // Convert database data to form data with proper type handling
+      // Convert database data to form data with proper type handling and casting
       const formData: CarListingFormData = {
         ...data as any,
         features: features,
         form_metadata: formMetadata
       };
       
-      // Update form with draft data
-      form.reset(formData);
-      
       // Check for valuation data with safer handling
       let valuationData = null;
-      if (data.valuation_data) {
-        valuationData = safeJsonParse(data.valuation_data, null);
+      
+      // Use type assertion to access potential valuation_data field
+      const carDataWithValuation = data as any;
+      
+      if (carDataWithValuation.valuation_data) {
+        valuationData = safeJsonParse(carDataWithValuation.valuation_data, null);
       }
       
       // Update form state
@@ -207,8 +209,8 @@ export const useFormController = ({
       if (valuationData.year) form.setValue("year", valuationData.year);
       if (valuationData.mileage) form.setValue("mileage", Number(valuationData.mileage));
       
-      // Store the valuation data for later use
-      form.setValue("valuation_data", valuationData);
+      // Store the valuation data for later use - use type assertion for the form
+      (form.setValue as any)("valuation_data", valuationData);
       
       setFormState(prev => ({
         ...prev,
@@ -247,18 +249,23 @@ export const useFormController = ({
         }
       };
       
+      // Using type assertion to ensure TypeScript doesn't complain about valuation_data
+      const dataWithValuation = data as any;
+      
       console.log("Submitting form data", {
         carId,
         make: finalData.make,
-        model: finalData.model
+        model: finalData.model,
+        hasValuationData: !!dataWithValuation.valuation_data
       });
       
-      // Save the final data
+      // Save the final data - include valuation_data field using type assertion
       const { data: result, error } = await supabase
         .from("cars")
         .upsert({
           ...(carId ? { id: carId } : {}),
           ...finalData,
+          valuation_data: dataWithValuation.valuation_data || null, // Include valuation data
           seller_id: session.user.id
         })
         .select()

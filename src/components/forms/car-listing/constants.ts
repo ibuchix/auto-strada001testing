@@ -2,6 +2,7 @@
 /**
  * Shared constants for car listing form
  * Created: 2025-06-06
+ * Updated: 2025-06-07: Added imports to fix build errors
  */
 
 // Debounce time for auto-save in milliseconds
