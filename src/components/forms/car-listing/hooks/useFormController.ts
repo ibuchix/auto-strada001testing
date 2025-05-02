@@ -7,12 +7,13 @@
  * - 2025-06-04: Added auto-save control methods
  * - 2025-06-04: Improved error handling
  * - 2025-06-04: Added timestamp logging for form actions
+ * - 2025-06-05: Fixed TypeScript type errors and improved type safety
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useForm, FormState } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
 import { defaultValues } from "../constants/defaultValues";
 import { Session } from "@supabase/supabase-js";
 import { useFormPersistence } from "./useFormPersistence";
@@ -116,19 +117,50 @@ export const useFormController = ({
         id: data.id,
         make: data.make,
         model: data.model,
-        step: data.form_metadata?.currentStep || 0
+        step: data.form_metadata ? 
+          (typeof data.form_metadata === 'string' ? 
+            JSON.parse(data.form_metadata).currentStep || 0 : 
+            data.form_metadata.currentStep || 0) : 0
       });
       
+      // Convert database data to form data with proper type handling
+      const formData: CarListingFormData = {
+        ...data as unknown as CarListingFormData,
+        // Ensure features has proper structure
+        features: data.features ? 
+          (typeof data.features === 'string' ? 
+            JSON.parse(data.features) : data.features) as any : 
+          defaultCarFeatures,
+          
+        // Handle form metadata
+        form_metadata: data.form_metadata ? 
+          (typeof data.form_metadata === 'string' ? 
+            JSON.parse(data.form_metadata) : data.form_metadata) as any : 
+          { currentStep: 0 }
+      };
+      
       // Update form with draft data
-      form.reset(data as CarListingFormData);
+      form.reset(formData);
+      
+      // Extract form metadata safely
+      const metadata = data.form_metadata ? 
+        (typeof data.form_metadata === 'string' ? 
+          JSON.parse(data.form_metadata) : data.form_metadata) : 
+        { currentStep: 0 };
+        
+      const currentStep = typeof metadata === 'object' && metadata !== null ? 
+        metadata.currentStep || 0 : 0;
+      
+      // Check for valuation data
+      const valuationData = data.valuation_data || null;
       
       // Update form state
       setFormState(prev => ({
         ...prev,
         carId: data.id,
-        currentStep: data.form_metadata?.currentStep || 0,
+        currentStep: currentStep,
         lastSaved: data.updated_at ? new Date(data.updated_at) : null,
-        valuationData: data.valuation_data || null
+        valuationData: valuationData
       }));
       
     } catch (error) {

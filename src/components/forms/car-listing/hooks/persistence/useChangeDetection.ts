@@ -1,7 +1,7 @@
 
 /**
  * Hook for detecting changes in form data
- * Created: 2025-06-04
+ * Updated: 2025-06-05 - Fixed TypeScript errors for Blob handling
  */
 
 import { useRef, useCallback } from "react";
@@ -90,8 +90,11 @@ const serializeFormData = (formData: CarListingFormData): string => {
     const value = dataToSerialize[key as keyof typeof dataToSerialize];
     if (typeof value === 'object' && value !== null) {
       // Check if it's a File or FileList
-      if (value instanceof File || value instanceof Blob) {
+      if (value instanceof File) {
         dataToSerialize[key as keyof typeof dataToSerialize] = `file:${value.name}:${value.size}` as any;
+      } else if (value instanceof Blob) {
+        // Fixed: Use a safe string representation for Blob objects
+        dataToSerialize[key as keyof typeof dataToSerialize] = `blob:${value.size}:${value.type}` as any;
       } else if (value instanceof FileList) {
         dataToSerialize[key as keyof typeof dataToSerialize] = `filelist:${value.length}` as any;
       }

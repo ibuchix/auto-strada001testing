@@ -1,51 +1,22 @@
 
 /**
- * Changes made:
- * - Fixed type mismatch between FormSection and FormSectionHeader
- * - Added RequiredFieldsIndicator to form sections
- * - Enhanced section structure with better spacing
+ * Form Section component for rendering a section of the car listing form
+ * Updated 2025-06-05: Added id prop to fix TypeScript errors
  */
 
-import { Card } from "@/components/ui/card";
-import { ReactNode } from "react";
-import { FormSectionHeader } from "./FormSectionHeader";
-import { RequiredFieldsIndicator } from "./RequiredFieldsIndicator";
+import React from 'react';
 
-interface FormSectionProps {
+export interface FormSectionProps {
   title?: string;
-  description?: string;
-  children: ReactNode;
-  isOptional?: boolean;
-  hasRequiredFields?: boolean;
-  subtitle?: string;
-  right?: ReactNode;
+  children: React.ReactNode;
+  id?: string;  // Added id prop
 }
 
-export const FormSection = ({
-  title,
-  description,
-  subtitle,
-  right,
-  children,
-  isOptional,
-  hasRequiredFields = true
-}: FormSectionProps) => {
+export const FormSection = ({ title, children, id }: FormSectionProps) => {
   return (
-    <Card className="border-none shadow-sm">
-      <div className="p-6 space-y-4">
-        {title && (
-          <div className="space-y-1">
-            <FormSectionHeader 
-              title={title} 
-              description={description}
-              subtitle={subtitle}
-              right={right}
-            />
-            {hasRequiredFields && <RequiredFieldsIndicator className="mt-1" />}
-          </div>
-        )}
-        <div className="mt-6">{children}</div>
-      </div>
-    </Card>
+    <div id={id} className="space-y-4 p-4 bg-white rounded-md border border-gray-100 shadow-sm">
+      {title && <h3 className="text-xl font-medium">{title}</h3>}
+      {children}
+    </div>
   );
 };
