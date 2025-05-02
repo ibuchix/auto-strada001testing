@@ -9,6 +9,7 @@
  * - Updated to support automatic verification of sellers
  * - 2025-07-12: Prioritized metadata checks over database queries to improve reliability
  * - 2025-07-12: Added quick-path resolution when metadata contains seller role
+ * - 2025-05-06: Removed circular dependencies and improved logging
  */
 
 import { useCallback } from "react";
@@ -25,7 +26,7 @@ export const useSellerRoleCheck = () => {
    * Efficiently checks if a user has seller role using multiple methods with fallbacks
    * Prioritizes metadata check for maximum reliability and performance
    */
-  const checkSellerRole = useCallback(async (currentSession: Session) => {
+  const checkSellerRole = useCallback(async (currentSession: Session): Promise<boolean> => {
     try {
       // Method 1: Check user metadata first (fastest and most reliable path)
       console.log("Checking seller role from user metadata:", currentSession.user.user_metadata);
@@ -54,13 +55,18 @@ export const useSellerRoleCheck = () => {
         const profile = await profileService.getUserProfile(currentSession.user.id);
         
         if (profile?.role === 'seller') {
+          console.log("User confirmed as seller via profile service");
           // Update user metadata to match profile role for future reference
-          await supabase.auth.updateUser({
-            data: { 
-              role: 'seller',
-              is_verified: true 
-            }
-          });
+          try {
+            await supabase.auth.updateUser({
+              data: { 
+                role: 'seller',
+                is_verified: true 
+              }
+            });
+          } catch (err) {
+            console.warn("Failed to update user metadata, but continuing:", err);
+          }
           
           return true;
         }
@@ -74,25 +80,30 @@ export const useSellerRoleCheck = () => {
         const seller = await sellerProfileService.getSellerProfile(currentSession.user.id);
           
         if (seller) {
+          console.log("User confirmed as seller via sellers table");
           // Found in sellers table - update user metadata
-          await supabase.auth.updateUser({
-            data: { 
-              role: 'seller',
-              is_verified: true
-            }
-          });
-          
-          // Also ensure profile table is synced
-          await supabase
-            .from('profiles')
-            .upsert({ 
-              id: currentSession.user.id, 
-              role: 'seller',
-              updated_at: new Date().toISOString()
-            }, { 
-              onConflict: 'id',
-              ignoreDuplicates: false 
+          try {
+            await supabase.auth.updateUser({
+              data: { 
+                role: 'seller',
+                is_verified: true
+              }
             });
+            
+            // Also ensure profile table is synced
+            await supabase
+              .from('profiles')
+              .upsert({ 
+                id: currentSession.user.id, 
+                role: 'seller',
+                updated_at: new Date().toISOString()
+              }, { 
+                onConflict: 'id',
+                ignoreDuplicates: false 
+              });
+          } catch (err) {
+            console.warn("Failed to update user data after seller check, but continuing:", err);
+          }
           
           return true;
         }
@@ -102,6 +113,7 @@ export const useSellerRoleCheck = () => {
 
       // Method 4: Use register_seller RPC if all else fails
       try {
+        console.log("Attempting to register user as seller via RPC");
         const result = await sellerProfileService.registerSeller(currentSession.user.id);
         if (result) {
           console.log("Successfully registered as seller via RPC");
@@ -112,6 +124,7 @@ export const useSellerRoleCheck = () => {
       }
       
       // No seller status found after trying all methods
+      console.log("User is not a seller after all verification methods");
       return false;
     } catch (error) {
       console.error('Error checking seller role:', error);

@@ -16,9 +16,10 @@
  * - 2025-07-13: Improved metadata-based seller detection to avoid unnecessary database queries
  * - 2025-07-14: Fixed authentication state updates to trust metadata exclusively without verification
  * - 2025-05-02: Enhanced session recovery and added explicit token refresh mechanisms
+ * - 2025-05-06: Fixed infinite loop issues by simplifying the hook structure and preventing cascading updates
  */
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useSessionInitialization } from "./seller/useSessionInitialization";
@@ -30,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const useSellerSession = () => {
   const navigate = useNavigate();
   const { checkSellerRole } = useSellerRoleCheck();
+  const recoveryAttemptedRef = useRef(false);
   const {
     session,
     isLoading,
@@ -37,38 +39,54 @@ export const useSellerSession = () => {
     setIsLoading,
     setIsSeller,
     initializeSession,
-    setupAuthListener
+    setupAuthListener,
+    sessionChecked
   } = useSessionInitialization();
   
-  // Track recovery attempts to prevent infinite loops
-  const [recoveryAttempted, setRecoveryAttempted] = useState(false);
-  
-  // Enhanced session initialization with recovery mechanism
+  // Only attempt initialization once
   useEffect(() => {
     let mounted = true;
     
-    const initSession = async () => {
-      // Initialize session state
-      await initializeSession();
+    const setupSession = async () => {
+      // Set up subscription to auth state changes first
+      const authListener = setupAuthListener();
       
-      // If session exists, immediately set seller status from metadata
-      if (session?.user?.user_metadata?.role === 'seller' && !isSeller) {
-        console.log("Setting isSeller=true from metadata during initialization");
-        setIsSeller(true);
-        
-        // Cache the user profile with seller role
-        saveToCache(CACHE_KEYS.USER_PROFILE, {
-          id: session.user.id,
-          role: 'seller',
-          updated_at: new Date().toISOString(),
-          is_verified: true,
-          verification_status: 'verified'
-        });
+      // Then initialize session if not already done
+      if (!sessionChecked) {
+        await initializeSession();
       }
       
-      // If no session but not attempted recovery yet, try to recover
-      if (!session && !recoveryAttempted && !isLoading) {
-        setRecoveryAttempted(true);
+      return () => {
+        // Clean up subscription when component unmounts
+        if (mounted) {
+          authListener.subscription.unsubscribe();
+        }
+      };
+    };
+    
+    const cleanup = setupSession();
+    
+    return () => {
+      mounted = false;
+      // Execute cleanup function if it exists
+      if (typeof cleanup === 'function') {
+        cleanup();
+      } else if (cleanup instanceof Promise) {
+        cleanup.then(cleanupFn => {
+          if (typeof cleanupFn === 'function') {
+            cleanupFn();
+          }
+        });
+      }
+    };
+  }, [initializeSession, setupAuthListener, sessionChecked]);
+
+  // Handle session recovery separately to avoid loops
+  useEffect(() => {
+    // Only attempt recovery once and only if we're not loading and have no session
+    if (!isLoading && !session && !recoveryAttemptedRef.current) {
+      const attemptRecovery = async () => {
+        recoveryAttemptedRef.current = true;
         console.log("No session found, attempting recovery");
         
         try {
@@ -84,22 +102,11 @@ export const useSellerSession = () => {
         } catch (recoveryError) {
           console.error("Error during session recovery:", recoveryError);
         }
-      }
-    };
-    
-    if (mounted) {
-      initSession();
+      };
+      
+      attemptRecovery();
     }
-
-    // Set up subscription to auth state changes
-    const subscription = setupAuthListener();
-
-    // Cleanup function
-    return () => {
-      mounted = false;
-      subscription.data.subscription.unsubscribe();
-    };
-  }, [navigate, initializeSession, setupAuthListener, session, isSeller, setIsSeller, recoveryAttempted, isLoading]);
+  }, [isLoading, session]);
 
   /**
    * Force refresh seller status - simplified to focus on metadata

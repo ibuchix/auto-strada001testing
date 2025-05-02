@@ -5,13 +5,14 @@
  * - 2024-11-18: Extracted from useSellerSession to improve maintainability
  * - 2025-07-14: Updated to trust metadata for seller status without verification
  * - 2025-05-02: Enhanced session initialization with token refresh and expiration handling
+ * - 2025-05-06: Fixed circular dependencies and infinite re-render loops
+ * - 2025-05-06: Simplified session initialization and added guards to prevent cascading updates
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useSellerRoleCheck } from "./useSellerRoleCheck";
-import { toast } from "sonner";
 
 /**
  * Hook for initializing and managing supabase session state
@@ -21,125 +22,147 @@ export const useSessionInitialization = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSeller, setIsSeller] = useState(false);
   const { checkSellerRole } = useSellerRoleCheck();
+  
+  // Use refs to track initialization state and prevent re-renders
+  const initializingRef = useRef(false);
+  const sessionCheckedRef = useRef(false);
+  const authListenerRef = useRef<{subscription: {unsubscribe: () => void}} | null>(null);
 
   /**
    * Initialize session and check seller status
-   * Now trusts metadata primarily and only falls back to database checks
+   * Trust metadata primarily and only falls back to database checks
    */
   const initializeSession = useCallback(async () => {
+    // Prevent concurrent initialization
+    if (initializingRef.current) return;
+    
     try {
+      console.log("Session initialization: Starting...");
+      initializingRef.current = true;
       setIsLoading(true);
+      
       const { data, error } = await supabase.auth.getSession();
       
       if (error) {
-        throw error;
+        console.error("Session initialization: Error getting session", error);
+        setIsLoading(false);
+        initializingRef.current = false;
+        return;
       }
       
-      if (data.session) {
-        // Check session expiration
-        const expiresAt = new Date((data.session.expires_at || 0) * 1000);
-        const now = new Date();
-        const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+      if (!data.session) {
+        console.log("Session initialization: No session found");
+        setSession(null);
+        setIsSeller(false);
+        setIsLoading(false);
+        initializingRef.current = false;
+        return;
+      }
+      
+      // Check session expiration
+      const expiresAt = new Date((data.session.expires_at || 0) * 1000);
+      const now = new Date();
+      const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+      
+      // If token is close to expiring, refresh it
+      if (timeUntilExpiry <= 10 * 60 * 1000) { // 10 minutes
+        console.log("Session initialization: Token close to expiry, refreshing");
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
         
-        // If token is close to expiring, refresh it
-        if (timeUntilExpiry <= 10 * 60 * 1000) { // 10 minutes
-          console.log("Session initialization: Token close to expiry, refreshing");
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-          
-          if (refreshError) {
-            console.warn("Failed to refresh token during initialization:", refreshError);
-            // Continue with the existing session
-            setSession(data.session);
-          } else if (refreshData.session) {
-            // Use the new refreshed session
-            console.log("Session initialization: Token refreshed successfully");
-            setSession(refreshData.session);
-            
-            // Trust metadata first if available
-            if (refreshData.session.user?.user_metadata?.role === 'seller') {
-              console.log("Session initialization: User is seller based on metadata");
-              setIsSeller(true);
-            } else {
-              // Fall back to database check only if metadata doesn't confirm
-              const sellerStatus = await checkSellerRole(refreshData.session);
-              setIsSeller(sellerStatus);
-            }
-          }
-        } else {
-          // Use existing session since it's not about to expire
-          setSession(data.session);
-          
-          // Trust metadata first if available
-          if (data.session.user?.user_metadata?.role === 'seller') {
-            console.log("Session initialization: User is seller based on metadata");
-            setIsSeller(true);
-          } else {
-            // Fall back to database check only if metadata doesn't confirm
-            const sellerStatus = await checkSellerRole(data.session);
-            setIsSeller(sellerStatus);
-          }
-        }
-      }
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error("Error initializing session:", error);
-      setIsLoading(false);
-    }
-  }, [checkSellerRole]);
-
-  /**
-   * Handle auth state changes
-   * Updated to immediately trust metadata for seller status and handle session expiration
-   */
-  const setupAuthListener = useCallback(() => {
-    return supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log('Auth state changed:', event);
-      
-      // Handle token refresh events specifically
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed event received');
-        if (newSession) {
-          const expiresAt = new Date((newSession.expires_at || 0) * 1000);
-          console.log('New token expires at:', expiresAt.toLocaleString());
-        }
-      }
-      
-      // Handle sign in
-      if (event === 'SIGNED_IN' && newSession) {
-        toast.success('You are now signed in', {
-          id: 'auth-signed-in',
-          duration: 3000
-        });
-      }
-      
-      // Handle sign out
-      if (event === 'SIGNED_OUT') {
-        toast.info('You have been signed out', {
-          id: 'auth-signed-out',
-          duration: 3000
-        });
-      }
-      
-      setSession(newSession);
-      
-      if (newSession) {
-        // Immediately check metadata for seller role
-        if (newSession.user?.user_metadata?.role === 'seller') {
-          console.log("Auth state change: User is seller based on metadata");
-          setIsSeller(true);
-        } else {
-          // Only fall back to database check if metadata doesn't confirm
-          const sellerStatus = await checkSellerRole(newSession);
-          setIsSeller(sellerStatus);
+        if (refreshError) {
+          console.warn("Failed to refresh token during initialization:", refreshError);
+          // Continue with the existing session
+          handleSessionUpdate(data.session);
+        } else if (refreshData.session) {
+          // Use the new refreshed session
+          console.log("Session initialization: Token refreshed successfully");
+          handleSessionUpdate(refreshData.session);
         }
       } else {
-        setIsSeller(false);
+        // Use existing session since it's not about to expire
+        handleSessionUpdate(data.session);
       }
       
+      sessionCheckedRef.current = true;
+    } catch (error) {
+      console.error("Error initializing session:", error);
+    } finally {
       setIsLoading(false);
+      initializingRef.current = false;
+    }
+  }, []);
+
+  /**
+   * Handle session update with optimized role checking
+   */
+  const handleSessionUpdate = useCallback((newSession: Session | null) => {
+    console.log("handleSessionUpdate:", newSession ? "session present" : "no session");
+    
+    // Set the session state
+    setSession(newSession);
+    
+    // If no session, ensure seller state is false
+    if (!newSession) {
+      setIsSeller(false);
+      return;
+    }
+    
+    // Trust metadata first if available
+    if (newSession.user?.user_metadata?.role === 'seller') {
+      console.log("Session update: User is seller based on metadata");
+      setIsSeller(true);
+    } else {
+      // Fallback to more intensive database check only if necessary
+      checkSellerRole(newSession).then(sellerStatus => {
+        // Only update if value is different to prevent loops
+        if (sellerStatus !== isSeller) {
+          setIsSeller(sellerStatus);
+        }
+      });
+    }
+  }, [checkSellerRole, isSeller]);
+
+  /**
+   * Set up auth state change listener
+   */
+  const setupAuthListener = useCallback(() => {
+    // Clean up previous listener if exists
+    if (authListenerRef.current) {
+      authListenerRef.current.subscription.unsubscribe();
+    }
+    
+    console.log("Setting up auth state change listener");
+    
+    // Set up new listener
+    const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
+      console.log('Auth state changed:', event);
+      
+      // Handle different auth events
+      switch (event) {
+        case 'SIGNED_IN':
+          console.log('User signed in');
+          handleSessionUpdate(newSession);
+          break;
+        case 'SIGNED_OUT':
+          console.log('User signed out');
+          handleSessionUpdate(null);
+          break;
+        case 'TOKEN_REFRESHED':
+          console.log('Token refreshed');
+          handleSessionUpdate(newSession);
+          break;
+        case 'USER_UPDATED':
+          console.log('User updated');
+          handleSessionUpdate(newSession);
+          break;
+      }
     });
-  }, [checkSellerRole]);
+    
+    // Store the auth listener
+    authListenerRef.current = data;
+    
+    return data;
+  }, [handleSessionUpdate]);
 
   return {
     session,
@@ -149,6 +172,7 @@ export const useSessionInitialization = () => {
     isSeller,
     setIsSeller,
     initializeSession,
-    setupAuthListener
+    setupAuthListener,
+    sessionChecked: sessionCheckedRef.current
   };
 };

@@ -11,9 +11,10 @@
  * - 2025-07-21: Improved seller detection reliability and added additional logging
  * - 2025-04-29: Added signOut function to context
  * - 2025-05-02: Enhanced session persistence and token management
+ * - 2025-05-06: Fixed infinite loop issues and improved session recovery reliability
  */
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { SessionContextProvider } from "@supabase/auth-helpers-react";
@@ -46,7 +47,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading, isSeller, refreshSellerStatus } = useSellerSession();
   const { isOffline } = useOfflineStatus();
   const [lastActivity, setLastActivity] = useState<Date>(new Date());
-  const [tokenRefreshInterval, setTokenRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+  const tokenRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [sessionWarningShown, setSessionWarningShown] = useLocalStorage<boolean>('session-warning-shown', false);
   
   // Handle user activity tracking for session refresh
@@ -70,12 +71,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   // Setup token refresh based on session expiration
   useEffect(() => {
+    // Clear any existing interval when session changes
+    if (tokenRefreshIntervalRef.current) {
+      clearInterval(tokenRefreshIntervalRef.current);
+      tokenRefreshIntervalRef.current = null;
+    }
+    
+    // Skip if no session
     if (!session) {
-      // Clear any existing interval if session is lost
-      if (tokenRefreshInterval) {
-        clearInterval(tokenRefreshInterval);
-        setTokenRefreshInterval(null);
-      }
       return;
     }
     
@@ -121,7 +124,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }, 5 * 60 * 1000); // Check every 5 minutes
     
-    setTokenRefreshInterval(interval);
+    tokenRefreshIntervalRef.current = interval;
     
     // Clean up interval on unmount
     return () => {

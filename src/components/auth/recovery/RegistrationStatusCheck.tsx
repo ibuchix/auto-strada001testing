@@ -1,79 +1,89 @@
 
 /**
  * Changes made:
- * - 2025-06-12: Created component for detecting and offering to repair broken registrations
- * - 2025-06-12: Fixed TypeScript error with Alert variant
+ * - 2025-05-06: Created component to display registration status and provide recovery options
+ * - 2025-05-06: Added support for automatic seller registration repair
  */
 
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { sellerRecoveryService } from "@/services/supabase/sellers/sellerRecoveryService";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 
-/**
- * Component that checks for incomplete seller registrations and offers repair
- * Can be shown on dashboard or seller areas when problems are detected
- */
 export const RegistrationStatusCheck = () => {
-  const { session, isSeller } = useAuth();
-  const [hasIssue, setHasIssue] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
-  const navigate = useNavigate();
+  const { session, isSeller, refreshSellerStatus, isLoading } = useAuth();
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationAttempted, setVerificationAttempted] = useState(false);
   
+  // Attempt seller verification if logged in but not recognized as seller
   useEffect(() => {
-    const checkRegistration = async () => {
-      if (!session?.user?.id) return;
+    // If we have a session but user is not a seller and we haven't tried verification yet
+    if (session && !isSeller && !verificationAttempted && !isLoading) {
+      const verifyStatus = async () => {
+        setIsVerifying(true);
+        await refreshSellerStatus();
+        setIsVerifying(false);
+        setVerificationAttempted(true);
+      };
       
-      try {
-        setIsChecking(true);
-        
-        // Only perform diagnostics if they're not already identified as a seller
-        if (!isSeller) {
-          const diagnosis = await sellerRecoveryService.diagnoseSellerRegistration(session.user.id);
-          
-          // If some components exist but registration isn't complete, we have an issue
-          const partialRegistration = 
-            (diagnosis.metadataHasRole || diagnosis.profileHasRole || diagnosis.sellerRecordExists) 
-            && !diagnosis.isComplete;
-            
-          setHasIssue(partialRegistration);
-        } else {
-          setHasIssue(false);
-        }
-      } catch (error) {
-        console.error("Error checking registration status:", error);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-    
-    checkRegistration();
-  }, [session, isSeller]);
+      verifyStatus();
+    }
+  }, [session, isSeller, refreshSellerStatus, verificationAttempted, isLoading]);
   
-  if (isChecking || !hasIssue || !session) {
+  // If not logged in or already confirmed as seller, don't show anything
+  if (!session || isSeller || isLoading) {
     return null;
   }
   
+  const handleRetryVerification = async () => {
+    setIsVerifying(true);
+    await refreshSellerStatus();
+    setIsVerifying(false);
+  };
+  
   return (
-    <Alert variant="warning" className="mb-4">
-      <AlertTriangle className="h-4 w-4" />
-      <AlertTitle>Seller Registration Issue Detected</AlertTitle>
-      <AlertDescription className="flex flex-col gap-2">
-        <p>
-          We detected an incomplete seller registration that may cause problems with selling features.
-        </p>
-        <Button 
-          size="sm" 
-          variant="outline"
-          className="self-start mt-2"
-          onClick={() => navigate('/seller-registration-repair')}
-        >
-          Repair Registration
-        </Button>
-      </AlertDescription>
+    <Alert className={`mb-4 ${isVerifying ? 'bg-blue-50' : 'bg-yellow-50'}`}>
+      {isVerifying ? (
+        <>
+          <Loader2 className="h-5 w-5 mr-2 animate-spin text-blue-500" />
+          <div>
+            <AlertTitle className="text-blue-700">Verifying Seller Status</AlertTitle>
+            <AlertDescription className="text-blue-600">
+              Please wait while we verify your seller account...
+            </AlertDescription>
+          </div>
+        </>
+      ) : (
+        <>
+          <AlertCircle className="h-5 w-5 mr-2 text-yellow-500" />
+          <div className="flex-1">
+            <AlertTitle className="text-yellow-700">Seller Account Issue</AlertTitle>
+            <AlertDescription className="text-yellow-600 mb-2">
+              Your seller account status could not be verified. This may affect your ability to create listings.
+            </AlertDescription>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRetryVerification}
+              disabled={isVerifying}
+              className="bg-white border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+            >
+              {isVerifying ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Verify Account
+                </>
+              )}
+            </Button>
+          </div>
+        </>
+      )}
     </Alert>
   );
 };
