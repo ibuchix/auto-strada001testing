@@ -1,3 +1,4 @@
+
 /**
  * Form Content Component
  * - Manages the entire form state and initialization
@@ -6,6 +7,8 @@
  * - Fixed: 2025-06-11: Fixed FormNavigationControls import path
  * - Fixed: 2025-06-12: Implemented FormDataProvider to resolve context errors
  * - Enhanced: 2025-06-14: Improved reserve price data loading from valuation
+ * - Updated: 2025-05-02: Removed auto-save in favor of manual save button and final submission
+ * - Added: 2025-05-02: Session timeout warning and temporary file storage
  */
 
 import { useEffect, useState } from "react";
@@ -15,8 +18,13 @@ import { CarListingFormData } from "@/types/forms";
 import { FormContainer } from "./components/FormContainer";
 import { FormNavigationControls } from "./FormNavigationControls"; 
 import { useStepNavigation } from "./hooks/useStepNavigation";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Clock, WarningTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import * as z from "zod";
 import { FormDataProvider } from "./context/FormDataContext";
+import { tempFileStorage } from "@/services/temp-storage/tempFileStorageService";
 
 // Create a simple schema for form validation based on CarListingFormData
 const carListingFormSchema = z.object({
@@ -71,212 +79,125 @@ export const FormContent = ({
     getCurrentStepErrors,
   } = useStepNavigation(form);
   
-  // Simple placeholder for useCarData hook
-  const useCarData = (userId?: string) => {
-    const [carId, setCarId] = useState<string | undefined>(undefined);
-    
-    useEffect(() => {
-      if (userId) {
-        // In a real implementation, we would fetch car data from API/database
-        setCarId(`car_${userId.substring(0, 8)}`);
-      }
-    }, [userId]);
-    
-    return { carId };
-  };
+  const [sessionTimeRemaining, setSessionTimeRemaining] = useState(60); // 60 minutes initially
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
   
-  // Simple placeholder for useDraftManagement hook
-  const useDraftManagement = (userId?: string, form?: any, onError?: (error: Error) => void) => {
-    const [isLoadingDraft, setIsLoadingDraft] = useState(false);
-    const [isSavingDraft, setIsSavingDraft] = useState(false);
-    
-    const loadDraft = async (draftId: string) => {
-      setIsLoadingDraft(true);
-      try {
-        console.log(`Loading draft: ${draftId}`);
-        // In a real implementation, we would load draft data
-        setTimeout(() => {
-          setIsLoadingDraft(false);
-        }, 500);
-      } catch (error) {
-        setIsLoadingDraft(false);
-        if (onError && error instanceof Error) {
-          onError(error);
-        }
-      }
-    };
-    
-    const saveDraft = async () => {
-      setIsSavingDraft(true);
-      try {
-        console.log("Saving draft...");
-        // In a real implementation, we would save draft data
-        setTimeout(() => {
-          setIsSavingDraft(false);
-        }, 500);
-        return true;
-      } catch (error) {
-        setIsSavingDraft(false);
-        if (onError && error instanceof Error) {
-          onError(error);
-        }
-        return false;
-      }
-    };
-    
-    const deleteDraft = async (draftId: string) => {
-      try {
-        console.log(`Deleting draft: ${draftId}`);
-        // In a real implementation, we would delete draft data
-        return true;
-      } catch (error) {
-        if (onError && error instanceof Error) {
-          onError(error);
-        }
-        return false;
-      }
-    };
-    
-    return { isLoadingDraft, isSavingDraft, loadDraft, saveDraft, deleteDraft };
-  };
-  
-  // Simple placeholder for useFormSubmission hook
-  const useFormSubmission = (userId?: string, carId?: string, form?: any) => {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submissionError, setSubmissionError] = useState<string | null>(null);
-    const [submissionSuccess, setSubmissionSuccess] = useState(false);
-    
-    const handleSubmit = async (data: CarListingFormData) => {
-      setIsSubmitting(true);
-      try {
-        console.log("Submitting form:", data);
-        // In a real implementation, we would submit data to API/database
-        setTimeout(() => {
-          setIsSubmitting(false);
-          setSubmissionSuccess(true);
-        }, 1000);
-        return true;
-      } catch (error) {
-        setIsSubmitting(false);
-        setSubmissionError(error instanceof Error ? error.message : "Unknown error");
-        return false;
-      }
-    };
-    
-    return { isSubmitting, handleSubmit, submissionError, submissionSuccess };
-  };
-  
-  const { carId } = useCarData(session?.user?.id);
-  
-  const {
-    isLoadingDraft,
-    isSavingDraft,
-    loadDraft,
-    saveDraft,
-    deleteDraft
-  } = useDraftManagement(session?.user?.id, form, onDraftError);
-  
-  const {
-    isSubmitting,
-    handleSubmit,
-    submissionError,
-    submissionSuccess,
-  } = useFormSubmission(session?.user?.id, carId, form);
-  
-  const [navigationDisabled, setNavigationDisabled] = useState(false);
-  
-  // Load draft when component mounts or retryCount changes
+  // Update session time remaining
   useEffect(() => {
-    if (draftId) {
-      loadDraft(draftId);
-    }
-  }, [draftId, loadDraft, retryCount]);
-  
-  // Auto-save draft on changes, but debounce it
-  useEffect(() => {
-    const debounceTimeout = setTimeout(() => {
-      if (form.formState.isDirty && !isSubmitting && !isLoadingDraft) {
-        saveDraft();
-      }
-    }, 500); // Debounce for 500ms
-    
-    return () => clearTimeout(debounceTimeout);
-  }, [form.formState.isDirty, saveDraft, isSubmitting, isLoadingDraft]);
-  
-  // Handle form submission
-  const onSubmit = async (data: CarListingFormData) => {
-    setNavigationDisabled(true);
-    await handleSubmit(data);
-    setNavigationDisabled(false);
-  };
-
-  // Initialize form with data - enhanced to ensure valuation data properly sets reserve price
-  useEffect(() => {
-    if (fromValuation) {
-      console.log("FormContent: Initializing form with valuation data");
+    const updateSessionTime = () => {
+      const remaining = tempFileStorage.getRemainingSessionTime();
+      setSessionTimeRemaining(remaining);
       
-      // Try to get directly stored reserve price first (most reliable)
-      const directReservePrice = localStorage.getItem('tempReservePrice');
-      if (directReservePrice && !isNaN(Number(directReservePrice))) {
-        const reservePriceValue = Number(directReservePrice);
-        console.log("FormContent: Setting reserve price from direct storage:", reservePriceValue);
-        form.setValue("reserve_price", reservePriceValue);
-        return;
+      // Show warning when less than 10 minutes remaining
+      if (remaining <= 10 && remaining > 0) {
+        setShowTimeWarning(true);
       }
       
-      // Try to get from valuationData object in localStorage
-      const valuationDataStr = localStorage.getItem('valuationData');
-      if (valuationDataStr) {
-        const valuationData = JSON.parse(valuationDataStr);
-        console.log("FormContent: Processing valuation data:", valuationData);
-        
-        // Ensure reserve price is set from valuation data
-        if (valuationData && (valuationData.reservePrice || valuationData.valuation)) {
-          const reservePriceValue = valuationData.reservePrice || valuationData.valuation;
-          if (reservePriceValue) {
-            console.log("FormContent: Setting reserve price from valuation:", reservePriceValue);
-            form.setValue("reserve_price", reservePriceValue);
-            
-            // Also store it separately for more reliable access
-            localStorage.setItem('tempReservePrice', reservePriceValue.toString());
-          }
-        }
+      // If time is up, show critical warning
+      if (remaining <= 0) {
+        toast.error("Your session has expired", {
+          description: "Please save your progress and start a new session."
+        });
       }
+    };
+    
+    updateSessionTime();
+    const interval = setInterval(updateSessionTime, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Save form data to localStorage (not database)
+  const saveFormToLocal = () => {
+    try {
+      const formData = form.getValues();
+      localStorage.setItem('car_form_data', JSON.stringify(formData));
+      toast.success("Form progress saved locally", {
+        description: "Your progress has been saved to your device."
+      });
+      return true;
+    } catch (error) {
+      console.error("Error saving form locally:", error);
+      toast.error("Failed to save progress", {
+        description: "Please try again or continue without saving."
+      });
+      return false;
     }
-  }, [form, fromValuation]);
-
+  };
+  
+  // Load form data from localStorage
+  useEffect(() => {
+    try {
+      const savedData = localStorage.getItem('car_form_data');
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        form.reset(parsedData);
+      }
+    } catch (error) {
+      console.error("Error loading form data:", error);
+    }
+  }, [form]);
+  
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-12">
-        <FormDataProvider form={form}>
-          <FormContainer
+      {/* Session timeout warning */}
+      {showTimeWarning && (
+        <Alert variant="destructive" className="mb-6">
+          <Clock className="h-4 w-4" />
+          <AlertDescription>
+            Your session will expire in {sessionTimeRemaining} minutes. Please complete and submit the form before it expires.
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="ml-4"
+              onClick={saveFormToLocal}
+            >
+              Save Progress
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Form introduction alert */}
+      <Alert className="mb-6">
+        <WarningTriangle className="h-4 w-4" />
+        <AlertDescription>
+          Please complete this form in one sitting. You have 1 hour to complete and submit the form.
+          All files and information will be uploaded when you submit the form at the end.
+        </AlertDescription>
+      </Alert>
+      
+      <FormDataProvider form={form}>
+        <div className="space-y-8">
+          {/* Form container displays the current step */}
+          <FormContainer 
             currentStep={currentStep}
-            onNext={async () => { await goToNextStep(); }}
-            onPrevious={async () => { await goToPrevStep(); }}
-            isFirstStep={currentStep === 0}
-            isLastStep={currentStep === totalSteps - 1}
-            navigationDisabled={navigationDisabled}
-            isSaving={isSavingDraft}
-            carId={carId}
-            userId={session?.user?.id}
-          />
-          
-          <FormNavigationControls
-            currentStep={currentStep}
-            totalSteps={totalSteps}
             onNext={goToNextStep}
             onPrevious={goToPrevStep}
             isFirstStep={currentStep === 0}
             isLastStep={currentStep === totalSteps - 1}
-            navigationDisabled={navigationDisabled}
-            isSaving={isSavingDraft}
-            isNavigating={isSubmitting || isSavingDraft}
-            onSubmit={form.handleSubmit(onSubmit)}
-            hasStepErrors={hasStepErrors()}
-            getCurrentStepErrors={getCurrentStepErrors}
+            navigationDisabled={false}
+            isSaving={false}
+            carId={draftId}
+            userId={session.user.id}
           />
-        </FormDataProvider>
-      </form>
+          
+          {/* Navigation controls */}
+          <FormNavigationControls
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+            isFirstStep={currentStep === 0}
+            isLastStep={currentStep === totalSteps - 1}
+            onPrevious={goToPrevStep}
+            onNext={goToNextStep}
+            navigationDisabled={false}
+            isSaving={false}
+            isNavigating={false}
+            onSave={saveFormToLocal}
+            carId={draftId}
+          />
+        </div>
+      </FormDataProvider>
     </FormProvider>
   );
 };

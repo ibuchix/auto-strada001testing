@@ -8,53 +8,13 @@
  * - 2025-06-18: Improved debounce mechanism
  * - 2025-06-18: Enhanced error handling
  * - 2025-06-06: Fixed import by implementing local save functionality
+ * - 2025-05-02: Disabled auto-save to database, only saves to localStorage
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { supabase } from "@/integrations/supabase/client";
 import { SAVE_DEBOUNCE_TIME } from "../constants";
-
-// Local saveFormData implementation to avoid circular imports
-const saveFormDataLocal = async (
-  formData: CarListingFormData,
-  userId: string,
-  valuationData: any = {},
-  carId?: string
-) => {
-  try {
-    // Enhanced form data with metadata
-    const enhancedData = {
-      ...formData,
-      form_metadata: {
-        ...formData.form_metadata,
-        lastSavedAt: new Date().toISOString()
-      },
-      seller_id: userId,
-      valuation_data: valuationData || null
-    };
-    
-    // Save to database
-    const { data, error } = await supabase
-      .from('cars')
-      .upsert({
-        ...(carId ? { id: carId } : {}),
-        ...enhancedData
-      })
-      .select('id')
-      .single();
-
-    if (error) {
-      return { success: false, error };
-    }
-    
-    return { success: true, carId: data?.id };
-  } catch (error) {
-    console.error("Error in saveFormDataLocal:", error);
-    return { success: false, error };
-  }
-};
 
 export const useFormAutoSave = (
   form: UseFormReturn<CarListingFormData>,
@@ -69,7 +29,7 @@ export const useFormAutoSave = (
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = useCallback(async (formData: CarListingFormData) => {
-    if (!userId || isSavingRef.current) return;
+    if (isSavingRef.current) return;
 
     const currentData = JSON.stringify(formData);
     if (currentData === previousDataRef.current) {
@@ -80,27 +40,19 @@ export const useFormAutoSave = (
     setIsSaving(true);
 
     try {
-      const result = await saveFormDataLocal(formData, userId, valuationData, carId);
-      if (result.success) {
-        previousDataRef.current = currentData;
-        setLastSaved(new Date());
-        console.log('Auto-save successful', result.carId ? `carId: ${result.carId}` : '');
-        
-        // Update carId ref if it was newly created
-        if (result.carId && !carId) {
-          console.log('New car ID obtained:', result.carId);
-          // We don't set a new carId here as it should be managed by the parent component
-        }
-      } else if (result.error) {
-        console.error('Auto-save failed:', result.error);
-      }
+      // Save to localStorage instead of database
+      localStorage.setItem('car_form_data', currentData);
+      
+      previousDataRef.current = currentData;
+      setLastSaved(new Date());
+      console.log('Local save successful');
     } catch (error: any) {
-      console.error('Error during auto-save:', error);
+      console.error('Error during local save:', error);
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [userId, carId, valuationData, setLastSaved]);
+  }, [setLastSaved]);
 
   // Debounced save with cancellation of pending timeouts
   const debouncedSave = useCallback((formData: CarListingFormData) => {
@@ -143,12 +95,10 @@ export const useFormAutoSave = (
         
         // Try to save one last time on unmount
         const formData = form.getValues();
-        if (userId && !isSavingRef.current) {
-          handleSave(formData);
-        }
+        handleSave(formData);
       }
     };
-  }, [form, userId, handleSave]);
+  }, [form, handleSave]);
 
   return {
     isSaving,
