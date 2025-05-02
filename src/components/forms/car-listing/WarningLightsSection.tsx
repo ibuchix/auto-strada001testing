@@ -7,6 +7,7 @@
  * - 2027-08-12: Updated PhotoUpload props to use title and description instead of label
  * - 2028-05-30: Fixed type issues with onUpload function return type
  * - 2025-04-03: Updated to use FormDataContext instead of requiring form prop
+ * - 2025-06-15: Updated to match PhotoUpload component props
  */
 
 import { Card } from "@/components/ui/card";
@@ -64,7 +65,6 @@ export const WarningLightsSection = ({ carId }: WarningLightsSectionProps) => {
           title="Warning Light Photo"
           description="Upload a clear photo of any dashboard warning lights"
           isUploading={false}
-          isRequired={false}
           onUpload={handleWarningLightPhotoUpload}
         />
       </div>

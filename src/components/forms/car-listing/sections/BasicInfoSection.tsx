@@ -6,8 +6,8 @@
  * Basic vehicle information section for car listing form
  */
 
-import { FormSection } from "./FormSection";
-import { useFormData } from "./context/FormDataContext";
+import { FormSection } from "../FormSection";
+import { useFormData } from "../context/FormDataContext";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";

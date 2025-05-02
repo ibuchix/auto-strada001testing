@@ -1,138 +1,141 @@
 
 /**
- * Photo Upload Component
- * Created: 2025-05-03
+ * PhotoUpload Component
+ * Created: 2025-06-15
  * 
- * Component for uploading individual photos with preview
+ * Generic photo upload component for car listing form
  */
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Upload, X, ImageIcon } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { useState, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { useDropzone } from 'react-dropzone';
+import { Camera, X, Upload, Image as ImageIcon } from 'lucide-react';
 
 export interface PhotoUploadProps {
   id: string;
   title: string;
   description: string;
   isUploading: boolean;
-  progress: number;
+  isRequired?: boolean;
+  progress?: number;
   currentImage?: string;
   onUpload: (file: File) => Promise<string | null>;
-  onRemove?: () => boolean | void;
+  onRemove?: () => void | boolean;
 }
 
-export const PhotoUpload = ({ 
-  id, 
-  title, 
-  description, 
-  isUploading, 
-  progress, 
-  currentImage, 
+export const PhotoUpload = ({
+  id,
+  title,
+  description,
+  isUploading,
+  isRequired = false,
+  progress = 0,
+  currentImage,
   onUpload,
-  onRemove 
+  onRemove
 }: PhotoUploadProps) => {
   const [error, setError] = useState<string | null>(null);
   
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    
-    setError(null);
-    const file = e.target.files[0];
-    
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError("Please upload an image file (JPG, PNG, etc.)");
-      return;
-    }
-    
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setError("File is too large (max 10MB)");
-      return;
-    }
-    
-    try {
-      await onUpload(file);
-    } catch (err) {
-      console.error("Error uploading image:", err);
-      setError("Failed to upload image. Please try again.");
-    } finally {
-      // Reset file input
-      const fileInput = document.getElementById(id) as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-    }
-  };
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      if (acceptedFiles.length === 0) return;
+      
+      const file = acceptedFiles[0];
+      try {
+        setError(null);
+        
+        if (file.size > 10 * 1024 * 1024) {
+          setError('Image too large (max 10MB)');
+          return;
+        }
+        
+        await onUpload(file);
+      } catch (err) {
+        setError('Upload failed');
+        console.error('Upload failed:', err);
+      }
+    },
+    [onUpload]
+  );
+  
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.webp']
+    },
+    disabled: isUploading || !!currentImage,
+    maxFiles: 1
+  });
   
   return (
-    <div className="space-y-3">
-      <div className="text-sm font-medium">
-        <div className="text-gray-900">{title}</div>
-        <div className="text-gray-500 text-xs">{description}</div>
-      </div>
-      
-      <div className={`relative aspect-video rounded-lg overflow-hidden border-2 ${error ? 'border-red-500' : currentImage ? 'border-green-500' : 'border-dashed border-gray-300'}`}>
-        {/* Image preview */}
+    <Card className="overflow-hidden">
+      <div className="p-4">
+        <h3 className="font-medium text-base mb-2 flex items-center">
+          {title}
+          {isRequired && <span className="text-red-500 ml-1">*</span>}
+        </h3>
+        <p className="text-sm text-gray-500 mb-4">{description}</p>
+        
         {currentImage ? (
-          <div className="relative h-full">
-            <img 
-              src={currentImage} 
+          <div className="relative">
+            <img
+              src={currentImage}
               alt={title}
-              className="w-full h-full object-cover"
+              className="w-full h-48 object-cover rounded-md"
             />
-            
-            {/* Remove button */}
             {onRemove && (
               <Button
                 type="button"
                 size="icon"
                 variant="destructive"
-                className="absolute top-2 right-2 h-7 w-7 rounded-full"
-                onClick={onRemove}
+                className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                onClick={() => onRemove()}
               >
                 <X className="h-4 w-4" />
               </Button>
             )}
           </div>
         ) : (
-          <div className="h-full w-full p-4 flex flex-col items-center justify-center text-center">
-            <input 
-              type="file" 
-              id={id} 
-              className="hidden" 
-              accept="image/*"
-              onChange={handleFileChange}
-              disabled={isUploading}
-            />
+          <div
+            {...getRootProps()}
+            className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors ${
+              isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300'
+            } ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <input {...getInputProps()} />
             
             {isUploading ? (
-              <div className="w-full p-4">
-                <div className="mb-2 text-sm font-medium text-gray-700">
-                  Uploading...
+              <div className="space-y-3">
+                <Camera className="w-12 h-12 mx-auto text-gray-400" />
+                <p className="text-sm">Uploading...</p>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
-                <Progress value={progress} className="h-1" />
               </div>
             ) : (
-              <>
-                <ImageIcon className="h-12 w-12 text-gray-400 mb-2" />
-                <label htmlFor={id} className="cursor-pointer">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="mt-2"
-                    disabled={isUploading}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Photo
-                  </Button>
-                </label>
-              </>
+              <div className="space-y-3">
+                {isDragActive ? (
+                  <>
+                    <Camera className="w-12 h-12 mx-auto text-primary" />
+                    <p className="text-sm">Drop the image here</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-12 h-12 mx-auto text-gray-400" />
+                    <p className="text-sm">Drag & drop or click to upload</p>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}
+        
+        {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
       </div>
-      
-      {error && <div className="text-red-500 text-sm">{error}</div>}
-    </div>
+    </Card>
   );
 };

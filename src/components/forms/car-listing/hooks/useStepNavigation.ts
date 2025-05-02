@@ -2,6 +2,7 @@
 /**
  * Step Navigation Hook
  * Created: 2025-05-03
+ * Updated: 2025-06-15 - Added STEP_FIELD_MAPPINGS
  * 
  * Hook for managing multi-step form navigation
  */
@@ -10,6 +11,13 @@ import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { formSteps } from "../constants/formSteps";
+
+// Map each step to relevant form fields for validation
+export const STEP_FIELD_MAPPINGS: Record<string, string[]> = {
+  'basic-info': ['make', 'model', 'year', 'mileage', 'vin', 'transmission', 'price'],
+  'condition': ['isDamaged', 'hasServiceHistory', 'hasFinance', 'hasPrivatePlate'],
+  'photos': ['uploadedPhotos', 'photoIds', 'rimPhotos', 'requiredPhotosComplete']
+};
 
 export const useStepNavigation = (form: UseFormReturn<CarListingFormData>) => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -45,7 +53,7 @@ export const useStepNavigation = (form: UseFormReturn<CarListingFormData>) => {
       case 'photos':
         return !!(
           errors.photoIds || 
-          errors.requiredPhotosComplete === false
+          errors.requiredPhotosComplete
         );
       default:
         return false;
@@ -76,7 +84,7 @@ export const useStepNavigation = (form: UseFormReturn<CarListingFormData>) => {
         break;
       case 'photos':
         if (errors.photoIds) errorMessages.push('Required photos missing');
-        if (errors.requiredPhotosComplete === false) errorMessages.push('All required photos must be uploaded');
+        if (errors.requiredPhotosComplete) errorMessages.push('All required photos must be uploaded');
         break;
       default:
         break;

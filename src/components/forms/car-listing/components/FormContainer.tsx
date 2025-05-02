@@ -2,19 +2,20 @@
 /**
  * Form Container Component
  * Created: 2025-05-02
+ * Updated: 2025-06-15 - Fixed import paths
  * 
  * Displays the appropriate form step content
  */
 
-import { BasicInfoSection } from "../BasicInfoSection";
-import { ConditionSection } from "../ConditionSection";
-import { PhotoUploadSection } from "../PhotoUploadSection";
+import { ReactNode } from "react";
+import { BasicInfoSection } from "../sections/BasicInfoSection";
+import { ConditionSection } from "../sections/ConditionSection";
+import { PhotoUploadSection } from "../sections/PhotoUploadSection";
 import { RimPhotosSection } from "../RimPhotosSection";
-import { DamagePhotosSection } from "../DamagePhotosSection";
+import { DamagePhotosSection } from "../sections/DamagePhotosSection";
 import { ServiceHistoryUploader } from "../ServiceHistoryUploader";
 import { formSteps } from "../constants/formSteps";
 import { useFormData } from "../context/FormDataContext";
-import { ReactNode } from "react";
 
 interface FormContainerProps {
   currentStep: number;

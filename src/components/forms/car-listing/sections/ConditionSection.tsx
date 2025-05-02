@@ -6,8 +6,8 @@
  * Vehicle condition section for car listing form
  */
 
-import { FormSection } from "./FormSection";
-import { useFormData } from "./context/FormDataContext";
+import { FormSection } from "../FormSection";
+import { useFormData } from "../context/FormDataContext";
 import { FormField, FormItem, FormLabel, FormControl, FormDescription } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";

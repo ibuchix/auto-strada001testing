@@ -9,6 +9,7 @@
  * - 2025-04-03: Updated to use FormDataContext instead of requiring form prop
  * - 2025-05-02: Refactored to use temporary storage instead of direct uploads
  * - 2025-05-03: Fixed TypeScript errors with PhotoUpload component props
+ * - 2025-06-15: Updated to match PhotoUpload component props
  */
 
 import { useEffect, useState } from "react";
@@ -133,7 +134,13 @@ export const RimPhotosSection = ({ carId }: RimPhotosSectionProps) => {
           progress={frontLeft.progress}
           currentImage={frontLeft.files[0]?.preview}
           onUpload={(file) => handleRimPhotoUpload(file, 'front_left')}
-          onRemove={frontLeft.files[0] ? () => frontLeft.removeFile(frontLeft.files[0].id) : undefined}
+          onRemove={() => {
+            if (frontLeft.files[0]) {
+              frontLeft.removeFile(frontLeft.files[0].id);
+              return true;
+            }
+            return false;
+          }}
         />
         <PhotoUpload
           id="rim_front_right"
@@ -143,7 +150,13 @@ export const RimPhotosSection = ({ carId }: RimPhotosSectionProps) => {
           progress={frontRight.progress}
           currentImage={frontRight.files[0]?.preview}
           onUpload={(file) => handleRimPhotoUpload(file, 'front_right')}
-          onRemove={frontRight.files[0] ? () => frontRight.removeFile(frontRight.files[0].id) : undefined}
+          onRemove={() => {
+            if (frontRight.files[0]) {
+              frontRight.removeFile(frontRight.files[0].id);
+              return true;
+            }
+            return false;
+          }}
         />
         <PhotoUpload
           id="rim_rear_left"
@@ -153,7 +166,13 @@ export const RimPhotosSection = ({ carId }: RimPhotosSectionProps) => {
           progress={rearLeft.progress}
           currentImage={rearLeft.files[0]?.preview}
           onUpload={(file) => handleRimPhotoUpload(file, 'rear_left')}
-          onRemove={rearLeft.files[0] ? () => rearLeft.removeFile(rearLeft.files[0].id) : undefined}
+          onRemove={() => {
+            if (rearLeft.files[0]) {
+              rearLeft.removeFile(rearLeft.files[0].id);
+              return true;
+            }
+            return false;
+          }}
         />
         <PhotoUpload
           id="rim_rear_right"
@@ -163,7 +182,13 @@ export const RimPhotosSection = ({ carId }: RimPhotosSectionProps) => {
           progress={rearRight.progress}
           currentImage={rearRight.files[0]?.preview}
           onUpload={(file) => handleRimPhotoUpload(file, 'rear_right')}
-          onRemove={rearRight.files[0] ? () => rearRight.removeFile(rearRight.files[0].id) : undefined}
+          onRemove={() => {
+            if (rearRight.files[0]) {
+              rearRight.removeFile(rearRight.files[0].id);
+              return true;
+            }
+            return false;
+          }}
         />
       </div>
     </Card>

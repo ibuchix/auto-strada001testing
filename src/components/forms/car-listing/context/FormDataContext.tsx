@@ -1,14 +1,14 @@
 
 /**
- * Form Data Context Provider
- * Created: 2025-05-03
+ * FormDataContext
+ * Created: 2025-06-15
  * 
- * Provides form data to components through React context
+ * Context for sharing form data across components
  */
 
-import React, { createContext, useContext, ReactNode } from "react";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
+import React, { createContext, useContext } from 'react';
+import { UseFormReturn } from 'react-hook-form';
+import { CarListingFormData } from '@/types/forms';
 
 interface FormDataContextType {
   form: UseFormReturn<CarListingFormData>;
@@ -16,12 +16,10 @@ interface FormDataContextType {
 
 const FormDataContext = createContext<FormDataContextType | undefined>(undefined);
 
-interface FormDataProviderProps {
+export const FormDataProvider: React.FC<{
+  children: React.ReactNode;
   form: UseFormReturn<CarListingFormData>;
-  children: ReactNode;
-}
-
-export const FormDataProvider: React.FC<FormDataProviderProps> = ({ form, children }) => {
+}> = ({ children, form }) => {
   return (
     <FormDataContext.Provider value={{ form }}>
       {children}
@@ -29,12 +27,10 @@ export const FormDataProvider: React.FC<FormDataProviderProps> = ({ form, childr
   );
 };
 
-export const useFormData = (): FormDataContextType => {
+export const useFormData = () => {
   const context = useContext(FormDataContext);
-  
   if (context === undefined) {
-    throw new Error("useFormData must be used within a FormDataProvider");
+    throw new Error('useFormData must be used within a FormDataProvider');
   }
-  
   return context;
 };

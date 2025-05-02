@@ -2,6 +2,7 @@
 /**
  * Form Steps Constants
  * Created: 2025-05-03
+ * Updated: 2025-06-15 - Added sections property to each step
  * 
  * Configuration for multi-step form
  */
@@ -10,17 +11,20 @@ export const formSteps = [
   {
     id: 'basic-info',
     title: 'Basic Information',
-    description: 'Enter the basic details about your vehicle'
+    description: 'Enter the basic details about your vehicle',
+    sections: ['car-details', 'price', 'description']
   },
   {
     id: 'condition',
     title: 'Vehicle Condition',
-    description: 'Tell us about the condition of your vehicle'
+    description: 'Tell us about the condition of your vehicle',
+    sections: ['condition', 'damage', 'service-history']
   },
   {
     id: 'photos',
     title: 'Photos & Documents',
-    description: 'Upload photos and documents for your vehicle'
+    description: 'Upload photos and documents for your vehicle',
+    sections: ['photos', 'rim-photos', 'damage-photos', 'documents']
   }
 ];
 

@@ -3,6 +3,7 @@
  * Service History Document Uploader
  * Created: 2025-05-02
  * Updated: 2025-05-03 Fixed TypeScript errors with ServiceHistoryFile types
+ * Updated: 2025-06-15 Fixed TypeScript type errors with string[] handling
  */
 
 import { useState } from "react";
@@ -11,15 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useFormData } from "./context/FormDataContext";
 import { useTemporaryFileUpload } from "@/hooks/useTemporaryFileUpload";
 import { FileText, X, Upload, FileCheck } from "lucide-react";
-
-// Define the ServiceHistoryFile type for proper typing
-interface ServiceHistoryFile {
-  id: string;
-  name: string;
-  url: string;
-  type: string;
-  uploadDate: string;
-}
+import { ServiceHistoryFile } from "@/types/forms";
 
 export const ServiceHistoryUploader = () => {
   const { form } = useFormData();
@@ -40,9 +33,12 @@ export const ServiceHistoryUploader = () => {
       const serviceHistoryFiles = form.getValues('serviceHistoryFiles') || [];
       const fileIds = uploadedFiles.map(f => f.id);
       
-      // Ensure we're working with a string array
-      const currentFiles = Array.isArray(serviceHistoryFiles) ? serviceHistoryFiles : [];
-      form.setValue('serviceHistoryFiles', [...currentFiles, ...fileIds] as string[], { shouldDirty: true });
+      // Cast currentFiles to string[] to avoid type issues
+      const currentFiles: string[] = Array.isArray(serviceHistoryFiles) 
+        ? serviceHistoryFiles.map(f => typeof f === 'string' ? f : f.id)
+        : [];
+        
+      form.setValue('serviceHistoryFiles', [...currentFiles, ...fileIds], { shouldDirty: true });
     }
   });
   
@@ -56,11 +52,33 @@ export const ServiceHistoryUploader = () => {
     // Remove file from temporary storage
     removeFile(fileId);
     
-    // Update form value - ensure we're working with string[] type
+    // Update form value
     const serviceHistoryFiles = form.getValues('serviceHistoryFiles') || [];
-    const currentFiles = Array.isArray(serviceHistoryFiles) ? serviceHistoryFiles : [];
-    const updatedFiles = currentFiles.filter(id => typeof id === 'string' && id !== fileId);
-    form.setValue('serviceHistoryFiles', updatedFiles as string[], { shouldDirty: true });
+    
+    // Handle different types of serviceHistoryFiles
+    let updatedFiles: string[];
+    
+    if (Array.isArray(serviceHistoryFiles)) {
+      updatedFiles = serviceHistoryFiles
+        .filter(item => {
+          if (typeof item === 'string') {
+            return item !== fileId;
+          } else {
+            return item.id !== fileId;
+          }
+        })
+        .map(item => {
+          if (typeof item === 'string') {
+            return item;
+          } else {
+            return item.id;
+          }
+        });
+    } else {
+      updatedFiles = [];
+    }
+    
+    form.setValue('serviceHistoryFiles', updatedFiles, { shouldDirty: true });
   };
   
   // Initialize serviceHistoryFiles if not already set
