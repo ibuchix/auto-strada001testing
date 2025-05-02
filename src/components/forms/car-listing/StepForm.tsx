@@ -1,7 +1,7 @@
-
 /**
  * StepForm Component
  * Updated: 2025-06-07 - Major refactoring to improve performance and reduce unnecessary renders
+ * Updated: 2025-06-11 - Fixed FormNavigationControls integration and prop handling
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -210,10 +210,14 @@ export const StepForm = ({
         />
       
         <FormNavigationControls
+          currentStep={currentStep}
+          totalSteps={totalSteps}
           isFirstStep={isFirstStep}
           isLastStep={isLastStep}
           onPrevious={handlePreviousWrapper}
           onNext={handleNextWrapper}
+          navigationDisabled={navigationDisabled}
+          isSaving={isSaving}
           isNavigating={navigationDisabled || isSaving}
           onSave={saveProgressWrapper}
           carId={carId}

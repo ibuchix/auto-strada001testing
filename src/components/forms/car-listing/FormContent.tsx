@@ -4,6 +4,7 @@
  * - Manages the entire form state and initialization
  * - Updated: 2025-06-09: Enhanced valuation data initialization to ensure reserve price is set
  * - Fixed: 2025-06-10: Resolved import errors and typing issues
+ * - Fixed: 2025-06-11: Fixed FormNavigationControls import path
  */
 
 import { useEffect, useState } from "react";
@@ -11,7 +12,7 @@ import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CarListingFormData } from "@/types/forms";
 import { FormContainer } from "./components/FormContainer";
-import { FormNavigationControls } from "../car-listing/FormNavigationControls"; 
+import { FormNavigationControls } from "./FormNavigationControls"; 
 import { useStepNavigation } from "./hooks/useStepNavigation";
 import * as z from "zod";
 
