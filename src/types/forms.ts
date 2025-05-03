@@ -1,4 +1,3 @@
-
 /**
  * Form Types
  * Created: 2025-07-23
@@ -9,6 +8,7 @@
  * Updated: 2025-05-04 - Added sellerDetails and correct field types
  * Updated: 2025-05-05 - Added missing fields for manual valuation
  * Updated: 2025-05-07 - Added ExtendedStoredFile type with uploadedAt property
+ * Updated: 2025-05-08 - Fixed ExtendedStoredFile type to correctly include all properties
  */
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -90,8 +90,30 @@ export interface StoredFile {
 
 // Extended version of StoredFile with uploadedAt property
 export interface ExtendedStoredFile extends StoredFile {
-  uploadedAt: string;
   id?: string;
+  uploadedAt: string;
+}
+
+// Add TempStoredFile type for temporary file upload hook
+export interface TempStoredFile extends StoredFile {
+  id: string;
+  category?: string;
+  preview?: string;
+  uploaded?: boolean;
+  uploadedAt: string;
+  createdAt: Date;
+}
+
+// Add TemporaryFile type for temporary file management
+export interface TemporaryFile {
+  id: string;
+  file: File;
+  url: string;
+  preview?: string;
+  uploaded: boolean;
+  uploadedAt: Date;
+  category?: string;
+  createdAt: Date;
 }
 
 export interface CarListingFormData {

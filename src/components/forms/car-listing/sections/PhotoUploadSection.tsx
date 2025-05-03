@@ -3,6 +3,7 @@
  * PhotoUploadSection Component for Car Listing Form
  * Created: 2025-06-10
  * Updated: 2025-05-07 - Fixed type compatibility with ExtendedStoredFile
+ * Updated: 2025-05-08 - Fixed type issues with uploadedAt property
  */
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
@@ -47,7 +48,7 @@ export const PhotoUploadSection = () => {
       setUploadProgress(100);
       
       // Create file URLs and add to form
-      const newUploadedPhotos = [...uploadedPhotos];
+      const newUploadedPhotos: string[] = [...uploadedPhotos];
       
       newFiles.forEach(file => {
         const photoUrl = URL.createObjectURL(file);
@@ -60,6 +61,7 @@ export const PhotoUploadSection = () => {
           url: photoUrl,
           size: file.size,
           type: file.type,
+          id: crypto.randomUUID(),
           uploadedAt: new Date().toISOString()
         };
         

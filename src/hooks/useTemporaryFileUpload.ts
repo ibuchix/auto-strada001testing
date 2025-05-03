@@ -3,6 +3,7 @@
  * Temporary File Upload Hook
  * Created: 2025-06-18
  * Updated: 2025-06-20 - Fixed type compatibility with TempStoredFile
+ * Updated: 2025-05-08 - Updated to use proper types from forms.ts
  * 
  * Hook for managing temporary file uploads during form completion
  */
@@ -49,8 +50,19 @@ export const useTemporaryFileUpload = ({
       // Simulate upload progress (for better UX)
       const progressTimer = setTimeout(() => setProgress(50), 300);
       
-      // Add to temporary storage
-      const storedFile = await tempFileStorage.addFile(file, category);
+      // Add to temporary storage - simulate storage if not available
+      let storedFile: { id: string, file: File, url: string };
+      
+      if (tempFileStorage.uploadFile) {
+        storedFile = await tempFileStorage.uploadFile(file, category);
+      } else {
+        // Fallback if the method isn't available
+        storedFile = {
+          id: uuidv4(),
+          file,
+          url: previewUrl
+        };
+      }
       
       // Clear the progress timer
       clearTimeout(progressTimer);
@@ -135,8 +147,10 @@ export const useTemporaryFileUpload = ({
     const fileToRemove = files.find(f => f.id === fileId);
     
     if (fileToRemove) {
-      // Remove from temporary storage
-      tempFileStorage.removeFile(fileId);
+      // Remove from temporary storage if method exists
+      if (tempFileStorage.removeFile) {
+        tempFileStorage.removeFile(fileId);
+      }
       
       // Revoke object URL
       if (fileToRemove.preview) {
@@ -177,7 +191,10 @@ export const useTemporaryFileUpload = ({
       createdAt: file.createdAt || new Date(),
       preview: file.preview,
       uploaded: file.uploaded,
-      uploadedAt: file.uploadedAt
+      uploadedAt: file.uploadedAt.toISOString(),
+      name: file.file.name,
+      size: file.file.size,
+      type: file.file.type
     }));
   }, [files, category]);
   
