@@ -4,6 +4,7 @@
  * Created: 2025-07-22
  * Updated: 2025-07-23 - Added SubmissionError parent class
  * Updated: 2025-05-10 - Updated to use global ErrorCategory type
+ * Updated: 2025-05-11 - Fixed error category type compatibility
  */
 
 import { ErrorCategory } from '@/errors/types';
