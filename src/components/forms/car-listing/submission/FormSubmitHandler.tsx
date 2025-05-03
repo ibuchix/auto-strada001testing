@@ -4,6 +4,7 @@
  * Created: 2025-06-17
  * Updated: 2025-06-21 - Fixed data handling and null checks
  * Updated: 2025-06-22 - Fixed type error with Supabase response handling
+ * Updated: 2025-08-24 - Fixed damagePhotos mapping to additional_photos field
  * 
  * Component to handle form submission logic
  */
@@ -17,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { tempFileStorage } from "@/services/temp-storage/tempFileStorageService";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { transformFormToDbRecord } from "../utils/formDataTransformers";
+import { resetSchemaValidationCache } from "@/utils/validation/schema";
 
 interface FormSubmitHandlerProps {
   carId?: string;
@@ -41,6 +44,8 @@ export const FormSubmitHandler = ({
     setSubmitError(null);
     
     try {
+      console.log("Starting form submission process...");
+      
       // Validate form data
       const isValid = await form.trigger();
       if (!isValid) {
@@ -49,6 +54,7 @@ export const FormSubmitHandler = ({
       }
       
       const formValues = form.getValues();
+      console.log("Form validation passed, preparing data for submission");
       
       // Check for required fields
       if (!formValues.make || !formValues.model || !formValues.year || !formValues.mileage) {
@@ -62,14 +68,35 @@ export const FormSubmitHandler = ({
         return;
       }
       
-      // Prepare data for submission
+      // Reset schema validation cache to prevent stale schema errors
+      try {
+        resetSchemaValidationCache('cars');
+        console.log("Schema validation cache reset");
+      } catch (cacheError) {
+        console.error("Failed to reset schema cache:", cacheError);
+        // Continue despite cache reset error
+      }
+      
+      // Transform form data to database format with proper field mapping
+      const transformedData = transformFormToDbRecord(formValues);
+      
+      // Map damagePhotos to additional_photos since that's the column in the database
+      if (formValues.damagePhotos && formValues.damagePhotos.length > 0) {
+        transformedData.additional_photos = formValues.damagePhotos;
+        // Remove the damagePhotos field to prevent schema validation errors
+        delete transformedData.damagePhotos;
+      }
+      
+      // Add metadata fields
       const submissionData = {
-        ...formValues,
+        ...transformedData,
         seller_id: userId || formValues.seller_id,
         updated_at: new Date().toISOString(),
         created_at: formValues.created_at ? new Date(formValues.created_at).toISOString() : new Date().toISOString(),
         status: carId ? 'pending' : 'draft'
       };
+      
+      console.log("Submitting data to database");
       
       // Submit to Supabase
       const { data, error } = await supabase
@@ -79,6 +106,7 @@ export const FormSubmitHandler = ({
         .single();
       
       if (error) {
+        console.error("Database error during submission:", error);
         throw new Error(error.message);
       }
       

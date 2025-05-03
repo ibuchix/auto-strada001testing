@@ -2,10 +2,11 @@
 /**
  * DamagePhotosSection
  * Updated: 2025-05-04 - Fixed TypeScript error with DamageReport ID field
+ * Updated: 2025-08-24 - Added logging for damagePhotos array to help with debugging
  */
 
 import { useFormData } from "../context/FormDataContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { v4 as uuidv4 } from 'uuid';
@@ -20,6 +21,11 @@ export const DamagePhotosSection = () => {
   // Get values from form
   const damageReports = form.watch("damageReports") || [];
   const damagePhotos = form.watch("damagePhotos") || [];
+  
+  // Log the damage photos when they change - helps with debugging
+  useEffect(() => {
+    console.log("DamagePhotosSection: Current damagePhotos array:", damagePhotos);
+  }, [damagePhotos]);
   
   // Handle file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,9 +56,10 @@ export const DamagePhotosSection = () => {
       // In a real app, you'd upload the file to a server here
       const uploadedUrl = previewUrl; // Use preview URL as the "uploaded" URL
       
-      // Add to damage photos
-      const updatedDamagePhotos = [...damagePhotos, uploadedUrl];
+      // Add to damage photos - ensure we create a new array to trigger React updates
+      const updatedDamagePhotos = [...(damagePhotos || []), uploadedUrl];
       form.setValue("damagePhotos", updatedDamagePhotos, { shouldDirty: true });
+      console.log("Added photo to damagePhotos array:", uploadedUrl);
       
       // Create a damage report entry for this photo
       const newReport: DamageReport = {
@@ -80,8 +87,9 @@ export const DamagePhotosSection = () => {
   // Remove a photo
   const removePhoto = (photoUrl: string) => {
     // Remove from damage photos
-    const updatedDamagePhotos = damagePhotos.filter(url => url !== photoUrl);
+    const updatedDamagePhotos = (damagePhotos || []).filter(url => url !== photoUrl);
     form.setValue("damagePhotos", updatedDamagePhotos, { shouldDirty: true });
+    console.log("Removed photo from damagePhotos array:", photoUrl);
     
     // Remove associated damage report
     const updatedReports = damageReports.filter(report => report.photo !== photoUrl);

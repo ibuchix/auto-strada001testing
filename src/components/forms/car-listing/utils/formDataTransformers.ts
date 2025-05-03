@@ -1,8 +1,10 @@
+
 /**
  * Form Data Transformers
  * Created: 2025-06-21
  * Updated: 2025-06-22 - Fixed type conversions and field mappings
  * Added: 2025-06-23 - Added missing transformDbToFormData function
+ * Updated: 2025-08-24 - Added explicit mapping for damagePhotos to additional_photos
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -36,7 +38,7 @@ export const transformFormToDbRecord = (formData: CarListingFormData): Record<st
     vehicle_photos: formData.vehiclePhotos,
     uploaded_photos: formData.uploadedPhotos || [],
     rim_photos: formData.rimPhotos,
-    damage_photos: formData.damagePhotos,
+    additional_photos: formData.damagePhotos || [], // Map damagePhotos to additional_photos
     
     // Seller details
     seller_id: formData.seller_id,
@@ -87,7 +89,8 @@ export const transformDbRecordToForm = (dbRecord: Record<string, any>): CarListi
     vehiclePhotos: dbRecord.vehicle_photos || {},
     uploadedPhotos: dbRecord.uploaded_photos || [],
     rimPhotos: dbRecord.rim_photos || {},
-    damagePhotos: dbRecord.damage_photos || [],
+    // Map additional_photos back to damagePhotos when retrieving from DB
+    damagePhotos: dbRecord.additional_photos || [],
     
     // Seller details
     seller_id: dbRecord.seller_id,
@@ -224,7 +227,8 @@ export const transformDbToFormData = (dbData: any): any => {
     
     // Photo information
     requiredPhotos: dbData.required_photos || {},
-    damagePhotos: dbData.damage_photos || [],
+    // Map additional_photos to damagePhotos
+    damagePhotos: dbData.additional_photos || [],
     
     // Timestamps
     created_at: dbData.created_at || new Date().toISOString(),
