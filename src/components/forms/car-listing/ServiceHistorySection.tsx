@@ -12,6 +12,7 @@
  * - 2025-04-03: Updated to use FormDataContext instead of requiring form prop
  * - 2025-05-03: Fixed TypeScript errors related to useDocumentUpload hook properties
  * - 2025-05-04: Fixed property access and alignment with useDocumentUpload hook
+ * - 2025-05-04: Resolved property mismatches with useDocumentUpload hook
  */
 
 import { CarListingFormData, ServiceHistoryFile } from "@/types/forms";
@@ -20,7 +21,6 @@ import { DocumentUploader } from "./service-history/DocumentUploader";
 import { DocumentList } from "./service-history/DocumentList";
 import { useDocumentUpload } from "./service-history/useDocumentUpload";
 import { useFormData } from "./context/FormDataContext";
-import { useState } from "react";
 
 interface ServiceHistorySectionProps {
   carId?: string;
@@ -28,9 +28,6 @@ interface ServiceHistorySectionProps {
 
 export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => {
   const { form } = useFormData();
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploadSuccess, setUploadSuccess] = useState<number | null>(null);
   
   const serviceHistoryType = form.watch('serviceHistoryType');
   const uploadedFiles = form.watch('serviceHistoryFiles') || [];
@@ -38,26 +35,14 @@ export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => 
   const {
     uploading,
     error,
-    uploadProgress: hookUploadProgress,
-    uploadSuccess: hookUploadSuccess,
-    selectedFiles: hookSelectedFiles,
+    uploadProgress,
+    uploadSuccess,
+    selectedFiles,
     handleFileUpload,
     removeSelectedFile,
-    removeFile,
+    removeFile
   } = useDocumentUpload();
 
-  // Sync states with hook
-  const handleUploadProgress = (progress: number) => {
-    setUploadProgress(progress);
-  };
-
-  // Event handlers for file upload
-  const handleFileUploadWithHook = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    
-    await handleFileUpload(files);
-  };
-  
   // Show the document upload section only if service history type is not "none"
   const showDocumentUpload = serviceHistoryType && serviceHistoryType !== 'none';
 
@@ -71,15 +56,15 @@ export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => 
             <h3 className="text-base font-semibold">Service History Documents</h3>
             
             <DocumentUploader
-              onUpload={handleFileUploadWithHook}
+              onUpload={handleFileUpload}
               isUploading={uploading}
-              uploadSuccess={hookUploadSuccess}
-              uploadProgress={hookUploadProgress}
+              uploadSuccess={uploadSuccess}
+              uploadProgress={uploadProgress}
               carId={carId}
             />
             
             <DocumentList
-              selectedFiles={hookSelectedFiles}
+              selectedFiles={selectedFiles}
               uploadedFiles={uploadedFiles}
               onRemoveSelected={removeSelectedFile}
               onRemoveUploaded={removeFile}

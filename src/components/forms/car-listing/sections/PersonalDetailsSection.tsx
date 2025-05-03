@@ -3,6 +3,7 @@
  * PersonalDetailsSection Component
  * Displays and handles seller's personal details
  * Updated: 2025-05-03 - Fixed TypeScript errors related to form value types
+ * Updated: 2025-05-04 - Added sellerDetails type to CarListingFormData and fixed field paths
  */
 
 import { useFormData } from "../context/FormDataContext";
@@ -22,12 +23,12 @@ export const PersonalDetailsSection = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           control={form.control}
-          name="sellerDetails.firstName"
+          name="seller_name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>First Name</FormLabel>
+              <FormLabel>Full Name</FormLabel>
               <FormControl>
-                <Input placeholder="John" {...field} />
+                <Input placeholder="John Doe" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -36,35 +37,7 @@ export const PersonalDetailsSection = () => {
         
         <FormField
           control={form.control}
-          name="sellerDetails.lastName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Last Name</FormLabel>
-              <FormControl>
-                <Input placeholder="Doe" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="sellerDetails.email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input type="email" placeholder="john@example.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="sellerDetails.phone"
+          name="mobileNumber"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Phone Number</FormLabel>
@@ -82,7 +55,7 @@ export const PersonalDetailsSection = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           control={form.control}
-          name="sellerDetails.address.street"
+          name="address"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Street Address</FormLabel>
@@ -93,53 +66,34 @@ export const PersonalDetailsSection = () => {
             </FormItem>
           )}
         />
-        
-        <FormField
-          control={form.control}
-          name="sellerDetails.address.city"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>City</FormLabel>
-              <FormControl>
-                <Input placeholder="New York" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="sellerDetails.address.postalCode"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Postal Code</FormLabel>
-              <FormControl>
-                <Input placeholder="10001" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="sellerDetails.address.country"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Country</FormLabel>
-              <FormControl>
-                <Input placeholder="United States" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
       </div>
       
       <FormField
         control={form.control}
-        name="sellerDetails.isPaymentInfoProvided"
+        name="isSellingOnBehalf"
+        render={({ field }) => (
+          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+            <FormControl>
+              <Checkbox
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
+            </FormControl>
+            <div className="space-y-1 leading-none">
+              <FormLabel>
+                I am selling this vehicle on behalf of someone else
+              </FormLabel>
+              <p className="text-sm text-gray-500">
+                Check this if you're not the registered owner of the vehicle
+              </p>
+            </div>
+          </FormItem>
+        )}
+      />
+      
+      <FormField
+        control={form.control}
+        name="hasOutstandingFinance"
         render={({ field }) => (
           <FormItem className="flex flex-row items-start space-x-3 space-y-0">
             <FormControl>
@@ -147,35 +101,58 @@ export const PersonalDetailsSection = () => {
                 checked={field.value}
                 onCheckedChange={(checked) => {
                   field.onChange(checked);
-                  setShowBankDetails(!!checked);
+                  if (!checked) {
+                    // Reset finance fields if unchecked
+                    form.setValue('financeAmount', undefined);
+                    form.setValue('financeProvider', '');
+                    form.setValue('financeEndDate', '');
+                  }
                 }}
               />
             </FormControl>
             <div className="space-y-1 leading-none">
               <FormLabel>
-                Provide payment information now
+                This vehicle has outstanding finance
               </FormLabel>
               <p className="text-sm text-gray-500">
-                This allows faster payment processing after successful sale
+                If the vehicle is on finance, please provide details
               </p>
             </div>
           </FormItem>
         )}
       />
       
-      {showBankDetails && (
-        <div className="space-y-4 pt-2">
-          <h4 className="text-md font-medium">Bank Details</h4>
+      {/* Only show finance details if hasOutstandingFinance is checked */}
+      {form.watch('hasOutstandingFinance') && (
+        <div className="space-y-4 pl-8 border-l-2 border-gray-200">
+          <FormField
+            control={form.control}
+            name="financeProvider"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Finance Provider</FormLabel>
+                <FormControl>
+                  <Input placeholder="Bank or finance company" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="sellerDetails.bankDetails.accountName"
+              name="financeAmount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Account Name</FormLabel>
+                  <FormLabel>Outstanding Amount</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input 
+                      type="number"
+                      placeholder="0.00"
+                      {...field}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -184,26 +161,12 @@ export const PersonalDetailsSection = () => {
             
             <FormField
               control={form.control}
-              name="sellerDetails.bankDetails.accountNumber"
+              name="financeEndDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Account Number</FormLabel>
+                  <FormLabel>End Date</FormLabel>
                   <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="sellerDetails.bankDetails.sortCode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Sort Code</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
+                    <Input type="date" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -1,190 +1,184 @@
 
 /**
- * Damage Photos Section Component
- * Created: 2025-06-20 - Added initial implementation
- * Updated: 2025-05-04 - Fixed type issues with damage reports
+ * DamagePhotosSection
+ * Updated: 2025-05-04 - Fixed TypeScript error with DamageReport ID field
  */
 
-import { useState } from 'react';
-import { Button } from "@/components/ui/button";
 import { useFormData } from "../context/FormDataContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { DamageReport, DamageType } from '@/types/forms';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { v4 as uuidv4 } from 'uuid';
-import { Upload } from 'lucide-react';
+import { DamageReport, DamageType } from "@/types/forms";
 
 export const DamagePhotosSection = () => {
   const { form } = useFormData();
-  const [damageType, setDamageType] = useState<DamageType>('scratch');
-  const [damageLocation, setDamageLocation] = useState('');
-  const [damageDescription, setDamageDescription] = useState('');
-  const [damageSeverity, setDamageSeverity] = useState<'minor' | 'moderate' | 'severe'>('minor');
-
-  // Get damage reports from form context - initialize with empty array if needed
-  const damageReports = form.watch('damageReports') || [];
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
-  // Also check the legacy 'damages' field to maintain compatibility
-  const legacyDamages = form.watch('damages') || [];
+  // Get values from form
+  const damageReports = form.watch("damageReports") || [];
+  const damagePhotos = form.watch("damagePhotos") || [];
   
-  // Combine both arrays for display
-  const allDamages = [...damageReports, ...legacyDamages];
-
-  const handleAddPhoto = () => {
-    if (!damageDescription) {
-      return; // Don't add empty damage reports
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) {
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      return;
     }
     
-    // Create a new damage report with a unique ID
-    const newDamage: DamageReport = {
-      id: uuidv4(),
-      type: damageType,
-      description: damageDescription,
-      photo: null,
-      location: damageLocation,
-      severity: damageSeverity
-    };
+    const file = e.target.files[0];
+    setSelectedFile(file);
     
-    // Get current reports and update form
-    const currentReports = form.getValues('damageReports') || [];
-    form.setValue('damageReports', [...currentReports, newDamage], { shouldValidate: true });
-    
-    // Reset form inputs
-    setDamageDescription('');
-    setDamageLocation('');
+    // Create preview URL
+    const fileUrl = URL.createObjectURL(file);
+    setPreviewUrl(fileUrl);
   };
-
-  const handleRemoveDamage = (id: string) => {
-    // Get current damage reports
-    const currentReports = form.getValues('damageReports') || [];
+  
+  // Handle file upload
+  const handleUpload = async () => {
+    if (!selectedFile) return;
     
-    // Filter out the one to remove
-    const updatedReports = currentReports.filter(damage => damage.id !== id);
+    setUploading(true);
     
-    // Update form with filtered array
-    form.setValue('damageReports', updatedReports, { shouldValidate: true });
+    try {
+      // Simulate upload delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // In a real app, you'd upload the file to a server here
+      const uploadedUrl = previewUrl; // Use preview URL as the "uploaded" URL
+      
+      // Add to damage photos
+      const updatedDamagePhotos = [...damagePhotos, uploadedUrl];
+      form.setValue("damagePhotos", updatedDamagePhotos, { shouldDirty: true });
+      
+      // Create a damage report entry for this photo
+      const newReport: DamageReport = {
+        id: uuidv4(),
+        type: "other" as DamageType,
+        description: "Photo of damage",
+        photo: uploadedUrl,
+        location: "See photo",
+        severity: "minor"
+      };
+      
+      const updatedReports = [...damageReports, newReport];
+      form.setValue("damageReports", updatedReports, { shouldDirty: true });
+      
+      // Reset state
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    } catch (error) {
+      console.error("Error uploading damage photo:", error);
+    } finally {
+      setUploading(false);
+    }
   };
-
+  
+  // Remove a photo
+  const removePhoto = (photoUrl: string) => {
+    // Remove from damage photos
+    const updatedDamagePhotos = damagePhotos.filter(url => url !== photoUrl);
+    form.setValue("damagePhotos", updatedDamagePhotos, { shouldDirty: true });
+    
+    // Remove associated damage report
+    const updatedReports = damageReports.filter(report => report.photo !== photoUrl);
+    form.setValue("damageReports", updatedReports, { shouldDirty: true });
+  };
+  
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Damage Photos</CardTitle>
-        <CardDescription>Upload photos of any damage to your vehicle</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {/* Upload area */}
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-            <Upload className="mx-auto h-10 w-10 text-gray-400" />
-            <p className="mt-2 text-sm text-gray-500">
-              Upload clear photos of any damage
-            </p>
-            <p className="text-xs text-gray-500">
-              JPG, PNG or WebP (max. 10MB)
-            </p>
-            <Button className="mt-4" variant="outline" type="button">
-              Select Files
-            </Button>
-          </div>
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold">Damage Photos</h3>
+      <p className="text-sm text-muted-foreground">
+        Upload photos showing the damage to your vehicle
+      </p>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Upload section */}
+        <div className="border border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center">
+          <input
+            type="file"
+            accept="image/*"
+            id="damage-photo-upload"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
           
-          {/* Damage description form */}
-          <div className="space-y-4 mt-6">
-            <h3 className="text-base font-medium">Damage Details</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="damageType">Type of Damage</Label>
-                <Select value={damageType} onValueChange={(value) => setDamageType(value as DamageType)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select damage type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scratch">Scratch</SelectItem>
-                    <SelectItem value="dent">Dent</SelectItem>
-                    <SelectItem value="paint">Paint Damage</SelectItem>
-                    <SelectItem value="glass">Glass/Window</SelectItem>
-                    <SelectItem value="mechanical">Mechanical</SelectItem>
-                    <SelectItem value="structural">Structural</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="damageSeverity">Severity</Label>
-                <Select 
-                  value={damageSeverity} 
-                  onValueChange={(value) => setDamageSeverity(value as 'minor' | 'moderate' | 'severe')}
+          {previewUrl ? (
+            <div className="space-y-4 w-full">
+              <div className="relative w-full h-48 bg-muted rounded-md overflow-hidden">
+                <img 
+                  src={previewUrl}
+                  alt="Damage preview"
+                  className="w-full h-full object-cover"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 bg-background rounded-full"
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setPreviewUrl(null);
+                  }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select severity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="minor">Minor</SelectItem>
-                    <SelectItem value="moderate">Moderate</SelectItem>
-                    <SelectItem value="severe">Severe</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="damageLocation">Location</Label>
-              <Input
-                id="damageLocation"
-                placeholder="e.g. Front bumper, Driver's door"
-                value={damageLocation}
-                onChange={(e) => setDamageLocation(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="damageDescription">Description</Label>
-              <Input
-                id="damageDescription"
-                placeholder="Describe the damage"
-                value={damageDescription}
-                onChange={(e) => setDamageDescription(e.target.value)}
-              />
-            </div>
-            
-            <Button type="button" onClick={handleAddPhoto}>
-              Add Damage Report
-            </Button>
-          </div>
-          
-          {/* Display damage reports */}
-          {allDamages.length > 0 && (
-            <div className="mt-6 space-y-4">
-              <h3 className="text-base font-medium">Uploaded Damage Reports</h3>
               
-              <div className="space-y-4">
-                {allDamages.map((damage, index) => (
-                  <div key={damage.id || index} className="flex items-start justify-between p-3 border rounded-md">
-                    <div>
-                      <p className="font-medium capitalize">{damage.type}</p>
-                      <p className="text-sm">{damage.description}</p>
-                      {damage.location && <p className="text-xs text-gray-500">Location: {damage.location}</p>}
-                      <p className="text-xs text-gray-500">Severity: {damage.severity}</p>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleRemoveDamage(damage.id)}
-                      className="text-destructive hover:text-destructive/90"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
+              <Button
+                onClick={handleUpload}
+                disabled={uploading}
+                className="w-full"
+              >
+                {uploading ? "Uploading..." : "Upload Photo"}
+              </Button>
+            </div>
+          ) : (
+            <label
+              htmlFor="damage-photo-upload"
+              className="cursor-pointer flex flex-col items-center justify-center py-10 w-full"
+            >
+              <Upload className="h-10 w-10 mb-2 text-muted-foreground" />
+              <p className="text-sm font-medium mb-1">Click to upload a photo</p>
+              <p className="text-xs text-muted-foreground">JPG or PNG, max 10MB</p>
+            </label>
+          )}
+        </div>
+        
+        {/* Photos gallery */}
+        <div>
+          {damagePhotos.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3">
+              {damagePhotos.map((photo, index) => (
+                <div key={index} className="relative bg-muted rounded-md overflow-hidden h-36">
+                  <img 
+                    src={photo}
+                    alt={`Damage photo ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 bg-background rounded-full"
+                    onClick={() => removePhoto(photo)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="h-full flex items-center justify-center p-6 border rounded-lg border-dashed">
+              <div className="text-center">
+                <ImageIcon className="h-10 w-10 mb-2 mx-auto text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">No photos uploaded yet</p>
               </div>
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

@@ -4,6 +4,7 @@
  * Updated: 2025-07-27 - Fixed ServiceHistoryFile type issues
  * Updated: 2025-05-03 - Added missing properties to match component usage
  * Updated: 2025-05-04 - Fixed hook return type to include all necessary properties
+ * Updated: 2025-05-04 - Fixed removeUploadedFile and other missing properties
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -63,7 +64,8 @@ export function useDocumentUpload() {
         name: file.name,
         url: typeof result === 'string' ? result : result.url,
         type: file.type,
-        uploadedAt: new Date().toISOString()
+        uploadedAt: new Date().toISOString(),
+        uploadDate: new Date().toISOString() // Add this for backwards compatibility
       };
       
       // Update local state
@@ -118,7 +120,8 @@ export function useDocumentUpload() {
       name: fileData.name || 'Document',
       url: fileData.url || '',
       type: fileData.type || 'application/pdf',
-      uploadedAt: fileData.uploadedAt || new Date().toISOString()
+      uploadedAt: fileData.uploadedAt || new Date().toISOString(),
+      uploadDate: fileData.uploadDate || new Date().toISOString() // For backwards compatibility
     };
     
     // Update local state
@@ -180,7 +183,7 @@ export function useDocumentUpload() {
   }, []);
   
   /**
-   * Remove an uploaded file
+   * Remove an uploaded file - alias for removeFile for compatibility
    */
   const removeUploadedFile = useCallback((id: string) => {
     removeFile(id);

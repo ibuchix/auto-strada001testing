@@ -6,6 +6,7 @@
  * Updated: 2025-07-25 - Added additional required fields to fix type errors
  * Updated: 2025-07-26 - Fixed missing properties and type mismatches
  * Updated: 2025-05-04 - Added damageReports to fix TypeScript errors
+ * Updated: 2025-05-04 - Added sellerDetails and correct field types
  */
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -52,6 +53,30 @@ export interface RimPhotos {
   front_right: string;
   rear_left: string;
   rear_right: string;
+}
+
+export interface SellerBankDetails {
+  accountName?: string;
+  accountNumber?: string;
+  sortCode?: string;
+}
+
+export interface SellerAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+export interface SellerDetails {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  address?: SellerAddress;
+  isPaymentInfoProvided?: boolean;
+  bankDetails?: SellerBankDetails;
 }
 
 export interface CarListingFormData {
@@ -132,6 +157,9 @@ export interface CarListingFormData {
     country?: string;
   } | string;
   mobileNumber?: string;
+  
+  // Extended seller details
+  sellerDetails?: SellerDetails;
   
   // Photos
   mainPhoto?: string;

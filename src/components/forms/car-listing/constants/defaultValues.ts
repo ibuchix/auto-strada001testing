@@ -4,6 +4,7 @@
  * Updated: 2025-07-24 - Added missing CarFeatures properties
  * Updated: 2025-07-25 - Added all missing feature flags
  * Updated: 2025-07-26 - Fixed types to match CarFeatures interface
+ * Updated: 2025-05-04 - Ensured proper typing for enum values
  */
 
 export const DEFAULT_VALUES = {
@@ -18,7 +19,7 @@ export const DEFAULT_VALUES = {
   mileage: 0,
   vin: "",
   price: 0,
-  transmission: "manual",
+  transmission: "manual" as const,
   features: {
     airConditioning: false,
     bluetooth: false,
@@ -32,9 +33,12 @@ export const DEFAULT_VALUES = {
     reverseCamera: false,
     heatedSeats: false,
     upgradedSound: false,
-    alloyWheels: false
+    alloyWheels: false,
+    keylessEntry: false,
+    adaptiveCruiseControl: false,
+    laneDepartureWarning: false
   },
   seller_id: "",
-  serviceHistoryType: "none",
+  serviceHistoryType: "none" as const,
   fromValuation: false
 };

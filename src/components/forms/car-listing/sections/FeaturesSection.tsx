@@ -1,173 +1,244 @@
 
 /**
- * Features Section Component
- * Created: 2025-06-20 - Added initial implementation
- * Updated: 2025-05-04 - Fixed CarFeatures type issues
+ * FeaturesSection Component
+ * Updated: 2025-05-04 - Fixed TypeScript error with proper initialization of CarFeatures
  */
 
-import { useState } from 'react';
-import { Checkbox } from "@/components/ui/checkbox";
 import { useFormData } from "../context/FormDataContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { CarFeatures } from '@/types/forms';
+import { FormField, FormItem, FormControl, FormLabel } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CarFeatures } from "@/types/forms";
+import { useEffect } from "react";
 
 export const FeaturesSection = () => {
   const { form } = useFormData();
   
-  // Create default features with all required properties
-  const defaultFeatures: CarFeatures = {
-    airConditioning: false,
-    bluetooth: false,
-    cruiseControl: false,
-    leatherSeats: false,
-    navigation: false,
-    parkingSensors: false,
-    sunroof: false,
-    alloyWheels: false,
-    heatedSeats: false,
-    reverseCamera: false,
-    satNav: false,
-    panoramicRoof: false,
-    upgradedSound: false,
-    keylessEntry: false,
-    adaptiveCruiseControl: false,
-    laneDepartureWarning: false
-  };
-  
-  // Initialize features with defaults if not already set
-  if (!form.watch('features')) {
-    form.setValue('features', defaultFeatures);
-  }
-  
-  const features = form.watch('features') || defaultFeatures;
+  // Ensure features object is initialized properly
+  useEffect(() => {
+    const currentFeatures = form.watch('features');
+    if (!currentFeatures || typeof currentFeatures !== 'object') {
+      const defaultFeatures: CarFeatures = {
+        airConditioning: false,
+        bluetooth: false,
+        cruiseControl: false,
+        leatherSeats: false,
+        navigation: false,
+        parkingSensors: false,
+        sunroof: false,
+        satNav: false,
+        panoramicRoof: false,
+        reverseCamera: false,
+        heatedSeats: false,
+        upgradedSound: false,
+        alloyWheels: false,
+        keylessEntry: false,
+        adaptiveCruiseControl: false,
+        laneDepartureWarning: false
+      };
+      form.setValue('features', defaultFeatures);
+    }
+  }, [form]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Vehicle Features</CardTitle>
-        <CardDescription>Select all features that apply to this vehicle</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="airConditioning" 
-              checked={features.airConditioning}
-              onCheckedChange={(checked) => form.setValue('features.airConditioning', !!checked)}
-            />
-            <Label htmlFor="airConditioning">Air Conditioning</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="bluetooth" 
-              checked={features.bluetooth}
-              onCheckedChange={(checked) => form.setValue('features.bluetooth', !!checked)}
-            />
-            <Label htmlFor="bluetooth">Bluetooth</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="cruiseControl" 
-              checked={features.cruiseControl}
-              onCheckedChange={(checked) => form.setValue('features.cruiseControl', !!checked)}
-            />
-            <Label htmlFor="cruiseControl">Cruise Control</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="leatherSeats" 
-              checked={features.leatherSeats}
-              onCheckedChange={(checked) => form.setValue('features.leatherSeats', !!checked)}
-            />
-            <Label htmlFor="leatherSeats">Leather Seats</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="navigation" 
-              checked={features.navigation}
-              onCheckedChange={(checked) => form.setValue('features.navigation', !!checked)}
-            />
-            <Label htmlFor="navigation">Navigation</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="parkingSensors" 
-              checked={features.parkingSensors}
-              onCheckedChange={(checked) => form.setValue('features.parkingSensors', !!checked)}
-            />
-            <Label htmlFor="parkingSensors">Parking Sensors</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="sunroof" 
-              checked={features.sunroof}
-              onCheckedChange={(checked) => form.setValue('features.sunroof', !!checked)}
-            />
-            <Label htmlFor="sunroof">Sunroof</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="alloyWheels" 
-              checked={features.alloyWheels}
-              onCheckedChange={(checked) => form.setValue('features.alloyWheels', !!checked)}
-            />
-            <Label htmlFor="alloyWheels">Alloy Wheels</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="heatedSeats" 
-              checked={features.heatedSeats}
-              onCheckedChange={(checked) => form.setValue('features.heatedSeats', !!checked)}
-            />
-            <Label htmlFor="heatedSeats">Heated Seats</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="reverseCamera" 
-              checked={features.reverseCamera}
-              onCheckedChange={(checked) => form.setValue('features.reverseCamera', !!checked)}
-            />
-            <Label htmlFor="reverseCamera">Reverse Camera</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="satNav" 
-              checked={features.satNav}
-              onCheckedChange={(checked) => form.setValue('features.satNav', !!checked)}
-            />
-            <Label htmlFor="satNav">Satellite Navigation</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="panoramicRoof" 
-              checked={features.panoramicRoof}
-              onCheckedChange={(checked) => form.setValue('features.panoramicRoof', !!checked)}
-            />
-            <Label htmlFor="panoramicRoof">Panoramic Roof</Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="upgradedSound" 
-              checked={features.upgradedSound}
-              onCheckedChange={(checked) => form.setValue('features.upgradedSound', !!checked)}
-            />
-            <Label htmlFor="upgradedSound">Premium Sound System</Label>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold">Vehicle Features</h3>
+      <p className="text-sm text-muted-foreground">
+        Check all features that apply to your vehicle
+      </p>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <FormField
+          control={form.control}
+          name="features.airConditioning"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Air Conditioning</FormLabel>
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="features.bluetooth"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Bluetooth</FormLabel>
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="features.cruiseControl"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Cruise Control</FormLabel>
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="features.leatherSeats"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Leather Seats</FormLabel>
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="features.navigation"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Navigation System</FormLabel>
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="features.parkingSensors"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Parking Sensors</FormLabel>
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="features.sunroof"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Sunroof</FormLabel>
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="features.alloyWheels"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Alloy Wheels</FormLabel>
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="features.heatedSeats"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Heated Seats</FormLabel>
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="features.reverseCamera"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Reverse Camera</FormLabel>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="features.keylessEntry"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Keyless Entry</FormLabel>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="features.adaptiveCruiseControl"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="font-normal">Adaptive Cruise Control</FormLabel>
+            </FormItem>
+          )}
+        />
+      </div>
+    </div>
   );
 };

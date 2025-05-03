@@ -3,6 +3,7 @@
  * Hook for managing form steps
  * Updated: 2025-05-03 - Fixed TypeScript errors related to types and missing properties
  * Updated: 2025-05-04 - Fixed StepErrorRecord import and type issues
+ * Updated: 2025-05-04 - Added missing isFirstStep and isLastStep properties to return object
  */
 import { useState, useCallback } from 'react';
 import { UseFormReturn, FieldValues } from 'react-hook-form';
@@ -18,9 +19,7 @@ interface UseStepsControllerProps<T extends FieldValues> {
   onValidateStep?: (step: number) => boolean | Promise<boolean>;
 }
 
-// We're removing this interface since it was causing conflicts
-// The return type is now defined inline
-
+// Return type defined inline
 export function useStepsController<T extends FieldValues>({
   form,
   steps,

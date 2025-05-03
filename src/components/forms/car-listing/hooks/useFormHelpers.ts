@@ -4,6 +4,7 @@
  * Created: 2025-07-27
  * Updated: 2025-05-03 - Fixed type issues with transmission
  * Updated: 2025-05-04 - Fixed type issues with default form values
+ * Updated: 2025-05-04 - Ensuring type safety with proper typing for enums
  * Centralized utility functions for form hooks
  */
 
@@ -24,8 +25,8 @@ export const getInitialFormValues = (): Partial<CarListingFormData> => {
     year: 0,
     mileage: 0,
     vin: '',
-    transmission: 'manual' as const,  // Type-safe transmission value
-    serviceHistoryType: 'none' as const,  // Type-safe serviceHistoryType
+    transmission: "manual" as const,  // Type-safe transmission value
+    serviceHistoryType: "none" as const,  // Type-safe serviceHistoryType
     fromValuation: false
   };
 };
