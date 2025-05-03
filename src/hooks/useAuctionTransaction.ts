@@ -7,10 +7,12 @@
  * - Updated: 2025-05-12 - Fixed import to use useTransaction instead of non-existent useCreateTransaction
  * - Updated: 2025-05-03 - Fixed type error with TransactionType usage
  * - Updated: 2025-05-08 - Fixed parameter order in executeTransaction function call
- * - Updated: 2025-05-08 - Fixed TransactionType import and usage
+ * - Updated: 2025-05-08 - Fixed TransactionType import and usage 
+ * - Updated: 2025-05-09 - Fixed type compatibility between different TransactionType definitions
  */
-import { useTransaction } from "./useTransaction";
-import { TransactionType } from "@/services/supabase/transactions/types";
+import { useTransaction, TransactionType as LocalTransactionType } from "./useTransaction";
+// Remove the import of TransactionType from supabase to avoid conflicts
+// import { TransactionType } from "@/services/supabase/transactions/types";
 
 export const useAuctionTransaction = () => {
   const transaction = useTransaction();
@@ -23,7 +25,7 @@ export const useAuctionTransaction = () => {
   ) => {
     return transaction.executeTransaction(
       name, 
-      TransactionType.AUCTION as TransactionType, // Explicitly cast to TransactionType
+      'auction' as LocalTransactionType, // Use the type from useTransaction directly
       operation, 
       {
         ...options,
