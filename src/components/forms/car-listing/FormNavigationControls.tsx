@@ -2,12 +2,14 @@
 /**
  * FormNavigationControls Component
  * Created: 2025-06-16
+ * Updated: 2025-06-17 - Added FormSubmitHandler for last step
  * 
  * Navigation controls for the multi-step form
  */
 
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Save } from "lucide-react";
+import { FormSubmitHandler } from "./submission/FormSubmitHandler";
 
 interface FormNavigationControlsProps {
   currentStep: number;
@@ -66,20 +68,23 @@ export const FormNavigationControls = ({
           Save Progress
         </Button>
         
-        <Button
-          type="button"
-          onClick={onNext}
-          disabled={navigationDisabled || isNavigating}
-          className={isLastStep ? "bg-[#DC143C] hover:bg-[#DC143C]/90" : ""}
-        >
-          {isNavigating ? (
-            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
-          ) : null}
-          
-          {isLastStep ? "Submit" : "Next"}
-          
-          {!isLastStep && <ArrowRight className="ml-2 h-4 w-4" />}
-        </Button>
+        {isLastStep ? (
+          <FormSubmitHandler carId={carId} />
+        ) : (
+          <Button
+            type="button"
+            onClick={onNext}
+            disabled={navigationDisabled || isNavigating}
+          >
+            {isNavigating ? (
+              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent" />
+            ) : null}
+            
+            Next
+            
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        )}
       </div>
     </div>
   );

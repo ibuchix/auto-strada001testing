@@ -3,6 +3,7 @@
  * Form Types
  * Created: 2025-06-15
  * Updated: 2025-06-16 - Added valuation_data, form_metadata, and additional fields
+ * Updated: 2025-06-17 - Added isRegisteredInPoland, hasWarningLights and warningLightPhotos fields
  * 
  * TypeScript types for form handling
  */
@@ -57,6 +58,27 @@ export interface CarListingFormData {
   financeProvider?: string;
   financeEndDate?: string;
   financeDocument?: string;
+  isRegisteredInPoland?: boolean;
+  hasWarningLights?: boolean;
+  
+  // Required photo fields for each view
+  frontView?: string;
+  rearView?: string;
+  driverSide?: string;
+  passengerSide?: string;
+  dashboard?: string;
+  interiorFront?: string;
+  interiorRear?: string;
+  damagePhotos?: string[];
+  vehiclePhotos?: {
+    frontView?: string;
+    rearView?: string;
+    driverSide?: string;
+    passengerSide?: string;
+    dashboard?: string;
+    interiorFront?: string;
+    interiorRear?: string;
+  };
 }
 
 export interface DamageReport {
@@ -108,6 +130,9 @@ export interface TemporaryFile {
   id: string;
   file: File;
   url: string;
+  preview?: string;
+  uploaded?: boolean;
+  uploadedAt?: Date | null;
 }
 
 export interface StepItem {

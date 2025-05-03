@@ -4,6 +4,7 @@
  * Created: 2025-05-03
  * Updated: 2025-06-15 - Added sections property to each step
  * Updated: 2025-06-16 - Fixed export interface for StepItem
+ * Updated: 2025-06-17 - Added additional-info section to basic-info step
  * 
  * Configuration for multi-step form
  */
@@ -15,7 +16,7 @@ export const formSteps: StepItem[] = [
     id: 'basic-info',
     title: 'Basic Information',
     description: 'Enter the basic details about your vehicle',
-    sections: ['car-details', 'price', 'description']
+    sections: ['car-details', 'price', 'description', 'additional-info']
   },
   {
     id: 'condition',

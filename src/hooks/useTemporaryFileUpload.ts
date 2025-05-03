@@ -1,22 +1,15 @@
 
 /**
  * Temporary File Upload Hook
- * Created: 2025-06-15
+ * Created: 2025-06-17
  * 
- * Hook for managing temporary file uploads without server-side storage
+ * Custom hook for temporary file uploads with preview
  */
 
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-
-interface TemporaryFile {
-  id: string;
-  file: File;
-  preview: string;
-  uploaded: boolean;
-  uploadedAt: Date | null;
-}
+import { TemporaryFile } from '@/types/forms';
 
 interface UseTemporaryFileUploadOptions {
   category: string;
@@ -84,10 +77,11 @@ export const useTemporaryFileUpload = (options: UseTemporaryFileUploadOptions) =
         setProgress(i);
       }
 
-      // Create a temporary file object
+      // Create a temporary file object with preview URL
       const newFile: TemporaryFile = {
         id: `${category}-${uuidv4()}`,
         file,
+        url: URL.createObjectURL(file),
         preview: URL.createObjectURL(file),
         uploaded: true,
         uploadedAt: new Date()
@@ -96,8 +90,7 @@ export const useTemporaryFileUpload = (options: UseTemporaryFileUploadOptions) =
       setProgress(100);
 
       // Add the new file to the list
-      const updatedFiles = [...files, newFile];
-      setFiles(updatedFiles);
+      setFiles(prev => [...prev, newFile]);
 
       // Call the onUploadComplete callback
       if (onUploadComplete) {
@@ -159,10 +152,11 @@ export const useTemporaryFileUpload = (options: UseTemporaryFileUploadOptions) =
           continue;
         }
 
-        // Create temporary file object
+        // Create temporary file object with preview URL
         const newFile: TemporaryFile = {
           id: `${category}-${uuidv4()}`,
           file,
+          url: URL.createObjectURL(file),
           preview: URL.createObjectURL(file),
           uploaded: true,
           uploadedAt: new Date()
@@ -181,23 +175,12 @@ export const useTemporaryFileUpload = (options: UseTemporaryFileUploadOptions) =
         });
         setFiles(uploadedFiles);
       } else {
-        setFiles(prevFiles => [...prevFiles, ...uploadedFiles]);
+        setFiles(prev => [...prev, ...uploadedFiles]);
       }
 
       // Call upload complete callback
       if (uploadedFiles.length > 0 && onUploadComplete) {
         onUploadComplete(uploadedFiles);
-      }
-
-      // Show toast notification
-      if (uploadedFiles.length > 0) {
-        if (errorCount > 0) {
-          toast.warning(`Uploaded ${uploadedFiles.length} files. ${errorCount} files failed.`);
-        } else {
-          toast.success(`Successfully uploaded ${uploadedFiles.length} files`);
-        }
-      } else if (errorCount > 0) {
-        toast.error(`Failed to upload all ${errorCount} files`);
       }
 
       return uploadedFiles;
@@ -233,9 +216,12 @@ export const useTemporaryFileUpload = (options: UseTemporaryFileUploadOptions) =
     if (fileToRemove.preview) {
       URL.revokeObjectURL(fileToRemove.preview);
     }
+    if (fileToRemove.url) {
+      URL.revokeObjectURL(fileToRemove.url);
+    }
 
     // Remove file from state
-    setFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
+    setFiles(prev => prev.filter(f => f.id !== fileId));
     return true;
   }, [files]);
 
@@ -245,6 +231,9 @@ export const useTemporaryFileUpload = (options: UseTemporaryFileUploadOptions) =
     files.forEach(file => {
       if (file.preview) {
         URL.revokeObjectURL(file.preview);
+      }
+      if (file.url) {
+        URL.revokeObjectURL(file.url);
       }
     });
     

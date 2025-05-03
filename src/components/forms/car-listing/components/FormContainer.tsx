@@ -1,20 +1,19 @@
 
 /**
- * Form Container Component
- * Created: 2025-05-02
- * Updated: 2025-06-15 - Fixed import paths
+ * FormContainer Component
+ * Created: 2025-06-17
  * 
- * Displays the appropriate form step content
+ * Container component that renders the appropriate section based on current step
  */
 
-import { ReactNode } from "react";
-import { BasicInfoSection } from "../sections/BasicInfoSection";
-import { ConditionSection } from "../sections/ConditionSection";
-import { PhotoUploadSection } from "../sections/PhotoUploadSection";
-import { RimPhotosSection } from "../RimPhotosSection";
-import { DamagePhotosSection } from "../sections/DamagePhotosSection";
-import { ServiceHistoryUploader } from "../ServiceHistoryUploader";
+import { BasicInfoSection } from "../BasicInfoSection";
+import { ConditionSection } from "../ConditionSection";
+import { PhotosSection } from "../sections/PhotosSection";
+import { AdditionalInfoSection } from "../AdditionalInfoSection";
+import { DamagePhotosSection } from "../DamagePhotosSection";
+import { ServiceHistorySection } from "../ServiceHistorySection";
 import { formSteps } from "../constants/formSteps";
+import { FormDataProvider } from "../context/FormDataContext";
 import { useFormData } from "../context/FormDataContext";
 
 interface FormContainerProps {
@@ -26,46 +25,43 @@ interface FormContainerProps {
   navigationDisabled: boolean;
   isSaving: boolean;
   carId?: string;
-  userId: string;
+  userId?: string;
 }
 
 export const FormContainer = ({
   currentStep,
-  onNext,
-  onPrevious,
-  isFirstStep,
-  isLastStep,
-  navigationDisabled,
-  isSaving,
   carId,
-  userId,
+  userId
 }: FormContainerProps) => {
   const { form } = useFormData();
-
-  // Display the appropriate component based on the current step
-  const renderStepContent = (): ReactNode => {
-    const step = formSteps[currentStep];
-    
-    if (!step) return null;
-    
-    switch (step.id) {
-      case "basic-info":
-        return <BasicInfoSection />;
-      case "condition":
-        return <ConditionSection />;
-      case "photos":
-        return (
-          <>
-            <PhotoUploadSection carId={carId} />
-            <ServiceHistoryUploader />
-            <RimPhotosSection carId={carId} />
-            <DamagePhotosSection />
-          </>
-        );
-      default:
-        return <div>Step not implemented: {step.id}</div>;
-    }
-  };
-
-  return <div className="space-y-6">{renderStepContent()}</div>;
+  
+  // Get current step sections
+  const currentStepConfig = formSteps[currentStep];
+  const currentSections = currentStepConfig?.sections || [];
+  
+  // Render sections based on current step
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold mb-6">{currentStepConfig?.title}</h2>
+      <p className="text-gray-500 mb-6">{currentStepConfig?.description}</p>
+      
+      {/* Basic Information Step */}
+      {currentSections.includes('car-details') && <BasicInfoSection />}
+      
+      {/* Additional Info Section */}
+      {currentSections.includes('additional-info') && <AdditionalInfoSection />}
+      
+      {/* Condition Step */}
+      {currentSections.includes('condition') && <ConditionSection />}
+      
+      {/* Service History Section */}
+      {currentSections.includes('service-history') && <ServiceHistorySection />}
+      
+      {/* Photos Section */}
+      {currentSections.includes('photos') && <PhotosSection carId={carId} />}
+      
+      {/* Damage Photos Section */}
+      {currentSections.includes('damage-photos') && <DamagePhotosSection />}
+    </div>
+  );
 };
