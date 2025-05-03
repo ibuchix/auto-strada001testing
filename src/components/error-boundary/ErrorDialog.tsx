@@ -3,6 +3,7 @@
  * Error Dialog Component
  * Created: 2025-05-03
  * Purpose: Display error messages in a dialog for better user experience
+ * Updated: 2025-05-08 - Fixed prop interface to use open instead of isOpen
  */
 
 import React from "react";
@@ -14,7 +15,7 @@ import { AlertCircle } from "lucide-react";
 interface ErrorDialogProps {
   error: AppError | Error | null;
   open: boolean;
-  setOpen: (open: boolean) => void;
+  onOpenChange: (open: boolean) => void;
   title?: string;
   onRetry?: () => void;
   onClose?: () => void;
@@ -23,13 +24,13 @@ interface ErrorDialogProps {
 export const ErrorDialog: React.FC<ErrorDialogProps> = ({
   error,
   open,
-  setOpen,
+  onOpenChange,
   title = "An error occurred",
   onRetry,
   onClose,
 }) => {
   const handleClose = () => {
-    setOpen(false);
+    onOpenChange(false);
     if (onClose) onClose();
   };
 
@@ -46,7 +47,7 @@ export const ErrorDialog: React.FC<ErrorDialogProps> = ({
     "No stack trace available";
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2 text-destructive">

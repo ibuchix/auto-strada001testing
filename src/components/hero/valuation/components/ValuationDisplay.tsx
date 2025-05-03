@@ -1,3 +1,4 @@
+
 /**
  * Valuation Display Component
  * Created: 2025-04-12
@@ -9,6 +10,7 @@
  * Updated: 2025-05-05 - Fixed error handling and added loading states
  * Updated: 2025-05-06 - Fixed error handling and added loading states
  * Updated: 2025-05-07 - Fixed error handling and added loading states
+ * Updated: 2025-05-08 - Fixed ErrorDialog prop name from isOpen to open
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -106,9 +108,11 @@ export const ValuationDisplay: React.FC<ValuationDisplayProps> = ({ vin, mileage
     <>
       {showErrorDialog && (
         <ErrorDialog
-          isOpen={showErrorDialog}
-          onClose={handleCloseErrorDialog}
+          open={showErrorDialog}
+          onOpenChange={handleCloseErrorDialog}
           error={error}
+          title="Valuation Error"
+          onRetry={handleRetry}
         />
       )}
       

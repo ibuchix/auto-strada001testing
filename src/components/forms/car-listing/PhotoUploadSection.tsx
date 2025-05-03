@@ -12,6 +12,7 @@
  * - 2025-06-20: Fixed type compatibility issues between TempStoredFile and TemporaryFile
  * - 2025-07-25: Fixed type errors with form field setting
  * - 2025-05-03: Updated adapter function to properly map TemporaryFile to required PhotoUploaderProps shape
+ * - 2025-05-08: Fixed adapter function return type for uploadFiles to ensure type compatibility
  */
 import React from 'react';
 import { useFormData } from './context/FormDataContext';
@@ -33,7 +34,7 @@ interface PhotoUploaderProps {
   files: { id: string; name: string; preview: string; url: string; }[];
   isUploading: boolean;
   progress: number;
-  uploadFiles: (fileList: FileList | File[]) => Promise<any[]>;
+  uploadFiles: (fileList: FileList | File[]) => Promise<void>;
   removeFile: (fileId: string) => boolean;
 }
 
@@ -48,7 +49,10 @@ const adaptFileUploader = (uploader: ReturnType<typeof useTemporaryFileUpload>):
     })),
     isUploading: uploader.isUploading,
     progress: uploader.progress,
-    uploadFiles: uploader.uploadFiles,
+    // Wrapping the uploadFiles function to ensure the return type is Promise<void>
+    uploadFiles: async (fileList: FileList | File[]) => {
+      await uploader.uploadFiles(fileList);
+    },
     removeFile: uploader.removeFile
   };
 };
