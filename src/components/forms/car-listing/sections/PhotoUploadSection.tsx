@@ -1,89 +1,176 @@
-
 /**
- * PhotoUploadSection Component for Car Listing Form
- * Created: 2025-06-10
- * Updated: 2025-05-07 - Fixed type compatibility with ExtendedStoredFile
- * Updated: 2025-05-08 - Fixed type issues with uploadedAt property
+ * Component for uploading photos to a car listing
+ * Changes made:
+ * - 2025-04-05: Refactored into smaller components for better maintainability
+ * - 2025-04-05: Extracted AlertMessage component, usePhotoUploadSection hook
+ * - 2025-04-05: Enhanced structure and separation of concerns
+ * - 2025-05-02: Updated to use temporary storage instead of uploading to database
+ * - 2025-05-02: Photos will be stored in memory until form submission
+ * - 2025-05-03: Fixed missing X import from lucide-react
+ * - 2025-06-18: Fixed type errors with temporary file storage
+ * - 2025-06-20: Fixed type compatibility issues between TempStoredFile and TemporaryFile
+ * - 2025-07-25: Fixed type errors with form field setting
+ * - 2025-05-09: Fixed type compatibility issues between ExtendedStoredFile and string
  */
-import { useState } from "react";
-import { useFormContext } from "react-hook-form";
-import { Button } from "@/components/ui/button";
-import { Upload, X } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { FormLabel } from "@/components/ui/form";
-import { Progress } from "@/components/ui/progress";
-import { ExtendedStoredFile, CarListingFormData } from "@/types/forms";
+import React from 'react';
+import { useFormData } from './context/FormDataContext';
+import { FormSection } from './FormSection';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, Info, X } from 'lucide-react';
+import { useTemporaryFileUpload } from '@/hooks/useTemporaryFileUpload';
+import { RequiredPhotosGrid } from './photo-upload/RequiredPhotosGrid';
+import { Button } from '@/components/ui/button';
+import { setPhotoField, updateVehiclePhotos } from './utilities/photoHelpers';
 
-export const PhotoUploadSection = () => {
-  const { setValue, watch } = useFormContext<CarListingFormData>();
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const uploadedPhotos = watch("uploadedPhotos") || [];
-  
-  // Simulate file upload with delay
-  const handleUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    
-    setIsUploading(true);
-    setUploadProgress(0);
-    
-    const newFiles = Array.from(files);
-    setSelectedFiles(newFiles);
-    
-    // Simulate upload progress
-    const timer = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(timer);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
-    
-    // After "upload" completes
-    setTimeout(() => {
-      clearInterval(timer);
-      setUploadProgress(100);
-      
-      // Create file URLs and add to form
-      const newUploadedPhotos: string[] = [...uploadedPhotos];
-      
-      newFiles.forEach(file => {
-        const photoUrl = URL.createObjectURL(file);
-        newUploadedPhotos.push(photoUrl);
-        
-        // In a real scenario, we would also upload to storage
-        // and store metadata about the file
-        const fileData: ExtendedStoredFile = {
-          name: file.name,
-          url: photoUrl,
-          size: file.size,
-          type: file.type,
-          id: crypto.randomUUID(),
-          uploadedAt: new Date().toISOString()
-        };
-        
-        // Store file metadata if needed
-        // Not actually used in this example
-      });
-      
-      setValue("uploadedPhotos", newUploadedPhotos, { shouldDirty: true });
-      
-      // Reset state
-      setTimeout(() => {
-        setIsUploading(false);
-        setSelectedFiles([]);
-      }, 500);
-    }, 2000);
+interface PhotoUploadProps {
+  carId?: string;
+  onValidate?: () => Promise<boolean>;
+}
+
+// Adapter function to convert between types safely
+const adaptFileUploader = (uploader: ReturnType<typeof useTemporaryFileUpload>) => {
+  return {
+    files: uploader.files,
+    isUploading: uploader.isUploading,
+    progress: uploader.progress,
+    uploadFiles: uploader.uploadFiles,
+    removeFile: uploader.removeFile
   };
+};
+
+export const PhotoUploadSection = ({ 
+  carId, 
+  onValidate 
+}: PhotoUploadProps) => {
+  const { form } = useFormData();
+  const [validationError, setValidationError] = React.useState<string | null>(null);
+  const [validated, setValidated] = React.useState(false);
   
-  const removePhoto = (index: number) => {
-    const newPhotos = [...uploadedPhotos];
-    newPhotos.splice(index, 1);
-    setValue("uploadedPhotos", newPhotos, { shouldDirty: true });
-  };
+  // Get photo upload state from the hook for each required photo
+  const frontView = useTemporaryFileUpload({
+    category: 'required_front_view',
+    allowMultiple: false
+  });
+  
+  const rearView = useTemporaryFileUpload({
+    category: 'required_rear_view',
+    allowMultiple: false
+  });
+  
+  const driverSide = useTemporaryFileUpload({
+    category: 'required_driver_side',
+    allowMultiple: false
+  });
+  
+  const passengerSide = useTemporaryFileUpload({
+    category: 'required_passenger_side',
+    allowMultiple: false
+  });
+  
+  const dashboard = useTemporaryFileUpload({
+    category: 'required_dashboard',
+    allowMultiple: false
+  });
+  
+  const interiorFront = useTemporaryFileUpload({
+    category: 'required_interior_front',
+    allowMultiple: false
+  });
+  
+  const interiorRear = useTemporaryFileUpload({
+    category: 'required_interior_rear',
+    allowMultiple: false
+  });
+  
+  const additionalPhotos = useTemporaryFileUpload({
+    category: 'additional_photos',
+    allowMultiple: true,
+    maxFiles: 10
+  });
+  
+  // Check if all required photos are uploaded
+  const allRequiredUploaded = React.useMemo(() => {
+    return frontView.files.length > 0 &&
+      rearView.files.length > 0 &&
+      driverSide.files.length > 0 &&
+      passengerSide.files.length > 0 &&
+      dashboard.files.length > 0 &&
+      interiorFront.files.length > 0 &&
+      interiorRear.files.length > 0;
+  }, [
+    frontView.files, 
+    rearView.files, 
+    driverSide.files, 
+    passengerSide.files, 
+    dashboard.files, 
+    interiorFront.files, 
+    interiorRear.files
+  ]);
+
+  // Validate photos section
+  React.useEffect(() => {
+    // Update form value using helper function for type safety
+    form.setValue('requiredPhotosComplete', allRequiredUploaded, { shouldDirty: true });
+    
+    // Collect all URLs for form submission - ensure these are strings, not objects
+    const photoArray: string[] = [
+      ...(frontView.files.length > 0 ? [(frontView.files[0].preview || '')] : []),
+      ...(rearView.files.length > 0 ? [(rearView.files[0].preview || '')] : []),
+      ...(driverSide.files.length > 0 ? [(driverSide.files[0].preview || '')] : []),
+      ...(passengerSide.files.length > 0 ? [(passengerSide.files[0].preview || '')] : []),
+      ...(dashboard.files.length > 0 ? [(dashboard.files[0].preview || '')] : []),
+      ...(interiorFront.files.length > 0 ? [(interiorFront.files[0].preview || '')] : []),
+      ...(interiorRear.files.length > 0 ? [(interiorRear.files[0].preview || '')] : []),
+      ...(additionalPhotos.files.map(f => f.preview || ''))
+    ];
+    
+    // Update form with photo array - ensure these are all strings
+    form.setValue('uploadedPhotos', photoArray, { shouldDirty: true });
+    
+    // Update individual photo fields with string values only
+    if (frontView.files.length > 0) {
+      setPhotoField('frontView', frontView.files[0].preview || '', form.setValue);
+    }
+    if (rearView.files.length > 0) {
+      setPhotoField('rearView', rearView.files[0].preview || '', form.setValue);
+    }
+    if (driverSide.files.length > 0) {
+      setPhotoField('driverSide', driverSide.files[0].preview || '', form.setValue);
+    }
+    if (passengerSide.files.length > 0) {
+      setPhotoField('passengerSide', passengerSide.files[0].preview || '', form.setValue);
+    }
+    if (dashboard.files.length > 0) {
+      setPhotoField('dashboard', dashboard.files[0].preview || '', form.setValue);
+    }
+    if (interiorFront.files.length > 0) {
+      setPhotoField('interiorFront', interiorFront.files[0].preview || '', form.setValue);
+    }
+    if (interiorRear.files.length > 0) {
+      setPhotoField('interiorRear', interiorRear.files[0].preview || '', form.setValue);
+    }
+    
+    // Update vehicle photos object
+    updateVehiclePhotos(form.setValue, form.getValues);
+    
+    if (allRequiredUploaded) {
+      setValidationError(null);
+      setValidated(true);
+    } else {
+      setValidated(false);
+    }
+  }, [
+    allRequiredUploaded, 
+    form, 
+    frontView.files, 
+    rearView.files, 
+    driverSide.files, 
+    passengerSide.files,
+    dashboard.files,
+    interiorFront.files,
+    interiorRear.files,
+    additionalPhotos.files
+  ]);
   
   return (
     <div className="space-y-6">

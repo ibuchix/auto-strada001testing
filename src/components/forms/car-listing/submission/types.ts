@@ -4,6 +4,7 @@
  * Updated: 2025-05-04 - Fixed TypeScript errors with missing AppError type
  * Updated: 2025-05-07 - Added missing ErrorCategory enum values
  * Updated: 2025-05-08 - Fixed error category types and validation
+ * Updated: 2025-05-09 - Fixed ErrorCategory type compatibility and export
  */
 
 export type SubmissionErrorType = 'validation' | 'auth' | 'service' | 'network';
