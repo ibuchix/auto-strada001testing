@@ -4,6 +4,7 @@
  * - 2024-10-28: Refactored transaction service for better separation of concerns
  * - Moved logging logic to a separate service
  * - Improved error handling and transaction management
+ * - 2025-05-11: Fixed timestamp type compatibility using numeric timestamps
  */
 
 import { toast } from "sonner";
@@ -48,13 +49,13 @@ export class TransactionService extends BaseService {
     const { data: { user } } = await this.supabase.auth.getUser();
     const userId = user?.id;
     
-    // Initialize transaction details
+    // Initialize transaction details with numeric timestamp
     const transactionDetails: TransactionDetails = {
       id: transactionId,
       operation,
       type,
       status: TransactionStatus.PENDING,
-      startTime: new Date(),
+      startTime: Date.now(), // Using numeric timestamp
       userId,
       metadata: { ...metadata }
     };
@@ -80,7 +81,7 @@ export class TransactionService extends BaseService {
           
           // Operation succeeded, update details
           transactionDetails.status = TransactionStatus.SUCCESS;
-          transactionDetails.endTime = new Date();
+          transactionDetails.endTime = Date.now(); // Using numeric timestamp
           transactionDetails.metadata = { 
             ...(transactionDetails.metadata || {}),
             result: typeof result === 'object' ? 'Object data (not logged)' : result
@@ -122,7 +123,7 @@ export class TransactionService extends BaseService {
     } catch (error: any) {
       // Update transaction with error details
       transactionDetails.status = TransactionStatus.ERROR;
-      transactionDetails.endTime = new Date();
+      transactionDetails.endTime = Date.now(); // Using numeric timestamp
       transactionDetails.errorDetails = error.message || 'Unknown error';
       transactionDetails.metadata = { 
         ...(transactionDetails.metadata || {}),
@@ -165,7 +166,7 @@ export class TransactionService extends BaseService {
       
       // Call complete callback regardless of outcome
       if (onComplete) {
-        onComplete(transactionDetails);
+        onComplete();
       }
     }
   }
