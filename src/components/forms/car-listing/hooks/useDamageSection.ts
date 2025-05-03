@@ -1,118 +1,128 @@
 
 /**
- * Changes made:
- * - Created custom hook for Damage Section
- * - Encapsulated damage report management logic
- * - Implemented validation and state management
+ * Damage Section Hook
+ * Created: 2025-07-22
+ * 
+ * Custom hook to handle damage section functionality
  */
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData, DamageReport, DamageType } from "@/types/forms";
-import { toast } from "sonner";
+
+interface NewDamageState {
+  type: DamageType;
+  description: string;
+  location?: string;
+  severity?: 'minor' | 'moderate' | 'severe';
+  photo?: string | null;
+}
 
 export const useDamageSection = (form: UseFormReturn<CarListingFormData>) => {
-  const [newDamage, setNewDamage] = useState<DamageReport>({
-    type: "scratch",
-    description: "",
-    photo: null,
+  const [isDamaged, setIsDamaged] = useState(false);
+  const [damageReports, setDamageReports] = useState<DamageReport[]>([]);
+  const [newDamage, setNewDamage] = useState<NewDamageState>({
+    type: 'scratch',
+    description: '',
+    location: '',
+    severity: 'minor',
+    photo: null
   });
-  
-  const isDamaged = form.watch("isDamaged");
-  const damageReports = form.watch("damageReports") || [];
-  
-  // Reset the new damage form
-  const resetNewDamage = useCallback(() => {
-    setNewDamage({
-      type: "scratch",
-      description: "",
-      photo: null,
+
+  // Watch for changes to isDamaged field
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'isDamaged' || name === undefined) {
+        setIsDamaged(!!value.isDamaged);
+      }
     });
+    
+    // Initialize with current value
+    setIsDamaged(!!form.getValues('isDamaged'));
+    
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Watch for changes to damageReports field
+  useEffect(() => {
+    const reports = form.getValues('damageReports') || [];
+    setDamageReports(reports);
+  }, [form]);
+
+  // Update damage report fields
+  const updateNewDamage = useCallback((field: keyof NewDamageState, value: any) => {
+    setNewDamage(prev => ({ ...prev, [field]: value }));
   }, []);
-  
-  // Update new damage form
-  const updateNewDamage = useCallback((field: keyof DamageReport, value: any) => {
-    setNewDamage(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  }, []);
-  
+
   // Add a new damage report
   const addDamageReport = useCallback(() => {
-    if (!newDamage.description.trim()) {
-      toast.error('Please provide a description of the damage');
-      return;
-    }
-    
-    const updatedReports = [...damageReports, { ...newDamage }];
-    form.setValue("damageReports", updatedReports, { shouldValidate: true });
-    
-    // Reset new damage form
-    resetNewDamage();
-    
-    toast.success('Damage report added');
-  }, [newDamage, damageReports, form, resetNewDamage]);
-  
+    if (!newDamage.description.trim()) return;
+
+    const newReport: DamageReport = {
+      id: `damage_${Date.now()}`,
+      type: newDamage.type,
+      description: newDamage.description,
+      location: newDamage.location || '',
+      severity: newDamage.severity || 'minor',
+      photos: [],
+      photo: newDamage.photo
+    };
+
+    const updatedReports = [...damageReports, newReport];
+    form.setValue('damageReports', updatedReports, { shouldDirty: true, shouldTouch: true });
+    setDamageReports(updatedReports);
+
+    // Reset the new damage form
+    setNewDamage({
+      type: 'scratch',
+      description: '',
+      location: '',
+      severity: 'minor',
+      photo: null
+    });
+  }, [newDamage, damageReports, form]);
+
   // Remove a damage report
   const removeDamageReport = useCallback((index: number) => {
-    if (index >= 0 && index < damageReports.length) {
-      const updatedReports = [...damageReports];
-      updatedReports.splice(index, 1);
-      form.setValue("damageReports", updatedReports, { shouldValidate: true });
-      
-      toast.success('Damage report removed');
-    }
+    const updatedReports = [...damageReports];
+    updatedReports.splice(index, 1);
+    form.setValue('damageReports', updatedReports, { shouldDirty: true });
+    setDamageReports(updatedReports);
   }, [damageReports, form]);
-  
-  // Handle damage photo upload
-  const handleDamagePhotoUpload = useCallback(async (file: File): Promise<string | null> => {
-    if (!file) return null;
-    
-    try {
-      // Validate file
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please upload an image file');
-        return null;
-      }
-      
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error('Image size exceeds 5MB limit');
-        return null;
-      }
-      
-      // Simulate upload
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Create object URL for preview
-      const photoUrl = URL.createObjectURL(file);
-      
-      // Update new damage with photo
+
+  // Handle photo upload for damage reports
+  const handleDamagePhotoUpload = useCallback((fileUrl: string, index?: number) => {
+    if (typeof index === 'number') {
+      // Update existing damage report
+      const updatedReports = [...damageReports];
+      updatedReports[index] = {
+        ...updatedReports[index],
+        photo: fileUrl,
+        photos: [...(updatedReports[index].photos || []), fileUrl]
+      };
+      form.setValue('damageReports', updatedReports, { shouldDirty: true });
+      setDamageReports(updatedReports);
+    } else {
+      // Update the new damage form
       setNewDamage(prev => ({
         ...prev,
-        photo: photoUrl
+        photo: fileUrl
       }));
-      
-      toast.success('Damage photo uploaded');
-      return photoUrl;
-    } catch (error) {
-      console.error('Error uploading damage photo:', error);
-      toast.error('Failed to upload damage photo');
-      return null;
     }
-  }, []);
-  
-  // Validate damage section
-  const validateDamageSection = useCallback(() => {
-    // If vehicle is damaged, require at least one damage report
+  }, [damageReports, form]);
+
+  // Validate the damage section
+  const validateDamageSection = useCallback((): boolean => {
     if (isDamaged && damageReports.length === 0) {
-      toast.error('Please add at least one damage report');
+      form.setError('damageReports', { 
+        type: 'required', 
+        message: 'Please add at least one damage report' 
+      });
       return false;
     }
-    
     return true;
-  }, [isDamaged, damageReports.length]);
-  
+  }, [isDamaged, damageReports, form]);
+
   return {
     isDamaged,
     damageReports,
@@ -121,7 +131,6 @@ export const useDamageSection = (form: UseFormReturn<CarListingFormData>) => {
     addDamageReport,
     removeDamageReport,
     handleDamagePhotoUpload,
-    validateDamageSection,
-    resetNewDamage
+    validateDamageSection
   };
 };

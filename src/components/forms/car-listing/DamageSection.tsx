@@ -5,6 +5,7 @@
  * - Simplified component with extracted logic
  * - Improved code organization and readability
  * - Updated to use FormDataContext instead of requiring form prop
+ * - 2025-07-22: Updated to use DamageType from types/forms
  */
 
 import { Button } from "@/components/ui/button";

@@ -2,16 +2,21 @@
 /**
  * Form data type definitions
  * Created: 2025-07-18
+ * Updated: 2025-07-22: Added additional form fields for car listing form
  */
 
 import { CarFeatures } from '@/utils/types/carFeatures';
+
+export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
 
 export interface DamageReport {
   id: string;
   description: string;
   location: string;
   photos: string[];
+  photo?: string | null;
   severity: 'minor' | 'moderate' | 'severe';
+  type?: DamageType;
 }
 
 export interface ServiceHistory {
@@ -20,6 +25,8 @@ export interface ServiceHistory {
   documents: string[];
   description?: string;
 }
+
+export type AuctionStatus = 'draft' | 'pending' | 'active' | 'sold' | 'expired' | 'rejected';
 
 export interface CarListingFormData {
   id?: string;
@@ -44,6 +51,7 @@ export interface CarListingFormData {
   // Photos
   uploadedPhotos: string[];
   vehiclePhotos?: Record<string, string[]>;
+  damagePhotos?: string[];
   
   // Damage info
   isDamaged?: boolean;
@@ -51,6 +59,20 @@ export interface CarListingFormData {
   
   // Service history
   serviceHistory?: ServiceHistory[];
+  hasServiceHistory?: boolean;
+  serviceHistoryType?: string;
+  
+  // Additional info
+  conditionRating?: number;
+  seatMaterial?: string;
+  numberOfKeys?: string;
+  isRegisteredInPoland?: boolean;
+  hasWarningLights?: boolean;
+  hasOutstandingFinance?: boolean;
+  financeAmount?: number;
+  financeProvider?: string;
+  financeEndDate?: string;
+  financeDocument?: string;
   
   // Seller information
   name?: string;
@@ -75,17 +97,20 @@ export interface CarListingFormData {
     lastSaved?: string;
   };
   
+  // For valuation data
+  valuation_data?: any;
+  
   // Validation status
   isValid?: boolean;
   
   // Status
-  status?: 'draft' | 'pending' | 'active' | 'sold' | 'expired' | 'rejected';
+  status?: AuctionStatus;
 }
 
 export interface CarEntity extends CarListingFormData {
   id: string;
   user_id: string;
-  status: 'draft' | 'pending' | 'active' | 'sold' | 'expired' | 'rejected';
+  status: AuctionStatus;
   created_at: Date;
   updated_at: Date;
 }

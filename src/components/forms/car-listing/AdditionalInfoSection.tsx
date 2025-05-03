@@ -2,6 +2,7 @@
 /**
  * AdditionalInfoSection Component
  * Created: 2025-06-18
+ * Updated: 2025-07-22 - Fixed type errors with form field names
  * 
  * Component for collecting additional information about the vehicle
  */

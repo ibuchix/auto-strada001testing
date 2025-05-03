@@ -8,6 +8,7 @@
  * - 2025-12-03: Fixed type issues with required fields in CarEntity
  * - 2025-12-05: Enhanced prepareSubmission to properly handle CarFeatures
  * - 2025-06-21: Fixed references to CarFeatures interface and created_at handling
+ * - 2025-07-22: Fixed incomplete implementation
  */
 
 import { CarListingFormData, CarEntity, AuctionStatus, CarFeatures } from "@/types/forms";
@@ -65,15 +66,10 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
     // Cast transmission to the expected type
-    transmission: (formData.transmission || 'manual') as "manual" | "automatic",
-    // Ensure features is properly typed
+    transmission: formData.transmission || 'manual',
+    // Use properly typed features
     features: carFeatures
   };
   
-  // Remove transient properties that shouldn't be in the entity
-  return {
-    ...entity,
-    form_metadata: undefined,
-    isValid: undefined
-  };
+  return entity;
 };

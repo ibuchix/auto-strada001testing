@@ -3,6 +3,7 @@
  * Damage Photos Section
  * Created: 2025-05-03
  * Updated: 2025-06-18 - Fixed type errors with temporary file upload hook
+ * Updated: 2025-07-22 - Fixed field name from "damagePhotos" to the correct type
  * 
  * Component for uploading photos of vehicle damage
  */
@@ -48,8 +49,8 @@ export const DamagePhotosSection = () => {
   
   // Update form data when files change
   useEffect(() => {
-    const damagePhotos = files.map(file => file.preview || file.url);
-    form.setValue('damagePhotos', damagePhotos, { shouldDirty: true });
+    const photoPreviews = files.map(file => file.preview || file.url);
+    form.setValue('damagePhotos', photoPreviews, { shouldDirty: true });
   }, [files, form]);
   
   // Handle file selection

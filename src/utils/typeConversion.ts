@@ -1,59 +1,49 @@
 
 /**
- * Changes made:
- * - 2024-08-19: Created utility functions for type conversion
- * - These functions help ensure consistent type handling across the application
+ * Type conversion utilities
+ * Created: 2025-07-22
  */
 
 /**
- * Safely converts a value to a string
+ * Converts a value to a string safely
  * @param value The value to convert
  * @returns The string representation of the value
  */
-export const toStringValue = (value: string | number | null | undefined): string => {
-  if (value === null || value === undefined) return '';
+export const toStringValue = (value: any): string => {
+  if (typeof value === 'undefined' || value === null) {
+    return '';
+  }
   return String(value);
 };
 
 /**
- * Safely converts a value to a number
+ * Converts a value to a number safely
  * @param value The value to convert
  * @param defaultValue The default value to return if conversion fails
- * @returns The numeric value or the default value
+ * @returns The numeric value or default
  */
-export const toNumberValue = (
-  value: string | number | null | undefined, 
-  defaultValue: number = 0
-): number => {
-  if (value === null || value === undefined) return defaultValue;
+export const toNumberValue = (value: any, defaultValue: number = 0): number => {
+  if (typeof value === 'undefined' || value === null) {
+    return defaultValue;
+  }
   
-  const parsedValue = typeof value === 'string' ? parseFloat(value) : value;
-  return isNaN(parsedValue) ? defaultValue : parsedValue;
+  const num = Number(value);
+  return isNaN(num) ? defaultValue : num;
 };
 
 /**
- * Safely converts a value to a boolean
+ * Converts a value to a boolean safely
  * @param value The value to convert
  * @returns The boolean representation of the value
  */
-export const toBooleanValue = (value: unknown): boolean => {
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'string') return value.toLowerCase() === 'true';
-  return Boolean(value);
-};
-
-/**
- * Safely parses a JSON string
- * @param jsonString The JSON string to parse
- * @param fallback The fallback value to return if parsing fails
- * @returns The parsed object or the fallback value
- */
-export const safeJsonParse = <T>(jsonString: string | null | undefined, fallback: T): T => {
-  if (!jsonString) return fallback;
-  try {
-    return JSON.parse(jsonString) as T;
-  } catch (error) {
-    console.error('Error parsing JSON string:', error);
-    return fallback;
+export const toBooleanValue = (value: any): boolean => {
+  if (typeof value === 'boolean') {
+    return value;
   }
+  
+  if (typeof value === 'string') {
+    return value.toLowerCase() === 'true';
+  }
+  
+  return Boolean(value);
 };

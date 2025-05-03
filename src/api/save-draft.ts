@@ -7,6 +7,7 @@
  * - Enhanced error handling with more detailed error information
  * - 2025-06-06: Fixed saveFormData import by implementing local version
  * - 2025-06-16: Fixed TypeScript errors with form_metadata and valuation_data
+ * - 2025-07-22: Fixed type error with valuation_data property
  */
 
 import { CarListingFormData } from "@/types/forms";

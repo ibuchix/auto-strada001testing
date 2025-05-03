@@ -10,14 +10,15 @@
  * - 2025-04-03: Updated TransactionStatus usage to proper enum values
  * - 2025-06-23: Fixed TransactionStatus import from types
  * - 2025-07-01: Fixed TransactionStatus import issues
+ * - 2025-07-22: Exposed FormSubmissionContext and added missing context properties
  */
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import { FormSubmissionContextType, FormSubmissionProviderProps } from "./types";
 import { useFormSubmission } from "./useFormSubmission";
 import { TransactionStatus } from "@/services/supabase/transactions/types";
 
-const FormSubmissionContext = createContext<FormSubmissionContextType | null>(null);
+export const FormSubmissionContext = createContext<FormSubmissionContextType | null>(null);
 
 export const useFormSubmissionContext = () => {
   const context = useContext(FormSubmissionContext);
@@ -28,15 +29,27 @@ export const useFormSubmissionContext = () => {
 };
 
 export const FormSubmissionProvider = ({ children, userId }: FormSubmissionProviderProps) => {
+  const [carId, setCarId] = useState<string | undefined>(undefined);
+  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+
   const {
     isSubmitting,
-    error,
-    transactionStatus,
-    showSuccessDialog,
-    setShowSuccessDialog,
-    handleSubmit,
-    resetTransaction
+    submissionError: error,
+    handleSubmit
   } = useFormSubmission(userId ?? "");
+
+  const resetTransaction = () => {
+    setTransactionStatus(null);
+    setShowSuccessDialog(false);
+  };
+
+  const updateTransactionStatus = (status: TransactionStatus, error: Error | null) => {
+    setTransactionStatus(status);
+    if (status === TransactionStatus.SUCCESS) {
+      setShowSuccessDialog(true);
+    }
+  };
 
   return (
     <FormSubmissionContext.Provider
@@ -47,7 +60,11 @@ export const FormSubmissionProvider = ({ children, userId }: FormSubmissionProvi
         showSuccessDialog,
         setShowSuccessDialog,
         handleSubmit,
-        resetTransaction
+        resetTransaction,
+        carId,
+        setCarId,
+        setTransactionStatus,
+        updateTransactionStatus
       }}
     >
       {children}

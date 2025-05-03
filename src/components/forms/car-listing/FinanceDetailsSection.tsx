@@ -5,6 +5,7 @@
  * - This component is conditionally shown based on vehicle having outstanding finance
  * - Fixed FormSection usage by adding required title prop
  * - Updated to use FormDataContext instead of requiring form prop
+ * - 2025-07-22: Fixed type errors with form field names
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
@@ -90,10 +91,16 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
                 <FormLabel>Outstanding Amount (PLN)</FormLabel>
                 <FormControl>
                   <Input 
-                    {...field} 
                     placeholder="e.g. 10000" 
                     type="text"
                     inputMode="decimal"
+                    value={field.value || ''}
+                    onChange={e => {
+                      const value = e.target.value;
+                      const numValue = parseFloat(value);
+                      field.onChange(isNaN(numValue) ? '' : numValue);
+                    }}
+                    onBlur={field.onBlur}
                   />
                 </FormControl>
                 <FormDescription>
@@ -146,8 +153,9 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
                 <FormLabel>End of Finance Agreement</FormLabel>
                 <FormControl>
                   <Input 
-                    {...field} 
                     type="month"
+                    value={field.value || ''}
+                    onChange={field.onChange}
                   />
                 </FormControl>
                 <FormDescription>

@@ -1,15 +1,16 @@
+
 /**
  * Form Submission Logic
  * Created: 2025-07-12
+ * Updated: 2025-07-22: Fixed context usage and added missing properties
  */
 
-import { useState, useCallback, useContext } from 'react';
+import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useFormContext } from 'react-hook-form';
 import { CarListingFormData } from '@/types/forms';
 import { prepareSubmission } from './utils/submission';
 import { supabase } from '@/integrations/supabase/client';
-import { FormSubmissionContext } from './FormSubmissionProvider';
 import { tempFileStorageService } from '@/services/supabase/tempFileStorageService';
 import { handleFormValidationError } from './utils/validationHandler';
 import { errorFactory } from '@/errors/factory';
@@ -17,15 +18,13 @@ import { TransactionStatus } from '../types';
 import { ValidationSubmissionError } from './errors';
 
 export const useFormSubmission = (userId: string) => {
-  const { formState, form, trigger } = useFormContext<CarListingFormData>();
-  const { setTransactionStatus, updateTransactionStatus, setCarId } = useContext(FormSubmissionContext);
+  const { formState, trigger } = useFormContext<CarListingFormData>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<Error | null>(null);
   
-  const handleSubmit = useCallback(async (data: CarListingFormData) => {
+  const handleSubmit = useCallback(async (data: CarListingFormData, carId?: string) => {
     setIsSubmitting(true);
     setSubmissionError(null);
-    setTransactionStatus(TransactionStatus.PENDING);
     
     try {
       // Trigger validation before submission
@@ -33,7 +32,7 @@ export const useFormSubmission = (userId: string) => {
       
       if (!isValid) {
         const error = new ValidationSubmissionError("Form validation failed");
-        updateTransactionStatus(TransactionStatus.ERROR, error);
+        setSubmissionError(error);
         return;
       }
       
@@ -48,7 +47,7 @@ export const useFormSubmission = (userId: string) => {
         .single();
       
       if (dbError) {
-        updateTransactionStatus(TransactionStatus.ERROR, dbError);
+        setSubmissionError(dbError);
         return;
       }
       
@@ -63,14 +62,6 @@ export const useFormSubmission = (userId: string) => {
         }
       }
       
-      // Update the transaction status to success
-      updateTransactionStatus(TransactionStatus.SUCCESS, null);
-      
-      // Set the car ID
-      if (carData?.id) {
-        setCarId(carData.id);
-      }
-      
       // Show a success toast
       toast.success("Car listing submitted successfully!");
     } catch (error: any) {
@@ -81,7 +72,6 @@ export const useFormSubmission = (userId: string) => {
         { fields: Object.keys(formState.errors) } 
       );
       
-      updateTransactionStatus(TransactionStatus.ERROR, error);
       setSubmissionError(error);
       
       // Show an error toast
@@ -89,7 +79,7 @@ export const useFormSubmission = (userId: string) => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [userId, formState, form, trigger, setTransactionStatus, updateTransactionStatus, setCarId]);
+  }, [formState, trigger]);
   
   return {
     isSubmitting,
