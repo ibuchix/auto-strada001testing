@@ -2,6 +2,7 @@
 /**
  * Photos Upload Section Component
  * Created: 2025-06-17
+ * Updated: 2025-06-18 - Fixed type errors with temporary file storage
  * 
  * This component handles the upload of all required vehicle photos
  */
@@ -74,29 +75,29 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
   useEffect(() => {
     // Update form values with current photo files
     const vehiclePhotos = {
-      frontView: frontView.files.length > 0 ? frontView.files[0].preview : undefined,
-      rearView: rearView.files.length > 0 ? rearView.files[0].preview : undefined,
-      driverSide: driverSide.files.length > 0 ? driverSide.files[0].preview : undefined,
-      passengerSide: passengerSide.files.length > 0 ? passengerSide.files[0].preview : undefined,
-      dashboard: dashboard.files.length > 0 ? dashboard.files[0].preview : undefined,
-      interiorFront: interiorFront.files.length > 0 ? interiorFront.files[0].preview : undefined,
-      interiorRear: interiorRear.files.length > 0 ? interiorRear.files[0].preview : undefined,
+      frontView: frontView.files.length > 0 ? frontView.files[0].preview || '' : undefined,
+      rearView: rearView.files.length > 0 ? rearView.files[0].preview || '' : undefined,
+      driverSide: driverSide.files.length > 0 ? driverSide.files[0].preview || '' : undefined,
+      passengerSide: passengerSide.files.length > 0 ? passengerSide.files[0].preview || '' : undefined,
+      dashboard: dashboard.files.length > 0 ? dashboard.files[0].preview || '' : undefined,
+      interiorFront: interiorFront.files.length > 0 ? interiorFront.files[0].preview || '' : undefined,
+      interiorRear: interiorRear.files.length > 0 ? interiorRear.files[0].preview || '' : undefined,
     };
     
     form.setValue("vehiclePhotos", vehiclePhotos, { shouldDirty: true });
     
     // Also set individual fields for compatibility
-    if (frontView.files.length > 0) form.setValue("frontView", frontView.files[0].preview);
-    if (rearView.files.length > 0) form.setValue("rearView", rearView.files[0].preview);
-    if (driverSide.files.length > 0) form.setValue("driverSide", driverSide.files[0].preview);
-    if (passengerSide.files.length > 0) form.setValue("passengerSide", passengerSide.files[0].preview);
-    if (dashboard.files.length > 0) form.setValue("dashboard", dashboard.files[0].preview);
-    if (interiorFront.files.length > 0) form.setValue("interiorFront", interiorFront.files[0].preview);
-    if (interiorRear.files.length > 0) form.setValue("interiorRear", interiorRear.files[0].preview);
+    if (frontView.files.length > 0) form.setValue("frontView", frontView.files[0].preview || '');
+    if (rearView.files.length > 0) form.setValue("rearView", rearView.files[0].preview || '');
+    if (driverSide.files.length > 0) form.setValue("driverSide", driverSide.files[0].preview || '');
+    if (passengerSide.files.length > 0) form.setValue("passengerSide", passengerSide.files[0].preview || '');
+    if (dashboard.files.length > 0) form.setValue("dashboard", dashboard.files[0].preview || '');
+    if (interiorFront.files.length > 0) form.setValue("interiorFront", interiorFront.files[0].preview || '');
+    if (interiorRear.files.length > 0) form.setValue("interiorRear", interiorRear.files[0].preview || '');
     
     // Add any additional photos to uploadedPhotos array
     if (additionalPhotos.files.length > 0) {
-      form.setValue("uploadedPhotos", additionalPhotos.files.map(f => f.preview));
+      form.setValue("uploadedPhotos", additionalPhotos.files.map(f => f.preview || ''));
     }
     
     // Check if all required photos are uploaded

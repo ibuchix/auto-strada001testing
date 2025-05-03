@@ -8,6 +8,7 @@
  * - 2025-05-02: Updated to use temporary storage instead of uploading to database
  * - 2025-05-02: Photos will be stored in memory until form submission
  * - 2025-05-03: Fixed missing X import from lucide-react
+ * - 2025-06-18: Fixed type errors with temporary file storage
  */
 import React from 'react';
 import { useFormData } from './context/FormDataContext';
@@ -37,6 +38,7 @@ export const PhotoUploadSection = ({
     allowMultiple: false
   });
   
+  // Get photo upload state from the hook for each required photo
   const rearView = useTemporaryFileUpload({
     category: 'required_rear_view',
     allowMultiple: false
@@ -97,19 +99,56 @@ export const PhotoUploadSection = ({
     // Update form value
     form.setValue('requiredPhotosComplete', allRequiredUploaded, { shouldDirty: true });
     
-    // Collect all photo ids for form submission
-    const photoIds = {
-      frontView: frontView.files[0]?.id,
-      rearView: rearView.files[0]?.id,
-      driverSide: driverSide.files[0]?.id,
-      passengerSide: passengerSide.files[0]?.id,
-      dashboard: dashboard.files[0]?.id,
-      interiorFront: interiorFront.files[0]?.id,
-      interiorRear: interiorRear.files[0]?.id,
-      additionalPhotos: additionalPhotos.files.map(file => file.id)
+    // Collect all URLs for form submission
+    const photoArray = [
+      ...(frontView.files.length > 0 ? [frontView.files[0].preview || ''] : []),
+      ...(rearView.files.length > 0 ? [rearView.files[0].preview || ''] : []),
+      ...(driverSide.files.length > 0 ? [driverSide.files[0].preview || ''] : []),
+      ...(passengerSide.files.length > 0 ? [passengerSide.files[0].preview || ''] : []),
+      ...(dashboard.files.length > 0 ? [dashboard.files[0].preview || ''] : []),
+      ...(interiorFront.files.length > 0 ? [interiorFront.files[0].preview || ''] : []),
+      ...(interiorRear.files.length > 0 ? [interiorRear.files[0].preview || ''] : []),
+      ...(additionalPhotos.files.map(f => f.preview || ''))
+    ];
+    
+    // Update form with photo array
+    form.setValue('uploadedPhotos', photoArray, { shouldDirty: true });
+    
+    // Update individual photo fields
+    if (frontView.files.length > 0) {
+      form.setValue('frontView', frontView.files[0].preview || '', { shouldDirty: true });
+    }
+    if (rearView.files.length > 0) {
+      form.setValue('rearView', rearView.files[0].preview || '', { shouldDirty: true });
+    }
+    if (driverSide.files.length > 0) {
+      form.setValue('driverSide', driverSide.files[0].preview || '', { shouldDirty: true });
+    }
+    if (passengerSide.files.length > 0) {
+      form.setValue('passengerSide', passengerSide.files[0].preview || '', { shouldDirty: true });
+    }
+    if (dashboard.files.length > 0) {
+      form.setValue('dashboard', dashboard.files[0].preview || '', { shouldDirty: true });
+    }
+    if (interiorFront.files.length > 0) {
+      form.setValue('interiorFront', interiorFront.files[0].preview || '', { shouldDirty: true });
+    }
+    if (interiorRear.files.length > 0) {
+      form.setValue('interiorRear', interiorRear.files[0].preview || '', { shouldDirty: true });
+    }
+    
+    // Update vehicle photos object
+    const vehiclePhotos = {
+      frontView: frontView.files.length > 0 ? frontView.files[0].preview || '' : undefined,
+      rearView: rearView.files.length > 0 ? rearView.files[0].preview || '' : undefined,
+      driverSide: driverSide.files.length > 0 ? driverSide.files[0].preview || '' : undefined,
+      passengerSide: passengerSide.files.length > 0 ? passengerSide.files[0].preview || '' : undefined,
+      dashboard: dashboard.files.length > 0 ? dashboard.files[0].preview || '' : undefined,
+      interiorFront: interiorFront.files.length > 0 ? interiorFront.files[0].preview || '' : undefined,
+      interiorRear: interiorRear.files.length > 0 ? interiorRear.files[0].preview || '' : undefined,
     };
     
-    form.setValue('photoIds', photoIds, { shouldDirty: true });
+    form.setValue('vehiclePhotos', vehiclePhotos, { shouldDirty: true });
     
     if (allRequiredUploaded) {
       setValidationError(null);
@@ -129,10 +168,7 @@ export const PhotoUploadSection = ({
     interiorRear.files,
     additionalPhotos.files
   ]);
-
-  // Get session timer
-  const sessionTimeRemaining = frontView.remainingSessionTime;
-
+  
   return (
     <FormSection 
       title="Vehicle Photos"
@@ -142,7 +178,7 @@ export const PhotoUploadSection = ({
       <Alert className="mb-4">
         <Info className="h-4 w-4" />
         <AlertDescription>
-          Session time remaining: {sessionTimeRemaining} minutes. Please complete the form within this time.
+          Session time remaining: {frontView.remainingSessionTime} minutes. Please complete the form within this time.
         </AlertDescription>
       </Alert>
       
@@ -265,7 +301,7 @@ export const PhotoUploadSection = ({
                 <div key={file.id} className="relative group">
                   <div className="aspect-square rounded-md overflow-hidden border bg-gray-100">
                     <img 
-                      src={file.preview} 
+                      src={file.preview || file.url} 
                       alt="Additional photo" 
                       className="w-full h-full object-cover"
                     />

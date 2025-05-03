@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Added missing imports (toast, UseFormReturn)
@@ -27,7 +26,7 @@ type ValuationData = {
   year?: number | string;
   mileage?: number | string;
   transmission?: "manual" | "automatic";
-  reservePrice?: number;
+  reserve_price?: number;
   [key: string]: any; // Allow additional properties
 };
 
@@ -110,7 +109,7 @@ const getValidatedValuationData = (): ValuationData | null => {
       ...data,
       year: safeParseNumber(data.year, new Date().getFullYear()),
       mileage: safeParseNumber(data.mileage, 0),
-      reservePrice: safeParseNumber(data.reservePrice, 0)
+      reserve_price: safeParseNumber(data.reserve_price, 0)
     };
   } catch (error) {
     console.error('Valuation data error:', error);
@@ -140,11 +139,11 @@ const applyValuationData = (
   });
   
   // Handle reserve price separately if needed for the form
-  if (data.reservePrice && form.getValues('reservePrice') === undefined) {
+  if (data.reserve_price && form.getValues('reserve_price') === undefined) {
     try {
-      form.setValue('reservePrice' as any, data.reservePrice);
+      form.setValue('reserve_price' as any, data.reserve_price);
     } catch (error) {
-      console.warn('Could not set reservePrice on form', error);
+      console.warn('Could not set reserve_price on form', error);
     }
   }
 };

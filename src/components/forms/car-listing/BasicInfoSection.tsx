@@ -1,4 +1,3 @@
-
 /**
  * BasicInfoSection Component
  * Created: 2025-06-15
@@ -151,10 +150,10 @@ export const BasicInfoSection = () => {
                 />
               </FormControl>
               <FormMessage />
-              <Alert variant="info" className="mt-2">
+              <Alert variant="default">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Set a realistic price for your vehicle. You can review similar listings in the marketplace for reference.
+                  Enter your VIN to automatically populate vehicle details.
                 </AlertDescription>
               </Alert>
             </FormItem>

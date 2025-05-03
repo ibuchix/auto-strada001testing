@@ -2,6 +2,7 @@
 /**
  * FormContainer Component
  * Created: 2025-06-17
+ * Updated: 2025-06-18 - Added proper imports and fixed AdditionalInfoSection integration
  * 
  * Container component that renders the appropriate section based on current step
  */

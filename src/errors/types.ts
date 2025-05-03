@@ -1,9 +1,9 @@
-
 /**
  * Error Types
  * Created: 2025-05-03
  * Updated: 2025-06-15 - Added ErrorCategory, RecoveryAction and RecoveryType enums
  * Updated: 2025-06-16 - Fixed missing types and added ErrorRecovery interface
+ * Updated: 2025-06-18 - Added ErrorCode enum
  * 
  * TypeScript types for error handling
  */

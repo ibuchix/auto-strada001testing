@@ -1,9 +1,9 @@
-
 /**
  * Form Types
  * Created: 2025-06-15
  * Updated: 2025-06-16 - Added valuation_data, form_metadata, and additional fields
  * Updated: 2025-06-17 - Added isRegisteredInPoland, hasWarningLights and warningLightPhotos fields
+ * Updated: 2025-06-18 - Added validate method to StepItem interface
  * 
  * TypeScript types for form handling
  */
@@ -140,4 +140,5 @@ export interface StepItem {
   title: string;
   description: string;
   sections: string[];
+  validate?: (data: CarListingFormData) => boolean;
 }

@@ -2,6 +2,7 @@
 /**
  * Damage Photos Section
  * Created: 2025-05-03
+ * Updated: 2025-06-18 - Fixed type errors with temporary file upload hook
  * 
  * Component for uploading photos of vehicle damage
  */
@@ -47,8 +48,8 @@ export const DamagePhotosSection = () => {
   
   // Update form data when files change
   useEffect(() => {
-    const fileIds = files.map(file => file.id);
-    form.setValue('damagePhotos', fileIds, { shouldDirty: true });
+    const damagePhotos = files.map(file => file.preview || file.url);
+    form.setValue('damagePhotos', damagePhotos, { shouldDirty: true });
   }, [files, form]);
   
   // Handle file selection
@@ -123,13 +124,13 @@ export const DamagePhotosSection = () => {
           </div>
         )}
         
-        {files.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        {files.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {files.map((file) => (
               <div key={file.id} className="relative group">
                 <div className="aspect-square rounded-md overflow-hidden border bg-gray-100">
                   <img 
-                    src={file.preview} 
+                    src={file.preview || file.url} 
                     alt="Damage photo" 
                     className="w-full h-full object-cover"
                   />
@@ -145,10 +146,6 @@ export const DamagePhotosSection = () => {
                 </Button>
               </div>
             ))}
-          </div>
-        ) : (
-          <div className="text-center p-8 border-2 border-dashed rounded-lg">
-            <p className="text-muted-foreground">No damage photos uploaded yet</p>
           </div>
         )}
       </div>

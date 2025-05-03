@@ -1,8 +1,8 @@
-
 /**
  * ErrorBanner component for displaying errors at the top of pages
  * Created: 2025-04-05
  * Updated: 2025-06-16 - Fixed error code comparison
+ * Updated: 2025-06-18 - Fixed ErrorCode import
  */
 
 import React from 'react';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { XCircle } from 'lucide-react';
 import { AppError } from '@/errors/classes';
 import { useNavigate } from 'react-router-dom';
-import { RecoveryAction } from '@/errors/types';
+import { RecoveryAction, ErrorCode } from '@/errors/types';
 
 interface ErrorBannerProps {
   error: AppError | null;

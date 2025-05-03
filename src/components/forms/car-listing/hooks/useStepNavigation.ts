@@ -1,7 +1,7 @@
-
 /**
  * useStepNavigation Hook
  * Created: 2025-06-16
+ * Updated: 2025-06-18 - Added STEP_FIELD_MAPPINGS export
  * 
  * Hook for managing navigation between form steps
  */
@@ -10,6 +10,21 @@ import { useState } from "react";
 import { UseFormReturn, FieldError } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { formSteps } from "../constants/formSteps";
+
+// Export the field mappings for external use
+export const STEP_FIELD_MAPPINGS = {
+  'car-details': ['make', 'model', 'year', 'mileage', 'vin', 'transmission'],
+  'price': ['price', 'reserve_price'],
+  'description': ['sellerNotes'],
+  'additional-info': ['seatMaterial', 'numberOfKeys', 'isRegisteredInPoland', 'hasWarningLights'],
+  'condition': ['hasServiceHistory'],
+  'damage': ['isDamaged', 'damageReports'],
+  'service-history': ['serviceHistoryType', 'serviceHistoryFiles'],
+  'photos': ['uploadedPhotos', 'vehiclePhotos', 'frontView', 'rearView', 'driverSide', 'passengerSide', 'dashboard', 'interiorFront', 'interiorRear'],
+  'rim-photos': ['rimPhotos'],
+  'damage-photos': ['damagePhotos'],
+  'documents': ['serviceHistoryFiles']
+};
 
 export const useStepNavigation = (
   form: UseFormReturn<CarListingFormData>
@@ -69,6 +84,11 @@ export const useStepNavigation = (
     }, {} as Record<string, FieldError>);
   };
   
+  // Helper function to map sections to field names
+  const getFieldsForSection = (section: string): string[] => {
+    return STEP_FIELD_MAPPINGS[section as keyof typeof STEP_FIELD_MAPPINGS] || [];
+  };
+
   return {
     currentStep,
     totalSteps,
@@ -79,31 +99,3 @@ export const useStepNavigation = (
     getCurrentStepErrors,
   };
 };
-
-// Helper function to map sections to field names
-function getFieldsForSection(section: string): string[] {
-  switch (section) {
-    case 'car-details':
-      return ['make', 'model', 'year', 'mileage', 'vin', 'transmission'];
-    case 'price':
-      return ['price', 'reserve_price'];
-    case 'description':
-      return ['sellerNotes'];
-    case 'condition':
-      return ['hasServiceHistory'];
-    case 'damage':
-      return ['isDamaged', 'damageReports'];
-    case 'service-history':
-      return ['serviceHistoryType', 'serviceHistoryFiles'];
-    case 'photos':
-      return ['uploadedPhotos'];
-    case 'rim-photos':
-      return ['rimPhotos'];
-    case 'damage-photos':
-      return ['damagePhotos'];
-    case 'documents':
-      return ['serviceHistoryFiles'];
-    default:
-      return [];
-  }
-}
