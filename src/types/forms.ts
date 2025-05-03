@@ -1,112 +1,88 @@
 
 /**
- * Form data type definitions
- * Created: 2025-07-18
- * Updated: 2025-07-23: Added additional form fields for the car listing form
+ * Form Types
+ * Created: 2025-07-23
+ * Updated: 2025-07-24 - Added missing fields to CarListingFormData
  */
 
-import { CarFeatures } from '@/utils/types/carFeatures';
-
-export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
+export interface CarFeatures {
+  airConditioning: boolean;
+  bluetooth: boolean;
+  cruiseControl: boolean;
+  leatherSeats: boolean;
+  navigation: boolean;
+  parkingSensors: boolean;
+  sunroof: boolean;
+  satNav: boolean;            // Added missing property
+  panoramicRoof: boolean;     // Added missing property
+  reverseCamera: boolean;     // Added missing property
+  heatedSeats: boolean;       // Added missing property
+  upgradedSound: boolean;     // Added missing property
+}
 
 export interface DamageReport {
   id: string;
   description: string;
-  location: string;
-  photos: string[];
-  photo?: string | null;
   severity: 'minor' | 'moderate' | 'severe';
-  type?: DamageType;
-}
-
-export interface ServiceHistory {
-  id: string;
-  type: 'full' | 'partial';
-  documents: string[];
-  description?: string;
+  location?: string;
+  photo?: string;
+  type: string; // Added missing property
 }
 
 export interface ServiceHistoryFile {
   id: string;
   name: string;
   url: string;
-  uploadedAt: Date | string;
   type: string;
-  size?: number;
+  uploadedAt: string; // Required property
+  uploadDate?: string; // Alternative property for compatibility
 }
-
-export type AuctionStatus = 'draft' | 'pending' | 'active' | 'sold' | 'expired' | 'rejected';
 
 export interface CarListingFormData {
   id?: string;
+  name?: string;
   created_at?: string | Date;
   updated_at?: string | Date;
   
-  // Vehicle details
-  make: string;
-  model: string;
-  year: number;
-  mileage: number;
-  vin: string;
-  transmission: 'manual' | 'automatic';
-  
-  // Pricing
-  price: number;
+  // Vehicle basic info
+  make?: string;
+  model?: string;
+  year?: number;
+  mileage?: number;
+  vin?: string;
+  transmission?: "manual" | "automatic" | "semi-automatic"; // Added semi-automatic
+  price?: number;
   reserve_price?: number;
   
-  // Features
-  features?: CarFeatures;
-  
-  // Photos
-  uploadedPhotos: string[];
-  vehiclePhotos?: Record<string, string[]>;
-  damagePhotos?: string[];
-  rimPhotos?: string[];
-  
-  // Photo fields
-  frontView?: string;
-  rearView?: string;
-  driverSide?: string;
-  passengerSide?: string;
-  dashboard?: string;
-  interiorFront?: string;
-  interiorRear?: string;
-  
-  // Photo status
-  requiredPhotosComplete?: boolean;
-  rimPhotosComplete?: boolean;
-  
-  // Damage info
-  isDamaged?: boolean;
-  damageReports?: DamageReport[];
-  
-  // Service history
-  serviceHistory?: ServiceHistory[];
-  hasServiceHistory?: boolean;
-  serviceHistoryType?: string;
-  serviceHistoryFiles?: ServiceHistoryFile[];
-  
   // Additional info
-  conditionRating?: number;
-  seatMaterial?: string;
-  numberOfKeys?: string;
-  isRegisteredInPoland?: boolean;
-  hasWarningLights?: boolean;
-  warningLightPhotos?: string[];
-  hasOutstandingFinance?: boolean;
-  financeAmount?: number;
-  financeProvider?: string;
-  financeEndDate?: string;
-  financeDocument?: string;
+  features?: CarFeatures;
+  uploadedPhotos?: string[];
+  vehiclePhotos?: Record<string, string>;
+  images?: string[]; // Added for ImageUploadSection
   
-  // Vehicle status
-  hasPrivatePlate?: boolean;
+  // Status flags
+  isDamaged?: boolean;
+  hasServiceHistory?: boolean;
   isSellingOnBehalf?: boolean;
+  hasPrivatePlate?: boolean;
+  privateReg?: boolean; // For backward compatibility
+  hasOutstandingFinance?: boolean;
+  hasFinance?: boolean; // For backward compatibility
+  hasWarningLights?: boolean;
+  isRegisteredInPoland?: boolean;
+  
+  // Additional fields
+  damageReports?: DamageReport[];
+  damagePhotos?: string[];
+  serviceHistoryFiles?: ServiceHistoryFile[];
+  serviceHistoryType?: 'full' | 'partial' | 'none';
+  financeAmount?: number;
+  numberOfKeys?: number;
+  seatMaterial?: string;
   
   // Seller information
-  name?: string;
-  email?: string;
-  mobileNumber?: string;
+  seller_id?: string;
+  seller_name?: string;
   address?: {
     street?: string;
     city?: string;
@@ -114,36 +90,28 @@ export interface CarListingFormData {
     postalCode?: string;
     country?: string;
   };
+  mobileNumber?: string;
   
-  // Additional info
-  sellerNotes?: string;
-  
-  // Form metadata (not stored in DB)
-  form_metadata?: {
-    lastStep?: number;
-    progress?: number;
-    draftSaved?: boolean;
-    lastSaved?: string;
+  // Photos
+  mainPhoto?: string;
+  rimPhotos?: {
+    front_left: string;
+    front_right: string;
+    rear_left: string;
+    rear_right: string;
   };
   
-  // For valuation data
-  valuation_data?: any;
+  // Form metadata
+  form_metadata?: {
+    step?: number;
+    lastSaved?: string;
+    draftSaved?: boolean;
+    lastVisitedSection?: string;
+  };
   
-  // Validation status
-  isValid?: boolean;
+  // Valuation data
+  valuation_data?: Record<string, any>;
   
   // Status
-  status?: AuctionStatus;
-  is_draft?: boolean;
-  
-  // Supabase specific
-  seller_id?: string;
-}
-
-export interface CarEntity extends CarListingFormData {
-  id: string;
-  user_id: string;
-  status: AuctionStatus;
-  created_at: Date;
-  updated_at: Date;
+  status?: 'draft' | 'pending' | 'approved' | 'active' | 'rejected';
 }

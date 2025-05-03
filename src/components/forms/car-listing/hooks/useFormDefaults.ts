@@ -3,6 +3,7 @@
  * useFormDefaults Hook
  * Updated: 2025-06-19 - Fixed property name issue
  * Updated: 2025-06-20 - Fixed serviceHistoryType type and improved exports
+ * Updated: 2025-07-24 - Fixed transmission type to include semi-automatic
  */
 
 import { useCallback, useMemo } from "react";

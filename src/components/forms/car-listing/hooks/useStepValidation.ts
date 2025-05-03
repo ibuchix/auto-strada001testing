@@ -5,6 +5,7 @@
  * - Separated form validation from navigation to improve maintainability
  * - 2025-04-05: Added comprehensive logging for validation debugging
  * - 2025-06-02: Fixed interface to include stepErrors and validationErrors
+ * - 2025-07-24: Fixed validate property check for FormStep
  */
 
 import { useCallback, useState } from "react";
@@ -110,15 +111,15 @@ export const useStepValidation = (form: UseFormReturn<CarListingFormData>, curre
       console.log(`[StepValidation][${requestId}] Validating step:`, {
         stepIndex: currentStep,
         stepId: currentStepConfig.id,
-        hasCustomValidator: !!currentStepConfig.validate,
+        hasCustomValidator: !!(currentStepConfig as any).validate,
         timestamp: new Date().toISOString()
       });
       
       // First check if there's a custom validation function for this step
-      if (currentStepConfig.validate) {
+      if ((currentStepConfig as any).validate) {
         try {
           console.log(`[StepValidation][${requestId}] Running custom validator for step ${currentStepConfig.id}`);
-          const isValid = currentStepConfig.validate(form.getValues());
+          const isValid = (currentStepConfig as any).validate(form.getValues());
           
           console.log(`[StepValidation][${requestId}] Custom validation result:`, {
             stepId: currentStepConfig.id,

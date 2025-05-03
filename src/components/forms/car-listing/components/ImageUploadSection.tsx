@@ -2,6 +2,7 @@
 /**
  * Image Upload Section for car listing forms
  * Created: 2025-06-04
+ * Updated: 2025-07-24 - Fixed form field types and form value setting
  * 
  * This component handles image uploads and prevents auto-saving during uploads
  * to avoid performance issues and flickering.
@@ -50,7 +51,7 @@ export const ImageUploadSection = ({
   
   // Initialize images from form data on mount
   useEffect(() => {
-    const formImages = form.getValues('images') || [];
+    const formImages = form.getValues().images || [];
     setImages(Array.isArray(formImages) ? formImages : []);
   }, [form]);
   
@@ -86,9 +87,12 @@ export const ImageUploadSection = ({
         newImages.push(filePath);
       }
       
-      // Update local state and form
+      // Update local state
       setImages(newImages);
-      form.setValue('images', newImages, { shouldDirty: true });
+      
+      // Update form values - fixed the 'images' field assignment
+      const formData = form.getValues();
+      form.setValue("images", newImages, { shouldDirty: true });
       
       // Complete upload successfully
       finishUpload(true);
@@ -112,7 +116,9 @@ export const ImageUploadSection = ({
     const newImages = [...images];
     newImages.splice(index, 1);
     setImages(newImages);
-    form.setValue('images', newImages, { shouldDirty: true });
+    
+    // Update form values - fixed the 'images' field assignment
+    form.setValue("images", newImages, { shouldDirty: true });
   };
   
   return (

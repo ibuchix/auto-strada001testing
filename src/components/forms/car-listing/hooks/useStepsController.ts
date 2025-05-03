@@ -2,6 +2,7 @@
 /**
  * Steps Controller Hook
  * Created: 2025-07-18
+ * Updated: 2025-07-24 - Fixed property names and return values
  * 
  * Provides centralized logic for form step navigation and validation
  */
@@ -34,35 +35,32 @@ export const useStepsController = ({
   // Step navigation logic
   const {
     goToNextStep,
-    goToPreviousStep,
+    goToPrevStep, // This matches the return value from useStepNavigation
     goToStep,
+    hasStepErrors,
+    getCurrentStepErrors,
     isFirstStep,
     isLastStep
-  } = useStepNavigation({
-    currentStep,
-    setCurrentStep,
-    totalSteps: steps.length,
-    onStepChange
-  });
+  } = useStepNavigation(form);
 
   // Step validation logic
   const {
     validateCurrentStep,
     stepErrors,
     validationErrors,
-    hasStepErrors
-  } = useStepValidation(form, currentStep, steps);
+  } = useStepValidation(form, currentStep);
 
   // Progress tracking
   const {
     progress,
-    completedSteps,
+    completedStepsArray,
     updateProgress,
   } = useStepProgress({
     form,
-    steps,
     currentStep
   });
+  
+  const completedSteps = completedStepsArray;
 
   // Handle step change with validation
   const handleStepChange = useCallback(async (newStep: number) => {
@@ -95,7 +93,7 @@ export const useStepsController = ({
     currentStep,
     setCurrentStep,
     goToNextStep,
-    goToPreviousStep,
+    goToPreviousStep: goToPrevStep, // Aliased to match expected property
     goToStep,
     handleStepChange,
     isFirstStep,

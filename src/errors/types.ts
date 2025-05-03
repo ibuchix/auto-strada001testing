@@ -2,6 +2,7 @@
 /**
  * Error types and enums
  * Created: 2025-07-22
+ * Updated: 2025-07-23 - Added missing ErrorSeverity, RecoveryAction, and SERVER to ErrorCategory
  */
 
 export enum ErrorCategory {
@@ -12,7 +13,8 @@ export enum ErrorCategory {
   AUTHORIZATION = 'authorization',
   BUSINESS = 'business',
   NOT_FOUND = 'not_found',
-  UNKNOWN = 'unknown'
+  UNKNOWN = 'unknown',
+  SERVER = 'server'  // Added missing SERVER category
 }
 
 export enum ErrorCode {
@@ -53,5 +55,54 @@ export enum ErrorCode {
   // Not found errors
   NOT_FOUND = 'not_found',
   RESOURCE_NOT_FOUND = 'resource_not_found',
-  PAGE_NOT_FOUND = 'page_not_found'
+  PAGE_NOT_FOUND = 'page_not_found',
+  
+  // New server error
+  SERVER_ERROR = 'server_error',
+  
+  // New authorization error
+  AUTHORIZATION_ERROR = 'authorization_error'
+}
+
+// Add missing ErrorSeverity enum
+export enum ErrorSeverity {
+  ERROR = 'error',
+  WARNING = 'warning',
+  INFO = 'info'
+}
+
+// Add missing RecoveryAction enum
+export enum RecoveryAction {
+  RETRY = 'retry',
+  REFRESH = 'refresh',
+  NAVIGATE = 'navigate',
+  SIGN_IN = 'sign_in',
+  CONTACT_SUPPORT = 'contact_support'
+}
+
+export enum RecoveryType {
+  AUTO = 'auto',
+  MANUAL = 'manual',
+  NONE = 'none'
+}
+
+// Add error recovery interface
+export interface ErrorRecovery {
+  action: RecoveryAction;
+  label: string;
+  url?: string;
+  handler?: () => void;
+}
+
+// Add app error options interface
+export interface AppErrorOptions {
+  id?: string;
+  message: string;
+  code?: ErrorCode;
+  category?: ErrorCategory;
+  severity?: ErrorSeverity;
+  description?: string;
+  recovery?: ErrorRecovery;
+  metadata?: Record<string, any>;
+  retryable?: boolean;
 }

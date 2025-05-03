@@ -11,6 +11,7 @@
  * - Added: 2025-05-02: Session timeout warning and temporary file storage
  * - Fixed: 2025-05-03: Replaced WarningTriangle with AlertTriangle and fixed saveFormToLocal return type
  * - Fixed: 2025-06-16: Fixed AlertTriangle import
+ * - Updated: 2025-07-24: Fixed form default values to match CarListingFormData type
  */
 
 import { useEffect, useState } from "react";
@@ -66,6 +67,7 @@ export const FormContent = ({
       hasServiceHistory: false,
       hasPrivatePlate: false,
       hasFinance: false,
+      hasOutstandingFinance: false,
       isDamaged: false,
     },
     mode: "onChange"

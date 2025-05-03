@@ -1,13 +1,15 @@
 
 /**
- * Default Values for Car Listing Form
- * Updated: 2025-06-19 - Fixed property name issue
- * Updated: 2025-06-20 - Fixed issue with serviceHistoryType type
+ * Default values for car listing form
+ * Updated: 2025-07-24 - Added missing CarFeatures properties
  */
 
-import { CarListingFormData } from "@/types/forms";
-
-export const DEFAULT_VALUES: Partial<CarListingFormData> = {
+export const DEFAULT_VALUES = {
+  isSellingOnBehalf: false,
+  hasServiceHistory: false,
+  hasPrivatePlate: false,
+  hasOutstandingFinance: false,
+  isDamaged: false,
   make: "",
   model: "",
   year: new Date().getFullYear(),
@@ -22,23 +24,13 @@ export const DEFAULT_VALUES: Partial<CarListingFormData> = {
     leatherSeats: false,
     navigation: false,
     parkingSensors: false,
-    sunroof: false
+    sunroof: false,
+    satNav: false,
+    panoramicRoof: false,
+    reverseCamera: false,
+    heatedSeats: false,
+    upgradedSound: false
   },
-  isDamaged: false,
-  damageReports: [],
-  hasServiceHistory: false,
-  serviceHistoryType: "none",
-  hasFinance: false,
-  hasPrivatePlate: false,
-  uploadedPhotos: [],
-  images: [],
-  photoIds: [],
-  rimPhotosComplete: false,
-  requiredPhotosComplete: false,
   seller_id: "",
-  seatMaterial: "",
-  numberOfKeys: "1",
-  hasOutstandingFinance: false,
-  isRegisteredInPoland: true,
-  hasWarningLights: false
+  serviceHistoryType: "none"
 };

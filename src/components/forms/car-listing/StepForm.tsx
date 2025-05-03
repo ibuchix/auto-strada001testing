@@ -1,6 +1,8 @@
+
 /**
  * StepForm Component
  * Updated: 2025-07-03 - Completely refactored to remove Next.js dependencies and fix type issues
+ * Updated: 2025-07-24 - Fixed FormSubmissionContext import and related hooks
  */
 
 import { useState, useEffect } from "react";
@@ -11,7 +13,7 @@ import { FormStep } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { useFormSubmissionContext } from "./submission/FormSubmissionProvider";
+import { FormSubmissionContext, useFormSubmission } from "./submission/FormSubmissionProvider";
 import { FormTransactionError } from "./submission/FormTransactionError";
 import { TransactionStatus } from "./types";
 import { useFormController } from "./hooks/useFormController";
@@ -47,7 +49,9 @@ export const StepForm = ({
 }: StepFormProps) => {
   const { validateCurrentStep } = useFormValidation(form);
   const { saveFormData } = useFormStorage();
-  const { isSubmitting, error, transactionStatus, handleSubmit } = useFormSubmissionContext();
+  const formSubmission = useFormSubmission(); // Fixed import
+  const { isSubmitting, error } = formSubmission.submissionState;
+  const { submitForm } = formSubmission;
   
   const [isFormComplete, setIsFormComplete] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -157,10 +161,10 @@ export const StepForm = ({
       const formData = form.getValues();
       
       // Submit the form
-      await handleSubmit(formData);
+      await submitForm(formData);
       
       // If successful, mark as complete and call onComplete
-      if (transactionStatus === TransactionStatus.SUCCESS) {
+      if (formSubmission.submissionState.isSuccessful) {
         setIsFormComplete(true);
         if (onComplete) onComplete();
       }

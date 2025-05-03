@@ -4,6 +4,7 @@
  * Updated: 2025-06-19 - Fixed UseTemporaryFileUploadOptions property
  * Updated: 2025-06-20 - Removed invalid allowedTypes property and fixed type compatibility
  * Updated: 2025-06-21 - Fixed type compatibility with TemporaryFileUpload options
+ * Updated: 2025-07-24 - Fixed ServiceHistoryFile type compatibility
  */
 
 import { useEffect, useState } from "react";
@@ -33,7 +34,8 @@ export const ServiceHistoryUploader = () => {
       name: file.file.name,
       url: file.url,
       type: file.file.type,
-      uploadDate: new Date().toISOString()
+      uploadedAt: new Date().toISOString(),
+      uploadDate: new Date().toISOString() // Include both for compatibility
     }));
     
     form.setValue("serviceHistoryFiles", serviceHistoryFiles, { shouldDirty: true });
