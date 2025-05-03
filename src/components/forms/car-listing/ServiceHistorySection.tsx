@@ -10,6 +10,7 @@
  * - 2027-08-16: Refactored into smaller components for better maintainability
  * - 2025-11-05: Updated to use ServiceHistoryFile type for proper typing
  * - 2025-04-03: Updated to use FormDataContext instead of requiring form prop
+ * - 2025-05-03: Fixed TypeScript errors related to useDocumentUpload hook properties
  */
 
 import { CarListingFormData, ServiceHistoryFile } from "@/types/forms";
@@ -18,6 +19,7 @@ import { DocumentUploader } from "./service-history/DocumentUploader";
 import { DocumentList } from "./service-history/DocumentList";
 import { useDocumentUpload } from "./service-history/useDocumentUpload";
 import { useFormData } from "./context/FormDataContext";
+import { useState } from "react";
 
 interface ServiceHistorySectionProps {
   carId?: string;
@@ -25,19 +27,70 @@ interface ServiceHistorySectionProps {
 
 export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => {
   const { form } = useFormData();
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadSuccess, setUploadSuccess] = useState<number | null>(null);
   
   const serviceHistoryType = form.watch('serviceHistoryType');
   const uploadedFiles = form.watch('serviceHistoryFiles') || [];
   
   const {
-    isUploading,
-    uploadProgress,
-    selectedFiles,
-    uploadSuccess,
-    handleFileUpload,
-    removeSelectedFile,
-    removeUploadedFile
-  } = useDocumentUpload(form, carId);
+    files,
+    uploading,
+    error,
+    uploadFile,
+    removeFile,
+  } = useDocumentUpload();
+
+  // Event handlers for file upload
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    
+    const fileArray = Array.from(files);
+    setSelectedFiles(fileArray);
+    setUploadProgress(0);
+    
+    // Upload each file
+    const uploadPromises = fileArray.map(file => {
+      return uploadFile(file);
+    });
+    
+    // Set progress during upload
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 5;
+      if (progress <= 90) {
+        setUploadProgress(progress);
+      }
+    }, 100);
+    
+    try {
+      await Promise.all(uploadPromises);
+      clearInterval(interval);
+      setUploadProgress(100);
+      setUploadSuccess(fileArray.length);
+      
+      // Clear selected files after successful upload
+      setTimeout(() => {
+        setSelectedFiles([]);
+        setUploadSuccess(null);
+      }, 3000);
+      
+    } catch (e) {
+      clearInterval(interval);
+      setUploadProgress(0);
+    }
+  };
+  
+  const removeSelectedFile = (index: number) => {
+    const newFiles = [...selectedFiles];
+    newFiles.splice(index, 1);
+    setSelectedFiles(newFiles);
+  };
+  
+  const removeUploadedFile = (id: string) => {
+    removeFile(id);
+  };
 
   // Show the document upload section only if service history type is not "none"
   const showDocumentUpload = serviceHistoryType && serviceHistoryType !== 'none';
@@ -53,7 +106,7 @@ export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => 
             
             <DocumentUploader
               onUpload={handleFileUpload}
-              isUploading={isUploading}
+              isUploading={uploading}
               uploadSuccess={uploadSuccess}
               uploadProgress={uploadProgress}
               carId={carId}

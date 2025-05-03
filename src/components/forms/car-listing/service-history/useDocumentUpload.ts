@@ -2,6 +2,7 @@
 /**
  * useDocumentUpload hook
  * Updated: 2025-07-27 - Fixed ServiceHistoryFile type issues
+ * Updated: 2025-05-03 - Added missing properties to match component usage
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -16,6 +17,9 @@ export function useDocumentUpload() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [files, setFiles] = useState<ServiceHistoryFile[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadSuccess, setUploadSuccess] = useState<number | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   
   // Get current files from form
   const serviceHistoryFiles = watch('serviceHistoryFiles') || [];
@@ -123,6 +127,64 @@ export function useDocumentUpload() {
     // Update form data
     setValue('serviceHistoryFiles', updatedFiles, { shouldDirty: true });
   }, [files, setValue]);
+
+  /**
+   * Handle file selection
+   */
+  const handleFileUpload = useCallback(async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    
+    const newSelectedFiles = Array.from(fileList);
+    setSelectedFiles(newSelectedFiles);
+    setUploadProgress(0);
+    
+    let progress = 10;
+    const interval = setInterval(() => {
+      progress += 10;
+      if (progress <= 90) {
+        setUploadProgress(progress);
+      }
+    }, 200);
+    
+    try {
+      const uploadedFiles = await Promise.all(
+        newSelectedFiles.map(file => uploadFile(file))
+      );
+      
+      clearInterval(interval);
+      setUploadProgress(100);
+      setUploadSuccess(uploadedFiles.filter(Boolean).length);
+      
+      setTimeout(() => {
+        setUploadSuccess(null);
+        setSelectedFiles([]);
+      }, 2000);
+      
+    } catch (err) {
+      clearInterval(interval);
+      console.error("Error uploading files:", err);
+    } finally {
+      setUploading(false);
+    }
+  }, [uploadFile]);
+  
+  /**
+   * Remove a selected file
+   */
+  const removeSelectedFile = useCallback((index: number) => {
+    setSelectedFiles(prev => {
+      const newFiles = [...prev];
+      newFiles.splice(index, 1);
+      return newFiles;
+    });
+  }, []);
+  
+  /**
+   * Remove an uploaded file
+   */
+  const removeUploadedFile = useCallback((id: string) => {
+    removeFile(id);
+  }, [removeFile]);
   
   return {
     files,
@@ -130,6 +192,17 @@ export function useDocumentUpload() {
     error,
     uploadFile,
     removeFile,
-    addExistingFile
+    addExistingFile,
+    
+    // Additional properties for component compatibility
+    uploadProgress,
+    uploadSuccess,
+    selectedFiles,
+    handleFileUpload,
+    removeSelectedFile,
+    removeUploadedFile,
+    
+    // For backwards compatibility
+    isUploading: uploading
   };
 }

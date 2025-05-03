@@ -1,99 +1,59 @@
 
 /**
- * Vehicle Status Hook
- * Created: 2025-06-14
- * Updated: 2025-07-27 - Fixed boolean type conversion for form inputs
+ * Hook for managing vehicle status section
+ * Updated: 2025-05-03 - Fixed TypeScript errors related to boolean conversion
  */
-import { useFormContext } from 'react-hook-form';
-import { useState } from 'react';
-import { CarListingFormData } from '@/types/forms';
 
-export function useVehicleStatusSection() {
-  const { watch, setValue } = useFormContext<CarListingFormData>();
-  
-  // Watch all boolean status fields
-  const isDamaged = watch('isDamaged') || false;
-  const hasWarningLights = watch('hasWarningLights') || false;
-  const hasFinance = watch('hasOutstandingFinance') || false;
-  const hasPrivatePlate = watch('hasPrivatePlate') || false;
-  const hasServiceHistory = watch('hasServiceHistory') || false;
-  
-  // Status displays
-  const [showDamageOptions, setShowDamageOptions] = useState(isDamaged);
-  const [showWarningLightOptions, setShowWarningLightOptions] = useState(hasWarningLights);
-  const [showFinanceOptions, setShowFinanceOptions] = useState(hasFinance);
-  const [showPlateOptions, setShowPlateOptions] = useState(hasPrivatePlate);
-  const [showServiceHistoryOptions, setShowServiceHistoryOptions] = useState(hasServiceHistory);
+import { useCallback, useState } from "react";
+import { useFormContext } from "react-hook-form";
+import { CarListingFormData } from "@/types/forms";
 
-  // Update damage status
-  const handleDamageChange = (isChecked: boolean) => {
-    setValue('isDamaged', isChecked);
-    setShowDamageOptions(isChecked);
-    
-    // If no damage, clear damage reports
-    if (!isChecked) {
-      setValue('damageReports', []);
-    }
-  };
+export const useVehicleStatusSection = () => {
+  const { register, watch, setValue } = useFormContext<CarListingFormData>();
+  const [financeSectionVisible, setFinanceSectionVisible] = useState(false);
   
-  // Update warning lights status
-  const handleWarningLightsChange = (isChecked: boolean) => {
-    setValue('hasWarningLights', isChecked);
-    setShowWarningLightOptions(isChecked);
-    
-    // If no warning lights, clear warning light photos
-    if (!isChecked) {
-      setValue('warningLightPhotos', []);
-      setValue('warningLightDescription', '');
-    }
-  };
+  // Watch for changes to relevant fields
+  const hasOutstandingFinance = watch("hasOutstandingFinance");
+  const hasPrivatePlate = watch("hasPrivatePlate");
+  const isDamaged = watch("isDamaged");
+  const hasServiceHistory = watch("hasServiceHistory");
   
-  // Update finance status
-  const handleFinanceChange = (isChecked: boolean) => {
-    setValue('hasOutstandingFinance', isChecked);
-    setShowFinanceOptions(isChecked);
-    
-    // If no finance, clear finance details
-    if (!isChecked) {
-      setValue('financeAmount', undefined);
-      setValue('financeProvider', '');
-      setValue('financeEndDate', '');
-    }
-  };
+  // Toggle finance section visibility based on form value
+  const toggleFinanceSection = useCallback(() => {
+    setFinanceSectionVisible(prev => !prev);
+  }, []);
   
-  // Update private plate status
-  const handlePrivatePlateChange = (isChecked: boolean) => {
-    setValue('hasPrivatePlate', isChecked);
-    setShowPlateOptions(isChecked);
-  };
-  
-  // Update service history status
-  const handleServiceHistoryChange = (isChecked: boolean) => {
-    setValue('hasServiceHistory', isChecked);
-    setShowServiceHistoryOptions(isChecked);
-    
-    // If no service history, clear service history type
-    if (!isChecked) {
-      setValue('serviceHistoryType', 'none');
-      setValue('serviceHistoryFiles', []);
+  // Handle checkbox changes
+  const handleOutstandingFinanceChange = useCallback((checked: boolean) => {
+    setValue("hasOutstandingFinance", checked, { shouldDirty: true });
+    if (checked) {
+      toggleFinanceSection();
     }
-  };
+  }, [setValue, toggleFinanceSection]);
+  
+  const handlePrivatePlateChange = useCallback((checked: boolean) => {
+    setValue("hasPrivatePlate", checked, { shouldDirty: true });
+  }, [setValue]);
+  
+  const handleDamagedChange = useCallback((checked: boolean) => {
+    setValue("isDamaged", checked, { shouldDirty: true });
+  }, [setValue]);
+  
+  const handleServiceHistoryChange = useCallback((checked: boolean) => {
+    setValue("hasServiceHistory", checked, { shouldDirty: true });
+  }, [setValue]);
   
   return {
-    isDamaged,
-    hasWarningLights,
-    hasFinance,
+    register,
+    hasOutstandingFinance,
     hasPrivatePlate,
+    isDamaged,
     hasServiceHistory,
-    showDamageOptions,
-    showWarningLightOptions,
-    showFinanceOptions,
-    showPlateOptions,
-    showServiceHistoryOptions,
-    handleDamageChange,
-    handleWarningLightsChange,
-    handleFinanceChange,
+    financeSectionVisible,
+    toggleFinanceSection,
+    handleOutstandingFinanceChange,
     handlePrivatePlateChange,
+    handleDamagedChange,
     handleServiceHistoryChange
   };
-}
+};

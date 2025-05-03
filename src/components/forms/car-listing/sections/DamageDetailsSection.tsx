@@ -1,134 +1,148 @@
 
 /**
- * Damage Details Section
- * Created: 2025-06-07
- * Contains fields for reporting vehicle damage
- * Updated: 2025-06-08: Fixed type error with DamageType
- * Updated: 2025-06-08: Fixed missing photo property in DamageReport
- * Updated: 2025-07-27: Fixed missing id property in append function
+ * DamageDetailsSection Component
+ * Displays and handles car damage details
+ * Updated: 2025-05-03 - Fixed TypeScript errors related to DamageReport type
  */
 
 import { useFormData } from "../context/FormDataContext";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Plus, Trash } from "lucide-react";
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useFieldArray } from "react-hook-form";
-import { DamageType } from "@/types/forms";
-import { v4 as uuidv4 } from 'uuid';
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { v4 as uuidv4 } from "uuid";
+import { DamageType, DamageReport } from "@/types/forms";
 
 export const DamageDetailsSection = () => {
   const { form } = useFormData();
-  const { fields, append, remove } = useFieldArray({
-    control: form?.control,
-    name: "damageReports",
-  });
+  const [damageType, setDamageType] = useState<DamageType>("scratch");
+  const [damageLocation, setDamageLocation] = useState("");
+  const [damageDescription, setDamageDescription] = useState("");
   
-  const isDamaged = form?.watch("isDamaged");
+  const isDamaged = form.watch("isDamaged");
+  const damages = form.watch("damages") || [];
   
-  if (!form) {
-    return <div>Loading form...</div>;
-  }
+  const addDamage = () => {
+    if (!damageLocation || !damageDescription) return;
+    
+    const newDamage: DamageReport = {
+      id: uuidv4(), // Add a unique ID
+      type: damageType,
+      location: damageLocation,
+      description: damageDescription,
+      severity: "minor",
+      photo: null
+    };
+    
+    const updatedDamages = [...damages, newDamage];
+    
+    form.setValue("damages", updatedDamages, { shouldDirty: true });
+    
+    // Reset form
+    setDamageType("scratch");
+    setDamageLocation("");
+    setDamageDescription("");
+  };
+  
+  const removeDamage = (index: number) => {
+    const updatedDamages = [...damages];
+    updatedDamages.splice(index, 1);
+    
+    form.setValue("damages", updatedDamages, { shouldDirty: true });
+  };
   
   if (!isDamaged) {
     return (
-      <div className="bg-gray-50 p-4 rounded-md">
-        <p className="text-gray-600 italic">This section is only required if your vehicle has damage.</p>
+      <div className="text-gray-500 italic">
+        You have indicated that the vehicle has no damage. If this changes, please update the vehicle status.
       </div>
     );
   }
   
   return (
     <div className="space-y-6">
-      <div className="bg-amber-50 border border-amber-100 p-4 rounded-md">
-        <p className="text-amber-700 text-sm">
-          Please provide details of any damage to your vehicle. Being thorough and honest will help us provide an accurate valuation.
-        </p>
-      </div>
+      <h3 className="text-lg font-semibold">Damage Details</h3>
+      <p className="text-sm text-gray-500">Please provide details about any damage to the vehicle</p>
       
-      {fields.map((field, index) => (
-        <div key={field.id} className="p-4 border rounded-md space-y-4">
-          <div className="flex justify-between items-center">
-            <h4 className="font-medium">Damage Report #{index + 1}</h4>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => remove(index)}
+      <div className="space-y-4 border p-4 rounded-md">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <FormLabel>Damage Type</FormLabel>
+            <Select
+              value={damageType}
+              onValueChange={(value) => setDamageType(value as DamageType)}
             >
-              <Trash className="h-4 w-4 text-red-500" />
-            </Button>
+              <SelectTrigger>
+                <SelectValue placeholder="Select damage type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="scratch">Scratch</SelectItem>
+                <SelectItem value="dent">Dent</SelectItem>
+                <SelectItem value="crack">Crack</SelectItem>
+                <SelectItem value="tear">Tear</SelectItem>
+                <SelectItem value="missing">Missing Part</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name={`damageReports.${index}.type`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Type of Damage</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Scratch, Dent, Engine issue" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name={`damageReports.${index}.location`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Front bumper, Driver's door" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          <div>
+            <FormLabel>Location</FormLabel>
+            <Input
+              value={damageLocation}
+              onChange={(e) => setDamageLocation(e.target.value)}
+              placeholder="e.g. Front bumper, driver side door"
             />
           </div>
-          
-          <FormField
-            control={form.control}
-            name={`damageReports.${index}.description`}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <Textarea 
-                    placeholder="Please describe the damage in detail" 
-                    className="min-h-[80px]" 
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+        </div>
+        
+        <div>
+          <FormLabel>Description</FormLabel>
+          <Textarea
+            value={damageDescription}
+            onChange={(e) => setDamageDescription(e.target.value)}
+            placeholder="Please describe the damage in detail"
           />
         </div>
-      ))}
+        
+        <Button
+          type="button"
+          onClick={addDamage}
+          disabled={!damageLocation || !damageDescription}
+        >
+          Add Damage
+        </Button>
+      </div>
       
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="mt-2"
-        onClick={() => append({ 
-          id: uuidv4(),
-          type: 'scratch' as DamageType, 
-          location: '', 
-          description: '',
-          severity: 'minor',
-          photo: null
-        })}
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Add Damage Report
-      </Button>
+      {damages.length > 0 && (
+        <div className="space-y-4">
+          <h4 className="font-medium">Reported Damage</h4>
+          
+          <div className="space-y-2">
+            {damages.map((damage, index) => (
+              <div
+                key={damage.id || index}
+                className="border rounded-md p-3 flex justify-between items-center"
+              >
+                <div>
+                  <p className="font-medium capitalize">{damage.type} - {damage.location}</p>
+                  <p className="text-sm text-gray-600">{damage.description}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => removeDamage(index)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

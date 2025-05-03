@@ -1,123 +1,88 @@
 
 /**
- * Steps Controller Hook
- * Created: 2025-07-18
- * Updated: 2025-07-24 - Fixed property names and return values
- * Updated: 2025-07-27 - Added missing isFirstStep and isLastStep properties
- * 
- * Provides centralized logic for form step navigation and validation
+ * Hook for managing form steps
+ * Updated: 2025-05-03 - Fixed TypeScript errors related to types and missing properties
  */
+import { useState, useCallback } from 'react';
+import { UseFormReturn, FieldValues } from 'react-hook-form';
+import { StepErrorRecord } from '../types';
 
-import { useEffect, useState, useCallback } from 'react';
-import { UseFormReturn } from 'react-hook-form';
-import { CarListingFormData } from '@/types/forms';
-import { useStepNavigation } from './useStepNavigation';
-import { useStepValidation } from './useStepValidation';
-import { useStepProgress } from './useStepProgress';
-import { FormStep } from '../types';
-
-interface UseStepsControllerProps {
-  form: UseFormReturn<CarListingFormData>;
-  steps: FormStep[];
-  initialStep?: number;
-  onStepChange?: (step: number) => void;
-  onValidationError?: (errors: string[]) => void;
+interface UseStepsControllerProps<T extends FieldValues> {
+  form: UseFormReturn<T>;
+  steps: any[];
+  onValidateStep?: (step: number) => boolean | Promise<boolean>;
 }
 
 interface UseStepProgressProps {
-  form: UseFormReturn<CarListingFormData>;
-  steps?: FormStep[];
-  totalSteps?: number;
+  currentStep: number;
+  totalSteps: number;
+  filteredSteps: any[];
+  visibleSections: string[];
 }
 
-export const useStepsController = ({
+export function useStepsController<T extends FieldValues>({
   form,
   steps,
-  initialStep = 0,
-  onStepChange,
-  onValidationError
-}: UseStepsControllerProps) => {
-  const [currentStep, setCurrentStep] = useState(initialStep);
-  
-  // Step navigation logic
-  const navigation = useStepNavigation(form);
+  onValidateStep
+}: UseStepsControllerProps<T>) {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [stepErrors, setStepErrors] = useState<StepErrorRecord>({});
 
-  // Step validation logic
-  const {
-    validateCurrentStep,
-    stepErrors,
-    validationErrors,
-  } = useStepValidation(form, currentStep);
+  const totalSteps = steps.length;
 
-  // Progress tracking with correct props
-  const progressProps: UseStepProgressProps = {
-    form,
-    steps,
-    totalSteps: steps?.length || 4
-  };
+  const goToStep = useCallback(async (step: number) => {
+    if (step >= 0 && step < totalSteps) {
+      // If moving forward, validate current step
+      if (step > currentStep && onValidateStep) {
+        const isValid = await onValidateStep(currentStep);
+        if (!isValid) {
+          return;
+        }
+
+        // Mark current step as completed
+        if (!completedSteps.includes(currentStep)) {
+          setCompletedSteps(prev => [...prev, currentStep]);
+        }
+      }
+
+      setCurrentStep(step);
+    }
+  }, [currentStep, completedSteps, totalSteps, onValidateStep]);
+
+  const goToNextStep = useCallback(() => {
+    goToStep(currentStep + 1);
+  }, [currentStep, goToStep]);
+
+  const goToPrevStep = useCallback(() => {
+    goToStep(currentStep - 1);
+  }, [currentStep, goToStep]);
+
+  const hasStepErrors = useCallback(() => {
+    return Object.keys(stepErrors).length > 0;
+  }, [stepErrors]);
+
+  const getCurrentStepErrors = useCallback(() => {
+    return stepErrors || {};
+  }, [stepErrors]);
   
-  const {
-    progress,
-    completedStepsArray,
-    updateProgress,
-  } = useStepProgress(progressProps);
-  
-  const completedSteps = completedStepsArray;
-  
-  // Extract and rename needed properties from navigation
-  const { 
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === totalSteps - 1;
+
+  const stepsWithProgress = {
+    currentStep,
+    totalSteps,
     goToNextStep,
     goToPrevStep,
     goToStep,
     hasStepErrors,
-    getCurrentStepErrors
-  } = navigation;
-  
-  // Calculate isFirstStep and isLastStep manually
-  const isFirstStep = currentStep === 0;
-  const isLastStep = currentStep === (steps?.length || 4) - 1;
-
-  // Handle step change with validation
-  const handleStepChange = useCallback(async (newStep: number) => {
-    // Validate current step if moving forward
-    if (newStep > currentStep) {
-      const isValid = await validateCurrentStep();
-      if (!isValid) {
-        if (onValidationError) {
-          onValidationError(Object.values(validationErrors).flat());
-        }
-        return false;
-      }
-    }
-    
-    // Update the step
-    goToStep(newStep);
-    return true;
-  }, [currentStep, goToStep, validateCurrentStep, validationErrors, onValidationError]);
-
-  // Update progress when form values change
-  useEffect(() => {
-    const subscription = form.watch(() => {
-      updateProgress();
-    });
-    
-    return () => subscription.unsubscribe();
-  }, [form, updateProgress]);
-
-  return {
-    currentStep,
-    setCurrentStep,
-    goToNextStep,
-    goToPreviousStep: goToPrevStep, // Aliased to match expected property
-    goToStep,
-    handleStepChange,
+    getCurrentStepErrors,
     isFirstStep,
     isLastStep,
-    validateCurrentStep,
-    stepErrors,
-    validationErrors,
-    hasStepErrors,
-    progress,
-    completedSteps
+    // Add these properties for useStepProgress
+    filteredSteps: steps,
+    visibleSections: steps.flatMap(step => step.sections || [])
   };
-};
+
+  return stepsWithProgress;
+}

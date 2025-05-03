@@ -3,6 +3,7 @@
  * Hook for providing form defaults
  * Created: 2025-07-26
  * Updated: 2025-07-27 - Fixed type issues with transmission and serviceHistoryType
+ * Updated: 2025-05-03 - Updated DEFAULT_VALUES to use proper typed values
  * Handles default values and loading valuation data
  */
 
@@ -34,6 +35,11 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
             model: valuationData.model
           });
 
+          // Ensure transmission is a valid enum value
+          const transmission = valuationData.transmission === "automatic" || 
+                              valuationData.transmission === "semi-automatic" ? 
+                              valuationData.transmission : "manual";
+
           // Set default values based on valuation data
           const valuationDefaults: Partial<CarListingFormData> = {
             ...DEFAULT_VALUES,
@@ -46,7 +52,8 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
             vin: valuationData.vin || '',
             price: valuationData.valuation || valuationData.reservePrice || 0,
             reserve_price: valuationData.reservePrice || 0,
-            transmission: (valuationData.transmission as "manual" | "automatic" | "semi-automatic") || "manual"
+            // Ensure transmission is always one of the allowed enum values
+            transmission: transmission
           };
 
           setDefaults(valuationDefaults);
