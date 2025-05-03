@@ -3,6 +3,7 @@
  * useDocumentUpload hook
  * Updated: 2025-07-27 - Fixed ServiceHistoryFile type issues
  * Updated: 2025-05-03 - Added missing properties to match component usage
+ * Updated: 2025-05-04 - Fixed hook return type to include all necessary properties
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -147,9 +148,8 @@ export function useDocumentUpload() {
     }, 200);
     
     try {
-      const uploadedFiles = await Promise.all(
-        newSelectedFiles.map(file => uploadFile(file))
-      );
+      const uploadPromises = newSelectedFiles.map(file => uploadFile(file));
+      const uploadedFiles = await Promise.all(uploadPromises);
       
       clearInterval(interval);
       setUploadProgress(100);
@@ -193,16 +193,12 @@ export function useDocumentUpload() {
     uploadFile,
     removeFile,
     addExistingFile,
-    
-    // Additional properties for component compatibility
     uploadProgress,
     uploadSuccess,
     selectedFiles,
     handleFileUpload,
     removeSelectedFile,
     removeUploadedFile,
-    
-    // For backwards compatibility
     isUploading: uploading
   };
 }

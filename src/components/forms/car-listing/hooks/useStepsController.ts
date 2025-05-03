@@ -2,10 +2,15 @@
 /**
  * Hook for managing form steps
  * Updated: 2025-05-03 - Fixed TypeScript errors related to types and missing properties
+ * Updated: 2025-05-04 - Fixed StepErrorRecord import and type issues
  */
 import { useState, useCallback } from 'react';
 import { UseFormReturn, FieldValues } from 'react-hook-form';
-import { StepErrorRecord } from '../types';
+
+// Define StepErrorRecord type since it wasn't found in the import
+interface StepErrorRecord {
+  [key: string]: string[];
+}
 
 interface UseStepsControllerProps<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -13,12 +18,8 @@ interface UseStepsControllerProps<T extends FieldValues> {
   onValidateStep?: (step: number) => boolean | Promise<boolean>;
 }
 
-interface UseStepProgressProps {
-  currentStep: number;
-  totalSteps: number;
-  filteredSteps: any[];
-  visibleSections: string[];
-}
+// We're removing this interface since it was causing conflicts
+// The return type is now defined inline
 
 export function useStepsController<T extends FieldValues>({
   form,
@@ -69,7 +70,7 @@ export function useStepsController<T extends FieldValues>({
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === totalSteps - 1;
 
-  const stepsWithProgress = {
+  return {
     currentStep,
     totalSteps,
     goToNextStep,
@@ -79,10 +80,8 @@ export function useStepsController<T extends FieldValues>({
     getCurrentStepErrors,
     isFirstStep,
     isLastStep,
-    // Add these properties for useStepProgress
+    // These properties are needed for rendering steps content
     filteredSteps: steps,
     visibleSections: steps.flatMap(step => step.sections || [])
   };
-
-  return stepsWithProgress;
 }

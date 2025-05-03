@@ -5,6 +5,7 @@
  * Updated: 2025-07-24 - Added missing fields to CarListingFormData
  * Updated: 2025-07-25 - Added additional required fields to fix type errors
  * Updated: 2025-07-26 - Fixed missing properties and type mismatches
+ * Updated: 2025-05-04 - Added damageReports to fix TypeScript errors
  */
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -23,6 +24,9 @@ export interface CarFeatures {
   heatedSeats: boolean;
   upgradedSound: boolean;
   alloyWheels: boolean;
+  keylessEntry?: boolean;
+  adaptiveCruiseControl?: boolean;
+  laneDepartureWarning?: boolean;
 }
 
 export interface DamageReport {
@@ -86,6 +90,7 @@ export interface CarListingFormData {
   
   // Additional fields
   damageReports?: DamageReport[];
+  damages?: DamageReport[]; // Added for backwards compatibility
   damagePhotos?: string[];
   serviceHistoryFiles?: ServiceHistoryFile[];
   serviceHistoryType?: 'full' | 'partial' | 'none';

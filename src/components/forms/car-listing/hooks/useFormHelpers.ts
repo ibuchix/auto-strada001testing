@@ -3,6 +3,7 @@
  * Form helpers utility functions
  * Created: 2025-07-27
  * Updated: 2025-05-03 - Fixed type issues with transmission
+ * Updated: 2025-05-04 - Fixed type issues with default form values
  * Centralized utility functions for form hooks
  */
 
@@ -11,7 +12,22 @@ import { CarListingFormData } from "@/types/forms";
 
 // Get initial form values (used by multiple hooks)
 export const getInitialFormValues = (): Partial<CarListingFormData> => {
-  return DEFAULT_VALUES;
+  // Type-safe default values
+  return {
+    isSellingOnBehalf: false,
+    hasServiceHistory: false,
+    hasPrivatePlate: false,
+    hasOutstandingFinance: false,
+    isDamaged: false,
+    make: '',
+    model: '',
+    year: 0,
+    mileage: 0,
+    vin: '',
+    transmission: 'manual' as const,  // Type-safe transmission value
+    serviceHistoryType: 'none' as const,  // Type-safe serviceHistoryType
+    fromValuation: false
+  };
 };
 
 // Alias for backward compatibility
