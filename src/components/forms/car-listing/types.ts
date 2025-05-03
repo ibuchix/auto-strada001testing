@@ -2,6 +2,7 @@
 /**
  * Car listing form types
  * Created: 2025-07-12
+ * Updated: 2025-07-18: Fixed missing exports and enum definitions
  */
 
 import { ReactNode } from 'react';

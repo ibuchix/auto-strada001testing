@@ -5,6 +5,7 @@
  * Maps section IDs to their appropriate component implementations
  * Updated: 2025-06-08: Added ReservePriceSection component
  * Updated: 2025-06-12: Fixed FormDataContext usage and error handling
+ * Updated: 2025-07-18: Fixed incorrect component import paths
  */
 
 import React from 'react';
@@ -12,10 +13,10 @@ import { useFormData } from '../context/FormDataContext';
 import { VehicleDetailsSection } from '../sections/VehicleDetailsSection';
 import { VehicleStatusSection } from '../sections/VehicleStatusSection';
 import { DamageDetailsSection } from '../sections/DamageDetailsSection';
-import { FeaturesSection } from '../FeaturesSection';
+import { FeaturesSection } from '../sections/FeaturesSection';
 import { ServiceHistorySection } from '../sections/ServiceHistorySection';
 import { PersonalDetailsSection } from '../sections/PersonalDetailsSection';
-import { SellerNotesSection } from '../SellerNotesSection';
+import { SellerNotesSection } from '../sections/SellerNotesSection';
 import { AdditionalInfoSection } from '../AdditionalInfoSection';
 import { ImageUploadSection } from './ImageUploadSection';
 import { ReservePriceSection } from '../sections/ReservePriceSection';
