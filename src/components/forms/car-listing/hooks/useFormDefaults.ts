@@ -5,6 +5,7 @@
  * Updated: 2025-07-27 - Fixed type issues with transmission and serviceHistoryType
  * Updated: 2025-05-03 - Updated DEFAULT_VALUES to use proper typed values
  * Updated: 2025-05-04 - Fixed TypeScript errors with type assertions for enums
+ * Updated: 2025-05-05 - Fixed type compatibility with transmission field
  * Handles default values and loading valuation data
  */
 
@@ -17,8 +18,8 @@ export const getInitialFormValues = (): Partial<CarListingFormData> => {
   return {
     ...DEFAULT_VALUES,
     // Ensure proper typing for enum values
-    transmission: DEFAULT_VALUES.transmission as "manual" | "automatic" | "semi-automatic",
-    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType as "full" | "partial" | "none"
+    transmission: DEFAULT_VALUES.transmission,
+    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType
   };
 };
 
@@ -29,8 +30,8 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
   const [defaults, setDefaults] = useState<Partial<CarListingFormData>>({
     ...DEFAULT_VALUES,
     // Ensure proper typing for enum values
-    transmission: DEFAULT_VALUES.transmission as "manual" | "automatic" | "semi-automatic",
-    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType as "full" | "partial" | "none"
+    transmission: DEFAULT_VALUES.transmission,
+    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType
   });
 
   useEffect(() => {
@@ -47,10 +48,16 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
           });
 
           // Ensure transmission is a valid enum value
-          const transmission: "manual" | "automatic" | "semi-automatic" = 
+          let transmissionValue: "manual" | "automatic" | "semi-automatic" = "manual";
+          
+          // Only set if the value is one of the allowed enum values
+          if (
             valuationData.transmission === "automatic" || 
-            valuationData.transmission === "semi-automatic" ? 
-            valuationData.transmission : "manual";
+            valuationData.transmission === "semi-automatic" || 
+            valuationData.transmission === "manual"
+          ) {
+            transmissionValue = valuationData.transmission;
+          }
 
           // Set default values based on valuation data
           const valuationDefaults: Partial<CarListingFormData> = {
@@ -65,8 +72,8 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
             price: valuationData.valuation || valuationData.reservePrice || 0,
             reserve_price: valuationData.reservePrice || 0,
             // Ensure proper typing for enum values
-            transmission: transmission,
-            serviceHistoryType: "none" as const  // Type-safe default
+            transmission: transmissionValue,
+            serviceHistoryType: "none" as const
           };
 
           setDefaults(valuationDefaults);

@@ -1,108 +1,189 @@
 
 /**
- * Form Submission Service
- * Updated: 2025-05-04 - Fixed TypeScript errors with AppError and error categories
+ * This file handles the car listing form submission operations
+ * Updated: 2025-05-05 - Fixed TypeScript errors and type issues
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { CarListingFormData } from '@/types/forms';
-import { validateForm } from './validationService';
-import { AppError, FormSubmissionResult, SubmissionError, ValidationSubmissionError } from '../types';
+import { CarListingFormData, CarFeatures } from '@/types/forms';
+import { prepareSubmission } from '../utils/submission';
+import { toast } from 'sonner';
+import { ValidationSubmissionError } from '../types';
 
-export async function submitCarListing(formData: CarListingFormData): Promise<FormSubmissionResult> {
+export async function submitCarListing(
+  formData: CarListingFormData,
+  userId: string,
+  draftId?: string
+): Promise<any> {
   try {
-    // 1. Validate the form data
-    console.log('Starting form validation');
-    const validationResult = await validateForm(formData);
+    // Prepare data for submission
+    const data = prepareSubmission(formData);
     
-    if (!validationResult) {
-      console.error('Form validation failed');
-      
-      // Custom error for validation failure
-      throw new ValidationSubmissionError(
-        'Form validation failed',
-        ['Please check your input and try again']
-      );
-    }
+    // Ensure seller_id is set
+    data.seller_id = userId;
     
-    // 2. Process and transform data
-    console.log('Preparing submission data');
-    const submissionData = prepareSubmissionData(formData);
+    // Determine if this is a new submission or an update to an existing one
+    const isUpdate = !!draftId;
     
-    // 3. Submit to database
-    console.log('Submitting to database');
-    const { data, error } = await supabase
-      .from('cars')
-      .upsert([submissionData], {
-        onConflict: 'id'
-      });
+    console.log(`Submitting car listing (${isUpdate ? 'UPDATE' : 'CREATE'}):`, {
+      id: draftId || 'new',
+      make: data.make,
+      model: data.model
+    });
+    
+    const { data: result, error } = isUpdate
+      ? await supabase
+          .from('cars')
+          .update({
+            ...data,
+            updated_at: new Date().toISOString(),
+            status: 'pending'
+          })
+          .eq('id', draftId)
+          .select()
+          .single()
+      : await supabase
+          .from('cars')
+          .insert({
+            ...data,
+            seller_id: userId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            status: 'pending'
+          })
+          .select()
+          .single();
     
     if (error) {
-      console.error('Database error:', error);
-      throw new SubmissionError(
-        `Database error: ${error.message}`,
-        'DB_ERROR',
-        'technical'
-      );
+      console.error('Error submitting car listing:', error);
+      throw new ValidationSubmissionError(`Failed to submit car listing: ${error.message}`);
     }
     
-    console.log('Submission successful', data);
-    return { 
-      success: true, 
-      data 
+    // Prepare properly structured car features data
+    const features: CarFeatures = {
+      airConditioning: formData.features?.airConditioning || false,
+      bluetooth: formData.features?.bluetooth || false,
+      cruiseControl: formData.features?.cruiseControl || false,
+      leatherSeats: formData.features?.leatherSeats || false,
+      navigation: formData.features?.navigation || false,
+      parkingSensors: formData.features?.parkingSensors || false,
+      sunroof: formData.features?.sunroof || false,
+      satNav: formData.features?.satNav || false,
+      panoramicRoof: formData.features?.panoramicRoof || false,
+      reverseCamera: formData.features?.reverseCamera || false,
+      heatedSeats: formData.features?.heatedSeats || false,
+      upgradedSound: formData.features?.upgradedSound || false,
+      alloyWheels: formData.features?.alloyWheels || false,
+      keylessEntry: formData.features?.keylessEntry || false,
+      adaptiveCruiseControl: formData.features?.adaptiveCruiseControl || false,
+      laneDepartureWarning: formData.features?.laneDepartureWarning || false,
     };
     
+    // Update features in a separate query to ensure proper JSON structure
+    if (result?.id) {
+      await supabase
+        .from('cars')
+        .update({ 
+          features 
+        })
+        .eq('id', result.id);
+    }
+    
+    // Clear localStorage form data on successful submission
+    localStorage.removeItem(`car_form_${userId}`);
+    
+    // Show success message
+    toast.success(isUpdate ? 'Car listing updated successfully!' : 'Car listing submitted successfully!');
+    
+    return result;
   } catch (error) {
-    console.error('Submission error:', error);
-    
-    // Handle different types of errors
-    if (error instanceof ValidationSubmissionError) {
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-    
-    if (error instanceof SubmissionError) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-    
-    // Generic error
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
-    };
+    console.error('Error in submitCarListing:', error);
+    throw error;
   }
 }
 
-function prepareSubmissionData(formData: CarListingFormData): any {
+export async function saveCarListingDraft(
+  formData: CarListingFormData,
+  userId: string,
+  draftId?: string
+): Promise<any> {
   try {
-    // Create a copy of the data
-    const submissionData = { ...formData };
+    // Prepare data for submission
+    const data = {
+      ...formData,
+      seller_id: userId,
+      updated_at: new Date().toISOString(),
+      status: 'draft'
+    };
     
-    // Fix boolean fields that might be undefined
-    submissionData.is_draft = formData.status === 'draft' ?? true;
+    // Ensure features is properly structured
+    if (formData.features) {
+      data.features = {
+        airConditioning: formData.features.airConditioning || false,
+        bluetooth: formData.features.bluetooth || false,
+        cruiseControl: formData.features.cruiseControl || false,
+        leatherSeats: formData.features.leatherSeats || false,
+        navigation: formData.features.navigation || false,
+        parkingSensors: formData.features.parkingSensors || false,
+        sunroof: formData.features.sunroof || false,
+        satNav: formData.features.satNav || false,
+        panoramicRoof: formData.features.panoramicRoof || false,
+        reverseCamera: formData.features.reverseCamera || false,
+        heatedSeats: formData.features.heatedSeats || false,
+        upgradedSound: formData.features.upgradedSound || false,
+        alloyWheels: formData.features.alloyWheels || false,
+        keylessEntry: formData.features.keylessEntry || false,
+        adaptiveCruiseControl: formData.features.adaptiveCruiseControl || false,
+        laneDepartureWarning: formData.features.laneDepartureWarning || false,
+      };
+    }
+
+    const isUpdate = !!draftId;
     
-    // Process special fields
-    if (typeof submissionData.features === 'string') {
-      try {
-        submissionData.features = JSON.parse(submissionData.features);
-      } catch (e) {
-        console.error('Error parsing features:', e);
-        submissionData.features = {};
-      }
+    const { data: result, error } = isUpdate
+      ? await supabase
+          .from('cars')
+          .update(data)
+          .eq('id', draftId)
+          .select()
+          .single()
+      : await supabase
+          .from('cars')
+          .insert({
+            ...data,
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+    
+    if (error) {
+      console.error('Error saving car listing draft:', error);
+      throw new ValidationSubmissionError(`Failed to save draft: ${error.message}`);
     }
     
-    return submissionData;
+    return result;
   } catch (error) {
-    console.error('Error preparing submission data:', error);
-    throw new SubmissionError(
-      `Failed to prepare submission data: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      'PREP_ERROR',
-      'technical'
-    );
+    console.error('Error in saveCarListingDraft:', error);
+    throw error;
+  }
+}
+
+export async function fetchCarListingDraft(draftId: string): Promise<CarListingFormData | null> {
+  try {
+    const { data, error } = await supabase
+      .from('cars')
+      .select('*')
+      .eq('id', draftId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching car listing draft:', error);
+      return null;
+    }
+    
+    return data as CarListingFormData;
+  } catch (error) {
+    console.error('Error in fetchCarListingDraft:', error);
+    return null;
   }
 }

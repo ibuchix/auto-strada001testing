@@ -1,85 +1,62 @@
 
 /**
- * Car Data Transformer Utilities
- * Updated: 2025-06-22 - Fixed property access to match CarListingFormData structure
+ * Transforms and normalizes car data
+ * Updated: 2025-05-05 - Fixed TypeScript errors with features
  */
 
 import { CarListingFormData, CarFeatures } from "@/types/forms";
 
 /**
- * Transforms car listing data from API/DB format to form format
+ * Transforms server car data into the form's expected format
  */
-export const transformCarDataToFormData = (carData: any): CarListingFormData => {
-  // Handle potential missing fields
-  if (!carData) return {} as CarListingFormData;
-
-  // Basic car data
-  const formData: CarListingFormData = {
-    id: carData.id,
-    make: carData.make || '',
-    model: carData.model || '',
-    year: carData.year || new Date().getFullYear(),
-    mileage: carData.mileage || 0,
-    price: carData.price || 0,
-    vin: carData.vin || '',
-    transmission: carData.transmission || 'manual',
-    reserve_price: carData.reserve_price,
-    
-    // Features and options
-    features: parseFeatures(carData.features),
-    isDamaged: carData.is_damaged || false,
-    isRegisteredInPoland: carData.is_registered_in_poland || false,
-    hasPrivatePlate: carData.has_private_plate || false,
-    hasFinance: carData.has_finance || false,
-    hasServiceHistory: carData.has_service_history || false,
-    serviceHistoryType: carData.service_history_type || 'none',
-    
-    // Personal details
-    name: carData.seller_name || '',
-    address: carData.address || '',
-    mobileNumber: carData.mobile_number || '',
-    seller_id: carData.seller_id,
-    
-    // Additional fields
-    sellerNotes: carData.seller_notes || '',
-    title: carData.title || '',
-    seatMaterial: carData.seat_material || 'cloth',
-    numberOfKeys: carData.number_of_keys?.toString() || '1',
-    
-    // Photo related fields
-    vehiclePhotos: carData.vehicle_photos || {},
-    uploadedPhotos: carData.uploaded_photos || [],
-    rimPhotos: carData.rim_photos || {},
-    damagePhotos: carData.damage_photos || [],
-    
-    // Metadata and progress
-    form_metadata: carData.form_metadata || {
-      currentStep: 0,
-      completedSteps: [],
-      validatedSections: []
-    },
-    
-    // Timestamps
-    created_at: carData.created_at,
-    updated_at: carData.updated_at
+export function transformCarDataForForm(carData: any): CarListingFormData {
+  // Create a features object with all required properties
+  const features: CarFeatures = {
+    // Required core properties
+    airConditioning: false,
+    bluetooth: false,
+    cruiseControl: false,
+    leatherSeats: false,
+    navigation: false,
+    parkingSensors: false,
+    sunroof: false,
+    satNav: false,
+    panoramicRoof: false, 
+    reverseCamera: false,
+    heatedSeats: false,
+    upgradedSound: false,
+    alloyWheels: false,
+    // Optional properties
+    keylessEntry: false,
+    adaptiveCruiseControl: false,
+    laneDepartureWarning: false,
   };
   
-  return formData;
-};
-
-/**
- * Parse features from string or object to a features object
- */
-const parseFeatures = (features: any): Record<string, boolean> => {
-  if (!features) return {};
-  
-  if (typeof features === 'string') {
-    try {
-      return JSON.parse(features);
-    } catch (e) {
-      return {};
-    }
+  // Apply features from car data if available
+  if (carData.features) {
+    Object.entries(carData.features).forEach(([key, value]: [string, any]) => {
+      if (key in features) {
+        (features as any)[key] = !!value;
+      }
+    });
   }
   
-  return features as Record<string, boolean>;
-};
+  return {
+    ...carData,
+    // Ensure features is properly structured
+    features,
+    // Convert certain legacy properties to current names
+    hasPrivatePlate: carData.hasPrivatePlate || carData.privateReg || false,
+    hasOutstandingFinance: carData.hasOutstandingFinance || carData.hasFinance || false,
+    registrationNumber: carData.registrationNumber || carData.registration_number || '',
+    damageReports: carData.damageReports || carData.damages || [],
+    // Ensure proper transmission value
+    transmission: carData.transmission && (
+      carData.transmission === 'manual' || 
+      carData.transmission === 'automatic' || 
+      carData.transmission === 'semi-automatic'
+    ) ? carData.transmission : 'manual',
+    // Set default serviceHistoryType if not present
+    serviceHistoryType: carData.serviceHistoryType || 'none'
+  };
+}

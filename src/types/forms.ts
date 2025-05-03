@@ -7,6 +7,7 @@
  * Updated: 2025-07-26 - Fixed missing properties and type mismatches
  * Updated: 2025-05-04 - Added damageReports to fix TypeScript errors
  * Updated: 2025-05-04 - Added sellerDetails and correct field types
+ * Updated: 2025-05-05 - Added missing fields for manual valuation
  */
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -178,19 +179,31 @@ export interface CarListingFormData {
   
   // Status
   status?: 'draft' | 'pending' | 'approved' | 'active' | 'rejected';
+  
+  // Manual valuation specific fields
+  conditionRating?: number;
+  accidentHistory?: string;
+  contactEmail?: string;
+  previousOwners?: number;
+  engineCapacity?: number;
+  notes?: string;
 }
 
 // Add missing type that was referenced in errors
 export interface CarEntity {
   id: string;
-  make?: string;
-  model?: string;
-  year?: number;
-  price?: number;
-  mileage?: number;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  mileage: number;
+  vin: string;
   seller_id?: string;
-  created_at?: string;
-  updated_at?: string;
+  created_at: string;
+  updated_at: string;
+  status?: string;
+  transmission: "manual" | "automatic" | "semi-automatic";
+  features?: CarFeatures;
 }
 
 export interface StoredFile {
@@ -199,3 +212,6 @@ export interface StoredFile {
   size?: number;
   type?: string;
 }
+
+// Add AuctionStatus export for submission.ts
+export type AuctionStatus = 'draft' | 'pending' | 'approved' | 'active' | 'rejected';

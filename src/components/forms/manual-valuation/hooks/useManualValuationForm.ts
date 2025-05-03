@@ -6,6 +6,7 @@
  * - Added proper validation and error handling
  * - Implemented admin notification via edge function
  * - Updated: 2025-06-22 - Fixed type conversions and field access
+ * - Updated: 2025-05-05 - Fixed TypeScript errors with conditionRating and other fields
  */
 
 import { useForm } from "react-hook-form";
@@ -20,25 +21,39 @@ export const useManualValuationForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const form = useForm<CarListingFormData>({
+  const form = useForm<CarListingFormData & {
+    conditionRating?: number;
+    accidentHistory?: string;
+    contactEmail?: string;
+    previousOwners?: number;
+    engineCapacity?: number;
+    notes?: string;
+  }>({
     defaultValues: {
       name: "",
       address: "",
       mobileNumber: "",
       conditionRating: 3,
       features: {
+        airConditioning: false,
+        bluetooth: false,
+        cruiseControl: false,
+        leatherSeats: false,
+        navigation: false,
+        parkingSensors: false,
+        sunroof: false,
         satNav: false,
         panoramicRoof: false,
         reverseCamera: false,
         heatedSeats: false,
-        upgradedSound: false
+        upgradedSound: false,
+        alloyWheels: false
       },
       isDamaged: false,
       isRegisteredInPoland: false,
       isSellingOnBehalf: false,
       hasPrivatePlate: false,
       financeAmount: 0,
-      financeDocument: null,
       serviceHistoryType: "none",
       sellerNotes: "",
       uploadedPhotos: [],
@@ -61,7 +76,14 @@ export const useManualValuationForm = () => {
     return isNaN(num) ? null : num;
   };
 
-  const onSubmit = async (data: CarListingFormData) => {
+  const onSubmit = async (data: CarListingFormData & {
+    conditionRating?: number;
+    accidentHistory?: string;
+    contactEmail?: string;
+    previousOwners?: number;
+    engineCapacity?: number;
+    notes?: string;
+  }) => {
     setIsSubmitting(true);
     try {
       // Get current user

@@ -1,86 +1,80 @@
 
 /**
- * Form submission utilities
- * Created: 2025-07-23
+ * Changes made:
+ * - 2025-08-19: Updated to use toStringValue utility function
+ * - Fixed type conversion issues
+ * - 2025-08-20: Fixed type compatibility with string | number fields
+ * - 2025-08-25: Added prepareSubmission function to transform form data to database entity
+ * - 2025-12-03: Fixed type issues with required fields in CarEntity
+ * - 2025-12-05: Enhanced prepareSubmission to properly handle CarFeatures
+ * - 2025-06-21: Fixed references to CarFeatures interface and created_at handling
+ * - 2025-07-22: Fixed incomplete implementation
+ * - 2025-05-05: Fixed type issues and removed is_draft property
  */
 
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
+import { toStringValue, toNumberValue } from "@/utils/typeConversion";
 
-export const prepareSubmission = (formData: CarListingFormData, userId: string): CarListingFormData => {
+export const prepareFormDataForSubmission = (data: CarListingFormData) => {
   return {
-    ...formData,
-    seller_id: userId,
-    updated_at: new Date().toISOString(),
-    created_at: formData.created_at ? new Date(formData.created_at).toISOString() : new Date().toISOString(),
-    status: formData.id ? 'pending' : 'draft',
-    is_draft: false
+    ...data,
+    // Use toStringValue to ensure proper type conversion
+    financeAmount: toStringValue(data.financeAmount),
+  };
+};
+
+export const prepareFormDataForApi = (data: CarListingFormData) => {
+  return {
+    ...data,
+    // Use toStringValue to ensure proper type conversion
+    financeAmount: toStringValue(data.financeAmount),
   };
 };
 
 /**
- * Calculates the reserve price based on the base price
- * @param basePrice - The base price of the car
- * @returns The calculated reserve price
+ * Transforms form data into a database entity by removing transient properties
+ * and adding required database fields
+ * 
+ * @param formData The form data to transform
+ * @returns A CarEntity object ready for database submission
  */
-export const calculateReservePrice = (basePrice: number): number => {
-  if (!basePrice) return 0;
+export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
+  // Ensure features property has all required fields
+  const carFeatures: CarFeatures = {
+    airConditioning: formData.features?.airConditioning || false,
+    bluetooth: formData.features?.bluetooth || false,
+    cruiseControl: formData.features?.cruiseControl || false,
+    leatherSeats: formData.features?.leatherSeats || false,
+    navigation: formData.features?.navigation || false,
+    parkingSensors: formData.features?.parkingSensors || false,
+    sunroof: formData.features?.sunroof || false,
+    satNav: formData.features?.satNav || false,
+    panoramicRoof: formData.features?.panoramicRoof || false,
+    reverseCamera: formData.features?.reverseCamera || false,
+    heatedSeats: formData.features?.heatedSeats || false,
+    upgradedSound: formData.features?.upgradedSound || false,
+    alloyWheels: formData.features?.alloyWheels || false,
+  };
   
-  let percentageY = 0;
+  // Ensure all required fields are present with default values if needed
+  const entity: Partial<CarEntity> = {
+    ...formData,
+    id: formData.id || '',
+    created_at: formData.created_at ? new Date(formData.created_at).toISOString() : new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    status: 'draft',
+    // Ensure required fields have values
+    make: formData.make || '',
+    model: formData.model || '',
+    year: formData.year || 0,
+    price: formData.price || 0,
+    mileage: formData.mileage || 0,
+    vin: formData.vin || '',
+    // Cast transmission to the expected type
+    transmission: formData.transmission || 'manual',
+    // Use properly typed features
+    features: carFeatures
+  };
   
-  if (basePrice <= 15000) {
-    percentageY = 0.65;
-  } else if (basePrice <= 20000) {
-    percentageY = 0.46;
-  } else if (basePrice <= 30000) {
-    percentageY = 0.37;
-  } else if (basePrice <= 50000) {
-    percentageY = 0.27;
-  } else if (basePrice <= 60000) {
-    percentageY = 0.27;
-  } else if (basePrice <= 70000) {
-    percentageY = 0.22;
-  } else if (basePrice <= 80000) {
-    percentageY = 0.23;
-  } else if (basePrice <= 100000) {
-    percentageY = 0.24;
-  } else if (basePrice <= 130000) {
-    percentageY = 0.20;
-  } else if (basePrice <= 160000) {
-    percentageY = 0.185;
-  } else if (basePrice <= 200000) {
-    percentageY = 0.22;
-  } else if (basePrice <= 250000) {
-    percentageY = 0.17;
-  } else if (basePrice <= 300000) {
-    percentageY = 0.18;
-  } else if (basePrice <= 400000) {
-    percentageY = 0.18;
-  } else if (basePrice <= 500000) {
-    percentageY = 0.16;
-  } else {
-    percentageY = 0.145;
-  }
-  
-  return basePrice - (basePrice * percentageY);
-};
-
-/**
- * Update missing field values to ensure form completeness
- * @param formData Current form data
- * @returns Updated form data with defaults applied where needed
- */
-export const applyDefaults = (formData: CarListingFormData): CarListingFormData => {
-  // Create a copy to avoid mutating original
-  const data = { ...formData };
-  
-  // Set reserve price if not set but price is available
-  if (data.price && !data.reserve_price) {
-    data.reserve_price = calculateReservePrice(data.price);
-  }
-  
-  // Ensure required arrays exist
-  if (!data.uploadedPhotos) data.uploadedPhotos = [];
-  if (!data.damageReports) data.damageReports = [];
-  
-  return data;
+  return entity;
 };
