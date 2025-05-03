@@ -1,6 +1,7 @@
 /**
  * ServiceHistoryUploader Component
  * Updated: 2025-06-19 - Fixed UseTemporaryFileUploadOptions property
+ * Updated: 2025-06-20 - Removed invalid allowedTypes property and fixed type compatibility
  */
 
 import { useEffect, useState } from "react";
@@ -15,19 +16,11 @@ export const ServiceHistoryUploader = () => {
   const { form } = useFormData();
   const [uploadError, setUploadError] = useState<string | null>(null);
   
-  // Create file uploader for service history documents
+  // Create file uploader for service history documents without invalid properties
   const fileUploader = useTemporaryFileUpload({
     category: 'service_history',
     allowMultiple: true,
-    maxFiles: 5,
-    allowedTypes: [
-      'application/pdf',
-      'image/jpeg',
-      'image/png',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ]
-    // Removed onUploadComplete as it doesn't exist in UseTemporaryFileUploadOptions
+    maxFiles: 5
   });
   
   // Update form data when files change

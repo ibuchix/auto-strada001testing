@@ -1,3 +1,4 @@
+
 /**
  * Form Types
  * Created: 2025-06-15
@@ -5,6 +6,7 @@
  * Updated: 2025-06-17 - Added isRegisteredInPoland, hasWarningLights and warningLightPhotos fields
  * Updated: 2025-06-18 - Added validate method to StepItem interface
  * Updated: 2025-06-19 - Fixed TempStoredFile and TemporaryFile compatibility
+ * Updated: 2025-06-20 - Made interfaces fully compatible between TempStoredFile and TemporaryFile
  * 
  * TypeScript types for form handling
  */
@@ -80,6 +82,10 @@ export interface CarListingFormData {
     interiorFront?: string;
     interiorRear?: string;
   };
+  
+  // Added for validation purposes
+  photoValidationPassed?: boolean;
+  mainPhoto?: string;
 }
 
 export interface DamageReport {
@@ -119,6 +125,7 @@ export interface CarEntity extends CarListingFormData {
 
 export type AuctionStatus = 'draft' | 'pending' | 'active' | 'completed' | 'rejected';
 
+// Updated to make fully compatible with TemporaryFile
 export interface TempStoredFile {
   id: string;
   file: File;
@@ -126,8 +133,11 @@ export interface TempStoredFile {
   url: string;
   createdAt?: Date;
   preview?: string;
+  uploaded?: boolean;
+  uploadedAt?: Date | null;
 }
 
+// Updated to make fully compatible with TempStoredFile
 export interface TemporaryFile {
   id: string;
   file: File;

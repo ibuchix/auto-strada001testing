@@ -6,6 +6,7 @@
  * - 2025-04-05: Added PhotoItem interface and exported it for use in other files
  * - 2025-04-05: Updated PhotoItem interface to make required property non-optional
  * - 2025-04-06: Harmonized with app design system using consistent styling, typography and spacing
+ * - 2025-06-20: Updated PhotoUpload props to ensure correct type usage
  */
 import { LucideIcon } from "lucide-react";
 import { PhotoUpload } from "../PhotoUpload";

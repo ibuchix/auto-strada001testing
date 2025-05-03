@@ -1,4 +1,3 @@
-
 /**
  * Component for uploading photos to a car listing
  * Changes made:
@@ -9,6 +8,7 @@
  * - 2025-05-02: Photos will be stored in memory until form submission
  * - 2025-05-03: Fixed missing X import from lucide-react
  * - 2025-06-18: Fixed type errors with temporary file storage
+ * - 2025-06-20: Fixed type compatibility issues between TempStoredFile and TemporaryFile
  */
 import React from 'react';
 import { useFormData } from './context/FormDataContext';
@@ -24,6 +24,17 @@ interface PhotoUploadProps {
   onValidate?: () => Promise<boolean>;
 }
 
+// Adapter function to convert between types safely
+const adaptFileUploader = (uploader: ReturnType<typeof useTemporaryFileUpload>) => {
+  return {
+    files: uploader.files,
+    isUploading: uploader.isUploading,
+    progress: uploader.progress,
+    uploadFiles: uploader.uploadFiles,
+    removeFile: uploader.removeFile
+  };
+};
+
 export const PhotoUploadSection = ({ 
   carId, 
   onValidate 
@@ -38,7 +49,6 @@ export const PhotoUploadSection = ({
     allowMultiple: false
   });
   
-  // Get photo upload state from the hook for each required photo
   const rearView = useTemporaryFileUpload({
     category: 'required_rear_view',
     allowMultiple: false
@@ -174,11 +184,11 @@ export const PhotoUploadSection = ({
       title="Vehicle Photos"
       subtitle="Upload photos of your vehicle"
     >
-      {/* Session timer */}
+      {/* Session timer - using optional chaining for safety */}
       <Alert className="mb-4">
         <Info className="h-4 w-4" />
         <AlertDescription>
-          Session time remaining: {frontView.remainingSessionTime} minutes. Please complete the form within this time.
+          Session time remaining: {frontView?.remainingSessionTime || 30} minutes. Please complete the form within this time.
         </AlertDescription>
       </Alert>
       
@@ -200,55 +210,13 @@ export const PhotoUploadSection = ({
 
       <div className="space-y-8 mb-8">
         <RequiredPhotosGrid
-          frontView={{
-            files: frontView.files,
-            isUploading: frontView.isUploading,
-            progress: frontView.progress,
-            uploadFiles: frontView.uploadFiles,
-            removeFile: frontView.removeFile
-          }}
-          rearView={{
-            files: rearView.files,
-            isUploading: rearView.isUploading,
-            progress: rearView.progress,
-            uploadFiles: rearView.uploadFiles,
-            removeFile: rearView.removeFile
-          }}
-          driverSide={{
-            files: driverSide.files,
-            isUploading: driverSide.isUploading,
-            progress: driverSide.progress,
-            uploadFiles: driverSide.uploadFiles,
-            removeFile: driverSide.removeFile
-          }}
-          passengerSide={{
-            files: passengerSide.files,
-            isUploading: passengerSide.isUploading,
-            progress: passengerSide.progress,
-            uploadFiles: passengerSide.uploadFiles,
-            removeFile: passengerSide.removeFile
-          }}
-          dashboard={{
-            files: dashboard.files,
-            isUploading: dashboard.isUploading,
-            progress: dashboard.progress,
-            uploadFiles: dashboard.uploadFiles,
-            removeFile: dashboard.removeFile
-          }}
-          interiorFront={{
-            files: interiorFront.files,
-            isUploading: interiorFront.isUploading,
-            progress: interiorFront.progress,
-            uploadFiles: interiorFront.uploadFiles,
-            removeFile: interiorFront.removeFile
-          }}
-          interiorRear={{
-            files: interiorRear.files,
-            isUploading: interiorRear.isUploading,
-            progress: interiorRear.progress,
-            uploadFiles: interiorRear.uploadFiles,
-            removeFile: interiorRear.removeFile
-          }}
+          frontView={adaptFileUploader(frontView)}
+          rearView={adaptFileUploader(rearView)}
+          driverSide={adaptFileUploader(driverSide)}
+          passengerSide={adaptFileUploader(passengerSide)}
+          dashboard={adaptFileUploader(dashboard)}
+          interiorFront={adaptFileUploader(interiorFront)}
+          interiorRear={adaptFileUploader(interiorRear)}
         />
       </div>
       

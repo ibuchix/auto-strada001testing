@@ -4,6 +4,7 @@
  * - Created specialized hook for photo management functions
  * - Extracted from usePhotoSection.ts for better maintainability
  * - Handles photo selection, removal, and reordering
+ * - 2025-06-20 - Fixed field name compatibility with CarListingFormData
  */
 import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
@@ -22,9 +23,10 @@ export const usePhotoManagement = (form: UseFormReturn<CarListingFormData>) => {
     if (index >= 0 && index < photos.length) {
       setMainPhotoIndex(index);
       
-      // Update form data with main photo info
+      // Update form data with main photo info - using uploadedPhotos[index] instead of mainPhoto
       const photoUrl = photos[index];
-      form.setValue('mainPhoto', photoUrl, { shouldValidate: true });
+      // Use uploadedPhotos instead of mainPhoto (which isn't in CarListingFormData)
+      form.setValue('uploadedPhotos', [photoUrl, ...photos.filter((_, i) => i !== index)], { shouldValidate: true });
       
       toast.success('Main photo updated');
     }
@@ -41,7 +43,7 @@ export const usePhotoManagement = (form: UseFormReturn<CarListingFormData>) => {
       // Update main photo index if needed
       if (index === mainPhotoIndex) {
         setMainPhotoIndex(0);
-        form.setValue('mainPhoto', newPhotos[0] || null, { shouldValidate: true });
+        // No need to set mainPhoto field
       } else if (index < mainPhotoIndex) {
         setMainPhotoIndex(mainPhotoIndex - 1);
       }

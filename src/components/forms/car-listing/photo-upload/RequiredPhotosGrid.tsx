@@ -1,29 +1,30 @@
 
 /**
- * Required Photos Grid Component
- * Created: 2025-05-03
- * 
- * Grid layout for all required vehicle photos
+ * Grid component for required car photos
+ * Created: 2025-06-20 - Fixed type and preview compatibility issues
  */
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { X, Camera } from "lucide-react";
 
-import { TempStoredFile } from "@/services/temp-storage/tempFileStorageService";
-
-interface PhotoAreaProps {
-  files: TempStoredFile[];
+// Define the simpler FileUploader interface with only what we need
+interface FileUploaderProps {
+  files: { id: string; preview?: string; url: string }[];
   isUploading: boolean;
   progress: number;
-  uploadFiles: (files: FileList | File[]) => Promise<TempStoredFile[]>;
-  removeFile: (fileId: string) => boolean;
+  uploadFiles: (files: FileList | File[]) => Promise<any>;
+  removeFile: (id: string) => boolean;
 }
 
 interface RequiredPhotosGridProps {
-  frontView: PhotoAreaProps;
-  rearView: PhotoAreaProps;
-  driverSide: PhotoAreaProps;
-  passengerSide: PhotoAreaProps;
-  dashboard: PhotoAreaProps;
-  interiorFront: PhotoAreaProps;
-  interiorRear: PhotoAreaProps;
+  frontView: FileUploaderProps;
+  rearView: FileUploaderProps;
+  driverSide: FileUploaderProps;
+  passengerSide: FileUploaderProps;
+  dashboard: FileUploaderProps;
+  interiorFront: FileUploaderProps;
+  interiorRear: FileUploaderProps;
 }
 
 export const RequiredPhotosGrid = ({
@@ -35,170 +36,142 @@ export const RequiredPhotosGrid = ({
   interiorFront,
   interiorRear
 }: RequiredPhotosGridProps) => {
-  // Reusable photo upload area
-  const PhotoUploadArea = ({ 
-    title, 
-    description, 
-    id, 
-    files,
-    isUploading,
-    progress,
-    uploadFiles,
-    removeFile
-  }: {
-    title: string;
-    description: string;
-    id: string;
-  } & PhotoAreaProps) => {
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (!e.target.files || e.target.files.length === 0) return;
-      uploadFiles(e.target.files);
-    };
-    
-    return (
-      <div className="space-y-2">
-        <h4 className="text-sm font-medium">{title}</h4>
-        <p className="text-xs text-gray-500">{description}</p>
-        
-        <div className="border rounded-lg p-2">
-          {files.length > 0 ? (
-            <div className="aspect-video relative">
-              <img 
-                src={files[0].preview} 
-                alt={title} 
-                className="w-full h-full object-cover rounded"
-              />
-              <button
-                type="button"
-                className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1"
-                onClick={() => removeFile(files[0].id)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6L6 18M6 6l12 12"></path>
-                </svg>
-              </button>
-            </div>
-          ) : (
-            <div className="aspect-video flex flex-col items-center justify-center bg-gray-50 rounded">
-              {isUploading ? (
-                <div className="w-full px-4">
-                  <div className="h-1 w-full bg-gray-200 rounded-full">
-                    <div 
-                      className="h-1 bg-primary rounded-full" 
-                      style={{ width: `${progress}%` }}
-                    ></div>
-                  </div>
-                  <p className="mt-2 text-xs text-center">Uploading...</p>
-                </div>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                    <polyline points="21 15 16 10 5 21"></polyline>
-                  </svg>
-                  
-                  <input
-                    id={id}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                  
-                  <label 
-                    htmlFor={id} 
-                    className="mt-2 px-3 py-1 bg-primary text-white text-xs rounded cursor-pointer"
-                  >
-                    Select Photo
-                  </label>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <PhotoUploadArea
-        id="front-view"
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+      <PhotoCard
         title="Front View"
-        description="Clear photo of the front of the vehicle"
-        files={frontView.files}
-        isUploading={frontView.isUploading}
-        progress={frontView.progress}
-        uploadFiles={frontView.uploadFiles}
-        removeFile={frontView.removeFile}
+        description="Full front view of the vehicle"
+        uploader={frontView}
+        required
       />
-      
-      <PhotoUploadArea
-        id="rear-view"
+      <PhotoCard
         title="Rear View"
-        description="Clear photo of the back of the vehicle"
-        files={rearView.files}
-        isUploading={rearView.isUploading}
-        progress={rearView.progress}
-        uploadFiles={rearView.uploadFiles}
-        removeFile={rearView.removeFile}
+        description="Full rear view of the vehicle"
+        uploader={rearView}
+        required
       />
-      
-      <PhotoUploadArea
-        id="driver-side"
+      <PhotoCard
         title="Driver Side"
-        description="Side view of the vehicle (driver's side)"
-        files={driverSide.files}
-        isUploading={driverSide.isUploading}
-        progress={driverSide.progress}
-        uploadFiles={driverSide.uploadFiles}
-        removeFile={driverSide.removeFile}
+        description="Full side view (driver side)"
+        uploader={driverSide}
+        required
       />
-      
-      <PhotoUploadArea
-        id="passenger-side"
+      <PhotoCard
         title="Passenger Side"
-        description="Side view of the vehicle (passenger's side)"
-        files={passengerSide.files}
-        isUploading={passengerSide.isUploading}
-        progress={passengerSide.progress}
-        uploadFiles={passengerSide.uploadFiles}
-        removeFile={passengerSide.removeFile}
+        description="Full side view (passenger side)"
+        uploader={passengerSide}
+        required
       />
-      
-      <PhotoUploadArea
-        id="dashboard"
+      <PhotoCard
         title="Dashboard"
         description="Clear photo of the dashboard"
-        files={dashboard.files}
-        isUploading={dashboard.isUploading}
-        progress={dashboard.progress}
-        uploadFiles={dashboard.uploadFiles}
-        removeFile={dashboard.removeFile}
+        uploader={dashboard}
+        required
       />
-      
-      <PhotoUploadArea
-        id="interior-front"
-        title="Interior (Front)"
-        description="Photo of the front seats and interior"
-        files={interiorFront.files}
-        isUploading={interiorFront.isUploading}
-        progress={interiorFront.progress}
-        uploadFiles={interiorFront.uploadFiles}
-        removeFile={interiorFront.removeFile}
+      <PhotoCard
+        title="Interior Front"
+        description="Front seats and console area"
+        uploader={interiorFront}
+        required
       />
-      
-      <PhotoUploadArea
-        id="interior-rear"
-        title="Interior (Rear)"
-        description="Photo of the back seats and rear interior"
-        files={interiorRear.files}
-        isUploading={interiorRear.isUploading}
-        progress={interiorRear.progress}
-        uploadFiles={interiorRear.uploadFiles}
-        removeFile={interiorRear.removeFile}
+      <PhotoCard
+        title="Interior Rear"
+        description="Rear seats and interior"
+        uploader={interiorRear}
       />
     </div>
+  );
+};
+
+interface PhotoCardProps {
+  title: string;
+  description: string;
+  uploader: FileUploaderProps;
+  required?: boolean;
+}
+
+const PhotoCard = ({ title, description, uploader, required = false }: PhotoCardProps) => {
+  const [error, setError] = useState<string | null>(null);
+  const hasPhoto = uploader.files.length > 0;
+  const photo = hasPhoto ? uploader.files[0] : null;
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError(null);
+    if (e.target.files && e.target.files.length > 0) {
+      uploader.uploadFiles(e.target.files).catch(err => {
+        setError(err.message || "Failed to upload file");
+      });
+    }
+  };
+  
+  return (
+    <Card className="overflow-hidden">
+      <div className="relative">
+        {hasPhoto ? (
+          <div className="aspect-square relative">
+            <img
+              src={photo?.preview || photo?.url}
+              alt={title}
+              className="w-full h-full object-cover"
+            />
+            <Button
+              variant="destructive"
+              size="icon"
+              className="absolute top-2 right-2 h-8 w-8 rounded-full"
+              onClick={() => photo && uploader.removeFile(photo.id)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="aspect-square bg-gray-100 flex flex-col items-center justify-center">
+            <Camera className="h-12 w-12 text-gray-300 mb-2" />
+            <input
+              type="file"
+              accept="image/*"
+              id={`upload-${title.toLowerCase().replace(/\s+/g, '-')}`}
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={uploader.isUploading}
+            />
+            <label
+              htmlFor={`upload-${title.toLowerCase().replace(/\s+/g, '-')}`}
+              className="text-blue-600 text-sm cursor-pointer hover:underline"
+            >
+              Choose Photo
+            </label>
+          </div>
+        )}
+      </div>
+      <CardContent className="p-3">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="font-medium text-sm">{title}</h3>
+            <p className="text-xs text-gray-500">{description}</p>
+          </div>
+          {required && !hasPhoto && (
+            <span className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-full">
+              Required
+            </span>
+          )}
+        </div>
+        
+        {uploader.isUploading && (
+          <div className="mt-2">
+            <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-1 bg-blue-600 transition-all duration-300"
+                style={{ width: `${uploader.progress}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-center mt-1 text-gray-500">Uploading...</p>
+          </div>
+        )}
+        
+        {error && (
+          <p className="text-xs text-red-500 mt-1">{error}</p>
+        )}
+      </CardContent>
+    </Card>
   );
 };

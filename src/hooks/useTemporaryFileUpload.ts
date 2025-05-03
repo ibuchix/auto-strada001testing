@@ -2,28 +2,23 @@
 /**
  * Temporary File Upload Hook
  * Created: 2025-06-18
+ * Updated: 2025-06-20 - Fixed type compatibility with TempStoredFile
  * 
  * Hook for managing temporary file uploads during form completion
  */
 
 import { useState, useCallback } from "react";
 import { v4 as uuidv4 } from 'uuid';
-import { tempFileStorage, TempStoredFile } from "@/services/temp-storage/tempFileStorageService";
+import { tempFileStorage } from "@/services/temp-storage/tempFileStorageService";
+import { TempStoredFile, TemporaryFile } from "@/types/forms";
 
-// Interface to represent a file being uploaded temporarily
-export interface TemporaryFile {
-  id: string;
-  file: File;
-  url: string;
-  preview?: string;
-  uploaded?: boolean;
-  uploadedAt?: Date | null;
-}
-
-interface UseTemporaryFileUploadOptions {
+// Updated interface to support all needed options
+export interface UseTemporaryFileUploadOptions {
   category: string;
   allowMultiple: boolean;
   maxFiles?: number;
+  // Added for backwards compatibility
+  accept?: Record<string, string[]>;
 }
 
 export const useTemporaryFileUpload = ({ 
@@ -37,7 +32,9 @@ export const useTemporaryFileUpload = ({
   const [error, setError] = useState<Error | null>(null);
   
   // Get remaining session time
-  const remainingSessionTime = tempFileStorage.getRemainingSessionTime();
+  const remainingSessionTime = tempFileStorage.getRemainingSessionTime ? 
+    tempFileStorage.getRemainingSessionTime() : 
+    30; // Default to 30 minutes if method not available
   
   // Function to upload a single file
   const uploadFile = useCallback(async (file: File): Promise<TemporaryFile | null> => {
@@ -66,7 +63,9 @@ export const useTemporaryFileUpload = ({
         url: storedFile.url,
         preview: previewUrl,
         uploaded: true,
-        uploadedAt: new Date()
+        uploadedAt: new Date(),
+        category: category,
+        createdAt: new Date()
       };
       
       // Add to state
@@ -173,9 +172,12 @@ export const useTemporaryFileUpload = ({
     return files.map(file => ({
       id: file.id,
       file: file.file,
-      category,
+      category: file.category || category,
       url: file.url,
-      createdAt: file.uploadedAt || new Date()
+      createdAt: file.createdAt || new Date(),
+      preview: file.preview,
+      uploaded: file.uploaded,
+      uploadedAt: file.uploadedAt
     }));
   }, [files, category]);
   

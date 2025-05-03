@@ -1,79 +1,75 @@
 
 /**
  * ConditionSection Component
- * Created: 2025-06-19
+ * Created: 2025-06-20 - Added initial implementation
  * 
- * Vehicle condition section for car listing form - moved to sections folder for better organization
+ * Allows the user to select the vehicle's condition and service history
  */
 
-import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
+import { useState } from 'react';
+import { Form, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useFormData } from "../context/FormDataContext";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from '@/components/ui/label';
+import { ServiceHistoryUploader } from '../ServiceHistoryUploader';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const ConditionSection = () => {
   const { form } = useFormData();
+  const [showServiceDocuments, setShowServiceDocuments] = useState(
+    form.watch('hasServiceHistory') === true
+  );
   
-  const serviceHistoryVisible = form.watch("hasServiceHistory");
-  
+  const handleServiceHistoryChange = (checked: boolean) => {
+    form.setValue('hasServiceHistory', checked, { shouldValidate: true });
+    setShowServiceDocuments(checked);
+    
+    if (!checked) {
+      form.setValue('serviceHistoryType', 'none', { shouldValidate: true });
+      form.setValue('serviceHistoryFiles', [], { shouldValidate: true });
+    }
+  };
+
+  const handleServiceHistoryTypeChange = (value: string) => {
+    form.setValue('serviceHistoryType', value as 'full' | 'partial' | 'none', { shouldValidate: true });
+  };
+
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Vehicle Condition</h2>
-      
-      <div className="space-y-6">
-        <FormField
-          control={form.control}
-          name="isDamaged"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1">
-                <FormLabel>Vehicle has damage</FormLabel>
-                <FormDescription>
-                  Check this box if your vehicle has any damage that needs to be declared.
-                </FormDescription>
+      <Card>
+        <CardHeader>
+          <CardTitle>Vehicle Condition & History</CardTitle>
+          <CardDescription>
+            Tell us about the vehicle's service history and condition
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <div className="flex items-start space-x-2">
+              <Checkbox
+                id="hasServiceHistory"
+                checked={form.watch('hasServiceHistory')}
+                onCheckedChange={handleServiceHistoryChange}
+              />
+              <div className="grid gap-1.5">
+                <Label htmlFor="hasServiceHistory" className="font-medium">
+                  This vehicle has service history
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Check this if you have any service history for the vehicle
+                </p>
               </div>
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="hasServiceHistory"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1">
-                <FormLabel>Service History Available</FormLabel>
-                <FormDescription>
-                  Check this box if you have service history for the vehicle.
-                </FormDescription>
-              </div>
-            </FormItem>
-          )}
-        />
-        
-        {serviceHistoryVisible && (
-          <FormField
-            control={form.control}
-            name="serviceHistoryType"
-            render={({ field }) => (
-              <FormItem className="space-y-3">
-                <FormLabel>Service History Type</FormLabel>
-                <Select 
-                  value={field.value || ""} 
-                  onValueChange={field.onChange}
+            </div>
+          </div>
+
+          {showServiceDocuments && (
+            <div className="space-y-4">
+              <FormItem>
+                <FormLabel>Type of service history</FormLabel>
+                <Select
+                  value={form.watch('serviceHistoryType') || 'none'}
+                  onValueChange={handleServiceHistoryTypeChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select service history type" />
@@ -81,15 +77,19 @@ export const ConditionSection = () => {
                   <SelectContent>
                     <SelectItem value="full">Full Service History</SelectItem>
                     <SelectItem value="partial">Partial Service History</SelectItem>
-                    <SelectItem value="none">No Service History</SelectItem>
+                    <SelectItem value="none">No Documentation</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
-            )}
-          />
-        )}
-      </div>
+
+              {(form.watch('serviceHistoryType') === 'full' || form.watch('serviceHistoryType') === 'partial') && (
+                <ServiceHistoryUploader />
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

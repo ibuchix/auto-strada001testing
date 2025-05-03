@@ -1,27 +1,24 @@
 
 /**
- * PhotoUpload Component
- * Created: 2025-06-15
- * 
- * Generic photo upload component for car listing form
+ * Component for handling a single photo upload
+ * Created: 2025-06-20 - Created to fix compatibility issues
  */
-
-import { useState, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { useDropzone } from 'react-dropzone';
-import { Camera, X, Upload, Image as ImageIcon } from 'lucide-react';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Upload, Check, AlertCircle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 export interface PhotoUploadProps {
   id: string;
   title: string;
   description: string;
   isUploading: boolean;
-  isRequired?: boolean;
+  isRequired: boolean;
+  isUploaded?: boolean;
   progress?: number;
-  currentImage?: string;
-  onUpload: (file: File) => Promise<string | null>;
-  onRemove?: () => void | boolean;
+  onFileSelect: (file: File) => Promise<string | null>;
 }
 
 export const PhotoUpload = ({
@@ -29,113 +26,126 @@ export const PhotoUpload = ({
   title,
   description,
   isUploading,
-  isRequired = false,
+  isRequired,
+  isUploaded = false,
   progress = 0,
-  currentImage,
-  onUpload,
-  onRemove
+  onFileSelect
 }: PhotoUploadProps) => {
   const [error, setError] = useState<string | null>(null);
   
-  const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
-      if (acceptedFiles.length === 0) return;
-      
-      const file = acceptedFiles[0];
-      try {
-        setError(null);
-        
-        if (file.size > 10 * 1024 * 1024) {
-          setError('Image too large (max 10MB)');
-          return;
-        }
-        
-        await onUpload(file);
-      } catch (err) {
-        setError('Upload failed');
-        console.error('Upload failed:', err);
-      }
-    },
-    [onUpload]
-  );
-  
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.webp']
-    },
-    disabled: isUploading || !!currentImage,
-    maxFiles: 1
-  });
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError(null);
+    
+    if (!e.target.files || e.target.files.length === 0) {
+      return;
+    }
+    
+    const file = e.target.files[0];
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      setError("File is too large. Maximum size is 10MB.");
+      return;
+    }
+    
+    try {
+      await onFileSelect(file);
+    } catch (err: any) {
+      setError(err.message || "Failed to upload file");
+    }
+  };
   
   return (
-    <Card className="overflow-hidden">
-      <div className="p-4">
-        <h3 className="font-medium text-base mb-2 flex items-center">
-          {title}
-          {isRequired && <span className="text-red-500 ml-1">*</span>}
-        </h3>
-        <p className="text-sm text-gray-500 mb-4">{description}</p>
-        
-        {currentImage ? (
-          <div className="relative">
-            <img
-              src={currentImage}
-              alt={title}
-              className="w-full h-48 object-cover rounded-md"
-            />
-            {onRemove && (
-              <Button
-                type="button"
-                size="icon"
-                variant="destructive"
-                className="absolute top-2 right-2 h-8 w-8 rounded-full"
-                onClick={() => onRemove()}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+    <Card className={cn(
+      "transition-all duration-300 h-full",
+      isUploaded ? "border-green-500 bg-green-50" : "border-gray-200",
+      isRequired && !isUploaded && "border-amber-300"
+    )}>
+      <CardHeader className="p-4 pb-2">
+        <div className="flex justify-between items-start">
+          <div className="space-y-1">
+            <h4 className="text-sm font-medium leading-none">{title}</h4>
+            <p className="text-xs text-muted-foreground">{description}</p>
+          </div>
+          {isRequired && !isUploaded && (
+            <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full">
+              Required
+            </span>
+          )}
+          {isUploaded && (
+            <span className="flex items-center text-green-600 text-xs font-medium">
+              <Check className="w-3 h-3 mr-1" />
+              Uploaded
+            </span>
+          )}
+        </div>
+      </CardHeader>
+      
+      <CardContent className="p-4 pt-0">
+        {isUploaded ? (
+          <div className="bg-green-100 rounded-md p-4 flex items-center justify-center">
+            <Check className="w-6 h-6 text-green-600" />
           </div>
         ) : (
-          <div
-            {...getRootProps()}
-            className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors ${
-              isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300'
-            } ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <input {...getInputProps()} />
+          <>
+            <div className="bg-gray-100 rounded-md p-6 flex flex-col items-center justify-center min-h-[100px]">
+              <Upload className="w-6 h-6 text-gray-400 mb-2" />
+              <p className="text-xs text-center text-gray-500">
+                Click to upload
+              </p>
+            </div>
             
-            {isUploading ? (
-              <div className="space-y-3">
-                <Camera className="w-12 h-12 mx-auto text-gray-400" />
-                <p className="text-sm">Uploading...</p>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {isDragActive ? (
-                  <>
-                    <Camera className="w-12 h-12 mx-auto text-primary" />
-                    <p className="text-sm">Drop the image here</p>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-12 h-12 mx-auto text-gray-400" />
-                    <p className="text-sm">Drag & drop or click to upload</p>
-                  </>
-                )}
+            {error && (
+              <div className="mt-2 flex items-center text-red-600 text-xs">
+                <AlertCircle className="w-3 h-3 mr-1 flex-shrink-0" />
+                <span>{error}</span>
               </div>
             )}
-          </div>
+          </>
         )}
         
-        {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
-      </div>
+        {isUploading && (
+          <div className="mt-2">
+            <Progress value={progress} className="h-2" />
+            <p className="text-xs text-center mt-1">Uploading...</p>
+          </div>
+        )}
+      </CardContent>
+      
+      <CardFooter className="p-2">
+        {!isUploaded ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={isUploading}
+          >
+            <label
+              htmlFor={`photo-upload-${id}`}
+              className="w-full cursor-pointer flex items-center justify-center"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              <span>{isUploading ? "Uploading..." : "Upload"}</span>
+              <input
+                type="file"
+                id={`photo-upload-${id}`}
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+                disabled={isUploading}
+              />
+            </label>
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-green-600"
+            disabled
+          >
+            <Check className="w-4 h-4 mr-2" />
+            Complete
+          </Button>
+        )}
+      </CardFooter>
     </Card>
   );
 };
