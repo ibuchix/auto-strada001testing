@@ -1,50 +1,44 @@
 
 /**
- * Default values for the car listing form
- * Created: 2025-06-05 to fix missing import error
+ * Default Values for Car Listing Form
+ * Updated: 2025-06-19 - Fixed property name issue
  */
 
-import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
+import { CarListingFormData } from "@/types/forms";
 
-export const defaultValues: Partial<CarListingFormData> = {
-  // Vehicle details
-  make: '',
-  model: '',
+export const DEFAULT_VALUES: Partial<CarListingFormData> = {
+  make: "",
+  model: "",
   year: new Date().getFullYear(),
-  transmission: 'manual',
   mileage: 0,
-  vin: '',
+  vin: "",
   price: 0,
-  
-  // Vehicle status
+  transmission: "manual",
+  features: {
+    airConditioning: false,
+    bluetooth: false,
+    cruiseControl: false,
+    leatherSeats: false,
+    navigation: false,
+    parkingSensors: false,
+    sunroof: false
+  },
   isDamaged: false,
-  isRegisteredInPoland: true,
-  isSellingOnBehalf: false,
-  hasPrivatePlate: false,
-  
-  // Features
-  features: defaultCarFeatures,
-  
-  // Service history
-  serviceHistoryType: 'none',
-  serviceHistoryFiles: [],
-  numberOfKeys: '2',
-  
-  // Images
-  uploadedPhotos: [],
-  
-  // Seller information
-  name: '',
-  address: '',
-  mobileNumber: '',
-  sellerNotes: '',
-  
-  // Damage reports
   damageReports: [],
-  
-  // Form metadata
-  form_metadata: {
-    currentStep: 0,
-    lastSavedAt: new Date().toISOString()
-  }
+  hasServiceHistory: false,
+  serviceHistoryType: "none",
+  hasFinance: false,
+  hasPrivatePlate: false,
+  uploadedPhotos: [],
+  images: [],
+  photoIds: [],
+  rimPhotosComplete: false,
+  requiredPhotosComplete: false,
+  // Removed 'name' property as it doesn't exist in CarListingFormData
+  seller_id: "",
+  seatMaterial: "",
+  numberOfKeys: "1",
+  hasOutstandingFinance: false,
+  isRegisteredInPoland: true,
+  hasWarningLights: false
 };

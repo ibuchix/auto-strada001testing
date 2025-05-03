@@ -1,7 +1,9 @@
+
 /**
  * useStepNavigation Hook
  * Created: 2025-06-16
  * Updated: 2025-06-18 - Added STEP_FIELD_MAPPINGS export
+ * Updated: 2025-06-19 - Fixed export declaration
  * 
  * Hook for managing navigation between form steps
  */

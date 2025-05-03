@@ -1,9 +1,11 @@
+
 /**
  * StepForm Component
  * Updated: 2025-06-07 - Major refactoring to improve performance and reduce unnecessary renders
  * Updated: 2025-06-11 - Fixed FormNavigationControls integration and prop handling
  * Updated: 2025-06-12 - Fixed FormDataProvider integration to resolve context errors
  * Updated: 2025-06-18 - Fixed saveProgressWrapper return type
+ * Updated: 2025-06-19 - Fixed return type compatibility in saveProgressWrapper
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -184,9 +186,11 @@ export const StepForm = ({
     }
   };
   
+  // Fixed return type to ensure compatibility with FormNavigationControls
   const saveProgressWrapper = async () => {
     try {
-      return await saveProgress();
+      const result = await saveProgress();
+      return result;
     } catch (error) {
       console.error("Error in saveProgressWrapper:", error);
       return false;

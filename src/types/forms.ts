@@ -4,6 +4,7 @@
  * Updated: 2025-06-16 - Added valuation_data, form_metadata, and additional fields
  * Updated: 2025-06-17 - Added isRegisteredInPoland, hasWarningLights and warningLightPhotos fields
  * Updated: 2025-06-18 - Added validate method to StepItem interface
+ * Updated: 2025-06-19 - Fixed TempStoredFile and TemporaryFile compatibility
  * 
  * TypeScript types for form handling
  */
@@ -121,9 +122,10 @@ export type AuctionStatus = 'draft' | 'pending' | 'active' | 'completed' | 'reje
 export interface TempStoredFile {
   id: string;
   file: File;
-  category: string;
+  category?: string;
   url: string;
-  createdAt: Date;
+  createdAt?: Date;
+  preview?: string;
 }
 
 export interface TemporaryFile {
@@ -133,6 +135,8 @@ export interface TemporaryFile {
   preview?: string;
   uploaded?: boolean;
   uploadedAt?: Date | null;
+  category?: string;
+  createdAt?: Date;
 }
 
 export interface StepItem {
