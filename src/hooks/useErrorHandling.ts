@@ -8,6 +8,7 @@
  * Updated: 2025-04-06: Fixed read-only property issues and type assignments
  * Updated: 2025-04-07: Fixed captureError method usage
  * Updated: 2025-07-01: Fixed AppError type extensions
+ * Updated: 2025-05-10: Fixed function arguments and RecoveryType assignments
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -21,14 +22,9 @@ import {
 } from '../errors/classes';
 import { 
   handleAppError,
-  createFieldError,
-  createFormError,
-  createNetworkError,
-  createAuthError,
-  createSubmissionError,
-  createTimeoutError
+  createErrorFromUnknown
 } from '../errors/factory';
-import { ErrorCategory, ErrorCode, RecoveryType } from '../errors/types';
+import { ErrorCategory, ErrorCode, RecoveryType, RecoveryAction } from '../errors/types';
 import { useErrorContext } from '@/contexts/ErrorContext';
 import { logError } from '@/utils/errorLogger';
 
@@ -113,7 +109,7 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
               recovery: {
                 type: RecoveryType.REFRESH,
                 label: 'Refresh Page',
-                action: RecoveryType.REFRESH,
+                action: RecoveryAction.REFRESH,
                 handler: () => window.location.reload()
               }
             };
@@ -129,9 +125,9 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
               recovery: {
                 type: RecoveryType.CONTACT_SUPPORT,
                 label: 'Contact Support',
-                action: RecoveryType.CONTACT_SUPPORT,
+                action: RecoveryAction.CONTACT_SUPPORT,
                 handler: () => {
-                  window.location.href = 'mailto:support@autostrada.com?subject=Error%20in%20application';
+                  window.location.href = 'mailto:support@autoiso.com?subject=Error%20in%20application';
                 }
               }
             };
@@ -210,24 +206,32 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
    * Create common type of errors with preset handling
    */
   const createErrors = useCallback(() => ({
-    fieldError: (field: string, message: string, options = {}) => 
-      createFieldError(field, message, { focus: focusOnErrors, ...options }),
+    fieldError: (field: string, message: string) => 
+      new ValidationError(message),
       
-    formError: (message: string, options = {}) => 
-      createFormError(message, options),
+    formError: (message: string) => 
+      new ValidationError(message),
       
-    networkError: (message: string, options = {}) => 
-      createNetworkError(message, options),
+    networkError: (message: string) => 
+      new AppError({
+        message,
+        category: ErrorCategory.NETWORK,
+        code: ErrorCode.NETWORK_ERROR
+      }),
       
-    authError: (message: string, options = {}) => 
-      createAuthError(message, options),
+    authError: (message: string) => 
+      new AuthenticationError(message),
       
-    submissionError: (message: string, options = {}) => 
-      createSubmissionError(message, options),
+    submissionError: (message: string) => 
+      new SubmissionError(message),
       
-    timeoutError: (message: string, options = {}) => 
-      createTimeoutError(message, options)
-  }), [focusOnErrors]);
+    timeoutError: (message: string) => 
+      new AppError({
+        message,
+        category: ErrorCategory.NETWORK,
+        code: ErrorCode.TIMEOUT_ERROR
+      })
+  }), []);
   
   /**
    * Check if there's a specific type of error

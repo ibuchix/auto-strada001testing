@@ -1,6 +1,8 @@
+
 /**
  * Error handling hook for component-level error management
  * Created: 2025-04-05
+ * Updated: 2025-05-10: Fixed ErrorCode reference, route property, and ValuationError
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -8,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AppError, ValidationError } from './classes';
 import { createErrorFromUnknown } from './factory';
-import { RecoveryAction } from './types';
+import { RecoveryAction, ErrorCategory, ErrorCode } from './types';
 import { useErrorContext } from './context';
 
 interface UseErrorOptions {
@@ -65,8 +67,8 @@ export function useError(options: UseErrorOptions = {}) {
             onClick: () => {
               if (appError.recovery?.handler) {
                 appError.recovery.handler();
-              } else if (appError.recovery?.action === RecoveryAction.NAVIGATE && appError.recovery.route) {
-                navigate(appError.recovery.route);
+              } else if (appError.recovery?.action === RecoveryAction.NAVIGATE && appError.recovery.url) {
+                navigate(appError.recovery.url);
               }
             }
           };
@@ -126,7 +128,7 @@ function getErrorTitle(error: AppError): string {
     case 'server':
       return 'Server Error';
     case 'business':
-      if (error.code === 'valuation_error') {
+      if (error.code === ErrorCode.VALUATION_ERROR) {
         return 'Valuation Error';
       }
       return 'Operation Failed';
@@ -135,17 +137,25 @@ function getErrorTitle(error: AppError): string {
   }
 }
 
-// Helper for valuation errors
+// Helper for valuation errors (removed obsolete code)
 const handleValuationError = (error: unknown): AppError => {
   if (error instanceof AppError && error.code === ErrorCode.VALUATION_ERROR) {
     return error;
   }
   
   if (error instanceof Error) {
-    const valuationError = new ValuationError(error.message);
+    const valuationError = new AppError({
+      message: error.message,
+      code: ErrorCode.VALUATION_ERROR,
+      category: ErrorCategory.BUSINESS
+    });
     valuationError.stack = error.stack;
     return valuationError;
   }
   
-  return new ValuationError('An unknown error occurred while getting your valuation.');
+  return new AppError({
+    message: 'An unknown error occurred while getting your valuation.',
+    code: ErrorCode.VALUATION_ERROR,
+    category: ErrorCategory.BUSINESS
+  });
 };

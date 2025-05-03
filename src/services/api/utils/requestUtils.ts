@@ -5,6 +5,7 @@
  * Changes made:
  * - 2025-11-05: Created as part of apiClientService refactoring
  * - Extracted request handling logic from monolithic apiClientService
+ * - 2025-05-10: Fixed createTimeoutError function call to match signature
  */
 
 import { toast } from "sonner";
@@ -24,7 +25,7 @@ export async function makeRequest<T>(
   // Create a promise that will reject after the timeout
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
-      reject(createTimeoutError('Request timed out', { timeout }));
+      reject(createTimeoutError('Request timed out'));
     }, timeout);
   });
   

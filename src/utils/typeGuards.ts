@@ -4,6 +4,8 @@
  * - Added missing CarFeatures properties (bluetooth, sunroof, alloyWheels)
  * - Added isCarEntity type guard for API endpoint validation
  * - Added additional utility functions for type checking
+ * - 2025-05-10: Updated getDefaultCarFeatures to include all required properties
+ * - 2025-05-10: Fixed instanceof check in isCarEntity function
  */
 
 import { CarFeatures, CarEntity, CarListingFormData } from "@/types/forms";
@@ -20,7 +22,12 @@ export const isCarFeatures = (obj: unknown): obj is CarFeatures => {
     typeof features.upgradedSound === 'boolean' &&
     typeof features.bluetooth === 'boolean' &&
     typeof features.sunroof === 'boolean' &&
-    typeof features.alloyWheels === 'boolean'
+    typeof features.alloyWheels === 'boolean' &&
+    typeof features.airConditioning === 'boolean' &&
+    typeof features.cruiseControl === 'boolean' &&
+    typeof features.leatherSeats === 'boolean' &&
+    typeof features.navigation === 'boolean' &&
+    typeof features.parkingSensors === 'boolean'
   );
 };
 
@@ -32,7 +39,12 @@ export const getDefaultCarFeatures = (): CarFeatures => ({
   upgradedSound: false,
   bluetooth: false,
   sunroof: false,
-  alloyWheels: false
+  alloyWheels: false,
+  airConditioning: false,
+  cruiseControl: false,
+  leatherSeats: false,
+  navigation: false,
+  parkingSensors: false
 });
 
 /**
@@ -47,7 +59,7 @@ export const isCarEntity = (data: unknown): data is CarEntity => {
   
   return (
     typeof car.id === 'string' &&
-    car.created_at instanceof Date &&
+    typeof car.created_at === 'string' &&
     typeof car.make === 'string' &&
     typeof car.model === 'string' &&
     typeof car.year === 'number' &&
