@@ -9,6 +9,7 @@
  * Updated: 2025-05-23 - Removed price verification display as per business requirements
  * Updated: 2025-05-24 - Fixed mileage propagation to child components
  * Updated: 2025-05-25 - Improved button functionality and interactions
+ * Updated: 2025-08-01 - Enhanced data storage for valuation flow to sell my car page
  */
 
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { ValuationActions } from "./ValuationActions";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 interface ValuationContentProps {
   make?: string;
@@ -62,6 +64,35 @@ export const ValuationContent = ({
   const hasRequiredData = !!(make && model && year);
   const [isProcessing, setIsProcessing] = useState(false);
   
+  // Store valuation data when component mounts
+  useEffect(() => {
+    if (hasRequiredData && (reservePrice || averagePrice)) {
+      // Store the valuation data in localStorage for use in the form
+      const valuationData = {
+        make,
+        model,
+        year,
+        vin,
+        transmission,
+        mileage,
+        reservePrice,
+        valuation: averagePrice, // Store averagePrice as valuation
+        averagePrice,
+        apiSource,
+        timestamp: new Date().toISOString(),
+        fromValuation: true
+      };
+      
+      // Save to localStorage
+      try {
+        localStorage.setItem('valuationData', JSON.stringify(valuationData));
+        console.log('ValuationContent: Saved valuation data to localStorage', valuationData);
+      } catch (error) {
+        console.error('ValuationContent: Error saving valuation data', error);
+      }
+    }
+  }, [make, model, year, vin, transmission, mileage, reservePrice, averagePrice, apiSource, hasRequiredData]);
+  
   useEffect(() => {
     console.log("ValuationContent rendering with hasRequiredData:", hasRequiredData);
   }, [hasRequiredData]);
@@ -87,6 +118,35 @@ export const ValuationContent = ({
   const handleContinue = () => {
     if (onContinue) {
       setIsProcessing(true);
+      
+      // Check if valuation data is in localStorage
+      const valuationData = localStorage.getItem('valuationData');
+      if (!valuationData) {
+        // If not, create it now as a fallback
+        const data = {
+          make,
+          model,
+          year,
+          vin,
+          transmission,
+          mileage,
+          reservePrice,
+          valuation: averagePrice,
+          averagePrice,
+          apiSource,
+          timestamp: new Date().toISOString(),
+          fromValuation: true
+        };
+        
+        try {
+          localStorage.setItem('valuationData', JSON.stringify(data));
+          console.log('ValuationContent: Created valuation data on continue click', data);
+        } catch (error) {
+          console.error('Error saving valuation data on continue', error);
+          toast.error('Failed to save valuation data');
+        }
+      }
+      
       // Small timeout to show processing state
       setTimeout(() => {
         onContinue();

@@ -8,6 +8,7 @@
  * Updated: 2025-05-05 - Fixed type compatibility with transmission field 
  * Updated: 2025-05-06 - Fixed serviceHistoryType type compatibility issue
  * Updated: 2025-05-07 - Added explicit type casting for enum values
+ * Updated: 2025-08-01 - Enhanced valuation data handling for strict price enforcement
  * Handles default values and loading valuation data
  */
 
@@ -46,7 +47,9 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
           const valuationData = JSON.parse(valuationDataStr);
           console.log("Loading form with valuation data:", {
             make: valuationData.make,
-            model: valuationData.model
+            model: valuationData.model,
+            valuation: valuationData.valuation || valuationData.reservePrice,
+            reservePrice: valuationData.reservePrice
           });
 
           // Ensure transmission is a valid enum value
@@ -67,6 +70,10 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
              valuationData.serviceHistoryType === "partial") ? 
               valuationData.serviceHistoryType as "full" | "partial" : "none";
 
+          // Determine price from valuation - use strict priority order
+          const valuationPrice = valuationData.valuation || valuationData.averagePrice || valuationData.reservePrice || 0;
+          const reservePriceValue = valuationData.reservePrice || valuationData.valuation || 0;
+
           // Set default values based on valuation data
           const valuationDefaults: Partial<CarListingFormData> = {
             ...DEFAULT_VALUES,
@@ -77,14 +84,21 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
             year: valuationData.year || new Date().getFullYear(),
             mileage: valuationData.mileage || 0,
             vin: valuationData.vin || '',
-            price: valuationData.valuation || valuationData.reservePrice || 0,
-            reserve_price: valuationData.reservePrice || 0,
+            price: valuationPrice,
+            reserve_price: reservePriceValue,
             // Ensure proper typing for enum values
             transmission: transmissionValue,
             serviceHistoryType: serviceHistoryValue
           };
 
+          console.log("Setting form defaults with prices:", {
+            price: valuationPrice,
+            reserve_price: reservePriceValue
+          });
+
           setDefaults(valuationDefaults);
+        } else {
+          console.warn("No valuation data found in localStorage despite fromValuation flag");
         }
       } catch (error) {
         console.error("Error loading valuation data:", error);

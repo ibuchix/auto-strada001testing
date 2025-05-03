@@ -8,6 +8,7 @@
  * - 2027-11-19: Fixed TypeScript error with onRetry prop
  * - 2025-05-31: Added fromValuation prop to pass to form initialization
  * - 2025-07-26: Fixed valuation data handling and ensured fromValuation prop is passed correctly
+ * - 2025-08-01: Enhanced fromValuation detection and added more sources of truth
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -37,7 +38,8 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
   // Determine if coming from valuation based on props, URL params, or location state
   const isFromValuation = fromValuation || 
                           searchParams.get('from') === 'valuation' || 
-                          !!location.state?.fromValuation;
+                          !!location.state?.fromValuation ||
+                          !!localStorage.getItem('valuationData');
 
   useEffect(() => {
     if (urlDraftId) {
@@ -61,7 +63,8 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
         try {
           const parsedData = JSON.parse(valuationData);
           toast.success("Vehicle valuation data loaded", {
-            description: `${parsedData.year || ''} ${parsedData.make || ''} ${parsedData.model || ''}`.trim()
+            description: `${parsedData.year || ''} ${parsedData.make || ''} ${parsedData.model || ''}`.trim(),
+            duration: 5000
           });
         } catch (e) {
           console.error("Error parsing valuation data:", e);

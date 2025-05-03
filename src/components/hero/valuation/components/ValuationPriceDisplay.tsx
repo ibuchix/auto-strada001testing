@@ -8,10 +8,12 @@
  * - Updated 2025-05-23: Simplified UI by removing detailed calculation information
  * - Updated 2025-05-24: Fixed mileage display and formatting in price calculation text
  * - Updated 2025-05-25: Enhanced mileage display to always show actual entered value
+ * - Updated 2025-08-01: Added clarification about fixed price for sellers
  */
 
 import { formatPrice, calculateReservePrice } from "@/utils/valuation/reservePriceCalculator";
 import { useEffect, useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
 
 interface ValuationPriceDisplayProps {
   reservePrice: number;
@@ -66,11 +68,20 @@ export const ValuationPriceDisplay = ({
       <div className="flex flex-col gap-3">
         {hasValidReservePrice ? (
           <div>
-            <h3 className="text-sm font-medium text-gray-500">Your Reserve Price</h3>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-medium text-gray-500">Your Reserve Price</h3>
+              <Badge variant="outline" className="bg-gray-100 text-gray-700">Fixed</Badge>
+            </div>
             <p className="text-2xl font-bold text-DC143C">{formatPrice(ourReservePrice)}</p>
-            <p className="text-xs text-gray-500 mt-1">
-              Calculated based on mileage: {mileage ? mileage.toLocaleString() : '0'} km
-            </p>
+            <div className="space-y-2 mt-2">
+              <p className="text-xs text-gray-500">
+                Calculated based on mileage: {mileage ? mileage.toLocaleString() : '0'} km
+              </p>
+              <p className="text-sm text-gray-600 mt-2 border-t pt-2">
+                This price is fixed and will be used as the starting price for your vehicle listing.
+                The reserve price is the minimum amount your car will sell for in the auction.
+              </p>
+            </div>
           </div>
         ) : (
           <div>
