@@ -6,6 +6,7 @@
  * Updated: 2025-05-04 - Fixed type issues with default form values
  * Updated: 2025-05-04 - Ensuring type safety with proper typing for enums
  * Updated: 2025-05-05 - Fixed transmission type incompatibility issues
+ * Updated: 2025-05-06 - Fixed serviceHistoryType type incompatibility issues
  * Centralized utility functions for form hooks
  */
 

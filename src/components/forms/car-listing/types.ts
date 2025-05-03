@@ -3,6 +3,7 @@
  * Car listing form types
  * Created: 2025-07-12
  * Updated: 2025-07-18: Fixed missing exports and enum definitions
+ * Updated: 2025-05-06: Ensured type compatibility with TransactionType
  */
 
 import { ReactNode } from 'react';

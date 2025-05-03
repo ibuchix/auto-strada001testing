@@ -10,6 +10,7 @@
  * - 2028-11-14: Fixed TypeScript error by properly returning loadInitialData and handleReset
  * - 2025-05-31: Updated to work with the filtered valuation data structure
  * - 2025-07-27: Fixed getInitialFormValues import
+ * - 2025-05-06: Fixed transmission type compatibility issue
  */
 
 import { useForm, UseFormReturn } from "react-hook-form";
@@ -27,7 +28,7 @@ type ValuationData = {
   model?: string;
   year?: number | string;
   mileage?: number | string;
-  transmission?: "manual" | "automatic";
+  transmission?: "manual" | "automatic" | "semi-automatic";
   reserve_price?: number;
   [key: string]: any; // Allow additional properties
 };
@@ -107,11 +108,22 @@ const getValidatedValuationData = (): ValuationData | null => {
     const data = JSON.parse(localStorage.getItem('valuationData') || 'null');
     if (!data?.vin || !data.make || !data.model) return null;
     
+    // Ensure transmission is a valid enum value
+    let validTransmission: "manual" | "automatic" | "semi-automatic" = "manual";
+    if (
+      data.transmission === "automatic" || 
+      data.transmission === "semi-automatic" || 
+      data.transmission === "manual"
+    ) {
+      validTransmission = data.transmission;
+    }
+    
     return {
       ...data,
       year: safeParseNumber(data.year, new Date().getFullYear()),
       mileage: safeParseNumber(data.mileage, 0),
-      reserve_price: safeParseNumber(data.reserve_price, 0)
+      reserve_price: safeParseNumber(data.reserve_price, 0),
+      transmission: validTransmission
     };
   } catch (error) {
     console.error('Valuation data error:', error);
@@ -131,7 +143,7 @@ const applyValuationData = (
 ) => {
   // Essential fields to apply to the form
   const fields: (keyof CarListingFormData)[] = [
-    'vin', 'make', 'model', 'year', 'mileage', 'transmission'
+    'vin', 'make', 'model', 'year', 'mileage'
   ];
 
   fields.forEach(field => {
@@ -139,6 +151,11 @@ const applyValuationData = (
       form.setValue(field as any, data[field] as any);
     }
   });
+  
+  // Set transmission separately with type checking
+  if (data.transmission) {
+    form.setValue('transmission', data.transmission);
+  }
   
   // Handle reserve price separately if needed for the form
   if (data.reserve_price && form.getValues('reserve_price') === undefined) {

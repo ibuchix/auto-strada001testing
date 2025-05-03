@@ -5,7 +5,8 @@
  * Updated: 2025-07-27 - Fixed type issues with transmission and serviceHistoryType
  * Updated: 2025-05-03 - Updated DEFAULT_VALUES to use proper typed values
  * Updated: 2025-05-04 - Fixed TypeScript errors with type assertions for enums
- * Updated: 2025-05-05 - Fixed type compatibility with transmission field
+ * Updated: 2025-05-05 - Fixed type compatibility with transmission field 
+ * Updated: 2025-05-06 - Fixed serviceHistoryType type compatibility issue
  * Handles default values and loading valuation data
  */
 
@@ -59,6 +60,12 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
             transmissionValue = valuationData.transmission;
           }
 
+          // Ensure serviceHistoryType is a valid enum value
+          const serviceHistoryValue: "full" | "partial" | "none" = 
+            (valuationData.serviceHistoryType === "full" || 
+             valuationData.serviceHistoryType === "partial") ? 
+              valuationData.serviceHistoryType : "none";
+
           // Set default values based on valuation data
           const valuationDefaults: Partial<CarListingFormData> = {
             ...DEFAULT_VALUES,
@@ -73,7 +80,7 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
             reserve_price: valuationData.reservePrice || 0,
             // Ensure proper typing for enum values
             transmission: transmissionValue,
-            serviceHistoryType: "none" as const
+            serviceHistoryType: serviceHistoryValue
           };
 
           setDefaults(valuationDefaults);

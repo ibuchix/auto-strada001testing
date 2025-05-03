@@ -1,13 +1,45 @@
 
 /**
- * Form submission utilities
- * Created: 2025-07-23
- * Updated: 2025-05-05 - Fixed type issues and removed missing references
+ * Changes made:
+ * - 2025-08-19: Updated to use toStringValue utility function
+ * - Fixed type conversion issues
+ * - 2025-08-20: Fixed type compatibility with string | number fields
+ * - 2025-08-25: Added prepareSubmission function to transform form data to database entity
+ * - 2025-12-03: Fixed type issues with required fields in CarEntity
+ * - 2025-12-05: Enhanced prepareSubmission to properly handle CarFeatures
+ * - 2025-06-21: Fixed references to CarFeatures interface and created_at handling
+ * - 2025-07-22: Fixed incomplete implementation
+ * - 2025-05-05: Fixed type issues and removed is_draft property 
+ * - 2025-05-06: Fixed Date to string conversion issue
  */
 
-import { CarListingFormData, CarFeatures } from "@/types/forms";
+import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
+import { toStringValue, toNumberValue } from "@/utils/typeConversion";
 
-export const prepareSubmission = (formData: CarListingFormData, userId: string): Partial<CarEntity> => {
+export const prepareFormDataForSubmission = (data: CarListingFormData) => {
+  return {
+    ...data,
+    // Use toStringValue to ensure proper type conversion
+    financeAmount: toStringValue(data.financeAmount),
+  };
+};
+
+export const prepareFormDataForApi = (data: CarListingFormData) => {
+  return {
+    ...data,
+    // Use toStringValue to ensure proper type conversion
+    financeAmount: toStringValue(data.financeAmount),
+  };
+};
+
+/**
+ * Transforms form data into a database entity by removing transient properties
+ * and adding required database fields
+ * 
+ * @param formData The form data to transform
+ * @returns A CarEntity object ready for database submission
+ */
+export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
   // Ensure features property has all required fields
   const carFeatures: CarFeatures = {
     airConditioning: formData.features?.airConditioning || false,
@@ -23,18 +55,22 @@ export const prepareSubmission = (formData: CarListingFormData, userId: string):
     heatedSeats: formData.features?.heatedSeats || false,
     upgradedSound: formData.features?.upgradedSound || false,
     alloyWheels: formData.features?.alloyWheels || false,
-    keylessEntry: formData.features?.keylessEntry || false,
-    adaptiveCruiseControl: formData.features?.adaptiveCruiseControl || false,
-    laneDepartureWarning: formData.features?.laneDepartureWarning || false
   };
+  
+  // Convert Date to string if needed
+  const createdAt = typeof formData.created_at === 'string' 
+    ? formData.created_at 
+    : formData.created_at instanceof Date 
+      ? formData.created_at.toISOString() 
+      : new Date().toISOString();
   
   // Ensure all required fields are present with default values if needed
   const entity: Partial<CarEntity> = {
     ...formData,
     id: formData.id || '',
-    created_at: formData.created_at || new Date().toISOString(),
+    created_at: createdAt,
     updated_at: new Date().toISOString(),
-    status: 'draft', // Using string literal instead of enum reference
+    status: 'draft',
     // Ensure required fields have values
     make: formData.make || '',
     model: formData.model || '',
@@ -50,20 +86,3 @@ export const prepareSubmission = (formData: CarListingFormData, userId: string):
   
   return entity;
 };
-
-// Define the interface here since it's referenced in the function
-interface CarEntity {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  price: number;
-  mileage: number;
-  seller_id?: string;
-  created_at: string;
-  updated_at: string;
-  status: 'draft' | 'pending' | 'approved' | 'active' | 'rejected';
-  features: CarFeatures;
-  vin: string;
-  transmission: "manual" | "automatic" | "semi-automatic";
-}

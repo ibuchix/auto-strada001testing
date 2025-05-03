@@ -2,6 +2,7 @@
 /**
  * VehicleDetailsSection component
  * Created: 2025-07-18
+ * Updated: 2025-05-06 - Fixed transmission type compatibility issue
  */
 
 import { useFormContext } from 'react-hook-form';
@@ -75,7 +76,10 @@ export const VehicleDetailsSection = () => {
           <Label htmlFor="transmission">Transmission</Label>
           <Select 
             value={transmission || 'manual'}
-            onValueChange={(value) => setValue('transmission', value as 'manual' | 'automatic')}
+            onValueChange={(value) => setValue(
+              'transmission', 
+              value as "manual" | "automatic" | "semi-automatic"
+            )}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select transmission" />
@@ -83,6 +87,7 @@ export const VehicleDetailsSection = () => {
             <SelectContent>
               <SelectItem value="manual">Manual</SelectItem>
               <SelectItem value="automatic">Automatic</SelectItem>
+              <SelectItem value="semi-automatic">Semi-automatic</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -7,6 +7,7 @@
  * - Implemented admin notification via edge function
  * - Updated: 2025-06-22 - Fixed type conversions and field access
  * - Updated: 2025-05-05 - Fixed TypeScript errors with conditionRating and other fields
+ * - Updated: 2025-05-06 - Improved type safety for serviceHistoryType and fixed type errors
  */
 
 import { useForm } from "react-hook-form";
@@ -54,12 +55,12 @@ export const useManualValuationForm = () => {
       isSellingOnBehalf: false,
       hasPrivatePlate: false,
       financeAmount: 0,
-      serviceHistoryType: "none",
+      serviceHistoryType: "none" as "none" | "partial" | "full",
       sellerNotes: "",
       uploadedPhotos: [],
       seatMaterial: "cloth",
       numberOfKeys: "1",
-      transmission: "manual"
+      transmission: "manual" as "manual" | "automatic" | "semi-automatic"
     },
   });
 
@@ -93,6 +94,18 @@ export const useManualValuationForm = () => {
         throw new Error("You must be logged in to submit a valuation request");
       }
       
+      // Ensure serviceHistoryType is one of the allowed values
+      const serviceHistoryType: "none" | "partial" | "full" = 
+        (data.serviceHistoryType === "full" || data.serviceHistoryType === "partial") 
+          ? data.serviceHistoryType 
+          : "none";
+      
+      // Validate transmission value
+      const transmission: "manual" | "automatic" | "semi-automatic" = 
+        (data.transmission === "automatic" || data.transmission === "semi-automatic")
+          ? data.transmission
+          : "manual";
+      
       // Insert into manual_valuations table - targeting the correct table now
       const { error, data: valuationData } = await supabase
         .from("manual_valuations")
@@ -102,7 +115,7 @@ export const useManualValuationForm = () => {
           make: data.make,
           model: data.model,
           year: safeParseInt(data.year) || new Date().getFullYear(),
-          transmission: data.transmission,
+          transmission: transmission,
           mileage: safeParseInt(data.mileage) || 0,
           features: data.features,
           is_damaged: data.isDamaged,
@@ -112,7 +125,7 @@ export const useManualValuationForm = () => {
           is_selling_on_behalf: data.isSellingOnBehalf,
           has_private_plate: data.hasPrivatePlate,
           finance_amount: safeParseFloat(data.financeAmount),
-          service_history_type: data.serviceHistoryType,
+          service_history_type: serviceHistoryType,
           seller_notes: data.sellerNotes,
           condition_rating: data.conditionRating || 3,
           address: data.address,

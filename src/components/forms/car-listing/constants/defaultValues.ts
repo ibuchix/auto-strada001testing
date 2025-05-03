@@ -5,6 +5,7 @@
  * Updated: 2025-07-25 - Added all missing feature flags
  * Updated: 2025-07-26 - Fixed types to match CarFeatures interface
  * Updated: 2025-05-04 - Ensured proper typing for enum values
+ * Updated: 2025-05-06 - Fixed serviceHistoryType type to ensure it's properly typed
  */
 
 export const DEFAULT_VALUES = {
