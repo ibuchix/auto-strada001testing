@@ -9,6 +9,7 @@
  * Updated: 2025-04-07: Fixed captureError method usage
  * Updated: 2025-07-01: Fixed AppError type extensions
  * Updated: 2025-05-10: Fixed function arguments and RecoveryType assignments
+ * Updated: 2025-05-12: Fixed AppError object creation to use constructor
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -104,24 +105,24 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
         // After multiple retries, suggest more drastic recovery options
         if (!appError.recovery || appError.recovery.type === RecoveryType.FORM_RETRY) {
           if (appError.category === ErrorCategory.NETWORK) {
-            enhancedError = {
-              ...appError,
+            enhancedError = new AppError({
+              ...appError.serialize(),
               recovery: {
                 type: RecoveryType.REFRESH,
                 label: 'Refresh Page',
                 action: RecoveryAction.REFRESH,
                 handler: () => window.location.reload()
               }
-            };
+            });
           } else if (appError.category === ErrorCategory.VALIDATION) {
             // For validation errors, create a new error with updated description
-            enhancedError = {
-              ...appError,
+            enhancedError = new AppError({
+              ...appError.serialize(),
               description: `${appError.description || ''} Try checking all required fields.`
-            };
+            });
           } else {
-            enhancedError = {
-              ...appError,
+            enhancedError = new AppError({
+              ...appError.serialize(),
               recovery: {
                 type: RecoveryType.CONTACT_SUPPORT,
                 label: 'Contact Support',
@@ -130,7 +131,7 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
                   window.location.href = 'mailto:support@autoiso.com?subject=Error%20in%20application';
                 }
               }
-            };
+            });
           }
         }
       }

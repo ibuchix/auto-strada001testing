@@ -6,6 +6,7 @@
  * - 2025-11-05: Created as part of apiClientService refactoring
  * - Extracted request handling logic from monolithic apiClientService
  * - 2025-05-10: Fixed createTimeoutError function call to match signature
+ * - 2025-05-12: Updated function call to match factory function signature
  */
 
 import { toast } from "sonner";

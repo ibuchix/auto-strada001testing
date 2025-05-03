@@ -6,6 +6,7 @@
  * - 2025-08-21: Updated to use vitest imports instead of jest
  * - 2025-05-10: Fixed CarFeatures type to match interface requirements 
  * - 2025-05-10: Changed financeAmount to number type instead of string
+ * - 2025-05-12: Updated features object to include all required properties
  */
 
 import { describe, it, expect } from 'vitest';
