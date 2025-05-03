@@ -1,230 +1,178 @@
-
 /**
- * Changes made:
- * - 2024-03-20: Fixed type references to match database schema
- * - 2024-03-20: Updated property names to match database schema
- * - 2024-03-19: Added support for converting between form and database formats
- * - 2024-03-19: Added handling for default values and nullable fields
- * - 2024-03-25: Added support for additional_photos field
- * - 2024-08-08: Added support for form_metadata with current_step
- * - 2024-08-09: Fixed type handling for form_metadata field
- * - 2024-12-05: Added error handling for localStorage data access
- * - 2024-12-06: Fixed type errors with valuationData properties
- * - 2024-08-04: Fixed "name" column issue by using seller_name instead
- * - 2025-05-31: Standardized field naming approach by providing both name and seller_name
- * - 2025-06-01: Removed references to non-existent field has_tool_pack
- * - 2025-06-02: Removed references to non-existent field has_documentation
- * - 2025-06-10: Added schema validation to catch field mismatches
- * - 2025-06-15: Removed defaultCarFeatures dependency
- * - 2025-06-15: Removed references to non-existent field is_selling_on_behalf
- * - 2025-06-16: Added field existence checking to avoid database errors
- * - 2025-08-19: Updated to use toStringValue utility function
- * - 2025-08-20: Fixed type conversion issues with financeAmount
+ * Form Data Transformers
+ * Created: 2025-06-21
+ * Updated: 2025-06-22 - Fixed type conversions and field mappings
  */
 
-import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
-import { Json } from "@/integrations/supabase/types";
-import { supabase } from "@/integrations/supabase/client";
-import { filterObjectByAllowedFields } from "@/utils/dataTransformers";
-import { toStringValue, toNumberValue } from "@/utils/typeConversion";
-
-// List of known valid car table fields for safer data transformation
-const VALID_CAR_FIELDS = [
-  'seller_id',
-  'name',
-  'seller_name',
-  'address',
-  'mobile_number',
-  'features',
-  'is_damaged',
-  'is_registered_in_poland',
-  'has_private_plate',
-  'finance_amount',
-  'service_history_type',
-  'seller_notes',
-  'seat_material',
-  'number_of_keys',
-  'is_draft',
-  'last_saved',
-  'mileage',
-  'price',
-  'title',
-  'vin',
-  'transmission',
-  'additional_photos',
-  'form_metadata',
-  'make',
-  'model',
-  'year',
-  'valuation_data'
-];
-
-// Cache for database schema to avoid repeated queries
-let dbSchemaCache: {[table: string]: string[]} = {};
+import { CarListingFormData } from "@/types/forms";
 
 /**
- * Dynamically fetch table column names from the database
- * This is a more reliable way to check field existence
+ * Transform form data to database record structure
  */
-const getTableColumns = async (tableName: string): Promise<string[]> => {
-  // Return from cache if available
-  if (dbSchemaCache[tableName]) {
-    return dbSchemaCache[tableName];
-  }
-  
-  try {
-    const { data, error } = await supabase.rpc('get_table_columns', {
-      p_table_name: tableName
-    });
+export const transformFormToDbRecord = (formData: CarListingFormData): Record<string, any> => {
+  return {
+    // Basic car details
+    id: formData.id,
+    make: formData.make,
+    model: formData.model,
+    year: Number(formData.year),
+    mileage: Number(formData.mileage),
+    vin: formData.vin,
+    price: Number(formData.price),
+    reserve_price: Number(formData.reserve_price || 0),
+    transmission: formData.transmission || 'manual',
     
-    if (error) {
-      console.error('Error fetching table columns:', error);
-      return VALID_CAR_FIELDS; // Fallback to hardcoded fields
-    }
-    
-    // Extract column names from the result
-    const columnNames = data.map(col => col.column_name);
-    
-    // Cache the result
-    dbSchemaCache[tableName] = columnNames;
-    
-    return columnNames;
-  } catch (error) {
-    console.error('Error in getTableColumns:', error);
-    return VALID_CAR_FIELDS; // Fallback to hardcoded fields
-  }
-};
-
-export const transformFormToDbData = async (formData: CarListingFormData, userId: string): Promise<any> => {
-  // Safely retrieve data from localStorage with fallbacks
-  let valuationData: Record<string, any> = {};
-  let mileage = 0;
-  let vin = '';
-  let currentStep = 0;
-  
-  try {
-    const valuationDataStr = localStorage.getItem('valuationData');
-    valuationData = valuationDataStr ? JSON.parse(valuationDataStr) : {};
-    
-    mileage = parseInt(localStorage.getItem('tempMileage') || '0');
-    vin = localStorage.getItem('tempVIN') || '';
-    currentStep = parseInt(localStorage.getItem('formCurrentStep') || '0');
-  } catch (error) {
-    console.error('Error reading from localStorage:', error);
-  }
-  
-  // Create basic form data even if localStorage data is missing
-  const title = valuationData && 
-    typeof valuationData === 'object' && 
-    'make' in valuationData && 
-    'model' in valuationData && 
-    'year' in valuationData
-      ? `${valuationData.make || ''} ${valuationData.model || ''} ${valuationData.year || ''}`.trim()
-      : 'Draft Listing';
-  
-  // Safely extract price from valuation data, handling undefined/missing values
-  const price = valuationData && typeof valuationData === 'object' 
-    ? ('valuation' in valuationData && valuationData.valuation !== undefined && valuationData.valuation !== null
-        ? valuationData.valuation 
-        : ('averagePrice' in valuationData && valuationData.averagePrice !== undefined && valuationData.averagePrice !== null
-            ? valuationData.averagePrice 
-            : 0)) 
-    : 0;
-
-  // Create initial data object with all possible fields
-  const initialData = {
-    seller_id: userId,
-    // Include both name and seller_name fields for maximum compatibility
-    name: formData.name, // For compatibility with code expecting name field
-    seller_name: formData.name, // For consistency with database schema
-    address: formData.address,
-    mobile_number: formData.mobileNumber,
-    features: formData.features as unknown as Json,
-    is_damaged: formData.isDamaged,
-    is_registered_in_poland: formData.isRegisteredInPoland,
-    has_private_plate: formData.hasPrivatePlate,
-    finance_amount: formData.financeAmount ? toNumberValue(formData.financeAmount) : null,
+    // Features and options
+    features: formData.features,
+    is_damaged: !!formData.isDamaged,
+    is_registered_in_poland: !!formData.isRegisteredInPoland,
+    has_private_plate: !!formData.hasPrivatePlate,
+    has_finance: !!formData.hasFinance,
+    has_service_history: !!formData.hasServiceHistory,
     service_history_type: formData.serviceHistoryType,
+    
+    // Photo data
+    vehicle_photos: formData.vehiclePhotos,
+    uploaded_photos: formData.uploadedPhotos || [],
+    rim_photos: formData.rimPhotos,
+    damage_photos: formData.damagePhotos,
+    
+    // Seller details
+    seller_id: formData.seller_id,
     seller_notes: formData.sellerNotes,
+    
+    // Additional details
     seat_material: formData.seatMaterial,
-    number_of_keys: parseInt(formData.numberOfKeys),
-    is_draft: true,
-    last_saved: new Date().toISOString(),
-    mileage: mileage,
-    price: price,
-    title: title,
-    vin: vin,
-    transmission: formData.transmission,
-    additional_photos: formData.uploadedPhotos || [],
-    form_metadata: {
-      current_step: currentStep,
-      last_updated: new Date().toISOString()
-    } as Json
+    number_of_keys: Number(formData.numberOfKeys || 1),
+    
+    // Timestamps
+    created_at: formData.created_at,
+    updated_at: new Date().toISOString(),
+    
+    // Metadata
+    status: 'draft',
+    form_metadata: formData.form_metadata
   };
-
-  try {
-    // Dynamically get actual database columns - this is safer than hardcoded lists
-    const dbColumns = await getTableColumns('cars');
-    
-    // Filter data to only include fields that exist in the database
-    const filteredData = filterObjectByAllowedFields(initialData, dbColumns);
-    
-    console.log('Filtered data for database compatibility', filteredData);
-    
-    return filteredData;
-  } catch (error) {
-    console.error('Error filtering data:', error);
-    
-    // Fallback to hardcoded list if dynamic check fails
-    return filterObjectByAllowedFields(initialData, VALID_CAR_FIELDS);
-  }
 };
 
-export const transformDbToFormData = (dbData: any): Partial<CarListingFormData> => {
-  // Safely handle form_metadata
-  const metadata = dbData.form_metadata as Record<string, any> | null;
-  if (metadata && typeof metadata === 'object' && 'current_step' in metadata) {
-    try {
-      localStorage.setItem('formCurrentStep', String(metadata.current_step));
-    } catch (error) {
-      console.error('Error writing to localStorage:', error);
-    }
-  }
+/**
+ * Transform database record to form data structure
+ */
+export const transformDbRecordToForm = (dbRecord: Record<string, any>): CarListingFormData => {
+  if (!dbRecord) return {} as CarListingFormData;
   
   return {
-    // Map seller_name to name for form data, with fallback to name field
-    name: dbData.seller_name || dbData.name || "",
-    address: dbData.address || "",
-    mobileNumber: dbData.mobile_number || "",
-    features: dbData.features ? { ...defaultCarFeatures, ...dbData.features as Record<string, boolean> } : defaultCarFeatures,
-    isDamaged: dbData.is_damaged || false,
-    isRegisteredInPoland: dbData.is_registered_in_poland || false,
-    hasPrivatePlate: dbData.has_private_plate || false,
-    financeAmount: toStringValue(dbData.finance_amount),
-    serviceHistoryType: dbData.service_history_type || "none",
-    sellerNotes: dbData.seller_notes || "",
-    seatMaterial: dbData.seat_material || "",
-    numberOfKeys: dbData.number_of_keys?.toString() || "1",
-    transmission: dbData.transmission as "manual" | "automatic" | null,
-    uploadedPhotos: dbData.additional_photos || []
+    // Basic car details
+    id: dbRecord.id,
+    make: dbRecord.make || '',
+    model: dbRecord.model || '',
+    year: Number(dbRecord.year || new Date().getFullYear()),
+    mileage: Number(dbRecord.mileage || 0),
+    vin: dbRecord.vin || '',
+    price: Number(dbRecord.price || 0),
+    reserve_price: Number(dbRecord.reserve_price || 0),
+    transmission: dbRecord.transmission || 'manual',
+    
+    // Features and options
+    features: dbRecord.features || {},
+    isDamaged: !!dbRecord.is_damaged,
+    isRegisteredInPoland: !!dbRecord.is_registered_in_poland,
+    hasPrivatePlate: !!dbRecord.has_private_plate,
+    hasFinance: !!dbRecord.has_finance,
+    hasServiceHistory: !!dbRecord.has_service_history,
+    serviceHistoryType: dbRecord.service_history_type || 'none',
+    
+    // Photo data
+    vehiclePhotos: dbRecord.vehicle_photos || {},
+    uploadedPhotos: dbRecord.uploaded_photos || [],
+    rimPhotos: dbRecord.rim_photos || {},
+    damagePhotos: dbRecord.damage_photos || [],
+    
+    // Seller details
+    seller_id: dbRecord.seller_id,
+    sellerNotes: dbRecord.seller_notes || '',
+    name: dbRecord.seller_name || '',
+    address: dbRecord.address || '',
+    mobileNumber: dbRecord.mobile_number || '',
+    
+    // Additional details
+    seatMaterial: dbRecord.seat_material || 'cloth',
+    numberOfKeys: String(dbRecord.number_of_keys || 1),
+    
+    // Timestamps
+    created_at: dbRecord.created_at,
+    updated_at: dbRecord.updated_at,
+    
+    // Metadata
+    form_metadata: dbRecord.form_metadata || {}
   };
 };
 
-export const transformFormData = (data: CarListingFormData) => {
-  return {
-    name: data.name,
-    address: data.address,
-    mobileNumber: data.mobileNumber,
-    features: data.features,
-    isDamaged: data.isDamaged,
-    isRegisteredInPoland: data.isRegisteredInPoland,
-    hasPrivatePlate: data.hasPrivatePlate,
-    financeAmount: toStringValue(data.financeAmount),
-    serviceHistoryType: data.serviceHistoryType,
-    sellerNotes: data.sellerNotes,
-    seatMaterial: data.seatMaterial,
-    numberOfKeys: data.numberOfKeys,
-    transmission: data.transmission,
-    uploadedPhotos: data.uploadedPhotos
+/**
+ * Prepare form data for submission
+ */
+export const prepareFormDataForSubmission = (formData: CarListingFormData): Record<string, any> => {
+  // Create a copy to avoid modifying the original
+  const data = { ...formData };
+  
+  // Convert boolean values
+  const booleanFields = {
+    isDamaged: 'is_damaged',
+    isRegisteredInPoland: 'is_registered_in_poland',
+    hasPrivatePlate: 'has_private_plate',
+    hasFinance: 'has_finance',
+    hasServiceHistory: 'has_service_history',
   };
+  
+  const result: Record<string, any> = {
+    // Core fields
+    id: data.id,
+    make: data.make,
+    model: data.model,
+    year: Number(data.year),
+    mileage: Number(data.mileage),
+    vin: data.vin,
+    price: Number(data.price),
+    reserve_price: Number(data.reserve_price || 0),
+    transmission: data.transmission,
+    
+    // Boolean fields - convert from isDamaged to is_damaged etc.
+    ...Object.entries(booleanFields).reduce((acc, [formField, dbField]) => {
+      acc[dbField] = !!data[formField as keyof CarListingFormData];
+      return acc;
+    }, {} as Record<string, boolean>),
+    
+    // Other fields
+    features: data.features,
+    service_history_type: data.serviceHistoryType,
+    service_history_files: data.serviceHistoryFiles,
+    seller_notes: data.sellerNotes,
+    
+    // Personal details
+    seller_id: data.seller_id,
+    seller_name: data.name,
+    address: data.address,
+    mobile_number: data.mobileNumber,
+    
+    // Photos
+    vehicle_photos: data.vehiclePhotos,
+    uploaded_photos: data.uploadedPhotos,
+    rim_photos: data.rimPhotos,
+    damage_photos: data.damagePhotos,
+    
+    // Additional details
+    seat_material: data.seatMaterial,
+    number_of_keys: Number(data.numberOfKeys || 1),
+    
+    // Timestamps
+    created_at: data.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    
+    // Status and metadata
+    status: 'draft',
+    is_draft: true,
+    form_metadata: data.form_metadata
+  };
+  
+  return result;
 };

@@ -1,7 +1,9 @@
+
 /**
  * Form Submit Handler
  * Created: 2025-06-17
  * Updated: 2025-06-21 - Fixed data handling and null checks
+ * Updated: 2025-06-22 - Fixed type error with Supabase response handling
  * 
  * Component to handle form submission logic
  */
@@ -64,19 +66,17 @@ export const FormSubmitHandler = ({
       const submissionData = {
         ...formValues,
         seller_id: userId || formValues.seller_id,
-        updated_at: new Date(),
+        updated_at: new Date().toISOString(),
+        created_at: formValues.created_at ? new Date(formValues.created_at).toISOString() : new Date().toISOString(),
         status: carId ? 'pending' : 'draft'
       };
-      
-      // If new listing, add created_at
-      if (!carId) {
-        submissionData.created_at = new Date();
-      }
       
       // Submit to Supabase
       const { data, error } = await supabase
         .from('cars')
-        .upsert(submissionData, { onConflict: 'id' });
+        .upsert(submissionData, { onConflict: 'id' })
+        .select('id')
+        .single();
       
       if (error) {
         throw new Error(error.message);
@@ -89,13 +89,8 @@ export const FormSubmitHandler = ({
         description: "Your car listing has been submitted and is pending review."
       });
       
-      if (onSubmitSuccess) {
-        const resultId = carId || (data && data[0] ? data[0].id : null);
-        if (resultId) {
-          onSubmitSuccess(resultId);
-        } else {
-          throw new Error("No ID returned from submission");
-        }
+      if (onSubmitSuccess && data) {
+        onSubmitSuccess(data.id);
       }
       
       // Clear temporary storage

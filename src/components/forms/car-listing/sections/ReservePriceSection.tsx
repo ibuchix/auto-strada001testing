@@ -2,6 +2,7 @@
 /**
  * ReservePriceSection Component
  * Updated: 2025-06-21 - Fixed FormDataContext access
+ * Updated: 2025-06-22 - Fixed type errors with calculateReservePrice return handling
  */
 
 import { FormField } from "@/components/ui/form";
@@ -17,11 +18,18 @@ export const ReservePriceSection = () => {
   const [calculatedReserve, setCalculatedReserve] = useState<number>(0);
   
   useEffect(() => {
-    const reservePrice = calculateReservePrice(Number(price));
-    setCalculatedReserve(reservePrice);
+    const calculateAndSetReserve = async () => {
+      // Get the reserve price
+      const reservePrice = calculateReservePrice(Number(price));
+      
+      // Update local state with the calculated value
+      setCalculatedReserve(reservePrice);
+      
+      // Set the reserve price in the form
+      form.setValue("reserve_price", reservePrice);
+    };
     
-    // Set the reserve price in the form
-    form.setValue("reserve_price", reservePrice);
+    calculateAndSetReserve();
   }, [price, form]);
 
   return (

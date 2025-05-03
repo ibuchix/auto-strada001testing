@@ -5,6 +5,7 @@
  * - Fixed field mappings to match database schema
  * - Added proper validation and error handling
  * - Implemented admin notification via edge function
+ * - Updated: 2025-06-22 - Fixed type conversions and field access
  */
 
 import { useForm } from "react-hook-form";
@@ -36,7 +37,7 @@ export const useManualValuationForm = () => {
       isRegisteredInPoland: false,
       isSellingOnBehalf: false,
       hasPrivatePlate: false,
-      financeAmount: "",
+      financeAmount: 0,
       financeDocument: null,
       serviceHistoryType: "none",
       sellerNotes: "",
@@ -91,16 +92,16 @@ export const useManualValuationForm = () => {
           finance_amount: safeParseFloat(data.financeAmount),
           service_history_type: data.serviceHistoryType,
           seller_notes: data.sellerNotes,
-          condition_rating: data.conditionRating,
+          condition_rating: data.conditionRating || 3,
           address: data.address,
           mobile_number: data.mobileNumber,
           vin: data.vin,
-          registration_number: data.registrationNumber,
-          accident_history: data.accidentHistory,
-          contact_email: data.contactEmail,
-          previous_owners: safeParseInt(data.previousOwners),
-          engine_capacity: safeParseFloat(data.engineCapacity),
-          notes: data.notes,
+          registration_number: data.registration_number || data.registrationNumber,
+          accident_history: data.accidentHistory || '',
+          contact_email: data.contactEmail || '',
+          previous_owners: safeParseInt(data.previousOwners) || null,
+          engine_capacity: safeParseFloat(data.engineCapacity) || null,
+          notes: data.notes || '',
           uploaded_photos: data.uploadedPhotos,
           status: 'pending'
         })

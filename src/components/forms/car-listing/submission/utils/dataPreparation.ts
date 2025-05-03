@@ -3,6 +3,7 @@
  * Utilities for preparing submission data
  * Extracted to separate module for code splitting
  * Updated: 2025-06-21 - Fixed field access to match CarListingFormData
+ * Updated: 2025-06-22 - Fixed field name errors (reservePrice → reserve_price)
  */
 
 import { CarListingFormData } from "@/types/forms";

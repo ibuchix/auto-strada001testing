@@ -1,84 +1,109 @@
+
 /**
  * Error Types
- * Created: 2025-05-03
- * Updated: 2025-06-15 - Added ErrorCategory, RecoveryAction and RecoveryType enums
- * Updated: 2025-06-16 - Fixed missing types and added ErrorRecovery interface
- * Updated: 2025-06-18 - Added ErrorCode enum
- * 
- * TypeScript types for error handling
+ * Created: 2025-06-22 - Added missing error codes
  */
 
 export enum ErrorCode {
-  SCHEMA_VALIDATION_ERROR = 'SCHEMA_VALIDATION_ERROR',
-  INCOMPLETE_FORM = 'INCOMPLETE_FORM',
-  RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
-  SERVER_VALIDATION_FAILED = 'SERVER_VALIDATION_FAILED',
-  SUBMISSION_ERROR = 'SUBMISSION_ERROR',
-  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
-  NETWORK_UNAVAILABLE = 'NETWORK_UNAVAILABLE',
-  REQUEST_TIMEOUT = 'REQUEST_TIMEOUT',
-  INVALID_VALUE = 'INVALID_VALUE',
-  INVALID_OPERATION = 'INVALID_OPERATION',
-  RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND',
-  UNEXPECTED_ERROR = 'UNEXPECTED_ERROR',
-  UNAUTHENTICATED = 'UNAUTHENTICATED',
-  UNAUTHORIZED = 'UNAUTHORIZED',
-  SERVER_ERROR = 'SERVER_ERROR'
-}
-
-export enum ErrorCategory {
-  VALIDATION = 'validation',
-  NETWORK = 'network',
-  AUTHENTICATION = 'authentication',
-  AUTHORIZATION = 'authorization',
-  BUSINESS = 'business',
-  SERVER = 'server',
-  UNKNOWN = 'unknown',
-  CLIENT = 'client'
-}
-
-export enum RecoveryAction {
-  RETRY = 'retry',
-  NAVIGATE = 'navigate',
-  REFRESH = 'refresh',
-  AUTHENTICATE = 'authenticate',
-  CONTACT_SUPPORT = 'contact_support'
-}
-
-export enum RecoveryType {
-  FIELD_CORRECTION = 'field_correction',
-  FORM_RETRY = 'form_retry',
-  SIGN_IN = 'sign_in',
-  NAVIGATE = 'navigate',
-  REFRESH = 'refresh',
-  CONTACT_SUPPORT = 'contact_support'
+  // Generic error codes
+  UNKNOWN_ERROR = 'unknown_error',
+  INTERNAL_ERROR = 'internal_error',
+  NETWORK_ERROR = 'network_error',
+  SERVER_ERROR = 'server_error',
+  CLIENT_ERROR = 'client_error',
+  TIMEOUT_ERROR = 'timeout_error',
+  
+  // Authentication errors
+  AUTH_ERROR = 'auth_error',
+  UNAUTHORIZED = 'unauthorized',
+  SESSION_EXPIRED = 'session_expired',
+  INVALID_CREDENTIALS = 'invalid_credentials',
+  
+  // Validation errors
+  VALIDATION_ERROR = 'validation_error',
+  SCHEMA_VALIDATION_ERROR = 'schema_validation_error',
+  MISSING_REQUIRED_FIELD = 'missing_required_field',
+  INVALID_FORMAT = 'invalid_format',
+  REQUIRED_FIELD = 'required_field',
+  
+  // Submission errors
+  SUBMISSION_ERROR = 'submission_error',
+  INCOMPLETE_FORM = 'incomplete_form',
+  RATE_LIMIT_EXCEEDED = 'rate_limit_exceeded',
+  SERVER_VALIDATION_FAILED = 'server_validation_failed',
+  
+  // Valuation errors
+  VALUATION_ERROR = 'valuation_error',
+  MISSING_VALUATION = 'missing_valuation',
+  
+  // File errors
+  FILE_ERROR = 'file_error',
+  FILE_UPLOAD_ERROR = 'file_upload_error',
+  FILE_TOO_LARGE = 'file_too_large',
+  INVALID_FILE_TYPE = 'invalid_file_type',
+  
+  // Data errors
+  DATA_ERROR = 'data_error',
+  NOT_FOUND = 'not_found',
+  DUPLICATE_ENTRY = 'duplicate_entry',
+  CONFLICT = 'conflict',
+  
+  // Transaction errors
+  TRANSACTION_ERROR = 'transaction_error',
+  PAYMENT_ERROR = 'payment_error',
+  INSUFFICIENT_FUNDS = 'insufficient_funds',
 }
 
 export enum ErrorSeverity {
   INFO = 'info',
   WARNING = 'warning',
   ERROR = 'error',
-  CRITICAL = 'critical'
+  CRITICAL = 'critical',
+}
+
+export enum RecoveryType {
+  RETRY = 'retry',
+  REDIRECT = 'redirect',
+  REFRESH = 'refresh',
+  CONTACT_SUPPORT = 'contact_support',
+  FORM_RETRY = 'form_retry',
+  MANUAL_ACTION = 'manual_action',
+}
+
+export type RecoveryAction = () => void | Promise<void>;
+
+export interface ErrorRecovery {
+  type: RecoveryType;
+  action: RecoveryAction;
+  label: string;
 }
 
 export interface ErrorDetails {
-  code: ErrorCode;
   message: string;
+  code: ErrorCode;
   description?: string;
+  category?: ErrorCategory;
+  recovery?: ErrorRecovery;
+  severity?: ErrorSeverity;
+  field?: string;
+  metadata?: Record<string, any>;
 }
 
-export interface ErrorRecovery {
-  type?: RecoveryType;
-  action?: RecoveryAction;
-  label: string;
-  handler?: () => void;
-  route?: string;
+export enum ErrorCategory {
+  VALIDATION = 'validation',
+  AUTHENTICATION = 'authentication',
+  AUTHORIZATION = 'authorization',
+  DATABASE = 'database',
+  NETWORK = 'network',
+  INTERNAL = 'internal',
+  GENERAL = 'general',
 }
 
-export interface RecoveryInfo {
-  type: RecoveryType;
-  label: string;
-  handler?: () => void;
-  route?: string;
-  action?: RecoveryAction;
+export interface AppError extends ErrorDetails {
+  id?: string;
+  timestamp?: string;
+  retryable?: boolean;
+  serialize?: () => Record<string, any>;
+  withDescription?: (description: string) => AppError;
+  withRecovery?: (recovery: ErrorRecovery) => AppError;
 }

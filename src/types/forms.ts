@@ -8,6 +8,7 @@
  * Updated: 2025-06-19 - Fixed TempStoredFile and TemporaryFile compatibility
  * Updated: 2025-06-20 - Made interfaces fully compatible between TempStoredFile and TemporaryFile
  * Updated: 2025-06-21 - Added missing fields needed by form components (name, address, mobileNumber, etc.)
+ * Updated: 2025-06-22 - Added additional fields needed by valuation forms and transaction components
  * 
  * TypeScript types for form handling
  */
@@ -95,6 +96,15 @@ export interface CarListingFormData {
   registration_number?: string;
   title?: string;
   
+  // New fields for manual valuation form
+  conditionRating?: number;
+  accidentHistory?: string;
+  contactEmail?: string;
+  previousOwners?: number;
+  engineCapacity?: number;
+  notes?: string;
+  registrationNumber?: string;
+  
   // Data storage for component state
   created_at?: string | Date;
   updated_at?: string | Date;
@@ -157,6 +167,16 @@ export interface CarFeatures {
 
 export type AuctionStatus = 'draft' | 'pending' | 'active' | 'completed' | 'rejected';
 
+// Add TransactionStatus to fix import errors
+export enum TransactionStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  SUCCESS = 'success',
+  ERROR = 'error',
+  CANCELED = 'canceled',
+  TIMEOUT = 'timeout'
+}
+
 // Updated to make fully compatible with TemporaryFile
 export interface TempStoredFile {
   id: string;
@@ -187,4 +207,13 @@ export interface StepItem {
   description: string;
   sections: string[];
   validate?: (data: CarListingFormData) => boolean;
+}
+
+// Add CarListing type for carService.ts
+export interface CarListing extends CarListingFormData {
+  id: string;
+  seller_id: string;
+  status: AuctionStatus;
+  created_at: string | Date;
+  updated_at: string | Date;
 }

@@ -4,12 +4,13 @@
  * Created: 2025-06-16
  * Updated: 2025-06-18 - Added STEP_FIELD_MAPPINGS export
  * Updated: 2025-06-19 - Fixed export declaration
+ * Updated: 2025-06-22 - Fixed FieldError type handling
  * 
  * Hook for managing navigation between form steps
  */
 
 import { useState } from "react";
-import { UseFormReturn, FieldError } from "react-hook-form";
+import { UseFormReturn, FieldError, FieldErrorsImpl } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { formSteps } from "../constants/formSteps";
 
@@ -27,6 +28,9 @@ export const STEP_FIELD_MAPPINGS = {
   'damage-photos': ['damagePhotos'],
   'documents': ['serviceHistoryFiles']
 };
+
+// Create a type for our error record
+type StepErrorRecord = Record<string, any>;
 
 export const useStepNavigation = (
   form: UseFormReturn<CarListingFormData>
@@ -81,9 +85,10 @@ export const useStepNavigation = (
     return Object.entries(errors).filter(([field]) => 
       currentStepFields.includes(field)
     ).reduce((acc, [field, error]) => {
-      acc[field] = error;
+      // We're just capturing the fact that there is an error, not using the specific type
+      acc[field] = error as any;
       return acc;
-    }, {} as Record<string, FieldError>);
+    }, {} as StepErrorRecord);
   };
   
   // Helper function to map sections to field names
