@@ -7,6 +7,7 @@
  * Updated: 2025-06-12: Fixed FormDataContext usage and error handling
  * Updated: 2025-07-18: Fixed incorrect component import paths
  * Updated: 2025-07-26: Fixed component imports and added missing sections
+ * Updated: 2025-07-27: Fixed PhotosSection props to match component definition
  */
 
 import React from 'react';
@@ -14,7 +15,7 @@ import { useFormData } from '../context/FormDataContext';
 import { BasicInfoSection } from "../BasicInfoSection";
 import { ConditionSection } from "../sections/ConditionSection";
 import { DamagePhotosSection } from "../DamagePhotosSection";
-import { FeaturesSection } from "../FeaturesSection";
+import { FeaturesSection } from "../sections/FeaturesSection";
 import { ServiceHistorySection } from "../ServiceHistorySection";
 import { PhotosSection } from "../sections/PhotosSection";
 import { SellerNotesSection } from "../SellerNotesSection";
@@ -70,11 +71,7 @@ export const FormSectionRenderer = ({
         
       case 'photos':
         return (
-          <PhotosSection 
-            carId={carId}
-            pauseAutoSave={pauseAutoSave}
-            resumeAutoSave={resumeAutoSave}
-          />
+          <PhotosSection carId={carId} />
         );
         
       case 'seller-notes':

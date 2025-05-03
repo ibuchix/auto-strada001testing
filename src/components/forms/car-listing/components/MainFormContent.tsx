@@ -6,6 +6,7 @@
  * - Updated 2025-04-03: Fixed props passing to work with FormDataProvider
  * - Updated 2025-07-03: Fixed StepForm integration and removed Next.js references
  * - Updated 2025-07-18: Fixed FormStep type compatibility with StepForm
+ * - Updated 2025-07-27: Fixed component property addition to converted steps
  */
 import { memo } from "react";
 import { StepForm } from "../StepForm";
@@ -47,7 +48,7 @@ export const MainFormContent = memo(({
   // Convert formSteps to match FormStep type
   const convertedSteps: FormStep[] = formSteps.map(step => ({
     ...step,
-    component: step.component || null  // Add component property if missing
+    component: null  // Add component property with null value
   }));
   
   return (

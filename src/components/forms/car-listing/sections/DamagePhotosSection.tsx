@@ -1,7 +1,9 @@
 
 /**
  * DamagePhotosSection component
- * Created: 2025-07-18 - Fixed variable declaration order and typing issues
+ * Created: 2025-07-18
+ * Updated: 2025-07-27 - Fixed variable declaration order and typing issues
+ * Updated: 2025-07-27 - Added uuid generation for damage report items
  */
 
 import { useState } from 'react';
@@ -16,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CarListingFormData, DamageReport, DamageType } from '@/types/forms';
 import { tempFileStorageService } from '@/services/supabase/tempFileStorageService';
 import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
 
 export const DamagePhotosSection = () => {
   const { control, register, setValue, watch } = useFormContext<CarListingFormData>();
@@ -70,6 +73,7 @@ export const DamagePhotosSection = () => {
 
   const addDamageReport = () => {
     append({
+      id: uuidv4(), // Generate unique id
       type: 'scratch' as DamageType,
       description: '',
       photo: null,

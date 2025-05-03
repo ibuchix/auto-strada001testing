@@ -3,12 +3,14 @@
  * Personal Details Section
  * Created: 2025-06-07
  * Contains fields for seller's personal information
+ * Updated: 2025-07-27 - Fixed address input type issue
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useFormData } from "../context/FormDataContext";
+import { Textarea } from "@/components/ui/textarea";
 
 export const PersonalDetailsSection = () => {
   const { form } = useFormData();
@@ -60,15 +62,29 @@ export const PersonalDetailsSection = () => {
       <FormField
         control={form.control}
         name="address"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Address</FormLabel>
-            <FormControl>
-              <Input placeholder="Enter your address" {...field} value={field.value || ''} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
+        render={({ field }) => {
+          // Handle the complex address type
+          const addressValue = typeof field.value === 'object' ? 
+            (field.value?.street || '') :
+            (field.value || '');
+            
+          return (
+            <FormItem>
+              <FormLabel>Address</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Enter your address"
+                  value={addressValue}
+                  onChange={(e) => {
+                    // Simplify by always treating address as string
+                    field.onChange(e.target.value);
+                  }}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          );
+        }}
       />
       
       <FormField

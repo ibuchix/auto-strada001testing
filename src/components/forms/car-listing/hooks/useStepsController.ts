@@ -3,6 +3,7 @@
  * Steps Controller Hook
  * Created: 2025-07-18
  * Updated: 2025-07-24 - Fixed property names and return values
+ * Updated: 2025-07-27 - Added missing isFirstStep and isLastStep properties
  * 
  * Provides centralized logic for form step navigation and validation
  */
@@ -23,6 +24,12 @@ interface UseStepsControllerProps {
   onValidationError?: (errors: string[]) => void;
 }
 
+interface UseStepProgressProps {
+  form: UseFormReturn<CarListingFormData>;
+  steps?: FormStep[];
+  totalSteps?: number;
+}
+
 export const useStepsController = ({
   form,
   steps,
@@ -33,15 +40,7 @@ export const useStepsController = ({
   const [currentStep, setCurrentStep] = useState(initialStep);
   
   // Step navigation logic
-  const {
-    goToNextStep,
-    goToPrevStep, // This matches the return value from useStepNavigation
-    goToStep,
-    hasStepErrors,
-    getCurrentStepErrors,
-    isFirstStep,
-    isLastStep
-  } = useStepNavigation(form);
+  const navigation = useStepNavigation(form);
 
   // Step validation logic
   const {
@@ -50,17 +49,33 @@ export const useStepsController = ({
     validationErrors,
   } = useStepValidation(form, currentStep);
 
-  // Progress tracking
+  // Progress tracking with correct props
+  const progressProps: UseStepProgressProps = {
+    form,
+    steps,
+    totalSteps: steps?.length || 4
+  };
+  
   const {
     progress,
     completedStepsArray,
     updateProgress,
-  } = useStepProgress({
-    form,
-    currentStep
-  });
+  } = useStepProgress(progressProps);
   
   const completedSteps = completedStepsArray;
+  
+  // Extract and rename needed properties from navigation
+  const { 
+    goToNextStep,
+    goToPrevStep,
+    goToStep,
+    hasStepErrors,
+    getCurrentStepErrors
+  } = navigation;
+  
+  // Calculate isFirstStep and isLastStep manually
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === (steps?.length || 4) - 1;
 
   // Handle step change with validation
   const handleStepChange = useCallback(async (newStep: number) => {

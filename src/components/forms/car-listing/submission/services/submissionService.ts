@@ -1,7 +1,9 @@
+
 /**
  * Form submission service
  * Created: 2025-04-12
  * Updated: 2025-07-03 - Refactored for better error handling and modularity
+ * Updated: 2025-07-27 - Fixed error category typing issues
  */
 
 import { CarListingFormData } from '@/types/forms';
@@ -9,6 +11,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { AppError } from '@/errors/classes';
 import { ErrorCode, ErrorSeverity } from '@/errors/types';
 import { ValidationSubmissionError } from '../errors';
+
+// Define error category types compatible with AppError
+type ErrorCategory = 'validation_error' | 'technical_error' | 'business_error' | 'auth_error' | 'network_error';
 
 export const submissionService = {
   submitFormData: async (
@@ -21,7 +26,7 @@ export const submissionService = {
         const error = new AppError({
           message: 'Missing required vehicle information',
           code: ErrorCode.VALIDATION_ERROR,
-          category: 'validation',
+          category: 'validation_error' as ErrorCategory,
           severity: ErrorSeverity.ERROR
         });
         return { data: null, error };
@@ -46,7 +51,7 @@ export const submissionService = {
         const appError = new AppError({
           message: error.message,
           code: ErrorCode.SUBMISSION_ERROR,
-          category: 'technical',
+          category: 'technical_error' as ErrorCategory,
           severity: ErrorSeverity.ERROR
         });
         return { data: null, error: appError };
@@ -57,7 +62,7 @@ export const submissionService = {
       const appError = new AppError({
         message: error.message || 'Unknown submission error',
         code: ErrorCode.UNKNOWN_ERROR,
-        category: 'technical',
+        category: 'technical_error' as ErrorCategory,
         severity: ErrorSeverity.ERROR
       });
       return { data: null, error: appError };
@@ -71,10 +76,14 @@ export const submissionService = {
     try {
       // Validate form data before submission
       if (!formData.vin || !formData.make || !formData.model) {
-        return {
-          data: null,
-          error: new ValidationSubmissionError('Missing required vehicle information')
-        };
+        // Convert ValidationSubmissionError to AppError format
+        const error = new AppError({
+          message: 'Missing required vehicle information',
+          code: ErrorCode.VALIDATION_ERROR,
+          category: 'validation_error' as ErrorCategory,
+          severity: ErrorSeverity.ERROR
+        });
+        return { data: null, error };
       }
 
       // Prepare data for update
@@ -97,7 +106,7 @@ export const submissionService = {
           error: new AppError({
             message: error.message,
             code: ErrorCode.SUBMISSION_ERROR,
-            category: 'technical',
+            category: 'technical_error' as ErrorCategory,
             severity: ErrorSeverity.ERROR
           })
         };
@@ -110,7 +119,7 @@ export const submissionService = {
         error: new AppError({
           message: error.message || 'Unknown submission error',
           code: ErrorCode.UNKNOWN_ERROR,
-          category: 'technical',
+          category: 'technical_error' as ErrorCategory,
           severity: ErrorSeverity.ERROR
         })
       };
@@ -135,7 +144,7 @@ export const submissionService = {
           error: new AppError({
             message: error.message,
             code: ErrorCode.SUBMISSION_ERROR,
-            category: 'technical',
+            category: 'technical_error' as ErrorCategory,
             severity: ErrorSeverity.ERROR
           })
         };
@@ -148,7 +157,7 @@ export const submissionService = {
         error: new AppError({
           message: error.message || 'Unknown submission error',
           code: ErrorCode.UNKNOWN_ERROR,
-          category: 'technical',
+          category: 'technical_error' as ErrorCategory,
           severity: ErrorSeverity.ERROR
         })
       };

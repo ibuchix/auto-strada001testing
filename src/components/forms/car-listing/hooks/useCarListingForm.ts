@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Added missing imports (toast, UseFormReturn)
@@ -8,13 +9,14 @@
  * - Integrated with carSchema validation
  * - 2028-11-14: Fixed TypeScript error by properly returning loadInitialData and handleReset
  * - 2025-05-31: Updated to work with the filtered valuation data structure
+ * - 2025-07-27: Fixed getInitialFormValues import
  */
 
 import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CarListingFormData } from "@/types/forms";
 import { carSchema } from "@/utils/validation/carSchema";
-import { getInitialFormValues } from "./useFormDefaults";
+import { getInitialFormValues } from "./useFormHelpers";
 import { toast } from "sonner";
 import { toNumberValue } from "@/utils/typeConversion";
 

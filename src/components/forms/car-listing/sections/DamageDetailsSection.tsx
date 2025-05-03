@@ -5,6 +5,7 @@
  * Contains fields for reporting vehicle damage
  * Updated: 2025-06-08: Fixed type error with DamageType
  * Updated: 2025-06-08: Fixed missing photo property in DamageReport
+ * Updated: 2025-07-27: Fixed missing id property in append function
  */
 
 import { useFormData } from "../context/FormDataContext";
@@ -16,6 +17,7 @@ import { Plus, Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useFieldArray } from "react-hook-form";
 import { DamageType } from "@/types/forms";
+import { v4 as uuidv4 } from 'uuid';
 
 export const DamageDetailsSection = () => {
   const { form } = useFormData();
@@ -116,11 +118,12 @@ export const DamageDetailsSection = () => {
         size="sm"
         className="mt-2"
         onClick={() => append({ 
+          id: uuidv4(),
           type: 'scratch' as DamageType, 
           location: '', 
           description: '',
           severity: 'minor',
-          photo: null // Add the required photo property with null value
+          photo: null
         })}
       >
         <Plus className="h-4 w-4 mr-2" />

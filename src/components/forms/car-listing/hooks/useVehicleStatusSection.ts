@@ -1,60 +1,99 @@
 
 /**
- * useVehicleStatusSection Hook
- * Created: 2025-06-20 - Fixed type conversion and property name issues
+ * Vehicle Status Hook
+ * Created: 2025-06-14
+ * Updated: 2025-07-27 - Fixed boolean type conversion for form inputs
  */
+import { useFormContext } from 'react-hook-form';
+import { useState } from 'react';
+import { CarListingFormData } from '@/types/forms';
 
-import { useState, useEffect } from "react";
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
-
-export const useVehicleStatusSection = (form: UseFormReturn<CarListingFormData>) => {
-  const [hasFinance, setHasFinance] = useState(form.watch("hasOutstandingFinance") || false);
-  const [hasPrivatePlate, setHasPrivatePlate] = useState(form.watch("hasPrivatePlate") || false);
+export function useVehicleStatusSection() {
+  const { watch, setValue } = useFormContext<CarListingFormData>();
   
-  // Watch for changes to finance fields
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name === "hasOutstandingFinance") {
-        setHasFinance(!!value.hasOutstandingFinance);
-        
-        // Reset finance fields if "no" is selected
-        if (!value.hasOutstandingFinance) {
-          form.setValue("financeAmount", 0, { shouldValidate: true });
-          form.setValue("financeProvider", "", { shouldValidate: true });
-          form.setValue("financeEndDate", "", { shouldValidate: true });
-        }
-      }
-      
-      if (name === "hasPrivatePlate") {
-        setHasPrivatePlate(!!value.hasPrivatePlate);
-        
-        // Reset private plate field if "no" is selected
-        if (!value.hasPrivatePlate) {
-          form.setValue("privateReg", "", { shouldValidate: true });
-        }
-      }
-    });
+  // Watch all boolean status fields
+  const isDamaged = watch('isDamaged') || false;
+  const hasWarningLights = watch('hasWarningLights') || false;
+  const hasFinance = watch('hasOutstandingFinance') || false;
+  const hasPrivatePlate = watch('hasPrivatePlate') || false;
+  const hasServiceHistory = watch('hasServiceHistory') || false;
+  
+  // Status displays
+  const [showDamageOptions, setShowDamageOptions] = useState(isDamaged);
+  const [showWarningLightOptions, setShowWarningLightOptions] = useState(hasWarningLights);
+  const [showFinanceOptions, setShowFinanceOptions] = useState(hasFinance);
+  const [showPlateOptions, setShowPlateOptions] = useState(hasPrivatePlate);
+  const [showServiceHistoryOptions, setShowServiceHistoryOptions] = useState(hasServiceHistory);
+
+  // Update damage status
+  const handleDamageChange = (isChecked: boolean) => {
+    setValue('isDamaged', isChecked);
+    setShowDamageOptions(isChecked);
     
-    return () => subscription.unsubscribe();
-  }, [form]);
-  
-  // Handle finance amount change with proper type conversion
-  const handleFinanceAmountChange = (value: string) => {
-    // Convert string to number safely
-    const numericValue = parseFloat(value) || 0;
-    form.setValue("financeAmount", numericValue, { shouldValidate: true });
+    // If no damage, clear damage reports
+    if (!isChecked) {
+      setValue('damageReports', []);
+    }
   };
   
-  // Handle private plate change - using privateReg instead of privatePlateDetails
-  const handlePrivatePlateChange = (value: string) => {
-    form.setValue("privateReg", value, { shouldValidate: true });
+  // Update warning lights status
+  const handleWarningLightsChange = (isChecked: boolean) => {
+    setValue('hasWarningLights', isChecked);
+    setShowWarningLightOptions(isChecked);
+    
+    // If no warning lights, clear warning light photos
+    if (!isChecked) {
+      setValue('warningLightPhotos', []);
+      setValue('warningLightDescription', '');
+    }
+  };
+  
+  // Update finance status
+  const handleFinanceChange = (isChecked: boolean) => {
+    setValue('hasOutstandingFinance', isChecked);
+    setShowFinanceOptions(isChecked);
+    
+    // If no finance, clear finance details
+    if (!isChecked) {
+      setValue('financeAmount', undefined);
+      setValue('financeProvider', '');
+      setValue('financeEndDate', '');
+    }
+  };
+  
+  // Update private plate status
+  const handlePrivatePlateChange = (isChecked: boolean) => {
+    setValue('hasPrivatePlate', isChecked);
+    setShowPlateOptions(isChecked);
+  };
+  
+  // Update service history status
+  const handleServiceHistoryChange = (isChecked: boolean) => {
+    setValue('hasServiceHistory', isChecked);
+    setShowServiceHistoryOptions(isChecked);
+    
+    // If no service history, clear service history type
+    if (!isChecked) {
+      setValue('serviceHistoryType', 'none');
+      setValue('serviceHistoryFiles', []);
+    }
   };
   
   return {
+    isDamaged,
+    hasWarningLights,
     hasFinance,
     hasPrivatePlate,
-    handleFinanceAmountChange,
-    handlePrivatePlateChange
+    hasServiceHistory,
+    showDamageOptions,
+    showWarningLightOptions,
+    showFinanceOptions,
+    showPlateOptions,
+    showServiceHistoryOptions,
+    handleDamageChange,
+    handleWarningLightsChange,
+    handleFinanceChange,
+    handlePrivatePlateChange,
+    handleServiceHistoryChange
   };
-};
+}

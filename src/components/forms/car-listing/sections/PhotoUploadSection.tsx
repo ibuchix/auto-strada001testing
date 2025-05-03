@@ -4,6 +4,7 @@
  * Created: 2025-04-12
  * Updated: 2025-05-03 - Added file validation and preview
  * Updated: 2025-07-18 - Fixed type issues with photo uploads 
+ * Updated: 2025-07-27 - Fixed StoredFile type handling
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -12,17 +13,36 @@ import { useFormContext } from 'react-hook-form';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import { Camera } from 'lucide-react';
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, StoredFile } from "@/types/forms";
 import { tempFileStorageService } from '@/services/supabase/tempFileStorageService';
 import { toast } from 'sonner';
 import { useFormValidation } from '../hooks/useFormValidation';
 
-// Define a StoredFile type to handle both string and object-based files
-interface StoredFile {
+type ExtendedStoredFile = StoredFile & {
   id?: string;
-  name: string;
-  url: string;
+  fileName?: string;
+  preview?: string;
 }
+
+// Convert mixed types to a common format
+const normalizeStoredFile = (file: StoredFile | string): ExtendedStoredFile => {
+  if (typeof file === 'string') {
+    return { 
+      name: file.split('/').pop() || 'unnamed', 
+      url: file,
+      type: '',
+      size: 0,
+      uploadedAt: new Date().toISOString()
+    };
+  }
+  return file;
+};
+
+// Get URL from stored file, regardless of format
+const getPhotoUrl = (photo: StoredFile | string | null | undefined): string | null => {
+  if (!photo) return null;
+  return typeof photo === 'string' ? photo : photo.url;
+};
 
 export const PhotoUploadSection = () => {
   const { register, setValue, watch } = useFormContext<CarListingFormData>();
@@ -43,12 +63,12 @@ export const PhotoUploadSection = () => {
         const uploadedFile = await tempFileStorageService.addFile(file);
         
         // Convert the response to a StoredFile if needed
-        const storedFile: StoredFile = typeof uploadedFile === 'string' 
-          ? { name: file.name, url: uploadedFile }
-          : { name: uploadedFile.name, url: uploadedFile.url, id: uploadedFile.id };
+        const storedFile: ExtendedStoredFile = typeof uploadedFile === 'string' 
+          ? { name: file.name, url: uploadedFile, type: '', size: 0, uploadedAt: new Date().toISOString() }
+          : { name: uploadedFile.name, url: uploadedFile.url, id: uploadedFile.id, type: '', size: 0, uploadedAt: new Date().toISOString() };
         
         // Update form values with uploaded file
-        setValue('uploadedPhotos', [...uploadedPhotos, storedFile]);
+        setValue('uploadedPhotos', [...(uploadedPhotos || []), storedFile]);
       }
       
       toast.success("Photos uploaded successfully.");
@@ -61,10 +81,51 @@ export const PhotoUploadSection = () => {
     }
   };
   
-  // Initialize uploaded photos from form values
+  // Create an effect to update required photo fields when uploadedPhotos changes
   useEffect(() => {
-    // No additional initialization needed
-  }, [uploadedPhotos, setValue]);
+    // Extract photo URLs
+    const photos = uploadedPhotos.map(photo => normalizeStoredFile(photo).url);
+    
+    // If we have photos, assign them to required fields
+    if (photos.length > 0) {
+      setValue('requiredPhotosComplete', photos.length >= 6);
+      
+      // Set first photo as front view if not set
+      if (!watch('frontView') && photos.length >= 1) {
+        setValue('frontView', photos[0]);
+      }
+      
+      // Set second photo as rear view if not set
+      if (!watch('rearView') && photos.length >= 2) {
+        setValue('rearView', photos[1]);
+      }
+      
+      // Set third photo as driver side if not set
+      if (!watch('driverSide') && photos.length >= 3) {
+        setValue('driverSide', photos[2]);
+      }
+      
+      // Set fourth photo as passenger side if not set
+      if (!watch('passengerSide') && photos.length >= 4) {
+        setValue('passengerSide', photos[3]);
+      }
+      
+      // Set fifth photo as dashboard if not set
+      if (!watch('dashboard') && photos.length >= 5) {
+        setValue('dashboard', photos[4]);
+      }
+      
+      // Set sixth photo as interior front if not set
+      if (!watch('interiorFront') && photos.length >= 6) {
+        setValue('interiorFront', photos[5]);
+      }
+      
+      // Set seventh photo as interior rear if not set
+      if (!watch('interiorRear') && photos.length >= 7) {
+        setValue('interiorRear', photos[6]);
+      }
+    }
+  }, [uploadedPhotos, setValue, watch]);
   
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     handleFileUpload(acceptedFiles);
@@ -81,17 +142,15 @@ export const PhotoUploadSection = () => {
   
   const handleRemovePhoto = (photo: StoredFile | string) => {
     // Extract name from either string or object
-    const fileName = typeof photo === 'string' ? 
-      photo : 
-      photo.name;
+    const normalizedPhoto = normalizeStoredFile(photo);
     
     // Remove file from storage service
-    tempFileStorageService.removeFileByName(fileName);
+    tempFileStorageService.removeFileByName(normalizedPhoto.name);
     
     // Update form values after removing file
     const updatedPhotos = uploadedPhotos.filter((p: StoredFile | string) => {
-      const currentName = typeof p === 'string' ? p : p.name;
-      return currentName !== fileName;
+      const currentPhoto = normalizeStoredFile(p);
+      return currentPhoto.name !== normalizedPhoto.name;
     });
     
     setValue('uploadedPhotos', updatedPhotos);
@@ -127,16 +186,14 @@ export const PhotoUploadSection = () => {
       {uploadedPhotos && uploadedPhotos.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
           {uploadedPhotos.map((photo: StoredFile | string, index: number) => {
-            // Handle both string and object formats
-            const photoUrl = typeof photo === 'string' ? photo : photo.url;
-            const photoName = typeof photo === 'string' ? `Photo ${index + 1}` : photo.name;
+            const normalizedPhoto = normalizeStoredFile(photo);
             
             return (
               <div key={index} className="relative">
                 <AspectRatio ratio={1}>
                   <img
-                    src={photoUrl}
-                    alt={photoName}
+                    src={normalizedPhoto.url}
+                    alt={normalizedPhoto.name}
                     className="object-cover rounded-md"
                   />
                 </AspectRatio>

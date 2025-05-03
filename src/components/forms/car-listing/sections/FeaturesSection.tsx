@@ -2,22 +2,24 @@
 /**
  * FeaturesSection component
  * Created: 2025-07-18
+ * Updated: 2025-07-27 - Fixed type errors with features object
  */
 
 import { useFormContext } from 'react-hook-form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { CarListingFormData } from '@/types/forms';
+import { CarListingFormData, CarFeatures } from '@/types/forms';
+import { DEFAULT_VALUES } from '../constants/defaultValues';
 
 export const FeaturesSection = () => {
   const { setValue, watch } = useFormContext<CarListingFormData>();
-  const features = watch('features') || {};
+  const features = watch('features') || DEFAULT_VALUES.features;
   
-  const handleFeatureChange = (feature: string, checked: boolean) => {
+  const handleFeatureChange = (feature: keyof CarFeatures, checked: boolean) => {
     setValue('features', { 
       ...features, 
       [feature]: checked 
-    });
+    }, { shouldDirty: true });
   };
   
   return (
