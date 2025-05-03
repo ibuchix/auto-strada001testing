@@ -5,6 +5,7 @@
  * Updated 2028-05-18: Added support for category prop
  * Updated 2025-04-05: Fixed ErrorCategory references and TypeScript type issues
  * Updated 2025-07-01: Fixed UNKNOWN category reference
+ * Updated 2025-07-18: Fixed error category references
  */
 
 import React from "react";

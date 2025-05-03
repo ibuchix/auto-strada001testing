@@ -1,7 +1,8 @@
 
 /**
- * Error factory for creating consistent application errors
- * Updated: 2025-07-03 - Fixed metadata handling
+ * Error Factory
+ * Created: 2025-07-03
+ * Updated: 2025-07-18 - Added createErrorFromUnknown method
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -9,203 +10,160 @@ import {
   ErrorCode, 
   ErrorCategory, 
   ErrorSeverity, 
-  ErrorOptions,
   RecoveryType,
   RecoveryAction,
-  ErrorRecovery
+  ErrorRecovery,
+  AppErrorOptions
 } from './types';
-import { AppError } from './classes';
+import { 
+  AppError, 
+  ValidationError, 
+  AuthenticationError, 
+  NetworkError,
+  BusinessError
+} from './classes';
 
-class ErrorFactory {
-  createError(
+export const errorFactory = {
+  createAppError(
     message: string,
     code: ErrorCode = ErrorCode.UNKNOWN_ERROR,
-    options: ErrorOptions = {}
-  ): AppError {
-    const error = new AppError({
-      message,
-      code,
-      category: this.getCategoryForCode(code),
-      severity: options.severity || ErrorSeverity.ERROR,
-      metadata: options.metadata || {}
-    });
-    
-    return error;
-  }
-  
-  createValidationError(
-    message: string,
-    metadata?: Record<string, any>
+    category: ErrorCategory = ErrorCategory.UNKNOWN,
+    severity: ErrorSeverity = ErrorSeverity.ERROR
   ): AppError {
     return new AppError({
       message,
-      code: ErrorCode.VALIDATION_ERROR,
-      category: ErrorCategory.VALIDATION,
-      severity: ErrorSeverity.WARNING,
-      metadata: metadata || {}
-    });
-  }
-  
-  createNetworkError(
-    message: string = 'Network error occurred',
-    metadata?: Record<string, any>
-  ): AppError {
-    const error = new AppError({
-      message,
-      code: ErrorCode.NETWORK_ERROR,
-      category: ErrorCategory.NETWORK,
-      severity: ErrorSeverity.ERROR,
-      metadata: metadata || {}
-    });
-    
-    error.recovery = {
-      type: RecoveryType.RETRY,
-      label: 'Try Again',
-      action: RecoveryAction.RETRY
-    };
-    
-    return error;
-  }
-  
-  createAuthError(
-    message: string,
-    code: ErrorCode = ErrorCode.AUTH_ERROR,
-    metadata?: Record<string, any>
-  ): AppError {
-    const error = new AppError({
-      message,
       code,
-      category: ErrorCategory.AUTH,
-      severity: ErrorSeverity.ERROR,
-      metadata: metadata || {}
+      category,
+      severity
     });
-    
-    error.recovery = {
-      type: RecoveryType.REDIRECT,
-      label: 'Sign In',
-      action: RecoveryAction.REDIRECT,
-      url: '/auth/signin'
-    };
-    
-    return error;
-  }
+  },
   
   createFormError(
     message: string,
-    fieldErrors?: Record<string, string>,
-    metadata?: Record<string, any>
+    errors: Record<string, string> = {},
+    metadata: Record<string, any> = {}
   ): AppError {
-    const error = new AppError({
+    return new AppError({
       message,
       code: ErrorCode.FORM_ERROR,
       category: ErrorCategory.VALIDATION,
-      severity: ErrorSeverity.WARNING,
-      metadata: { 
-        ...metadata || {},
-        fieldErrors
+      severity: ErrorSeverity.ERROR,
+      metadata: {
+        ...metadata,
+        formErrors: errors
       }
     });
-    
-    // No recovery action for form errors, the user needs to fix the form inputs
-    
-    return error;
-  }
+  },
   
-  createTimeoutError(
-    message: string = 'The request timed out',
-    metadata?: Record<string, any>
-  ): AppError {
-    const error = new AppError({
+  createValidationError(
+    message: string,
+    field?: string,
+  ): ValidationError {
+    const validationError = new ValidationError(
       message,
-      code: ErrorCode.TIMEOUT_ERROR,
-      category: ErrorCategory.NETWORK,
-      severity: ErrorSeverity.WARNING,
-      metadata: metadata || {}
-    });
+      ErrorCode.VALIDATION_ERROR,
+      ErrorCategory.VALIDATION
+    );
     
-    error.recovery = {
-      type: RecoveryType.RETRY,
-      label: 'Try Again',
-      action: RecoveryAction.RETRY
-    };
-    
-    return error;
-  }
-  
-  createNotFoundError(
-    message: string = 'Resource not found',
-    metadata?: Record<string, any>
-  ): AppError {
-    const error = new AppError({
-      message,
-      code: ErrorCode.NOT_FOUND,
-      category: ErrorCategory.BUSINESS,
-      severity: ErrorSeverity.WARNING,
-      metadata: metadata || {}
-    });
-    
-    error.recovery = {
-      type: RecoveryType.REDIRECT,
-      label: 'Go Back',
-      action: RecoveryAction.REDIRECT,
-      url: '/'
-    };
-    
-    return error;
-  }
-  
-  createServerError(
-    message: string = 'Server error occurred',
-    metadata?: Record<string, any>
-  ): AppError {
-    const error = new AppError({
-      message,
-      code: ErrorCode.SERVER_ERROR,
-      category: ErrorCategory.NETWORK,
-      severity: ErrorSeverity.ERROR,
-      metadata: metadata || {}
-    });
-    
-    error.recovery = {
-      type: RecoveryType.CONTACT_SUPPORT,
-      label: 'Contact Support',
-      action: RecoveryAction.CONTACT_SUPPORT
-    };
-    
-    return error;
-  }
-  
-  private getCategoryForCode(code: ErrorCode): ErrorCategory {
-    switch (code) {
-      case ErrorCode.VALIDATION_ERROR:
-      case ErrorCode.FORM_ERROR:
-        return ErrorCategory.VALIDATION;
-        
-      case ErrorCode.NETWORK_ERROR:
-      case ErrorCode.TIMEOUT_ERROR:
-      case ErrorCode.SERVER_ERROR:
-        return ErrorCategory.NETWORK;
-        
-      case ErrorCode.AUTH_ERROR:
-      case ErrorCode.INVALID_CREDENTIALS:
-      case ErrorCode.EXPIRED_SESSION:
-      case ErrorCode.UNAUTHORIZED:
-      case ErrorCode.FORBIDDEN:
-        return ErrorCategory.AUTH;
-        
-      case ErrorCode.SUBMISSION_ERROR:
-      case ErrorCode.DATA_ERROR:
-      case ErrorCode.PROCESSING_ERROR:
-      case ErrorCode.FILE_UPLOAD_ERROR:
-      case ErrorCode.INCOMPLETE_FORM:
-      case ErrorCode.NOT_FOUND:
-      case ErrorCode.VALUATION_ERROR:
-        return ErrorCategory.BUSINESS;
-        
-      default:
-        return ErrorCategory.TECHNICAL;
+    if (field) {
+      validationError.field = field;
     }
-  }
-}
+    
+    return validationError;
+  },
+  
+  createAuthError(
+    message: string,
+    code: ErrorCode = ErrorCode.AUTH_ERROR
+  ): AuthenticationError {
+    return new AuthenticationError(message, code);
+  },
 
-export const errorFactory = new ErrorFactory();
+  createNetworkError(message: string): NetworkError {
+    return new NetworkError(message);
+  },
+
+  createTimeoutError(message: string = 'Request timed out'): NetworkError {
+    return new NetworkError(message, ErrorCode.TIMEOUT_ERROR);
+  },
+  
+  createSubmissionError(message: string, description: string = ''): AppError {
+    return new AppError({
+      message,
+      code: ErrorCode.SUBMISSION_ERROR,
+      category: ErrorCategory.BUSINESS,
+      severity: ErrorSeverity.ERROR,
+      description
+    });
+  },
+  
+  createErrorFromUnknown(error: unknown): AppError {
+    if (error instanceof AppError) {
+      return error;
+    }
+    
+    if (error instanceof Error) {
+      const appError = new AppError({
+        message: error.message,
+        code: ErrorCode.UNKNOWN_ERROR,
+        category: ErrorCategory.UNKNOWN,
+        severity: ErrorSeverity.ERROR
+      });
+      
+      // Copy the stack trace if available
+      if (error.stack) {
+        appError.stack = error.stack;
+      }
+      
+      return appError;
+    }
+    
+    // If it's a string, use it as the message
+    if (typeof error === 'string') {
+      return new AppError({
+        message: error,
+        code: ErrorCode.UNKNOWN_ERROR,
+        category: ErrorCategory.UNKNOWN,
+        severity: ErrorSeverity.ERROR
+      });
+    }
+    
+    // If it's an object, try to extract a message
+    if (error && typeof error === 'object') {
+      if ('message' in error && typeof error.message === 'string') {
+        return new AppError({
+          message: error.message,
+          code: ErrorCode.UNKNOWN_ERROR,
+          category: ErrorCategory.UNKNOWN,
+          severity: ErrorSeverity.ERROR
+        });
+      }
+    }
+    
+    // Last resort - generic error
+    return new AppError({
+      message: 'An unknown error occurred',
+      code: ErrorCode.UNKNOWN_ERROR,
+      category: ErrorCategory.UNKNOWN,
+      severity: ErrorSeverity.ERROR
+    });
+  },
+
+  handleAppError(error: any): void {
+    console.error("App Error:", error);
+    // Additional error handling logic can be added here
+  }
+};
+
+// Convenience exports for direct import
+export const { 
+  createAppError,
+  createFormError, 
+  createValidationError,
+  createAuthError,
+  createNetworkError,
+  createTimeoutError,
+  createSubmissionError,
+  createErrorFromUnknown,
+  handleAppError
+} = errorFactory;

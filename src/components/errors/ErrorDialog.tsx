@@ -5,6 +5,7 @@
  * Updated: 2025-04-05 - Fixed TypeScript type issues
  * Updated: 2025-06-16 - Fixed error code comparison
  * Updated: 2025-07-01 - Fixed RecoveryAction usage as enum
+ * Updated: 2025-07-18 - Fixed route property and action types
  */
 
 import React from 'react';
@@ -45,8 +46,8 @@ export const ErrorDialog: React.FC<ErrorDialogProps> = ({
     
     if (error.recovery.handler) {
       error.recovery.handler();
-    } else if (error.recovery.action === RecoveryAction.NAVIGATE && error.recovery.route) {
-      navigate(error.recovery.route);
+    } else if (error.recovery.action === RecoveryAction.NAVIGATE && error.recovery.url) {
+      navigate(error.recovery.url);
     } else if (error.recovery.action === RecoveryAction.RETRY && onRetry) {
       onRetry();
     } else if (error.recovery.action === RecoveryAction.REFRESH) {
@@ -117,6 +118,7 @@ function getErrorIcon(error: AppError) {
     case ErrorCategory.NETWORK:
       return <WifiOff className="h-5 w-5 text-red-500" />;
     case ErrorCategory.AUTHENTICATION:
+      return <ShieldAlert className="h-5 w-5 text-red-500" />;
     case ErrorCategory.AUTHORIZATION:
       return <ShieldAlert className="h-5 w-5 text-red-500" />;
     case ErrorCategory.SERVER:

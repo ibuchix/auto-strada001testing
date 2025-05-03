@@ -5,6 +5,7 @@
  * Updated: 2025-06-16 - Fixed error code comparison
  * Updated: 2025-06-18 - Fixed ErrorCode import
  * Updated: 2025-07-01 - Fixed RecoveryAction usage as enum
+ * Updated: 2025-07-18 - Fixed route property and action types
  */
 
 import React from 'react';
@@ -39,8 +40,8 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({
     
     if (error.recovery.handler) {
       error.recovery.handler();
-    } else if (error.recovery.action === RecoveryAction.NAVIGATE && error.recovery.route) {
-      navigate(error.recovery.route);
+    } else if (error.recovery.action === RecoveryAction.NAVIGATE && error.recovery.url) {
+      navigate(error.recovery.url);
     } else if (error.recovery.action === RecoveryAction.RETRY && onRetry) {
       onRetry();
     } else if (error.recovery.action === RecoveryAction.REFRESH) {

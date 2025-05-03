@@ -1,35 +1,69 @@
 
 /**
- * Form Steps Constants
- * Created: 2025-05-03
- * Updated: 2025-06-15 - Added sections property to each step
- * Updated: 2025-06-16 - Fixed export interface for StepItem
- * Updated: 2025-06-17 - Added additional-info section to basic-info step
+ * Form steps configuration
+ * Created: 2025-07-18
  * 
- * Configuration for multi-step form
+ * Defines the steps and sections for the car listing form
  */
 
-import { StepItem } from "@/types/forms";
+import { FormStep } from '../types';
+import { VehicleDetailsSection } from '../sections/VehicleDetailsSection';
+import { PricingSection } from '../sections/PricingSection';
+import { FeaturesSection } from '../sections/FeaturesSection';
+import { PhotoUploadSection } from '../sections/PhotoUploadSection';
+import { DamagePhotosSection } from '../sections/DamagePhotosSection';
+import { SellerNotesSection } from '../sections/SellerNotesSection';
+import { SellerDetailsSection } from '../sections/SellerDetailsSection';
 
-export const formSteps: StepItem[] = [
+// Define form steps with components and sections
+export const formSteps: FormStep[] = [
   {
-    id: 'basic-info',
-    title: 'Basic Information',
-    description: 'Enter the basic details about your vehicle',
-    sections: ['car-details', 'price', 'description', 'additional-info']
+    id: 'vehicle-details',
+    title: 'Vehicle Details',
+    description: 'Enter basic information about your vehicle',
+    sections: ['make', 'model', 'year', 'mileage', 'vin', 'transmission'],
+    component: <VehicleDetailsSection />
   },
   {
-    id: 'condition',
-    title: 'Vehicle Condition',
-    description: 'Tell us about the condition of your vehicle',
-    sections: ['condition', 'damage', 'service-history']
+    id: 'pricing',
+    title: 'Pricing',
+    description: 'Set your asking price and reserve price',
+    sections: ['price', 'reserve_price'],
+    component: <PricingSection />
+  },
+  {
+    id: 'features',
+    title: 'Vehicle Features',
+    description: 'Select features your vehicle has',
+    sections: ['features'],
+    component: <FeaturesSection />
   },
   {
     id: 'photos',
-    title: 'Photos & Documents',
-    description: 'Upload photos and documents for your vehicle',
-    sections: ['photos', 'rim-photos', 'damage-photos', 'documents']
+    title: 'Photos',
+    description: 'Upload photos of your vehicle',
+    sections: ['uploadedPhotos', 'vehiclePhotos'],
+    component: <PhotoUploadSection />
+  },
+  {
+    id: 'damage',
+    title: 'Damage Reports',
+    description: 'Report any damage to the vehicle',
+    sections: ['isDamaged', 'damageReports'],
+    component: <DamagePhotosSection />
+  },
+  {
+    id: 'seller-notes',
+    title: 'Seller Notes',
+    description: 'Add any additional information for buyers',
+    sections: ['sellerNotes'],
+    component: <SellerNotesSection />
+  },
+  {
+    id: 'seller-details',
+    title: 'Seller Details',
+    description: 'Your contact information',
+    sections: ['name', 'mobileNumber', 'address'],
+    component: <SellerDetailsSection />
   }
 ];
-
-export const SAVE_DEBOUNCE_TIME = 2000; // 2 seconds

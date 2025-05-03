@@ -1,156 +1,91 @@
 
 /**
- * Vehicle Details Section
- * Created: 2025-06-07
- * Contains fields for basic vehicle information
- * Updated: 2025-06-09: Removed duplicate reserve price field since we have a separate section for it
+ * VehicleDetailsSection component
+ * Created: 2025-07-18
  */
 
-import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useFormData } from "../context/FormDataContext";
+import { useFormContext } from 'react-hook-form';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CarListingFormData } from '@/types/forms';
 
 export const VehicleDetailsSection = () => {
-  const { form } = useFormData();
-  
-  if (!form) {
-    return <div>Loading form...</div>;
-  }
+  const { register, setValue, watch } = useFormContext<CarListingFormData>();
+  const transmission = watch('transmission');
   
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 50 }, (_, i) => currentYear - i);
+  const yearOptions = Array.from({ length: 50 }, (_, i) => currentYear - i);
   
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FormField
-          control={form.control}
-          name="make"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Make</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. BMW, Audi, Mercedes" {...field} value={field.value || ''} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="model"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Model</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. 3 Series, A4, C-Class" {...field} value={field.value || ''} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <div className="grid gap-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="make">Make</Label>
+          <Input id="make" {...register('make')} placeholder="e.g. BMW" required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="model">Model</Label>
+          <Input id="model" {...register('model')} placeholder="e.g. X5" required />
+        </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FormField
-          control={form.control}
-          name="year"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Year</FormLabel>
-              <Select
-                onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                defaultValue={field.value?.toString()}
-                value={field.value?.toString()}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select year" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="mileage"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Mileage (km)</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  placeholder="e.g. 50000"
-                  {...field}
-                  onChange={(e) => {
-                    const value = e.target.value === '' ? '' : Number(e.target.value);
-                    field.onChange(value);
-                  }}
-                  value={field.value === null || field.value === undefined ? '' : field.value}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="year">Year</Label>
+          <Select 
+            value={watch('year')?.toString() || ''}
+            onValueChange={(value) => setValue('year', parseInt(value))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select year" />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions.map(year => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="mileage">Mileage</Label>
+          <Input
+            id="mileage"
+            {...register('mileage', { valueAsNumber: true })}
+            type="number"
+            placeholder="e.g. 50000"
+            required
+          />
+        </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FormField
-          control={form.control}
-          name="vin"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>VIN (Vehicle Identification Number)</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. WBAAA1305H8251545" {...field} value={field.value || ''} />
-              </FormControl>
-              <FormDescription>
-                You can find this on your vehicle registration document or on the vehicle itself
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="transmission"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Transmission</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value}
-                value={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select transmission" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="automatic">Automatic</SelectItem>
-                  <SelectItem value="manual">Manual</SelectItem>
-                  <SelectItem value="semi-automatic">Semi-automatic</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="vin">VIN (Vehicle Identification Number)</Label>
+          <Input
+            id="vin"
+            {...register('vin')}
+            placeholder="e.g. 1HGCM82633A123456"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="transmission">Transmission</Label>
+          <Select 
+            value={transmission || 'manual'}
+            onValueChange={(value) => setValue('transmission', value as 'manual' | 'automatic')}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select transmission" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="manual">Manual</SelectItem>
+              <SelectItem value="automatic">Automatic</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
   );

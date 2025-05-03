@@ -5,11 +5,13 @@
  * - Updated 2025-04-02: Fixed form context usage to prevent undefined form errors
  * - Updated 2025-04-03: Fixed props passing to work with FormDataProvider
  * - Updated 2025-07-03: Fixed StepForm integration and removed Next.js references
+ * - Updated 2025-07-18: Fixed FormStep type compatibility with StepForm
  */
 import { memo } from "react";
 import { StepForm } from "../StepForm";
 import { useFormData } from "../context/FormDataContext";
 import { formSteps } from "../constants/formSteps";
+import { FormStep } from "../types";
 
 interface MainFormContentProps {
   currentStep: number;
@@ -42,6 +44,12 @@ export const MainFormContent = memo(({
   // Get form from context
   const { form } = useFormData();
   
+  // Convert formSteps to match FormStep type
+  const convertedSteps: FormStep[] = formSteps.map(step => ({
+    ...step,
+    component: step.component || null  // Add component property if missing
+  }));
+  
   return (
     <div className="relative">
       {/* Conditionally show submitting overlay if needed */}
@@ -56,7 +64,7 @@ export const MainFormContent = memo(({
       
       <StepForm 
         form={form}
-        steps={formSteps}
+        steps={convertedSteps}
         currentStep={currentStep}
         setCurrentStep={setCurrentStep}
         carId={carId}

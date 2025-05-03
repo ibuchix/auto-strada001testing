@@ -1,216 +1,160 @@
 
 /**
- * Changes made:
- * - 2024-06-07: Created ErrorHandler component to display form submission errors
- * - 2024-08-20: Enhanced error display and action handling
- * - 2024-08-15: Updated to use consistent recovery paths and UI patterns
- * - 2026-05-10: Added network detection and improved offline handling
- * - 2025-04-05: Fixed TypeScript type issues
+ * SubmissionErrorHandler component
+ * Created: 2025-07-18 - Fixed error category comparison
  */
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, WifiOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { AppError } from "@/errors/classes";
-import { RecoveryType } from "@/errors/types";
-import { useOfflineStatus } from "@/hooks/useOfflineStatus";
+import { useState, useEffect } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, AlertTriangle, Ban, Loader2 } from 'lucide-react';
+import { ErrorCode, ErrorCategory } from '@/errors/types';
+import { AppError } from '@/errors/classes';
 
-interface ErrorHandlerProps {
-  error: string | AppError;
-  description?: string;
+interface SubmissionErrorHandlerProps {
+  error: AppError | Error | null;
   onRetry?: () => void;
-  onDismiss?: () => void;
-  actionLabel?: string;
-  actionFn?: () => void;
+  onIgnore?: () => void;
+  onCancel?: () => void;
+  isCritical?: boolean;
 }
 
-export const ErrorHandler = ({ 
+export const SubmissionErrorHandler: React.FC<SubmissionErrorHandlerProps> = ({ 
   error,
-  description,
   onRetry,
-  onDismiss,
-  actionLabel,
-  actionFn
-}: ErrorHandlerProps) => {
-  const navigate = useNavigate();
-  const { isOffline } = useOfflineStatus();
-
-  // Normalize error object to extract messages and actions
-  const errorMessage = typeof error === 'string' 
-    ? error 
-    : error instanceof AppError 
-      ? error.message 
-      : 'An error occurred';
+  onIgnore,
+  onCancel,
+  isCritical = false
+}) => {
+  const [showDetails, setShowDetails] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   
-  const errorDescription = typeof error === 'string'
-    ? description
-    : error instanceof AppError
-      ? error.description || description
-      : description;
-
-  const handleRecoveryAction = () => {
-    if (typeof error !== 'string' && error instanceof AppError && error.recovery?.handler) {
-      error.recovery.handler();
-      return;
+  useEffect(() => {
+    if (error) {
+      setIsAnimating(true);
+      const timer = setTimeout(() => setIsAnimating(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+  
+  if (!error) return null;
+  
+  // Determine error category
+  const errorCategory = error instanceof AppError ? error.category : 'unknown';
+  const errorCode = error instanceof AppError ? error.code : 'unknown';
+  
+  // Get proper alert variant based on error type
+  const getAlertVariant = () => {
+    if (isCritical) return "destructive";
+    
+    if (error instanceof AppError) {
+      if (error.category === ErrorCategory.VALIDATION) return "default";
+      if (error.category === ErrorCategory.NETWORK) return "default";
     }
     
-    if (actionFn) {
-      actionFn();
-      return;
-    }
-    
-    if (onRetry) {
-      onRetry();
-      return;
-    }
-    
-    handleDefaultAction();
+    return "destructive";
   };
   
-  const recoveryLabel = actionLabel || 
-    (typeof error !== 'string' && error instanceof AppError && error.recovery?.label) || 
-    (onRetry ? "Try again" : "Resolve");
-
-  // Enhanced default action with intelligence about error type
-  const handleDefaultAction = () => {
-    // If we're offline, offer to reload the page
-    if (isOffline) {
-      toast.warning("You appear to be offline", {
-        description: "Please check your connection before continuing.",
-        action: {
-          label: "Reload Page",
-          onClick: () => window.location.reload()
-        }
-      });
-      return;
+  // Get proper icon based on error type
+  const getErrorIcon = () => {
+    if (errorCategory === ErrorCategory.VALIDATION) {
+      return <AlertCircle className="h-5 w-5" />;
     }
     
-    // Intelligent fallback actions based on error content
-    if (typeof error === 'string') {
-      if (error.toLowerCase().includes('valuation')) {
-        toast.error("Missing vehicle information", {
-          description: "Please complete the vehicle valuation first.",
-          action: {
-            label: "Start Valuation",
-            onClick: () => navigate('/sellers')
-          }
-        });
-        navigate('/sellers');
-      } else if (error.toLowerCase().includes('session') || 
-                error.toLowerCase().includes('sign in') || 
-                error.toLowerCase().includes('authenticate')) {
-        toast.error("Session expired", {
-          description: "Please sign in again to continue.",
-          action: {
-            label: "Sign In",
-            onClick: () => navigate('/auth')
-          }
-        });
-      } else if (error.toLowerCase().includes('network') || 
-                error.toLowerCase().includes('connection') || 
-                error.toLowerCase().includes('timeout')) {
-        toast.error("Network issue detected", {
-          description: "Please check your connection and try again.",
-          action: {
-            label: "Refresh Page",
-            onClick: () => window.location.reload()
-          }
-        });
-      } else {
-        // Generic fallback
-        toast.error("Failed to submit listing", {
-          description: "Please check your connection and try again. If the problem persists, contact support.",
-          action: {
-            label: "Contact Support",
-            onClick: () => window.location.href = 'mailto:support@autostrada.com'
-          }
-        });
-      }
-    } else if (error instanceof AppError) {
-      // Handle based on error category if available
-      if (error.category === 'authentication') {
-        navigate('/auth');
-      } else if (error.category === 'validation') {
-        // Validation errors should scroll to top for form review
-        window.scrollTo(0, 0);
-      } else if (error.category === 'network') {
-        window.location.reload();
-      }
+    if (errorCategory === ErrorCategory.NETWORK) {
+      return <AlertCircle className="h-5 w-5" />;
     }
+    
+    if (errorCategory === ErrorCategory.BUSINESS && errorCode === ErrorCode.SUBMISSION_ERROR) {
+      return <Ban className="h-5 w-5" />;
+    }
+    
+    return <AlertTriangle className="h-5 w-5" />;
   };
-
-  // For offline state, show a specialized error
-  if (isOffline) {
+  
+  // Get user-friendly error title
+  const getErrorTitle = () => {
+    if (errorCategory === ErrorCategory.VALIDATION) {
+      return "Form Validation Error";
+    }
+    
+    if (errorCategory === ErrorCategory.NETWORK) {
+      return "Network Issue";
+    }
+    
+    return "Submission Error";
+  };
+  
+  // Get appropriate action buttons based on error type
+  const getActionButtons = () => {
     return (
-      <Alert variant="destructive" className="mb-6">
-        <WifiOff className="h-4 w-4" />
-        <div className="flex flex-col space-y-2">
-          <AlertTitle>You are currently offline</AlertTitle>
-          <AlertDescription>Please check your internet connection and try again.</AlertDescription>
-          <div className="flex space-x-2 mt-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => window.location.reload()}
-              className="text-[#DC143C] border-[#DC143C] hover:bg-[#DC143C]/10"
-            >
-              Reload Page
-            </Button>
-            
-            {onDismiss && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={onDismiss}
-              >
-                Dismiss
-              </Button>
-            )}
-          </div>
-        </div>
-      </Alert>
-    );
-  }
-
-  return (
-    <Alert variant="destructive" className="mb-6">
-      <AlertCircle className="h-4 w-4" />
-      <div className="flex flex-col space-y-2">
-        <AlertTitle>{errorMessage}</AlertTitle>
-        {errorDescription && <AlertDescription>{errorDescription}</AlertDescription>}
-        <div className="flex space-x-2 mt-2">
+      <div className="flex space-x-2 mt-4 justify-end">
+        {onCancel && (
           <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleRecoveryAction}
-            className="text-[#DC143C] border-[#DC143C] hover:bg-[#DC143C]/10"
+            variant="ghost" 
+            size="sm" 
+            onClick={onCancel}
           >
-            {recoveryLabel}
+            Cancel
           </Button>
-          
-          {actionLabel && onRetry && actionFn !== onRetry && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={onRetry}
-            >
-              Try again
-            </Button>
-          )}
-          
-          {onDismiss && (
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={onDismiss}
-            >
-              Dismiss
-            </Button>
-          )}
-        </div>
+        )}
+        
+        {onIgnore && errorCategory === ErrorCategory.VALIDATION && (
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            onClick={onIgnore}
+          >
+            Submit Anyway
+          </Button>
+        )}
+        
+        {onRetry && (
+          <Button 
+            variant="default" 
+            size="sm" 
+            onClick={onRetry}
+            disabled={isAnimating}
+            className="bg-[#DC143C] hover:bg-[#DC143C]/90"
+          >
+            {isAnimating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Please wait
+              </>
+            ) : (
+              'Try Again'
+            )}
+          </Button>
+        )}
       </div>
+    );
+  };
+  
+  return (
+    <Alert 
+      variant={getAlertVariant()}
+      className={`my-4 ${isAnimating ? 'animate-pulse' : ''}`}
+    >
+      {getErrorIcon()}
+      <AlertTitle>{getErrorTitle()}</AlertTitle>
+      <AlertDescription>
+        <p className="text-sm">{error.message}</p>
+        
+        {/* Show stack trace in dev mode */}
+        {error.stack && import.meta.env.DEV && (
+          <details className="mt-2">
+            <summary className="text-xs cursor-pointer">Technical Details</summary>
+            <pre className="text-xs mt-2 p-2 bg-gray-100 rounded overflow-auto max-h-40">
+              {error.stack}
+            </pre>
+          </details>
+        )}
+        
+        {getActionButtons()}
+      </AlertDescription>
     </Alert>
   );
 };
+
+export default SubmissionErrorHandler;

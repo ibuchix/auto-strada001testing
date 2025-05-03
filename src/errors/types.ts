@@ -3,6 +3,7 @@
  * Error type definitions
  * Created: 2025-04-12
  * Updated: 2025-07-03 - Added missing error codes
+ * Updated: 2025-07-18 - Added missing ErrorCategory and RecoveryAction values
  */
 
 import { ReactNode } from "react";
@@ -29,6 +30,8 @@ export enum ErrorCode {
   PROCESSING_ERROR = "processing_error",
   FILE_UPLOAD_ERROR = "file_upload_error",
   INCOMPLETE_FORM = "incomplete_form",
+  BUSINESS_ERROR = "business_error",
+  AUTHORIZATION_ERROR = "authorization_error",
 
   // Valuation specific errors
   VALUATION_ERROR = "valuation_error",
@@ -50,7 +53,11 @@ export enum ErrorCategory {
   AUTH = "auth",
   BUSINESS = "business",
   TECHNICAL = "technical",
-  GENERAL = "general"
+  GENERAL = "general",
+  UNKNOWN = "unknown",
+  AUTHENTICATION = "authentication",
+  AUTHORIZATION = "authorization",
+  SERVER = "server"
 }
 
 export enum ErrorSeverity {
@@ -65,7 +72,10 @@ export enum RecoveryType {
   REDIRECT = "redirect",
   FORM_RETRY = "form_retry",
   CONTACT_SUPPORT = "contact_support",
-  CUSTOM = "custom"
+  CUSTOM = "custom",
+  NAVIGATE = "navigate",
+  REFRESH = "refresh",
+  SIGN_IN = "sign_in"
 }
 
 export enum RecoveryAction {
@@ -73,7 +83,10 @@ export enum RecoveryAction {
   REDIRECT = "redirect",
   FORM_RETRY = "form_retry",
   CONTACT_SUPPORT = "contact_support",
-  CUSTOM = "custom"
+  CUSTOM = "custom",
+  NAVIGATE = "navigate",
+  REFRESH = "refresh",
+  SIGN_IN = "sign_in"
 }
 
 export interface ErrorRecovery {
@@ -81,6 +94,7 @@ export interface ErrorRecovery {
   label: string;
   action: RecoveryAction;
   url?: string;
+  route?: string;
   handler?: () => void;
 }
 
@@ -99,6 +113,13 @@ export interface AppErrorParams {
   description?: string;
   recovery?: ErrorRecovery;
   metadata?: Record<string, any>;
+}
+
+// Extended options interface to include all optional parameters
+export interface AppErrorOptions extends AppErrorParams {
+  id?: string;
+  retryable?: boolean;
+  timestamp?: number;
 }
 
 // Initial interface definition for AppError

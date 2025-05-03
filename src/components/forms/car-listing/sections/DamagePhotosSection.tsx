@@ -1,167 +1,230 @@
+
 /**
- * Damage Photos Section
- * Created: 2025-04-12
- * Updated: 2025-05-03 - Added image validation and upload progress
+ * DamagePhotosSection component
+ * Created: 2025-07-18 - Fixed variable declaration order and typing issues
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState } from 'react';
+import { useFormContext, useFieldArray } from 'react-hook-form';
 import { useDropzone } from 'react-dropzone';
-import { useFormContext } from 'react-hook-form';
+import { Camera, Plus, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileImage, Upload, X } from 'lucide-react';
-import { CarListingFormData } from '@/types/forms';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CarListingFormData, DamageReport, DamageType } from '@/types/forms';
 import { tempFileStorageService } from '@/services/supabase/tempFileStorageService';
+import { toast } from 'sonner';
 
-interface DamagePhotosSectionProps {
-  sectionKey: string;
-}
-
-export const DamagePhotosSection: React.FC<DamagePhotosSectionProps> = ({ sectionKey }) => {
-  const { register, setValue, watch } = useFormContext<CarListingFormData>();
-  const [uploading, setUploading] = useState(false);
-  const damagePhotos = watch('damagePhotos') || [];
-  
-  // Initialize damagePhotos if it's null or undefined
-  useEffect(() => {
-    if (!damagePhotos) {
-      setValue('damagePhotos', []);
-    }
-  }, [damagePhotos, setValue]);
-  
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (!acceptedFiles?.length) return;
-    
-    // Validate file types and sizes
-    const validFiles = acceptedFiles.filter(file => {
-      if (!file.type.startsWith('image/')) {
-        alert(`File ${file.name} is not an image`);
-        return false;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`File ${file.name} is too large (max 5MB)`);
-        return false;
-      }
-      return true;
-    });
-    
-    if (!validFiles.length) return;
-    
-    // Upload each valid file
-    for (const file of validFiles) {
-      await handleAddImage(file);
-    }
-  }, [handleAddImage]);
-  
-  const {getRootProps, getInputProps, isDragActive} = useDropzone({
-    onDrop,
-    accept: 'image/*',
-    maxSize: 5 * 1024 * 1024, // 5MB
-    multiple: true
+export const DamagePhotosSection = () => {
+  const { control, register, setValue, watch } = useFormContext<CarListingFormData>();
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'damageReports'
   });
+  const [uploading, setUploading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   
-  const handleAddImage = async (file: File) => {
-    if (!file) return;
+  const damageReports = watch('damageReports') || [];
+
+  // Define handleAddImage function before use
+  const handleAddImage = async (acceptedFiles: File[], reportIndex: number) => {
+    if (!acceptedFiles.length) return;
     
     try {
       setUploading(true);
+      setActiveIndex(reportIndex);
       
-      // This should now work with the updated tempFileStorageService
+      // Upload the file
+      const file = acceptedFiles[0]; // Only use the first file
       const uploadedFile = await tempFileStorageService.addFile(file);
       
-      setValue('damagePhotos', [...damagePhotos, uploadedFile.id]);
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      alert("Failed to upload image. Please try again.");
+      // Get the URL from the response
+      const fileUrl = typeof uploadedFile === 'string' ? uploadedFile : uploadedFile.url;
+      
+      // Update the specific damage report with the photo URL
+      const updatedReports = [...damageReports];
+      updatedReports[reportIndex] = {
+        ...updatedReports[reportIndex],
+        photo: fileUrl
+      };
+      
+      setValue('damageReports', updatedReports);
+      
+      toast.success("Damage photo uploaded successfully.");
+    } catch (error: any) {
+      console.error("File upload error:", error);
+      toast.error(error.message || "Failed to upload damage photo. Please try again.");
     } finally {
       setUploading(false);
+      setActiveIndex(null);
     }
   };
-  
-  const handleRemoveImage = (imageId: string) => {
-    // This should now work with the updated tempFileStorageService
-    tempFileStorageService.removeFile(imageId);
-    setValue(
-      'damagePhotos',
-      damagePhotos.filter((id) => id !== imageId)
-    );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: files => activeIndex !== null && handleAddImage(files, activeIndex),
+    accept: {'image/*': ['.jpeg', '.png', '.jpg']},
+    maxFiles: 1
+  });
+
+  const addDamageReport = () => {
+    append({
+      type: 'scratch' as DamageType,
+      description: '',
+      photo: null,
+      location: '',
+      severity: 'minor'
+    });
   };
-  
+
   return (
-    <div className="space-y-4">
-      <Label htmlFor={`${sectionKey}-damagePhotos`}>
-        Damage Photos
-      </Label>
-      
-      <div 
-        {...getRootProps()} 
-        className={`
-          relative border-2 border-dashed rounded-md p-6 cursor-pointer
-          ${isDragActive ? 'border-primary' : 'border-gray-300'}
-        `}
-      >
-        <input {...getInputProps()} id={`${sectionKey}-damagePhotos`} />
-        
-        <div className="text-center">
-          <Upload className="mx-auto h-6 w-6 text-gray-500 mb-2" />
-          <p className="text-sm text-gray-500">
-            {isDragActive ? "Drop the files here..." : "Drag 'n' drop some files here, or click to select files"}
-          </p>
-          <p className="text-xs text-gray-500">
-            (Only images *.jpeg, *.png, *.gif and max size of 5MB will be accepted)
-          </p>
-        </div>
-        
-        {uploading && (
-          <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-md">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-              <p className="text-sm text-gray-500">Uploading...</p>
+    <div className="space-y-6">
+      <div className="grid gap-4">
+        {fields.map((field, index) => (
+          <div key={field.id} className="border rounded-md p-4 space-y-4">
+            <div className="flex justify-between">
+              <h4 className="font-medium">Damage Report {index + 1}</h4>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => remove(index)}
+                className="h-8 w-8 text-red-500"
+              >
+                <Trash className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor={`damageReports.${index}.type`}>Type of Damage</Label>
+                <Select
+                  value={damageReports[index]?.type || 'scratch'}
+                  onValueChange={(value) => {
+                    const updatedReports = [...damageReports];
+                    updatedReports[index] = {
+                      ...updatedReports[index],
+                      type: value as DamageType
+                    };
+                    setValue('damageReports', updatedReports);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scratch">Scratch</SelectItem>
+                    <SelectItem value="dent">Dent</SelectItem>
+                    <SelectItem value="collision">Collision</SelectItem>
+                    <SelectItem value="mechanical">Mechanical</SelectItem>
+                    <SelectItem value="electrical">Electrical</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor={`damageReports.${index}.severity`}>Severity</Label>
+                <Select
+                  value={damageReports[index]?.severity || 'minor'}
+                  onValueChange={(value) => {
+                    const updatedReports = [...damageReports];
+                    updatedReports[index] = {
+                      ...updatedReports[index],
+                      severity: value as 'minor' | 'moderate' | 'severe'
+                    };
+                    setValue('damageReports', updatedReports);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select severity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="minor">Minor</SelectItem>
+                    <SelectItem value="moderate">Moderate</SelectItem>
+                    <SelectItem value="severe">Severe</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor={`damageReports.${index}.location`}>Location</Label>
+                <Input
+                  {...register(`damageReports.${index}.location` as const)}
+                  placeholder="e.g., Front bumper, Rear fender"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor={`damageReports.${index}.description`}>Description</Label>
+                <Input
+                  {...register(`damageReports.${index}.description` as const)}
+                  placeholder="Brief description of the damage"
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Photo of Damage</Label>
+              {damageReports[index]?.photo ? (
+                <div className="relative w-40">
+                  <AspectRatio ratio={1}>
+                    <img
+                      src={damageReports[index]?.photo || ''}
+                      alt={`Damage ${index + 1}`}
+                      className="rounded-md object-cover"
+                    />
+                  </AspectRatio>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1 right-1 bg-background rounded-full shadow-sm h-6 w-6"
+                    onClick={() => {
+                      const updatedReports = [...damageReports];
+                      updatedReports[index] = {
+                        ...updatedReports[index],
+                        photo: null
+                      };
+                      setValue('damageReports', updatedReports);
+                    }}
+                  >
+                    <Trash className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  {...getRootProps()}
+                  onClick={() => setActiveIndex(index)}
+                  className={`
+                    border-2 border-dashed rounded-md p-4 text-center cursor-pointer
+                    ${isDragActive ? 'border-primary' : 'border-gray-300'}
+                    ${uploading && activeIndex === index ? 'bg-gray-50' : ''}
+                  `}
+                >
+                  <input {...getInputProps()} />
+                  <Camera className="mx-auto h-6 w-6 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-500">
+                    {uploading && activeIndex === index
+                      ? "Uploading..."
+                      : "Click or drag photo to upload"}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        ))}
       </div>
       
-      {damagePhotos.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
-          {damagePhotos.map((imageId) => {
-            const file = tempFileStorageService.getFile(imageId);
-            
-            return file ? (
-              <div key={imageId} className="relative">
-                <img 
-                  src={file.url} 
-                  alt={file.name} 
-                  className="rounded-md object-cover aspect-square" 
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 bg-black/20 hover:bg-black/40 text-white"
-                  onClick={() => handleRemoveImage(imageId)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <Alert variant="destructive">
-                <FileImage className="h-4 w-4" />
-                <AlertDescription>
-                  Could not load image
-                </AlertDescription>
-              </Alert>
-            );
-          })}
-        </div>
-      )}
-      
-      <Input
-        type="hidden"
-        id={`${sectionKey}-damagePhotos`}
-        {...register('damagePhotos')}
-      />
+      <Button 
+        type="button" 
+        variant="outline" 
+        onClick={addDamageReport}
+        className="flex items-center gap-2"
+      >
+        <Plus className="h-4 w-4" />
+        Add Damage Report
+      </Button>
     </div>
   );
 };
