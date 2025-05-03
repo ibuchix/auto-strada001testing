@@ -2,6 +2,7 @@
 /**
  * Form Transaction Error component
  * Created: 2025-07-12
+ * Updated: 2025-05-10 - Fixed import paths and error type handling
  */
 
 import React from 'react';

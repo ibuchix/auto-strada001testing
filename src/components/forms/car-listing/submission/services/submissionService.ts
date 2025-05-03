@@ -3,6 +3,7 @@
  * This file handles the car listing form submission operations
  * Updated: 2025-05-05 - Fixed TypeScript errors and type issues
  * Updated: 2025-05-09 - Fixed ErrorCategory type compatibility issues
+ * Updated: 2025-05-10 - Updated imports to use global ErrorCategory type
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +11,7 @@ import { CarListingFormData, CarFeatures } from '@/types/forms';
 import { prepareSubmission } from '../utils/submission';
 import { toast } from 'sonner';
 import { ValidationSubmissionError } from '../types';
-import { ErrorCategory } from '../types';
+import { ErrorCategory } from '@/errors/types';
 
 export async function submitCarListing(
   formData: CarListingFormData,

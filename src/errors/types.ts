@@ -3,6 +3,7 @@
  * Error types and enums
  * Created: 2025-07-22
  * Updated: 2025-07-23 - Added missing ErrorSeverity, RecoveryAction, and SERVER to ErrorCategory
+ * Updated: 2025-05-10 - Added all missing enum values and ensured consistent naming
  */
 
 export enum ErrorCategory {
@@ -14,7 +15,9 @@ export enum ErrorCategory {
   BUSINESS = 'business',
   NOT_FOUND = 'not_found',
   UNKNOWN = 'unknown',
-  SERVER = 'server'  // Added missing SERVER category
+  SERVER = 'server',
+  TECHNICAL = 'technical',
+  GENERAL = 'general'  // Added missing GENERAL category
 }
 
 export enum ErrorCode {
@@ -26,11 +29,13 @@ export enum ErrorCode {
   REQUIRED_FIELD_MISSING = 'required_field_missing',
   INVALID_FORMAT = 'invalid_format',
   INVALID_VALUE = 'invalid_value',
+  FORM_ERROR = 'form_error',
   
   // Network errors
   NETWORK_ERROR = 'network_error',
   REQUEST_TIMEOUT = 'request_timeout',
   REQUEST_FAILED = 'request_failed',
+  TIMEOUT_ERROR = 'timeout_error',
   
   // Database errors
   DATABASE_ERROR = 'database_error',
@@ -48,9 +53,11 @@ export enum ErrorCode {
   FORBIDDEN = 'forbidden',
   
   // Business logic errors
+  BUSINESS_ERROR = 'business_error',
   BUSINESS_LOGIC_ERROR = 'business_logic_error',
   INVALID_STATE_TRANSITION = 'invalid_state_transition',
   SUBMISSION_ERROR = 'submission_error',
+  VALUATION_ERROR = 'valuation_error',
   
   // Not found errors
   NOT_FOUND = 'not_found',
@@ -64,26 +71,33 @@ export enum ErrorCode {
   AUTHORIZATION_ERROR = 'authorization_error'
 }
 
-// Add missing ErrorSeverity enum
+// ErrorSeverity enum
 export enum ErrorSeverity {
   ERROR = 'error',
   WARNING = 'warning',
   INFO = 'info'
 }
 
-// Add missing RecoveryAction enum
+// RecoveryAction enum
 export enum RecoveryAction {
   RETRY = 'retry',
   REFRESH = 'refresh',
   NAVIGATE = 'navigate',
   SIGN_IN = 'sign_in',
-  CONTACT_SUPPORT = 'contact_support'
+  CONTACT_SUPPORT = 'contact_support',
+  FORM_RETRY = 'form_retry'
 }
 
+// RecoveryType enum
 export enum RecoveryType {
   AUTO = 'auto',
   MANUAL = 'manual',
-  NONE = 'none'
+  NONE = 'none',
+  RETRY = 'retry',
+  REFRESH = 'refresh',
+  CONTACT_SUPPORT = 'contact_support',
+  FORM_RETRY = 'form_retry',
+  FIELD_CORRECTION = 'field_correction'
 }
 
 // Add error recovery interface
@@ -92,6 +106,7 @@ export interface ErrorRecovery {
   label: string;
   url?: string;
   handler?: () => void;
+  type?: RecoveryType;
 }
 
 // Add app error options interface
