@@ -2,6 +2,7 @@
 /**
  * FormStateContext for car listing form
  * Created: 2025-07-12
+ * Updated: 2025-07-23 - Extended context type definition with additional fields
  * Provides form state context for the car listing form
  */
 

@@ -1,73 +1,141 @@
 
 /**
- * Changes made:
- * - 2024-06-07: Created FormSubmissionProvider component to handle context
- * - 2024-10-22: Fixed missing TransactionStatus import and type issues
- * - 2024-10-23: Removed redundant FormSubmissionContextType interface
- * - 2024-07-30: Added transaction reset functionality exposure
- * - 2024-08-14: Enhanced error handling and reset functionality
- * - 2025-04-03: Fixed TypeScript errors with missing properties from useFormSubmission
- * - 2025-04-03: Updated TransactionStatus usage to proper enum values
- * - 2025-06-23: Fixed TransactionStatus import from types
- * - 2025-07-01: Fixed TransactionStatus import issues
- * - 2025-07-22: Exposed FormSubmissionContext and added missing context properties
+ * Form Submission Provider
+ * Created: 2025-07-23
+ * Provides context for form submission functionality
  */
 
-import { createContext, useContext, useState } from "react";
-import { FormSubmissionContextType, FormSubmissionProviderProps } from "./types";
-import { useFormSubmission } from "./useFormSubmission";
-import { TransactionStatus } from "@/services/supabase/transactions/types";
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { SubmissionError } from './errors';
+import { CarListingFormData } from '@/types/forms';
 
-export const FormSubmissionContext = createContext<FormSubmissionContextType | null>(null);
+// Define the submission context state
+interface FormSubmissionState {
+  isSubmitting: boolean;
+  isSuccessful: boolean;
+  error: SubmissionError | null;
+  submittedCarId: string | null;
+  lastSubmitAttempt: Date | null;
+}
 
-export const useFormSubmissionContext = () => {
-  const context = useContext(FormSubmissionContext);
-  if (!context) {
-    throw new Error("useFormSubmissionContext must be used within a FormSubmissionProvider");
-  }
-  return context;
+// Define the submission context
+interface FormSubmissionContextType {
+  submissionState: FormSubmissionState;
+  setSubmitting: (isSubmitting: boolean) => void;
+  setSubmitSuccess: (carId: string) => void;
+  setSubmitError: (error: SubmissionError | Error | string | null) => void;
+  resetSubmissionState: () => void;
+  submitForm: (formData: CarListingFormData) => Promise<string | null>;
+  userId: string;
+}
+
+// Create the context with default value
+export const FormSubmissionContext = createContext<FormSubmissionContextType | undefined>(undefined);
+
+// Default submission state
+const defaultSubmissionState: FormSubmissionState = {
+  isSubmitting: false,
+  isSuccessful: false,
+  error: null,
+  submittedCarId: null,
+  lastSubmitAttempt: null
 };
 
-export const FormSubmissionProvider = ({ children, userId }: FormSubmissionProviderProps) => {
-  const [carId, setCarId] = useState<string | undefined>(undefined);
-  const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | null>(null);
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-
-  const {
-    isSubmitting,
-    submissionError: error,
-    handleSubmit
-  } = useFormSubmission(userId ?? "");
-
-  const resetTransaction = () => {
-    setTransactionStatus(null);
-    setShowSuccessDialog(false);
+// Provider component
+export const FormSubmissionProvider = ({ 
+  children,
+  userId
+}: { 
+  children: ReactNode,
+  userId: string
+}) => {
+  // State for submission
+  const [submissionState, setSubmissionState] = useState<FormSubmissionState>(defaultSubmissionState);
+  
+  // Set submitting state
+  const setSubmitting = (isSubmitting: boolean) => {
+    setSubmissionState(prev => ({
+      ...prev,
+      isSubmitting,
+      lastSubmitAttempt: isSubmitting ? new Date() : prev.lastSubmitAttempt
+    }));
   };
-
-  const updateTransactionStatus = (status: TransactionStatus, error: Error | null) => {
-    setTransactionStatus(status);
-    if (status === TransactionStatus.SUCCESS) {
-      setShowSuccessDialog(true);
+  
+  // Set submission success
+  const setSubmitSuccess = (carId: string) => {
+    setSubmissionState({
+      isSubmitting: false,
+      isSuccessful: true,
+      error: null,
+      submittedCarId: carId,
+      lastSubmitAttempt: new Date()
+    });
+  };
+  
+  // Set submission error
+  const setSubmitError = (error: SubmissionError | Error | string | null) => {
+    let submissionError: SubmissionError | null = null;
+    
+    if (error) {
+      if (error instanceof SubmissionError) {
+        submissionError = error;
+      } else if (error instanceof Error) {
+        submissionError = new SubmissionError(error.message);
+      } else {
+        submissionError = new SubmissionError(String(error));
+      }
+    }
+    
+    setSubmissionState(prev => ({
+      ...prev,
+      isSubmitting: false,
+      isSuccessful: false,
+      error: submissionError
+    }));
+  };
+  
+  // Reset submission state
+  const resetSubmissionState = () => {
+    setSubmissionState(defaultSubmissionState);
+  };
+  
+  // Submit form method - this will be implemented by consuming components
+  const submitForm = async (formData: CarListingFormData): Promise<string | null> => {
+    try {
+      setSubmitting(true);
+      // Implementation will be provided by the useFormSubmission hook
+      // This is just a placeholder
+      return null;
+    } catch (error) {
+      setSubmitError(error as Error);
+      return null;
+    } finally {
+      setSubmitting(false);
     }
   };
-
+  
   return (
-    <FormSubmissionContext.Provider
-      value={{
-        isSubmitting,
-        error,
-        transactionStatus,
-        showSuccessDialog,
-        setShowSuccessDialog,
-        handleSubmit,
-        resetTransaction,
-        carId,
-        setCarId,
-        setTransactionStatus,
-        updateTransactionStatus
-      }}
-    >
+    <FormSubmissionContext.Provider value={{
+      submissionState,
+      setSubmitting,
+      setSubmitSuccess,
+      setSubmitError,
+      resetSubmissionState,
+      submitForm,
+      userId
+    }}>
       {children}
     </FormSubmissionContext.Provider>
   );
+};
+
+// Hook for consuming components
+export const useFormSubmission = () => {
+  const context = useContext(FormSubmissionContext);
+  
+  if (context === undefined) {
+    throw new Error('useFormSubmission must be used within a FormSubmissionProvider');
+  }
+  
+  return context;
 };

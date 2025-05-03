@@ -1,89 +1,77 @@
 
 /**
- * Form Submission Logic
- * Created: 2025-07-12
- * Updated: 2025-07-22: Fixed context usage and added missing properties
+ * Form Submission Hook
+ * Created: 2025-07-23
+ * Handle form submission logic
  */
 
-import { useState, useCallback } from 'react';
-import { toast } from 'sonner';
-import { useFormContext } from 'react-hook-form';
-import { CarListingFormData } from '@/types/forms';
+import { useState, useCallback } from "react";
+import { FieldErrors } from "react-hook-form";
+import { CarListingFormData } from "@/types/forms";
+import { ValidationSubmissionError, NetworkSubmissionError, DatabaseSubmissionError } from "./errors";
 import { prepareSubmission } from './utils/submission';
 import { supabase } from '@/integrations/supabase/client';
-import { tempFileStorageService } from '@/services/supabase/tempFileStorageService';
+import { useFormSubmission } from './FormSubmissionProvider';
+import { tempFileStorage } from '@/services/temp-storage/tempFileStorageService';
 import { handleFormValidationError } from './utils/validationHandler';
-import { errorFactory } from '@/errors/factory';
-import { TransactionStatus } from '../types';
-import { ValidationSubmissionError } from './errors';
 
-export const useFormSubmission = (userId: string) => {
-  const { formState, trigger } = useFormContext<CarListingFormData>();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionError, setSubmissionError] = useState<Error | null>(null);
+export const useFormSubmission = () => {
+  const { 
+    submissionState, 
+    setSubmitting, 
+    setSubmitSuccess, 
+    setSubmitError,
+    userId 
+  } = useFormSubmission();
   
-  const handleSubmit = useCallback(async (data: CarListingFormData, carId?: string) => {
-    setIsSubmitting(true);
-    setSubmissionError(null);
-    
+  // Submit form data to API
+  const submitForm = useCallback(async (formData: CarListingFormData) => {
     try {
-      // Trigger validation before submission
-      const isValid = await trigger();
+      setSubmitting(true);
       
-      if (!isValid) {
-        const error = new ValidationSubmissionError("Form validation failed");
-        setSubmissionError(error);
-        return;
-      }
+      // Prepare submission data
+      const submissionData = prepareSubmission(formData, userId);
       
-      // Prepare the submission data
-      const submissionData = prepareSubmission(data);
-      
-      // Perform the database transaction
-      const { data: carData, error: dbError } = await supabase
+      // Submit to Supabase
+      const { data, error } = await supabase
         .from('cars')
-        .upsert([submissionData], { onConflict: 'id' })
-        .select()
+        .upsert(submissionData, { onConflict: 'id' })
+        .select('id')
         .single();
       
-      if (dbError) {
-        setSubmissionError(dbError);
-        return;
+      if (error) {
+        throw new DatabaseSubmissionError(error.message);
       }
       
-      // Move temporary files to permanent storage
-      if (data.uploadedPhotos && carData?.id) {
-        for (const fileId of data.uploadedPhotos) {
-          const storedFile = tempFileStorageService.getFile(fileId);
-          if (storedFile) {
-            const newPath = `cars/${carData.id}/${storedFile.name}`;
-            await tempFileStorageService.moveToPermStorage(fileId, newPath);
-          }
-        }
+      if (!data?.id) {
+        throw new DatabaseSubmissionError('Failed to retrieve submitted car ID');
       }
       
-      // Show a success toast
-      toast.success("Car listing submitted successfully!");
+      console.log("Form submitted successfully", data);
+      
+      // Clear temporary storage
+      tempFileStorage.clearAll();
+      
+      // Set submission success
+      setSubmitSuccess(data.id);
+      return data.id;
     } catch (error: any) {
-      // Handle any errors that occur during submission
-      const formValidationError = errorFactory.createFormError(
-        "Please fix form errors before submitting",
-        {},
-        { fields: Object.keys(formState.errors) } 
-      );
-      
-      setSubmissionError(error);
-      
-      // Show an error toast
-      toast.error(error.message || "An unexpected error occurred");
+      console.error("Error submitting form:", error);
+      setSubmitError(error);
+      return null;
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
-  }, [formState, trigger]);
+  }, [userId, setSubmitting, setSubmitSuccess, setSubmitError]);
+  
+  // Handle validation errors
+  const handleValidationErrors = useCallback((errors: FieldErrors<CarListingFormData>) => {
+    return handleFormValidationError(errors);
+  }, []);
   
   return {
-    isSubmitting,
-    submissionError,
-    handleSubmit,
+    ...submissionState,
+    submitForm,
+    handleValidationErrors
   };
 };

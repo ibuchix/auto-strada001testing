@@ -2,7 +2,7 @@
 /**
  * Form data type definitions
  * Created: 2025-07-18
- * Updated: 2025-07-22: Added additional form fields for car listing form
+ * Updated: 2025-07-23: Added additional form fields for the car listing form
  */
 
 import { CarFeatures } from '@/utils/types/carFeatures';
@@ -24,6 +24,15 @@ export interface ServiceHistory {
   type: 'full' | 'partial';
   documents: string[];
   description?: string;
+}
+
+export interface ServiceHistoryFile {
+  id: string;
+  name: string;
+  url: string;
+  uploadedAt: Date | string;
+  type: string;
+  size?: number;
 }
 
 export type AuctionStatus = 'draft' | 'pending' | 'active' | 'sold' | 'expired' | 'rejected';
@@ -52,6 +61,20 @@ export interface CarListingFormData {
   uploadedPhotos: string[];
   vehiclePhotos?: Record<string, string[]>;
   damagePhotos?: string[];
+  rimPhotos?: string[];
+  
+  // Photo fields
+  frontView?: string;
+  rearView?: string;
+  driverSide?: string;
+  passengerSide?: string;
+  dashboard?: string;
+  interiorFront?: string;
+  interiorRear?: string;
+  
+  // Photo status
+  requiredPhotosComplete?: boolean;
+  rimPhotosComplete?: boolean;
   
   // Damage info
   isDamaged?: boolean;
@@ -61,6 +84,7 @@ export interface CarListingFormData {
   serviceHistory?: ServiceHistory[];
   hasServiceHistory?: boolean;
   serviceHistoryType?: string;
+  serviceHistoryFiles?: ServiceHistoryFile[];
   
   // Additional info
   conditionRating?: number;
@@ -68,11 +92,16 @@ export interface CarListingFormData {
   numberOfKeys?: string;
   isRegisteredInPoland?: boolean;
   hasWarningLights?: boolean;
+  warningLightPhotos?: string[];
   hasOutstandingFinance?: boolean;
   financeAmount?: number;
   financeProvider?: string;
   financeEndDate?: string;
   financeDocument?: string;
+  
+  // Vehicle status
+  hasPrivatePlate?: boolean;
+  isSellingOnBehalf?: boolean;
   
   // Seller information
   name?: string;
@@ -105,6 +134,10 @@ export interface CarListingFormData {
   
   // Status
   status?: AuctionStatus;
+  is_draft?: boolean;
+  
+  // Supabase specific
+  seller_id?: string;
 }
 
 export interface CarEntity extends CarListingFormData {
