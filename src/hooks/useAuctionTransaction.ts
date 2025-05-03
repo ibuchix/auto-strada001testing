@@ -6,6 +6,7 @@
  * - Fixed TypeScript compatibility issues with executeTransaction parameters
  * - Updated: 2025-05-12 - Fixed import to use useTransaction instead of non-existent useCreateTransaction
  * - Updated: 2025-05-03 - Fixed type error with TransactionType usage
+ * - Updated: 2025-05-08 - Fixed parameter order in executeTransaction function call
  */
 import { useTransaction } from "./useTransaction";
 import { TransactionType } from "@/services/supabase/transactions/types";
