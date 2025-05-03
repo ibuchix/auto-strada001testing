@@ -7,6 +7,7 @@
  * - 2025-08-25: Added prepareSubmission function to transform form data to database entity
  * - 2025-12-03: Fixed type issues with required fields in CarEntity
  * - 2025-12-05: Enhanced prepareSubmission to properly handle CarFeatures
+ * - 2025-06-21: Fixed references to CarFeatures interface and created_at handling
  */
 
 import { CarListingFormData, CarEntity, AuctionStatus, CarFeatures } from "@/types/forms";
@@ -66,12 +67,13 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     // Cast transmission to the expected type
     transmission: (formData.transmission || 'manual') as "manual" | "automatic",
     // Ensure features is properly typed
-    features: carFeatures,
-    // Strip transient properties
-    form_metadata: undefined,
-    formProgress: undefined,
-    isValid: undefined
+    features: carFeatures
   };
   
-  return entity;
+  // Remove transient properties that shouldn't be in the entity
+  return {
+    ...entity,
+    form_metadata: undefined,
+    isValid: undefined
+  };
 };

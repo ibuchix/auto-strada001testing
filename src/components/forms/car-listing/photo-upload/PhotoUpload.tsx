@@ -2,6 +2,7 @@
 /**
  * Component for handling a single photo upload
  * Created: 2025-06-20 - Created to fix compatibility issues
+ * Updated: 2025-06-21 - Fixed prop types to handle currentImage, onFileSelect/onUpload, and onRemove
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,10 +16,13 @@ export interface PhotoUploadProps {
   title: string;
   description: string;
   isUploading: boolean;
-  isRequired: boolean;
+  isRequired?: boolean;
   isUploaded?: boolean;
   progress?: number;
-  onFileSelect: (file: File) => Promise<string | null>;
+  currentImage?: string;
+  onFileSelect?: (file: File) => Promise<string | null>;
+  onUpload?: (file: File) => Promise<string | null>;
+  onRemove?: () => boolean;
 }
 
 export const PhotoUpload = ({
@@ -26,12 +30,18 @@ export const PhotoUpload = ({
   title,
   description,
   isUploading,
-  isRequired,
+  isRequired = false,
   isUploaded = false,
   progress = 0,
-  onFileSelect
+  currentImage,
+  onFileSelect,
+  onUpload,
+  onRemove
 }: PhotoUploadProps) => {
   const [error, setError] = useState<string | null>(null);
+  
+  // Use either onUpload or onFileSelect (for backward compatibility)
+  const handleUploadFunction = onUpload || onFileSelect;
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -47,7 +57,9 @@ export const PhotoUpload = ({
     }
     
     try {
-      await onFileSelect(file);
+      if (handleUploadFunction) {
+        await handleUploadFunction(file);
+      }
     } catch (err: any) {
       setError(err.message || "Failed to upload file");
     }
@@ -80,9 +92,20 @@ export const PhotoUpload = ({
       </CardHeader>
       
       <CardContent className="p-4 pt-0">
-        {isUploaded ? (
-          <div className="bg-green-100 rounded-md p-4 flex items-center justify-center">
-            <Check className="w-6 h-6 text-green-600" />
+        {isUploaded || currentImage ? (
+          <div className={cn(
+            "rounded-md p-4 flex items-center justify-center overflow-hidden",
+            isUploaded ? "bg-green-100" : "bg-gray-100"
+          )}>
+            {currentImage ? (
+              <img 
+                src={currentImage} 
+                alt={title} 
+                className="max-w-full h-auto object-cover"
+              />
+            ) : (
+              <Check className="w-6 h-6 text-green-600" />
+            )}
           </div>
         ) : (
           <>
@@ -111,7 +134,7 @@ export const PhotoUpload = ({
       </CardContent>
       
       <CardFooter className="p-2">
-        {!isUploaded ? (
+        {!isUploaded && !currentImage ? (
           <Button
             variant="outline"
             size="sm"
@@ -135,15 +158,27 @@ export const PhotoUpload = ({
             </label>
           </Button>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-green-600"
-            disabled
-          >
-            <Check className="w-4 h-4 mr-2" />
-            Complete
-          </Button>
+          <div className="flex w-full gap-2">
+            {onRemove && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => onRemove()}
+              >
+                Remove
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn("flex-1", !onRemove && "w-full text-green-600")}
+              disabled={!onRemove}
+            >
+              <Check className="w-4 h-4 mr-2" />
+              Complete
+            </Button>
+          </div>
         )}
       </CardFooter>
     </Card>

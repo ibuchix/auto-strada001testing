@@ -7,6 +7,7 @@
  * Updated: 2025-06-18 - Added validate method to StepItem interface
  * Updated: 2025-06-19 - Fixed TempStoredFile and TemporaryFile compatibility
  * Updated: 2025-06-20 - Made interfaces fully compatible between TempStoredFile and TemporaryFile
+ * Updated: 2025-06-21 - Added missing fields needed by form components (name, address, mobileNumber, etc.)
  * 
  * TypeScript types for form handling
  */
@@ -86,6 +87,19 @@ export interface CarListingFormData {
   // Added for validation purposes
   photoValidationPassed?: boolean;
   mainPhoto?: string;
+  
+  // Fields needed for personal details and registration
+  name?: string;
+  address?: string;
+  mobileNumber?: string;
+  registration_number?: string;
+  title?: string;
+  
+  // Data storage for component state
+  created_at?: string | Date;
+  updated_at?: string | Date;
+  formProgress?: any;
+  isValid?: boolean;
 }
 
 export interface DamageReport {
@@ -121,6 +135,24 @@ export interface CarEntity extends CarListingFormData {
   created_at: Date;
   updated_at: Date;
   status: AuctionStatus;
+}
+
+// Define CarFeatures interface
+export interface CarFeatures {
+  satNav?: boolean;
+  panoramicRoof?: boolean;
+  reverseCamera?: boolean;
+  heatedSeats?: boolean;
+  upgradedSound?: boolean;
+  bluetooth?: boolean;
+  sunroof?: boolean;
+  alloyWheels?: boolean;
+  airConditioning?: boolean;
+  cruiseControl?: boolean;
+  leatherSeats?: boolean;
+  navigation?: boolean;
+  parkingSensors?: boolean;
+  [key: string]: boolean | undefined;
 }
 
 export type AuctionStatus = 'draft' | 'pending' | 'active' | 'completed' | 'rejected';

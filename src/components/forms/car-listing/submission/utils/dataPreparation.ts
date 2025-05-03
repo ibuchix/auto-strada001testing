@@ -2,6 +2,7 @@
 /**
  * Utilities for preparing submission data
  * Extracted to separate module for code splitting
+ * Updated: 2025-06-21 - Fixed field access to match CarListingFormData
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -21,15 +22,15 @@ export const prepareSubmissionData = async (
   carId?: string
 ): Promise<Record<string, any>> => {
   // Calculate reserve price if not already set
-  const reservePrice = data.reservePrice || calculateReservePrice(Number(data.price));
+  const reservePrice = data.reserve_price || calculateReservePrice(Number(data.price));
   
   // Format the form data for database insertion
   const formattedData = {
     id: carId,
     seller_id: userId,
-    seller_name: data.name,
-    address: data.address,
-    mobile_number: data.mobileNumber,
+    seller_name: data.name || "",
+    address: data.address || "",
+    mobile_number: data.mobileNumber || "",
     title: `${data.make} ${data.model} ${data.year}`,
     make: data.make,
     model: data.model,

@@ -1,7 +1,9 @@
+
 /**
  * ServiceHistoryUploader Component
  * Updated: 2025-06-19 - Fixed UseTemporaryFileUploadOptions property
  * Updated: 2025-06-20 - Removed invalid allowedTypes property and fixed type compatibility
+ * Updated: 2025-06-21 - Fixed type compatibility with TemporaryFileUpload options
  */
 
 import { useEffect, useState } from "react";

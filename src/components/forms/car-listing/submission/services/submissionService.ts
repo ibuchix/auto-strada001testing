@@ -1,6 +1,8 @@
+
 /**
  * Form Submission Service
  * Created: 2025-05-03
+ * Updated: 2025-06-21 - Fixed created_at handling
  * 
  * Service for submitting car listing form data to the server
  */
@@ -21,7 +23,7 @@ export const submitCarListing = async (
       ...data,
       seller_id: userId,
       updated_at: new Date().toISOString(),
-      created_at: data.created_at || new Date().toISOString()
+      created_at: data.created_at ? new Date(data.created_at).toISOString() : new Date().toISOString()
     };
     
     // If we have a car ID, update the existing record

@@ -1,4 +1,3 @@
-
 /**
  * StepForm Component
  * Updated: 2025-06-07 - Major refactoring to improve performance and reduce unnecessary renders
@@ -7,6 +6,7 @@
  * Updated: 2025-06-18 - Fixed saveProgressWrapper return type
  * Updated: 2025-06-19 - Fixed return type compatibility in saveProgressWrapper
  * Updated: 2025-06-20 - Fixed saveProgress return type to ensure correct Promise<void> compatibility
+ * Updated: 2025-06-21 - Updated saveProgressWrapper to always return Promise<boolean> for compatibility
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -188,13 +188,14 @@ export const StepForm = ({
   };
   
   // Fixed return type to ensure compatibility with FormNavigationControls
-  // Modified to return void and handle the boolean internally
-  const saveProgressWrapper = async (): Promise<void> => {
+  // Modified to return a boolean via Promise for type compatibility
+  const saveProgressWrapper = async (): Promise<boolean> => {
     try {
-      await saveProgress();
-      // We're ignoring the boolean result to match the Promise<void> return type
+      const result = await saveProgress();
+      return result;
     } catch (error) {
       console.error("Error in saveProgressWrapper:", error);
+      return false;
     }
   };
   

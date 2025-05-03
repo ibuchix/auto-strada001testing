@@ -1,4 +1,3 @@
-
 /**
  * Form Controller Hook
  * Centralized control of form initialization, state management, and submission
@@ -10,13 +9,14 @@
  * - 2025-06-05: Fixed TypeScript type errors and improved type safety
  * - 2025-06-06: Fixed JSON parsing with safe type handling
  * - 2025-06-07: Fixed valuation_data property access with type casting
+ * - 2025-06-21: Fixed import for defaultValues
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { toast } from "sonner";
-import { useForm, FormState } from "react-hook-form";
-import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
-import { defaultValues } from "../constants/defaultValues";
+import { useCallback, useState } from "react";
+import { UseFormReturn } from "react-hook-form";
+import { CarListingFormData, StepItem } from "@/types/forms";
+import { DEFAULT_VALUES } from "../constants/defaultValues";
+import { formSteps } from "../constants/formSteps";
 import { Session } from "@supabase/supabase-js";
 import { useFormPersistence } from "./useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,7 +56,7 @@ export const useFormController = ({
   // Initialize form with default values
   const form = useForm<CarListingFormData>({
     defaultValues: {
-      ...defaultValues,
+      ...DEFAULT_VALUES,
       seller_id: session?.user?.id,
     },
   });

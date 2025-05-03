@@ -7,6 +7,7 @@
  * - 2024-08-15: Refactored to use the new error factory for consistency
  * - 2028-05-16: Updated imports for ValidationErrorCode
  * - 2025-04-06: Fixed error code usage to address TypeScript errors
+ * - 2025-06-21: Updated error codes to use valid values from ErrorCode enum
  */
 
 import { createFieldError, createFormError } from "@/errors/factory";
@@ -20,7 +21,7 @@ export const validateValuationData = () => {
   
   if (!valuationDataStr) {
     throw createFormError("Missing valuation data", { 
-      code: ErrorCode.MISSING_VALUATION,
+      code: ErrorCode.SCHEMA_VALIDATION_ERROR,
       description: "Please complete the vehicle valuation process first."
     });
   }
@@ -40,7 +41,7 @@ export const validateValuationData = () => {
   } catch (error) {
     console.error("Error parsing valuation data:", error);
     throw createFormError("Invalid valuation data", {
-      code: ErrorCode.INVALID_FORMAT,
+      code: ErrorCode.SCHEMA_VALIDATION_ERROR,
       description: "The stored valuation data is invalid. Please restart the valuation process."
     });
   }
@@ -54,7 +55,7 @@ export const validateMileageData = () => {
   
   if (!mileageStr) {
     throw createFormError("Missing mileage information", {
-      code: ErrorCode.REQUIRED_FIELD,
+      code: ErrorCode.INCOMPLETE_FORM,
       description: "Please complete the vehicle valuation with mileage information first."
     });
   }
@@ -64,7 +65,7 @@ export const validateMileageData = () => {
     
     if (isNaN(mileage) || mileage <= 0) {
       throw createFieldError("mileage", "Invalid mileage value", {
-        code: ErrorCode.INVALID_FORMAT,
+        code: ErrorCode.SCHEMA_VALIDATION_ERROR,
         description: "The mileage must be a positive number."
       });
     }
@@ -73,7 +74,7 @@ export const validateMileageData = () => {
   } catch (error) {
     console.error("Error parsing mileage data:", error);
     throw createFieldError("mileage", "Invalid mileage format", {
-      code: ErrorCode.INVALID_FORMAT,
+      code: ErrorCode.SCHEMA_VALIDATION_ERROR,
       description: "The mileage value is in an invalid format."
     });
   }

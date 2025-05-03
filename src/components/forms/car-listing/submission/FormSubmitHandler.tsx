@@ -1,7 +1,7 @@
-
 /**
  * Form Submit Handler
  * Created: 2025-06-17
+ * Updated: 2025-06-21 - Fixed data handling and null checks
  * 
  * Component to handle form submission logic
  */
@@ -90,7 +90,12 @@ export const FormSubmitHandler = ({
       });
       
       if (onSubmitSuccess) {
-        onSubmitSuccess(carId || data[0].id);
+        const resultId = carId || (data && data[0] ? data[0].id : null);
+        if (resultId) {
+          onSubmitSuccess(resultId);
+        } else {
+          throw new Error("No ID returned from submission");
+        }
       }
       
       // Clear temporary storage
