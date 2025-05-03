@@ -1,293 +1,247 @@
-
-/**
- * Form Controller Hook
- * Created: 2025-06-15
- * Updated: 2025-06-21 - Fixed missing imports and type errors
- */
-
-import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { CarListingFormData, defaultCarFeatures } from "@/types/forms";
+import { useState, useEffect, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { CarListingFormData, carListingFormSchema } from "@/types/forms";
+import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useFormState } from '../context/FormStateContext';
+import { DEFAULT_VALUES as defaultCarFeatures } from '../constants/defaultValues';
+import { transformDbToFormData } from '../utils/formDataTransformers';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-// Create a simple schema for validation
-const carFormSchema = z.object({
-  make: z.string().optional(),
-  model: z.string().optional(),
-  year: z.number().optional(),
-  mileage: z.number().optional(),
-  vin: z.string().optional(),
-  price: z.number().optional(),
-  transmission: z.enum(["manual", "automatic", "semi-automatic"]).optional(),
-});
-
-export type CarFormSchema = z.infer<typeof carFormSchema>;
-
-interface UseFormControllerOptions {
-  carId?: string;
-  userId?: string;
-  initialData?: Partial<CarListingFormData>;
-  onSubmitSuccess?: (carId: string) => void;
-  onSubmitError?: (error: Error) => void;
+interface UseFormControllerProps {
+  defaultValues?: CarListingFormData;
+  isDraft?: boolean;
+  draftId?: string;
+  fromValuation?: boolean;
 }
 
-export const useFormController = ({
-  carId,
-  userId,
-  initialData = {},
-  onSubmitSuccess,
-  onSubmitError,
-}: UseFormControllerOptions) => {
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isOffline, setIsOffline] = useState(false);
-  
-  // Prepare default values
-  const defaultValues = useMemo(() => {
-    return {
-      seller_id: userId,
-      make: "",
-      model: "",
-      year: new Date().getFullYear(),
-      mileage: 0,
-      vin: "",
-      price: 0,
-      transmission: "manual" as const,
-      features: defaultCarFeatures,
-      isDamaged: false,
-      isRegisteredInPoland: false,
-      hasPrivatePlate: false,
-      isSellingOnBehalf: false,
-      hasServiceHistory: false,
-      serviceHistoryType: "none" as const,
-      sellerNotes: "",
-      seatMaterial: "cloth" as const,
-      numberOfKeys: "1",
-      ...initialData,
-      features: { ...defaultCarFeatures, ...(initialData.features || {}) }
-    };
-  }, [initialData, userId]);
-  
-  // Initialize form with React Hook Form
+export const useFormController = ({ defaultValues, isDraft, draftId, fromValuation }: UseFormControllerProps = {}) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { updateFormState } = useFormState();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const [isFormTouched, setIsFormTouched] = useState(false);
+  const [isSaveEnabled, setIsSaveEnabled] = useState(false);
+  const [isDeleteEnabled, setIsDeleteEnabled] = useState(false);
+  const [isPublishEnabled, setIsPublishEnabled] = useState(false);
+  const [isCancelEnabled, setIsCancelEnabled] = useState(false);
+  const [isResetEnabled, setIsResetEnabled] = useState(false);
+  const [isFormComplete, setIsFormComplete] = useState(false);
+  const [isFormValid, setIsFormValid] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [lastSubmitted, setLastSubmitted] = useState<string | null>(null);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [steps, setSteps] = useState([
+    { id: 'valuation', label: 'Valuation', description: 'Verify car details' },
+    { id: 'details', label: 'Details', description: 'Add car specifications' },
+    { id: 'photos', label: 'Photos', description: 'Upload car images' },
+    { id: 'pricing', label: 'Pricing', description: 'Set your price' },
+    { id: 'review', label: 'Review', description: 'Confirm your listing' }
+  ]);
+
+  // Initialize form with react-hook-form
   const form = useForm<CarListingFormData>({
-    resolver: zodResolver(carFormSchema),
-    defaultValues,
+    resolver: zodResolver(carListingFormSchema),
+    defaultValues: useMemo(() => ({
+      make: '',
+      model: '',
+      year: 2010,
+      mileage: 100000,
+      vin: '',
+      price: 10000,
+      reserve_price: 8000,
+      transmission: 'manual',
+      name: '',
+      address: '',
+      mobileNumber: '',
+      isDamaged: false,
+      isRegisteredInPoland: true,
+      hasPrivatePlate: false,
+      features: defaultCarFeatures,
+      serviceHistoryType: 'full',
+      sellerNotes: '',
+      seatMaterial: 'leather',
+      numberOfKeys: 2,
+      financeAmount: null,
+      is_draft: false,
+      status: 'pending',
+      requiredPhotos: {},
+      damagePhotos: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      form_metadata: {
+        lastUpdatedStep: 0,
+        completedSteps: [],
+        visitedSteps: []
+      },
+      ...defaultValues
+    }), [defaultValues]),
+    mode: "onChange"
   });
-  
-  // Load existing car data if editing
+
+  // Watch all form values
+  const data = form.watch();
+
+  // Normalize the form data
+  const normalizedData = {
+    make: data.make,
+    model: data.model,
+    year: data.year,
+    price: data.price,
+    mileage: data.mileage,
+    vin: data.vin,
+  };
+
+  // Update form state when form values change
   useEffect(() => {
-    if (!carId) return;
-    
-    const loadCarData = async () => {
-      try {
-        setIsLoading(true);
-        
-        const { data, error } = await supabase
-          .from('cars')
-          .select('*')
-          .eq('id', carId)
-          .single();
-          
-        if (error) {
-          throw error;
-        }
-        
-        if (data) {
-          // Reset form with loaded data
-          form.reset(data as CarListingFormData);
-          
-          // Set last saved date
-          if (data.updated_at) {
-            setLastSaved(new Date(data.updated_at));
-          }
-        }
-      } catch (err: any) {
-        setError(err);
-        console.error("Error loading car data:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadCarData();
-    
-    // Check online status
-    const handleOnlineStatusChange = () => {
-      setIsOffline(!navigator.onLine);
-    };
-    
-    window.addEventListener('online', handleOnlineStatusChange);
-    window.addEventListener('offline', handleOnlineStatusChange);
-    setIsOffline(!navigator.onLine);
-    
-    return () => {
-      window.removeEventListener('online', handleOnlineStatusChange);
-      window.removeEventListener('offline', handleOnlineStatusChange);
-    };
-  }, [carId, form]);
-  
-  // Save form progress
-  const saveProgress = async (): Promise<boolean> => {
-    if (!userId) {
-      console.error("Cannot save without a user ID");
-      return false;
+    setIsDirty(form.isDirty());
+    setIsFormValid(form.formState.isValid);
+    setIsFormTouched(form.formState.isTouched);
+    setIsSubmitted(form.formState.isSubmitted);
+    setValidationError(form.formState.errors ? "Please correct the errors below" : null);
+  }, [form.formState]);
+
+  // Load draft data from local storage on mount
+  useEffect(() => {
+    setIsMounted(true);
+    if (isDraft && draftId) {
+      loadDraftData(draftId);
     }
-    
+  }, [isDraft, draftId]);
+
+  // Load draft data from local storage
+  const loadDraftData = async (draftId: string) => {
     try {
-      setIsSaving(true);
-      
-      const formValues = form.getValues();
-      
-      // Check we have bare minimum data
-      if (!formValues.make && !formValues.model && !formValues.vin) {
-        // Don't save if nothing substantive to save
-        return false;
+      const { data: draftData, error } = await supabase
+        .from('cars')
+        .select('*')
+        .eq('id', draftId)
+        .single();
+
+      if (error) {
+        console.error("Error loading draft:", error);
+        toast({
+          variant: "destructive",
+          title: "Draft Load Error",
+          description: "Failed to load draft data. Please try again."
+        });
+        return;
       }
-      
-      // Prepare data for saving
-      const saveData = {
-        ...formValues,
-        seller_id: userId,
-        updated_at: new Date(),
-        is_draft: true,
-        status: 'draft'
-      };
-      
-      // If we have a car ID, update; otherwise insert
-      if (carId) {
-        const { error } = await supabase
-          .from('cars')
-          .update(saveData)
-          .eq('id', carId);
-          
-        if (error) throw error;
-      } else {
-        // Add created_at for new records
-        saveData.created_at = new Date();
-        
-        const { data, error } = await supabase
-          .from('cars')
-          .insert(saveData)
-          .select('id')
-          .single();
-          
-        if (error) throw error;
-        
-        // Update carId if we created a new record
-        if (data?.id) {
-          // This would need to be communicated back to the parent component
-          if (onSubmitSuccess) {
-            onSubmitSuccess(data.id);
-          }
-        }
+
+      if (draftData) {
+        const formData = transformDbToFormData(draftData);
+        form.reset(formData);
+        toast({
+          title: "Draft Loaded",
+          description: "Your saved draft has been loaded."
+        });
       }
-      
-      // Update last saved timestamp
-      setLastSaved(new Date());
-      
-      // Show success toast
-      toast.success("Progress saved");
-      
-      return true;
-    } catch (error: any) {
-      console.error("Error saving progress:", error);
-      
-      // Show error toast
-      toast.error("Failed to save progress", {
-        description: error.message
+    } catch (error) {
+      console.error("Error loading draft:", error);
+      toast({
+        variant: "destructive",
+        title: "Draft Load Error",
+        description: "Failed to load draft data. Please try again."
       });
-      
-      return false;
-    } finally {
-      setIsSaving(false);
     }
   };
-  
-  // Submit the form
-  const submitForm = async () => {
+
+  // Save form state to local storage
+  const saveFormState = async (): Promise<boolean> => {
     try {
-      // Validate form
-      const result = await form.trigger();
-      
-      if (!result) {
-        toast.error("Please complete all required fields");
-        return false;
-      }
-      
-      const formValues = form.getValues();
-      
-      // Submit form data
-      const { data, error } = await supabase
+      const formData = form.getValues();
+      const { error } = await supabase
         .from('cars')
         .upsert({
-          ...formValues,
-          seller_id: userId,
-          status: 'pending',
-          updated_at: new Date(),
-          created_at: formValues.created_at || new Date()
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      if (!data) {
-        throw new Error("No data returned from submission");
+          ...formData,
+          form_metadata: {
+            lastUpdatedStep: currentStepIndex,
+            completedSteps: steps.slice(0, currentStepIndex).map(step => step.id),
+            visitedSteps: steps.slice(0, currentStepIndex + 1).map(step => step.id)
+          }
+        }, {
+          onConflict: 'id'
+        });
+
+      if (error) {
+        console.error("Error saving form state:", error);
+        toast({
+          variant: "destructive",
+          title: "Save Error",
+          description: "Failed to save form state. Please try again."
+        });
+        return false;
       }
-      
-      toast.success("Car listing submitted successfully!");
-      
-      if (onSubmitSuccess && data.id) {
-        onSubmitSuccess(data.id);
-      }
-      
-      return true;
-    } catch (error: any) {
-      console.error("Error submitting form:", error);
-      
-      toast.error("Failed to submit listing", {
-        description: error.message
+
+      setLastSaved(new Date().toISOString());
+      toast({
+        title: "Form Saved",
+        description: "Your progress has been saved."
       });
-      
-      if (onSubmitError) {
-        onSubmitError(error);
-      }
-      
+      return true;
+    } catch (error) {
+      console.error("Error saving form state:", error);
+      toast({
+        variant: "destructive",
+        title: "Save Error",
+        description: "Failed to save form state. Please try again."
+      });
       return false;
     }
   };
-  
-  // Fields to display in each step
-  const visibleSections = useMemo(() => {
-    return [
-      "car-details",
-      "price",
-      "condition",
-      "features",
-      "additional-info",
-      "description",
-      "photos",
-      "rim-photos",
-      "damage"
-    ];
-  }, []);
-  
+
+  // Validate current step
+  const validateCurrentStep = async (): Promise<boolean> => {
+    try {
+      // Trigger validation for all fields in the current step
+      await form.trigger();
+
+      // Check if there are any errors in the form state
+      if (Object.keys(form.formState.errors).length > 0) {
+        console.log("Validation errors:", form.formState.errors);
+        return false;
+      }
+
+      // If there are no errors, return true
+      return true;
+    } catch (error) {
+      console.error("Error validating form:", error);
+      return false;
+    }
+  };
+
   return {
     form,
-    isLoading,
-    isSaving,
-    error,
+    data,
+    steps,
+    currentStepIndex,
+    setCurrentStepIndex,
+    isSubmitting,
+    submissionError,
+    isMounted,
+    isFormTouched,
+    isSaveEnabled,
+    isDeleteEnabled,
+    isPublishEnabled,
+    isCancelEnabled,
+    isResetEnabled,
+    isFormComplete,
+    isFormValid,
+    isDirty,
+    isSubmitted,
     lastSaved,
-    isOffline,
-    saveProgress,
-    submitForm,
-    visibleSections
+    lastSubmitted,
+    validationError,
+    setValidationError,
+    validateCurrentStep,
+    saveFormState,
+    loadDraftData
   };
 };

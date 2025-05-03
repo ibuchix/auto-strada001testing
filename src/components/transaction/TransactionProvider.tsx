@@ -3,12 +3,12 @@
  * Provider for transaction context and state management
  * - 2025-06-15: Fixed TransactionStatus reference issues
  * - 2025-06-20: Removed diagnostic service references
+ * - 2025-06-23: Fixed TransactionStatus enum usage
  */
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { toast } from 'sonner';
-import { TransactionStatus } from '@/types/forms';
-import { TRANSACTION_STATUS } from '@/services/supabase/transactionService';
+import { TransactionStatus } from '@/services/supabase/transactions/types';
 
 interface TransactionContextType {
   currentTransaction: Transaction | null;
@@ -63,7 +63,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
     const transaction: Transaction = {
       id: crypto.randomUUID(),
       name,
-      status: TRANSACTION_STATUS.PENDING,
+      status: TransactionStatus.PENDING,
       startTime: new Date(),
       description,
       metadata
@@ -91,7 +91,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       
       const updatedTransaction: Transaction = {
         ...prev,
-        status: TRANSACTION_STATUS.SUCCESS,
+        status: TransactionStatus.SUCCESS,
         endTime: new Date(),
         result
       };
@@ -110,7 +110,7 @@ export const TransactionProvider = ({ children }: { children: ReactNode }) => {
       
       const updatedTransaction: Transaction = {
         ...prev,
-        status: TRANSACTION_STATUS.ERROR,
+        status: TransactionStatus.ERROR,
         endTime: new Date(),
         error
       };

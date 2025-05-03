@@ -6,6 +6,7 @@
  * - 2025-04-06: Fixed error code type comparisons
  * - 2025-05-02: Updated to upload temporary files when form is submitted
  * - 2025-05-03: Fixed carId type error by adding field to submission result interface
+ * - 2025-06-23: Fixed TransactionStatus import
  */
 
 import { useState } from "react";
@@ -53,7 +54,7 @@ export const useFormSubmission = (userId: string) => {
     setTransactionStatus(null);
     setUploadProgress(0);
   };
-  
+
   // Helper function to upload a single file to Supabase Storage
   const uploadFileToStorage = async (file: TempStoredFile, carId: string): Promise<string | null> => {
     try {

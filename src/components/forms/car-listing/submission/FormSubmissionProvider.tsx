@@ -8,6 +8,7 @@
  * - 2024-08-14: Enhanced error handling and reset functionality
  * - 2025-04-03: Fixed TypeScript errors with missing properties from useFormSubmission
  * - 2025-04-03: Updated TransactionStatus usage to proper enum values
+ * - 2025-06-23: Fixed TransactionStatus import from types
  */
 
 import { createContext, useContext } from "react";

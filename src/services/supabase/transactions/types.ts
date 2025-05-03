@@ -2,9 +2,16 @@
 /**
  * Transaction Service Types
  * Created: 2025-06-22 - Added missing transaction-related types
+ * Updated: 2025-06-23 - Fixed export issues with TransactionStatus
  */
 
-import { TransactionStatus } from "@/types/forms";
+// Transaction Status enum - exported properly now
+export enum TransactionStatus {
+  IDLE = 'idle',
+  PENDING = 'pending',
+  SUCCESS = 'success',
+  ERROR = 'error'
+}
 
 // Transaction types enum
 export enum TransactionType {
@@ -14,6 +21,7 @@ export enum TransactionType {
   UPLOAD = 'upload',
   AUCTION = 'auction',
   AUTHENTICATION = 'authentication',
+  PAYMENT = 'payment',
   OTHER = 'other'
 }
 
@@ -23,18 +31,31 @@ export interface TransactionOptions {
   metadata?: Record<string, any>;
   additionalInfo?: string;
   notify?: boolean;
+  showToast?: boolean;
+  toastDuration?: number;
+  logToDb?: boolean;
+  retryCount?: number;
+  retryDelay?: number;
+  description?: string;
+  onSuccess?: (data: any) => void;
+  onError?: (error: any) => void;
+  onComplete?: (details: TransactionDetails) => void;
 }
 
 // Transaction details interface
 export interface TransactionDetails {
   id?: string;
+  operation?: string;
   type: TransactionType;
   status: TransactionStatus;
-  message: string;
+  message?: string;
   userId?: string;
   metadata?: Record<string, any>;
+  startTime?: Date;
+  endTime?: Date;
   timestamp?: string;
   duration?: number;
+  errorDetails?: string;
 }
 
 // Audit log action enum
@@ -59,5 +80,6 @@ export enum ErrorCategory {
   DATABASE = 'database',
   NETWORK = 'network',
   INTERNAL = 'internal',
-  GENERAL = 'general'
+  GENERAL = 'general',
+  UNKNOWN = 'unknown'
 }

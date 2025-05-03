@@ -2,6 +2,7 @@
 /**
  * Error Types
  * Created: 2025-06-22 - Added missing error codes
+ * Updated: 2025-06-23 - Fixed RecoveryAction and ErrorRecovery types
  */
 
 export enum ErrorCode {
@@ -61,6 +62,7 @@ export enum ErrorSeverity {
   CRITICAL = 'critical',
 }
 
+// Updated RecoveryType to include all necessary types
 export enum RecoveryType {
   RETRY = 'retry',
   REDIRECT = 'redirect',
@@ -68,14 +70,21 @@ export enum RecoveryType {
   CONTACT_SUPPORT = 'contact_support',
   FORM_RETRY = 'form_retry',
   MANUAL_ACTION = 'manual_action',
+  FIELD_CORRECTION = 'field_correction',
+  SIGN_IN = 'sign_in',
+  NAVIGATE = 'navigate',
 }
 
-export type RecoveryAction = () => void | Promise<void>;
+// Recovery action as a function type
+export type RecoveryAction = RecoveryType;
 
+// Enhanced ErrorRecovery interface with all required properties
 export interface ErrorRecovery {
   type: RecoveryType;
   action: RecoveryAction;
   label: string;
+  route?: string;
+  handler?: () => void | Promise<void>;
 }
 
 export interface ErrorDetails {
@@ -97,6 +106,9 @@ export enum ErrorCategory {
   NETWORK = 'network',
   INTERNAL = 'internal',
   GENERAL = 'general',
+  UNKNOWN = 'unknown',
+  SERVER = 'server',
+  BUSINESS = 'business'
 }
 
 export interface AppError extends ErrorDetails {

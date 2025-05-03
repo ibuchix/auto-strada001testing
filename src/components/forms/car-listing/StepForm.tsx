@@ -1,245 +1,304 @@
-
 /**
  * StepForm Component
- * Updated: 2025-06-07 - Major refactoring to improve performance and reduce unnecessary renders
- * Updated: 2025-06-11 - Fixed FormNavigationControls integration and prop handling
- * Updated: 2025-06-12 - Fixed FormDataProvider integration to resolve context errors
- * Updated: 2025-06-18 - Fixed saveProgressWrapper return type
- * Updated: 2025-06-19 - Fixed return type compatibility in saveProgressWrapper
- * Updated: 2025-06-20 - Fixed saveProgress return type to ensure correct Promise<void> compatibility
- * Updated: 2025-06-21 - Updated saveProgressWrapper return types to ensure compatibility
- * Updated: 2025-06-22 - Fixed saveProgressWrapper return type to match onSave's expected type
+ * Updated: 2025-06-23 - Fixed Promise return type in navigateToNextStep
  */
 
-import { UseFormReturn } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
-import { formSteps } from "./constants/formSteps";
-import { useMemo, useState, useCallback } from "react";
-import { ValidationErrorDisplay } from "./ValidationErrorDisplay";
-import { FormNavigationControls } from "./FormNavigationControls";
-import { FormFooter } from "./FormFooter";
-import { FormContainer } from "./components/FormContainer";
-import { useCompletionPercentage } from "./hooks/useCompletionPercentage";
-import { FormErrorSection } from "./components/FormErrorSection";
-import { FormDataProvider } from "./context/FormDataContext";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useFormData } from "./context/FormDataContext";
+import { FormStep } from "./types";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useFormState } from "@/context/FormStateContext";
+import { useFormNavigation } from "./hooks/useFormNavigation";
+import { useFormValidation } from "./hooks/useFormValidation";
+import { useFormSubmissionContext } from "./submission/FormSubmissionProvider";
+import { FormTransactionError } from "./submission/FormTransactionError";
+import { TransactionStatus } from "@/services/supabase/transactions/types";
+import { useFormController } from "./hooks/useFormController";
+import { useFormStorage } from "./hooks/useFormStorage";
 
 interface StepFormProps {
-  form: UseFormReturn<CarListingFormData>;
-  currentStep: number;
-  setCurrentStep: (step: number) => void;
-  carId?: string;
-  lastSaved: Date | null;
-  isOffline: boolean;
-  saveProgress: () => Promise<boolean>;
-  visibleSections: string[];
-  isSaving?: boolean;
+  steps: FormStep[];
+  onComplete: () => void;
+  showSubmitButton?: boolean;
+  allowSkipToIncomplete?: boolean;
 }
 
 export const StepForm = ({
-  form,
-  currentStep: initialStep,
-  setCurrentStep: externalSetCurrentStep,
-  carId,
-  lastSaved,
-  isOffline,
-  saveProgress,
-  visibleSections,
-  isSaving = false
+  steps,
+  onComplete,
+  showSubmitButton = true,
+  allowSkipToIncomplete = false
 }: StepFormProps) => {
-  // Safeguard against undefined form
-  if (!form) {
-    console.error("Form is undefined in StepForm component");
+  const { form, formState } = useFormData();
+  const { updateFormState } = useFormState();
+  const { validateStep } = useFormValidation();
+  const { saveFormData } = useFormStorage();
+  const { isSubmitting, error, transactionStatus, handleSubmit } = useFormSubmissionContext();
+  
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [isFormComplete, setIsFormComplete] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const currentStep = steps[currentStepIndex];
+  const isFirstStep = currentStepIndex === 0;
+  const isLastStep = currentStepIndex === steps.length - 1;
+  
+  const { 
+    canNavigateToStep,
+    markStepVisited,
+    markStepCompleted,
+    isStepCompleted,
+    isStepVisited
+  } = useFormNavigation(steps);
+  
+  const {
+    isDirty,
+    isStepValid,
+    validateCurrentStep,
+    resetDirtyState
+  } = useFormController(currentStep, form);
+  
+  // Reset validation error when step changes
+  useEffect(() => {
+    setValidationError(null);
+  }, [currentStepIndex]);
+  
+  // Save form state when component unmounts
+  useEffect(() => {
+    return () => {
+      updateFormState({
+        lastStep: currentStepIndex,
+        isComplete: isFormComplete
+      });
+    };
+  }, [currentStepIndex, isFormComplete, updateFormState]);
+  
+  // Mark current step as visited when it changes
+  useEffect(() => {
+    markStepVisited(currentStepIndex);
+  }, [currentStepIndex, markStepVisited]);
+  
+  // Save form data periodically when it's dirty
+  useEffect(() => {
+    if (isDirty) {
+      const timer = setTimeout(() => {
+        saveFormState();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isDirty, form.getValues()]);
+  
+  // Function to save the current form state
+  const saveFormState = async (): Promise<boolean> => {
+    try {
+      setIsSaving(true);
+      const formData = form.getValues();
+      await saveFormData(formData);
+      resetDirtyState();
+      return true;
+    } catch (error) {
+      console.error("Error saving form state:", error);
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Navigate to a specific step
+  const goToStep = (stepIndex: number) => {
+    if (
+      stepIndex >= 0 &&
+      stepIndex < steps.length &&
+      (allowSkipToIncomplete || canNavigateToStep(stepIndex))
+    ) {
+      setCurrentStepIndex(stepIndex);
+      setValidationError(null);
+    }
+  };
+  
+  // Navigate to the previous step
+  const goToPreviousStep = async () => {
+    // Always save before navigating
+    await saveFormState();
+    goToStep(currentStepIndex - 1);
+  };
+  
+  // Navigate to the next step
+  const navigateToNextStep = async (): Promise<boolean> => {
+    try {
+      // Validate current step
+      const isValid = await validateCurrentStep();
+      
+      if (!isValid) {
+        setValidationError("Please fix the errors before proceeding.");
+        return false;
+      }
+      
+      // Save form state
+      const savedSuccessfully = await saveFormState();
+      if (!savedSuccessfully) {
+        setValidationError("Failed to save form state. Please try again.");
+        return false;
+      }
+      
+      // Navigate to next step if available
+      if (currentStepIndex < steps.length - 1) {
+        setCurrentStepIndex(currentStepIndex + 1);
+        return true;
+      } else {
+        // Otherwise, mark form as complete
+        setIsFormComplete(true);
+        return true;
+      }
+    } catch (error) {
+      console.error("Error navigating to next step:", error);
+      setValidationError("An unexpected error occurred. Please try again.");
+      return false;
+    }
+  };
+  
+  // Handle form submission
+  const handleFormSubmit = async () => {
+    try {
+      // Validate the current step first
+      const isValid = await validateCurrentStep();
+      
+      if (!isValid) {
+        setValidationError("Please fix the errors before submitting.");
+        return;
+      }
+      
+      // Save form state
+      await saveFormState();
+      
+      // Get the form data
+      const formData = form.getValues();
+      
+      // Submit the form
+      await handleSubmit(formData);
+      
+      // If successful, mark as complete and call onComplete
+      if (transactionStatus === TransactionStatus.SUCCESS) {
+        setIsFormComplete(true);
+        onComplete();
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      setValidationError("Failed to submit form. Please try again.");
+    }
+  };
+  
+  // Render step navigation
+  const renderStepNavigation = () => {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
-        <p className="text-red-500">Error: Form context not available</p>
-        <p>Please refresh the page and try again</p>
+      <div className="flex justify-between mt-6">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={goToPreviousStep}
+          disabled={isFirstStep || isSubmitting}
+          className="flex items-center gap-1"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back
+        </Button>
+        
+        {isLastStep && showSubmitButton ? (
+          <Button
+            type="button"
+            onClick={handleFormSubmit}
+            disabled={isSubmitting}
+            className="flex items-center gap-1"
+          >
+            Submit
+            {isSubmitting && (
+              <span className="ml-2 animate-spin">⟳</span>
+            )}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={navigateToNextStep}
+            disabled={isSubmitting}
+            className="flex items-center gap-1"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     );
-  }
-
-  // Filter steps based on visible sections
-  const filteredSteps = useMemo(() => {
-    return formSteps.filter(step => {
-      return step.sections.some(section => visibleSections.includes(section));
-    });
-  }, [visibleSections]);
-  
-  const totalSteps = filteredSteps.length;
-  
-  // Step navigation state
-  const [currentStep, setCurrentStepInternal] = useState(initialStep);
-  const [isNavigating, setIsNavigating] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<Record<number, string[]>>({});
-  const [completedSteps, setCompletedSteps] = useState<Record<string, boolean>>({});
-  const [stepValidationErrors, setStepValidationErrors] = useState<Record<number, string[]>>({});
-  const [navigationDisabled, setNavigationDisabled] = useState(false);
-  
-  // Handle step change and synchronize with external state
-  const handleStepChange = useCallback((step: number) => {
-    setCurrentStepInternal(step);
-    externalSetCurrentStep(step);
-  }, [externalSetCurrentStep]);
-  
-  // Handle previous navigation
-  const handlePrevious = useCallback(async () => {
-    if (currentStep > 0) {
-      setIsNavigating(true);
-      try {
-        await saveProgress();
-        handleStepChange(currentStep - 1);
-      } catch (error) {
-        console.error("Error navigating to previous step:", error);
-      } finally {
-        setIsNavigating(false);
-      }
-    }
-  }, [currentStep, saveProgress, handleStepChange]);
-  
-  // Handle next navigation with validation
-  const handleNext = useCallback(async () => {
-    if (currentStep < totalSteps - 1) {
-      setIsNavigating(true);
-      setNavigationDisabled(true);
-      
-      try {
-        // Validate current step
-        const currentStepConfig = filteredSteps[currentStep];
-        let isValid = true;
-        
-        // Custom validation if available
-        if (currentStepConfig?.validate) {
-          isValid = currentStepConfig.validate(form.getValues());
-        }
-        
-        // Form validation
-        if (isValid) {
-          // Save and navigate
-          await saveProgress();
-          
-          // Mark current step as completed
-          setCompletedSteps(prev => ({
-            ...prev,
-            [currentStep]: true
-          }));
-          
-          handleStepChange(currentStep + 1);
-        } else {
-          setStepValidationErrors(prev => ({
-            ...prev,
-            [currentStep]: ["Please correct the errors before continuing"]
-          }));
-        }
-      } catch (error) {
-        console.error("Error navigating to next step:", error);
-      } finally {
-        setIsNavigating(false);
-        setNavigationDisabled(false);
-      }
-    }
-  }, [currentStep, totalSteps, filteredSteps, form, saveProgress, handleStepChange]);
-
-  // Calculate completion percentage
-  const completionPercentage = useCompletionPercentage({
-    form,
-    currentStep,
-    completedSteps,
-    totalSteps,
-    filteredSteps
-  });
-
-  const isFirstStep = currentStep === 0;
-  const isLastStep = currentStep === totalSteps - 1;
-  
-  // Calculate completed steps array for progress display
-  const completedStepsArray = useMemo(() => {
-    return Object.entries(completedSteps).reduce((acc, [step, isCompleted]) => {
-      if (isCompleted) {
-        acc.push(parseInt(step, 10));
-      }
-      return acc;
-    }, [] as number[]);
-  }, [completedSteps]);
-  
-  // Convert stepValidationErrors (Record<number, string[]>) to the format expected by FormProgressIndicator
-  const formattedValidationErrors = useMemo(() => {
-    const formatted: Record<string, boolean> = {};
-    
-    // Convert numeric keys to strings and map arrays to booleans (has errors or not)
-    Object.entries(stepValidationErrors).forEach(([stepIndex, errors]) => {
-      formatted[stepIndex] = Array.isArray(errors) && errors.length > 0;
-    });
-    
-    return formatted;
-  }, [stepValidationErrors]);
-  
-  // Enhanced wrapper functions for button handling
-  const handlePreviousWrapper = async () => {
-    try {
-      await handlePrevious();
-    } catch (error) {
-      console.error("Error in handlePreviousWrapper:", error);
-    }
   };
   
-  const handleNextWrapper = async () => {
-    try {
-      await handleNext();
-    } catch (error) {
-      console.error("Error in handleNextWrapper:", error);
-    }
-  };
-  
-  // Fixed return type of saveProgressWrapper to match onSave's expected Promise<void>
-  const saveProgressWrapper = async (): Promise<void> => {
-    try {
-      await saveProgress();
-    } catch (error) {
-      console.error("Error in saveProgressWrapper:", error);
-    }
+  // Render step indicators
+  const renderStepIndicators = () => {
+    return (
+      <div className="flex justify-center mb-6">
+        {steps.map((step, index) => (
+          <div
+            key={step.id}
+            className={`
+              flex items-center cursor-pointer
+              ${index > 0 ? 'ml-2' : ''}
+            `}
+            onClick={() => goToStep(index)}
+          >
+            <div
+              className={`
+                h-3 w-3 rounded-full
+                ${currentStepIndex === index ? 'bg-primary' : ''}
+                ${isStepCompleted(index) ? 'bg-green-500' : ''}
+                ${!isStepCompleted(index) && currentStepIndex !== index ? 'bg-gray-300' : ''}
+                ${isStepVisited(index) && !isStepCompleted(index) ? 'bg-amber-400' : ''}
+              `}
+            />
+            {index < steps.length - 1 && (
+              <div className="h-0.5 w-4 bg-gray-300" />
+            )}
+          </div>
+        ))}
+      </div>
+    );
   };
   
   return (
-    <div className="space-y-8 max-w-3xl mx-auto bg-white rounded-lg shadow-sm p-6 mb-20">
-      {/* Display validation errors */}
-      <FormErrorSection validationErrors={stepValidationErrors} />
+    <div className="space-y-6">
+      {renderStepIndicators()}
       
-      {/* Wrap the content with FormDataProvider to provide form context to all children */}
-      <FormDataProvider form={form}>
-        <FormContainer 
-          currentStep={currentStep}
-          onNext={handleNextWrapper}
-          onPrevious={handlePreviousWrapper}
-          isFirstStep={isFirstStep}
-          isLastStep={isLastStep}
-          navigationDisabled={navigationDisabled}
-          isSaving={isSaving}
-          carId={carId}
-          userId={form.watch("seller_id") as string}
+      {validationError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{validationError}</AlertDescription>
+        </Alert>
+      )}
+      
+      {error && (
+        <FormTransactionError 
+          error={error} 
+          onRetry={() => setValidationError(null)} 
         />
+      )}
       
-        <FormNavigationControls
-          currentStep={currentStep}
-          totalSteps={totalSteps}
-          isFirstStep={isFirstStep}
-          isLastStep={isLastStep}
-          onPrevious={handlePreviousWrapper}
-          onNext={handleNextWrapper}
-          navigationDisabled={navigationDisabled}
-          isSaving={isSaving}
-          isNavigating={navigationDisabled || isSaving}
-          onSave={saveProgressWrapper}
-          carId={carId}
-        />
-      </FormDataProvider>
+      <Card className="p-6">
+        <h2 className="text-xl font-bold mb-4 font-oswald">{currentStep.title}</h2>
+        {currentStep.description && (
+          <p className="text-gray-600 mb-6">{currentStep.description}</p>
+        )}
+        
+        {currentStep.component}
+        
+        {renderStepNavigation()}
+      </Card>
       
-      <FormFooter
-        lastSaved={lastSaved}
-        isOffline={isOffline}
-        onSave={saveProgressWrapper}
-        isSaving={navigationDisabled || isSaving}
-        currentStep={currentStep + 1}
-        totalSteps={totalSteps}
-      />
+      {isSaving && (
+        <div className="text-xs text-gray-500 text-right mt-2">
+          Saving...
+        </div>
+      )}
     </div>
   );
 };

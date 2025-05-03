@@ -2,6 +2,7 @@
  * Form Data Transformers
  * Created: 2025-06-21
  * Updated: 2025-06-22 - Fixed type conversions and field mappings
+ * Added: 2025-06-23 - Added missing transformDbToFormData function
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -175,4 +176,65 @@ export const prepareFormDataForSubmission = (formData: CarListingFormData): Reco
   };
   
   return result;
+};
+
+/**
+ * Transform database record to form data structure
+ */
+export const transformDbToFormData = (dbData: any): any => {
+  // If there's no data, return null
+  if (!dbData) return null;
+  
+  // Map database fields to form data fields
+  return {
+    // Basic information
+    id: dbData.id,
+    make: dbData.make,
+    model: dbData.model,
+    year: Number(dbData.year),
+    mileage: Number(dbData.mileage),
+    vin: dbData.vin,
+    price: Number(dbData.price),
+    reserve_price: Number(dbData.reserve_price),
+    transmission: dbData.transmission || 'manual',
+    
+    // Seller details
+    name: dbData.seller_name || '',
+    address: dbData.address || '',
+    mobileNumber: dbData.mobile_number || '',
+    
+    // Vehicle status
+    isDamaged: Boolean(dbData.is_damaged),
+    isRegisteredInPoland: Boolean(dbData.is_registered_in_poland),
+    hasPrivatePlate: Boolean(dbData.has_private_plate),
+    
+    // Features and options
+    features: dbData.features || {},
+    serviceHistoryType: dbData.service_history_type,
+    sellerNotes: dbData.seller_notes || '',
+    seatMaterial: dbData.seat_material || '',
+    numberOfKeys: Number(dbData.number_of_keys || 1),
+    
+    // Financial details
+    financeAmount: dbData.finance_amount ? Number(dbData.finance_amount) : null,
+    
+    // Status flags
+    is_draft: Boolean(dbData.is_draft),
+    status: dbData.status || 'pending',
+    
+    // Photo information
+    requiredPhotos: dbData.required_photos || {},
+    damagePhotos: dbData.damage_photos || [],
+    
+    // Timestamps
+    created_at: dbData.created_at || new Date().toISOString(),
+    updated_at: dbData.updated_at || new Date().toISOString(),
+    
+    // Form metadata
+    form_metadata: dbData.form_metadata || {
+      lastUpdatedStep: 0,
+      completedSteps: [],
+      visitedSteps: []
+    }
+  };
 };

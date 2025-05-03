@@ -1,10 +1,10 @@
 
 /**
  * Transaction status indicator component with appropriate status visuals
+ * - 2025-06-23: Fixed TransactionStatus import and usage
  */
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { TransactionStatus } from "@/types/forms";
-import { TRANSACTION_STATUS } from "@/services/supabase/transactionService";
+import { TransactionStatus } from "@/services/supabase/transactions/types";
 
 export interface TransactionStatusIndicatorProps {
   status: TransactionStatus;
@@ -15,12 +15,12 @@ export const TransactionStateIndicator = ({
   status, 
   className = '' 
 }: TransactionStatusIndicatorProps) => {
-  if (!status || status === TRANSACTION_STATUS.IDLE) {
+  if (!status || status === TransactionStatus.IDLE) {
     return null;
   }
 
   // Pending state
-  if (status === TRANSACTION_STATUS.PENDING) {
+  if (status === TransactionStatus.PENDING) {
     return (
       <div className={`flex items-center text-blue-600 ${className}`}>
         <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -30,7 +30,7 @@ export const TransactionStateIndicator = ({
   }
 
   // Success state
-  if (status === TRANSACTION_STATUS.SUCCESS) {
+  if (status === TransactionStatus.SUCCESS) {
     return (
       <div className={`flex items-center text-green-600 ${className}`}>
         <CheckCircle className="mr-1 h-4 w-4" />
@@ -40,7 +40,7 @@ export const TransactionStateIndicator = ({
   }
 
   // Error state
-  if (status === TRANSACTION_STATUS.ERROR) {
+  if (status === TransactionStatus.ERROR) {
     return (
       <div className={`flex items-center text-destructive ${className}`}>
         <AlertCircle className="mr-1 h-4 w-4" />

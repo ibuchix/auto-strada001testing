@@ -14,7 +14,7 @@ export interface FormSubmissionContextType {
   transactionStatus: TransactionStatus | null;
   showSuccessDialog: boolean;
   setShowSuccessDialog: (value: boolean) => void;
-  handleSubmit: (data: CarListingFormData, carId?: string) => Promise<any>;
+  handleSubmit: (data: CarListingFormData, carId?: string) => Promise<void>;
   resetTransaction: () => void;
 }
 

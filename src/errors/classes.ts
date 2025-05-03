@@ -1,38 +1,31 @@
 
 /**
  * Error Classes
- * Created: 2025-06-15
- * Updated: 2025-06-16 - Added AuthenticationError class and improved type definitions
- * 
- * Custom error classes for application error handling
+ * Updated: 2025-06-23 - Added missing methods to AppError class and fixed type issues
  */
 
 import { 
-  ErrorCategory,
-  ErrorCode, 
+  ErrorCode,
+  ErrorCategory, 
   ErrorSeverity,
-  ErrorRecovery
-} from "./types";
+  ErrorRecovery,
+  AppError as IAppError
+} from './types';
 
-export class AppError extends Error {
-  code: ErrorCode;
-  category: ErrorCategory;
-  description: string;
-  recovery?: ErrorRecovery;
-  severity: ErrorSeverity;
-  field?: string;
-  metadata?: Record<string, any>;
-  
-  constructor({
-    message,
-    code = ErrorCode.UNKNOWN_ERROR,
-    category = ErrorCategory.UNKNOWN,
-    description = '',
-    recovery,
-    severity = ErrorSeverity.ERROR,
-    field,
-    metadata
-  }: {
+export class AppError implements IAppError {
+  public message: string;
+  public code: ErrorCode;
+  public description?: string;
+  public category: ErrorCategory;
+  public recovery?: ErrorRecovery;
+  public severity: ErrorSeverity;
+  public field?: string;
+  public metadata?: Record<string, any>;
+  public id: string;
+  public timestamp: string;
+  public retryable: boolean;
+
+  constructor(options: {
     message: string;
     code?: ErrorCode;
     category?: ErrorCategory;
@@ -41,194 +34,104 @@ export class AppError extends Error {
     severity?: ErrorSeverity;
     field?: string;
     metadata?: Record<string, any>;
+    retryable?: boolean;
   }) {
-    super(message);
-    this.name = 'AppError';
-    this.code = code;
-    this.category = category;
-    this.description = description;
-    this.recovery = recovery;
-    this.severity = severity;
-    this.field = field;
-    this.metadata = metadata;
+    this.message = options.message;
+    this.code = options.code || ErrorCode.UNKNOWN_ERROR;
+    this.category = options.category || ErrorCategory.GENERAL;
+    this.description = options.description;
+    this.recovery = options.recovery;
+    this.severity = options.severity || ErrorSeverity.ERROR;
+    this.field = options.field;
+    this.metadata = options.metadata || {};
+    this.id = crypto.randomUUID();
+    this.timestamp = new Date().toISOString();
+    this.retryable = options.retryable !== undefined ? options.retryable : true;
+  }
+
+  // Method to serialize the error for logging
+  serialize(): Record<string, any> {
+    return {
+      id: this.id,
+      message: this.message,
+      code: this.code,
+      category: this.category,
+      description: this.description,
+      severity: this.severity,
+      field: this.field,
+      metadata: this.metadata,
+      timestamp: this.timestamp,
+      retryable: this.retryable
+    };
+  }
+
+  // Method to create a new error with a modified description
+  withDescription(description: string): AppError {
+    return new AppError({
+      ...this,
+      description
+    });
+  }
+
+  // Method to create a new error with modified recovery options
+  withRecovery(recovery: ErrorRecovery): AppError {
+    return new AppError({
+      ...this,
+      recovery
+    });
   }
 }
 
+// Extension classes for specialized error types
 export class ValidationError extends AppError {
-  constructor({
-    message,
-    code = ErrorCode.SCHEMA_VALIDATION_ERROR,
-    field,
-    description = '',
-    severity = ErrorSeverity.WARNING,
-    metadata,
-    recovery
-  }: {
-    message: string;
-    code?: ErrorCode;
-    field?: string;
-    description?: string;
-    severity?: ErrorSeverity;
-    metadata?: Record<string, any>;
-    recovery?: ErrorRecovery;
-  }) {
+  constructor(message: string, code: ErrorCode = ErrorCode.VALIDATION_ERROR, field?: string, metadata?: Record<string, any>) {
     super({
       message,
       code,
       category: ErrorCategory.VALIDATION,
-      description,
-      severity,
       field,
-      metadata,
-      recovery
-    });
-    this.name = 'ValidationError';
-  }
-}
-
-export class NetworkError extends AppError {
-  timeout?: number;
-
-  constructor({
-    message,
-    code = ErrorCode.NETWORK_UNAVAILABLE,
-    description = '',
-    severity = ErrorSeverity.ERROR,
-    recovery,
-    metadata,
-    timeout
-  }: {
-    message: string;
-    code?: ErrorCode;
-    description?: string;
-    severity?: ErrorSeverity;
-    recovery?: ErrorRecovery;
-    metadata?: Record<string, any>;
-    timeout?: number;
-  }) {
-    super({
-      message,
-      code,
-      category: ErrorCategory.NETWORK,
-      description,
-      severity,
-      recovery,
       metadata
     });
-    this.name = 'NetworkError';
-    this.timeout = timeout;
   }
 }
 
 export class AuthenticationError extends AppError {
-  constructor({
-    message = 'Authentication required',
-    code = ErrorCode.UNAUTHENTICATED,
-    description = '',
-    severity = ErrorSeverity.ERROR,
-    recovery,
-    metadata
-  }: {
-    message?: string;
-    code?: ErrorCode;
-    description?: string;
-    severity?: ErrorSeverity;
-    recovery?: ErrorRecovery;
-    metadata?: Record<string, any>;
-  } = {}) {
+  constructor(message: string, code: ErrorCode = ErrorCode.AUTH_ERROR) {
     super({
       message,
       code,
-      category: ErrorCategory.AUTHENTICATION,
-      description,
-      severity,
-      recovery,
-      metadata
+      category: ErrorCategory.AUTHENTICATION
     });
-    this.name = 'AuthenticationError';
   }
 }
 
-export class AuthorizationError extends AppError {
-  constructor(message: string = 'You do not have permission to perform this action') {
+export class NetworkError extends AppError {
+  constructor(message: string, code: ErrorCode = ErrorCode.NETWORK_ERROR) {
     super({
       message,
-      code: ErrorCode.UNAUTHORIZED,
-      category: ErrorCategory.AUTHORIZATION,
-      severity: ErrorSeverity.ERROR
+      code,
+      category: ErrorCategory.NETWORK
     });
-    this.name = 'AuthorizationError';
   }
 }
 
 export class ServerError extends AppError {
-  constructor(message: string = 'An unexpected server error occurred') {
-    super({
-      message,
-      code: ErrorCode.SERVER_ERROR,
-      category: ErrorCategory.SERVER,
-      severity: ErrorSeverity.ERROR
-    });
-    this.name = 'ServerError';
-  }
-}
-
-export class BusinessError extends AppError {
-  constructor({ 
-    message,
-    code = ErrorCode.INVALID_OPERATION,
-    description = '',
-    recovery,
-    severity = ErrorSeverity.ERROR
-  }: {
-    message: string;
-    code?: ErrorCode;
-    description?: string;
-    recovery?: ErrorRecovery;
-    severity?: ErrorSeverity;
-  }) {
+  constructor(message: string, code: ErrorCode = ErrorCode.SERVER_ERROR) {
     super({
       message,
       code,
-      category: ErrorCategory.BUSINESS,
-      description,
-      recovery,
-      severity
+      category: ErrorCategory.SERVER
     });
-    this.name = 'BusinessError';
   }
 }
 
 export class SubmissionError extends AppError {
-  retryable?: boolean;
-
-  constructor({
-    message,
-    code = ErrorCode.SUBMISSION_ERROR,
-    description = '',
-    recovery,
-    severity = ErrorSeverity.ERROR,
-    retryable = true,
-    metadata
-  }: {
-    message: string;
-    code?: ErrorCode;
-    description?: string;
-    recovery?: ErrorRecovery;
-    severity?: ErrorSeverity;
-    retryable?: boolean;
-    metadata?: Record<string, any>;
-  }) {
+  constructor(message: string, code: ErrorCode = ErrorCode.SUBMISSION_ERROR, metadata?: Record<string, any>) {
     super({
       message,
       code,
       category: ErrorCategory.BUSINESS,
-      description,
-      recovery,
-      severity,
       metadata
     });
-    this.name = 'SubmissionError';
-    this.retryable = retryable;
   }
 }

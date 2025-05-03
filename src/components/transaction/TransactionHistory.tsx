@@ -1,7 +1,6 @@
-
 /**
- * Changes made:
- * - 2024-10-16: Created TransactionHistory component to display past operations
+ * Transaction History Component
+ * Updated: 2025-06-23 - Fixed TransactionType enum usage
  */
 
 import { useState } from "react";
@@ -10,6 +9,28 @@ import { TransactionStatusIndicator } from "./TransactionStatusIndicator";
 import { Button } from "@/components/ui/button";
 import { TransactionType } from "@/services/supabase/transactions/types";
 import { formatDistanceToNow } from "date-fns";
+
+// Use the TransactionType enum directly instead of accessing properties
+const getTransactionIcon = (type: TransactionType) => {
+  switch (type) {
+    case TransactionType.CREATE:
+      return 'plus-circle';
+    case TransactionType.UPDATE:
+      return 'pencil';
+    case TransactionType.DELETE:
+      return 'trash';
+    case TransactionType.UPLOAD:
+      return 'upload';
+    case TransactionType.AUCTION:
+      return 'gavel';
+    case TransactionType.PAYMENT:
+      return 'credit-card';
+    case TransactionType.AUTHENTICATION:
+      return 'lock';
+    default:
+      return 'circle';
+  }
+};
 
 export const TransactionHistory = () => {
   // For now, we're using empty transaction history until we fix the transaction system
