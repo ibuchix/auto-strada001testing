@@ -2,6 +2,7 @@
 /**
  * Damage Section Hook
  * Created: 2025-07-22
+ * Updated: 2025-07-25 - Fixed DamageType import and photo field usage
  * 
  * Custom hook to handle damage section functionality
  */
@@ -64,8 +65,7 @@ export const useDamageSection = (form: UseFormReturn<CarListingFormData>) => {
       description: newDamage.description,
       location: newDamage.location || '',
       severity: newDamage.severity || 'minor',
-      photos: [],
-      photo: newDamage.photo
+      photo: newDamage.photo || undefined
     };
 
     const updatedReports = [...damageReports, newReport];
@@ -97,8 +97,7 @@ export const useDamageSection = (form: UseFormReturn<CarListingFormData>) => {
       const updatedReports = [...damageReports];
       updatedReports[index] = {
         ...updatedReports[index],
-        photo: fileUrl,
-        photos: [...(updatedReports[index].photos || []), fileUrl]
+        photo: fileUrl
       };
       form.setValue('damageReports', updatedReports, { shouldDirty: true });
       setDamageReports(updatedReports);

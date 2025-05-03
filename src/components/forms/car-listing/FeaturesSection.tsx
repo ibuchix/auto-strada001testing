@@ -2,11 +2,13 @@
 /**
  * Changes made:
  * - Updated to use FormDataContext instead of requiring form prop
+ * - 2025-07-25: Fixed type errors with form fields and feature names
  */
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useFormData } from "./context/FormDataContext";
+import { Controller } from "react-hook-form";
 
 export const FeaturesSection = () => {
   const { form } = useFormData();
@@ -27,7 +29,7 @@ export const FeaturesSection = () => {
       <Label>Vehicle Features</Label>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {(Object.entries(features) as [keyof typeof features, string][]).map(([key, label]) => (
-          <FormField
+          <Controller
             key={key}
             control={form.control}
             name={`features.${key}`}

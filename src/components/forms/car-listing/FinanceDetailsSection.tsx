@@ -6,6 +6,7 @@
  * - Fixed FormSection usage by adding required title prop
  * - Updated to use FormDataContext instead of requiring form prop
  * - 2025-07-22: Fixed type errors with form field names
+ * - 2025-07-25: Fixed issues with field types by using Controller
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
@@ -17,6 +18,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import { useFormData } from "./context/FormDataContext";
+import { Controller } from "react-hook-form";
 
 interface FinanceDetailsSectionProps {
   carId?: string;
@@ -25,6 +27,8 @@ interface FinanceDetailsSectionProps {
 export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => {
   const { form } = useFormData();
   const [showFinanceFields, setShowFinanceFields] = useState(false);
+  
+  // Use watch to track hasOutstandingFinance field
   const hasOutstandingFinance = form.watch("hasOutstandingFinance");
 
   // Update visibility when hasOutstandingFinance changes
@@ -76,7 +80,7 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
       
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
+          <Controller
             control={form.control}
             name="financeAmount"
             rules={{ 
@@ -111,7 +115,7 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
             )}
           />
           
-          <FormField
+          <Controller
             control={form.control}
             name="financeProvider"
             rules={{ required: "Finance provider is required" }}
@@ -120,7 +124,7 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
                 <FormLabel>Finance Provider</FormLabel>
                 <Select 
                   onValueChange={field.onChange} 
-                  defaultValue={field.value}
+                  value={field.value || ''}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -145,7 +149,7 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
         </div>
         
         <div className="space-y-3">
-          <FormField
+          <Controller
             control={form.control}
             name="financeEndDate"
             render={({ field }) => (
@@ -168,7 +172,7 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
         </div>
         
         <div className="space-y-3">
-          <FormField
+          <Controller
             control={form.control}
             name="financeDocument"
             render={({ field }) => (

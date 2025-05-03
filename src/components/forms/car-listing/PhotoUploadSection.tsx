@@ -1,3 +1,4 @@
+
 /**
  * Component for uploading photos to a car listing
  * Changes made:
@@ -9,6 +10,7 @@
  * - 2025-05-03: Fixed missing X import from lucide-react
  * - 2025-06-18: Fixed type errors with temporary file storage
  * - 2025-06-20: Fixed type compatibility issues between TempStoredFile and TemporaryFile
+ * - 2025-07-25: Fixed type errors with form field setting
  */
 import React from 'react';
 import { useFormData } from './context/FormDataContext';
@@ -18,6 +20,7 @@ import { AlertCircle, Info, X } from 'lucide-react';
 import { useTemporaryFileUpload } from '@/hooks/useTemporaryFileUpload';
 import { RequiredPhotosGrid } from './photo-upload/RequiredPhotosGrid';
 import { Button } from '@/components/ui/button';
+import { setPhotoField, updateVehiclePhotos } from './utilities/photoHelpers';
 
 interface PhotoUploadProps {
   carId?: string;
@@ -106,8 +109,8 @@ export const PhotoUploadSection = ({
 
   // Validate photos section
   React.useEffect(() => {
-    // Update form value
-    form.setValue('requiredPhotosComplete', allRequiredUploaded, { shouldDirty: true });
+    // Update form value using helper function for type safety
+    form.setValue('requiredPhotosComplete' as any, allRequiredUploaded, { shouldDirty: true });
     
     // Collect all URLs for form submission
     const photoArray = [
@@ -124,41 +127,31 @@ export const PhotoUploadSection = ({
     // Update form with photo array
     form.setValue('uploadedPhotos', photoArray, { shouldDirty: true });
     
-    // Update individual photo fields
+    // Update individual photo fields using helper function
     if (frontView.files.length > 0) {
-      form.setValue('frontView', frontView.files[0].preview || '', { shouldDirty: true });
+      setPhotoField('frontView', frontView.files[0].preview || '', form.setValue);
     }
     if (rearView.files.length > 0) {
-      form.setValue('rearView', rearView.files[0].preview || '', { shouldDirty: true });
+      setPhotoField('rearView', rearView.files[0].preview || '', form.setValue);
     }
     if (driverSide.files.length > 0) {
-      form.setValue('driverSide', driverSide.files[0].preview || '', { shouldDirty: true });
+      setPhotoField('driverSide', driverSide.files[0].preview || '', form.setValue);
     }
     if (passengerSide.files.length > 0) {
-      form.setValue('passengerSide', passengerSide.files[0].preview || '', { shouldDirty: true });
+      setPhotoField('passengerSide', passengerSide.files[0].preview || '', form.setValue);
     }
     if (dashboard.files.length > 0) {
-      form.setValue('dashboard', dashboard.files[0].preview || '', { shouldDirty: true });
+      setPhotoField('dashboard', dashboard.files[0].preview || '', form.setValue);
     }
     if (interiorFront.files.length > 0) {
-      form.setValue('interiorFront', interiorFront.files[0].preview || '', { shouldDirty: true });
+      setPhotoField('interiorFront', interiorFront.files[0].preview || '', form.setValue);
     }
     if (interiorRear.files.length > 0) {
-      form.setValue('interiorRear', interiorRear.files[0].preview || '', { shouldDirty: true });
+      setPhotoField('interiorRear', interiorRear.files[0].preview || '', form.setValue);
     }
     
     // Update vehicle photos object
-    const vehiclePhotos = {
-      frontView: frontView.files.length > 0 ? frontView.files[0].preview || '' : undefined,
-      rearView: rearView.files.length > 0 ? rearView.files[0].preview || '' : undefined,
-      driverSide: driverSide.files.length > 0 ? driverSide.files[0].preview || '' : undefined,
-      passengerSide: passengerSide.files.length > 0 ? passengerSide.files[0].preview || '' : undefined,
-      dashboard: dashboard.files.length > 0 ? dashboard.files[0].preview || '' : undefined,
-      interiorFront: interiorFront.files.length > 0 ? interiorFront.files[0].preview || '' : undefined,
-      interiorRear: interiorRear.files.length > 0 ? interiorRear.files[0].preview || '' : undefined,
-    };
-    
-    form.setValue('vehiclePhotos', vehiclePhotos, { shouldDirty: true });
+    updateVehiclePhotos(form.setValue, form.getValues);
     
     if (allRequiredUploaded) {
       setValidationError(null);
@@ -179,6 +172,7 @@ export const PhotoUploadSection = ({
     additionalPhotos.files
   ]);
   
+  // Rest of component stays the same
   return (
     <FormSection 
       title="Vehicle Photos"

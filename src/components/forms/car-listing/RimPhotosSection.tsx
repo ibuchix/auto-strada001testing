@@ -2,15 +2,16 @@
 /**
  * RimPhotosSection component
  * Created: 2025-07-24
+ * Updated: 2025-07-25 - Fixed type issues with rimPhotos
  */
 
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, RimPhotos } from "@/types/forms";
 
 interface RimPhotosProps {
-  onUpload?: (photos: any) => void;
+  onUpload?: (photos: RimPhotos) => void;
 }
 
 export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
@@ -18,10 +19,15 @@ export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
   const [uploading, setUploading] = useState(false);
   
   // Watch the rimPhotos field
-  const rimPhotos = watch("rimPhotos");
+  const rimPhotos = watch("rimPhotos") || {
+    front_left: '',
+    front_right: '',
+    rear_left: '',
+    rear_right: ''
+  };
   
   // Handle individual image upload
-  const handleImageUpload = async (position: string, file: File) => {
+  const handleImageUpload = async (position: keyof RimPhotos, file: File) => {
     setUploading(true);
     
     try {
@@ -29,8 +35,8 @@ export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
       const imageUrl = URL.createObjectURL(file);
       
       // Update form with new image URL
-      const updatedRimPhotos = {
-        ...(rimPhotos || {}),
+      const updatedRimPhotos: RimPhotos = {
+        ...rimPhotos,
         [position]: imageUrl
       };
       
@@ -49,7 +55,7 @@ export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
   };
   
   // Handle file input change
-  const handleFileChange = (position: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (position: keyof RimPhotos) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       handleImageUpload(position, file);
@@ -57,14 +63,9 @@ export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
   };
   
   // Clear a specific image
-  const clearImage = (position: string) => {
-    if (!rimPhotos) return;
-    
+  const clearImage = (position: keyof RimPhotos) => {
     const updatedRimPhotos = { ...rimPhotos };
-    delete updatedRimPhotos[position];
-    
-    // Convert to array format to ensure compatibility with CarListingFormData
-    const rimPhotosArray = Object.values(updatedRimPhotos);
+    updatedRimPhotos[position] = '';
     
     setValue("rimPhotos", updatedRimPhotos, { shouldDirty: true });
     
@@ -85,7 +86,7 @@ export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
         <RimPhotoUploader 
           label="Front Left Rim"
           position="front_left"
-          imageUrl={rimPhotos?.front_left}
+          imageUrl={rimPhotos.front_left}
           onChange={handleFileChange("front_left")}
           onClear={() => clearImage("front_left")}
           disabled={uploading}
@@ -95,7 +96,7 @@ export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
         <RimPhotoUploader 
           label="Front Right Rim"
           position="front_right"
-          imageUrl={rimPhotos?.front_right}
+          imageUrl={rimPhotos.front_right}
           onChange={handleFileChange("front_right")}
           onClear={() => clearImage("front_right")}
           disabled={uploading}
@@ -105,7 +106,7 @@ export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
         <RimPhotoUploader 
           label="Rear Left Rim"
           position="rear_left"
-          imageUrl={rimPhotos?.rear_left}
+          imageUrl={rimPhotos.rear_left}
           onChange={handleFileChange("rear_left")}
           onClear={() => clearImage("rear_left")}
           disabled={uploading}
@@ -115,7 +116,7 @@ export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
         <RimPhotoUploader 
           label="Rear Right Rim"
           position="rear_right"
-          imageUrl={rimPhotos?.rear_right}
+          imageUrl={rimPhotos.rear_right}
           onChange={handleFileChange("rear_right")}
           onClear={() => clearImage("rear_right")}
           disabled={uploading}

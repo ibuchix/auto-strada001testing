@@ -6,6 +6,7 @@
  * - Improved code organization and readability
  * - Updated to use FormDataContext instead of requiring form prop
  * - 2025-07-22: Updated to use DamageType from types/forms
+ * - 2025-07-25: Fixed DamageType import
  */
 
 import { Button } from "@/components/ui/button";

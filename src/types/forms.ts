@@ -3,7 +3,10 @@
  * Form Types
  * Created: 2025-07-23
  * Updated: 2025-07-24 - Added missing fields to CarListingFormData
+ * Updated: 2025-07-25 - Added additional required fields to fix type errors
  */
+
+export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
 
 export interface CarFeatures {
   airConditioning: boolean;
@@ -18,6 +21,7 @@ export interface CarFeatures {
   reverseCamera: boolean;     // Added missing property
   heatedSeats: boolean;       // Added missing property
   upgradedSound: boolean;     // Added missing property
+  alloyWheels?: boolean;      // Added optional alloy wheels
 }
 
 export interface DamageReport {
@@ -26,7 +30,7 @@ export interface DamageReport {
   severity: 'minor' | 'moderate' | 'severe';
   location?: string;
   photo?: string;
-  type: string; // Added missing property
+  type: DamageType;
 }
 
 export interface ServiceHistoryFile {
@@ -36,6 +40,13 @@ export interface ServiceHistoryFile {
   type: string;
   uploadedAt: string; // Required property
   uploadDate?: string; // Alternative property for compatibility
+}
+
+export interface RimPhotos {
+  front_left: string;
+  front_right: string;
+  rear_left: string;
+  rear_right: string;
 }
 
 export interface CarListingFormData {
@@ -77,8 +88,29 @@ export interface CarListingFormData {
   serviceHistoryFiles?: ServiceHistoryFile[];
   serviceHistoryType?: 'full' | 'partial' | 'none';
   financeAmount?: number;
-  numberOfKeys?: number;
+  financeProvider?: string;
+  financeEndDate?: string;
+  financeDocument?: string;
+  numberOfKeys?: string | number;
   seatMaterial?: string;
+  sellerNotes?: string;
+  
+  // Required photos for each section
+  frontView?: string;
+  rearView?: string;
+  driverSide?: string;
+  passengerSide?: string;
+  dashboard?: string;
+  interiorFront?: string;
+  interiorRear?: string;
+  requiredPhotosComplete?: boolean;
+  
+  // Warning lights
+  warningLightPhotos?: string[];
+  warningLightDescription?: string;
+  
+  // Rim photos
+  rimPhotos?: RimPhotos;
   
   // Seller information
   seller_id?: string;
@@ -94,12 +126,6 @@ export interface CarListingFormData {
   
   // Photos
   mainPhoto?: string;
-  rimPhotos?: {
-    front_left: string;
-    front_right: string;
-    rear_left: string;
-    rear_right: string;
-  };
   
   // Form metadata
   form_metadata?: {

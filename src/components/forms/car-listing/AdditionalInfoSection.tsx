@@ -3,6 +3,7 @@
  * AdditionalInfoSection Component
  * Created: 2025-06-18
  * Updated: 2025-07-22 - Fixed type errors with form field names
+ * Updated: 2025-07-25 - Fixed type errors with numberOfKeys and other fields
  * 
  * Component for collecting additional information about the vehicle
  */
@@ -14,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormData } from "./context/FormDataContext";
 import { FormSection } from "./FormSection";
+import { Controller } from "react-hook-form";
 
 export const AdditionalInfoSection = () => {
   const { form } = useFormData();
@@ -25,7 +27,7 @@ export const AdditionalInfoSection = () => {
     >
       <div className="space-y-6">
         {/* Seat Material */}
-        <FormField
+        <Controller
           control={form.control}
           name="seatMaterial"
           render={({ field }) => (
@@ -52,14 +54,14 @@ export const AdditionalInfoSection = () => {
         />
 
         {/* Number of Keys */}
-        <FormField
+        <Controller
           control={form.control}
           name="numberOfKeys"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Number of Keys</FormLabel>
               <Select 
-                value={field.value || ""} 
+                value={field.value ? field.value.toString() : ""} 
                 onValueChange={field.onChange}
               >
                 <SelectTrigger>
@@ -78,7 +80,7 @@ export const AdditionalInfoSection = () => {
         />
 
         {/* Registered in Poland */}
-        <FormField
+        <Controller
           control={form.control}
           name="isRegisteredInPoland"
           render={({ field }) => (
@@ -108,7 +110,7 @@ export const AdditionalInfoSection = () => {
         />
 
         {/* Warning Lights */}
-        <FormField
+        <Controller
           control={form.control}
           name="hasWarningLights"
           render={({ field }) => (
