@@ -2,11 +2,18 @@
 /**
  * Submission Types
  * Updated: 2025-05-04 - Fixed TypeScript errors with missing AppError type
+ * Updated: 2025-05-07 - Added missing ErrorCategory enum values
  */
 
 export type SubmissionErrorType = 'validation' | 'auth' | 'service' | 'network';
 
-export type ErrorCategory = 'validation' | 'auth' | 'technical' | 'business';
+export enum ErrorCategory {
+  VALIDATION = 'validation',
+  AUTH = 'auth',
+  TECHNICAL = 'technical',
+  BUSINESS = 'business',
+  GENERAL = 'general'
+}
 
 export interface FormSubmissionResult {
   success: boolean;

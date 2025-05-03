@@ -8,6 +8,7 @@
  * Updated: 2025-05-04 - Added damageReports to fix TypeScript errors
  * Updated: 2025-05-04 - Added sellerDetails and correct field types
  * Updated: 2025-05-05 - Added missing fields for manual valuation
+ * Updated: 2025-05-07 - Added ExtendedStoredFile type with uploadedAt property
  */
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -78,6 +79,19 @@ export interface SellerDetails {
   address?: SellerAddress;
   isPaymentInfoProvided?: boolean;
   bankDetails?: SellerBankDetails;
+}
+
+export interface StoredFile {
+  name: string;
+  url: string;
+  size?: number;
+  type?: string;
+}
+
+// Extended version of StoredFile with uploadedAt property
+export interface ExtendedStoredFile extends StoredFile {
+  uploadedAt: string;
+  id?: string;
 }
 
 export interface CarListingFormData {
@@ -204,13 +218,6 @@ export interface CarEntity {
   status?: string;
   transmission: "manual" | "automatic" | "semi-automatic";
   features?: CarFeatures;
-}
-
-export interface StoredFile {
-  name: string;
-  url: string;
-  size?: number;
-  type?: string;
 }
 
 // Add AuctionStatus export for submission.ts

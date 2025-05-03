@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-06-01: Fixed potential error when postMessage fails
  * - 2025-06-02: Fixed TypeScript errors with hook arguments and return values
+ * - 2025-05-07: Fixed UseStepProgressProps compatibility issue
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -20,6 +21,13 @@ interface UseFormStepsControllerProps {
   totalSteps: number;
   saveProgress?: () => Promise<boolean>;
   updateFormState: (state: any) => void;
+}
+
+// Updated interface for UseStepProgressProps
+interface UseStepProgressProps {
+  form: any;
+  filteredSteps: any[];
+  visibleSections: string[];
 }
 
 export const useFormStepsController = ({
@@ -53,7 +61,7 @@ export const useFormStepsController = ({
     validationErrors
   } = useStepValidation(form, currentStep);
 
-  // Progress tracking
+  // Progress tracking - pass both filteredSteps and visibleSections
   const {
     progress,
     completedStepsArray,
@@ -64,7 +72,7 @@ export const useFormStepsController = ({
     form,
     filteredSteps,
     visibleSections
-  });
+  } as UseStepProgressProps); // Cast to UseStepProgressProps to ensure compatibility
 
   // Set save function if provided
   useEffect(() => {

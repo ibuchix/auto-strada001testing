@@ -7,6 +7,7 @@
  * Updated: 2025-05-04 - Fixed TypeScript errors with type assertions for enums
  * Updated: 2025-05-05 - Fixed type compatibility with transmission field 
  * Updated: 2025-05-06 - Fixed serviceHistoryType type compatibility issue
+ * Updated: 2025-05-07 - Added explicit type casting for enum values
  * Handles default values and loading valuation data
  */
 
@@ -19,8 +20,8 @@ export const getInitialFormValues = (): Partial<CarListingFormData> => {
   return {
     ...DEFAULT_VALUES,
     // Ensure proper typing for enum values
-    transmission: DEFAULT_VALUES.transmission,
-    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType
+    transmission: DEFAULT_VALUES.transmission as "manual" | "automatic" | "semi-automatic",
+    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType as "full" | "partial" | "none"
   };
 };
 
@@ -31,8 +32,8 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
   const [defaults, setDefaults] = useState<Partial<CarListingFormData>>({
     ...DEFAULT_VALUES,
     // Ensure proper typing for enum values
-    transmission: DEFAULT_VALUES.transmission,
-    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType
+    transmission: DEFAULT_VALUES.transmission as "manual" | "automatic" | "semi-automatic",
+    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType as "full" | "partial" | "none"
   });
 
   useEffect(() => {
@@ -57,14 +58,14 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
             valuationData.transmission === "semi-automatic" || 
             valuationData.transmission === "manual"
           ) {
-            transmissionValue = valuationData.transmission;
+            transmissionValue = valuationData.transmission as "manual" | "automatic" | "semi-automatic";
           }
 
           // Ensure serviceHistoryType is a valid enum value
           const serviceHistoryValue: "full" | "partial" | "none" = 
             (valuationData.serviceHistoryType === "full" || 
              valuationData.serviceHistoryType === "partial") ? 
-              valuationData.serviceHistoryType : "none";
+              valuationData.serviceHistoryType as "full" | "partial" : "none";
 
           // Set default values based on valuation data
           const valuationDefaults: Partial<CarListingFormData> = {

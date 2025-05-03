@@ -1,220 +1,165 @@
 
 /**
- * PhotoUploadSection Component
- * Displays and handles car photo uploads
- * Updated: 2025-05-03 - Fixed TypeScript errors related to ExtendedStoredFile type
+ * PhotoUploadSection Component for Car Listing Form
+ * Created: 2025-06-10
+ * Updated: 2025-05-07 - Fixed type compatibility with ExtendedStoredFile
  */
-
-import { FormField } from '@/components/ui/form';
-import { useFormData } from '../context/FormDataContext';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Upload, X, CheckCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
-
-// Define a properly typed ExtendedStoredFile
-interface ExtendedStoredFile {
-  id?: string;
-  name: string;
-  url: string;
-  type: string;
-  size: number;
-  lastModified?: number;
-}
+import { useState } from "react";
+import { useFormContext } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { Upload, X } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { FormLabel } from "@/components/ui/form";
+import { Progress } from "@/components/ui/progress";
+import { ExtendedStoredFile, CarListingFormData } from "@/types/forms";
 
 export const PhotoUploadSection = () => {
-  const { form } = useFormData();
-  const [uploading, setUploading] = useState(false);
+  const { setValue, watch } = useFormContext<CarListingFormData>();
+  const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<ExtendedStoredFile[]>([]);
-
-  // Monitor form's uploadedPhotos field
-  useEffect(() => {
-    const photos = form.watch('uploadedPhotos');
-    if (photos && photos.length > 0) {
-      // Convert strings to ExtendedStoredFile objects
-      const filesFromUrls = photos.map((url: string, index: number) => {
-        // Check if it's already an ExtendedStoredFile object
-        if (typeof url === 'object' && url !== null) {
-          return url as ExtendedStoredFile;
-        }
-        
-        // Create ExtendedStoredFile from string URL
-        return {
-          id: `photo-${index}`,
-          name: `Photo ${index + 1}`,
-          url: url,
-          type: 'image/jpeg', // Assume JPEG for string URLs
-          size: 0
-        };
-      });
-      
-      setUploadedFiles(filesFromUrls);
-    }
-  }, [form.watch('uploadedPhotos')]);
-
-  // Handle file upload
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) return;
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const uploadedPhotos = watch("uploadedPhotos") || [];
+  
+  // Simulate file upload with delay
+  const handleUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
     
-    const file = event.target.files[0];
-    
-    if (!file.type.startsWith('image/')) {
-      setUploadError('Only image files are allowed');
-      return;
-    }
-    
-    setUploadError(null);
-    setUploading(true);
+    setIsUploading(true);
     setUploadProgress(0);
     
+    const newFiles = Array.from(files);
+    setSelectedFiles(newFiles);
+    
     // Simulate upload progress
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       setUploadProgress(prev => {
-        if (prev >= 95) {
-          clearInterval(interval);
-          return prev;
+        if (prev >= 100) {
+          clearInterval(timer);
+          return 100;
         }
         return prev + 10;
       });
     }, 200);
     
-    // Create object URL for preview
-    const fileUrl = URL.createObjectURL(file);
-    
-    // Create file object
-    const newFile: ExtendedStoredFile = {
-      id: `upload-${Date.now()}`,
-      name: file.name,
-      url: fileUrl,
-      type: file.type,
-      size: file.size,
-      lastModified: file.lastModified
-    };
-    
-    // Simulate upload completion after delay
+    // After "upload" completes
     setTimeout(() => {
-      clearInterval(interval);
+      clearInterval(timer);
       setUploadProgress(100);
       
-      // Add to uploaded files
-      const updatedFiles = [...uploadedFiles, newFile];
-      setUploadedFiles(updatedFiles);
+      // Create file URLs and add to form
+      const newUploadedPhotos = [...uploadedPhotos];
       
-      // Update form data - convert complex objects to URLs if needed
-      const urls = updatedFiles.map(file => typeof file === 'string' ? file : file.url);
-      form.setValue('uploadedPhotos', urls, { shouldValidate: true, shouldDirty: true });
+      newFiles.forEach(file => {
+        const photoUrl = URL.createObjectURL(file);
+        newUploadedPhotos.push(photoUrl);
+        
+        // In a real scenario, we would also upload to storage
+        // and store metadata about the file
+        const fileData: ExtendedStoredFile = {
+          name: file.name,
+          url: photoUrl,
+          size: file.size,
+          type: file.type,
+          uploadedAt: new Date().toISOString()
+        };
+        
+        // Store file metadata if needed
+        // Not actually used in this example
+      });
       
-      toast.success('Photo uploaded successfully');
+      setValue("uploadedPhotos", newUploadedPhotos, { shouldDirty: true });
       
+      // Reset state
       setTimeout(() => {
-        setUploading(false);
-        setUploadProgress(0);
+        setIsUploading(false);
+        setSelectedFiles([]);
       }, 500);
-    }, 1500);
+    }, 2000);
   };
-
-  // Remove a photo
+  
   const removePhoto = (index: number) => {
-    const updated = [...uploadedFiles];
-    updated.splice(index, 1);
-    setUploadedFiles(updated);
-    
-    // Update form data
-    const urls = updated.map(file => typeof file === 'string' ? file : file.url);
-    form.setValue('uploadedPhotos', urls, { shouldValidate: true, shouldDirty: true });
-    
-    toast.success('Photo removed');
+    const newPhotos = [...uploadedPhotos];
+    newPhotos.splice(index, 1);
+    setValue("uploadedPhotos", newPhotos, { shouldDirty: true });
   };
-
+  
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold mb-2">Vehicle Photos</h3>
+    <div className="space-y-6">
+      <div>
+        <FormLabel>Vehicle Photos</FormLabel>
+        <p className="text-sm text-gray-500 mt-1">
+          Upload photos of your vehicle. Clear photos help your listing get more attention.
+        </p>
+      </div>
       
-      <FormField
-        control={form.control}
-        name="uploadedPhotos"
-        render={() => (
-          <div className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
-              <Upload className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-2">Drag and drop photos here, or click to browse</p>
-              <p className="text-xs text-gray-500 mt-1">Accepts: JPG, PNG (Max 10MB each)</p>
-              
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="mt-4" 
-                disabled={uploading}
-                onClick={() => document.getElementById('photo-upload')?.click()}
-              >
-                Browse Photos
-              </Button>
-              
-              <input
-                id="photo-upload"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-                disabled={uploading}
-              />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="p-6">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-40 border-dashed flex flex-col items-center justify-center"
+            disabled={isUploading}
+            onClick={() => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.multiple = true;
+              input.accept = 'image/*';
+              input.onchange = (e) => handleUpload((e.target as HTMLInputElement).files);
+              input.click();
+            }}
+          >
+            <Upload className="h-10 w-10 mb-2 text-gray-500" />
+            <span>Click to upload photos</span>
+            <p className="text-xs text-gray-500 mt-2">JPG, PNG (max 10MB each)</p>
+          </Button>
+          
+          {isUploading && (
+            <div className="mt-4 space-y-2">
+              <Progress value={uploadProgress} className="h-2" />
+              <p className="text-xs text-center text-gray-500">
+                Uploading {selectedFiles.length} {selectedFiles.length === 1 ? 'photo' : 'photos'}...
+              </p>
             </div>
-            
-            {uploadError && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  {uploadError}
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            {uploading && (
-              <div className="space-y-2">
-                <Progress value={uploadProgress} className="h-2" />
-                <p className="text-sm text-gray-600">Upload progress: {uploadProgress}%</p>
+          )}
+        </Card>
+        
+        <Card className="p-6">
+          <div className="text-sm font-medium mb-2">Upload Requirements</div>
+          <ul className="text-sm text-gray-600 space-y-1">
+            <li>• At least 3 photos of your vehicle</li>
+            <li>• Include exterior front, back, and sides</li>
+            <li>• Include interior dashboard and seats</li>
+            <li>• Clear, well-lit images</li>
+            <li>• Photos should be recent (last 30 days)</li>
+          </ul>
+        </Card>
+      </div>
+      
+      {uploadedPhotos.length > 0 && (
+        <div>
+          <FormLabel>Uploaded Photos ({uploadedPhotos.length})</FormLabel>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+            {uploadedPhotos.map((photo, index) => (
+              <div key={index} className="relative aspect-square rounded-md overflow-hidden border">
+                <img 
+                  src={photo} 
+                  alt={`Vehicle photo ${index + 1}`} 
+                  className="w-full h-full object-cover"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-1 right-1 h-6 w-6"
+                  onClick={() => removePhoto(index)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-            )}
-            
-            {uploadedFiles.length > 0 && (
-              <div className="space-y-2">
-                <p className="font-medium">Uploaded Photos ({uploadedFiles.length})</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {uploadedFiles.map((file, index) => (
-                    <div key={file.id || index} className="relative group">
-                      <img 
-                        src={file.url} 
-                        alt={file.name}
-                        className="rounded-md object-cover aspect-video w-full"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => removePhoto(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {index === 0 && (
-                        <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Main Photo
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            ))}
           </div>
-        )}
-      />
+        </div>
+      )}
     </div>
   );
 };

@@ -4,6 +4,7 @@
  * Created: 2025-07-12
  * Updated: 2025-07-18: Fixed missing exports and enum definitions
  * Updated: 2025-05-06: Ensured type compatibility with TransactionType
+ * Updated: 2025-05-07: Added missing TransactionType enum values
  */
 
 import { ReactNode } from 'react';
@@ -29,7 +30,11 @@ export enum TransactionType {
   CREATE = 'create',
   UPDATE = 'update',
   DELETE = 'delete',
-  QUERY = 'query'
+  QUERY = 'query',
+  UPLOAD = 'upload',
+  AUCTION = 'auction',
+  PAYMENT = 'payment',
+  AUTHENTICATION = 'authentication'
 }
 
 export enum TransactionStatus {

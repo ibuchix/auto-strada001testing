@@ -6,6 +6,7 @@
  * Updated: 2025-07-26 - Fixed types to match CarFeatures interface
  * Updated: 2025-05-04 - Ensured proper typing for enum values
  * Updated: 2025-05-06 - Fixed serviceHistoryType type to ensure it's properly typed
+ * Updated: 2025-05-07 - Explicit typing for all enum values
  */
 
 export const DEFAULT_VALUES = {
@@ -40,6 +41,6 @@ export const DEFAULT_VALUES = {
     laneDepartureWarning: false
   },
   seller_id: "",
-  serviceHistoryType: "none" as const,
+  serviceHistoryType: "none" as "none" | "partial" | "full",
   fromValuation: false
 };

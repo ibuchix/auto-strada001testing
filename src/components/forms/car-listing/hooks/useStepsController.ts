@@ -4,6 +4,7 @@
  * Updated: 2025-05-03 - Fixed TypeScript errors related to types and missing properties
  * Updated: 2025-05-04 - Fixed StepErrorRecord import and type issues
  * Updated: 2025-05-04 - Added missing isFirstStep and isLastStep properties to return object
+ * Updated: 2025-05-07 - Fixed UseStepProgressProps type compatibility issue
  */
 import { useState, useCallback } from 'react';
 import { UseFormReturn, FieldValues } from 'react-hook-form';
@@ -11,6 +12,13 @@ import { UseFormReturn, FieldValues } from 'react-hook-form';
 // Define StepErrorRecord type since it wasn't found in the import
 interface StepErrorRecord {
   [key: string]: string[];
+}
+
+// Define interface for UseStepProgressProps
+interface UseStepProgressProps {
+  form: any;
+  filteredSteps: any[];
+  visibleSections: string[];
 }
 
 interface UseStepsControllerProps<T extends FieldValues> {
