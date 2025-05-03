@@ -4,6 +4,7 @@
  * Created: 2025-07-23
  * Updated: 2025-07-24 - Added missing fields to CarListingFormData
  * Updated: 2025-07-25 - Added additional required fields to fix type errors
+ * Updated: 2025-07-26 - Fixed missing properties and type mismatches
  */
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -16,12 +17,12 @@ export interface CarFeatures {
   navigation: boolean;
   parkingSensors: boolean;
   sunroof: boolean;
-  satNav: boolean;            // Added missing property
-  panoramicRoof: boolean;     // Added missing property
-  reverseCamera: boolean;     // Added missing property
-  heatedSeats: boolean;       // Added missing property
-  upgradedSound: boolean;     // Added missing property
-  alloyWheels?: boolean;      // Added optional alloy wheels
+  satNav: boolean;
+  panoramicRoof: boolean;
+  reverseCamera: boolean;
+  heatedSeats: boolean;
+  upgradedSound: boolean;
+  alloyWheels: boolean;
 }
 
 export interface DamageReport {
@@ -38,7 +39,7 @@ export interface ServiceHistoryFile {
   name: string;
   url: string;
   type: string;
-  uploadedAt: string; // Required property
+  uploadedAt: string;
   uploadDate?: string; // Alternative property for compatibility
 }
 
@@ -61,7 +62,7 @@ export interface CarListingFormData {
   year?: number;
   mileage?: number;
   vin?: string;
-  transmission?: "manual" | "automatic" | "semi-automatic"; // Added semi-automatic
+  transmission?: "manual" | "automatic" | "semi-automatic";
   price?: number;
   reserve_price?: number;
   
@@ -69,7 +70,7 @@ export interface CarListingFormData {
   features?: CarFeatures;
   uploadedPhotos?: string[];
   vehiclePhotos?: Record<string, string>;
-  images?: string[]; // Added for ImageUploadSection
+  images?: string[];
   
   // Status flags
   isDamaged?: boolean;
@@ -81,6 +82,7 @@ export interface CarListingFormData {
   hasFinance?: boolean; // For backward compatibility
   hasWarningLights?: boolean;
   isRegisteredInPoland?: boolean;
+  photoValidationPassed?: boolean;
   
   // Additional fields
   damageReports?: DamageReport[];
@@ -94,6 +96,8 @@ export interface CarListingFormData {
   numberOfKeys?: string | number;
   seatMaterial?: string;
   sellerNotes?: string;
+  registration_number?: string;
+  registrationNumber?: string; // For backward compatibility
   
   // Required photos for each section
   frontView?: string;
@@ -121,7 +125,7 @@ export interface CarListingFormData {
     state?: string;
     postalCode?: string;
     country?: string;
-  };
+  } | string;
   mobileNumber?: string;
   
   // Photos
@@ -137,7 +141,28 @@ export interface CarListingFormData {
   
   // Valuation data
   valuation_data?: Record<string, any>;
+  fromValuation?: boolean;
   
   // Status
   status?: 'draft' | 'pending' | 'approved' | 'active' | 'rejected';
+}
+
+// Add missing type that was referenced in errors
+export interface CarEntity {
+  id: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  price?: number;
+  mileage?: number;
+  seller_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StoredFile {
+  name: string;
+  url: string;
+  size?: number;
+  type?: string;
 }

@@ -1,118 +1,94 @@
 
 /**
  * Temporary File Storage Service
- * Created: 2025-07-24
+ * Created: 2025-07-26
  * 
- * Handles temporary storage of file data during form submissions
+ * Service to handle temporary file storage during form completion
  */
 
-type StoredFile = {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-  data: string; // Base64 or URL
-  timestamp: number;
-};
-
 class TempFileStorageService {
-  private sessionStartTime: number;
-  private sessionDuration: number = 3600000; // 1 hour in milliseconds
-  private storagePrefix = 'temp_file_';
+  private sessionStartTime: Date;
+  private sessionTimeout: number = 60; // 60 minutes
   
   constructor() {
-    this.sessionStartTime = Date.now();
-  }
-  
-  /**
-   * Store a file temporarily
-   */
-  storeFile(fileId: string, fileData: StoredFile): void {
-    const key = `${this.storagePrefix}${fileId}`;
-    localStorage.setItem(key, JSON.stringify(fileData));
-  }
-  
-  /**
-   * Get a stored file
-   */
-  getFile(fileId: string): StoredFile | null {
-    const key = `${this.storagePrefix}${fileId}`;
-    const fileData = localStorage.getItem(key);
-    
-    if (!fileData) return null;
-    
-    try {
-      return JSON.parse(fileData) as StoredFile;
-    } catch (e) {
-      console.error('Failed to parse file data', e);
-      return null;
-    }
-  }
-  
-  /**
-   * Remove a stored file
-   */
-  removeFile(fileId: string): void {
-    const key = `${this.storagePrefix}${fileId}`;
-    localStorage.removeItem(key);
-  }
-  
-  /**
-   * Clear all stored files
-   */
-  clearAll(): void {
-    // Get all localStorage keys
-    const keys = Object.keys(localStorage);
-    
-    // Filter for temp file keys
-    const fileKeys = keys.filter(key => key.startsWith(this.storagePrefix));
-    
-    // Remove all found keys
-    fileKeys.forEach(key => localStorage.removeItem(key));
+    this.sessionStartTime = new Date();
   }
   
   /**
    * Get remaining session time in minutes
    */
   getRemainingSessionTime(): number {
-    const elapsed = Date.now() - this.sessionStartTime;
-    const remaining = this.sessionDuration - elapsed;
-    
-    // Convert to minutes and round down
-    return Math.floor(Math.max(0, remaining) / 60000);
+    const currentTime = new Date();
+    const elapsedMinutes = (currentTime.getTime() - this.sessionStartTime.getTime()) / (1000 * 60);
+    const remainingMinutes = Math.max(0, this.sessionTimeout - elapsedMinutes);
+    return Math.floor(remainingMinutes);
   }
   
   /**
-   * Reset the session timer
+   * Reset session timer
    */
-  resetSession(): void {
-    this.sessionStartTime = Date.now();
+  resetSessionTimer(): void {
+    this.sessionStartTime = new Date();
   }
   
   /**
-   * Extend the session by a specified amount of time (in minutes)
+   * Store a temporary file
    */
-  extendSession(minutes: number): void {
-    this.sessionDuration += minutes * 60000;
+  storeFile(key: string, data: any): void {
+    try {
+      sessionStorage.setItem(`temp_file_${key}`, JSON.stringify(data));
+    } catch (error) {
+      console.error("Failed to store temporary file:", error);
+    }
   }
   
   /**
-   * Get all stored files
+   * Retrieve a temporary file
    */
-  getAllFiles(): StoredFile[] {
-    const keys = Object.keys(localStorage);
-    const fileKeys = keys.filter(key => key.startsWith(this.storagePrefix));
-    
-    return fileKeys
-      .map(key => {
-        try {
-          const fileData = localStorage.getItem(key);
-          return fileData ? JSON.parse(fileData) as StoredFile : null;
-        } catch (e) {
-          return null;
+  getFile(key: string): any {
+    try {
+      const data = sessionStorage.getItem(`temp_file_${key}`);
+      return data ? JSON.parse(data) : null;
+    } catch (error) {
+      console.error("Failed to retrieve temporary file:", error);
+      return null;
+    }
+  }
+  
+  /**
+   * Clear a specific temporary file
+   */
+  clearFile(key: string): void {
+    try {
+      sessionStorage.removeItem(`temp_file_${key}`);
+    } catch (error) {
+      console.error("Failed to clear temporary file:", error);
+    }
+  }
+  
+  /**
+   * Clear all temporary files
+   */
+  clearAll(): void {
+    try {
+      // Get all keys in sessionStorage
+      const keysToRemove = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('temp_file_')) {
+          keysToRemove.push(key);
         }
-      })
-      .filter((file): file is StoredFile => file !== null);
+      }
+      
+      // Remove all temporary files
+      keysToRemove.forEach(key => {
+        sessionStorage.removeItem(key);
+      });
+      
+      console.log(`Cleared ${keysToRemove.length} temporary files`);
+    } catch (error) {
+      console.error("Failed to clear all temporary files:", error);
+    }
   }
 }
 

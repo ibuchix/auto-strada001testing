@@ -12,6 +12,7 @@
  * - Fixed: 2025-05-03: Replaced WarningTriangle with AlertTriangle and fixed saveFormToLocal return type
  * - Fixed: 2025-06-16: Fixed AlertTriangle import
  * - Updated: 2025-07-24: Fixed form default values to match CarListingFormData type
+ * - Updated: 2025-07-26: Integrated useFormDefaults hook for better valuation data handling
  */
 
 import { useEffect, useState } from "react";
@@ -28,6 +29,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 import { FormDataProvider } from "./context/FormDataContext";
 import { tempFileStorage } from "@/services/temp-storage/tempFileStorageService";
+import { useFormDefaults } from "./hooks/useFormDefaults";
 
 // Create a simple schema for form validation based on CarListingFormData
 const carListingFormSchema = z.object({
@@ -40,9 +42,10 @@ const carListingFormSchema = z.object({
   isSellingOnBehalf: z.boolean().default(false),
   hasServiceHistory: z.boolean().default(false),
   hasPrivatePlate: z.boolean().default(false),
-  hasFinance: z.boolean().default(false),
+  hasOutstandingFinance: z.boolean().default(false),
   isDamaged: z.boolean().default(false),
   reserve_price: z.number().optional(),
+  fromValuation: z.boolean().optional(),
 });
 
 interface FormContentProps {
@@ -60,16 +63,12 @@ export const FormContent = ({
   retryCount = 0,
   fromValuation = false
 }: FormContentProps) => {
+  // Get default values with valuation data if applicable
+  const defaultValues = useFormDefaults(fromValuation);
+  
   const form = useForm<CarListingFormData>({
     resolver: zodResolver(carListingFormSchema),
-    defaultValues: {
-      isSellingOnBehalf: false,
-      hasServiceHistory: false,
-      hasPrivatePlate: false,
-      hasFinance: false,
-      hasOutstandingFinance: false,
-      isDamaged: false,
-    },
+    defaultValues,
     mode: "onChange"
   });
   
@@ -129,18 +128,20 @@ export const FormContent = ({
     }
   };
   
-  // Load form data from localStorage
+  // Load form data from localStorage if not from valuation
   useEffect(() => {
-    try {
-      const savedData = localStorage.getItem('car_form_data');
-      if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        form.reset(parsedData);
+    if (!fromValuation) {
+      try {
+        const savedData = localStorage.getItem('car_form_data');
+        if (savedData) {
+          const parsedData = JSON.parse(savedData);
+          form.reset(parsedData);
+        }
+      } catch (error) {
+        console.error("Error loading form data:", error);
       }
-    } catch (error) {
-      console.error("Error loading form data:", error);
     }
-  }, [form]);
+  }, [form, fromValuation]);
   
   return (
     <FormProvider {...form}>
@@ -183,7 +184,7 @@ export const FormContent = ({
             navigationDisabled={false}
             isSaving={false}
             carId={draftId}
-            userId={session.user.id}
+            userId={session?.user?.id}
           />
           
           {/* Navigation controls */}

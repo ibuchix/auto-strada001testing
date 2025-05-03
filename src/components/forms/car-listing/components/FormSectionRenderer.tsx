@@ -6,21 +6,21 @@
  * Updated: 2025-06-08: Added ReservePriceSection component
  * Updated: 2025-06-12: Fixed FormDataContext usage and error handling
  * Updated: 2025-07-18: Fixed incorrect component import paths
+ * Updated: 2025-07-26: Fixed component imports and added missing sections
  */
 
 import React from 'react';
 import { useFormData } from '../context/FormDataContext';
-import { VehicleDetailsSection } from '../sections/VehicleDetailsSection';
-import { VehicleStatusSection } from '../sections/VehicleStatusSection';
-import { DamageDetailsSection } from '../sections/DamageDetailsSection';
-import { FeaturesSection } from '../sections/FeaturesSection';
-import { ServiceHistorySection } from '../sections/ServiceHistorySection';
-import { PersonalDetailsSection } from '../sections/PersonalDetailsSection';
-import { SellerNotesSection } from '../sections/SellerNotesSection';
-import { AdditionalInfoSection } from '../AdditionalInfoSection';
-import { ImageUploadSection } from './ImageUploadSection';
-import { ReservePriceSection } from '../sections/ReservePriceSection';
-import { FinanceDetailsSection } from '../FinanceDetailsSection';
+import { BasicInfoSection } from "../BasicInfoSection";
+import { ConditionSection } from "../sections/ConditionSection";
+import { DamagePhotosSection } from "../DamagePhotosSection";
+import { FeaturesSection } from "../FeaturesSection";
+import { ServiceHistorySection } from "../ServiceHistorySection";
+import { PhotosSection } from "../sections/PhotosSection";
+import { SellerNotesSection } from "../SellerNotesSection";
+import { AdditionalInfoSection } from "../AdditionalInfoSection";
+import { FinanceDetailsSection } from "../FinanceDetailsSection";
+import { PricingSection } from "../sections/PricingSection";
 
 interface FormSectionRendererProps {
   sectionId: string;
@@ -50,14 +50,17 @@ export const FormSectionRenderer = ({
 
     // Map section IDs to their component implementations
     switch (sectionId) {
+      case 'car-details':
       case 'vehicle-info':
-        return <VehicleDetailsSection />;
+        return <BasicInfoSection />;
         
       case 'vehicle-status':
-        return <VehicleStatusSection />;
+      case 'condition':
+        return <ConditionSection />;
         
+      case 'damage-photos':
       case 'damage-details':
-        return <DamageDetailsSection />;
+        return <DamagePhotosSection />;
         
       case 'features':
         return <FeaturesSection />;
@@ -65,8 +68,14 @@ export const FormSectionRenderer = ({
       case 'service-history':
         return <ServiceHistorySection />;
         
-      case 'personal-details':
-        return <PersonalDetailsSection />;
+      case 'photos':
+        return (
+          <PhotosSection 
+            carId={carId}
+            pauseAutoSave={pauseAutoSave}
+            resumeAutoSave={resumeAutoSave}
+          />
+        );
         
       case 'seller-notes':
         return <SellerNotesSection />;
@@ -74,21 +83,11 @@ export const FormSectionRenderer = ({
       case 'additional-info':
         return <AdditionalInfoSection />;
         
-      case 'reserve-price':
-        return <ReservePriceSection />;
-        
       case 'finance-details':
         return <FinanceDetailsSection carId={carId} />;
-        
-      case 'images':
-        return (
-          <ImageUploadSection 
-            maxImages={10}
-            carId={carId}
-            pauseAutoSave={pauseAutoSave}
-            resumeAutoSave={resumeAutoSave}
-          />
-        );
+
+      case 'pricing':
+        return <PricingSection />;
         
       default:
         return (

@@ -7,6 +7,7 @@
  * - 2025-11-04: Added support for loading drafts from URL parameters
  * - 2027-11-19: Fixed TypeScript error with onRetry prop
  * - 2025-05-31: Added fromValuation prop to pass to form initialization
+ * - 2025-07-26: Fixed valuation data handling and ensured fromValuation prop is passed correctly
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -15,6 +16,7 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { FormSubmissionProvider } from "./car-listing/submission/FormSubmissionProvider";
 import { FormContent } from "./car-listing/FormContent";
 import { FormErrorHandler } from "./car-listing/FormErrorHandler";
+import { toast } from "sonner";
 
 interface CarListingFormProps {
   fromValuation?: boolean;
@@ -31,6 +33,11 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
   
   // Use draft ID from URL parameter or location state
   const draftId = urlDraftId || locationDraftId;
+  
+  // Determine if coming from valuation based on props, URL params, or location state
+  const isFromValuation = fromValuation || 
+                          searchParams.get('from') === 'valuation' || 
+                          !!location.state?.fromValuation;
 
   useEffect(() => {
     if (urlDraftId) {
@@ -40,14 +47,28 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
     }
     
     // Log valuation status
-    if (fromValuation || location.state?.fromValuation) {
+    if (isFromValuation) {
       console.log("CarListingForm: Form initialized with valuation data", {
         fromProp: fromValuation,
         fromLocationState: !!location.state?.fromValuation,
+        fromSearchParam: searchParams.get('from') === 'valuation',
         hasValuationData: !!localStorage.getItem('valuationData')
       });
+      
+      // Show toast to inform user their data was loaded
+      const valuationData = localStorage.getItem('valuationData');
+      if (valuationData) {
+        try {
+          const parsedData = JSON.parse(valuationData);
+          toast.success("Vehicle valuation data loaded", {
+            description: `${parsedData.year || ''} ${parsedData.make || ''} ${parsedData.model || ''}`.trim()
+          });
+        } catch (e) {
+          console.error("Error parsing valuation data:", e);
+        }
+      }
     }
-  }, [urlDraftId, locationDraftId, fromValuation, location.state]);
+  }, [urlDraftId, locationDraftId, fromValuation, location.state, searchParams, isFromValuation]);
 
   const handleDraftError = useCallback((error: Error) => {
     console.error("Draft loading error:", error);
@@ -79,7 +100,7 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
         draftId={draftId} 
         onDraftError={handleDraftError}
         retryCount={retryCount}
-        fromValuation={fromValuation || !!location.state?.fromValuation}
+        fromValuation={isFromValuation}
       />
     </FormSubmissionProvider>
   );
