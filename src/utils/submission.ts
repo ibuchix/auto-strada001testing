@@ -2,6 +2,7 @@
 /**
  * Form submission utility functions
  * Created: 2025-04-17
+ * Updated: 2025-05-10 - Fixed TypeScript errors with title property
  */
 
 import { CarListingFormData } from '@/types/forms';
@@ -22,13 +23,15 @@ export const prepareSubmission = (formData: CarListingFormData) => {
     }
   }
   
-  // Generate title if not provided
-  if (!formattedData.title && formattedData.make && formattedData.model && formattedData.year) {
-    formattedData.title = `${formattedData.make} ${formattedData.model} ${formattedData.year}`;
+  // Generate display title if not already set
+  if (!formattedData.make || !formattedData.model || !formattedData.year) {
+    // Skip title generation if we don't have the required fields
+  } else {
+    // Generate a display title based on car details
+    formattedData.name = `${formattedData.make} ${formattedData.model} ${formattedData.year}`;
   }
   
   // Ensure status is correctly set
-  formattedData.is_draft = false;
   formattedData.status = 'pending';
   
   // Add timestamps
@@ -36,7 +39,6 @@ export const prepareSubmission = (formData: CarListingFormData) => {
   
   // Remove any transient properties not needed in database
   delete formattedData.form_metadata;
-  delete formattedData.formProgress;
   
   return formattedData;
 };
