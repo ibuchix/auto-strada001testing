@@ -1,176 +1,79 @@
 
 /**
- * Temporary File Storage Service
- * Created: 2025-06-17
- * 
- * Service for managing temporary file uploads during form completion
+ * Temporary file storage service
+ * Created: 2025-07-02
  */
 
-import { v4 as uuidv4 } from 'uuid';
-
+// Define a basic temp file storage service interface
 export interface TempStoredFile {
   id: string;
   file: File;
-  category: string;
-  url: string;
-  createdAt: Date;
+  field: string;
+  preview?: string;
+  timestamp: number;
 }
 
-// Session timeout in minutes
-const SESSION_TIMEOUT = 60;
-
-class TempFileStorageService {
-  private files: Map<string, TempStoredFile>;
-  private sessionStartTime: Date;
-  private sessionTimeout: number;
+export class TempFileStorageService {
+  private storage: Record<string, TempStoredFile[]> = {};
+  private sessionStartTime: number = Date.now();
+  private sessionDuration: number = 60 * 60 * 1000; // 1 hour in milliseconds
   
-  constructor(sessionTimeoutMinutes: number = SESSION_TIMEOUT) {
-    this.files = new Map();
-    this.sessionStartTime = new Date();
-    this.sessionTimeout = sessionTimeoutMinutes;
-  }
-  
-  /**
-   * Add a file to temporary storage
-   */
-  public addFile(file: File, category: string = 'general'): Promise<TempStoredFile> {
-    return new Promise((resolve, reject) => {
-      try {
-        // Create URL for the file
-        const url = URL.createObjectURL(file);
-        
-        // Generate unique ID
-        const id = `${category}-${uuidv4()}`;
-        
-        // Store file
-        const storedFile: TempStoredFile = {
-          id,
-          file,
-          category,
-          url,
-          createdAt: new Date()
-        };
-        
-        this.files.set(id, storedFile);
-        console.log(`TempFileStorage: Added file ${id} (${file.name}, ${file.size} bytes) to category ${category}`);
-        
-        resolve(storedFile);
-      } catch (error) {
-        console.error('TempFileStorage: Error adding file', error);
-        reject(error);
-      }
-    });
-  }
-  
-  /**
-   * Get a file by ID
-   */
-  public getFile(id: string): TempStoredFile | undefined {
-    return this.files.get(id);
-  }
-  
-  /**
-   * Remove a file by ID
-   */
-  public removeFile(id: string): boolean {
-    if (this.files.has(id)) {
-      const file = this.files.get(id);
-      if (file && file.url) {
-        URL.revokeObjectURL(file.url);
-      }
-      
-      this.files.delete(id);
-      return true;
+  // Store a file
+  store(field: string, file: File, id?: string): TempStoredFile {
+    if (!this.storage[field]) {
+      this.storage[field] = [];
     }
     
-    return false;
+    const storedFile: TempStoredFile = {
+      id: id || crypto.randomUUID(),
+      file,
+      field,
+      timestamp: Date.now(),
+    };
+    
+    this.storage[field].push(storedFile);
+    return storedFile;
   }
   
-  /**
-   * Remove a file by name
-   */
-  public removeFileByName(fileName: string): boolean {
-    for (const [id, file] of this.files.entries()) {
-      if (file.file.name === fileName) {
-        if (file.url) {
-          URL.revokeObjectURL(file.url);
-        }
-        this.files.delete(id);
-        return true;
-      }
-    }
-    
-    return false;
+  // Get all files for a field
+  get(field: string): TempStoredFile[] | null {
+    return this.storage[field] || null;
   }
   
-  /**
-   * Get all files by category
-   */
-  public getFilesByCategory(category: string): TempStoredFile[] {
-    const result: TempStoredFile[] = [];
-    
-    for (const file of this.files.values()) {
-      if (file.category === category) {
-        result.push(file);
-      }
-    }
-    
-    return result;
+  // Get files for a specific field
+  getFilesForField(field: string): TempStoredFile[] {
+    return this.storage[field] || [];
   }
   
-  /**
-   * Get all stored files
-   */
-  public getAllFiles(): TempStoredFile[] {
-    return Array.from(this.files.values());
+  // Remove a file by ID
+  remove(field: string, id: string): boolean {
+    if (!this.storage[field]) return false;
+    
+    const initialLength = this.storage[field].length;
+    this.storage[field] = this.storage[field].filter(file => file.id !== id);
+    
+    return this.storage[field].length < initialLength;
   }
   
-  /**
-   * Clear all files
-   */
-  public clearAll(): void {
-    for (const file of this.files.values()) {
-      if (file.url) {
-        URL.revokeObjectURL(file.url);
-      }
-    }
-    
-    this.files.clear();
+  // Clear all files for a field
+  clear(field: string): void {
+    delete this.storage[field];
   }
   
-  /**
-   * Check if session has expired
-   */
-  public isSessionExpired(): boolean {
-    const now = new Date();
-    const diffMs = now.getTime() - this.sessionStartTime.getTime();
-    const diffMins = Math.floor(diffMs / 1000 / 60);
-    
-    return diffMins >= this.sessionTimeout;
+  // Clear all storage
+  clearAll(): void {
+    this.storage = {};
   }
   
-  /**
-   * Get remaining session time in minutes
-   */
-  public getRemainingSessionTime(): number {
-    if (this.isSessionExpired()) {
-      return 0;
-    }
+  // Get remaining session time in minutes
+  getRemainingSessionTime(): number {
+    const elapsedTime = Date.now() - this.sessionStartTime;
+    const remainingTime = this.sessionDuration - elapsedTime;
     
-    const now = new Date();
-    const diffMs = now.getTime() - this.sessionStartTime.getTime();
-    const diffMins = Math.floor(diffMs / 1000 / 60);
-    
-    return Math.max(0, this.sessionTimeout - diffMins);
-  }
-  
-  /**
-   * Reset session timer
-   */
-  public resetSession(): void {
-    this.sessionStartTime = new Date();
+    // Convert to minutes and round
+    return Math.max(0, Math.ceil(remainingTime / (60 * 1000)));
   }
 }
 
-// Create singleton instance
+// Create and export a singleton instance
 export const tempFileStorage = new TempFileStorageService();

@@ -3,6 +3,7 @@
  * FormErrorSummary component for displaying multiple validation errors
  * Created: 2025-04-05
  * Updated: 2025-06-16 - Fixed ValidationError type usage
+ * Updated: 2025-07-02 - Fixed type error in ValidationError constructor
  */
 
 import React from 'react';
@@ -40,7 +41,7 @@ export const FormErrorSummary: React.FC<FormErrorSummaryProps> = ({
   const errorArray = Array.isArray(errors) 
     ? errors 
     : Object.entries(errors).map(([field, message]) => {
-        const error = new ValidationError({ message });
+        const error = new ValidationError({ message, code: 'validation_error' });
         (error as ValidationErrorWithField).field = field;
         return error as ValidationErrorWithField;
       });
