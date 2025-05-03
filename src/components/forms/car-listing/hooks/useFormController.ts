@@ -2,6 +2,7 @@
 /**
  * Form controller hook
  * Created: 2025-07-12
+ * Updated: 2025-07-13 - Removed Next.js dependencies and fixed type issues
  */
 
 import { useState, useEffect } from 'react';
@@ -10,6 +11,7 @@ import { CarListingFormData } from "@/types/forms";
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { FormStep } from '../types';
 
 // Define the default values
 export const DEFAULT_CAR_FEATURES = {

@@ -4,10 +4,12 @@
  * - Extracted from FormContent.tsx to separate the main form rendering logic
  * - Updated 2025-04-02: Fixed form context usage to prevent undefined form errors
  * - Updated 2025-04-03: Fixed props passing to work with FormDataProvider
+ * - Updated 2025-07-03: Fixed StepForm integration and removed Next.js references
  */
 import { memo } from "react";
 import { StepForm } from "../StepForm";
 import { useFormData } from "../context/FormDataContext";
+import { formSteps } from "../constants/formSteps";
 
 interface MainFormContentProps {
   currentStep: number;
@@ -34,7 +36,6 @@ export const MainFormContent = memo(({
   isSubmitting,
   saveProgress,
   visibleSections,
-  totalSteps,
   onSaveAndContinue,
   onSave
 }: MainFormContentProps) => {
@@ -55,6 +56,7 @@ export const MainFormContent = memo(({
       
       <StepForm 
         form={form}
+        steps={formSteps}
         currentStep={currentStep}
         setCurrentStep={setCurrentStep}
         carId={carId}
@@ -63,6 +65,7 @@ export const MainFormContent = memo(({
         saveProgress={saveProgress}
         visibleSections={visibleSections}
         isSaving={isSaving}
+        onComplete={() => onSaveAndContinue()}
       />
     </div>
   );

@@ -1,4 +1,3 @@
-
 /**
  * Error handling hook for component-level error management
  * Created: 2025-04-05
@@ -135,3 +134,18 @@ function getErrorTitle(error: AppError): string {
       return 'Error';
   }
 }
+
+// Helper for valuation errors
+const handleValuationError = (error: unknown): AppError => {
+  if (error instanceof AppError && error.code === ErrorCode.VALUATION_ERROR) {
+    return error;
+  }
+  
+  if (error instanceof Error) {
+    const valuationError = new ValuationError(error.message);
+    valuationError.stack = error.stack;
+    return valuationError;
+  }
+  
+  return new ValuationError('An unknown error occurred while getting your valuation.');
+};

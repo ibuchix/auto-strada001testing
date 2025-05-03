@@ -1,72 +1,83 @@
 
 /**
- * Valuation-specific error types
- * Created: 2025-04-19
+ * Valuation specific error types
+ * Updated: 2025-07-03 - Fixed RecoveryAction usage
  */
 
 import { AppError } from '../classes';
-import { ErrorCode, ErrorCategory, RecoveryType } from '../types';
+import { 
+  ErrorCode, 
+  ErrorCategory, 
+  ErrorSeverity, 
+  RecoveryType,
+  RecoveryAction
+} from '../types';
 
 export class ValuationError extends AppError {
-  constructor(params: {
-    message: string;
-    code?: ErrorCode;
-    description?: string;
-    retry?: boolean;
-    vin?: string;
-    data?: any;
-  }) {
+  constructor(message: string, code: ErrorCode = ErrorCode.VALUATION_ERROR) {
     super({
-      message: params.message,
-      code: params.code || ErrorCode.VALIDATION_ERROR,
-      category: ErrorCategory.VALIDATION,
-      description: params.description,
-      metadata: {
-        vin: params.vin,
-        data: params.data
-      },
-      recovery: params.retry ? {
-        type: RecoveryType.FORM_RETRY,
-        label: 'Try Again',
-        action: RecoveryType.FORM_RETRY
-      } : undefined
+      message,
+      code,
+      category: ErrorCategory.BUSINESS,
+      severity: ErrorSeverity.ERROR
     });
+    
+    // Default recovery action for valuation errors
+    this.recovery = {
+      type: RecoveryType.RETRY,
+      label: 'Try Again',
+      action: RecoveryAction.RETRY
+    };
   }
 }
 
-export class NoValuationDataError extends ValuationError {
-  constructor(vin: string) {
-    super({
-      message: 'No valuation data found for this vehicle',
-      description: 'We could not find pricing data for this VIN. Please verify the VIN is correct.',
-      code: ErrorCode.RESOURCE_NOT_FOUND,
-      vin,
-      retry: true
-    });
+export class ValuationFormRetryError extends ValuationError {
+  constructor(message: string = 'There was an error with your valuation request.') {
+    super(message);
+    
+    this.recovery = {
+      type: RecoveryType.FORM_RETRY,
+      label: 'Try Again',
+      action: RecoveryAction.FORM_RETRY
+    };
   }
 }
 
-export class InvalidValuationDataError extends ValuationError {
-  constructor(vin: string, data: any) {
-    super({
-      message: 'Invalid valuation data received',
-      description: 'The valuation data received was not in the expected format.',
-      code: ErrorCode.INVALID_VALUE,
-      vin,
-      data,
-      retry: true
-    });
+export class ValuationNetworkError extends ValuationError {
+  constructor(message: string = 'Network error occurred while getting your valuation.') {
+    super(message, ErrorCode.NETWORK_ERROR);
+    this.category = ErrorCategory.NETWORK;
   }
 }
 
 export class ValuationTimeoutError extends ValuationError {
-  constructor(vin: string) {
-    super({
-      message: 'Valuation request timed out',
-      description: 'The valuation service is taking longer than expected. Please try again.',
-      code: ErrorCode.REQUEST_TIMEOUT,
-      vin,
-      retry: true
-    });
+  constructor(message: string = 'The valuation request timed out.') {
+    super(message, ErrorCode.REQUEST_TIMEOUT);
+    
+    this.recovery = {
+      type: RecoveryType.RETRY,
+      label: 'Try Again',
+      action: RecoveryAction.RETRY
+    };
+  }
+}
+
+export class ValuationInvalidInputError extends ValuationError {
+  constructor(message: string = 'Invalid input provided for valuation.') {
+    super(message, ErrorCode.INVALID_VALUE);
+    this.category = ErrorCategory.VALIDATION;
+  }
+}
+
+export class ValuationUnavailableError extends ValuationError {
+  constructor(message: string = 'Valuation service is currently unavailable.') {
+    super(message, ErrorCode.SERVER_ERROR);
+    
+    this.severity = ErrorSeverity.WARNING;
+    this.recovery = {
+      type: RecoveryType.CONTACT_SUPPORT,
+      label: 'Contact Support',
+      action: RecoveryAction.CONTACT_SUPPORT
+    };
   }
 }

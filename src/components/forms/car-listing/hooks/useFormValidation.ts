@@ -4,58 +4,58 @@
  * Created: 2025-07-12
  */
 
-import { useState, useCallback } from 'react';
-import { UseFormReturn } from 'react-hook-form';
+import { useCallback, useState } from "react";
+import { UseFormReturn, FieldError, FieldErrorsImpl } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 
-export const useFormValidation = (
-  form: UseFormReturn<CarListingFormData>,
-  currentStep: number
-) => {
+export const useFormValidation = (form: UseFormReturn<CarListingFormData>) => {
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
   
-  // Validate the current step
-  const validateCurrentStep = useCallback(async (): Promise<boolean> => {
+  const validateCurrentStep = useCallback(async () => {
     try {
-      // This is simplified - in a real application you would check specific fields per step
+      // Get the current errors
+      const currentErrors = form.formState.errors;
+      
+      // Validate the form
       const isValid = await form.trigger();
       
+      // Process and format errors for display
+      const newStepErrors: Record<string, string> = {};
+      
       if (!isValid) {
-        // Get all errors from the form
-        const errors = form.formState.errors;
-        const errorObj: Record<string, string> = {};
-        
-        // Convert errors to a simple object
-        Object.keys(errors).forEach(key => {
-          const error = errors[key as keyof typeof errors];
+        Object.entries(form.formState.errors).forEach(([field, error]) => {
           if (error) {
-            errorObj[key] = error.message || 'Field has an error';
+            // Handle different error types and extract the message
+            let errorMessage: string;
+            
+            if (typeof error === 'string') {
+              errorMessage = error;
+            } else if ((error as FieldError).message) {
+              errorMessage = (error as FieldError).message;
+            } else {
+              errorMessage = `${field} is invalid`;
+            }
+            
+            newStepErrors[field] = errorMessage;
+            validationErrors[field] = true;
           }
         });
-        
-        setStepErrors(errorObj);
-        setValidationErrors(Object.keys(errors).reduce((acc, key) => {
-          acc[key] = true;
-          return acc;
-        }, {} as Record<string, boolean>));
-        
-        return false;
       }
       
-      // Clear errors if valid
-      setStepErrors({});
-      setValidationErrors({});
-      return true;
+      setStepErrors(newStepErrors);
+      setValidationErrors({...validationErrors});
+      
+      return isValid;
     } catch (error) {
-      console.error("Validation error:", error);
+      console.error("Error during validation:", error);
       return false;
     }
-  }, [form, currentStep]);
+  }, [form]);
   
   return {
     validateCurrentStep,
     stepErrors,
-    validationErrors,
+    validationErrors
   };
 };

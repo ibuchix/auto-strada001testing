@@ -1,216 +1,211 @@
 
 /**
- * Error factory functions
- * Created: 2025-07-10
- * Updated: 2025-07-12 - Added createErrorFromUnknown function
+ * Error factory for creating consistent application errors
+ * Updated: 2025-07-03 - Fixed metadata handling
  */
 
+import { v4 as uuidv4 } from 'uuid';
 import { 
-  AppError, 
-  ValidationError, 
-  NetworkError, 
-  AuthenticationError
-} from './classes';
-
-import { 
-  ErrorCategory, 
   ErrorCode, 
+  ErrorCategory, 
   ErrorSeverity, 
-  RecoveryType, 
-  ErrorRecovery 
+  ErrorOptions,
+  RecoveryType,
+  RecoveryAction,
+  ErrorRecovery
 } from './types';
+import { AppError } from './classes';
 
-/**
- * Create a generic AppError with standard behavior
- */
-export function createAppError(
-  message: string,
-  options: {
-    code?: ErrorCode;
-    category?: ErrorCategory;
-    description?: string;
-    severity?: ErrorSeverity;
-    metadata?: Record<string, any>;
-    recovery?: ErrorRecovery;
-  } = {}
-): AppError {
-  return new AppError({
-    message,
-    code: options.code || ErrorCode.UNKNOWN_ERROR,
-    category: options.category || ErrorCategory.UNKNOWN,
-    severity: options.severity || ErrorSeverity.ERROR,
-    description: options.description,
-    metadata: options.metadata,
-    recovery: options.recovery
-  });
-}
-
-/**
- * Create a validation error for a specific field
- */
-export function createFieldError(
-  field: string,
-  message: string,
-  options: {
-    focus?: boolean;
-    severity?: ErrorSeverity;
-    metadata?: Record<string, any>;
-  } = {}
-): ValidationError {
-  const error = new ValidationError(
-    message,
-    ErrorCode.VALIDATION_ERROR
-  );
-  
-  error.field = field;
-  error.metadata = {
-    field,
-    details: options.metadata || {},
-    ...error.metadata
-  };
-  
-  return error;
-}
-
-/**
- * Create a form validation error
- */
-export function createFormError(
-  message: string,
-  options: {
-    severity?: ErrorSeverity;
-    metadata?: Record<string, any>;
-  } = {}
-): ValidationError {
-  const error = new ValidationError(
-    message,
-    ErrorCode.VALIDATION_ERROR
-  );
-  
-  error.metadata = {
-    form: true,
-    details: options.metadata || {},
-    ...error.metadata
-  };
-  
-  return error;
-}
-
-/**
- * Create a network error
- */
-export function createNetworkError(
-  message: string,
-  options: {
-    severity?: ErrorSeverity;
-    metadata?: Record<string, any>;
-    retryable?: boolean;
-  } = {}
-): NetworkError {
-  const error = new NetworkError(
-    message,
-    ErrorCode.NETWORK_ERROR
-  );
-  
-  error.metadata = options.metadata || {};
-  
-  return error;
-}
-
-/**
- * Create an authentication error
- */
-export function createAuthError(
-  message: string,
-  options: {
-    severity?: ErrorSeverity;
-    metadata?: Record<string, any>;
-  } = {}
-): AuthenticationError {
-  const error = new AuthenticationError(
-    message,
-    ErrorCode.AUTH_ERROR
-  );
-  
-  error.metadata = options.metadata || {};
-  
-  return error;
-}
-
-/**
- * Create a submission error
- */
-export function createSubmissionError(
-  message: string,
-  options: {
-    severity?: ErrorSeverity;
-    metadata?: Record<string, any>;
-  } = {}
-): AppError {
-  return new AppError({
-    message,
-    code: ErrorCode.SUBMISSION_ERROR,
-    category: ErrorCategory.BUSINESS,
-    severity: options.severity || ErrorSeverity.ERROR,
-    metadata: options.metadata || {}
-  });
-}
-
-/**
- * Create a timeout error
- */
-export function createTimeoutError(
-  message: string,
-  options: {
-    severity?: ErrorSeverity;
-    metadata?: Record<string, any>;
-  } = {}
-): NetworkError {
-  const error = new NetworkError(
-    message || 'The operation timed out',
-    ErrorCode.NETWORK_ERROR
-  );
-  
-  error.metadata = {
-    type: 'timeout',
-    ...options.metadata
-  };
-  
-  return error;
-}
-
-/**
- * Create an error from an unknown source
- */
-export function createErrorFromUnknown(error: unknown): AppError {
-  if (error instanceof AppError) {
+class ErrorFactory {
+  createError(
+    message: string,
+    code: ErrorCode = ErrorCode.UNKNOWN_ERROR,
+    options: ErrorOptions = {}
+  ): AppError {
+    const error = new AppError({
+      message,
+      code,
+      category: this.getCategoryForCode(code),
+      severity: options.severity || ErrorSeverity.ERROR,
+      metadata: options.metadata || {}
+    });
+    
     return error;
   }
   
-  if (error instanceof Error) {
+  createValidationError(
+    message: string,
+    metadata?: Record<string, any>
+  ): AppError {
     return new AppError({
-      message: error.message,
-      code: ErrorCode.UNKNOWN_ERROR,
-      category: ErrorCategory.UNKNOWN
+      message,
+      code: ErrorCode.VALIDATION_ERROR,
+      category: ErrorCategory.VALIDATION,
+      severity: ErrorSeverity.WARNING,
+      metadata: metadata || {}
     });
   }
   
-  return new AppError({
-    message: String(error),
-    code: ErrorCode.UNKNOWN_ERROR,
-    category: ErrorCategory.UNKNOWN
-  });
-}
-
-/**
- * Handle an AppError with standard behavior
- */
-export function handleAppError(error: unknown): AppError {
-  if (error instanceof AppError) {
+  createNetworkError(
+    message: string = 'Network error occurred',
+    metadata?: Record<string, any>
+  ): AppError {
+    const error = new AppError({
+      message,
+      code: ErrorCode.NETWORK_ERROR,
+      category: ErrorCategory.NETWORK,
+      severity: ErrorSeverity.ERROR,
+      metadata: metadata || {}
+    });
+    
+    error.recovery = {
+      type: RecoveryType.RETRY,
+      label: 'Try Again',
+      action: RecoveryAction.RETRY
+    };
+    
     return error;
   }
   
-  return createAppError(
-    error instanceof Error ? error.message : String(error)
-  );
+  createAuthError(
+    message: string,
+    code: ErrorCode = ErrorCode.AUTH_ERROR,
+    metadata?: Record<string, any>
+  ): AppError {
+    const error = new AppError({
+      message,
+      code,
+      category: ErrorCategory.AUTH,
+      severity: ErrorSeverity.ERROR,
+      metadata: metadata || {}
+    });
+    
+    error.recovery = {
+      type: RecoveryType.REDIRECT,
+      label: 'Sign In',
+      action: RecoveryAction.REDIRECT,
+      url: '/auth/signin'
+    };
+    
+    return error;
+  }
+  
+  createFormError(
+    message: string,
+    fieldErrors?: Record<string, string>,
+    metadata?: Record<string, any>
+  ): AppError {
+    const error = new AppError({
+      message,
+      code: ErrorCode.FORM_ERROR,
+      category: ErrorCategory.VALIDATION,
+      severity: ErrorSeverity.WARNING,
+      metadata: { 
+        ...metadata || {},
+        fieldErrors
+      }
+    });
+    
+    // No recovery action for form errors, the user needs to fix the form inputs
+    
+    return error;
+  }
+  
+  createTimeoutError(
+    message: string = 'The request timed out',
+    metadata?: Record<string, any>
+  ): AppError {
+    const error = new AppError({
+      message,
+      code: ErrorCode.TIMEOUT_ERROR,
+      category: ErrorCategory.NETWORK,
+      severity: ErrorSeverity.WARNING,
+      metadata: metadata || {}
+    });
+    
+    error.recovery = {
+      type: RecoveryType.RETRY,
+      label: 'Try Again',
+      action: RecoveryAction.RETRY
+    };
+    
+    return error;
+  }
+  
+  createNotFoundError(
+    message: string = 'Resource not found',
+    metadata?: Record<string, any>
+  ): AppError {
+    const error = new AppError({
+      message,
+      code: ErrorCode.NOT_FOUND,
+      category: ErrorCategory.BUSINESS,
+      severity: ErrorSeverity.WARNING,
+      metadata: metadata || {}
+    });
+    
+    error.recovery = {
+      type: RecoveryType.REDIRECT,
+      label: 'Go Back',
+      action: RecoveryAction.REDIRECT,
+      url: '/'
+    };
+    
+    return error;
+  }
+  
+  createServerError(
+    message: string = 'Server error occurred',
+    metadata?: Record<string, any>
+  ): AppError {
+    const error = new AppError({
+      message,
+      code: ErrorCode.SERVER_ERROR,
+      category: ErrorCategory.NETWORK,
+      severity: ErrorSeverity.ERROR,
+      metadata: metadata || {}
+    });
+    
+    error.recovery = {
+      type: RecoveryType.CONTACT_SUPPORT,
+      label: 'Contact Support',
+      action: RecoveryAction.CONTACT_SUPPORT
+    };
+    
+    return error;
+  }
+  
+  private getCategoryForCode(code: ErrorCode): ErrorCategory {
+    switch (code) {
+      case ErrorCode.VALIDATION_ERROR:
+      case ErrorCode.FORM_ERROR:
+        return ErrorCategory.VALIDATION;
+        
+      case ErrorCode.NETWORK_ERROR:
+      case ErrorCode.TIMEOUT_ERROR:
+      case ErrorCode.SERVER_ERROR:
+        return ErrorCategory.NETWORK;
+        
+      case ErrorCode.AUTH_ERROR:
+      case ErrorCode.INVALID_CREDENTIALS:
+      case ErrorCode.EXPIRED_SESSION:
+      case ErrorCode.UNAUTHORIZED:
+      case ErrorCode.FORBIDDEN:
+        return ErrorCategory.AUTH;
+        
+      case ErrorCode.SUBMISSION_ERROR:
+      case ErrorCode.DATA_ERROR:
+      case ErrorCode.PROCESSING_ERROR:
+      case ErrorCode.FILE_UPLOAD_ERROR:
+      case ErrorCode.INCOMPLETE_FORM:
+      case ErrorCode.NOT_FOUND:
+      case ErrorCode.VALUATION_ERROR:
+        return ErrorCategory.BUSINESS;
+        
+      default:
+        return ErrorCategory.TECHNICAL;
+    }
+  }
 }
+
+export const errorFactory = new ErrorFactory();

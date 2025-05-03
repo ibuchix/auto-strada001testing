@@ -1,64 +1,157 @@
-
 /**
- * Form Submission Service
- * Created: 2025-05-03
- * Updated: 2025-06-21 - Fixed created_at handling
- * 
- * Service for submitting car listing form data to the server
+ * Form submission service
+ * Created: 2025-04-12
+ * Updated: 2025-07-03 - Refactored for better error handling and modularity
  */
 
-import { CarListingFormData } from "@/types/forms";
-import { supabase } from "@/integrations/supabase/client";
-import { ValidationError } from "../errors";
-import { ErrorCode } from "@/errors/types";
+import { CarListingFormData } from '@/types/forms';
+import { supabase } from '@/integrations/supabase/client';
+import { AppError } from '@/errors/classes';
+import { ErrorCode, ErrorSeverity } from '@/errors/types';
+import { ValidationSubmissionError } from '../errors';
 
-export const submitCarListing = async (
-  data: CarListingFormData, 
-  userId: string,
-  carId?: string
-): Promise<{ carId: string; success: boolean }> => {
-  try {
-    // Prepare submission data
-    const submissionData = {
-      ...data,
-      seller_id: userId,
-      updated_at: new Date().toISOString(),
-      created_at: data.created_at ? new Date(data.created_at).toISOString() : new Date().toISOString()
-    };
-    
-    // If we have a car ID, update the existing record
-    if (carId) {
-      const { error } = await supabase
+export const submissionService = {
+  submitFormData: async (
+    formData: CarListingFormData,
+    userId: string
+  ): Promise<{ data: any; error: AppError | null }> => {
+    try {
+      // Validate form data before submission
+      if (!formData.vin || !formData.make || !formData.model) {
+        const error = new AppError({
+          message: 'Missing required vehicle information',
+          code: ErrorCode.VALIDATION_ERROR,
+          category: 'validation',
+          severity: ErrorSeverity.ERROR
+        });
+        return { data: null, error };
+      }
+
+      // Prepare data for submission
+      const submissionData = {
+        ...formData,
+        user_id: userId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // Submit to database
+      const { data, error } = await supabase
         .from('cars')
-        .update(submissionData)
-        .eq('id', carId);
-        
-      if (error) throw error;
-      
-      return { carId, success: true };
+        .insert([submissionData])
+        .select()
+        .single();
+
+      if (error) {
+        const appError = new AppError({
+          message: error.message,
+          code: ErrorCode.SUBMISSION_ERROR,
+          category: 'technical',
+          severity: ErrorSeverity.ERROR
+        });
+        return { data: null, error: appError };
+      }
+
+      return { data, error: null };
+    } catch (error: any) {
+      const appError = new AppError({
+        message: error.message || 'Unknown submission error',
+        code: ErrorCode.UNKNOWN_ERROR,
+        category: 'technical',
+        severity: ErrorSeverity.ERROR
+      });
+      return { data: null, error: appError };
     }
-    
-    // Otherwise, insert a new record
-    const { data: insertedData, error } = await supabase
-      .from('cars')
-      .insert(submissionData)
-      .select('id')
-      .single();
-      
-    if (error) throw error;
-    
-    if (!insertedData?.id) {
-      throw new Error("Failed to create car listing - no ID returned");
+  },
+
+  updateFormData: async (
+    formData: CarListingFormData,
+    carId: string
+  ): Promise<{ data: any; error: AppError | null }> => {
+    try {
+      // Validate form data before submission
+      if (!formData.vin || !formData.make || !formData.model) {
+        return {
+          data: null,
+          error: new ValidationSubmissionError('Missing required vehicle information')
+        };
+      }
+
+      // Prepare data for update
+      const updateData = {
+        ...formData,
+        updated_at: new Date().toISOString()
+      };
+
+      // Update in database
+      const { data, error } = await supabase
+        .from('cars')
+        .update(updateData)
+        .eq('id', carId)
+        .select()
+        .single();
+
+      if (error) {
+        return {
+          data: null,
+          error: new AppError({
+            message: error.message,
+            code: ErrorCode.SUBMISSION_ERROR,
+            category: 'technical',
+            severity: ErrorSeverity.ERROR
+          })
+        };
+      }
+
+      return { data, error: null };
+    } catch (error: any) {
+      return {
+        data: null,
+        error: new AppError({
+          message: error.message || 'Unknown submission error',
+          code: ErrorCode.UNKNOWN_ERROR,
+          category: 'technical',
+          severity: ErrorSeverity.ERROR
+        })
+      };
     }
-    
-    return { carId: insertedData.id, success: true };
-  } catch (error: any) {
-    console.error("Error submitting car listing:", error);
-    
-    throw new ValidationError({
-      code: ErrorCode.SUBMISSION_ERROR,
-      message: "Failed to submit car listing",
-      description: error.message || "An error occurred during submission"
-    });
+  },
+
+  deleteFormData: async (
+    carId: string
+  ): Promise<{ data: any; error: AppError | null }> => {
+    try {
+      // Delete from database
+      const { data, error } = await supabase
+        .from('cars')
+        .delete()
+        .eq('id', carId)
+        .select()
+        .single();
+
+      if (error) {
+        return {
+          data: null,
+          error: new AppError({
+            message: error.message,
+            code: ErrorCode.SUBMISSION_ERROR,
+            category: 'technical',
+            severity: ErrorSeverity.ERROR
+          })
+        };
+      }
+
+      return { data, error: null };
+    } catch (error: any) {
+      return {
+        data: null,
+        error: new AppError({
+          message: error.message || 'Unknown submission error',
+          code: ErrorCode.UNKNOWN_ERROR,
+          category: 'technical',
+          severity: ErrorSeverity.ERROR
+        })
+      };
+    }
   }
 };

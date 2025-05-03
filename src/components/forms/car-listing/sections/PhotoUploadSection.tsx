@@ -1,187 +1,157 @@
-
 /**
- * PhotoUploadSection Component
- * Created: 2025-06-16
- * 
- * Photo upload section for car listing form
+ * Photo Upload Section
+ * Created: 2025-04-12
+ * Updated: 2025-05-03 - Added file validation and preview
  */
 
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFormData } from "../context/FormDataContext";
-import { FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useDropzone } from "react-dropzone";
-import { tempFileStorage } from "@/services/temp-storage/tempFileStorageService";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Upload, X } from "lucide-react";
+import { useState, useCallback, useEffect } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { useFormContext } from 'react-hook-form';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Button } from '@/components/ui/button';
+import { Camera } from 'lucide-react';
+import { CarListingFormData } from '@/types/forms';
+import { tempFileStorageService } from '@/services/supabase/tempFileStorageService';
+import { useToast } from '@/hooks/use-toast';
+import { useFormValidation } from '../hooks/useFormValidation';
 
-export const PhotoUploadSection = ({ carId }: { carId?: string }) => {
-  const { form } = useFormData();
-  const [uploads, setUploads] = useState<{ id: string, file: File, preview: string }[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+export const PhotoUploadSection = () => {
+  const { register, setValue, watch } = useFormContext<CarListingFormData>();
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const uploadedPhotos = watch('uploadedPhotos');
+  const { validateCurrentStep } = useFormValidation(useFormContext<CarListingFormData>());
   
-  // Setup dropzone
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  // Initialize uploaded photos from form values
+  useEffect(() => {
+    if (uploadedPhotos && uploadedPhotos.length > 0) {
+      setValue('vehiclePhotos', uploadedPhotos);
+    }
+  }, [uploadedPhotos, setValue]);
+  
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    handleFileUpload(acceptedFiles);
+  }, [handleFileUpload]);
+  
+  const {getRootProps, getInputProps, isDragActive} = useDropzone({
+    onDrop,
     accept: {
-      "image/jpeg": [],
-      "image/png": [],
-      "image/webp": []
+      'image/*': ['.jpeg', '.png', '.jpg']
     },
     maxFiles: 10,
-    maxSize: 5 * 1024 * 1024, // 5MB
-    onDrop: async (acceptedFiles, rejectedFiles) => {
-      if (rejectedFiles.length > 0) {
-        toast.error("Some files were rejected", {
-          description: "Files must be images under 5MB"
-        });
-      }
-
-      if (acceptedFiles.length > 0) {
-        // Process accepted files
-        const newUploads = acceptedFiles.map(file => ({
-          id: Math.random().toString(36).substring(2, 9),
-          file,
-          preview: URL.createObjectURL(file)
-        }));
-
-        // Add to uploads state
-        setUploads([...uploads, ...newUploads]);
-        
-        // Upload to temporary storage
-        setIsUploading(true);
-        
-        try {
-          for (const upload of newUploads) {
-            await tempFileStorage.addFile(upload.file, "car_photos");
-          }
-          
-          // Update form state - we just store the previews for now
-          const currentPhotos = form.getValues("uploadedPhotos") || [];
-          form.setValue("uploadedPhotos", [
-            ...currentPhotos,
-            ...newUploads.map(u => u.preview)
-          ], { shouldValidate: true });
-          
-          toast.success(`${acceptedFiles.length} photo(s) added`);
-        } catch (error) {
-          console.error("Error uploading files:", error);
-          toast.error("Error uploading files", {
-            description: "Please try again or try with fewer files"
-          });
-        } finally {
-          setIsUploading(false);
-        }
-      }
-    }
+    multiple: true
   });
-
-  const removePhoto = (index: number) => {
-    const currentUploads = [...uploads];
-    const uploadToRemove = currentUploads[index];
+  
+  const handleFileUpload = async (files: File[]) => {
+    if (!files?.length) return;
     
-    if (uploadToRemove) {
-      // Remove from temporary storage
-      tempFileStorage.removeFileByName(uploadToRemove.file.name);
+    try {
+      setUploading(true);
       
-      // Revoke object URL to prevent memory leaks
-      URL.revokeObjectURL(uploadToRemove.preview);
+      // Upload one file at a time
+      for (const file of files) {
+        // This should now work with the updated tempFileStorageService
+        const uploadedFile = await tempFileStorageService.addFile(file);
+        
+        // Update form values with uploaded file
+        setValue('uploadedPhotos', [...(uploadedPhotos || []), uploadedFile]);
+        setValue('vehiclePhotos', [...(uploadedPhotos || []), uploadedFile]);
+      }
       
-      // Update uploads state
-      currentUploads.splice(index, 1);
-      setUploads(currentUploads);
-      
-      // Update form state
-      const currentPhotos = form.getValues("uploadedPhotos") || [];
-      currentPhotos.splice(index, 1);
-      form.setValue("uploadedPhotos", currentPhotos, { shouldValidate: true });
-      
-      toast.info("Photo removed");
+      toast({
+        title: "Photos uploaded",
+        description: "Your photos have been successfully uploaded."
+      });
+    } catch (error: any) {
+      console.error("File upload error:", error);
+      toast({
+        variant: "destructive",
+        title: "Upload Error",
+        description: error.message || "Failed to upload photos. Please try again."
+      });
+    } finally {
+      setUploading(false);
+      await validateCurrentStep();
     }
   };
-
-  // Cleanup object URLs when component unmounts
-  useState(() => {
-    return () => {
-      uploads.forEach(upload => URL.revokeObjectURL(upload.preview));
-    };
-  });
-
+  
+  const handleRemovePhoto = (fileName: string) => {
+    // This should now work with the updated tempFileStorageService
+    tempFileStorageService.removeFileByName(fileName);
+    
+    // Update form values after removing file
+    const updatedPhotos = (uploadedPhotos || []).filter(photo => photo.name !== fileName);
+    setValue('uploadedPhotos', updatedPhotos);
+    setValue('vehiclePhotos', updatedPhotos);
+    
+    toast({
+      title: "Photo removed",
+      description: "The photo has been successfully removed."
+    });
+  };
+  
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Vehicle Photos</h2>
+    <div className="grid gap-4">
+      <div
+        {...getRootProps()}
+        className={`
+          border-2 border-dashed rounded-md p-6 text-center cursor-pointer
+          ${isDragActive ? 'border-primary' : 'border-gray-300'}
+        `}
+      >
+        <input {...getInputProps()} />
+        <Camera className="mx-auto h-6 w-6 text-gray-400 mb-2" />
+        <p className="text-sm text-gray-500">
+          {isDragActive ? "Drop the files here..." : "Click or drag photos to upload"}
+        </p>
+        <p className="text-xs text-gray-400">
+          Accepts .png, .jpg, .jpeg (Max 10 files)
+        </p>
+      </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload Photos</CardTitle>
-          <CardDescription>
-            Add photos of your vehicle. Clear, well-lit photos from different angles will help buyers see your car better.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <FormField
-            control={form.control}
-            name="uploadedPhotos"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Vehicle Photos</FormLabel>
-                
-                <div
-                  {...getRootProps()}
-                  className={`border-2 border-dashed rounded-md p-10 text-center cursor-pointer ${
-                    isDragActive ? "border-primary bg-primary/10" : "border-gray-300"
-                  }`}
+      {uploading && (
+        <div className="text-center">
+          Uploading...
+        </div>
+      )}
+      
+      {uploadedPhotos && uploadedPhotos.length > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+          {uploadedPhotos.map((photo, index) => (
+            <div key={index} className="relative">
+              <AspectRatio ratio={1}>
+                <img
+                  src={photo.url}
+                  alt={photo.name}
+                  className="object-cover rounded-md"
+                />
+              </AspectRatio>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 bg-background rounded-full shadow-md hover:bg-muted"
+                onClick={() => handleRemovePhoto(photo.name)}
+              >
+                <span className="sr-only">Remove photo</span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="w-4 h-4"
                 >
-                  <input {...getInputProps()} />
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <Upload className="h-8 w-8 text-gray-400" />
-                    {isDragActive ? (
-                      <p>Drop the files here...</p>
-                    ) : (
-                      <p>Drag and drop photos here, or click to select files</p>
-                    )}
-                    <p className="text-sm text-gray-500">
-                      JPG, PNG or WebP, up to 5MB each
-                    </p>
-                  </div>
-                </div>
-                
-                <FormMessage />
-                
-                {isUploading && (
-                  <div className="mt-4 p-4 bg-blue-50 text-blue-700 rounded-md flex items-center">
-                    <div className="mr-2 animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700"></div>
-                    <span>Uploading photos...</span>
-                  </div>
-                )}
-                
-                {uploads.length > 0 && (
-                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    {uploads.map((upload, index) => (
-                      <div key={upload.id} className="relative group">
-                        <img
-                          src={upload.preview}
-                          alt={`Vehicle photo ${index + 1}`}
-                          className="h-40 w-full object-cover rounded-md"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => removePhoto(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </FormItem>
-            )}
-          />
-        </CardContent>
-      </Card>
+                  <path
+                    fillRule="evenodd"
+                    d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      <input type="hidden" {...register("vehiclePhotos")} />
     </div>
   );
 };

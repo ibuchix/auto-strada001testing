@@ -1,168 +1,167 @@
-
 /**
- * DamagePhotosSection Component
- * Created: 2025-06-16
- * 
- * Section for uploading damage photos
+ * Damage Photos Section
+ * Created: 2025-04-12
+ * Updated: 2025-05-03 - Added image validation and upload progress
  */
 
-import { useState, useEffect } from "react";
-import { useFormData } from "../context/FormDataContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Upload, X } from "lucide-react";
-import { useDropzone } from "react-dropzone";
-import { tempFileStorage } from "@/services/temp-storage/tempFileStorageService";
-import { toast } from "sonner";
+import React, { useState, useCallback, useEffect } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { useFormContext } from 'react-hook-form';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FileImage, Upload, X } from 'lucide-react';
+import { CarListingFormData } from '@/types/forms';
+import { tempFileStorageService } from '@/services/supabase/tempFileStorageService';
 
-export const DamagePhotosSection = () => {
-  const { form } = useFormData();
-  const [damagePhotos, setDamagePhotos] = useState<{ id: string, preview: string }[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  
-  const isDamaged = form.watch("isDamaged");
-  
-  // Don't show section if vehicle is not damaged
-  if (!isDamaged) return null;
-  
-  // Setup dropzone for damage photos
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: {
-      "image/jpeg": [],
-      "image/png": []
-    },
-    maxFiles: 10,
-    maxSize: 5 * 1024 * 1024, // 5MB
-    onDrop: async (acceptedFiles, rejectedFiles) => {
-      if (rejectedFiles.length > 0) {
-        toast.error("Some files were rejected", {
-          description: "Files must be images under 5MB"
-        });
-      }
+interface DamagePhotosSectionProps {
+  sectionKey: string;
+}
 
-      if (acceptedFiles.length > 0) {
-        setIsUploading(true);
-        
-        try {
-          const newPhotos = [];
-          
-          for (const file of acceptedFiles) {
-            // Store in temporary storage
-            const storedFile = await tempFileStorage.addFile(file, "damage_photos");
-            
-            // Add to local state
-            newPhotos.push({
-              id: storedFile.id,
-              preview: storedFile.url
-            });
-          }
-          
-          // Update local state
-          setDamagePhotos(prev => [...prev, ...newPhotos]);
-          
-          // Update form state - we just need URLs for now
-          const existingPhotos = form.getValues("damagePhotos") || [];
-          form.setValue("damagePhotos", [
-            ...existingPhotos,
-            ...newPhotos.map(p => p.preview)
-          ]);
-          
-          toast.success(`${acceptedFiles.length} damage photo(s) uploaded`);
-        } catch (error) {
-          console.error("Error uploading damage photos:", error);
-          toast.error("Failed to upload damage photos");
-        } finally {
-          setIsUploading(false);
-        }
-      }
+export const DamagePhotosSection: React.FC<DamagePhotosSectionProps> = ({ sectionKey }) => {
+  const { register, setValue, watch } = useFormContext<CarListingFormData>();
+  const [uploading, setUploading] = useState(false);
+  const damagePhotos = watch('damagePhotos') || [];
+  
+  // Initialize damagePhotos if it's null or undefined
+  useEffect(() => {
+    if (!damagePhotos) {
+      setValue('damagePhotos', []);
     }
+  }, [damagePhotos, setValue]);
+  
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (!acceptedFiles?.length) return;
+    
+    // Validate file types and sizes
+    const validFiles = acceptedFiles.filter(file => {
+      if (!file.type.startsWith('image/')) {
+        alert(`File ${file.name} is not an image`);
+        return false;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`File ${file.name} is too large (max 5MB)`);
+        return false;
+      }
+      return true;
+    });
+    
+    if (!validFiles.length) return;
+    
+    // Upload each valid file
+    for (const file of validFiles) {
+      await handleAddImage(file);
+    }
+  }, [handleAddImage]);
+  
+  const {getRootProps, getInputProps, isDragActive} = useDropzone({
+    onDrop,
+    accept: 'image/*',
+    maxSize: 5 * 1024 * 1024, // 5MB
+    multiple: true
   });
   
-  // Remove a damage photo
-  const removePhoto = (index: number) => {
-    const updatedPhotos = [...damagePhotos];
-    const photoToRemove = updatedPhotos[index];
+  const handleAddImage = async (file: File) => {
+    if (!file) return;
     
-    // Remove from temp storage
-    tempFileStorage.removeFile(photoToRemove.id);
-    
-    // Remove from state
-    updatedPhotos.splice(index, 1);
-    setDamagePhotos(updatedPhotos);
-    
-    // Update form values
-    const currentPhotos = form.getValues("damagePhotos") || [];
-    currentPhotos.splice(index, 1);
-    form.setValue("damagePhotos", currentPhotos);
-    
-    toast.info("Damage photo removed");
+    try {
+      setUploading(true);
+      
+      // This should now work with the updated tempFileStorageService
+      const uploadedFile = await tempFileStorageService.addFile(file);
+      
+      setValue('damagePhotos', [...damagePhotos, uploadedFile.id]);
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setUploading(false);
+    }
   };
   
-  // Cleanup previews on unmount
-  useEffect(() => {
-    return () => {
-      damagePhotos.forEach(photo => {
-        URL.revokeObjectURL(photo.preview);
-      });
-    };
-  }, []);
+  const handleRemoveImage = (imageId: string) => {
+    // This should now work with the updated tempFileStorageService
+    tempFileStorageService.removeFile(imageId);
+    setValue(
+      'damagePhotos',
+      damagePhotos.filter((id) => id !== imageId)
+    );
+  };
   
   return (
-    <Card className="mt-6">
-      <CardHeader>
-        <CardTitle>Damage Photos</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div
-          {...getRootProps()}
-          className={`border-2 border-dashed rounded-md p-8 text-center cursor-pointer ${
-            isDragActive ? "border-primary bg-primary/10" : "border-gray-300"
-          }`}
-        >
-          <input {...getInputProps()} />
-          <div className="flex flex-col items-center gap-2">
-            <Upload className="h-8 w-8 text-gray-400" />
-            {isDragActive ? (
-              <p>Drop the photos here...</p>
-            ) : (
-              <p>Drag and drop damage photos here, or click to select files</p>
-            )}
-            <p className="text-sm text-gray-500">
-              Upload clear photos of any damage to your vehicle
-            </p>
-          </div>
+    <div className="space-y-4">
+      <Label htmlFor={`${sectionKey}-damagePhotos`}>
+        Damage Photos
+      </Label>
+      
+      <div 
+        {...getRootProps()} 
+        className={`
+          relative border-2 border-dashed rounded-md p-6 cursor-pointer
+          ${isDragActive ? 'border-primary' : 'border-gray-300'}
+        `}
+      >
+        <input {...getInputProps()} id={`${sectionKey}-damagePhotos`} />
+        
+        <div className="text-center">
+          <Upload className="mx-auto h-6 w-6 text-gray-500 mb-2" />
+          <p className="text-sm text-gray-500">
+            {isDragActive ? "Drop the files here..." : "Drag 'n' drop some files here, or click to select files"}
+          </p>
+          <p className="text-xs text-gray-500">
+            (Only images *.jpeg, *.png, *.gif and max size of 5MB will be accepted)
+          </p>
         </div>
         
-        {isUploading && (
-          <div className="flex items-center justify-center p-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            <span className="ml-2">Uploading...</span>
+        {uploading && (
+          <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-md">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <p className="text-sm text-gray-500">Uploading...</p>
+            </div>
           </div>
         )}
-        
-        {damagePhotos.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
-            {damagePhotos.map((photo, index) => (
-              <div key={photo.id} className="relative group">
-                <img
-                  src={photo.preview}
-                  alt={`Damage photo ${index + 1}`}
-                  className="h-32 w-full object-cover rounded-md"
+      </div>
+      
+      {damagePhotos.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          {damagePhotos.map((imageId) => {
+            const file = tempFileStorageService.getFile(imageId);
+            
+            return file ? (
+              <div key={imageId} className="relative">
+                <img 
+                  src={file.url} 
+                  alt={file.name} 
+                  className="rounded-md object-cover aspect-square" 
                 />
                 <Button
-                  type="button"
-                  variant="destructive"
+                  variant="ghost"
                   size="icon"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => removePhoto(index)}
+                  className="absolute top-2 right-2 bg-black/20 hover:bg-black/40 text-white"
+                  onClick={() => handleRemoveImage(imageId)}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            ) : (
+              <Alert variant="destructive">
+                <FileImage className="h-4 w-4" />
+                <AlertDescription>
+                  Could not load image
+                </AlertDescription>
+              </Alert>
+            );
+          })}
+        </div>
+      )}
+      
+      <Input
+        type="hidden"
+        id={`${sectionKey}-damagePhotos`}
+        {...register('damagePhotos')}
+      />
+    </div>
   );
 };
