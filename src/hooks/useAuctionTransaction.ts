@@ -20,11 +20,14 @@ export const useAuctionTransaction = () => {
     operation: () => Promise<any>,
     options: any = {}
   ) => {
-    return transaction.executeTransaction(name, operation, {
-      ...options,
-      // Set the transaction type to AUCTION by default
-      type: TransactionType.AUCTION // Now correctly passed as a value, not an enum reference
-    });
+    return transaction.executeTransaction(
+      name, 
+      TransactionType.AUCTION, // The transaction type as second parameter
+      operation, // The operation function as third parameter
+      {
+        ...options,
+      }
+    );
   };
   
   return {
