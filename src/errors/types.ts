@@ -3,6 +3,7 @@
  * Error types definitions
  * Created: 2025-07-02
  * Updated: 2025-07-10 - Added missing enum values and AppErrorOptions interface
+ * Updated: 2025-07-12 - Added more error codes needed by the application
  */
 
 export enum ErrorCode {
@@ -24,6 +25,8 @@ export enum ErrorCode {
   OPERATION_FAILED = 'operation_failed',
   INVALID_OPERATION = 'invalid_operation',
   SUBMISSION_ERROR = 'submission_error',
+  INCOMPLETE_FORM = 'incomplete_form',
+  FILE_UPLOAD_ERROR = 'file_upload_error',
   
   // Server errors
   SERVER_ERROR = 'server_error',

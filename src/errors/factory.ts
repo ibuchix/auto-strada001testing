@@ -2,15 +2,14 @@
 /**
  * Error factory functions
  * Created: 2025-07-10
+ * Updated: 2025-07-12 - Added createErrorFromUnknown function
  */
 
 import { 
   AppError, 
   ValidationError, 
   NetworkError, 
-  AuthenticationError, 
-  BusinessError,
-  AuthorizationError
+  AuthenticationError
 } from './classes';
 
 import { 
@@ -178,6 +177,29 @@ export function createTimeoutError(
   };
   
   return error;
+}
+
+/**
+ * Create an error from an unknown source
+ */
+export function createErrorFromUnknown(error: unknown): AppError {
+  if (error instanceof AppError) {
+    return error;
+  }
+  
+  if (error instanceof Error) {
+    return new AppError({
+      message: error.message,
+      code: ErrorCode.UNKNOWN_ERROR,
+      category: ErrorCategory.UNKNOWN
+    });
+  }
+  
+  return new AppError({
+    message: String(error),
+    code: ErrorCode.UNKNOWN_ERROR,
+    category: ErrorCategory.UNKNOWN
+  });
 }
 
 /**

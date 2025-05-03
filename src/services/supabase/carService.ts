@@ -2,6 +2,7 @@
 /**
  * Car Service for handling car listing operations
  * Created: 2025-07-10
+ * Updated: 2025-07-12 - Fixed exports and added required functions
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -71,3 +72,12 @@ const transformCarDataForStorage = (carData: Partial<CarListingFormData>) => {
     // Add any transformations here
   };
 };
+
+// Create a service object for exports
+const carService = {
+  saveCarListing,
+  updateCarListing
+};
+
+export { carService };
+export default carService;

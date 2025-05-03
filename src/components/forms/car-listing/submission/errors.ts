@@ -1,32 +1,46 @@
 
 /**
- * Custom Error Classes
- * Created: 2025-05-03
- * Updated: 2025-07-02 - Added SubmissionError class
+ * Form submission errors
+ * Created: 2025-07-12
  */
 
-import { ErrorCode, ErrorDetails } from "@/errors/types";
+import { AppError } from '@/errors/classes';
+import { ErrorCode, ErrorCategory, ErrorSeverity } from '@/errors/types';
 
-export class ValidationError extends Error {
-  code: ErrorCode;
-  description: string;
-  
-  constructor({ code, message, description = '' }: ErrorDetails) {
-    super(message);
-    this.name = 'ValidationError';
-    this.code = code;
-    this.description = description;
+export class SubmissionError extends AppError {
+  constructor(message: string, code: ErrorCode = ErrorCode.SUBMISSION_ERROR) {
+    super({
+      message,
+      code,
+      category: ErrorCategory.BUSINESS,
+      severity: ErrorSeverity.ERROR
+    });
   }
 }
 
-export class SubmissionError extends Error {
-  code: ErrorCode;
-  description: string;
-  
-  constructor(message: string, { code = ErrorCode.SUBMISSION_ERROR, description = '' }: Partial<ErrorDetails> = {}) {
-    super(message);
-    this.name = 'SubmissionError';
-    this.code = code;
-    this.description = description;
+export class ValidationSubmissionError extends SubmissionError {
+  constructor(message: string) {
+    super(message, ErrorCode.VALIDATION_ERROR);
+    this.category = ErrorCategory.VALIDATION;
+  }
+}
+
+export class NetworkSubmissionError extends SubmissionError {
+  constructor(message: string) {
+    super(message, ErrorCode.NETWORK_ERROR);
+    this.category = ErrorCategory.NETWORK;
+  }
+}
+
+export class FileUploadError extends SubmissionError {
+  constructor(message: string) {
+    super(message, ErrorCode.FILE_UPLOAD_ERROR);
+  }
+}
+
+export class FormIncompleteError extends SubmissionError {
+  constructor(message: string = 'Please complete all required fields before submitting') {
+    super(message, ErrorCode.INCOMPLETE_FORM);
+    this.category = ErrorCategory.VALIDATION;
   }
 }

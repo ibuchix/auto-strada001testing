@@ -2,6 +2,7 @@
 /**
  * Temporary File Storage Service
  * Created: 2025-07-10
+ * Updated: 2025-07-12 - Added missing methods and session timer functionality
  */
 
 import { v4 as uuidv4 } from "uuid";
@@ -19,6 +20,8 @@ interface StoredFile {
  */
 class TempFileStorageService {
   private files: Map<string, StoredFile> = new Map();
+  private sessionStartTime: Date = new Date();
+  private sessionDuration: number = 60; // 60 minutes default
 
   /**
    * Add a file to temporary storage
@@ -93,6 +96,30 @@ class TempFileStorageService {
       URL.revokeObjectURL(file.url);
     }
     this.files.clear();
+  }
+
+  /**
+   * Get the remaining session time in minutes
+   */
+  getRemainingSessionTime(): number {
+    const now = new Date();
+    const elapsedMinutes = (now.getTime() - this.sessionStartTime.getTime()) / (1000 * 60);
+    const remainingMinutes = Math.max(0, this.sessionDuration - elapsedMinutes);
+    return Math.floor(remainingMinutes);
+  }
+
+  /**
+   * Reset the session timer
+   */
+  resetSessionTimer(): void {
+    this.sessionStartTime = new Date();
+  }
+
+  /**
+   * Set the session duration in minutes
+   */
+  setSessionDuration(minutes: number): void {
+    this.sessionDuration = minutes;
   }
 }
 
