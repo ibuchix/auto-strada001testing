@@ -1,100 +1,84 @@
 
 /**
  * Error Dialog Component
- * Created: 2025-05-12
- * Purpose: Display errors in a dialog format with recovery options
+ * Created: 2025-05-03
+ * Purpose: Display error messages in a dialog for better user experience
  */
 
-import React from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
-import { AppError } from '@/errors/classes';
+import React from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { AppError } from "@/errors/classes";
+import { AlertCircle } from "lucide-react";
 
 interface ErrorDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  error: Error | AppError | null;
+  error: AppError | Error | null;
+  open: boolean;
+  setOpen: (open: boolean) => void;
   title?: string;
-  description?: string;
-  showRetry?: boolean;
   onRetry?: () => void;
-  showReport?: boolean;
-  onReport?: () => void;
+  onClose?: () => void;
 }
 
 export const ErrorDialog: React.FC<ErrorDialogProps> = ({
-  isOpen,
-  onClose,
   error,
+  open,
+  setOpen,
   title = "An error occurred",
-  description,
-  showRetry = true,
   onRetry,
-  showReport = false,
-  onReport
+  onClose,
 }) => {
-  // Determine error message and description based on error object
-  const errorMessage = error instanceof Error ? error.message : (error?.toString() || "Unknown error");
-  const errorDescription = description || (error instanceof AppError ? error.description : "Please try again or contact support if the problem persists.");
-  
-  // Determine if error has recovery options
-  const hasRecovery = error instanceof AppError && error.recovery;
-  
+  const handleClose = () => {
+    setOpen(false);
+    if (onClose) onClose();
+  };
+
+  if (!error) return null;
+
+  // Extract details from the error
+  const errorMessage = error instanceof Error ? error.message : "Unknown error";
+  const errorDetails = error instanceof AppError ? error.description : undefined;
+  const errorCode = error instanceof AppError ? error.code : undefined;
+
+  // For any error, ensure it can be safely converted to string
+  const errorStack = error instanceof Error && error.stack ? 
+    error.stack.toString() : 
+    "No stack trace available";
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-500" />
-            {title}
-          </DialogTitle>
-          <DialogDescription className="text-red-500 font-medium">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            <DialogTitle>{title}</DialogTitle>
+          </div>
+          <DialogDescription className="pt-2 text-base">
             {errorMessage}
           </DialogDescription>
         </DialogHeader>
-        
-        <div className="text-sm text-gray-600 mt-2">
-          {errorDescription}
-        </div>
-        
-        <DialogFooter className="gap-2 sm:gap-0">
-          {hasRecovery && error instanceof AppError && error.recovery && (
-            <Button 
-              variant="default" 
-              onClick={() => {
-                if (error.recovery?.handler) {
-                  error.recovery.handler();
-                }
-                onClose();
-              }}
-            >
-              {error.recovery.label}
-            </Button>
-          )}
-          
-          {showRetry && onRetry && (
-            <Button variant="outline" onClick={onRetry}>
-              Try Again
-            </Button>
-          )}
-          
-          {showReport && onReport && (
-            <Button variant="outline" onClick={onReport}>
-              Report Issue
-            </Button>
-          )}
-          
-          <Button variant="ghost" onClick={onClose}>
+
+        {errorDetails && (
+          <div className="text-sm text-muted-foreground">
+            {errorDetails}
+          </div>
+        )}
+
+        {errorCode && (
+          <div className="text-xs text-muted-foreground">
+            Error code: {errorCode}
+          </div>
+        )}
+
+        <DialogFooter className="sm:justify-between">
+          <Button variant="outline" onClick={handleClose}>
             Close
           </Button>
+          {onRetry && (
+            <Button onClick={onRetry}>
+              Retry
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

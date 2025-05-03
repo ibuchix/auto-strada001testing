@@ -3,6 +3,7 @@
  * Hook for retrieving vehicle valuations
  * Created: 2025-05-12
  * Purpose: Centralized hook for valuation API access
+ * Updated: 2025-05-03 - Fixed type conversion between ValidationError and AppError
  */
 
 import { useState } from 'react';
@@ -26,14 +27,26 @@ export const useValuation = (options: ValuationOptions = {}) => {
   const getValuation = async (vin: string, mileage: number): Promise<ValuationResult> => {
     if (!vin) {
       const vinError = new ValidationError("VIN is required for valuation");
-      setError(vinError);
-      throw vinError;
+      // Convert ValidationError to AppError
+      const appError = new AppError({
+        message: vinError.message,
+        code: vinError.code || ErrorCode.VALIDATION_ERROR,
+        category: vinError.category || ErrorCategory.VALIDATION
+      });
+      setError(appError);
+      throw appError;
     }
 
     if (!mileage && mileage !== 0) {
       const mileageError = new ValidationError("Mileage is required for valuation");
-      setError(mileageError);
-      throw mileageError;
+      // Convert ValidationError to AppError
+      const appError = new AppError({
+        message: mileageError.message,
+        code: mileageError.code || ErrorCode.VALIDATION_ERROR,
+        category: mileageError.category || ErrorCategory.VALIDATION
+      });
+      setError(appError);
+      throw appError;
     }
 
     setIsLoading(true);

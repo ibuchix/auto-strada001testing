@@ -5,6 +5,7 @@
  * - Removed diagnostic dependencies
  * - Fixed TypeScript compatibility issues with executeTransaction parameters
  * - Updated: 2025-05-12 - Fixed import to use useTransaction instead of non-existent useCreateTransaction
+ * - Updated: 2025-05-03 - Fixed type error with TransactionType usage
  */
 import { useTransaction } from "./useTransaction";
 import { TransactionType } from "@/services/supabase/transactions/types";
@@ -21,7 +22,7 @@ export const useAuctionTransaction = () => {
     return transaction.executeTransaction(name, TransactionType.AUCTION, operation, {
       ...options,
       // Set the transaction type to AUCTION by default
-      type: TransactionType.AUCTION
+      type: TransactionType.AUCTION // Now correctly passed as a single value, not a reference to the enum again
     });
   };
   
