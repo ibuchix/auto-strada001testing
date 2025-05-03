@@ -5,6 +5,7 @@
  * - 2024-08-14: Updated to work with the new error architecture
  * - 2024-08-15: Enhanced recovery paths and UI feedback patterns
  * - 2025-04-05: Fixed TypeScript errors with error handling
+ * - 2025-07-01: Fixed RecoveryType enum references
  */
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

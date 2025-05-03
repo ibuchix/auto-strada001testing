@@ -1,8 +1,10 @@
+
 /**
  * ErrorBanner component for displaying errors at the top of pages
  * Created: 2025-04-05
  * Updated: 2025-06-16 - Fixed error code comparison
  * Updated: 2025-06-18 - Fixed ErrorCode import
+ * Updated: 2025-07-01 - Fixed RecoveryAction usage as enum
  */
 
 import React from 'react';
@@ -11,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { XCircle } from 'lucide-react';
 import { AppError } from '@/errors/classes';
 import { useNavigate } from 'react-router-dom';
-import { RecoveryAction, ErrorCode } from '@/errors/types';
+import { RecoveryAction, ErrorCode, ErrorCategory } from '@/errors/types';
 
 interface ErrorBannerProps {
   error: AppError | null;
@@ -43,7 +45,7 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({
       onRetry();
     } else if (error.recovery.action === RecoveryAction.REFRESH) {
       window.location.reload();
-    } else if (error.recovery.action === RecoveryAction.AUTHENTICATE) {
+    } else if (error.recovery.action === RecoveryAction.SIGN_IN) {
       navigate('/auth');
     } else if (error.recovery.action === RecoveryAction.CONTACT_SUPPORT) {
       window.open('mailto:support@autostrada.com', '_blank');
@@ -95,23 +97,22 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({
 
 // Helper function to get a user-friendly error title
 function getErrorTitle(error: AppError): string {
-  switch (error.category) {
-    case 'validation':
-      return 'Validation Error';
-    case 'network':
-      return 'Network Connection Issue';
-    case 'authentication':
-      return 'Authentication Required';
-    case 'authorization':
-      return 'Access Denied';
-    case 'server':
-      return 'Server Error';
-    case 'business':
-      if (error.code === ErrorCode.SUBMISSION_ERROR && error.metadata?.type === 'valuation_error') {
-        return 'Valuation Error';
-      }
-      return 'Operation Failed';
-    default:
-      return 'Error Occurred';
+  if (error.category === ErrorCategory.VALIDATION) {
+    return 'Validation Error';
+  } else if (error.category === ErrorCategory.NETWORK) {
+    return 'Network Connection Issue';
+  } else if (error.category === ErrorCategory.AUTHENTICATION) {
+    return 'Authentication Required';
+  } else if (error.category === ErrorCategory.AUTHORIZATION) {
+    return 'Access Denied';
+  } else if (error.category === ErrorCategory.SERVER) {
+    return 'Server Error';
+  } else if (error.category === ErrorCategory.BUSINESS) {
+    if (error.code === ErrorCode.SUBMISSION_ERROR && error.metadata?.type === 'valuation_error') {
+      return 'Valuation Error';
+    }
+    return 'Operation Failed';
+  } else {
+    return 'Error Occurred';
   }
 }

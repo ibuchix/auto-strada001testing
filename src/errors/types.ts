@@ -3,6 +3,7 @@
  * Error Types
  * Created: 2025-06-22 - Added missing error codes
  * Updated: 2025-06-23 - Fixed RecoveryAction and ErrorRecovery types
+ * Updated: 2025-07-01 - Fixed RecoveryAction export issue and enum references
  */
 
 export enum ErrorCode {
@@ -75,8 +76,19 @@ export enum RecoveryType {
   NAVIGATE = 'navigate',
 }
 
-// Recovery action as a function type
-export type RecoveryAction = RecoveryType;
+// Recovery action as enum - making it a concrete enum instead of just a type
+export enum RecoveryAction {
+  RETRY = 'retry',
+  REDIRECT = 'redirect',
+  REFRESH = 'refresh',
+  CONTACT_SUPPORT = 'contact_support',
+  FORM_RETRY = 'form_retry',
+  MANUAL_ACTION = 'manual_action',
+  FIELD_CORRECTION = 'field_correction',
+  SIGN_IN = 'sign_in',
+  NAVIGATE = 'navigate',
+  AUTHENTICATE = 'authenticate'
+}
 
 // Enhanced ErrorRecovery interface with all required properties
 export interface ErrorRecovery {

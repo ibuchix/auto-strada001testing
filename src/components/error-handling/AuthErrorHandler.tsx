@@ -6,6 +6,7 @@
  * - 2024-08-15: Updated with consistent recovery paths and UI patterns
  * - 2025-04-05: Fixed TypeScript type issues
  * - 2025-06-16: Fixed import and removed AuthenticationError
+ * - 2025-07-01: Fixed handler property access
  */
 
 import { useNavigate } from "react-router-dom";

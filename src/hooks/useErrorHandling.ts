@@ -1,3 +1,4 @@
+
 /**
  * Hook for handling application errors in React components
  * Created: 2025-12-01
@@ -6,6 +7,7 @@
  * Updated: 2026-05-10: Enhanced error categorization and improved recovery options
  * Updated: 2025-04-06: Fixed read-only property issues and type assignments
  * Updated: 2025-04-07: Fixed captureError method usage
+ * Updated: 2025-07-01: Fixed AppError type extensions
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -96,37 +98,43 @@ export function useErrorHandling(options: ErrorHandlingOptions = {}) {
         appError = new AppError({
           code: ErrorCode.UNKNOWN_ERROR,
           message: errorToHandle instanceof Error ? errorToHandle.message : 'An unknown error occurred',
-          category: ErrorCategory.UNKNOWN,
-          retryable: true
+          category: ErrorCategory.UNKNOWN
         });
       }
       
       // Create a new error with enhanced recovery options based on error count
       let enhancedError = appError;
-      if (errorCount > 2 && appError.retryable) {
+      if (errorCount > 2) {
         // After multiple retries, suggest more drastic recovery options
         if (!appError.recovery || appError.recovery.type === RecoveryType.FORM_RETRY) {
           if (appError.category === ErrorCategory.NETWORK) {
-            enhancedError = appError.withRecovery({
-              type: RecoveryType.REFRESH,
-              label: 'Refresh Page',
-              action: RecoveryType.REFRESH,
-              handler: () => window.location.reload()
-            });
+            enhancedError = {
+              ...appError,
+              recovery: {
+                type: RecoveryType.REFRESH,
+                label: 'Refresh Page',
+                action: RecoveryType.REFRESH,
+                handler: () => window.location.reload()
+              }
+            };
           } else if (appError.category === ErrorCategory.VALIDATION) {
             // For validation errors, create a new error with updated description
-            enhancedError = appError.withDescription(
-              `${appError.description || ''} Try checking all required fields.`
-            );
+            enhancedError = {
+              ...appError,
+              description: `${appError.description || ''} Try checking all required fields.`
+            };
           } else {
-            enhancedError = appError.withRecovery({
-              type: RecoveryType.CONTACT_SUPPORT,
-              label: 'Contact Support',
-              action: RecoveryType.CONTACT_SUPPORT,
-              handler: () => {
-                window.location.href = 'mailto:support@autostrada.com?subject=Error%20in%20application';
+            enhancedError = {
+              ...appError,
+              recovery: {
+                type: RecoveryType.CONTACT_SUPPORT,
+                label: 'Contact Support',
+                action: RecoveryType.CONTACT_SUPPORT,
+                handler: () => {
+                  window.location.href = 'mailto:support@autostrada.com?subject=Error%20in%20application';
+                }
               }
-            });
+            };
           }
         }
       }

@@ -2,12 +2,13 @@
 /**
  * Transaction status indicator component with appropriate status visuals
  * - 2025-06-23: Fixed TransactionStatus import and usage
+ * - 2025-07-01: Fixed TransactionStatus enum comparisons
  */
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { TransactionStatus } from "@/services/supabase/transactions/types";
 
 export interface TransactionStatusIndicatorProps {
-  status: TransactionStatus;
+  status: TransactionStatus | null;
   className?: string;
 }
 

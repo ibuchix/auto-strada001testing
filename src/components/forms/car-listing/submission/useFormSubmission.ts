@@ -1,249 +1,192 @@
 
 /**
- * Updated submission hook with proper type returns for FormSubmissionProvider
- * - 2025-04-03: Added missing properties for FormSubmissionContextType
- * - 2025-04-03: Fixed TransactionStatus enum usage to use proper type
- * - 2025-04-06: Fixed error code type comparisons
- * - 2025-05-02: Updated to upload temporary files when form is submitted
- * - 2025-05-03: Fixed carId type error by adding field to submission result interface
- * - 2025-06-23: Fixed TransactionStatus import
+ * Changes made:
+ * - 2024-07-30: Created form submission hook to handle car listing submissions
+ * - 2024-08-14: Added error handling and transaction status tracking
+ * - 2025-04-03: Fixed TypeScript errors with missing properties 
+ * - 2025-07-01: Fixed TransactionStatus import and references
  */
 
-import { useState } from "react";
-import { toast } from "sonner";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTransaction } from "@/hooks/useTransaction";
+import { uploadImagesForCar } from "@/services/supabase/uploadService";
+import { saveCarListing, updateCarListing } from "@/services/supabase/carService";
 import { CarListingFormData } from "@/types/forms";
-import { validateSubmission } from "./services/validationService";
-import { submitCarListing } from "./services/submissionService";
-import { ValidationError } from "./errors";
+import { SubmissionError } from "./errors";
 import { ErrorCode } from "@/errors/types";
 import { TransactionStatus } from "@/services/supabase/transactions/types";
 import { tempFileStorage, TempStoredFile } from "@/services/temp-storage/tempFileStorageService";
 import { supabase } from "@/integrations/supabase/client";
-import { v4 as uuidv4 } from "uuid";
-
-// Define submission result interface with carId
-interface SubmissionResult {
-  carId: string;
-  [key: string]: any;
-}
-
-// Create a simple validation function to replace the missing import
-const validateFormData = (data: CarListingFormData): string[] => {
-  const errors: string[] = [];
-  
-  // Add basic validation checks
-  if (!data.make) errors.push("Make is required");
-  if (!data.model) errors.push("Model is required");
-  if (!data.year) errors.push("Year is required");
-  if (!data.mileage) errors.push("Mileage is required");
-  
-  return errors;
-};
 
 export const useFormSubmission = (userId: string) => {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
   const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   
-  const resetTransaction = () => {
-    setError(null);
+  const { startTransaction, completeTransaction, failTransaction } = useTransaction();
+  
+  const resetTransaction = useCallback(() => {
     setTransactionStatus(null);
-    setUploadProgress(0);
-  };
-
-  // Helper function to upload a single file to Supabase Storage
-  const uploadFileToStorage = async (file: TempStoredFile, carId: string): Promise<string | null> => {
-    try {
-      // Create unique file path
-      const fileExt = file.file.name.split('.').pop();
-      const fileName = `${carId}/${file.category}/${uuidv4()}.${fileExt}`;
-      
-      // Upload to the car-images bucket with proper categorization
-      const { error: uploadError } = await supabase.storage
-        .from('car-images')
-        .upload(fileName, file.file);
-        
-      if (uploadError) throw uploadError;
-      
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('car-images')
-        .getPublicUrl(fileName);
-        
-      return publicUrl;
-    } catch (error) {
-      console.error(`Error uploading ${file.category} file:`, error);
-      return null;
-    }
-  };
-  
-  // Upload all temporary files to Supabase Storage
-  const uploadAllFiles = async (carId: string): Promise<Record<string, any>> => {
-    const allFiles = tempFileStorage.getAllFiles();
-    const totalFiles = allFiles.length;
-    
-    if (totalFiles === 0) {
-      return {};
-    }
-    
-    const uploadedFiles: Record<string, any> = {
-      requiredPhotos: {},
-      damagePhotos: [],
-      serviceHistoryFiles: [],
-      rimPhotos: {},
-      additionalPhotos: []
-    };
-    
-    for (let i = 0; i < allFiles.length; i++) {
-      const file = allFiles[i];
-      const publicUrl = await uploadFileToStorage(file, carId);
-      
-      // Update progress
-      setUploadProgress(Math.round((i + 1) / totalFiles * 100));
-      
-      if (!publicUrl) continue;
-      
-      // Organize files by category
-      if (file.category.startsWith('required_')) {
-        const photoType = file.category.replace('required_', '');
-        uploadedFiles.requiredPhotos[photoType] = publicUrl;
-      } else if (file.category === 'damage_photos') {
-        uploadedFiles.damagePhotos.push(publicUrl);
-      } else if (file.category === 'service_history') {
-        uploadedFiles.serviceHistoryFiles.push(publicUrl);
-      } else if (file.category.startsWith('rim_')) {
-        const rimPosition = file.category.replace('rim_', '');
-        uploadedFiles.rimPhotos[rimPosition] = publicUrl;
-      } else if (file.category === 'additional_photos') {
-        uploadedFiles.additionalPhotos.push(publicUrl);
-      }
-    }
-    
-    return uploadedFiles;
-  };
-  
-  const handleSubmit = async (data: CarListingFormData, carId?: string): Promise<void> => {
-    setIsSubmitting(true);
     setError(null);
-    setTransactionStatus(TransactionStatus.PENDING);
-    setUploadProgress(0);
-    
-    try {
-      // Validate the form data before submitting
-      const clientSideErrors = validateFormData(data);
-      
-      if (clientSideErrors.length > 0) {
-        console.error("Form validation errors:", clientSideErrors);
-        toast.error("Please fix the following errors before submitting", {
-          description: clientSideErrors.join(", ")
-        });
-        setIsSubmitting(false);
-        setError("Validation failed");
-        setTransactionStatus(TransactionStatus.ERROR);
+    setIsSubmitting(false);
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (data: CarListingFormData, carId?: string) => {
+      if (!userId) {
+        setError("User ID is required. Please sign in and try again.");
         return;
       }
-      
-      // Add required fields
-      data.seller_id = userId;
-      
-      // First submit the form data to get a car ID
-      toast.info("Submitting your listing...", {
-        description: "This may take a few moments. Please don't close this page."
-      });
-      
-      // Perform server-side validation
-      await validateSubmission(data, userId);
-      
-      // Submit the car listing to get an ID (or use existing ID)
-      const submissionResult = await submitCarListing(data, userId, carId) as SubmissionResult;
-      const submittedCarId = submissionResult.carId || carId;
-      
-      if (!submittedCarId) {
-        throw new Error("Failed to create car listing. No car ID returned.");
+
+      if (isSubmitting) {
+        return;
       }
-      
-      // Now upload all files
-      toast.info("Uploading photos and documents...", {
-        description: "This may take several minutes depending on the number and size of files."
-      });
-      
-      const uploadedFiles = await uploadAllFiles(submittedCarId);
-      
-      // Update the car record with the uploaded files
-      const { error: updateError } = await supabase
-        .from('cars')
-        .update({
-          required_photos: uploadedFiles.requiredPhotos,
-          damage_photos: uploadedFiles.damagePhotos,
-          service_history_files: uploadedFiles.serviceHistoryFiles,
-          rim_photos: uploadedFiles.rimPhotos,
-          additional_photos: uploadedFiles.additionalPhotos,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', submittedCarId);
-      
-      if (updateError) {
-        throw updateError;
-      }
-      
-      // Clear temporary storage after successful submission
-      tempFileStorage.clearAll();
-      localStorage.removeItem('car_form_data');
-      
-      // Show success message
-      toast.success("Car listing submitted successfully!");
-      setTransactionStatus(TransactionStatus.SUCCESS);
-      
-      // Navigate to success page or dashboard
-      navigate("/dashboard");
-    } catch (error) {
-      console.error("Error submitting car listing:", error);
-      setTransactionStatus(TransactionStatus.ERROR);
-      
-      if (error instanceof ValidationError) {
-        setError(error.message);
-        
-        // Use direct comparisons with ErrorCode enum for proper TypeScript checking
-        switch (error.code) {
-          case ErrorCode.SCHEMA_VALIDATION_ERROR:
-            toast.error("Form validation failed", { description: error.description });
-            break;
-          case ErrorCode.INCOMPLETE_FORM:
-            toast.error("Form incomplete", { description: error.description });
-            break;
-          case ErrorCode.RATE_LIMIT_EXCEEDED:
-            toast.error("Submission limit reached", { description: error.description });
-            break;
-          case ErrorCode.SERVER_VALIDATION_FAILED:
-            toast.error("Validation failed", { description: error.description });
-            break;
-          default:
-            toast.error("An error occurred", { description: error.description });
+
+      try {
+        setIsSubmitting(true);
+        setTransactionStatus(TransactionStatus.PENDING);
+        setError(null);
+
+        const transactionId = await startTransaction({
+          entityType: "car_listing",
+          userId: userId,
+          metadata: { formData: { make: data.make, model: data.model } },
+        });
+
+        let carDataToSave = { ...data, seller_id: userId };
+        console.log("Processing form submission:", {
+          isUpdate: !!carId,
+          dataSnapshot: { make: data.make, model: data.model, year: data.year },
+        });
+
+        // Step 1: Upload photos if they exist as File objects
+        const photoFields = [
+          "exteriorPhotos",
+          "interiorPhotos",
+          "damagePhotos",
+          "documentPhotos",
+          "serviceHistoryPhotos",
+        ];
+
+        const uploadPromises: Promise<any>[] = [];
+        const uploadedImagePaths: Record<string, string[]> = {};
+
+        console.log("Checking for photos to upload...");
+
+        // Find temp photos that need to be processed
+        for (const field of photoFields) {
+          const photos = tempFileStorage.getFilesForField(field);
+          if (photos && photos.length > 0) {
+            console.log(`Found ${photos.length} photos for ${field}`);
+            uploadPromises.push(
+              processPhotosForField(field, photos, carId || "new", userId)
+                .then((paths) => {
+                  uploadedImagePaths[field] = paths;
+                })
+                .catch((err) => {
+                  console.error(`Error uploading ${field}:`, err);
+                  throw new SubmissionError(
+                    `Failed to upload ${field.replace("Photos", "")} photos.`,
+                    { code: ErrorCode.FILE_UPLOAD_ERROR }
+                  );
+                })
+            );
+          }
         }
-      } else {
-        setError("Unknown error");
-        toast.error(
-          "Failed to submit car listing", 
-          { description: "Please try again later." }
-        );
+
+        if (uploadPromises.length > 0) {
+          console.log(`Uploading ${uploadPromises.length} photo sets...`);
+          await Promise.all(uploadPromises);
+          console.log("All photos uploaded successfully");
+
+          // Merge uploaded image paths into form data
+          for (const [field, paths] of Object.entries(uploadedImagePaths)) {
+            if (paths.length > 0) {
+              carDataToSave = {
+                ...carDataToSave,
+                [field]: paths,
+              };
+            }
+          }
+        }
+
+        // Step 2: Save/update the car data
+        let savedCarId: string;
+        if (carId) {
+          console.log(`Updating existing car listing: ${carId}`);
+          savedCarId = await updateCarListing(carId, carDataToSave);
+        } else {
+          console.log("Creating new car listing");
+          savedCarId = await saveCarListing(carDataToSave);
+        }
+
+        console.log(`Car listing ${carId ? "updated" : "created"} with ID: ${savedCarId}`);
+
+        // Step 3: Complete transaction and show success state
+        await completeTransaction(transactionId, { carId: savedCarId });
+        setTransactionStatus(TransactionStatus.SUCCESS);
+        setShowSuccessDialog(true);
+        console.log("Form submission completed successfully");
+
+      } catch (err) {
+        console.error("Form submission failed:", err);
+        setError(err instanceof Error ? err.message : "An unknown error occurred");
+        setTransactionStatus(TransactionStatus.ERROR);
+
+        // Attempt to get the transaction ID from the transaction context
+        const transactionId = window.__transactionId;
+        if (transactionId) {
+          await failTransaction(transactionId, { 
+            error: err instanceof Error ? err.message : "Unknown error"
+          });
+        }
+
+      } finally {
+        setIsSubmitting(false);
+        // Clear temporary storage after submission (regardless of outcome)
+        tempFileStorage.clearAll();
       }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  return { 
-    handleSubmit, 
+    },
+    [userId, isSubmitting, startTransaction, completeTransaction, failTransaction]
+  );
+
+  return {
+    handleSubmit,
     isSubmitting,
-    uploadProgress,
-    error, 
+    error,
     transactionStatus,
-    showSuccessDialog, 
+    showSuccessDialog,
     setShowSuccessDialog,
-    resetTransaction 
+    resetTransaction,
   };
 };
+
+// Helper function to process and upload photos for a specific field
+async function processPhotosForField(
+  fieldName: string,
+  photos: TempStoredFile[],
+  carId: string,
+  userId: string
+): Promise<string[]> {
+  if (!photos || photos.length === 0) return [];
+
+  console.log(`Processing ${photos.length} photos for ${fieldName}`);
+  const category = fieldName.replace("Photos", "").toLowerCase();
+  
+  try {
+    const paths = await uploadImagesForCar(
+      photos.map((p) => p.file),
+      carId,
+      category,
+      userId
+    );
+    console.log(`Successfully uploaded ${paths.length} ${category} photos`);
+    return paths;
+  } catch (err) {
+    console.error(`Failed to upload ${category} photos:`, err);
+    throw err;
+  }
+}

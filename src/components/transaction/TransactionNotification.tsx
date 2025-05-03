@@ -1,73 +1,52 @@
 
 /**
- * Notification component for displaying transaction status
- * - 2025-06-15: Fixed TransactionStatus reference issues
- * - 2025-06-23: Fixed TransactionStatus import path
+ * TransactionNotification component for displaying transaction status
+ * Updated: 2025-07-01 - Fixed TransactionStatus import and enum comparisons
  */
 
-import { AlertCircle, CheckCircle, Loader2, XCircle } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { TransactionStateIndicator } from "./TransactionStateIndicator";
 import { TransactionStatus } from "@/services/supabase/transactions/types";
 
 interface TransactionNotificationProps {
-  status: TransactionStatus;
-  message: string;
-  description?: string;
-  onClose?: () => void;
+  status: TransactionStatus | null;
+  message?: string;
 }
 
 export const TransactionNotification = ({
   status,
-  message,
-  description,
-  onClose
+  message = "Transaction"
 }: TransactionNotificationProps) => {
-  // Determine icon and color based on status
-  const getIconAndColor = () => {
+  useEffect(() => {
+    if (!status) return;
+
     if (status === TransactionStatus.PENDING) {
-      return {
-        icon: <Loader2 className="h-4 w-4 animate-spin" />,
-        color: "bg-blue-50 text-blue-800 border-blue-300"
-      };
+      toast(
+        "Processing...",
+        {
+          description: `${message} is being processed...`,
+          duration: 0
+        }
+      );
+    } else if (status === TransactionStatus.SUCCESS) {
+      toast.success(
+        "Success!",
+        {
+          description: `${message} completed successfully.`,
+          duration: 3000
+        }
+      );
+    } else if (status === TransactionStatus.ERROR) {
+      toast.error(
+        "Error!",
+        {
+          description: `${message} could not be completed.`,
+          duration: 5000
+        }
+      );
     }
-    if (status === TransactionStatus.SUCCESS) {
-      return {
-        icon: <CheckCircle className="h-4 w-4" />,
-        color: "bg-green-50 text-green-800 border-green-300"
-      };
-    }
-    if (status === TransactionStatus.ERROR) {
-      return {
-        icon: <AlertCircle className="h-4 w-4" />,
-        color: "bg-red-50 text-red-800 border-red-300"
-      };
-    }
-    return {
-      icon: null,
-      color: "bg-gray-50 text-gray-800 border-gray-300"
-    };
-  };
+  }, [status, message]);
 
-  const { icon, color } = getIconAndColor();
-
-  return (
-    <div 
-      className={`flex items-center gap-x-3 rounded-md border p-3 ${color} mb-4`}
-      role="alert"
-    >
-      {icon && <div className="flex-shrink-0">{icon}</div>}
-      <div className="flex-grow">
-        <p className="font-medium">{message}</p>
-        {description && <p className="text-sm">{description}</p>}
-      </div>
-      {onClose && (
-        <button 
-          onClick={onClose} 
-          className="flex-shrink-0 p-1"
-          aria-label="Close notification"
-        >
-          <XCircle className="h-4 w-4" />
-        </button>
-      )}
-    </div>
-  );
+  return <TransactionStateIndicator status={status} />;
 };

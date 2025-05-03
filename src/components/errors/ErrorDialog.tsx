@@ -4,6 +4,7 @@
  * Created: 2025-04-05
  * Updated: 2025-04-05 - Fixed TypeScript type issues
  * Updated: 2025-06-16 - Fixed error code comparison
+ * Updated: 2025-07-01 - Fixed RecoveryAction usage as enum
  */
 
 import React from 'react';
@@ -50,7 +51,7 @@ export const ErrorDialog: React.FC<ErrorDialogProps> = ({
       onRetry();
     } else if (error.recovery.action === RecoveryAction.REFRESH) {
       window.location.reload();
-    } else if (error.recovery.action === RecoveryAction.AUTHENTICATE) {
+    } else if (error.recovery.action === RecoveryAction.SIGN_IN) {
       navigate('/auth');
     } else if (error.recovery.action === RecoveryAction.CONTACT_SUPPORT) {
       window.open('mailto:support@autostrada.com', '_blank');
@@ -96,8 +97,8 @@ export const ErrorDialog: React.FC<ErrorDialogProps> = ({
             
             {error.recovery && (
               <Button 
-                variant={error.category === 'validation' ? 'outline' : 'default'}
-                className={error.category !== 'validation' ? 'bg-[#DC143C] hover:bg-[#DC143C]/90' : ''}
+                variant={error.category === ErrorCategory.VALIDATION ? 'outline' : 'default'}
+                className={error.category !== ErrorCategory.VALIDATION ? 'bg-[#DC143C] hover:bg-[#DC143C]/90' : ''}
                 onClick={handleRecoveryAction}
               >
                 {error.recovery.label}
@@ -113,12 +114,12 @@ export const ErrorDialog: React.FC<ErrorDialogProps> = ({
 // Helper function to get appropriate icon for the error
 function getErrorIcon(error: AppError) {
   switch (error.category) {
-    case 'network':
+    case ErrorCategory.NETWORK:
       return <WifiOff className="h-5 w-5 text-red-500" />;
-    case 'authentication':
-    case 'authorization':
+    case ErrorCategory.AUTHENTICATION:
+    case ErrorCategory.AUTHORIZATION:
       return <ShieldAlert className="h-5 w-5 text-red-500" />;
-    case 'server':
+    case ErrorCategory.SERVER:
       return <ServerCrash className="h-5 w-5 text-red-500" />;
     default:
       return <AlertTriangle className="h-5 w-5 text-red-500" />;
@@ -127,23 +128,22 @@ function getErrorIcon(error: AppError) {
 
 // Helper function to get a user-friendly error title
 function getErrorTitle(error: AppError): string {
-  switch (error.category) {
-    case 'validation':
-      return 'Validation Error';
-    case 'network':
-      return 'Network Connection Issue';
-    case 'authentication':
-      return 'Authentication Required';
-    case 'authorization':
-      return 'Access Denied';
-    case 'server':
-      return 'Server Error';
-    case 'business':
-      if (error.code === ErrorCode.SUBMISSION_ERROR && error.metadata?.type === 'valuation_error') {
-        return 'Valuation Error';
-      }
-      return 'Operation Failed';
-    default:
-      return 'Error Occurred';
+  if (error.category === ErrorCategory.VALIDATION) {
+    return 'Validation Error';
+  } else if (error.category === ErrorCategory.NETWORK) {
+    return 'Network Connection Issue';
+  } else if (error.category === ErrorCategory.AUTHENTICATION) {
+    return 'Authentication Required';
+  } else if (error.category === ErrorCategory.AUTHORIZATION) {
+    return 'Access Denied';
+  } else if (error.category === ErrorCategory.SERVER) {
+    return 'Server Error';
+  } else if (error.category === ErrorCategory.BUSINESS) {
+    if (error.code === ErrorCode.SUBMISSION_ERROR && error.metadata?.type === 'valuation_error') {
+      return 'Valuation Error';
+    }
+    return 'Operation Failed';
+  } else {
+    return 'Error Occurred';
   }
 }
