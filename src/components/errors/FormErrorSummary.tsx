@@ -4,6 +4,7 @@
  * Created: 2025-04-05
  * Updated: 2025-06-16 - Fixed ValidationError type usage
  * Updated: 2025-07-02 - Fixed type error in ValidationError constructor
+ * Updated: 2025-07-10 - Fixed ValidationError constructor implementation
  */
 
 import React from 'react';
@@ -11,6 +12,7 @@ import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ValidationError } from '@/errors/classes';
+import { ErrorCode, ErrorCategory } from '@/errors/types';
 
 interface ValidationErrorWithField extends ValidationError {
   field?: string;
@@ -41,7 +43,7 @@ export const FormErrorSummary: React.FC<FormErrorSummaryProps> = ({
   const errorArray = Array.isArray(errors) 
     ? errors 
     : Object.entries(errors).map(([field, message]) => {
-        const error = new ValidationError({ message, code: 'validation_error' });
+        const error = new ValidationError(message, ErrorCode.VALIDATION_ERROR, ErrorCategory.VALIDATION);
         (error as ValidationErrorWithField).field = field;
         return error as ValidationErrorWithField;
       });

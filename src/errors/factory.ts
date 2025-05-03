@@ -1,167 +1,76 @@
 
 /**
  * Error factory functions
- * Created: 2025-04-05
- * Updated: 2025-04-05 - Fixed TypeScript type issues and enum references
+ * Created: 2025-07-10
  */
 
 import { 
-  AppError,
-  ValidationError,
-  NetworkError,
-  AuthenticationError,
-  AuthorizationError,
-  ServerError,
+  AppError, 
+  ValidationError, 
+  NetworkError, 
+  AuthenticationError, 
   BusinessError,
-  SubmissionError
+  AuthorizationError
 } from './classes';
+
 import { 
+  ErrorCategory, 
   ErrorCode, 
-  ErrorCategory,
   ErrorSeverity, 
-  RecoveryAction,
-  ErrorRecovery,
-  RecoveryType
+  RecoveryType, 
+  ErrorRecovery 
 } from './types';
 
 /**
- * Create an error from an unknown error source
+ * Create a generic AppError with standard behavior
  */
-export function createErrorFromUnknown(error: unknown): AppError {
-  // If it's already an AppError, return it
-  if (error instanceof AppError) {
-    return error;
-  }
-  
-  // Handle standard Error objects
-  if (error instanceof Error) {
-    return new AppError({
-      message: error.message,
-      code: ErrorCode.UNEXPECTED_ERROR,
-      category: determineErrorCategory(error),
-      metadata: {
-        originalError: error,
-        stack: error.stack
-      }
-    });
-  }
-  
-  // Handle string errors
-  if (typeof error === 'string') {
-    return new AppError({
-      message: error,
-      code: ErrorCode.UNEXPECTED_ERROR,
-      category: ErrorCategory.UNKNOWN
-    });
-  }
-  
-  // Handle objects with status and messages (like HTTP errors)
-  if (error && typeof error === 'object' && 'status' in error) {
-    let category = ErrorCategory.SERVER;
-    let code = ErrorCode.SERVER_ERROR;
-    const status = Number(error.status);
-    
-    // Determine category and code based on status
-    if (status === 401 || status === 403) {
-      category = ErrorCategory.AUTHENTICATION;
-      code = status === 401 ? ErrorCode.UNAUTHENTICATED : ErrorCode.UNAUTHORIZED;
-    } else if (status === 404) {
-      category = ErrorCategory.BUSINESS;
-      code = ErrorCode.RESOURCE_NOT_FOUND;
-    } else if (status >= 400 && status < 500) {
-      category = ErrorCategory.CLIENT;
-      code = ErrorCode.INVALID_OPERATION;
-    }
-    
-    let message = 'An error occurred';
-    if ('message' in error && error.message && typeof error.message === 'string') {
-      message = error.message;
-    }
-    
-    return new AppError({
-      message,
-      code,
-      category,
-      metadata: {
-        originalError: error,
-        status
-      }
-    });
-  }
-  
-  // Fallback for any other type
-  return new AppError({
-    message: 'An unknown error occurred',
-    code: ErrorCode.UNKNOWN_ERROR,
-    category: ErrorCategory.UNKNOWN,
-    metadata: {
-      originalError: error
-    }
-  });
-}
-
-/**
- * Handle application errors with standardized approach
- */
-export function handleAppError(error: unknown): AppError {
-  const appError = createErrorFromUnknown(error);
-  console.error(`[ERROR][${appError.category}][${appError.code}]`, appError.message, appError);
-  return appError;
-}
-
-/**
- * Create a validation error with standardized recovery
- */
-export function createValidationError(
+export function createAppError(
   message: string,
   options: {
     code?: ErrorCode;
-    field?: string;
-    severity?: ErrorSeverity;
-    details?: Record<string, any>;
-    recovery?: ErrorRecovery;
+    category?: ErrorCategory;
     description?: string;
+    severity?: ErrorSeverity;
+    metadata?: Record<string, any>;
+    recovery?: ErrorRecovery;
   } = {}
-): ValidationError {
-  return new ValidationError({
+): AppError {
+  return new AppError({
     message,
-    code: options.code || ErrorCode.INVALID_VALUE,
-    field: options.field,
-    severity: options.severity,
-    metadata: { details: options.details },
-    recovery: options.recovery || {
-      action: RecoveryAction.RETRY,
-      label: 'Try Again'
-    },
-    description: options.description
+    code: options.code || ErrorCode.UNKNOWN_ERROR,
+    category: options.category || ErrorCategory.UNKNOWN,
+    severity: options.severity || ErrorSeverity.ERROR,
+    description: options.description,
+    metadata: options.metadata,
+    recovery: options.recovery
   });
 }
 
 /**
- * Create a field validation error
+ * Create a validation error for a specific field
  */
 export function createFieldError(
   field: string,
   message: string,
   options: {
-    code?: ErrorCode;
     focus?: boolean;
-    details?: Record<string, any>;
-    description?: string;
+    severity?: ErrorSeverity;
+    metadata?: Record<string, any>;
   } = {}
 ): ValidationError {
-  return new ValidationError({
+  const error = new ValidationError(
     message,
-    code: options.code || ErrorCode.INVALID_VALUE,
+    ErrorCode.VALIDATION_ERROR
+  );
+  
+  error.field = field;
+  error.metadata = {
     field,
-    metadata: { details: options.details },
-    recovery: {
-      action: RecoveryAction.RETRY,
-      label: 'Fix Field',
-      type: RecoveryType.FIELD_CORRECTION
-    },
-    description: options.description
-  });
+    details: options.metadata || {},
+    ...error.metadata
+  };
+  
+  return error;
 }
 
 /**
@@ -170,105 +79,63 @@ export function createFieldError(
 export function createFormError(
   message: string,
   options: {
-    code?: ErrorCode;
-    details?: Record<string, any>;
-    recovery?: ErrorRecovery;
-    description?: string;
+    severity?: ErrorSeverity;
+    metadata?: Record<string, any>;
   } = {}
 ): ValidationError {
-  return new ValidationError({
+  const error = new ValidationError(
     message,
-    code: options.code || ErrorCode.INVALID_VALUE,
-    metadata: { details: options.details },
-    recovery: options.recovery || {
-      action: RecoveryAction.RETRY,
-      label: 'Check Form',
-      type: RecoveryType.FORM_RETRY
-    },
-    description: options.description
-  });
+    ErrorCode.VALIDATION_ERROR
+  );
+  
+  error.metadata = {
+    form: true,
+    details: options.metadata || {},
+    ...error.metadata
+  };
+  
+  return error;
 }
 
 /**
- * Create a network error with standardized recovery
+ * Create a network error
  */
 export function createNetworkError(
-  message: string = 'Network connection error',
+  message: string,
   options: {
-    code?: ErrorCode;
     severity?: ErrorSeverity;
-    details?: Record<string, any>;
-    recovery?: ErrorRecovery;
-    description?: string;
-    timeout?: number;
+    metadata?: Record<string, any>;
+    retryable?: boolean;
   } = {}
 ): NetworkError {
-  return new NetworkError({
+  const error = new NetworkError(
     message,
-    code: options.code || ErrorCode.NETWORK_UNAVAILABLE,
-    severity: options.severity || ErrorSeverity.ERROR,
-    metadata: { details: options.details },
-    recovery: options.recovery || {
-      action: RecoveryAction.RETRY,
-      label: 'Try Again',
-      type: RecoveryType.REFRESH
-    },
-    description: options.description,
-    timeout: options.timeout
-  });
+    ErrorCode.NETWORK_ERROR
+  );
+  
+  error.metadata = options.metadata || {};
+  
+  return error;
 }
 
 /**
- * Create a timeout error
- */
-export function createTimeoutError(
-  message: string = 'Request timed out',
-  options: {
-    code?: ErrorCode;
-    details?: Record<string, any>;
-    recovery?: ErrorRecovery;
-    timeout?: number;
-  } = {}
-): NetworkError {
-  return new NetworkError({
-    message,
-    code: options.code || ErrorCode.REQUEST_TIMEOUT,
-    metadata: { details: options.details },
-    recovery: options.recovery || {
-      action: RecoveryAction.RETRY,
-      label: 'Try Again',
-      type: RecoveryType.REFRESH
-    },
-    timeout: options.timeout
-  });
-}
-
-/**
- * Create an authentication error with standardized recovery
+ * Create an authentication error
  */
 export function createAuthError(
-  message: string = 'Authentication required',
+  message: string,
   options: {
-    code?: ErrorCode;
     severity?: ErrorSeverity;
-    details?: Record<string, any>;
-    recovery?: ErrorRecovery;
-    description?: string;
+    metadata?: Record<string, any>;
   } = {}
 ): AuthenticationError {
-  return new AuthenticationError({
+  const error = new AuthenticationError(
     message,
-    code: options.code || ErrorCode.UNAUTHENTICATED,
-    severity: options.severity || ErrorSeverity.ERROR,
-    metadata: { details: options.details },
-    recovery: options.recovery || {
-      action: RecoveryAction.AUTHENTICATE,
-      label: 'Sign In',
-      route: '/auth',
-      type: RecoveryType.SIGN_IN
-    },
-    description: options.description
-  });
+    ErrorCode.AUTH_ERROR
+  );
+  
+  error.metadata = options.metadata || {};
+  
+  return error;
 }
 
 /**
@@ -277,62 +144,51 @@ export function createAuthError(
 export function createSubmissionError(
   message: string,
   options: {
-    code?: ErrorCode;
     severity?: ErrorSeverity;
-    details?: Record<string, any>;
-    recovery?: ErrorRecovery;
-    description?: string;
-    retryable?: boolean;
+    metadata?: Record<string, any>;
   } = {}
-): SubmissionError {
-  return new SubmissionError({
+): AppError {
+  return new AppError({
     message,
-    code: options.code || ErrorCode.SUBMISSION_ERROR,
+    code: ErrorCode.SUBMISSION_ERROR,
+    category: ErrorCategory.BUSINESS,
     severity: options.severity || ErrorSeverity.ERROR,
-    metadata: { details: options.details },
-    recovery: options.recovery || {
-      action: RecoveryAction.RETRY,
-      label: 'Try Again',
-      type: RecoveryType.FORM_RETRY
-    },
-    description: options.description,
-    retryable: options.retryable
+    metadata: options.metadata || {}
   });
 }
 
 /**
- * Determine error category based on error content
+ * Create a timeout error
  */
-function determineErrorCategory(error: Error): ErrorCategory {
-  const errorName = error.name.toLowerCase();
-  const errorMessage = error.message.toLowerCase();
+export function createTimeoutError(
+  message: string,
+  options: {
+    severity?: ErrorSeverity;
+    metadata?: Record<string, any>;
+  } = {}
+): NetworkError {
+  const error = new NetworkError(
+    message || 'The operation timed out',
+    ErrorCode.NETWORK_ERROR
+  );
   
-  if (errorName.includes('network') || 
-      errorMessage.includes('network') ||
-      errorMessage.includes('connection') ||
-      errorMessage.includes('offline')) {
-    return ErrorCategory.NETWORK;
+  error.metadata = {
+    type: 'timeout',
+    ...options.metadata
+  };
+  
+  return error;
+}
+
+/**
+ * Handle an AppError with standard behavior
+ */
+export function handleAppError(error: unknown): AppError {
+  if (error instanceof AppError) {
+    return error;
   }
   
-  if (errorName.includes('auth') || 
-      errorMessage.includes('auth') ||
-      errorMessage.includes('login') ||
-      errorMessage.includes('permission')) {
-    return ErrorCategory.AUTHENTICATION;
-  }
-  
-  if (errorName.includes('valid') || 
-      errorMessage.includes('valid') ||
-      errorMessage.includes('required') ||
-      errorMessage.includes('invalid')) {
-    return ErrorCategory.VALIDATION;
-  }
-  
-  if (errorName.includes('server') || 
-      errorMessage.includes('server') ||
-      errorMessage.includes('500')) {
-    return ErrorCategory.SERVER;
-  }
-  
-  return ErrorCategory.UNKNOWN;
+  return createAppError(
+    error instanceof Error ? error.message : String(error)
+  );
 }

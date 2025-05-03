@@ -1,19 +1,14 @@
 
 /**
- * Upload Service for car listing images
- * Created: 2025-07-01
+ * Upload Service for supabase storage
+ * Created: 2025-07-10
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 
 /**
- * Uploads multiple images for a car listing
- * @param files Array of files to upload
- * @param carId The ID of the car (or "new" for a new car)
- * @param category The category of images (exterior, interior, damage, etc.)
- * @param userId The user ID of the uploader
- * @returns Array of uploaded file paths
+ * Uploads multiple images for a given entity
  */
 export const uploadImagesForCar = async (
   files: File[],
@@ -41,4 +36,8 @@ export const uploadImagesForCar = async (
   });
   
   return await Promise.all(uploadPromises);
+};
+
+export default {
+  uploadImagesForCar
 };
