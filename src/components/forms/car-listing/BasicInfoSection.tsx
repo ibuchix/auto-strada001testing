@@ -1,6 +1,8 @@
+
 /**
  * BasicInfoSection Component
  * Created: 2025-06-15
+ * Updated: 2025-08-23 - Removed price field as prices should only come from valuation
  * 
  * Basic vehicle information section for car listing form
  */
@@ -134,31 +136,12 @@ export const BasicInfoSection = () => {
       </div>
       
       <div className="mt-6">
-        <FormField
-          control={form.control}
-          name="price"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Price (PLN)</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number"
-                  placeholder="e.g., 50000" 
-                  min={100}
-                  {...field}
-                  onChange={e => field.onChange(parseFloat(e.target.value) || '')} 
-                />
-              </FormControl>
-              <FormMessage />
-              <Alert variant="default">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Enter your VIN to automatically populate vehicle details.
-                </AlertDescription>
-              </Alert>
-            </FormItem>
-          )}
-        />
+        <Alert variant="default">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Enter your VIN to automatically populate vehicle details. Your vehicle's price will be determined based on your valuation results.
+          </AlertDescription>
+        </Alert>
       </div>
     </FormSection>
   );

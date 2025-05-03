@@ -9,11 +9,13 @@
  * - Updated 2025-05-24: Fixed mileage display and formatting in price calculation text
  * - Updated 2025-05-25: Enhanced mileage display to always show actual entered value
  * - Updated 2025-08-01: Added clarification about fixed price for sellers
+ * - Updated 2025-08-23: Added stronger visual indicators that prices are fixed
  */
 
 import { formatPrice, calculateReservePrice } from "@/utils/valuation/reservePriceCalculator";
 import { useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
+import { LockIcon } from "lucide-react";
 
 interface ValuationPriceDisplayProps {
   reservePrice: number;
@@ -69,7 +71,10 @@ export const ValuationPriceDisplay = ({
         {hasValidReservePrice ? (
           <div>
             <div className="flex items-center justify-between mb-1">
-              <h3 className="text-sm font-medium text-gray-500">Your Reserve Price</h3>
+              <h3 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                Your Reserve Price
+                <LockIcon size={14} className="text-gray-500" />
+              </h3>
               <Badge variant="outline" className="bg-gray-100 text-gray-700">Fixed</Badge>
             </div>
             <p className="text-2xl font-bold text-DC143C">{formatPrice(ourReservePrice)}</p>
@@ -77,10 +82,15 @@ export const ValuationPriceDisplay = ({
               <p className="text-xs text-gray-500">
                 Calculated based on mileage: {mileage ? mileage.toLocaleString() : '0'} km
               </p>
-              <p className="text-sm text-gray-600 mt-2 border-t pt-2">
-                This price is fixed and will be used as the starting price for your vehicle listing.
-                The reserve price is the minimum amount your car will sell for in the auction.
-              </p>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-md">
+                <p className="text-sm text-blue-800 font-medium">
+                  This price is fixed and cannot be changed
+                </p>
+                <p className="text-xs text-blue-700 mt-1">
+                  The reserve price is the minimum amount your car will sell for in the auction.
+                  When you proceed to list your car, this price will be automatically used.
+                </p>
+              </div>
             </div>
           </div>
         ) : (

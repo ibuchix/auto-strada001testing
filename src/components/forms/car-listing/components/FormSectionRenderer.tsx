@@ -8,6 +8,7 @@
  * Updated: 2025-07-18: Fixed incorrect component import paths
  * Updated: 2025-07-26: Fixed component imports and added missing sections
  * Updated: 2025-07-27: Fixed PhotosSection props to match component definition
+ * Updated: 2025-08-23: Modified to skip pricing section if not from valuation
  */
 
 import React from 'react';
@@ -49,6 +50,9 @@ export const FormSectionRenderer = ({
       );
     }
 
+    // Check if the form is from valuation - needed to determine if we show pricing
+    const fromValuation = form.getValues('fromValuation') || Boolean(form.getValues('valuation_data'));
+
     // Map section IDs to their component implementations
     switch (sectionId) {
       case 'car-details':
@@ -84,7 +88,17 @@ export const FormSectionRenderer = ({
         return <FinanceDetailsSection carId={carId} />;
 
       case 'pricing':
-        return <PricingSection />;
+        // Only show pricing section if coming from valuation
+        if (fromValuation) {
+          return <PricingSection />;
+        }
+        // If not from valuation, render information message instead
+        return (
+          <div className="p-4 bg-blue-50 text-blue-700 rounded-md border border-blue-200">
+            <h3 className="font-semibold mb-2">Vehicle Pricing</h3>
+            <p>Vehicle pricing is determined based on valuation data. Please complete a vehicle valuation first to receive pricing information.</p>
+          </div>
+        );
         
       default:
         return (
