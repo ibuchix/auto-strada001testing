@@ -4,6 +4,7 @@
  * Created: 2025-05-06
  * Updated: 2025-05-08 - Fixed type conversion issues with numeric and enum values
  * Updated: 2025-05-09 - Fixed additional type conversion issues with mileage and year
+ * Updated: 2025-05-10 - Removed fuel_type property as it's not in CarListingFormData type
  * Purpose: Provides utility functions for form initialization and data handling
  */
 
@@ -19,7 +20,6 @@ export function getFormDefaults(): Partial<CarListingFormData> {
     year: new Date().getFullYear(),
     mileage: 0,
     transmission: "manual" as const,
-    fuel_type: "",
     price: 0,
     description: "",
     hasOutstandingFinance: false,
