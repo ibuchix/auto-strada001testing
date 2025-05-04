@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Removed diagnostic-related code
@@ -9,6 +8,7 @@
  * - 2025-05-31: Added fromValuation prop to pass to form initialization
  * - 2025-07-26: Fixed valuation data handling and ensured fromValuation prop is passed correctly
  * - 2025-08-01: Enhanced fromValuation detection and added more sources of truth
+ * - 2025-05-05: Fixed FormContent props to match component definition
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -98,13 +98,7 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
 
   return (
     <FormSubmissionProvider userId={session.user.id}>
-      <FormContent 
-        session={session} 
-        draftId={draftId} 
-        onDraftError={handleDraftError}
-        retryCount={retryCount}
-        fromValuation={isFromValuation}
-      />
+      <FormContent carId={draftId} />
     </FormSubmissionProvider>
   );
 };

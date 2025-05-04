@@ -6,6 +6,7 @@
  * Updated: 2025-06-22 - Fixed type error with Supabase response handling
  * Updated: 2025-08-24 - Fixed damagePhotos mapping to additional_photos field
  * Updated: 2025-05-04 - Fixed has_finance error by removing field and using finance_amount
+ * Updated: 2025-05-05 - Fixed TypeScript prop types
  * 
  * Component to handle form submission logic
  */
@@ -16,11 +17,11 @@ import { useFormData } from "../context/FormDataContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { tempFileStorage } from "@/services/temp-storage/tempFileStorageService";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { transformFormToDbRecord } from "../utils/formDataTransformers";
 import { resetSchemaValidationCache } from "@/utils/validation/schema";
+import { tempFileStorage } from "@/services/temp-storage/tempFileStorageService";
 
 interface FormSubmitHandlerProps {
   carId?: string;
