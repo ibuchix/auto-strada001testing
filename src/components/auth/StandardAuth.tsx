@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2024-06-26: Created component for basic email/password authentication
@@ -5,6 +6,7 @@
  * - 2024-06-29: Removed redundant sign-up text/link since we have register tab at the top
  * - 2024-06-29: Added forgot password option under sign in button
  * - 2024-06-30: Fixed TypeScript errors with showLinks variable and CSS selectors
+ * - 2025-05-08: Fixed Auth component initialization to use useSupabaseClient hook
  */
 
 import { Auth } from '@supabase/auth-ui-react';
@@ -18,6 +20,16 @@ interface StandardAuthProps {
 
 export const StandardAuth = ({ redirectTo }: StandardAuthProps) => {
   const supabaseClient = useSupabaseClient();
+
+  if (!supabaseClient) {
+    console.error("Supabase client not available. Is the SessionContextProvider correctly set up?");
+    return (
+      <div className="p-4 text-center rounded bg-red-50 text-red-700">
+        <p>Authentication service not available</p>
+        <p className="text-sm opacity-75">Please try again later</p>
+      </div>
+    );
+  }
 
   return (
     <Auth
