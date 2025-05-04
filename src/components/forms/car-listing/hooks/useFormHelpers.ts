@@ -6,6 +6,7 @@
  * Updated: 2025-05-09 - Fixed additional type conversion issues with mileage and year
  * Updated: 2025-05-10 - Removed fuel_type property as it's not in CarListingFormData type
  * Updated: 2025-05-11 - Removed description property as it's not in CarListingFormData type
+ * Updated: 2025-05-12 - Changed finance_amount to financeAmount to match CarListingFormData type
  * Purpose: Provides utility functions for form initialization and data handling
  */
 
@@ -24,7 +25,7 @@ export function getFormDefaults(): Partial<CarListingFormData> {
     price: 0,
     hasOutstandingFinance: false,
     isDamaged: false,
-    finance_amount: ""
+    financeAmount: ""
   };
   
   // Try to get valuation data from localStorage
