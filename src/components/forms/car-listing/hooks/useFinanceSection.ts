@@ -4,6 +4,7 @@
  * - Created custom hook for Finance Details section
  * - Encapsulated finance data validation and state management
  * - Implemented document upload and preview functionality
+ * - 2025-05-14 - Updated to handle financeAmount as a number instead of string
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -81,17 +82,16 @@ export const useFinanceSection = (form: UseFormReturn<CarListingFormData>) => {
   }, [form]);
   
   // Validate finance amount
-  const validateFinanceAmount = useCallback((value: string | undefined) => {
-    if (!value) return true;
+  const validateFinanceAmount = useCallback((value: number | null | undefined) => {
+    if (value === null || value === undefined) return true;
     
     // Check if it's a valid number
-    const numValue = parseFloat(value);
-    if (isNaN(numValue)) {
+    if (isNaN(Number(value))) {
       return 'Please enter a valid amount';
     }
     
     // Check if it's positive
-    if (numValue <= 0) {
+    if (Number(value) <= 0) {
       return 'Amount must be greater than zero';
     }
     
@@ -106,7 +106,7 @@ export const useFinanceSection = (form: UseFormReturn<CarListingFormData>) => {
     let isValid = true;
     
     // Check required fields
-    if (!financeAmount) {
+    if (financeAmount === null || financeAmount === undefined) {
       form.setError('financeAmount', {
         type: 'required',
         message: 'Please enter the outstanding finance amount'

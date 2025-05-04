@@ -5,6 +5,7 @@
  * Added: 2025-06-23 - Added missing transformDbToFormData function
  * Updated: 2025-08-24 - Added explicit mapping for damagePhotos to additional_photos
  * Updated: 2025-05-04 - Removed has_finance field, using finance_amount to determine if there's finance
+ * Updated: 2025-05-14 - Fixed financeAmount type handling to consistently use number
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -30,7 +31,9 @@ export const transformFormToDbRecord = (formData: CarListingFormData): Record<st
     is_damaged: !!formData.isDamaged,
     is_registered_in_poland: !!formData.isRegisteredInPoland,
     has_private_plate: !!formData.hasPrivatePlate,
-    finance_amount: formData.financeAmount ? Number(formData.financeAmount) : null,
+    // Ensure finance_amount is properly typed as number or null
+    finance_amount: formData.financeAmount !== undefined && formData.financeAmount !== null ? 
+      Number(formData.financeAmount) : null,
     has_service_history: !!formData.hasServiceHistory,
     service_history_type: formData.serviceHistoryType,
     
@@ -86,7 +89,9 @@ export const transformDbRecordToForm = (dbRecord: Record<string, any>): CarListi
     
     // Set hasOutstandingFinance based on finance_amount
     hasOutstandingFinance: dbRecord.finance_amount !== null && dbRecord.finance_amount > 0,
-    financeAmount: dbRecord.finance_amount,
+    // Ensure financeAmount is properly typed as number or null
+    financeAmount: dbRecord.finance_amount !== null && dbRecord.finance_amount !== undefined ? 
+      Number(dbRecord.finance_amount) : null,
     
     // Photo data
     vehiclePhotos: dbRecord.vehicle_photos || {},
@@ -168,8 +173,9 @@ export const prepareFormDataForSubmission = (formData: CarListingFormData): Reco
       return acc;
     }, {} as Record<string, boolean>),
     
-    // Finance handling - use finance_amount instead of has_finance
-    finance_amount: data.financeAmount ? Number(data.financeAmount) : null,
+    // Finance handling - ensure finance_amount is a number or null
+    finance_amount: data.financeAmount !== undefined && data.financeAmount !== null ? 
+      Number(data.financeAmount) : null,
     
     // Other fields
     features: data.features,
@@ -244,7 +250,8 @@ export const transformDbToFormData = (dbData: any): any => {
     
     // Financial details
     hasOutstandingFinance: dbData.finance_amount !== null && dbData.finance_amount > 0,
-    financeAmount: dbData.finance_amount ? Number(dbData.finance_amount) : null,
+    financeAmount: dbData.finance_amount !== null && dbData.finance_amount !== undefined ? 
+      Number(dbData.finance_amount) : null,
     
     // Status flags
     is_draft: Boolean(dbData.is_draft),

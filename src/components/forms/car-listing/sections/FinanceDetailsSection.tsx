@@ -2,6 +2,7 @@
 /**
  * Finance Details Section 
  * Created: 2025-05-04
+ * Updated: 2025-05-04 - Fixed financeAmount type handling to consistently use number type
  * 
  * Section for handling vehicle finance information with proper data validation
  * and conditional rendering based on whether the vehicle has outstanding finance.
@@ -96,13 +97,9 @@ export const FinanceDetailsSection = () => {
                 name="financeAmount"
                 rules={{
                   required: hasOutstandingFinance ? "Finance amount is required" : false,
-                  pattern: {
-                    value: /^(\d*\.?\d{0,7}|\d+\.?\d{0,7})$/,
-                    message: "Please enter a valid number (up to 7 decimal places)"
-                  },
                   validate: (value) => {
                     if (hasOutstandingFinance) {
-                      if (!value) return "Finance amount is required";
+                      if (!value && value !== 0) return "Finance amount is required";
                       if (Number(value) <= 0) return "Amount must be greater than zero";
                     }
                     return true;
@@ -114,15 +111,13 @@ export const FinanceDetailsSection = () => {
                     <FormControl>
                       <Input
                         placeholder="e.g. 15000"
-                        type="text"
+                        type="number"
                         inputMode="decimal"
                         value={field.value || ''}
                         onChange={(e) => {
                           const value = e.target.value;
-                          // Allow only digits, a single dot, and up to 7 decimal places
-                          if (/^(\d*\.?\d{0,7}|\d+\.?\d{0,7})$/.test(value) || value === '') {
-                            field.onChange(value === '' ? null : value);
-                          }
+                          const numValue = value ? Number(value) : null;
+                          field.onChange(numValue);
                         }}
                         onBlur={field.onBlur}
                       />

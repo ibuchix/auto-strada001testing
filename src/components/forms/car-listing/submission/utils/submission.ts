@@ -10,6 +10,7 @@
  * - 2025-06-21: Fixed references to CarFeatures interface and created_at handling
  * - 2025-07-22: Fixed incomplete implementation
  * - 2025-05-05: Fixed type issues and removed is_draft property
+ * - 2025-05-14: Fixed financeAmount handling to consistently use number type
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -18,16 +19,18 @@ import { toStringValue, toNumberValue } from "@/utils/typeConversion";
 export const prepareFormDataForSubmission = (data: CarListingFormData) => {
   return {
     ...data,
-    // Use toStringValue to ensure proper type conversion
-    financeAmount: toStringValue(data.financeAmount),
+    // Ensure financeAmount is consistently a number or null
+    financeAmount: data.financeAmount !== undefined && data.financeAmount !== null ? 
+      Number(data.financeAmount) : null,
   };
 };
 
 export const prepareFormDataForApi = (data: CarListingFormData) => {
   return {
     ...data,
-    // Use toStringValue to ensure proper type conversion
-    financeAmount: toStringValue(data.financeAmount),
+    // Ensure financeAmount is consistently a number or null
+    financeAmount: data.financeAmount !== undefined && data.financeAmount !== null ? 
+      Number(data.financeAmount) : null,
   };
 };
 
@@ -73,7 +76,10 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     // Cast transmission to the expected type
     transmission: formData.transmission || 'manual',
     // Use properly typed features
-    features: carFeatures
+    features: carFeatures,
+    // Ensure financeAmount is a number or null
+    financeAmount: formData.financeAmount !== undefined && formData.financeAmount !== null ? 
+      Number(formData.financeAmount) : null,
   };
   
   return entity;

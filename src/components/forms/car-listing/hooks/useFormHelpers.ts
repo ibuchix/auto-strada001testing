@@ -8,6 +8,7 @@
  * Updated: 2025-05-11 - Removed description property as it's not in CarListingFormData type
  * Updated: 2025-05-12 - Changed finance_amount to financeAmount to match CarListingFormData type
  * Updated: 2025-05-13 - Fixed financeAmount type from string to number
+ * Updated: 2025-05-14 - Ensuring consistent number type for financeAmount throughout
  * Purpose: Provides utility functions for form initialization and data handling
  */
 
@@ -26,7 +27,7 @@ export function getFormDefaults(): Partial<CarListingFormData> {
     price: 0,
     hasOutstandingFinance: false,
     isDamaged: false,
-    financeAmount: 0 // Changed from string to number to match the expected type
+    financeAmount: null // Set to null as default when no finance
   };
   
   // Try to get valuation data from localStorage
