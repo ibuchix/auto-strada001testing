@@ -3,6 +3,7 @@
  * Photos Upload Section Component
  * Created: 2025-06-17
  * Updated: 2025-06-18 - Fixed type errors with temporary file storage
+ * Updated: 2025-05-04 - Added RimPhotosSection to the photo upload form
  * 
  * This component handles the upload of all required vehicle photos
  */
@@ -15,11 +16,14 @@ import { useFormData } from "../context/FormDataContext";
 import { useTemporaryFileUpload } from "@/hooks/useTemporaryFileUpload";
 import { RequiredPhotosGrid } from "../photo-upload/RequiredPhotosGrid";
 import { PhotoSection } from "../photo-upload/components/PhotoSection";
+import { RimPhotosSection } from "../RimPhotosSection";
+import { DamagePhotosSection } from "../sections/DamagePhotosSection";
 
 export const PhotosSection = ({ carId }: { carId?: string }) => {
   const { form } = useFormData();
   const [allPhotosUploaded, setAllPhotosUploaded] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const isDamaged = form.watch("isDamaged");
   
   // Create a separate temporary file uploader for each photo type
   const frontView = useTemporaryFileUpload({
@@ -264,6 +268,14 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
               setUploadError(null);
             }}
           />
+          
+          {/* RimPhotos Section */}
+          <RimPhotosSection />
+          
+          {/* Damage Photos Section - only show if car is damaged */}
+          {isDamaged && (
+            <DamagePhotosSection />
+          )}
         </div>
       </CardContent>
     </Card>

@@ -1,10 +1,10 @@
-
 /**
  * Form Data Transformers
  * Created: 2025-06-21
  * Updated: 2025-06-22 - Fixed type conversions and field mappings
  * Added: 2025-06-23 - Added missing transformDbToFormData function
  * Updated: 2025-08-24 - Added explicit mapping for damagePhotos to additional_photos
+ * Updated: 2025-05-04 - Removed has_finance field, using finance_amount to determine if there's finance
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -30,7 +30,7 @@ export const transformFormToDbRecord = (formData: CarListingFormData): Record<st
     is_damaged: !!formData.isDamaged,
     is_registered_in_poland: !!formData.isRegisteredInPoland,
     has_private_plate: !!formData.hasPrivatePlate,
-    has_finance: !!formData.hasFinance,
+    finance_amount: formData.financeAmount ? Number(formData.financeAmount) : null,
     has_service_history: !!formData.hasServiceHistory,
     service_history_type: formData.serviceHistoryType,
     
@@ -38,7 +38,7 @@ export const transformFormToDbRecord = (formData: CarListingFormData): Record<st
     vehicle_photos: formData.vehiclePhotos,
     uploaded_photos: formData.uploadedPhotos || [],
     rim_photos: formData.rimPhotos,
-    additional_photos: formData.damagePhotos || [], // Map damagePhotos to additional_photos
+    // additional_photos is handled in FormSubmitHandler to merge rimPhotos and damagePhotos
     
     // Seller details
     seller_id: formData.seller_id,
@@ -81,16 +81,20 @@ export const transformDbRecordToForm = (dbRecord: Record<string, any>): CarListi
     isDamaged: !!dbRecord.is_damaged,
     isRegisteredInPoland: !!dbRecord.is_registered_in_poland,
     hasPrivatePlate: !!dbRecord.has_private_plate,
-    hasFinance: !!dbRecord.has_finance,
     hasServiceHistory: !!dbRecord.has_service_history,
     serviceHistoryType: dbRecord.service_history_type || 'none',
+    
+    // Set hasOutstandingFinance based on finance_amount
+    hasOutstandingFinance: dbRecord.finance_amount !== null && dbRecord.finance_amount > 0,
+    financeAmount: dbRecord.finance_amount,
     
     // Photo data
     vehiclePhotos: dbRecord.vehicle_photos || {},
     uploadedPhotos: dbRecord.uploaded_photos || [],
     rimPhotos: dbRecord.rim_photos || {},
-    // Map additional_photos back to damagePhotos when retrieving from DB
-    damagePhotos: dbRecord.additional_photos || [],
+    
+    // Extract damage photos from additional_photos
+    damagePhotos: extractPhotosOfType(dbRecord.additional_photos || [], 'damage_photo'),
     
     // Seller details
     seller_id: dbRecord.seller_id,
@@ -113,6 +117,25 @@ export const transformDbRecordToForm = (dbRecord: Record<string, any>): CarListi
 };
 
 /**
+ * Helper function to extract photos of a specific type from additional_photos
+ */
+function extractPhotosOfType(additionalPhotos: any[], type: string): string[] {
+  if (!Array.isArray(additionalPhotos)) return [];
+  
+  return additionalPhotos
+    .filter(photo => {
+      // Handle both object format and string format
+      if (typeof photo === 'object' && photo !== null) {
+        return photo.type === type;
+      } else if (typeof photo === 'string') {
+        return true; // Include all strings if no type info
+      }
+      return false;
+    })
+    .map(photo => typeof photo === 'object' && photo !== null ? photo.url : photo);
+}
+
+/**
  * Prepare form data for submission
  */
 export const prepareFormDataForSubmission = (formData: CarListingFormData): Record<string, any> => {
@@ -124,7 +147,6 @@ export const prepareFormDataForSubmission = (formData: CarListingFormData): Reco
     isDamaged: 'is_damaged',
     isRegisteredInPoland: 'is_registered_in_poland',
     hasPrivatePlate: 'has_private_plate',
-    hasFinance: 'has_finance',
     hasServiceHistory: 'has_service_history',
   };
   
@@ -146,6 +168,9 @@ export const prepareFormDataForSubmission = (formData: CarListingFormData): Reco
       return acc;
     }, {} as Record<string, boolean>),
     
+    // Finance handling - use finance_amount instead of has_finance
+    finance_amount: data.financeAmount ? Number(data.financeAmount) : null,
+    
     // Other fields
     features: data.features,
     service_history_type: data.serviceHistoryType,
@@ -161,8 +186,7 @@ export const prepareFormDataForSubmission = (formData: CarListingFormData): Reco
     // Photos
     vehicle_photos: data.vehiclePhotos,
     uploaded_photos: data.uploadedPhotos,
-    rim_photos: data.rimPhotos,
-    damage_photos: data.damagePhotos,
+    // rimPhotos and damagePhotos will be handled separately
     
     // Additional details
     seat_material: data.seatMaterial,
@@ -219,6 +243,7 @@ export const transformDbToFormData = (dbData: any): any => {
     numberOfKeys: Number(dbData.number_of_keys || 1),
     
     // Financial details
+    hasOutstandingFinance: dbData.finance_amount !== null && dbData.finance_amount > 0,
     financeAmount: dbData.finance_amount ? Number(dbData.finance_amount) : null,
     
     // Status flags
@@ -227,8 +252,8 @@ export const transformDbToFormData = (dbData: any): any => {
     
     // Photo information
     requiredPhotos: dbData.required_photos || {},
-    // Map additional_photos to damagePhotos
-    damagePhotos: dbData.additional_photos || [],
+    // Extract damage photos from additional_photos if exists
+    damagePhotos: extractPhotosOfType(dbData.additional_photos || [], 'damage_photo'),
     
     // Timestamps
     created_at: dbData.created_at || new Date().toISOString(),

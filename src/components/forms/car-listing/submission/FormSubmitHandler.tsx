@@ -5,6 +5,7 @@
  * Updated: 2025-06-21 - Fixed data handling and null checks
  * Updated: 2025-06-22 - Fixed type error with Supabase response handling
  * Updated: 2025-08-24 - Fixed damagePhotos mapping to additional_photos field
+ * Updated: 2025-05-04 - Fixed has_finance error by removing field and using finance_amount
  * 
  * Component to handle form submission logic
  */
@@ -80,9 +81,41 @@ export const FormSubmitHandler = ({
       // Transform form data to database format with proper field mapping
       const transformedData = transformFormToDbRecord(formValues);
       
+      // Process rim photos and add them to additional_photos if they exist
+      if (formValues.rimPhotos) {
+        // Create array if it doesn't exist
+        if (!transformedData.additional_photos) {
+          transformedData.additional_photos = [];
+        }
+        
+        // Add each rim photo with metadata to identify it as a rim photo
+        Object.entries(formValues.rimPhotos).forEach(([position, photoUrl]) => {
+          if (photoUrl) {
+            transformedData.additional_photos.push({
+              url: photoUrl,
+              type: 'rim_photo',
+              position: position,
+              timestamp: new Date().toISOString()
+            });
+          }
+        });
+      }
+      
       // Map damagePhotos to additional_photos since that's the column in the database
       if (formValues.damagePhotos && formValues.damagePhotos.length > 0) {
-        transformedData.additional_photos = formValues.damagePhotos;
+        if (!transformedData.additional_photos) {
+          transformedData.additional_photos = [];
+        }
+        
+        // Add each damage photo with appropriate metadata
+        formValues.damagePhotos.forEach((photoUrl) => {
+          transformedData.additional_photos.push({
+            url: photoUrl,
+            type: 'damage_photo',
+            timestamp: new Date().toISOString()
+          });
+        });
+        
         // Remove the damagePhotos field to prevent schema validation errors
         delete transformedData.damagePhotos;
       }
