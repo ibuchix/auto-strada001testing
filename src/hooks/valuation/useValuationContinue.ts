@@ -6,12 +6,14 @@
  * Updated: 2025-05-29 - Fixed potential re-render loop in navigation handling
  * Updated: 2025-05-30 - Added reliability improvements to prevent stuck states
  * Updated: 2025-05-31 - Added data filtering to limit transmission to essential fields only
+ * Updated: 2025-05-04 - Added automatic VIN reservation before navigation
  */
 
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useCallback, useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { reserveVin } from "@/services/vinReservationService";
 
 // Essential fields to include in the valuation data
 const ESSENTIAL_FIELDS = ['vin', 'make', 'model', 'year', 'mileage', 'transmission', 'reservePrice'];
@@ -61,7 +63,7 @@ export function useValuationContinue() {
     return () => clearTimeout(safetyTimer);
   }, [hasNavigated]);
 
-  const handleContinue = useCallback((valuationData: any) => {
+  const handleContinue = useCallback(async (valuationData: any) => {
     // Generate unique navigation ID for this attempt
     const navigationId = Math.random().toString(36).substr(2, 9);
     navigationIdRef.current = navigationId;
@@ -117,6 +119,57 @@ export function useValuationContinue() {
         }
       }
       
+      if (isLoggedIn && filteredData?.vin) {
+        // Get user ID from localStorage for reservation
+        const userId = localStorage.getItem('userId');
+        
+        if (userId) {
+          try {
+            console.log("ValuationContinue: Creating VIN reservation", {
+              vin: filteredData.vin,
+              userId,
+              navigationId
+            });
+            
+            // Reserve the VIN before navigation
+            const reservationResult = await reserveVin(
+              filteredData.vin,
+              userId,
+              valuationData  // Pass complete valuation data for backend processing
+            );
+            
+            if (reservationResult.success && reservationResult.data?.reservationId) {
+              // Store the reservation ID in localStorage
+              localStorage.setItem('vinReservationId', reservationResult.data.reservationId);
+              console.log("ValuationContinue: VIN reservation created successfully", {
+                reservationId: reservationResult.data.reservationId,
+                navigationId
+              });
+              
+              // Show success toast for reservation
+              toast.success("VIN reserved successfully", {
+                description: "Your VIN is now reserved for this listing"
+              });
+            } else {
+              console.warn("ValuationContinue: VIN reservation failed", {
+                error: reservationResult.error,
+                navigationId
+              });
+              
+              toast.error("VIN reservation issue", {
+                description: "Unable to reserve this VIN. You may need to try again later."
+              });
+            }
+          } catch (error) {
+            console.error("ValuationContinue: Error creating VIN reservation:", error);
+          }
+        } else {
+          console.warn("ValuationContinue: No user ID found, skipping VIN reservation", {
+            navigationId
+          });
+        }
+      }
+
       // Navigate based on auth status - use random navId to prevent state merges
       if (isLoggedIn) {
         console.log("ValuationContinue: User is logged in, navigating to sell-my-car", {

@@ -4,6 +4,7 @@
  * Created: 2025-05-13
  * Updated: 2025-05-16 - Enhanced error handling and improved UX feedback
  * Updated: 2025-05-04 - Added detailed error logging and VIN reservation checks
+ * Updated: 2025-05-04 - Improved VIN reservation handling and error messaging
  * 
  * Provides form submission handler with proper null safety for userId
  */
@@ -59,10 +60,23 @@ export const FormSubmitHandler = ({
       
       // Check for VIN reservation ID in localStorage
       const reservationId = localStorage.getItem('vinReservationId');
+      
       if (!reservationId) {
         console.error("No VIN reservation found in localStorage");
-        toast.error("VIN not reserved", {
-          description: "Please complete a VIN check first to validate and reserve this VIN."
+        
+        // Detailed logging to help diagnose the issue
+        console.log("FormSubmitHandler: Missing VIN reservation", {
+          formVin: values.vin,
+          tempVin: localStorage.getItem('tempVIN'),
+          vinInLocalStorage: Object.keys(localStorage).filter(key => 
+            key.includes('vin') || key.includes('VIN')
+          ),
+          localStorageKeys: Object.keys(localStorage),
+          timestamp: new Date().toISOString()
+        });
+        
+        toast.error("VIN validation required", {
+          description: "Please complete the VIN Lookup in the Vehicle Details section first."
         });
         return;
       }
@@ -74,6 +88,10 @@ export const FormSubmitHandler = ({
       
       if (result && onSubmitSuccess) {
         console.log(`Form submitted successfully with car ID: ${result}`);
+        
+        // Clear the VIN reservation ID since it's been used successfully
+        localStorage.removeItem('vinReservationId');
+        
         onSubmitSuccess(result);
       }
     } catch (error) {
@@ -89,7 +107,7 @@ export const FormSubmitHandler = ({
       // Check if it's a VIN reservation issue
       if (error instanceof Error && error.message.includes('VIN reservation')) {
         toast.error("VIN reservation issue", {
-          description: "Please perform a VIN check again to validate and reserve this VIN."
+          description: "Please perform a VIN Lookup in the Vehicle Details section to validate your VIN."
         });
       }
       

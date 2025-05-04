@@ -2,6 +2,7 @@
 /**
  * Car Listing Service
  * Updated: 2025-05-04 - Enhanced error handling and added detailed logging
+ * Updated: 2025-05-04 - Improved VIN reservation handling with better debug info
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +28,16 @@ export const createCarListing = async (
     const reservationId = localStorage.getItem('vinReservationId');
     if (!reservationId) {
       console.error("No VIN reservation ID found in localStorage");
-      throw new Error("No valid VIN reservation found. Please start the process again.");
+      
+      // Detailed logging for debugging
+      console.log("Listing Service: Missing VIN reservation", {
+        vin,
+        localStorageKeys: Object.keys(localStorage),
+        localStorageVin: localStorage.getItem('tempVIN'),
+        timestamp: new Date().toISOString()
+      });
+      
+      throw new Error("No valid VIN reservation found. Please validate your VIN in the Vehicle Details section.");
     }
     
     console.log(`Using reservation ID: ${reservationId}`);
@@ -47,7 +57,7 @@ export const createCarListing = async (
     
     if (!reservation) {
       console.error('VIN reservation not found or inactive');
-      throw new Error("Your VIN reservation has expired. Please start the process again.");
+      throw new Error("Your VIN reservation has expired. Please validate your VIN in the Vehicle Details section.");
     }
 
     console.log('VIN reservation confirmed valid:', reservation);
