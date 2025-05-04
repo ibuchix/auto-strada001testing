@@ -1,30 +1,78 @@
-
 /**
  * RimPhotosSection component
  * Created: 2025-07-24
  * Updated: 2025-07-25 - Fixed type issues with rimPhotos
+ * Updated: 2025-05-15 - Added safe form context handling to prevent destructuring errors 
  */
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { CarListingFormData, RimPhotos } from "@/types/forms";
+import { useSafeFormData } from "./context/FormDataContext";
 
 interface RimPhotosProps {
   onUpload?: (photos: RimPhotos) => void;
 }
 
 export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
-  const { register, setValue, watch } = useFormContext<CarListingFormData>();
   const [uploading, setUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   
-  // Watch the rimPhotos field
-  const rimPhotos = watch("rimPhotos") || {
+  // Get the form context safely
+  const formDataContext = useSafeFormData();
+  
+  let register, setValue, watch;
+  
+  try {
+    // Try to get form methods from context first
+    if (formDataContext?.form) {
+      register = formDataContext.form.register;
+      setValue = formDataContext.form.setValue;
+      watch = formDataContext.form.watch;
+      if (isLoading) setIsLoading(false);
+    } 
+    // Fall back to useFormContext
+    else {
+      const form = useFormContext<CarListingFormData>();
+      register = form.register;
+      setValue = form.setValue;
+      watch = form.watch;
+      if (isLoading) setIsLoading(false);
+    }
+  } catch (err) {
+    console.error("Error accessing form context in RimPhotosSection:", err);
+    setError(err as Error);
+    setIsLoading(false);
+  }
+  
+  // Fallback empty object for rimPhotos if watch is unavailable
+  const defaultRimPhotos = {
     front_left: '',
     front_right: '',
     rear_left: '',
     rear_right: ''
   };
+  
+  // Safely watch the rimPhotos field with fallback
+  const rimPhotos = watch ? watch("rimPhotos") || defaultRimPhotos : defaultRimPhotos;
+  
+  // If still loading, show a loading indicator
+  if (isLoading) {
+    return <div className="p-4 text-center">Loading rim photos section...</div>;
+  }
+  
+  // If there was an error accessing form context, show error message
+  if (error || !register || !setValue || !watch) {
+    return (
+      <div className="p-4 bg-amber-50 border border-amber-200 rounded-md">
+        <p className="text-amber-800">
+          There was an issue loading the rim photos section. Please try refreshing the page.
+        </p>
+      </div>
+    );
+  }
   
   // Handle individual image upload
   const handleImageUpload = async (position: keyof RimPhotos, file: File) => {

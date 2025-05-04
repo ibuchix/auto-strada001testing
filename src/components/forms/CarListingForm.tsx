@@ -14,6 +14,7 @@
  * - 2025-05-08: Fixed type conversion issues with form data
  * - 2025-05-13: Added null session handling with proper loading state
  * - 2025-05-14: Fixed FormErrorHandler prop name (error → draftError)
+ * - 2025-05-15: Added form initialization safeguards and error handling
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -28,6 +29,8 @@ import { FormDataProvider } from "./car-listing/context/FormDataContext";
 import { CarListingFormData } from "@/types/forms";
 import { getFormDefaults } from "./car-listing/hooks/useFormHelpers";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface CarListingFormProps {
   fromValuation?: boolean;
@@ -40,16 +43,29 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
   const locationDraftId = location.state?.draftId;
   const urlDraftId = searchParams.get('draft');
   const [draftError, setDraftError] = useState<Error | null>(null);
+  const [formError, setFormError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isReady, setIsReady] = useState(false);
   
   // Use draft ID from URL parameter or location state
   const draftId = urlDraftId || locationDraftId;
   
-  // Initialize the form with proper type conversion
-  const form = useForm<CarListingFormData>({
-    defaultValues: getFormDefaults()
-  });
+  // Initialize the form with proper type conversion and error handling
+  const initialFormValues = getFormDefaults();
+  const [formInitialized, setFormInitialized] = useState(false);
+  
+  let form;
+  try {
+    form = useForm<CarListingFormData>({
+      defaultValues: initialFormValues,
+    });
+    if (!formInitialized) {
+      setFormInitialized(true);
+    }
+  } catch (error) {
+    console.error("Error initializing form:", error);
+    setFormError(error as Error);
+  }
   
   // Determine if coming from valuation based on props, URL params, or location state
   const isFromValuation = fromValuation || 
@@ -121,6 +137,39 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
         draftError={draftError} 
         onRetry={handleRetryDraftLoad}
       />
+    );
+  }
+
+  // Show form error if form initialization failed
+  if (formError) {
+    return (
+      <div className="p-6 bg-white rounded-lg shadow-sm">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Form Error</AlertTitle>
+          <AlertDescription>
+            There was an error initializing the form. Please try refreshing the page.
+            <div className="mt-2 text-sm">
+              Error: {formError.message}
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  
+  // Handle case where form failed to initialize
+  if (!form) {
+    return (
+      <div className="p-6 bg-white rounded-lg shadow-sm">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Form Initialization Error</AlertTitle>
+          <AlertDescription>
+            Could not initialize the form. Please try refreshing the page.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
