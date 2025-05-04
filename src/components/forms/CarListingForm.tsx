@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Removed diagnostic-related code
@@ -9,6 +10,7 @@
  * - 2025-07-26: Fixed valuation data handling and ensured fromValuation prop is passed correctly
  * - 2025-08-01: Enhanced fromValuation detection and added more sources of truth
  * - 2025-05-05: Fixed FormContent props to match component definition
+ * - 2025-05-06: Added FormDataProvider to fix context error
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -18,6 +20,9 @@ import { FormSubmissionProvider } from "./car-listing/submission/FormSubmissionP
 import { FormContent } from "./car-listing/FormContent";
 import { FormErrorHandler } from "./car-listing/FormErrorHandler";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { FormDataProvider } from "./car-listing/context/FormDataContext";
+import { CarListingFormData } from "@/types/forms";
 
 interface CarListingFormProps {
   fromValuation?: boolean;
@@ -34,6 +39,23 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
   
   // Use draft ID from URL parameter or location state
   const draftId = urlDraftId || locationDraftId;
+  
+  // Initialize the form
+  const form = useForm<CarListingFormData>({
+    defaultValues: {
+      make: "",
+      model: "",
+      year: "",
+      color: "",
+      mileage: "",
+      transmission: "",
+      fuel_type: "",
+      price: "",
+      description: "",
+      hasOutstandingFinance: false,
+      isDamaged: false
+    }
+  });
   
   // Determine if coming from valuation based on props, URL params, or location state
   const isFromValuation = fromValuation || 
@@ -98,7 +120,9 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
 
   return (
     <FormSubmissionProvider userId={session.user.id}>
-      <FormContent carId={draftId} />
+      <FormDataProvider form={form}>
+        <FormContent carId={draftId} />
+      </FormDataProvider>
     </FormSubmissionProvider>
   );
 };

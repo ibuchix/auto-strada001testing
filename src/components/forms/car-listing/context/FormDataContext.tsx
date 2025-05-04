@@ -2,10 +2,11 @@
 /**
  * Form Data Context
  * Created: 2025-05-12
+ * Updated: 2025-05-06 - Enhanced context to include isSubmitting state
  * Purpose: Provides form context for car listing forms
  */
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 
 interface FormDataContextValue {
@@ -20,7 +21,7 @@ export const FormDataProvider: React.FC<{
   children: React.ReactNode;
   form: UseFormReturn<any>;
 }> = ({ children, form }) => {
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   return (
     <FormDataContext.Provider value={{

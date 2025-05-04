@@ -3,12 +3,14 @@
  * Form Submission Provider
  * Created: 2025-07-23
  * Updated: 2025-07-24 - Fixed export of useFormSubmission hook
+ * Updated: 2025-05-06 - Improved integration with FormDataContext
  * Provides context for form submission functionality
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { SubmissionError } from './errors';
 import { CarListingFormData } from "@/types/forms";
+import { useFormData } from '../context/FormDataContext';
 
 // Define the submission context state
 interface FormSubmissionState {

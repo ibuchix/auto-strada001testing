@@ -1,38 +1,54 @@
 
 /**
- * Form helpers utility functions
- * Created: 2025-07-27
- * Updated: 2025-05-03 - Fixed type issues with transmission
- * Updated: 2025-05-04 - Fixed type issues with default form values
- * Updated: 2025-05-04 - Ensuring type safety with proper typing for enums
- * Updated: 2025-05-05 - Fixed transmission type incompatibility issues
- * Updated: 2025-05-06 - Fixed serviceHistoryType type incompatibility issues
- * Updated: 2025-05-07 - Ensured strict typing for serviceHistoryType and transmission
- * Centralized utility functions for form hooks
+ * Form Helper Functions
+ * Created: 2025-05-06
+ * Purpose: Provides utility functions for form initialization and data handling
  */
 
-import { DEFAULT_VALUES } from "../constants/defaultValues";
 import { CarListingFormData } from "@/types/forms";
 
-// Get initial form values (used by multiple hooks)
-export const getInitialFormValues = (): Partial<CarListingFormData> => {
-  // Type-safe default values
-  return {
-    isSellingOnBehalf: false,
-    hasServiceHistory: false,
-    hasPrivatePlate: false,
+/**
+ * Get default form values, optionally incorporating valuation data
+ */
+export function getFormDefaults(): Partial<CarListingFormData> {
+  const defaultValues: Partial<CarListingFormData> = {
+    make: "",
+    model: "",
+    year: "",
+    color: "",
+    mileage: "",
+    transmission: "",
+    fuel_type: "",
+    price: "",
+    description: "",
     hasOutstandingFinance: false,
     isDamaged: false,
-    make: '',
-    model: '',
-    year: 0,
-    mileage: 0,
-    vin: '',
-    transmission: "manual" as const,  // Type-safe transmission value
-    serviceHistoryType: "none" as "full" | "partial" | "none",  // Type-safe serviceHistoryType with explicit type
-    fromValuation: false
+    finance_amount: ""
   };
-};
-
-// Alias for backward compatibility
-export const getFormDefaults = getInitialFormValues;
+  
+  // Try to get valuation data from localStorage
+  try {
+    const valuationDataString = localStorage.getItem('valuationData');
+    if (valuationDataString) {
+      const valuationData = JSON.parse(valuationDataString);
+      
+      // Merge valuation data with defaults if available
+      if (valuationData && typeof valuationData === 'object') {
+        return {
+          ...defaultValues,
+          make: valuationData.make || defaultValues.make,
+          model: valuationData.model || defaultValues.model,
+          year: valuationData.year?.toString() || defaultValues.year,
+          mileage: valuationData.mileage?.toString() || defaultValues.mileage,
+          transmission: valuationData.transmission || defaultValues.transmission,
+          vin: valuationData.vin || "",
+          price: (valuationData.price || valuationData.valuation)?.toString() || defaultValues.price
+        };
+      }
+    }
+  } catch (error) {
+    console.error("Error loading valuation data for form defaults:", error);
+  }
+  
+  return defaultValues;
+}

@@ -3,6 +3,7 @@
  * Form Content
  * Updated: 2025-05-04 - Added FinanceDetailsSection to the form flow
  * Updated: 2025-05-05 - Fixed import paths and updated AuthProvider usage
+ * Updated: 2025-05-06 - Fixed useFormData hook usage with proper context
  * 
  * Main content component for the car listing form
  */
