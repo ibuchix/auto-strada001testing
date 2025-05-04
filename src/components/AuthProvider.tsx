@@ -2,17 +2,21 @@
 /**
  * Auth Provider Component
  * Updated: 2025-05-04 - Added userId storage in localStorage for cross-component access
+ * Updated: 2025-05-07 - Added isSeller and refreshSellerStatus to AuthContextType interface
  */
 
 import { createContext, useContext, ReactNode, useState, useEffect } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { useSellerSession } from "@/hooks/useSellerSession";
 
 interface AuthContextType {
   session: Session | null;
   isLoading: boolean;
   error: Error | null;
   signOut: () => Promise<void>;
+  isSeller: boolean;
+  refreshSellerStatus: () => Promise<boolean>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,6 +25,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  
+  // Use the useSellerSession hook to get seller-specific session info
+  const { isSeller, refreshSellerStatus } = useSellerSession();
 
   useEffect(() => {
     async function getSession() {
@@ -80,7 +87,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ session, isLoading, error, signOut }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      isLoading, 
+      error, 
+      signOut, 
+      isSeller, 
+      refreshSellerStatus 
+    }}>
       {children}
     </AuthContext.Provider>
   );
