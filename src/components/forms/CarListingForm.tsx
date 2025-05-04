@@ -13,6 +13,7 @@
  * - 2025-05-06: Added FormDataProvider to fix context error
  * - 2025-05-08: Fixed type conversion issues with form data
  * - 2025-05-13: Added null session handling with proper loading state
+ * - 2025-05-14: Fixed FormErrorHandler prop name (error → draftError)
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -111,7 +112,7 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
   }
 
   if (!session) {
-    return <FormErrorHandler error="Authentication required. Please sign in to continue." />;
+    return <FormErrorHandler draftError={new Error("Authentication required. Please sign in to continue.")} />;
   }
 
   if (draftError) {
