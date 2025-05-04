@@ -12,6 +12,7 @@
  * - 2025-05-05: Fixed FormContent props to match component definition
  * - 2025-05-06: Added FormDataProvider to fix context error
  * - 2025-05-08: Fixed type conversion issues with form data
+ * - 2025-05-13: Added null session handling with proper loading state
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -25,19 +26,21 @@ import { useForm } from "react-hook-form";
 import { FormDataProvider } from "./car-listing/context/FormDataContext";
 import { CarListingFormData } from "@/types/forms";
 import { getFormDefaults } from "./car-listing/hooks/useFormHelpers";
+import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 
 interface CarListingFormProps {
   fromValuation?: boolean;
 }
 
 export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) => {
-  const { session } = useAuth();
+  const { session, isLoading: isSessionLoading } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const locationDraftId = location.state?.draftId;
   const urlDraftId = searchParams.get('draft');
   const [draftError, setDraftError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [isReady, setIsReady] = useState(false);
   
   // Use draft ID from URL parameter or location state
   const draftId = urlDraftId || locationDraftId;
@@ -83,6 +86,13 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
         }
       }
     }
+
+    // Set ready state after a short delay to ensure we have session data
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [urlDraftId, locationDraftId, fromValuation, location.state, searchParams, isFromValuation]);
 
   const handleDraftError = useCallback((error: Error) => {
@@ -95,8 +105,13 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
     setRetryCount(prev => prev + 1);
   }, []);
 
+  // Show loading indicator while session is loading
+  if (isSessionLoading) {
+    return <LoadingIndicator message="Loading authentication..." />;
+  }
+
   if (!session) {
-    return <FormErrorHandler />;
+    return <FormErrorHandler error="Authentication required. Please sign in to continue." />;
   }
 
   if (draftError) {
@@ -106,6 +121,11 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
         onRetry={handleRetryDraftLoad}
       />
     );
+  }
+
+  // Wait for ready state before rendering form components
+  if (!isReady) {
+    return <LoadingIndicator message="Preparing form..." />;
   }
 
   return (

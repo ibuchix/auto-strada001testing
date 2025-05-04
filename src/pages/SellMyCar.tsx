@@ -7,6 +7,7 @@
  * - 2025-05-29: Fixed infinite re-render issue by adding proper dependency arrays and state guards
  * - 2025-05-30: Added force transition timers and controls to prevent stuck loading
  * - 2025-05-31: Fixed cross-origin messaging issues and reduced render count
+ * - 2025-05-13: Added explicit null check for auth session and error logging
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -14,6 +15,7 @@ import { useSellerCarListingValidation } from "@/hooks/seller/useSellerCarListin
 import { PageStateManager } from "./sell-my-car/PageStateManager";
 import { useSearchParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "@/components/AuthProvider";
 
 const SellMyCar = () => {
   const [searchParams] = useSearchParams();
@@ -25,6 +27,9 @@ const SellMyCar = () => {
     fromValuation: false,
     timestamp: Date.now()
   });
+
+  // Get auth information
+  const { session, isLoading: isAuthLoading } = useAuth();
 
   // Store initialization state in ref to prevent loops
   const initCompletedRef = useRef(false);
@@ -54,7 +59,9 @@ const SellMyCar = () => {
       render: renderCountRef.current,
       initCompleted: initCompletedRef.current,
       fromValuation,
-      isValid
+      isValid,
+      hasSession: !!session,
+      sessionLoading: isAuthLoading
     });
     
     // Store incoming data for debugging - only do this once
@@ -77,7 +84,7 @@ const SellMyCar = () => {
         }
       }, 2500);
     }
-  }, [location.state, fromValuation, isValid]);
+  }, [location.state, fromValuation, isValid, session, isAuthLoading]);
   
   // Run the initialization exactly once on mount
   useEffect(() => {

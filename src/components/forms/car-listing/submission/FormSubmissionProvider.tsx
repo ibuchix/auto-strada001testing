@@ -4,6 +4,7 @@
  * Created: 2025-07-23
  * Updated: 2025-07-24 - Fixed export of useFormSubmission hook
  * Updated: 2025-05-06 - Improved integration with FormDataContext
+ * Updated: 2025-05-13 - Added validation for userId to prevent TypeScript errors
  * Provides context for form submission functionality
  */
 
@@ -52,6 +53,12 @@ export const FormSubmissionProvider = ({
   children: ReactNode,
   userId: string
 }) => {
+  // Validate userId to prevent errors
+  if (!userId) {
+    console.error("FormSubmissionProvider: userId is required but was not provided");
+    throw new Error("FormSubmissionProvider requires a valid userId");
+  }
+  
   // State for submission
   const [submissionState, setSubmissionState] = useState<FormSubmissionState>(defaultSubmissionState);
   
