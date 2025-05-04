@@ -9,6 +9,7 @@
  * Updated: 2025-05-05 - Added missing fields for manual valuation
  * Updated: 2025-05-07 - Added ExtendedStoredFile type with uploadedAt property
  * Updated: 2025-05-08 - Fixed ExtendedStoredFile type to correctly include all properties
+ * Updated: 2025-05-15 - Added financeAmount to CarEntity interface
  */
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -240,6 +241,7 @@ export interface CarEntity {
   status?: string;
   transmission: "manual" | "automatic" | "semi-automatic";
   features?: CarFeatures;
+  financeAmount?: number | null; // Added the missing property with type number | null
 }
 
 // Add AuctionStatus export for submission.ts

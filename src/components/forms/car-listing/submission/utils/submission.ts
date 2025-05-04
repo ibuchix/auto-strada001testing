@@ -11,6 +11,7 @@
  * - 2025-07-22: Fixed incomplete implementation
  * - 2025-05-05: Fixed type issues and removed is_draft property
  * - 2025-05-14: Fixed financeAmount handling to consistently use number type
+ * - 2025-05-15: Fixed financeAmount property in CarEntity
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
