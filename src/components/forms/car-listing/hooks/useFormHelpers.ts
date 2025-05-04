@@ -3,6 +3,7 @@
  * Form Helper Functions
  * Created: 2025-05-06
  * Updated: 2025-05-08 - Fixed type conversion issues with numeric and enum values
+ * Updated: 2025-05-09 - Fixed additional type conversion issues with mileage and year
  * Purpose: Provides utility functions for form initialization and data handling
  */
 
@@ -16,7 +17,6 @@ export function getFormDefaults(): Partial<CarListingFormData> {
     make: "",
     model: "",
     year: new Date().getFullYear(),
-    color: "",
     mileage: 0,
     transmission: "manual" as const,
     fuel_type: "",
