@@ -1,4 +1,3 @@
-
 /**
  * Form Section Renderer component
  * Created: 2025-06-07
@@ -9,6 +8,7 @@
  * Updated: 2025-07-26: Fixed component imports and added missing sections
  * Updated: 2025-07-27: Fixed PhotosSection props to match component definition
  * Updated: 2025-08-23: Modified to skip pricing section if not from valuation
+ * Updated: 2025-08-24: Updated VehicleDetailsSection import path
  */
 
 import React from 'react';
@@ -23,6 +23,7 @@ import { SellerNotesSection } from "../SellerNotesSection";
 import { AdditionalInfoSection } from "../AdditionalInfoSection";
 import { FinanceDetailsSection } from "../FinanceDetailsSection";
 import { PricingSection } from "../sections/PricingSection";
+import { VehicleDetailsSection } from "../sections/VehicleDetailsSection";
 
 interface FormSectionRendererProps {
   sectionId: string;
@@ -57,7 +58,7 @@ export const FormSectionRenderer = ({
     switch (sectionId) {
       case 'car-details':
       case 'vehicle-info':
-        return <BasicInfoSection />;
+        return <VehicleDetailsSection />;
         
       case 'vehicle-status':
       case 'condition':

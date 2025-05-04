@@ -6,6 +6,7 @@
  * Updated: 2025-05-06 - Fixed useFormData hook usage with proper context
  * Updated: 2025-05-11 - Fixed session access to prevent destructuring error
  * Updated: 2025-05-13 - Added null check for session to avoid destructuring error
+ * Updated: 2025-05-15 - Updated VehicleDetailsSection import path
  * 
  * Main content component for the car listing form
  */
