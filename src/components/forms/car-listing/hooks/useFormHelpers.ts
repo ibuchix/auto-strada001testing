@@ -2,6 +2,7 @@
 /**
  * Form Helper Functions
  * Created: 2025-05-06
+ * Updated: 2025-05-08 - Fixed type conversion issues with numeric and enum values
  * Purpose: Provides utility functions for form initialization and data handling
  */
 
@@ -14,12 +15,12 @@ export function getFormDefaults(): Partial<CarListingFormData> {
   const defaultValues: Partial<CarListingFormData> = {
     make: "",
     model: "",
-    year: "",
+    year: new Date().getFullYear(),
     color: "",
-    mileage: "",
-    transmission: "",
+    mileage: 0,
+    transmission: "manual" as const,
     fuel_type: "",
-    price: "",
+    price: 0,
     description: "",
     hasOutstandingFinance: false,
     isDamaged: false,
@@ -34,15 +35,30 @@ export function getFormDefaults(): Partial<CarListingFormData> {
       
       // Merge valuation data with defaults if available
       if (valuationData && typeof valuationData === 'object') {
+        // Convert string values to appropriate types for the form
+        const year = valuationData.year ? Number(valuationData.year) : defaultValues.year;
+        const mileage = valuationData.mileage ? Number(valuationData.mileage) : defaultValues.mileage;
+        const price = valuationData.price || valuationData.valuation ? 
+                      Number(valuationData.price || valuationData.valuation) : 
+                      defaultValues.price;
+        
+        // Ensure transmission is one of the allowed enum values
+        let transmission: "manual" | "automatic" | "semi-automatic" = defaultValues.transmission;
+        if (valuationData.transmission === "automatic" || 
+            valuationData.transmission === "semi-automatic" || 
+            valuationData.transmission === "manual") {
+          transmission = valuationData.transmission;
+        }
+                      
         return {
           ...defaultValues,
           make: valuationData.make || defaultValues.make,
           model: valuationData.model || defaultValues.model,
-          year: valuationData.year?.toString() || defaultValues.year,
-          mileage: valuationData.mileage?.toString() || defaultValues.mileage,
-          transmission: valuationData.transmission || defaultValues.transmission,
+          year: year,
+          mileage: mileage,
+          transmission: transmission,
           vin: valuationData.vin || "",
-          price: (valuationData.price || valuationData.valuation)?.toString() || defaultValues.price
+          price: price
         };
       }
     }
@@ -52,3 +68,6 @@ export function getFormDefaults(): Partial<CarListingFormData> {
   
   return defaultValues;
 }
+
+// Alias for getFormDefaults for backward compatibility
+export const getInitialFormValues = getFormDefaults;

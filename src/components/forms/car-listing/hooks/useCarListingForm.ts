@@ -11,13 +11,14 @@
  * - 2025-05-31: Updated to work with the filtered valuation data structure
  * - 2025-07-27: Fixed getInitialFormValues import
  * - 2025-05-06: Fixed transmission type compatibility issue
+ * - 2025-05-08: Fixed import for getFormDefaults/getInitialFormValues
  */
 
 import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CarListingFormData } from "@/types/forms";
 import { carSchema } from "@/utils/validation/carSchema";
-import { getInitialFormValues } from "./useFormHelpers";
+import { getFormDefaults } from "./useFormHelpers";
 import { toast } from "sonner";
 import { toNumberValue } from "@/utils/typeConversion";
 
@@ -46,7 +47,7 @@ interface ExtendedFormReturn extends UseFormReturn<CarListingFormData> {
 
 export const useCarListingForm = (userId: string, draftId?: string): ExtendedFormReturn => {
   const form = useForm<CarListingFormData>({
-    defaultValues: getInitialFormValues(),
+    defaultValues: getFormDefaults(),
     resolver: zodResolver(carSchema.partial()),
     mode: 'onBlur'
   });
@@ -82,7 +83,7 @@ export const useCarListingForm = (userId: string, draftId?: string): ExtendedFor
   
   // Form reset handler
   const handleReset = () => {
-    form.reset(getInitialFormValues());
+    form.reset(getFormDefaults());
   };
 
   return { 
@@ -148,7 +149,12 @@ const applyValuationData = (
 
   fields.forEach(field => {
     if (data[field] !== undefined) {
-      form.setValue(field as any, data[field] as any);
+      // Convert numeric string values to numbers
+      if (field === 'year' || field === 'mileage') {
+        form.setValue(field as any, Number(data[field]));
+      } else {
+        form.setValue(field as any, data[field] as any);
+      }
     }
   });
   
@@ -160,7 +166,7 @@ const applyValuationData = (
   // Handle reserve price separately if needed for the form
   if (data.reserve_price && form.getValues('reserve_price') === undefined) {
     try {
-      form.setValue('reserve_price' as any, data.reserve_price);
+      form.setValue('reserve_price' as any, Number(data.reserve_price));
     } catch (error) {
       console.warn('Could not set reserve_price on form', error);
     }

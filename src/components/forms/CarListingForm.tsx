@@ -11,6 +11,7 @@
  * - 2025-08-01: Enhanced fromValuation detection and added more sources of truth
  * - 2025-05-05: Fixed FormContent props to match component definition
  * - 2025-05-06: Added FormDataProvider to fix context error
+ * - 2025-05-08: Fixed type conversion issues with form data
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -23,6 +24,7 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { FormDataProvider } from "./car-listing/context/FormDataContext";
 import { CarListingFormData } from "@/types/forms";
+import { getFormDefaults } from "./car-listing/hooks/useFormHelpers";
 
 interface CarListingFormProps {
   fromValuation?: boolean;
@@ -40,21 +42,9 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
   // Use draft ID from URL parameter or location state
   const draftId = urlDraftId || locationDraftId;
   
-  // Initialize the form
+  // Initialize the form with proper type conversion
   const form = useForm<CarListingFormData>({
-    defaultValues: {
-      make: "",
-      model: "",
-      year: "",
-      color: "",
-      mileage: "",
-      transmission: "",
-      fuel_type: "",
-      price: "",
-      description: "",
-      hasOutstandingFinance: false,
-      isDamaged: false
-    }
+    defaultValues: getFormDefaults()
   });
   
   // Determine if coming from valuation based on props, URL params, or location state
