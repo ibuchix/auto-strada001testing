@@ -3,6 +3,7 @@
  * Form Submit Handler Component
  * Created: 2025-05-13
  * Updated: 2025-05-16 - Enhanced error handling and improved UX feedback
+ * Updated: 2025-05-04 - Added detailed error logging and VIN reservation checks
  * 
  * Provides form submission handler with proper null safety for userId
  */
@@ -56,14 +57,42 @@ export const FormSubmitHandler = ({
         return;
       }
       
+      // Check for VIN reservation ID in localStorage
+      const reservationId = localStorage.getItem('vinReservationId');
+      if (!reservationId) {
+        console.error("No VIN reservation found in localStorage");
+        toast.error("VIN not reserved", {
+          description: "Please complete a VIN check first to validate and reserve this VIN."
+        });
+        return;
+      }
+      
+      console.log(`Form submission starting with VIN reservation: ${reservationId}`);
+      
       // Submit the form
       const result = await submitForm(values);
       
       if (result && onSubmitSuccess) {
+        console.log(`Form submitted successfully with car ID: ${result}`);
         onSubmitSuccess(result);
       }
     } catch (error) {
       console.error("Error submitting form:", error);
+      
+      // Add detailed error logging
+      if (error instanceof Error) {
+        console.error(`Error name: ${error.name}`);
+        console.error(`Error message: ${error.message}`);
+        console.error(`Error stack: ${error.stack}`);
+      }
+      
+      // Check if it's a VIN reservation issue
+      if (error instanceof Error && error.message.includes('VIN reservation')) {
+        toast.error("VIN reservation issue", {
+          description: "Please perform a VIN check again to validate and reserve this VIN."
+        });
+      }
+      
       if (onSubmitError && error instanceof Error) {
         onSubmitError(error);
       }

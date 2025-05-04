@@ -4,9 +4,10 @@
  * Created: 2025-07-18
  * Updated: 2025-05-06 - Fixed transmission type compatibility issue
  * Updated: 2025-05-15 - Added improved error handling and safe context access
+ * Updated: 2025-05-04 - Improved model selection and added free text input option
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export const VehicleDetailsSection = () => {
   const [vinValue, setVinValue] = useState("");
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [useModelInput, setUseModelInput] = useState(false);
   
   // Get form from context with error handling
   const formDataContext = useFormData();
@@ -49,6 +51,18 @@ export const VehicleDetailsSection = () => {
     handleVinLookup,
     handleAutoFill
   } = useVehicleDetailsSection(form);
+  
+  // Watch the make field to toggle model input mode
+  const selectedMake = form.watch("make");
+  
+  // When make changes, check if we need to toggle model input mode
+  useEffect(() => {
+    if (selectedMake && availableModels.length === 0) {
+      setUseModelInput(true);
+    } else if (availableModels.length > 0) {
+      setUseModelInput(false);
+    }
+  }, [selectedMake, availableModels.length]);
   
   const performAutoFill = async () => {
     try {
@@ -158,7 +172,7 @@ export const VehicleDetailsSection = () => {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {["BMW", "Audi", "Mercedes", "Volkswagen", "Ford", "Toyota", "Honda"].map(
+                    {["BMW", "Audi", "Mercedes", "Volkswagen", "Ford", "Toyota", "Honda", "Nissan", "Mazda", "Kia", "Hyundai"].map(
                       (make) => (
                         <SelectItem key={make} value={make}>
                           {make}
@@ -172,7 +186,7 @@ export const VehicleDetailsSection = () => {
             )}
           />
 
-          {/* Model */}
+          {/* Model - conditionally show dropdown or input field */}
           <FormField
             control={form.control}
             name="model"
@@ -180,28 +194,38 @@ export const VehicleDetailsSection = () => {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Model<span className="text-destructive">*</span></FormLabel>
-                <Select 
-                  onValueChange={field.onChange} 
-                  value={field.value}
-                  disabled={availableModels.length === 0}
-                >
+                {useModelInput || availableModels.length === 0 ? (
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        availableModels.length === 0 
-                          ? "Select make first" 
-                          : "Select model"
-                      } />
-                    </SelectTrigger>
+                    <Input 
+                      placeholder="Enter car model" 
+                      {...field} 
+                      disabled={!selectedMake}
+                    />
                   </FormControl>
-                  <SelectContent>
-                    {availableModels.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                ) : (
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={availableModels.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          availableModels.length === 0 
+                            ? "Select make first" 
+                            : "Select model"
+                        } />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {availableModels.map((model) => (
+                        <SelectItem key={model} value={model}>
+                          {model}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <FormMessage />
               </FormItem>
             )}

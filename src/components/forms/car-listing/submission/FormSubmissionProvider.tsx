@@ -6,6 +6,8 @@
  * Updated: 2025-05-06 - Improved integration with FormDataContext
  * Updated: 2025-05-13 - Added validation for userId to prevent TypeScript errors
  * Updated: 2025-05-16 - Implemented proper form submission using listingService
+ * Updated: 2025-05-04 - Enhanced logging and VIN reservation error handling
+ * 
  * Provides context for form submission functionality
  */
 
@@ -119,6 +121,15 @@ export const FormSubmissionProvider = ({
       setSubmitting(true);
       console.log('Submitting form data:', formData);
       
+      // Check for VIN reservation ID
+      const reservationId = localStorage.getItem('vinReservationId');
+      if (!reservationId) {
+        console.error('No VIN reservation ID found in localStorage');
+        throw new Error("No valid VIN reservation found. Please complete a VIN check first.");
+      }
+      
+      console.log(`Found VIN reservation ID: ${reservationId}`);
+      
       // Prepare necessary data from the form
       const vin = formData.vin;
       const mileage = Number(formData.mileage);
@@ -132,6 +143,7 @@ export const FormSubmissionProvider = ({
         if (storedValuationData) {
           try {
             valuationData = JSON.parse(storedValuationData);
+            console.log('Using valuation data from localStorage:', valuationData);
           } catch (e) {
             console.error('Failed to parse stored valuation data:', e);
           }
@@ -139,12 +151,24 @@ export const FormSubmissionProvider = ({
       }
       
       if (!valuationData) {
+        console.error('No valuation data found');
         throw new Error("Missing valuation data. Please complete a valuation first.");
       }
       
       if (!vin) {
+        console.error('No VIN provided');
         throw new Error("VIN is required for car listing submission.");
       }
+      
+      // Log all data before submission
+      console.log('Submitting with data:', {
+        valuationData,
+        userId,
+        vin,
+        mileage,
+        transmission,
+        reservationId
+      });
       
       // Call the edge function through the service
       const result = await createCarListing(
@@ -169,10 +193,21 @@ export const FormSubmissionProvider = ({
       toast.success('Your car listing has been submitted successfully!');
       setSubmitSuccess(carId);
       
+      // Clear reservation ID after successful submission
+      localStorage.removeItem('vinReservationId');
+      
       // Return the car ID
       return carId;
     } catch (error: any) {
       console.error('Error submitting form:', error);
+      
+      // Enhanced error logging
+      if (error instanceof Error) {
+        console.error(`Error name: ${error.name}`);
+        console.error(`Error message: ${error.message}`);
+        console.error(`Error stack: ${error.stack}`);
+      }
+      
       setSubmitError(error);
       toast.error('Failed to submit car listing', {
         description: error.message || 'An unknown error occurred',

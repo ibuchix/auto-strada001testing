@@ -8,6 +8,7 @@
  * - 2025-04-07: Improved data storage and validation
  * - 2025-04-07: Added structured result data for better integration
  * - 2025-04-28: Fixed TypeScript typing issues between different VehicleData interfaces
+ * - 2025-05-04: Added VIN reservation creation after successful validation
  */
 import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
@@ -15,6 +16,7 @@ import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { validateVin, VehicleData as ValidationVehicleData, isValidVinFormat } from "@/services/supabase/valuation/vinValidationService";
 import { getVehicleData, storeVehicleData, VehicleData as StorageVehicleData } from "@/services/vehicleDataService";
+import { reserveVin } from "@/services/vinReservationService";
 
 export const useVinLookup = (form: UseFormReturn<CarListingFormData>) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -86,6 +88,35 @@ export const useVinLookup = (form: UseFormReturn<CarListingFormData>) => {
       
       // Set the VIN in the form
       form.setValue("vin", vin);
+      
+      // Now create a VIN reservation to ensure this VIN can be used when submitting the form
+      console.log('Creating VIN reservation for:', vin);
+      const userId = localStorage.getItem('userId');
+      
+      if (!userId) {
+        console.error('Cannot create VIN reservation: User ID not available');
+        toast.error("Cannot reserve VIN", {
+          description: "User ID not available. Please make sure you're logged in."
+        });
+        return vehicleData;
+      }
+      
+      const reservationResult = await reserveVin(vin, userId, vehicleData);
+      
+      if (reservationResult.success && reservationResult.data?.reservationId) {
+        // Store the reservation ID in localStorage for use during form submission
+        localStorage.setItem('vinReservationId', reservationResult.data.reservationId);
+        console.log('VIN reservation created successfully:', reservationResult.data);
+        
+        toast.success("VIN reserved successfully", {
+          description: "You can now submit this car listing"
+        });
+      } else {
+        console.error('Failed to create VIN reservation:', reservationResult.error);
+        toast.error("VIN reservation failed", {
+          description: "Could not reserve this VIN for your listing. Please try again."
+        });
+      }
       
       // Return the data for immediate use if needed
       return vehicleData;
