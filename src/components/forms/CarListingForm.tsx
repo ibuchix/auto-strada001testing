@@ -15,6 +15,7 @@
  * - 2025-05-13: Added null session handling with proper loading state
  * - 2025-05-14: Fixed FormErrorHandler prop name (error → draftError)
  * - 2025-05-15: Added form initialization safeguards and error handling
+ * - 2025-05-16: Fixed provider hierarchy to ensure consistent form submission flow
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -31,6 +32,7 @@ import { getFormDefaults } from "./car-listing/hooks/useFormHelpers";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { FormStateProvider } from "./car-listing/context/FormStateContext";
 
 interface CarListingFormProps {
   fromValuation?: boolean;
@@ -179,10 +181,12 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
   }
 
   return (
-    <FormSubmissionProvider userId={session.user.id}>
-      <FormDataProvider form={form}>
-        <FormContent carId={draftId} />
-      </FormDataProvider>
-    </FormSubmissionProvider>
+    <FormStateProvider>
+      <FormSubmissionProvider userId={session.user.id}>
+        <FormDataProvider form={form}>
+          <FormContent carId={draftId} />
+        </FormDataProvider>
+      </FormSubmissionProvider>
+    </FormStateProvider>
   );
 };

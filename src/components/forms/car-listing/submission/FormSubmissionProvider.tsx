@@ -5,6 +5,7 @@
  * Updated: 2025-07-24 - Fixed export of useFormSubmission hook
  * Updated: 2025-05-06 - Improved integration with FormDataContext
  * Updated: 2025-05-13 - Added validation for userId to prevent TypeScript errors
+ * Updated: 2025-05-16 - Implemented proper form submission using listingService
  * Provides context for form submission functionality
  */
 
@@ -12,6 +13,9 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { SubmissionError } from './errors';
 import { CarListingFormData } from "@/types/forms";
 import { useFormData } from '../context/FormDataContext';
+import { toast } from 'sonner';
+import { createCarListing } from '@/services/listingService';
+import { prepareSubmission } from './utils/submission';
 
 // Define the submission context state
 interface FormSubmissionState {
@@ -109,15 +113,70 @@ export const FormSubmissionProvider = ({
     setSubmissionState(defaultSubmissionState);
   };
   
-  // Submit form method - this will be implemented by consuming components
+  // Submit form implementation using the edge function through listingService
   const submitForm = async (formData: CarListingFormData): Promise<string | null> => {
     try {
       setSubmitting(true);
-      // Implementation will be provided by the useFormSubmission hook
-      // This is just a placeholder
-      return null;
-    } catch (error) {
-      setSubmitError(error as Error);
+      console.log('Submitting form data:', formData);
+      
+      // Prepare necessary data from the form
+      const vin = formData.vin;
+      const mileage = Number(formData.mileage);
+      const transmission = formData.transmission as string;
+      
+      // Get valuation data from the form or localStorage
+      let valuationData = formData.valuation_data;
+      if (!valuationData) {
+        // Try to get valuation data from localStorage as a fallback
+        const storedValuationData = localStorage.getItem('valuationData');
+        if (storedValuationData) {
+          try {
+            valuationData = JSON.parse(storedValuationData);
+          } catch (e) {
+            console.error('Failed to parse stored valuation data:', e);
+          }
+        }
+      }
+      
+      if (!valuationData) {
+        throw new Error("Missing valuation data. Please complete a valuation first.");
+      }
+      
+      if (!vin) {
+        throw new Error("VIN is required for car listing submission.");
+      }
+      
+      // Call the edge function through the service
+      const result = await createCarListing(
+        valuationData,
+        userId,
+        vin,
+        mileage,
+        transmission
+      );
+      
+      if (!result) {
+        throw new Error('Submission failed - no result returned from service');
+      }
+      
+      const carId = result.car_id || result.id;
+      
+      if (!carId) {
+        throw new Error('Submission failed - no car ID returned');
+      }
+      
+      // Show success notification
+      toast.success('Your car listing has been submitted successfully!');
+      setSubmitSuccess(carId);
+      
+      // Return the car ID
+      return carId;
+    } catch (error: any) {
+      console.error('Error submitting form:', error);
+      setSubmitError(error);
+      toast.error('Failed to submit car listing', {
+        description: error.message || 'An unknown error occurred',
+      });
       return null;
     } finally {
       setSubmitting(false);

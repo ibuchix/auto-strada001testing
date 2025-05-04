@@ -2,6 +2,7 @@
 /**
  * Form Submit Handler Component
  * Created: 2025-05-13
+ * Updated: 2025-05-16 - Enhanced error handling and improved UX feedback
  * 
  * Provides form submission handler with proper null safety for userId
  */
@@ -11,6 +12,7 @@ import { useFormData } from "../context/FormDataContext";
 import { useFormSubmission } from "./FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 interface FormSubmitHandlerProps {
   onSubmitSuccess?: (carId: string) => void;
@@ -42,6 +44,19 @@ export const FormSubmitHandler = ({
     
     try {
       const values = form.getValues();
+      
+      // Validate required fields before submitting
+      const requiredFields = ['make', 'model', 'year', 'mileage', 'vin'];
+      const missingFields = requiredFields.filter(field => !values[field]);
+      
+      if (missingFields.length > 0) {
+        toast.error("Missing required information", {
+          description: `Please fill in: ${missingFields.join(', ')}`
+        });
+        return;
+      }
+      
+      // Submit the form
       const result = await submitForm(values);
       
       if (result && onSubmitSuccess) {
@@ -74,9 +89,14 @@ export const FormSubmitHandler = ({
         type="button" 
         onClick={handleSubmit} 
         disabled={isSubmitDisabled}
-        className={submissionState.isSubmitting ? "opacity-70" : ""}
+        className={`${submissionState.isSubmitting ? "opacity-70" : ""} bg-[#DC143C] hover:bg-[#DC143C]/90`}
       >
-        {submissionState.isSubmitting ? "Submitting..." : "Submit Listing"}
+        {submissionState.isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Submitting...
+          </>
+        ) : "Submit Listing"}
       </Button>
       
       {submissionState.isSuccessful && (

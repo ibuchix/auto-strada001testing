@@ -7,6 +7,7 @@
  * Updated: 2025-05-11 - Fixed session access to prevent destructuring error
  * Updated: 2025-05-13 - Added null check for session to avoid destructuring error
  * Updated: 2025-05-15 - Updated VehicleDetailsSection import path
+ * Updated: 2025-05-16 - Improved submission handling and edge function integration
  * 
  * Main content component for the car listing form
  */
@@ -23,12 +24,22 @@ import { useAuth } from "@/components/AuthProvider";
 import { FinanceDetailsSection } from "./sections/FinanceDetailsSection";
 import { useFormData } from "./context/FormDataContext";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 export const FormContent = ({ carId }: { carId?: string }) => {
   const { session, isLoading } = useAuth();
   const { form } = useFormData();
   const hasOutstandingFinance = form.watch("hasOutstandingFinance");
   const isDamaged = form.watch("isDamaged");
+  
+  // Set form metadata for valuation tracking
+  useEffect(() => {
+    const hasValuationData = !!localStorage.getItem('valuationData');
+    if (hasValuationData) {
+      form.setValue('fromValuation', true);
+    }
+  }, [form]);
   
   // Handle loading and null session states
   if (isLoading) {
@@ -45,6 +56,20 @@ export const FormContent = ({ carId }: { carId?: string }) => {
       </div>
     );
   }
+  
+  const handleSubmitSuccess = (carId: string) => {
+    console.log("Form submitted successfully with car ID:", carId);
+    toast.success("Your car listing has been submitted successfully!", {
+      description: "Our team will review your listing and get back to you soon."
+    });
+  };
+  
+  const handleSubmitError = (error: Error) => {
+    console.error("Error submitting form:", error);
+    toast.error("There was an error submitting your listing", {
+      description: error.message
+    });
+  };
   
   return (
     <div className="space-y-8">
@@ -64,13 +89,9 @@ export const FormContent = ({ carId }: { carId?: string }) => {
       <FormSection title="Review & Submit">
         <FormSubmitHandler 
           carId={carId} 
-          userId={session?.user?.id}
-          onSubmitSuccess={(carId) => {
-            console.log("Form submitted successfully with car ID:", carId);
-          }}
-          onSubmitError={(error) => {
-            console.error("Error submitting form:", error);
-          }}
+          userId={session.user.id}
+          onSubmitSuccess={handleSubmitSuccess}
+          onSubmitError={handleSubmitError}
         />
       </FormSection>
     </div>
