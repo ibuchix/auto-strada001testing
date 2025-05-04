@@ -4,6 +4,7 @@
  * Updated: 2025-05-04 - Added FinanceDetailsSection to the form flow
  * Updated: 2025-05-05 - Fixed import paths and updated AuthProvider usage
  * Updated: 2025-05-06 - Fixed useFormData hook usage with proper context
+ * Updated: 2025-05-11 - Fixed session access to prevent destructuring error
  * 
  * Main content component for the car listing form
  */
@@ -12,7 +13,7 @@ import { VehicleDetailsSection } from "./sections/VehicleDetailsSection";
 import { VehicleStatusSection } from "./sections/VehicleStatusSection";
 import { PhotosSection } from "./sections/PhotosSection";
 import { SellerDetailsSection } from "./sections/SellerDetailsSection";
-import { AdditionalInfoSection } from "../car-listing/AdditionalInfoSection";
+import { AdditionalInfoSection } from "./sections/AdditionalInfoSection";
 import { FeaturesSection } from "./sections/FeaturesSection";
 import { FormSection } from "./FormSection";
 import { FormSubmitHandler } from "./submission/FormSubmitHandler";
