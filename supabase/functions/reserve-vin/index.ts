@@ -2,10 +2,11 @@
 /**
  * Edge function for VIN reservation
  * Updated: 2025-05-06 - Fixed authentication issues and permissions
+ * Updated: 2025-05-06 - Fixed import path for shared client
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getSupabaseClient } from "../_shared/client.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { 
   corsHeaders, 
   handleCorsOptions, 
@@ -17,6 +18,21 @@ import {
 
 // Duration that a VIN reservation is valid for
 const RESERVATION_DURATION_MINUTES = 30;
+
+/**
+ * Create a Supabase client with admin privileges
+ */
+function getSupabaseClient() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL") || "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+    {
+      auth: {
+        persistSession: false,
+      },
+    }
+  );
+}
 
 // Validation schema for input
 interface ReserveVinRequest {
@@ -56,7 +72,7 @@ serve(async (req) => {
   logOperation('reserve_vin_request', { requestId, method: req.method });
 
   try {
-    // Use the shared client with service role key
+    // Use the local getSupabaseClient function
     const supabase = getSupabaseClient();
     
     // Clean up any expired reservations
@@ -124,6 +140,8 @@ serve(async (req) => {
       
       case 'create':
       default: {
+        logOperation('create_reservation_start', { requestId, vin, userId }, 'info');
+        
         const { data: createResult, error: createError } = await supabase.rpc(
           'create_vin_reservation',
           { 
@@ -156,3 +174,4 @@ serve(async (req) => {
     return formatErrorResponse(`Error processing request: ${err.message}`, 500);
   }
 });
+

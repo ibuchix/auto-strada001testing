@@ -1,6 +1,8 @@
+
 /**
  * Client service for managing VIN reservations
  * Updated: 2025-05-06 - Fixed authentication and error handling issues
+ * Updated: 2025-05-06 - Ensured proper JWT token passing to edge function
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
