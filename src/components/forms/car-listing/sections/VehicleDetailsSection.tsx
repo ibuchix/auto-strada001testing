@@ -3,6 +3,7 @@
  * Vehicle Details Section for Car Listing Form
  * Updated: 2025-05-05 - Removed redundant VIN lookup for users coming from valuation
  * Updated: 2025-05-05 - Added auto-population of fields from valuation data
+ * Updated: 2025-05-06 - Fixed TypeScript errors related to error handling and form props
  */
 
 import { useState, useEffect } from "react";
@@ -16,6 +17,7 @@ import { Loader2 } from "lucide-react";
 import { useVehicleDataManager } from "../hooks/vehicle-details/useVehicleDataManager";
 import { getStoredValidationData } from "@/services/supabase/valuation/vinValidationService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FieldError } from "@/components/errors/FieldError";
 
 export const VehicleDetailsSection = () => {
   const { form } = useFormData();
@@ -72,7 +74,7 @@ export const VehicleDetailsSection = () => {
   };
 
   return (
-    <FormSection title="Vehicle Details" description="Enter your vehicle's basic information">
+    <FormSection title="Vehicle Details" subtitle="Enter your vehicle's basic information">
       <div className="space-y-6">
         {/* Show VIN lookup only if NOT coming from valuation */}
         {!fromValuation && (
@@ -120,11 +122,7 @@ export const VehicleDetailsSection = () => {
                 {...form.register("vin")}
                 placeholder="Vehicle Identification Number"
               />
-              {form.formState.errors.vin && (
-                <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.vin.message}
-                </p>
-              )}
+              <FieldError message={form.formState.errors.vin?.message?.toString()} />
             </div>
 
             <div>
@@ -135,11 +133,7 @@ export const VehicleDetailsSection = () => {
                 {...form.register("year", { valueAsNumber: true })}
                 placeholder="Vehicle Year"
               />
-              {form.formState.errors.year && (
-                <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.year.message}
-                </p>
-              )}
+              <FieldError message={form.formState.errors.year?.message?.toString()} />
             </div>
           </div>
 
@@ -151,11 +145,7 @@ export const VehicleDetailsSection = () => {
                 {...form.register("make")}
                 placeholder="Vehicle Make (e.g., Toyota)"
               />
-              {form.formState.errors.make && (
-                <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.make.message}
-                </p>
-              )}
+              <FieldError message={form.formState.errors.make?.message?.toString()} />
             </div>
 
             <div>
@@ -165,11 +155,7 @@ export const VehicleDetailsSection = () => {
                 {...form.register("model")}
                 placeholder="Vehicle Model (e.g., Camry)"
               />
-              {form.formState.errors.model && (
-                <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.model.message}
-                </p>
-              )}
+              <FieldError message={form.formState.errors.model?.message?.toString()} />
             </div>
           </div>
 
@@ -182,11 +168,7 @@ export const VehicleDetailsSection = () => {
                 {...form.register("mileage", { valueAsNumber: true })}
                 placeholder="Vehicle Mileage"
               />
-              {form.formState.errors.mileage && (
-                <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.mileage.message}
-                </p>
-              )}
+              <FieldError message={form.formState.errors.mileage?.message?.toString()} />
             </div>
 
             <div>
@@ -204,11 +186,7 @@ export const VehicleDetailsSection = () => {
                   <SelectItem value="semi-automatic">Semi-automatic</SelectItem>
                 </SelectContent>
               </Select>
-              {form.formState.errors.transmission && (
-                <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.transmission.message}
-                </p>
-              )}
+              <FieldError message={form.formState.errors.transmission?.message?.toString()} />
             </div>
           </div>
         </div>
@@ -216,3 +194,4 @@ export const VehicleDetailsSection = () => {
     </FormSection>
   );
 };
+
