@@ -4,6 +4,7 @@
  * Updated: 2025-05-06 - Fixed authentication issues and permissions
  * Updated: 2025-05-06 - Fixed import path for shared client
  * Updated: 2025-05-07 - Fixed parameter order for database function
+ * Updated: 2025-05-08 - Improved error handling and response formatting
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -77,14 +78,41 @@ serve(async (req) => {
     const supabase = getSupabaseClient();
     
     // Clean up any expired reservations
-    await supabase.rpc('cleanup_expired_vin_reservations');
+    try {
+      await supabase.rpc('cleanup_expired_vin_reservations');
+    } catch (cleanupError) {
+      console.warn('Failed to clean up expired reservations:', cleanupError);
+      // Continue anyway, this is just a maintenance operation
+    }
     
     // Parse the request
-    const data: ReserveVinRequest = await req.json();
+    let data: ReserveVinRequest;
+    try {
+      data = await req.json();
+    } catch (parseError) {
+      logOperation('request_parse_error', { 
+        requestId, 
+        error: parseError.message 
+      }, 'error');
+      return formatErrorResponse('Invalid JSON in request body', 400);
+    }
+    
+    // Log request body for debugging
+    logOperation('request_body', {
+      requestId,
+      vin: data.vin,
+      userId: data.userId,
+      action: data.action || 'create',
+      hasValuationData: !!data.valuationData
+    }, 'debug');
     
     // Validate request
     const validation = validateRequest(data);
     if (!validation.valid) {
+      logOperation('validation_error', {
+        requestId,
+        error: validation.error
+      }, 'error');
       return formatErrorResponse(validation.error || "Invalid request", 400);
     }
     
@@ -143,7 +171,6 @@ serve(async (req) => {
       default: {
         logOperation('create_reservation_start', { requestId, vin, userId }, 'info');
         
-        // FIXED: Parameter order to match the database function signature
         // Function signature: create_vin_reservation(p_vin, p_user_id, p_valuation_data, p_duration_minutes)
         const { data: createResult, error: createError } = await supabase.rpc(
           'create_vin_reservation',
@@ -156,14 +183,46 @@ serve(async (req) => {
         );
         
         if (createError) {
-          logOperation('create_reservation_error', { requestId, error: createError.message }, 'error');
+          logOperation('create_reservation_error', { 
+            requestId, 
+            error: createError.message,
+            errorCode: createError.code,
+            details: createError.details,
+            hint: createError.hint
+          }, 'error');
+          
           return formatErrorResponse(`Failed to create reservation: ${createError.message}`, 400);
         }
+        
+        // Log detailed response for debugging
+        logOperation('create_reservation_success', {
+          requestId,
+          resultType: typeof createResult,
+          resultKeys: createResult ? Object.keys(createResult) : [],
+          success: createResult?.success,
+          reservationId: createResult?.reservationId
+        }, 'info');
         
         result = createResult;
         break;
       }
     }
+    
+    // Ensure result is not undefined or null
+    if (result === undefined || result === null) {
+      logOperation('empty_result', { requestId, action }, 'error');
+      return formatErrorResponse('Operation returned no result', 500);
+    }
+    
+    // Log successful response
+    logOperation('operation_success', {
+      requestId,
+      action,
+      resultType: typeof result,
+      hasSuccess: 'success' in result,
+      hasError: 'error' in result,
+      hasReservationId: 'reservationId' in result
+    }, 'info');
     
     return formatSuccessResponse(result);
     

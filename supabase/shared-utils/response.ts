@@ -2,6 +2,7 @@
 /**
  * Shared response formatting utilities
  * Created: 2025-04-19
+ * Updated: 2025-05-08 - Enhanced error handling and response consistency
  */
 
 import { corsHeaders } from './cors.ts';
@@ -16,8 +17,17 @@ export function formatSuccessResponse(
   data: any, 
   status: number = 200
 ): Response {
+  // Ensure data is never undefined/null
+  const safeData = data === undefined || data === null ? {} : data;
+  
+  // Always wrap response in a standardized format
+  const responseBody = {
+    success: true,
+    data: safeData
+  };
+  
   return new Response(
-    JSON.stringify({ success: true, data }),
+    JSON.stringify(responseBody),
     {
       headers: { 
         ...corsHeaders, 
@@ -45,7 +55,7 @@ export function formatErrorResponse(
   return new Response(
     JSON.stringify({ 
       success: false, 
-      error: message,
+      error: message || 'Unknown error',
       code: code || 'ERROR'
     }),
     {

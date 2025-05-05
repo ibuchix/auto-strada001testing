@@ -7,8 +7,8 @@
  * Updated: 2025-05-04 - Improved VIN reservation handling and error messaging
  * Updated: 2025-05-05 - Added automatic VIN reservation creation if missing
  * Updated: 2025-05-05 - Fixed VIN reservation handling to work with RLS policies
- * 
- * Provides form submission handler with proper null safety for userId
+ * Updated: 2025-05-08 - Improved error handling for undefined responses
+ * Updated: 2025-05-08 - Added additional checks and feedback for reservation process
  */
 
 import { useEffect, useState } from "react";
@@ -84,14 +84,44 @@ export const FormSubmitHandler = ({
     setIsCreatingReservation(true);
     
     try {
+      // Log the parameters being sent
+      console.log('Calling reserveVin with:', { 
+        vin, 
+        userId, 
+        valuationDataExists: !!valuationData 
+      });
+      
       const reservationResult = await reserveVin(vin, userId, valuationData);
+      
+      // Log the complete response for debugging
+      console.log('VIN reservation result:', reservationResult);
       
       if (reservationResult.success && reservationResult.data?.reservationId) {
         localStorage.setItem('vinReservationId', reservationResult.data.reservationId);
         console.log('VIN reservation created successfully:', reservationResult.data);
         return true;
+      } else if (reservationResult.success && reservationResult.data) {
+        // Handle case where success is true but data format is different
+        // Try to extract reservationId from different possible locations
+        const possibleId = reservationResult.data.id || 
+                           reservationResult.data.reservation?.id ||
+                           (typeof reservationResult.data === 'string' ? reservationResult.data : null);
+        
+        if (possibleId) {
+          localStorage.setItem('vinReservationId', possibleId);
+          console.log('VIN reservation ID extracted from alternative location:', possibleId);
+          return true;
+        }
+        
+        console.warn('Reservation success but no ID found in response:', reservationResult);
+        toast.warning('VIN reservation incomplete', {
+          description: 'Reserved but could not get confirmation ID. Proceeding anyway.'
+        });
+        return true; // Proceed anyway since the server reported success
       } else {
-        console.error('Failed to create VIN reservation:', reservationResult.error);
+        console.error('Failed to create VIN reservation:', 
+          reservationResult.error || 'No error message provided');
+        
         toast.error('VIN reservation failed', {
           description: reservationResult.error || 'Unable to reserve this VIN. Please try again or perform a new VIN lookup.'
         });
@@ -99,8 +129,17 @@ export const FormSubmitHandler = ({
       }
     } catch (error) {
       console.error('Error creating VIN reservation:', error);
+      
+      // Log detailed information about the error object
+      console.error('Error type:', typeof error);
+      console.error('Error structure:', JSON.stringify(error, null, 2));
+      
+      const errorMessage = error instanceof Error ? error.message : 
+                          typeof error === 'string' ? error : 
+                          'An unknown error occurred';
+                          
       toast.error('VIN reservation error', {
-        description: 'An error occurred while reserving this VIN. Please try again.'
+        description: errorMessage || 'An error occurred while reserving this VIN. Please try again.'
       });
       return false;
     } finally {
@@ -167,6 +206,10 @@ export const FormSubmitHandler = ({
       if (error instanceof Error && error.message.includes('VIN reservation')) {
         toast.error("VIN reservation issue", {
           description: "Please perform a VIN Lookup in the Vehicle Details section to validate your VIN."
+        });
+      } else {
+        toast.error("Form submission failed", {
+          description: error instanceof Error ? error.message : "An unknown error occurred"
         });
       }
       
