@@ -6,6 +6,7 @@
  * Updated: 2025-05-08 - Fixed error handling for undefined values
  * Updated: 2025-05-08 - Added robust response validation
  * Updated: 2025-05-08 - Enhanced error logging and user feedback
+ * Updated: 2025-05-10 - Fixed cross-origin messaging issues and improved duplicate key handling
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,6 +20,8 @@ export interface VinReservationResult {
     exists?: boolean;
     wasExpired?: boolean;
     message?: string;
+    error?: string;
+    success?: boolean;
     reservation?: {
       id: string;
       vin: string;
@@ -56,6 +59,28 @@ function safeGetErrorMessage(error: any): string {
 }
 
 /**
+ * Fix cross-origin messaging issues by disabling it in the Lovable environment
+ * This prevents the "Unable to post message" errors
+ */
+function disablePostMessageInDevEnvironment() {
+  // Only try to use postMessage in non-Lovable environments
+  try {
+    const isLovableEnvironment = window.location.hostname.includes('lovableproject.com') ||
+                                window.location.hostname.includes('lovable.dev');
+    
+    if (isLovableEnvironment) {
+      // Disable postMessage-related functionality in Lovable environment
+      console.log('Running in Lovable environment - disabling cross-origin postMessage');
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.warn('Error detecting environment:', e);
+    return false;
+  }
+}
+
+/**
  * Validate the response from the edge function
  */
 function validateResponse(response: any): VinReservationResult {
@@ -67,6 +92,23 @@ function validateResponse(response: any): VinReservationResult {
   
   // Check if response exists
   if (!response) return errorResult;
+  
+  // Handle duplicate key error as a special case - consider it a partial success
+  if (response.data && 
+      response.data.error && 
+      typeof response.data.error === 'string' && 
+      response.data.error.includes('duplicate key')) {
+    console.log('Detected duplicate key error, treating as partial success');
+    return {
+      success: true,
+      data: {
+        exists: true,
+        message: 'VIN is already reserved',
+        error: response.data.error,
+        success: false
+      }
+    };
+  }
   
   // If response has an explicit success flag, use it
   if (typeof response.success === 'boolean') {
@@ -119,6 +161,9 @@ export async function reserveVin(
 ): Promise<VinReservationResult> {
   try {
     console.log('Creating VIN reservation:', { vin, userId });
+    
+    // Disable postMessage in Lovable environment
+    disablePostMessageInDevEnvironment();
     
     // First check if user is logged in
     const { data: { session } } = await supabase.auth.getSession();

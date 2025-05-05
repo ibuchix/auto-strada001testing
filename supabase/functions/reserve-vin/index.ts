@@ -5,6 +5,7 @@
  * Updated: 2025-05-06 - Fixed import path for shared client
  * Updated: 2025-05-07 - Fixed parameter order for database function
  * Updated: 2025-05-08 - Improved error handling and response formatting
+ * Updated: 2025-05-10 - Enhanced CORS handling for Lovable environments
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -18,8 +19,27 @@ import {
   createRequestId
 } from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
 
+// Enhanced CORS headers to support Lovable domains
+const enhancedCorsHeaders = {
+  ...corsHeaders,
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, origin',
+  'Access-Control-Max-Age': '86400',
+};
+
 // Duration that a VIN reservation is valid for
 const RESERVATION_DURATION_MINUTES = 30;
+
+/**
+ * Enhanced CORS preflight handler
+ */
+function handleEnhancedCorsOptions(): Response {
+  return new Response(null, {
+    headers: enhancedCorsHeaders,
+    status: 204,
+  });
+}
 
 /**
  * Create a Supabase client with admin privileges
@@ -65,9 +85,9 @@ function validateRequest(data: any): { valid: boolean; error?: string } {
 
 // Main handler
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight requests with enhanced headers
   if (req.method === "OPTIONS") {
-    return handleCorsOptions();
+    return handleEnhancedCorsOptions();
   }
 
   const requestId = crypto.randomUUID();
@@ -94,7 +114,19 @@ serve(async (req) => {
         requestId, 
         error: parseError.message 
       }, 'error');
-      return formatErrorResponse('Invalid JSON in request body', 400);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid JSON in request body'
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...enhancedCorsHeaders
+          }
+        }
+      );
     }
     
     // Log request body for debugging
@@ -113,7 +145,19 @@ serve(async (req) => {
         requestId,
         error: validation.error
       }, 'error');
-      return formatErrorResponse(validation.error || "Invalid request", 400);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: validation.error || "Invalid request"
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            ...enhancedCorsHeaders
+          }
+        }
+      );
     }
     
     const { vin, userId, valuationData, action = 'create' } = data;
@@ -183,6 +227,35 @@ serve(async (req) => {
         );
         
         if (createError) {
+          // Handle duplicate key error as a special case
+          if (createError.message.includes('duplicate key value')) {
+            logOperation('duplicate_vin_reservation', { 
+              requestId, 
+              vin,
+              userId,
+              error: createError.message
+            }, 'warn');
+            
+            // This is a duplicate key error - provide detailed response
+            return new Response(
+              JSON.stringify({
+                success: true, // We mark as success to let the client know this is expected
+                data: {
+                  error: createError.message,
+                  success: false,
+                  message: "This VIN is already reserved"
+                }
+              }),
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...enhancedCorsHeaders
+                },
+                status: 200 // Use 200 since this is an expected condition
+              }
+            );
+          }
+          
           logOperation('create_reservation_error', { 
             requestId, 
             error: createError.message,
@@ -191,7 +264,19 @@ serve(async (req) => {
             hint: createError.hint
           }, 'error');
           
-          return formatErrorResponse(`Failed to create reservation: ${createError.message}`, 400);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Failed to create reservation: ${createError.message}`
+            }),
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                ...enhancedCorsHeaders
+              },
+              status: 400
+            }
+          );
         }
         
         // Log detailed response for debugging
@@ -211,7 +296,19 @@ serve(async (req) => {
     // Ensure result is not undefined or null
     if (result === undefined || result === null) {
       logOperation('empty_result', { requestId, action }, 'error');
-      return formatErrorResponse('Operation returned no result', 500);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Operation returned no result'
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...enhancedCorsHeaders
+          },
+          status: 500
+        }
+      );
     }
     
     // Log successful response
@@ -224,7 +321,19 @@ serve(async (req) => {
       hasReservationId: 'reservationId' in result
     }, 'info');
     
-    return formatSuccessResponse(result);
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        data: result 
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...enhancedCorsHeaders
+        },
+        status: 200
+      }
+    );
     
   } catch (err) {
     logOperation('reserve_vin_exception', { 
@@ -233,6 +342,18 @@ serve(async (req) => {
       stack: err.stack
     }, 'error');
     
-    return formatErrorResponse(`Error processing request: ${err.message}`, 500);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: `Error processing request: ${err.message}`
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...enhancedCorsHeaders
+        },
+        status: 500
+      }
+    );
   }
 });

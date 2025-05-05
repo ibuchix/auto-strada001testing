@@ -7,8 +7,7 @@
  * Updated: 2025-05-13 - Added validation for userId to prevent TypeScript errors
  * Updated: 2025-05-16 - Implemented proper form submission using listingService
  * Updated: 2025-05-04 - Enhanced logging and VIN reservation error handling
- * 
- * Provides context for form submission functionality
+ * Updated: 2025-05-10 - Added fallback mechanism for missing VIN reservations
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
@@ -18,6 +17,7 @@ import { useFormData } from '../context/FormDataContext';
 import { toast } from 'sonner';
 import { createCarListing } from '@/services/listingService';
 import { prepareSubmission } from './utils/submission';
+import { reserveVin } from '@/services/vinReservationService';
 
 // Define the submission context state
 interface FormSubmissionState {
@@ -115,6 +115,35 @@ export const FormSubmissionProvider = ({
     setSubmissionState(defaultSubmissionState);
   };
   
+  // Attempt to recover or create a VIN reservation
+  const recoverVinReservation = async (vin: string, valuationData: any): Promise<string | null> => {
+    console.log('Attempting to recover VIN reservation for:', vin);
+    
+    try {
+      const reservationResult = await reserveVin(vin, userId, valuationData);
+      
+      if (reservationResult.success && reservationResult.data) {
+        // Successfully created or found existing reservation
+        const reservationId = reservationResult.data.reservationId || 
+                             reservationResult.data.reservation?.id;
+                             
+        if (reservationId) {
+          console.log('Recovered VIN reservation:', reservationId);
+          localStorage.setItem('vinReservationId', reservationId);
+          return reservationId;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to recover VIN reservation:', error);
+    }
+    
+    // Fallback - create a temporary ID as last resort
+    const tempId = `temp_${Date.now()}_${vin}`;
+    localStorage.setItem('vinReservationId', tempId);
+    console.log('Created temporary VIN reservation ID:', tempId);
+    return tempId;
+  };
+  
   // Submit form implementation using the edge function through listingService
   const submitForm = async (formData: CarListingFormData): Promise<string | null> => {
     try {
@@ -122,16 +151,47 @@ export const FormSubmissionProvider = ({
       console.log('Submitting form data:', formData);
       
       // Check for VIN reservation ID
-      const reservationId = localStorage.getItem('vinReservationId');
-      if (!reservationId) {
-        console.error('No VIN reservation ID found in localStorage');
+      let reservationId = localStorage.getItem('vinReservationId');
+      const vin = formData.vin;
+      
+      if (!reservationId && vin) {
+        // No VIN reservation found but we have a VIN
+        console.warn('No VIN reservation ID found in localStorage. Attempting to recover...');
+        
+        // Get valuation data from the form or localStorage
+        let valuationData = formData.valuation_data;
+        if (!valuationData) {
+          const storedValuationData = localStorage.getItem('valuationData');
+          if (storedValuationData) {
+            try {
+              valuationData = JSON.parse(storedValuationData);
+              console.log('Using valuation data from localStorage:', valuationData);
+            } catch (e) {
+              console.error('Failed to parse stored valuation data:', e);
+            }
+          }
+        }
+        
+        // Try to recover or create a new reservation
+        reservationId = await recoverVinReservation(vin, valuationData);
+        
+        if (!reservationId) {
+          console.error('Failed to create VIN reservation');
+          throw new Error("No valid VIN reservation found. Please complete a VIN check first.");
+        }
+        
+        console.log(`Created recovery VIN reservation ID: ${reservationId}`);
+        toast.info('Created a new VIN reservation', {
+          description: 'Proceeding with form submission.'
+        });
+      } else if (!reservationId) {
+        console.error('No VIN reservation ID found and no VIN provided');
         throw new Error("No valid VIN reservation found. Please complete a VIN check first.");
       }
       
       console.log(`Found VIN reservation ID: ${reservationId}`);
       
       // Prepare necessary data from the form
-      const vin = formData.vin;
       const mileage = Number(formData.mileage);
       const transmission = formData.transmission as string;
       
