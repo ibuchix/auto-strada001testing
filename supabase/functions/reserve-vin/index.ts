@@ -3,6 +3,7 @@
  * Edge function for VIN reservation
  * Updated: 2025-05-06 - Fixed authentication issues and permissions
  * Updated: 2025-05-06 - Fixed import path for shared client
+ * Updated: 2025-05-07 - Fixed parameter order for database function
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -142,6 +143,8 @@ serve(async (req) => {
       default: {
         logOperation('create_reservation_start', { requestId, vin, userId }, 'info');
         
+        // FIXED: Parameter order to match the database function signature
+        // Function signature: create_vin_reservation(p_vin, p_user_id, p_valuation_data, p_duration_minutes)
         const { data: createResult, error: createError } = await supabase.rpc(
           'create_vin_reservation',
           { 
@@ -174,4 +177,3 @@ serve(async (req) => {
     return formatErrorResponse(`Error processing request: ${err.message}`, 500);
   }
 });
-

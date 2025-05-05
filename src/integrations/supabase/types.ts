@@ -1591,6 +1591,15 @@ export type Database = {
         }
         Returns: Json
       }
+      create_vin_reservation: {
+        Args: {
+          p_vin: string
+          p_user_id: string
+          p_valuation_data?: Json
+          p_duration_minutes?: number
+        }
+        Returns: Json
+      }
       debug_auth_user_id: {
         Args: Record<PropertyKey, never>
         Returns: string
