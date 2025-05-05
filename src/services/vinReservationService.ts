@@ -1,8 +1,6 @@
-
 /**
  * Client service for managing VIN reservations
- * Updated: 2025-05-05 - Enhanced error handling and automatic reservation creation
- * Updated: 2025-05-05 - Fixed to work with RLS policies
+ * Updated: 2025-05-06 - Fixed authentication and error handling issues
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -38,97 +36,27 @@ export async function reserveVin(
   try {
     console.log('Creating VIN reservation:', { vin, userId });
     
-    // First check if a reservation already exists for this VIN and user
-    const { data: existingReservations, error: checkError } = await supabase
-      .from('vin_reservations')
-      .select('id, status, expires_at')
-      .eq('vin', vin)
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .maybeSingle();
-      
-    if (checkError) {
-      console.warn('Error checking for existing reservations:', checkError);
-      // Continue with edge function as fallback
-    } else if (existingReservations) {
-      console.log('Found existing reservation:', existingReservations);
-      
-      // Check if the reservation is still valid
-      const now = new Date();
-      const expiresAt = new Date(existingReservations.expires_at);
-      
-      if (now < expiresAt) {
-        console.log('Existing reservation is still valid');
-        
-        // Try to update the reservation to extend its expiration
-        const { data: updatedReservation, error: updateError } = await supabase
-          .from('vin_reservations')
-          .update({
-            expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes from now
-            valuation_data: valuationData || undefined
-          })
-          .eq('id', existingReservations.id)
-          .select('id, expires_at')
-          .single();
-          
-        if (updateError) {
-          console.warn('Error updating reservation:', updateError);
-        } else {
-          console.log('Updated existing reservation:', updatedReservation);
-          return {
-            success: true,
-            data: {
-              reservationId: updatedReservation.id,
-              expiresAt: updatedReservation.expires_at,
-              isNew: false
-            }
-          };
-        }
-      }
-    }
+    // First check if user is logged in
+    const { data: { session } } = await supabase.auth.getSession();
     
-    // Try to create a new reservation directly
-    try {
-      const { data: directReservation, error: directError } = await supabase
-        .from('vin_reservations')
-        .insert([
-          {
-            vin,
-            user_id: userId, // This matches the RLS policy column name
-            expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes from now
-            valuation_data: valuationData || null,
-            status: 'active'
-          }
-        ])
-        .select('id, expires_at')
-        .single();
-        
-      if (!directError) {
-        console.log('Successfully created reservation directly:', directReservation);
-        return {
-          success: true,
-          data: {
-            reservationId: directReservation.id,
-            expiresAt: directReservation.expires_at,
-            isNew: true
-          }
-        };
-      } else {
-        console.log('Could not create reservation directly:', directError);
-        // Fall back to edge function method
-      }
-    } catch (directInsertError) {
-      console.warn('Error with direct reservation insert:', directInsertError);
-      // Fall back to edge function method
+    if (!session) {
+      console.warn('No active session found for VIN reservation');
+      return {
+        success: false,
+        error: 'Authentication required to reserve VIN'
+      };
     }
-    
-    // Fall back to using the edge function if direct DB access fails
+
+    // Use security definer function through edge function
     const { data, error } = await supabase.functions.invoke('reserve-vin', {
       body: {
         vin,
         userId,
         valuationData,
         action: 'create'
+      },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`
       }
     });
     
@@ -165,57 +93,26 @@ export async function checkVinReservation(
   try {
     console.log('Checking VIN reservation:', { vin, userId });
     
-    // First try direct database query with RLS
-    try {
-      const { data: reservation, error: reservationError } = await supabase
-        .from('vin_reservations')
-        .select('*')
-        .eq('vin', vin)
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .maybeSingle();
-        
-      if (!reservationError && reservation) {
-        // Check if the reservation has expired
-        const now = new Date();
-        const expiresAt = new Date(reservation.expires_at);
-        
-        if (now > expiresAt) {
-          return {
-            success: true,
-            data: {
-              exists: false,
-              wasExpired: true,
-              message: "Reservation has expired"
-            }
-          };
-        }
-        
-        return {
-          success: true,
-          data: {
-            exists: true,
-            reservation: {
-              id: reservation.id,
-              vin: reservation.vin,
-              expiresAt: reservation.expires_at,
-              valuationData: reservation.valuation_data,
-              timeRemaining: Math.floor((expiresAt.getTime() - now.getTime()) / 1000) // in seconds
-            }
-          }
-        };
-      }
-    } catch (directQueryError) {
-      console.warn('Error with direct reservation query:', directQueryError);
-      // Fall back to edge function
-    }
+    // Get current session
+    const { data: { session } } = await supabase.auth.getSession();
     
-    // Fall back to edge function
+    if (!session) {
+      console.warn('No active session found for VIN check');
+      return {
+        success: false,
+        error: 'Authentication required to check reservation'
+      };
+    }
+
+    // Use security definer function through edge function
     const { data, error } = await supabase.functions.invoke('reserve-vin', {
       body: {
         vin,
         userId,
         action: 'check'
+      },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`
       }
     });
     
