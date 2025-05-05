@@ -1,328 +1,216 @@
 
 /**
- * VehicleDetailsSection component
- * Created: 2025-07-18
- * Updated: 2025-05-06 - Fixed transmission type compatibility issue
- * Updated: 2025-05-15 - Added improved error handling and safe context access
- * Updated: 2025-05-04 - Improved model selection and added free text input option
+ * Vehicle Details Section for Car Listing Form
+ * Updated: 2025-05-05 - Removed redundant VIN lookup for users coming from valuation
+ * Updated: 2025-05-05 - Added auto-population of fields from valuation data
  */
 
 import { useState, useEffect } from "react";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useVehicleDetailsSection } from "../hooks/useVehicleDetailsSection";
-import { FormSection } from "../FormSection";
-import { Search, RefreshCw } from "lucide-react";
 import { useFormData } from "../context/FormDataContext";
-import { toast } from "sonner";
-import { hasCompleteVehicleData } from "@/services/vehicleDataService";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { FormSection } from "../FormSection";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useVinLookup } from "../hooks/vehicle-details/useVinLookup";
+import { Loader2 } from "lucide-react";
+import { useVehicleDataManager } from "../hooks/vehicle-details/useVehicleDataManager";
+import { getStoredValidationData } from "@/services/supabase/valuation/vinValidationService";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const VehicleDetailsSection = () => {
-  const [vinValue, setVinValue] = useState("");
-  const [isAutoFilling, setIsAutoFilling] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [useModelInput, setUseModelInput] = useState(false);
-  
-  // Get form from context with error handling
-  const formDataContext = useFormData();
-  
-  // Early return with error UI if form context is not available
-  if (!formDataContext?.form) {
-    return (
-      <Alert variant="destructive" className="mb-6">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Form Error</AlertTitle>
-        <AlertDescription>
-          Could not access form data. Please refresh the page and try again.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-  
-  const { form } = formDataContext;
-  
-  const {
-    availableModels,
-    yearOptions,
-    handleVinLookup,
-    handleAutoFill
-  } = useVehicleDetailsSection(form);
-  
-  // Watch the make field to toggle model input mode
-  const selectedMake = form.watch("make");
-  
-  // When make changes, check if we need to toggle model input mode
+  const { form } = useFormData();
+  const { isLoading, handleVinLookup } = useVinLookup(form);
+  const { hasVehicleData, applyVehicleDataToForm } = useVehicleDataManager(form);
+  const [vin, setVin] = useState("");
+  const [fromValuation, setFromValuation] = useState(false);
+  const [valuationDataApplied, setValuationDataApplied] = useState(false);
+
+  // Get form values
+  const currentVin = form.watch("vin");
+  const make = form.watch("make");
+  const model = form.watch("model");
+  const year = form.watch("year");
+  const mileage = form.watch("mileage");
+  const transmission = form.watch("transmission");
+  const hasFormData = !!(make && model && year);
+
+  // Check if we're coming from valuation and have data
   useEffect(() => {
-    if (selectedMake && availableModels.length === 0) {
-      setUseModelInput(true);
-    } else if (availableModels.length > 0) {
-      setUseModelInput(false);
+    // Check if we have valuation data in localStorage
+    const storedData = getStoredValidationData();
+    const hasUrlParam = window.location.search.includes('from=valuation') || window.location.search.includes('fromValuation=true');
+    const hasStateParam = localStorage.getItem('fromValuation') === 'true';
+    
+    setFromValuation(hasUrlParam || hasStateParam || !!storedData);
+    
+    // If we have valuation data and haven't applied it yet, auto-fill the form
+    if (storedData && !valuationDataApplied && !hasFormData) {
+      console.log("Auto-filling form with valuation data:", storedData);
+      
+      form.setValue("vin", storedData.vin || "");
+      form.setValue("make", storedData.make || "");
+      form.setValue("model", storedData.model || "");
+      form.setValue("year", storedData.year || "");
+      form.setValue("mileage", storedData.mileage || "");
+      form.setValue("transmission", storedData.transmission || "");
+      
+      // Set a flag to indicate we've applied the data
+      setValuationDataApplied(true);
+      
+      // Create VIN reservation automatically if coming from valuation
+      if (storedData.vin) {
+        handleVinLookup(storedData.vin);
+      }
     }
-  }, [selectedMake, availableModels.length]);
+  }, [form, valuationDataApplied, hasFormData]);
   
-  const performAutoFill = async () => {
-    try {
-      setIsAutoFilling(true);
-      
-      // Validate that we have complete vehicle data before attempting auto-fill
-      if (!hasCompleteVehicleData()) {
-        toast.error("Incomplete vehicle data", {
-          description: "Please complete a VIN check first to auto-fill details"
-        });
-        return;
-      }
-      
-      // Call the hook's auto-fill function
-      const success = await handleAutoFill();
-      
-      if (success) {
-        toast.success("Vehicle details auto-filled", {
-          description: "Successfully populated form with vehicle data"
-        });
-      } else {
-        toast.error("Auto-fill failed", {
-          description: "Could not apply vehicle data to the form"
-        });
-      }
-    } catch (error) {
-      console.error("Error auto-filling data:", error);
-      toast.error("Failed to auto-fill vehicle details", {
-        description: "Please try again or enter details manually"
-      });
-    } finally {
-      setIsAutoFilling(false);
+  const handleVinSubmit = (e) => {
+    e.preventDefault();
+    if (vin) {
+      handleVinLookup(vin);
     }
   };
-  
-  // Safe function to handle VIN lookup with loading state
-  const handleVinLookupSafely = async (vin: string) => {
-    try {
-      setIsLoading(true);
-      await handleVinLookup(vin);
-    } catch (error) {
-      console.error("Error during VIN lookup:", error);
-      toast.error("VIN lookup failed", {
-        description: "Could not retrieve vehicle details. Please try again."
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
+
   return (
-    <FormSection title="Vehicle Details">
+    <FormSection title="Vehicle Details" description="Enter your vehicle's basic information">
       <div className="space-y-6">
-        {/* VIN Lookup */}
-        <div className="flex flex-col space-y-2">
-          <FormLabel htmlFor="vin-lookup">VIN Lookup (Optional)</FormLabel>
-          <div className="flex space-x-2">
-            <Input
-              id="vin-lookup"
-              placeholder="Enter Vehicle Identification Number"
-              value={vinValue}
-              onChange={(e) => setVinValue(e.target.value)}
-              maxLength={17}
-              className="flex-1"
-            />
-            <Button 
-              type="button" 
-              onClick={() => handleVinLookupSafely(vinValue)}
-              disabled={isLoading || vinValue.length !== 17}
-              variant="default"
-            >
-              <Search className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              {isLoading ? 'Looking up...' : 'Lookup'}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Enter the 17-character VIN to automatically fill in vehicle details
-          </p>
-        </div>
-
-        <div className="flex justify-end mb-4">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={performAutoFill}
-            disabled={isAutoFilling || isLoading}
-            className="flex items-center"
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isAutoFilling ? 'animate-spin' : ''}`} />
-            {isAutoFilling ? 'Auto-filling...' : 'Auto-fill from VIN Check'}
-          </Button>
-        </div>
-      
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Make */}
-          <FormField
-            control={form.control}
-            name="make"
-            rules={{ required: "Make is required" }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Make<span className="text-destructive">*</span></FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select make" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {["BMW", "Audi", "Mercedes", "Volkswagen", "Ford", "Toyota", "Honda", "Nissan", "Mazda", "Kia", "Hyundai"].map(
-                      (make) => (
-                        <SelectItem key={make} value={make}>
-                          {make}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Model - conditionally show dropdown or input field */}
-          <FormField
-            control={form.control}
-            name="model"
-            rules={{ required: "Model is required" }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Model<span className="text-destructive">*</span></FormLabel>
-                {useModelInput || availableModels.length === 0 ? (
-                  <FormControl>
-                    <Input 
-                      placeholder="Enter car model" 
-                      {...field} 
-                      disabled={!selectedMake}
-                    />
-                  </FormControl>
-                ) : (
-                  <Select 
-                    onValueChange={field.onChange} 
-                    value={field.value}
-                    disabled={availableModels.length === 0}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={
-                          availableModels.length === 0 
-                            ? "Select make first" 
-                            : "Select model"
-                        } />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {availableModels.map((model) => (
-                        <SelectItem key={model} value={model}>
-                          {model}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Year */}
-          <FormField
-            control={form.control}
-            name="year"
-            rules={{ required: "Year is required" }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Year<span className="text-destructive">*</span></FormLabel>
-                <Select 
-                  onValueChange={(value) => field.onChange(parseInt(value))} 
-                  value={field.value?.toString()}
+        {/* Show VIN lookup only if NOT coming from valuation */}
+        {!fromValuation && (
+          <div className="space-y-2">
+            <h3 className="text-lg font-medium">VIN Lookup</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <Label htmlFor="vin-lookup">Vehicle Identification Number (VIN)</Label>
+                <Input 
+                  id="vin-lookup" 
+                  placeholder="Enter your vehicle's VIN" 
+                  value={vin}
+                  onChange={(e) => setVin(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button 
+                  type="button" 
+                  onClick={handleVinSubmit} 
+                  disabled={isLoading || !vin}
+                  className="w-full bg-[#DC143C] hover:bg-[#DC143C]/90"
                 >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select year" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {yearOptions.map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Looking up...
+                    </>
+                  ) : "Lookup VIN"}
+                </Button>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500">
+              Enter your vehicle's VIN to automatically populate vehicle details
+            </p>
+          </div>
+        )}
 
-          {/* Mileage */}
-          <FormField
-            control={form.control}
-            name="mileage"
-            rules={{ 
-              required: "Mileage is required",
-              min: { value: 0, message: "Mileage must be a positive number" }
-            }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Mileage (km)<span className="text-destructive">*</span></FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="e.g. 50000" 
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value) || '')}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          {/* VIN */}
-          <FormField
-            control={form.control}
-            name="vin"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>VIN</FormLabel>
-                <FormControl>
-                  <Input placeholder="Vehicle Identification Number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          {/* Transmission */}
-          <FormField
-            control={form.control}
-            name="transmission"
-            rules={{ required: "Transmission is required" }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Transmission<span className="text-destructive">*</span></FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select transmission type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="manual">Manual</SelectItem>
-                    <SelectItem value="automatic">Automatic</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {/* Manual input fields - always visible */}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="vin">VIN*</Label>
+              <Input
+                id="vin"
+                {...form.register("vin")}
+                placeholder="Vehicle Identification Number"
+              />
+              {form.formState.errors.vin && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.vin.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="year">Year*</Label>
+              <Input
+                id="year"
+                type="number"
+                {...form.register("year", { valueAsNumber: true })}
+                placeholder="Vehicle Year"
+              />
+              {form.formState.errors.year && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.year.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="make">Make*</Label>
+              <Input
+                id="make"
+                {...form.register("make")}
+                placeholder="Vehicle Make (e.g., Toyota)"
+              />
+              {form.formState.errors.make && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.make.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="model">Model*</Label>
+              <Input
+                id="model"
+                {...form.register("model")}
+                placeholder="Vehicle Model (e.g., Camry)"
+              />
+              {form.formState.errors.model && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.model.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="mileage">Mileage*</Label>
+              <Input
+                id="mileage"
+                type="number"
+                {...form.register("mileage", { valueAsNumber: true })}
+                placeholder="Vehicle Mileage"
+              />
+              {form.formState.errors.mileage && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.mileage.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="transmission">Transmission*</Label>
+              <Select
+                onValueChange={(value) => form.setValue("transmission", value)}
+                defaultValue={form.watch("transmission")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select transmission type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="automatic">Automatic</SelectItem>
+                  <SelectItem value="semi-automatic">Semi-automatic</SelectItem>
+                </SelectContent>
+              </Select>
+              {form.formState.errors.transmission && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.transmission.message}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </FormSection>

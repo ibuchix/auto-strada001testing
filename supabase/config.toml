@@ -40,3 +40,7 @@ verify_jwt = true
 [[edge_functions]]
 name = "validate-vin"
 verify_jwt = true
+
+[[edge_functions]]
+name = "reserve-vin"
+verify_jwt = true

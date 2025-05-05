@@ -6,6 +6,7 @@
  * Updated: 2025-05-04 - Added detailed error logging and VIN reservation checks
  * Updated: 2025-05-04 - Improved VIN reservation handling and error messaging
  * Updated: 2025-05-05 - Added automatic VIN reservation creation if missing
+ * Updated: 2025-05-05 - Fixed VIN reservation handling to work with RLS policies
  * 
  * Provides form submission handler with proper null safety for userId
  */
@@ -137,6 +138,9 @@ export const FormSubmitHandler = ({
       }
       
       console.log(`Form submission starting with VIN reservation: ${localStorage.getItem('vinReservationId')}`);
+      
+      // Add the user ID to the form data to satisfy RLS policies
+      values.seller_id = userId;
       
       // Submit the form
       const result = await submitForm(values);

@@ -2,6 +2,7 @@
 /**
  * Client service for managing VIN reservations
  * Updated: 2025-05-05 - Enhanced error handling and automatic reservation creation
+ * Updated: 2025-05-05 - Fixed to work with RLS policies
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -86,14 +87,14 @@ export async function reserveVin(
       }
     }
     
-    // Try to create a new reservation directly first
+    // Try to create a new reservation directly
     try {
       const { data: directReservation, error: directError } = await supabase
         .from('vin_reservations')
         .insert([
           {
             vin,
-            user_id: userId,
+            user_id: userId, // This matches the RLS policy column name
             expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes from now
             valuation_data: valuationData || null,
             status: 'active'
