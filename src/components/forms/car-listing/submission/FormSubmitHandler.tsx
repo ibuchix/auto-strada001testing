@@ -5,16 +5,18 @@
  * Updated: 2025-05-16 - Enhanced error handling and improved UX feedback
  * Updated: 2025-05-04 - Added detailed error logging and VIN reservation checks
  * Updated: 2025-05-04 - Improved VIN reservation handling and error messaging
+ * Updated: 2025-05-05 - Added automatic VIN reservation creation if missing
  * 
  * Provides form submission handler with proper null safety for userId
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useFormData } from "../context/FormDataContext";
 import { useFormSubmission } from "./FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { reserveVin } from "@/services/vinReservationService";
 
 interface FormSubmitHandlerProps {
   onSubmitSuccess?: (carId: string) => void;
@@ -31,9 +33,79 @@ export const FormSubmitHandler = ({
 }: FormSubmitHandlerProps) => {
   const { submissionState, submitForm, resetSubmissionState } = useFormSubmission();
   const { form } = useFormData();
+  const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   
   // Check if we have valid userId before allowing submission
-  const isSubmitDisabled = !userId || submissionState.isSubmitting;
+  const isSubmitDisabled = !userId || submissionState.isSubmitting || isCreatingReservation;
+  
+  // Ensure VIN reservation exists before submission
+  const ensureVinReservation = async (values: any): Promise<boolean> => {
+    // If there's already a VIN reservation ID in localStorage, we're good
+    if (localStorage.getItem('vinReservationId')) {
+      console.log('VIN reservation exists in localStorage - good to proceed');
+      return true;
+    }
+    
+    // No VIN reservation yet - try to create one
+    const vin = values.vin;
+    
+    if (!vin) {
+      console.error("No VIN available in form data");
+      toast.error("Missing VIN", {
+        description: "Please enter a valid VIN or perform a VIN lookup"
+      });
+      return false;
+    }
+    
+    if (!userId) {
+      console.error("No user ID available");
+      toast.error("Authentication required", {
+        description: "Please log in to submit your listing"
+      });
+      return false;
+    }
+    
+    // Try to get valuation data from localStorage or form
+    let valuationData = values.valuation_data;
+    if (!valuationData) {
+      const storedData = localStorage.getItem('valuationData');
+      if (storedData) {
+        try {
+          valuationData = JSON.parse(storedData);
+        } catch (e) {
+          console.error('Error parsing stored valuation data:', e);
+        }
+      }
+    }
+    
+    // Try to create a VIN reservation
+    console.log('Creating VIN reservation before submission:', vin);
+    setIsCreatingReservation(true);
+    
+    try {
+      const reservationResult = await reserveVin(vin, userId, valuationData);
+      
+      if (reservationResult.success && reservationResult.data?.reservationId) {
+        localStorage.setItem('vinReservationId', reservationResult.data.reservationId);
+        console.log('VIN reservation created successfully:', reservationResult.data);
+        return true;
+      } else {
+        console.error('Failed to create VIN reservation:', reservationResult.error);
+        toast.error('VIN reservation failed', {
+          description: reservationResult.error || 'Unable to reserve this VIN. Please try again or perform a new VIN lookup.'
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('Error creating VIN reservation:', error);
+      toast.error('VIN reservation error', {
+        description: 'An error occurred while reserving this VIN. Please try again.'
+      });
+      return false;
+    } finally {
+      setIsCreatingReservation(false);
+    }
+  };
   
   // Handle form submission
   const handleSubmit = async () => {
@@ -58,30 +130,13 @@ export const FormSubmitHandler = ({
         return;
       }
       
-      // Check for VIN reservation ID in localStorage
-      const reservationId = localStorage.getItem('vinReservationId');
-      
-      if (!reservationId) {
-        console.error("No VIN reservation found in localStorage");
-        
-        // Detailed logging to help diagnose the issue
-        console.log("FormSubmitHandler: Missing VIN reservation", {
-          formVin: values.vin,
-          tempVin: localStorage.getItem('tempVIN'),
-          vinInLocalStorage: Object.keys(localStorage).filter(key => 
-            key.includes('vin') || key.includes('VIN')
-          ),
-          localStorageKeys: Object.keys(localStorage),
-          timestamp: new Date().toISOString()
-        });
-        
-        toast.error("VIN validation required", {
-          description: "Please complete the VIN Lookup in the Vehicle Details section first."
-        });
+      // Ensure VIN reservation exists
+      const reservationCreated = await ensureVinReservation(values);
+      if (!reservationCreated) {
         return;
       }
       
-      console.log(`Form submission starting with VIN reservation: ${reservationId}`);
+      console.log(`Form submission starting with VIN reservation: ${localStorage.getItem('vinReservationId')}`);
       
       // Submit the form
       const result = await submitForm(values);
@@ -136,12 +191,17 @@ export const FormSubmitHandler = ({
         type="button" 
         onClick={handleSubmit} 
         disabled={isSubmitDisabled}
-        className={`${submissionState.isSubmitting ? "opacity-70" : ""} bg-[#DC143C] hover:bg-[#DC143C]/90`}
+        className={`${submissionState.isSubmitting || isCreatingReservation ? "opacity-70" : ""} bg-[#DC143C] hover:bg-[#DC143C]/90`}
       >
         {submissionState.isSubmitting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Submitting...
+          </>
+        ) : isCreatingReservation ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Preparing submission...
           </>
         ) : "Submit Listing"}
       </Button>

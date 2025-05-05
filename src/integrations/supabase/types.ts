@@ -1741,6 +1741,10 @@ export type Database = {
         Args: { p_vin: string }
         Returns: boolean
       }
+      is_vin_available_for_user: {
+        Args: { p_vin: string; p_user_id: string }
+        Returns: boolean
+      }
       log_admin_action: {
         Args: {
           p_admin_id: string

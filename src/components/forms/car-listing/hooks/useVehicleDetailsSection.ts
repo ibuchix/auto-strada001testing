@@ -2,6 +2,7 @@
 /**
  * Hook for vehicle details section of the car listing form
  * Created: 2025-05-04 - Added VIN reservation integration to the vehicle details section
+ * Updated: 2025-05-05 - Enhanced auto-fill feature to ensure VIN reservation creation
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -24,6 +25,7 @@ const generateYears = () => {
 export const useVehicleDetailsSection = (form: UseFormReturn<any>) => {
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const yearOptions = generateYears();
+  const [isCreatingReservation, setIsCreatingReservation] = useState(false);
 
   // Update models when make changes
   const selectedMake = form.watch('make');
@@ -50,6 +52,57 @@ export const useVehicleDetailsSection = (form: UseFormReturn<any>) => {
       setAvailableModels([]);
     }
   }, [selectedMake]);
+
+  // Check for existing VIN reservation on component mount
+  useEffect(() => {
+    const checkVinReservation = async () => {
+      // If there's already a VIN reservation ID in localStorage, we're good
+      if (localStorage.getItem('vinReservationId')) {
+        console.log('VIN reservation already exists in localStorage');
+        return;
+      }
+      
+      // If we have a VIN in the form, try to create a reservation for it
+      const formVin = form.getValues('vin');
+      const tempVIN = localStorage.getItem('tempVIN');
+      
+      if (formVin || tempVIN) {
+        const vin = formVin || tempVIN;
+        console.log('Found VIN to reserve:', vin);
+        
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+          try {
+            // Try to get stored valuation data
+            const valuationData = localStorage.getItem('valuationData');
+            let parsedValuationData = null;
+            
+            if (valuationData) {
+              try {
+                parsedValuationData = JSON.parse(valuationData);
+              } catch (e) {
+                console.error('Failed to parse valuation data:', e);
+              }
+            }
+            
+            console.log('Creating VIN reservation for:', vin);
+            const reservationResult = await reserveVin(vin, userId, parsedValuationData);
+            
+            if (reservationResult.success && reservationResult.data?.reservationId) {
+              localStorage.setItem('vinReservationId', reservationResult.data.reservationId);
+              console.log('VIN reservation created successfully:', reservationResult.data);
+            } else {
+              console.warn('VIN reservation creation failed:', reservationResult.error);
+            }
+          } catch (error) {
+            console.error('Error creating VIN reservation:', error);
+          }
+        }
+      }
+    };
+    
+    checkVinReservation();
+  }, [form]);
 
   // VIN lookup handler that also reserves the VIN
   const handleVinLookup = useCallback(async (vin: string) => {
@@ -85,26 +138,41 @@ export const useVehicleDetailsSection = (form: UseFormReturn<any>) => {
       if (valuationData.year) form.setValue('year', parseInt(valuationData.year));
       form.setValue('vin', vin); // Always set the VIN
       
+      // Store the valuation data in localStorage
+      localStorage.setItem('valuationData', JSON.stringify(valuationData));
+      localStorage.setItem('tempVIN', vin);
+      
       // Try to reserve the VIN
       const userId = localStorage.getItem('userId');
       
       if (userId) {
+        setIsCreatingReservation(true);
         console.log('Reserving VIN:', vin);
-        const reservationResult = await reserveVin(vin, userId, valuationData);
         
-        if (reservationResult.success && reservationResult.data?.reservationId) {
-          localStorage.setItem('vinReservationId', reservationResult.data.reservationId);
-          console.log('VIN reserved successfully:', reservationResult.data);
+        try {
+          const reservationResult = await reserveVin(vin, userId, valuationData);
           
-          toast.success('VIN validated and reserved', {
-            description: 'Vehicle details have been applied to the form'
+          if (reservationResult.success && reservationResult.data?.reservationId) {
+            localStorage.setItem('vinReservationId', reservationResult.data.reservationId);
+            console.log('VIN reserved successfully:', reservationResult.data);
+            
+            toast.success('VIN validated and reserved', {
+              description: 'Vehicle details have been applied to the form'
+            });
+          } else {
+            console.error('Failed to reserve VIN:', reservationResult.error);
+            
+            toast.error('VIN reservation failed', {
+              description: reservationResult.error || 'Unable to reserve this VIN'
+            });
+          }
+        } catch (error) {
+          console.error('Error reserving VIN:', error);
+          toast.error('VIN reservation error', {
+            description: 'An error occurred while reserving this VIN'
           });
-        } else {
-          console.error('Failed to reserve VIN:', reservationResult.error);
-          
-          toast.error('VIN reservation failed', {
-            description: reservationResult.error || 'Unable to reserve this VIN'
-          });
+        } finally {
+          setIsCreatingReservation(false);
         }
       } else {
         toast.error('User authentication required', {
@@ -145,17 +213,22 @@ export const useVehicleDetailsSection = (form: UseFormReturn<any>) => {
           const userId = localStorage.getItem('userId');
           
           if (userId) {
+            setIsCreatingReservation(true);
             console.log('Auto-reserving VIN during auto-fill:', valuationData.vin);
-            const reservationResult = await reserveVin(valuationData.vin, userId, valuationData);
             
-            if (reservationResult.success && reservationResult.data?.reservationId) {
-              localStorage.setItem('vinReservationId', reservationResult.data.reservationId);
-              console.log('VIN auto-reserved successfully:', reservationResult.data);
-            } else {
-              console.error('Failed to auto-reserve VIN:', reservationResult.error);
+            try {
+              const reservationResult = await reserveVin(valuationData.vin, userId, valuationData);
               
-              // Even if reservation fails, we still auto-filled the form
-              // so we continue and return true
+              if (reservationResult.success && reservationResult.data?.reservationId) {
+                localStorage.setItem('vinReservationId', reservationResult.data.reservationId);
+                console.log('VIN auto-reserved successfully:', reservationResult.data);
+              } else {
+                console.error('Failed to auto-reserve VIN:', reservationResult.error);
+              }
+            } catch (error) {
+              console.error('Error auto-reserving VIN:', error);
+            } finally {
+              setIsCreatingReservation(false);
             }
           }
         }
@@ -173,6 +246,7 @@ export const useVehicleDetailsSection = (form: UseFormReturn<any>) => {
     availableModels,
     yearOptions,
     handleVinLookup,
-    handleAutoFill
+    handleAutoFill,
+    isCreatingReservation
   };
 };

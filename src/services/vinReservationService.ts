@@ -1,6 +1,7 @@
 
 /**
  * Client service for managing VIN reservations
+ * Updated: 2025-05-05 - Enhanced error handling and automatic reservation creation
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -36,6 +37,91 @@ export async function reserveVin(
   try {
     console.log('Creating VIN reservation:', { vin, userId });
     
+    // First check if a reservation already exists for this VIN and user
+    const { data: existingReservations, error: checkError } = await supabase
+      .from('vin_reservations')
+      .select('id, status, expires_at')
+      .eq('vin', vin)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle();
+      
+    if (checkError) {
+      console.warn('Error checking for existing reservations:', checkError);
+      // Continue with edge function as fallback
+    } else if (existingReservations) {
+      console.log('Found existing reservation:', existingReservations);
+      
+      // Check if the reservation is still valid
+      const now = new Date();
+      const expiresAt = new Date(existingReservations.expires_at);
+      
+      if (now < expiresAt) {
+        console.log('Existing reservation is still valid');
+        
+        // Try to update the reservation to extend its expiration
+        const { data: updatedReservation, error: updateError } = await supabase
+          .from('vin_reservations')
+          .update({
+            expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes from now
+            valuation_data: valuationData || undefined
+          })
+          .eq('id', existingReservations.id)
+          .select('id, expires_at')
+          .single();
+          
+        if (updateError) {
+          console.warn('Error updating reservation:', updateError);
+        } else {
+          console.log('Updated existing reservation:', updatedReservation);
+          return {
+            success: true,
+            data: {
+              reservationId: updatedReservation.id,
+              expiresAt: updatedReservation.expires_at,
+              isNew: false
+            }
+          };
+        }
+      }
+    }
+    
+    // Try to create a new reservation directly first
+    try {
+      const { data: directReservation, error: directError } = await supabase
+        .from('vin_reservations')
+        .insert([
+          {
+            vin,
+            user_id: userId,
+            expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes from now
+            valuation_data: valuationData || null,
+            status: 'active'
+          }
+        ])
+        .select('id, expires_at')
+        .single();
+        
+      if (!directError) {
+        console.log('Successfully created reservation directly:', directReservation);
+        return {
+          success: true,
+          data: {
+            reservationId: directReservation.id,
+            expiresAt: directReservation.expires_at,
+            isNew: true
+          }
+        };
+      } else {
+        console.log('Could not create reservation directly:', directError);
+        // Fall back to edge function method
+      }
+    } catch (directInsertError) {
+      console.warn('Error with direct reservation insert:', directInsertError);
+      // Fall back to edge function method
+    }
+    
+    // Fall back to using the edge function if direct DB access fails
     const { data, error } = await supabase.functions.invoke('reserve-vin', {
       body: {
         vin,
@@ -78,6 +164,52 @@ export async function checkVinReservation(
   try {
     console.log('Checking VIN reservation:', { vin, userId });
     
+    // First try direct database query with RLS
+    try {
+      const { data: reservation, error: reservationError } = await supabase
+        .from('vin_reservations')
+        .select('*')
+        .eq('vin', vin)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+        
+      if (!reservationError && reservation) {
+        // Check if the reservation has expired
+        const now = new Date();
+        const expiresAt = new Date(reservation.expires_at);
+        
+        if (now > expiresAt) {
+          return {
+            success: true,
+            data: {
+              exists: false,
+              wasExpired: true,
+              message: "Reservation has expired"
+            }
+          };
+        }
+        
+        return {
+          success: true,
+          data: {
+            exists: true,
+            reservation: {
+              id: reservation.id,
+              vin: reservation.vin,
+              expiresAt: reservation.expires_at,
+              valuationData: reservation.valuation_data,
+              timeRemaining: Math.floor((expiresAt.getTime() - now.getTime()) / 1000) // in seconds
+            }
+          }
+        };
+      }
+    } catch (directQueryError) {
+      console.warn('Error with direct reservation query:', directQueryError);
+      // Fall back to edge function
+    }
+    
+    // Fall back to edge function
     const { data, error } = await supabase.functions.invoke('reserve-vin', {
       body: {
         vin,
@@ -117,6 +249,36 @@ export async function extendVinReservation(
   try {
     console.log('Extending VIN reservation:', { vin, userId });
     
+    // Try direct update first
+    try {
+      const newExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes from now
+      
+      const { data: updatedReservation, error: updateError } = await supabase
+        .from('vin_reservations')
+        .update({ expires_at: newExpiresAt })
+        .eq('vin', vin)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .select('id, expires_at')
+        .single();
+        
+      if (!updateError) {
+        toast.success('Reservation extended');
+        return {
+          success: true,
+          data: {
+            reservationId: updatedReservation.id,
+            expiresAt: updatedReservation.expires_at
+          }
+        };
+      } else {
+        console.warn('Error with direct reservation update:', updateError);
+      }
+    } catch (directUpdateError) {
+      console.warn('Exception with direct reservation update:', directUpdateError);
+    }
+    
+    // Fall back to edge function
     const { data, error } = await supabase.functions.invoke('reserve-vin', {
       body: {
         vin,
@@ -159,6 +321,34 @@ export async function cancelVinReservation(
   try {
     console.log('Cancelling VIN reservation:', { vin, userId });
     
+    // Try direct update first
+    try {
+      const { data: cancelledReservation, error: cancelError } = await supabase
+        .from('vin_reservations')
+        .update({ status: 'cancelled' })
+        .eq('vin', vin)
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .select('id')
+        .single();
+        
+      if (!cancelError) {
+        toast.success('Reservation cancelled');
+        return {
+          success: true,
+          data: {
+            reservationId: cancelledReservation.id,
+            message: "Reservation cancelled successfully"
+          }
+        };
+      } else {
+        console.warn('Error with direct reservation cancellation:', cancelError);
+      }
+    } catch (directCancelError) {
+      console.warn('Exception with direct reservation cancellation:', directCancelError);
+    }
+    
+    // Fall back to edge function
     const { data, error } = await supabase.functions.invoke('reserve-vin', {
       body: {
         vin,
