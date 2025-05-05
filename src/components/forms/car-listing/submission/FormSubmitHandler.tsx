@@ -9,6 +9,7 @@
  * Updated: 2025-05-05 - Fixed VIN reservation handling to work with RLS policies
  * Updated: 2025-05-08 - Improved error handling for undefined responses
  * Updated: 2025-05-08 - Added additional checks and feedback for reservation process
+ * Updated: 2025-05-09 - Fixed type error: using reservationId instead of id property
  */
 
 import { useEffect, useState } from "react";
@@ -103,7 +104,7 @@ export const FormSubmitHandler = ({
       } else if (reservationResult.success && reservationResult.data) {
         // Handle case where success is true but data format is different
         // Try to extract reservationId from different possible locations
-        const possibleId = reservationResult.data.id || 
+        const possibleId = reservationResult.data.reservationId || 
                            reservationResult.data.reservation?.id ||
                            (typeof reservationResult.data === 'string' ? reservationResult.data : null);
         
