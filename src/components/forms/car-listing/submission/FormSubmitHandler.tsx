@@ -1,4 +1,3 @@
-
 /**
  * Form Submit Handler Component
  * Created: 2025-05-13
@@ -12,6 +11,7 @@
  * Updated: 2025-05-09 - Fixed type error: using reservationId instead of id property
  * Updated: 2025-05-10 - Improved handling of duplicate VIN reservations
  * Updated: 2025-05-17 - Fixed temporary VIN reservation IDs to use proper UUIDs
+ * Updated: 2025-05-06 - Refactored to use reservation recovery service
  */
 
 import { useEffect, useState } from "react";
@@ -20,7 +20,7 @@ import { useFormSubmission } from "./FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { reserveVin } from "@/services/vinReservationService";
+import { recoverVinReservation } from "@/services/reservationRecoveryService";
 
 interface FormSubmitHandlerProps {
   onSubmitSuccess?: (carId: string) => void;
@@ -82,127 +82,26 @@ export const FormSubmitHandler = ({
       }
     }
     
-    // Try to create a VIN reservation
+    // Try to create a VIN reservation using our extracted service
     console.log('Creating VIN reservation before submission:', vin);
     setIsCreatingReservation(true);
     
     try {
-      // Log the parameters being sent
-      console.log('Calling reserveVin with:', { 
-        vin, 
-        userId, 
-        valuationDataExists: !!valuationData 
-      });
+      const reservationId = await recoverVinReservation(vin, userId, valuationData);
       
-      const reservationResult = await reserveVin(vin, userId, valuationData);
-      
-      // Log the complete response for debugging
-      console.log('VIN reservation result:', reservationResult);
-      
-      // Check for various success scenarios:
-      
-      // Case 1: Standard success with reservationId in data
-      if (reservationResult.success && reservationResult.data?.reservationId) {
-        localStorage.setItem('vinReservationId', reservationResult.data.reservationId);
-        console.log('VIN reservation created successfully:', reservationResult.data);
-        return true;
-      } 
-      // Case 2: Data contains nested properties or different structure
-      else if (reservationResult.success && reservationResult.data) {
-        // Try to extract reservationId from different possible locations
-        const possibleId = reservationResult.data.reservationId || 
-                           reservationResult.data.reservation?.id ||
-                           (typeof reservationResult.data === 'string' ? reservationResult.data : null);
-        
-        if (possibleId) {
-          localStorage.setItem('vinReservationId', possibleId);
-          console.log('VIN reservation ID extracted from alternative location:', possibleId);
-          return true;
-        }
-        
-        // Special handling for duplicate key errors - the VIN is already reserved
-        // Check if this is a duplicate key error in the data
-        if (reservationResult.data.error && reservationResult.data.error.includes('duplicate key')) {
-          console.log('Duplicate VIN reservation detected - attempting to retrieve existing reservation');
-          
-          // Try to check for existing reservation
-          try {
-            // This is a duplicate key error but we need to get the existing reservation ID
-            // Let's use a fallback approach - check VIN's reservation status
-            const checkResult = await reserveVin(vin, userId, null);
-            console.log('VIN check result:', checkResult);
-            
-            // Try to extract any reservation id from the check result
-            if (checkResult.success && checkResult.data) {
-              const existingId = checkResult.data.reservationId || 
-                               checkResult.data.reservation?.id;
-              
-              if (existingId) {
-                localStorage.setItem('vinReservationId', existingId);
-                console.log('Retrieved existing VIN reservation:', existingId);
-                toast.success('Using existing VIN reservation', {
-                  description: 'Your VIN was already reserved. Proceeding with submission.'
-                });
-                return true;
-              }
-            }
-            
-            // If we get here, we need to handle the case where we know it's a duplicate
-            // but couldn't get the ID - we'll create a temporary ID with proper UUID format
-            const tempId = crypto.randomUUID();
-            localStorage.setItem('vinReservationId', tempId);
-            localStorage.setItem('tempReservedVin', vin); // Store the VIN separately for reference
-            console.log('Created temporary VIN reservation ID (UUID format):', tempId);
-            toast.warning('VIN reservation issue', {
-              description: 'Using temporary VIN reservation. Submission may be delayed.'
-            });
-            return true;
-          } catch (innerError) {
-            console.error('Error handling duplicate reservation:', innerError);
-          }
-        }
-        
-        console.warn('Reservation success but no ID found in response:', reservationResult);
-        toast.warning('VIN reservation incomplete', {
-          description: 'Reserved but could not get confirmation ID. Proceeding anyway.'
+      if (!reservationId) {
+        toast.warning("VIN reservation incomplete", {
+          description: "Proceeding with submission, but it may be delayed or fail."
         });
-        return true; // Proceed anyway since the server reported success
-      } else {
-        console.error('Failed to create VIN reservation:', 
-          reservationResult.error || 'No error message provided');
-        
-        // Create a temporary VIN reservation with valid UUID format
-        const tempId = crypto.randomUUID();
-        localStorage.setItem('vinReservationId', tempId);
-        localStorage.setItem('tempReservedVin', vin); // Store the VIN separately for reference
-        console.log('Created fallback VIN reservation ID (UUID format):', tempId);
-        
-        toast.warning('Using fallback VIN reservation', {
-          description: 'Unable to create a proper reservation. Using a temporary ID instead.'
-        });
-        return true; // Proceed with temporary ID
       }
+      
+      return true;
     } catch (error) {
-      console.error('Error creating VIN reservation:', error);
-      
-      // Log detailed information about the error object
-      console.error('Error type:', typeof error);
-      console.error('Error structure:', JSON.stringify(error, null, 2));
-      
-      const errorMessage = error instanceof Error ? error.message : 
-                          typeof error === 'string' ? error : 
-                          'An unknown error occurred';
-      
-      // Create a temporary VIN reservation with valid UUID format as last resort
-      const tempId = crypto.randomUUID();
-      localStorage.setItem('vinReservationId', tempId);
-      localStorage.setItem('tempReservedVin', vin); // Store the VIN separately for reference
-      console.log('Created emergency fallback VIN reservation ID (UUID format):', tempId);
-                          
-      toast.warning('VIN reservation fallback', {
-        description: 'Using a temporary reservation due to an error. Submission may be delayed.'
+      console.error("Error creating VIN reservation:", error);
+      toast.error("Failed to reserve VIN", {
+        description: "Please try again or contact support."
       });
-      return true; // Proceed with temporary ID as a last resort
+      return false;
     } finally {
       setIsCreatingReservation(false);
     }

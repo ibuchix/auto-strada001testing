@@ -9,6 +9,7 @@
  * Updated: 2025-05-10 - Added fallback mechanism for missing VIN reservations
  * Updated: 2025-05-17 - Improved handling of temporary UUID-based VIN reservation IDs
  * Updated: 2025-05-17 - Fixed permission denied errors with security definer functions
+ * Updated: 2025-05-06 - Refactored to use separate reservation recovery service
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
@@ -18,7 +19,7 @@ import { useFormData } from '../context/FormDataContext';
 import { toast } from 'sonner';
 import { createCarListing } from '@/services/listingService';
 import { prepareSubmission } from './utils/submission';
-import { reserveVin } from '@/services/vinReservationService';
+import { recoverVinReservation } from '@/services/reservationRecoveryService';
 
 // Define the submission context state
 interface FormSubmissionState {
@@ -116,36 +117,6 @@ export const FormSubmissionProvider = ({
     setSubmissionState(defaultSubmissionState);
   };
   
-  // Attempt to recover or create a VIN reservation
-  const recoverVinReservation = async (vin: string, valuationData: any): Promise<string | null> => {
-    console.log('Attempting to recover VIN reservation for:', vin);
-    
-    try {
-      const reservationResult = await reserveVin(vin, userId, valuationData);
-      
-      if (reservationResult.success && reservationResult.data) {
-        // Successfully created or found existing reservation
-        const reservationId = reservationResult.data.reservationId || 
-                             reservationResult.data.reservation?.id;
-                             
-        if (reservationId) {
-          console.log('Recovered VIN reservation:', reservationId);
-          localStorage.setItem('vinReservationId', reservationId);
-          return reservationId;
-        }
-      }
-    } catch (error) {
-      console.error('Failed to recover VIN reservation:', error);
-    }
-    
-    // Fallback - create a temporary ID with proper UUID format
-    const tempId = crypto.randomUUID();
-    localStorage.setItem('vinReservationId', tempId);
-    localStorage.setItem('tempReservedVin', vin); // Store the VIN separately for reference
-    console.log('Created temporary VIN reservation UUID:', tempId);
-    return tempId;
-  };
-  
   // Submit form implementation using the edge function through listingService
   const submitForm = async (formData: CarListingFormData): Promise<string | null> => {
     try {
@@ -174,8 +145,8 @@ export const FormSubmissionProvider = ({
           }
         }
         
-        // Try to recover or create a new reservation
-        reservationId = await recoverVinReservation(vin, valuationData);
+        // Try to recover or create a new reservation using our extracted service
+        reservationId = await recoverVinReservation(vin, userId, valuationData);
         
         if (!reservationId) {
           console.error('Failed to create VIN reservation');
@@ -254,10 +225,6 @@ export const FormSubmissionProvider = ({
       // Show success notification
       toast.success('Your car listing has been submitted successfully!');
       setSubmitSuccess(carId);
-      
-      // Clear reservation ID and temp VIN after successful submission
-      localStorage.removeItem('vinReservationId');
-      localStorage.removeItem('tempReservedVin');
       
       // Return the car ID
       return carId;
