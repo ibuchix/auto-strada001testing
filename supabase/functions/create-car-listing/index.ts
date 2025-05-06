@@ -3,6 +3,7 @@
  * Edge function for creating car listings
  * Updated: 2025-04-19 - Switched to use shared utilities from central repository
  * Updated: 2025-05-06 - Fixed import error by implementing local utility functions
+ * Updated: 2025-05-06 - Enhanced VIN reservation validation for permission issues
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -16,7 +17,9 @@ import {
   markReservationAsUsed, 
   createListing,
   ensureSellerExists,
-  getSellerName
+  getSellerName,
+  formatSuccessResponse,
+  formatErrorResponse
 } from "./utils/index.ts";
 
 // Define the ListingRequest and ListingData interfaces
@@ -44,50 +47,6 @@ interface ListingData {
   is_draft: boolean;
 }
 
-/**
- * Handle CORS preflight requests
- */
-function handleCorsOptions() {
-  return new Response(null, {
-    status: 204,
-    headers: corsHeaders
-  });
-}
-
-/**
- * Format success response with proper headers
- */
-function formatSuccessResponse(data: any, status = 200) {
-  return new Response(
-    JSON.stringify({
-      success: true,
-      data
-    }),
-    {
-      status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    }
-  );
-}
-
-/**
- * Format error response with proper headers
- */
-function formatErrorResponse(error: Error | string, status = 400) {
-  const message = error instanceof Error ? error.message : error;
-  
-  return new Response(
-    JSON.stringify({
-      success: false,
-      message
-    }),
-    {
-      status,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    }
-  );
-}
-
 serve(async (req) => {
   // Generate request ID for tracking
   const requestId = createRequestId();
@@ -95,7 +54,10 @@ serve(async (req) => {
   
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return handleCorsOptions();
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
 
   try {
@@ -137,7 +99,8 @@ serve(async (req) => {
       }
     );
     
-    // Validate VIN reservation if provided
+    // Validate VIN reservation if provided - with enhanced handling
+    // Allow special handling for temporary UUIDs
     const reservationValidation = await validateVinReservation(
       supabase, 
       userId, 
@@ -196,8 +159,11 @@ serve(async (req) => {
           return;
         }
         
-        // Mark reservation as used if provided
-        if (reservationId) {
+        // Mark reservation as used if provided and not temporary
+        if (reservationId && 
+            !reservationId.startsWith('temp_') &&
+            !reservationId.includes('temporary') &&
+            !reservationId.includes('client_gen')) {
           await markReservationAsUsed(supabase, reservationId, requestId);
         }
         

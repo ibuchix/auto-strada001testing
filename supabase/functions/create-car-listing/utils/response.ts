@@ -7,10 +7,9 @@
 import { corsHeaders } from "./cors.ts";
 
 /**
- * Format a success response with proper headers
- * 
+ * Format success response with proper headers
  * @param data Response data
- * @param status HTTP status code (default: 200)
+ * @param status HTTP status code
  * @returns Response object
  */
 export function formatSuccessResponse(data: any, status = 200): Response {
@@ -27,10 +26,9 @@ export function formatSuccessResponse(data: any, status = 200): Response {
 }
 
 /**
- * Format an error response with proper headers
- * 
- * @param error Error object or string
- * @param status HTTP status code (default: 400)
+ * Format error response with proper headers
+ * @param error Error object or message
+ * @param status HTTP status code
  * @returns Response object
  */
 export function formatErrorResponse(error: Error | string, status = 400): Response {
