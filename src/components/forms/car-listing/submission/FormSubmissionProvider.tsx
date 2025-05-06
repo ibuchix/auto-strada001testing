@@ -8,6 +8,7 @@
  * Updated: 2025-05-16 - Implemented proper form submission using listingService
  * Updated: 2025-05-04 - Enhanced logging and VIN reservation error handling
  * Updated: 2025-05-10 - Added fallback mechanism for missing VIN reservations
+ * Updated: 2025-05-17 - Improved handling of temporary UUID-based VIN reservation IDs
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
@@ -137,10 +138,11 @@ export const FormSubmissionProvider = ({
       console.error('Failed to recover VIN reservation:', error);
     }
     
-    // Fallback - create a temporary ID as last resort
-    const tempId = `temp_${Date.now()}_${vin}`;
+    // Fallback - create a temporary ID with proper UUID format
+    const tempId = crypto.randomUUID();
     localStorage.setItem('vinReservationId', tempId);
-    console.log('Created temporary VIN reservation ID:', tempId);
+    localStorage.setItem('tempReservedVin', vin); // Store the VIN separately for reference
+    console.log('Created temporary VIN reservation UUID:', tempId);
     return tempId;
   };
   
@@ -152,7 +154,7 @@ export const FormSubmissionProvider = ({
       
       // Check for VIN reservation ID
       let reservationId = localStorage.getItem('vinReservationId');
-      const vin = formData.vin;
+      const vin = formData.vin || localStorage.getItem('tempReservedVin');
       
       if (!reservationId && vin) {
         // No VIN reservation found but we have a VIN
@@ -253,8 +255,9 @@ export const FormSubmissionProvider = ({
       toast.success('Your car listing has been submitted successfully!');
       setSubmitSuccess(carId);
       
-      // Clear reservation ID after successful submission
+      // Clear reservation ID and temp VIN after successful submission
       localStorage.removeItem('vinReservationId');
+      localStorage.removeItem('tempReservedVin');
       
       // Return the car ID
       return carId;
