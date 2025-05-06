@@ -1,54 +1,49 @@
 
 /**
- * Response formatting utilities for create-car-listing
- * Created: 2025-04-19 - Extracted from inline implementation
+ * Response utilities for create-car-listing
+ * Created: 2025-05-06 - Moved from external dependency to local implementation
  */
 
-import { corsHeaders } from './cors.ts';
+import { corsHeaders } from "./cors.ts";
 
 /**
  * Format a success response with proper headers
+ * 
  * @param data Response data
  * @param status HTTP status code (default: 200)
- * @returns Formatted Response object
+ * @returns Response object
  */
-export function formatSuccessResponse(data: any, status: number = 200): Response {
+export function formatSuccessResponse(data: any, status = 200): Response {
   return new Response(
     JSON.stringify({
       success: true,
-      ...data
+      data
     }),
-    { 
-      headers: { 
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      },
-      status
+    {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     }
   );
 }
 
 /**
- * Format an error response with proper headers and status code
- * @param error Error message or object
+ * Format an error response with proper headers
+ * 
+ * @param error Error object or string
  * @param status HTTP status code (default: 400)
- * @returns Formatted Response object
+ * @returns Response object
  */
-export function formatErrorResponse(error: string | Error, status: number = 400): Response {
-  const errorMessage = error instanceof Error ? error.message : error;
+export function formatErrorResponse(error: Error | string, status = 400): Response {
+  const message = error instanceof Error ? error.message : error;
   
   return new Response(
-    JSON.stringify({ 
+    JSON.stringify({
       success: false,
-      message: errorMessage,
-      timestamp: new Date().toISOString()
+      message
     }),
-    { 
-      headers: { 
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      },
-      status
+    {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     }
   );
 }

@@ -1,7 +1,7 @@
 
 /**
  * Listing utilities for create-car-listing
- * Created: 2025-04-19 - Extracted from inline implementation
+ * Created: 2025-05-06 - Moved from external dependency to local implementation
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";

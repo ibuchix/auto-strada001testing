@@ -1,50 +1,47 @@
 
 /**
  * Validation utilities for create-car-listing
- * Created: 2025-04-19 - Extracted from inline implementation
+ * Created: 2025-05-06 - Moved from external dependency to local implementation
  */
 
 /**
- * Validates listing request data
- * @param data Request data to validate
- * @returns Validation result with success flag and optional error message
+ * Validate listing request data
+ * 
+ * @param requestData The request data to validate
+ * @returns Object with validation result
  */
-export function validateListingRequest(data: any): { valid: boolean; error?: string } {
-  if (!data) {
-    return { valid: false, error: 'Missing request data' };
+export function validateListingRequest(requestData: any): { valid: boolean; error?: string } {
+  // Check for required fields
+  const requiredFields = ['userId', 'vin', 'mileage', 'valuationData'];
+  const missingFields = requiredFields.filter(field => !requestData[field]);
+  
+  if (missingFields.length > 0) {
+    return {
+      valid: false,
+      error: `Missing required fields: ${missingFields.join(', ')}`
+    };
   }
   
-  const { valuationData, userId, vin, mileage, transmission } = data;
+  // Check valuationData has required fields
+  const requiredValuationFields = ['make', 'model', 'year'];
+  const missingValuationFields = requiredValuationFields.filter(
+    field => !requestData.valuationData[field]
+  );
   
-  if (!valuationData) {
-    return { valid: false, error: 'Missing valuationData' };
+  if (missingValuationFields.length > 0) {
+    return {
+      valid: false,
+      error: `Missing required valuationData fields: ${missingValuationFields.join(', ')}`
+    };
   }
   
-  if (!userId) {
-    return { valid: false, error: 'Missing userId' };
-  }
-  
-  if (!vin || typeof vin !== 'string' || vin.length !== 17) {
-    return { valid: false, error: 'Invalid VIN. Must be 17 characters.' };
-  }
-  
-  if (mileage === undefined || mileage === null || isNaN(Number(mileage))) {
-    return { valid: false, error: 'Invalid mileage. Must be a number.' };
-  }
-  
-  if (!transmission || (transmission !== 'manual' && transmission !== 'automatic')) {
-    return { valid: false, error: 'Invalid transmission. Must be either "manual" or "automatic".' };
+  // Validate mileage is a positive number
+  if (typeof requestData.mileage !== 'number' || requestData.mileage < 0) {
+    return {
+      valid: false,
+      error: 'Mileage must be a positive number'
+    };
   }
   
   return { valid: true };
-}
-
-/**
- * Validates a VIN (Vehicle Identification Number)
- * @param vin The VIN to validate
- * @returns True if valid, false otherwise
- */
-export function isValidVin(vin: string): boolean {
-  if (!vin || typeof vin !== 'string') return false;
-  return /^[A-HJ-NPR-Z0-9]{17}$/i.test(vin);
 }

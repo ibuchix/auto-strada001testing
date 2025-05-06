@@ -1,23 +1,92 @@
+
 /**
  * Edge function for creating car listings
  * Updated: 2025-04-19 - Switched to use shared utilities from central repository
+ * Updated: 2025-05-06 - Fixed import error by implementing local utility functions
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { corsHeaders } from "./utils/cors.ts";
 import { 
-  corsHeaders,
-  handleCorsOptions,
-  validateListingRequest,
   logOperation,
   createRequestId,
-  formatSuccessResponse,
-  formatErrorResponse,
+  validateListingRequest,
+  validateVinReservation, 
+  markReservationAsUsed, 
+  createListing,
   ensureSellerExists,
   getSellerName
-} from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
-import { ListingRequest, ListingData } from './types.ts';
-import { validateVinReservation, markReservationAsUsed, createListing } from './utils/index.ts';
+} from "./utils/index.ts";
+
+// Define the ListingRequest and ListingData interfaces
+interface ListingRequest {
+  valuationData: any;
+  userId: string;
+  vin: string;
+  mileage: number;
+  transmission: string;
+  reservationId?: string;
+}
+
+interface ListingData {
+  seller_id: string;
+  seller_name: string;
+  title: string;
+  vin: string;
+  mileage: number;
+  transmission: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  valuation_data: any;
+  is_draft: boolean;
+}
+
+/**
+ * Handle CORS preflight requests
+ */
+function handleCorsOptions() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders
+  });
+}
+
+/**
+ * Format success response with proper headers
+ */
+function formatSuccessResponse(data: any, status = 200) {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      data
+    }),
+    {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    }
+  );
+}
+
+/**
+ * Format error response with proper headers
+ */
+function formatErrorResponse(error: Error | string, status = 400) {
+  const message = error instanceof Error ? error.message : error;
+  
+  return new Response(
+    JSON.stringify({
+      success: false,
+      message
+    }),
+    {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    }
+  );
+}
 
 serve(async (req) => {
   // Generate request ID for tracking

@@ -1,8 +1,7 @@
 
 /**
  * Seller utilities for create-car-listing
- * Created: 2025-04-19 - Extracted from inline implementation
- * Updated: 2025-05-06 - Modified getSellerName to use security definer function
+ * Created: 2025-05-06 - Moved from external dependency to local implementation
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
@@ -87,7 +86,7 @@ export async function ensureSellerExists(
 }
 
 /**
- * Gets the seller name from profile data using a security definer function
+ * Gets the seller name from profile data
  * 
  * @param supabase Supabase client
  * @param userId User ID to get name for

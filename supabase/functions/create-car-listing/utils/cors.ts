@@ -1,7 +1,7 @@
 
 /**
  * CORS utilities for create-car-listing edge function
- * Created: 2025-04-22 - Added to resolve import error in edge function
+ * Created: 2025-05-06 - Moved from external dependency to local implementation
  */
 
 export const corsHeaders = {

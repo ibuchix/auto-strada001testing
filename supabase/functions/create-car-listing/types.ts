@@ -1,7 +1,7 @@
 
 /**
  * Type definitions for create-car-listing
- * Created: 2025-04-19
+ * Created: 2025-05-06 - Moved from external dependency to local implementation
  */
 
 export interface ListingRequest {
@@ -27,11 +27,4 @@ export interface ListingData {
   valuation_data: any;
   is_draft: boolean;
   [key: string]: any;
-}
-
-export interface ListingResult {
-  success: boolean;
-  message?: string;
-  data?: any;
-  error?: string;
 }
