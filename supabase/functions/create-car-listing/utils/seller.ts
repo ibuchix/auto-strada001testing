@@ -2,6 +2,7 @@
 /**
  * Seller utilities for create-car-listing
  * Created: 2025-04-19 - Extracted from inline implementation
+ * Updated: 2025-05-06 - Modified getSellerName to use security definer function
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
@@ -86,7 +87,7 @@ export async function ensureSellerExists(
 }
 
 /**
- * Gets the seller name from auth user data
+ * Gets the seller name from profile data using a security definer function
  * 
  * @param supabase Supabase client
  * @param userId User ID to get name for
@@ -97,16 +98,35 @@ export async function getSellerName(
   userId: string
 ): Promise<string> {
   try {
-    const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(userId);
-    
-    if (userError || !user) {
-      return 'Unnamed Seller';
+    // First try using the security definer function get_profile
+    const { data: profileData, error: profileError } = await supabase
+      .rpc('get_profile', { p_user_id: userId });
+      
+    if (!profileError && profileData && profileData.length > 0) {
+      const profile = profileData[0];
+      
+      // Return the first available name from profile
+      if (profile.full_name) return profile.full_name;
+      if (profile.name) return profile.name;
+      if (profile.email) return profile.email.split('@')[0];
     }
     
-    return user?.user_metadata?.full_name || 
-           user?.user_metadata?.name ||
-           user?.email?.split('@')[0] || 
-           'Unnamed Seller';
+    // If security definer function fails, try direct query as fallback
+    if (profileError) {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', userId)
+        .maybeSingle();
+        
+      if (!error && profile) {
+        return profile.full_name || 
+               (profile.email ? profile.email.split('@')[0] : 'Unnamed Seller');
+      }
+    }
+    
+    // If all else fails, use generic name
+    return 'Unnamed Seller';
   } catch {
     return 'Unnamed Seller';
   }
