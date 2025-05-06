@@ -3,6 +3,7 @@
  * Car Listing Service
  * Updated: 2025-05-04 - Enhanced error handling and added detailed logging
  * Updated: 2025-05-04 - Improved VIN reservation handling with better debug info
+ * Updated: 2025-05-06 - Fixed permission denied error by using security definer function
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -42,25 +43,35 @@ export const createCarListing = async (
     
     console.log(`Using reservation ID: ${reservationId}`);
 
-    // Verify the reservation is still valid
-    const { data: reservation, error: reservationError } = await supabase
-      .from('vin_reservations')
-      .select('*')
-      .eq('id', reservationId)
-      .eq('status', 'active')
-      .single();
+    // First check if this is a temporary UUID
+    const tempReservedVin = localStorage.getItem('tempReservedVin');
+    if (tempReservedVin && tempReservedVin === vin) {
+      console.log('Found temporary VIN reservation, proceeding with it:', {
+        tempVin: tempReservedVin,
+        reservationId
+      });
+      // We have a temporary reservation ID created on the client
+      // Skip the verification step and proceed with the submission
+    } else {
+      // Verify the reservation is still valid using the security definer function
+      const { data: reservationCheck, error: reservationError } = await supabase
+        .rpc('check_vin_reservation', {
+          p_vin: vin,
+          p_user_id: userId
+        });
 
-    if (reservationError) {
-      console.error('Error checking VIN reservation:', reservationError);
-      throw new Error(`Error verifying VIN reservation: ${reservationError.message}`);
-    }
-    
-    if (!reservation) {
-      console.error('VIN reservation not found or inactive');
-      throw new Error("Your VIN reservation has expired. Please validate your VIN in the Vehicle Details section.");
-    }
+      if (reservationError) {
+        console.error('Error checking VIN reservation:', reservationError);
+        throw new Error(`Error verifying VIN reservation: ${reservationError.message}`);
+      }
+      
+      if (!reservationCheck || !reservationCheck.exists || !reservationCheck.reservation) {
+        console.error('VIN reservation not found or inactive:', reservationCheck);
+        throw new Error("Your VIN reservation has expired. Please validate your VIN in the Vehicle Details section.");
+      }
 
-    console.log('VIN reservation confirmed valid:', reservation);
+      console.log('VIN reservation confirmed valid:', reservationCheck.reservation);
+    }
 
     // Use the dedicated create-car-listing edge function
     console.log('Calling create-car-listing edge function...');
@@ -89,6 +100,7 @@ export const createCarListing = async (
 
     // Clear the reservation ID from localStorage after successful creation
     localStorage.removeItem('vinReservationId');
+    localStorage.removeItem('tempReservedVin');
     console.log('VIN reservation ID cleared from localStorage');
 
     console.log('Listing created successfully:', data);

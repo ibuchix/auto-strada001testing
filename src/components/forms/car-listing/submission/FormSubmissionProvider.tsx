@@ -1,4 +1,3 @@
-
 /**
  * Form Submission Provider
  * Created: 2025-07-23
@@ -9,6 +8,7 @@
  * Updated: 2025-05-04 - Enhanced logging and VIN reservation error handling
  * Updated: 2025-05-10 - Added fallback mechanism for missing VIN reservations
  * Updated: 2025-05-17 - Improved handling of temporary UUID-based VIN reservation IDs
+ * Updated: 2025-05-17 - Fixed permission denied errors with security definer functions
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
