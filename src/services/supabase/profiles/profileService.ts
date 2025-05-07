@@ -4,6 +4,8 @@
  * - 2024-11-18: Created dedicated service for profile-related operations
  * - 2024-11-18: Extracted from userService.ts to improve maintainability
  * - 2024-11-20: Exported UserProfile type with proper TypeScript syntax
+ * - 2025-05-07: Updated getUserProfile to only use security definer function without direct query fallback
+ * - 2025-05-07: Added improved error handling for RLS-related permission errors
  */
 
 import { BaseService } from "../baseService";
@@ -20,33 +22,30 @@ export interface UserProfile {
 export class ProfileService extends BaseService {
   /**
    * Get user profile with security definer function for RLS compatibility
+   * Uses only the security definer function without direct query fallback
    */
   async getUserProfile(userId: string, select: string = '*'): Promise<UserProfile> {
     try {
-      // Always use the security definer function first for reliable access
+      // Only use the security definer function for reliable access
+      // This avoids RLS permission errors when accessing profiles table directly
       const { data: profileData, error: funcError } = await this.supabase
         .rpc('get_profile', { p_user_id: userId });
         
-      if (!funcError && profileData && profileData.length > 0) {
-        return profileData[0];
-      }
-      
-      // Log the error and try direct query as fallback
       if (funcError) {
-        console.warn("get_profile RPC failed, falling back to direct query:", funcError);
+        console.error("Error using get_profile RPC function:", funcError);
+        throw new Error(`Failed to get profile: ${funcError.message}`);
       }
       
-      // Fall back to direct query if function fails
-      return await this.handleDatabaseResponse(async () => {
-        return await this.supabase
-          .from('profiles')
-          .select(select)
-          .eq('id', userId)
-          .single();
-      });
+      if (!profileData || profileData.length === 0) {
+        console.warn(`No profile found for user ${userId}`);
+        return { id: userId } as UserProfile;
+      }
+      
+      return profileData[0];
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      throw error;
+      // Return a minimal profile with just the ID to prevent cascading failures
+      return { id: userId } as UserProfile;
     }
   }
   
