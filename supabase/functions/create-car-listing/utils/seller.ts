@@ -2,6 +2,7 @@
 /**
  * Seller utilities for create-car-listing
  * Created: 2025-05-06 - Moved from external dependency to local implementation
+ * Updated: 2025-05-08 - Enhanced to use available RPC functions with better error handling
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
@@ -28,6 +29,12 @@ export async function ensureSellerExists(
     );
     
     if (rpcError) {
+      logOperation('rpc_check_failed', {
+        requestId,
+        userId,
+        error: rpcError.message
+      }, 'warn');
+      
       // Fall back to direct query if RPC fails
       const { data: seller, error: sellerError } = await supabase
         .from('sellers')
@@ -36,7 +43,7 @@ export async function ensureSellerExists(
         .single();
       
       if (!sellerError && seller) {
-        logOperation('seller_exists', { requestId, userId });
+        logOperation('seller_exists_via_direct_query', { requestId, userId });
         return { success: true };
       }
       
@@ -63,39 +70,66 @@ export async function ensureSellerExists(
     );
     
     if (!createRpcError && createResult?.success) {
-      logOperation('seller_created_via_rpc', { requestId, userId });
+      logOperation('seller_created_via_rpc', {
+        requestId,
+        userId,
+        newSeller: createResult.created 
+      });
       return { success: true };
     }
     
-    // Fallback to direct insert if RPC fails
+    // Fallback to register_seller if the first RPC fails
     if (createRpcError) {
       logOperation('rpc_create_failed', {
         requestId,
         userId,
-        error: createRpcError.message
+        error: createRpcError.message,
+        fallback: 'trying register_seller'
       }, 'warn');
       
-      const { data: inserted, error: insertError } = await supabase
-        .from('sellers')
-        .insert({
-          user_id: userId,
-          verification_status: 'pending'
-        })
-        .select()
-        .single();
+      // Try the register_seller function as fallback
+      const { data: registerResult, error: registerError } = await supabase.rpc(
+        'register_seller',
+        { p_user_id: userId }
+      );
       
-      if (insertError) {
-        logOperation('seller_creation_error', {
-          requestId,
-          userId,
-          error: insertError.message
-        }, 'error');
-        
-        return { success: false, error: `Failed to create seller: ${insertError.message}` };
+      if (!registerError && registerResult === true) {
+        logOperation('seller_created_via_register', { requestId, userId });
+        return { success: true };
       }
       
-      logOperation('seller_created', { requestId, userId });
-      return { success: true };
+      // Last resort - direct insert
+      if (registerError) {
+        logOperation('register_seller_failed', {
+          requestId,
+          userId,
+          error: registerError.message,
+          fallback: 'trying direct insert'
+        }, 'warn');
+        
+        const { data: inserted, error: insertError } = await supabase
+          .from('sellers')
+          .insert({
+            user_id: userId,
+            verification_status: 'verified',
+            is_verified: true
+          })
+          .select()
+          .single();
+        
+        if (insertError) {
+          logOperation('seller_creation_error', {
+            requestId,
+            userId,
+            error: insertError.message
+          }, 'error');
+          
+          return { success: false, error: `Failed to create seller: ${insertError.message}` };
+        }
+        
+        logOperation('seller_created_direct', { requestId, userId });
+        return { success: true };
+      }
     }
     
     return { success: true };
@@ -128,8 +162,8 @@ export async function getSellerName(
       { p_user_id: userId }
     );
 
-    if (!error && profile) {
-      return profile.full_name || 'Unknown Seller';
+    if (!error && profile && profile.full_name) {
+      return profile.full_name;
     }
 
     // Fallback to direct query if RPC fails

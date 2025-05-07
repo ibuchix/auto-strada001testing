@@ -1558,6 +1558,10 @@ export type Database = {
         Args: { email_to_check: string }
         Returns: Json
       }
+      check_seller_exists: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       cleanup_expired_vin_reservations: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -1589,6 +1593,10 @@ export type Database = {
           p_address: string
           p_phone_number?: string
         }
+        Returns: Json
+      }
+      create_seller_if_not_exists: {
+        Args: { p_user_id: string }
         Returns: Json
       }
       create_vin_reservation: {
@@ -1728,6 +1736,10 @@ export type Database = {
       }
       get_user_id_by_email: {
         Args: { p_email: string }
+        Returns: Json
+      }
+      get_user_profile_for_listing: {
+        Args: { p_user_id: string }
         Returns: Json
       }
       get_vin_valuation_cache: {

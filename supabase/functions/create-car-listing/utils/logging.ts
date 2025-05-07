@@ -1,35 +1,35 @@
 
 /**
  * Logging utilities for create-car-listing
- * Created: 2025-05-06 - Moved from external dependency to local implementation
+ * Created: 2025-05-08 - Added to support better diagnostics
  */
 
 /**
- * Log an operation with structured data
+ * Log an operation with details
  * 
- * @param operation Operation name/type
- * @param data Operation data
- * @param level Log level (default: 'info')
+ * @param operation Operation name
+ * @param details Operation details
+ * @param level Log level (info, warn, error)
  */
 export function logOperation(
   operation: string,
-  data: Record<string, any> = {},
-  level: 'info' | 'error' | 'warn' | 'debug' = 'info'
+  details: Record<string, any>,
+  level: 'info' | 'warn' | 'error' = 'info'
 ): void {
   const logData = {
     timestamp: new Date().toISOString(),
     operation,
-    level,
-    ...data
+    ...details
   };
   
-  console.log(JSON.stringify(logData));
-}
-
-/**
- * Create a unique request ID for tracking
- * @returns Unique request ID
- */
-export function createRequestId(): string {
-  return crypto.randomUUID();
+  switch (level) {
+    case 'warn':
+      console.warn(`[create-car-listing] ${operation}:`, logData);
+      break;
+    case 'error':
+      console.error(`[create-car-listing] ${operation}:`, logData);
+      break;
+    default:
+      console.log(`[create-car-listing] ${operation}:`, logData);
+  }
 }

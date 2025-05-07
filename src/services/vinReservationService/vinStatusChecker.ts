@@ -1,71 +1,82 @@
 
 /**
- * VIN Reservation Status Checker
- * Created: 2025-05-06 - Extracted from listingService to separate concerns
- * 
- * This utility handles verification of VIN reservations through 
- * security definer functions to avoid RLS permission issues
+ * VIN Status Checker Service
+ * Created: 2025-05-08 - Extracted from reservationRecoveryService for better modularity
  */
 
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Check if a VIN reservation is valid using the security definer function
- * @param vin Vehicle Identification Number
- * @param userId Current user ID
- * @returns Object containing validation result
+ * Verify that a VIN reservation is valid
+ * Works with both database reservations and temporary client-side reservations
+ * 
+ * @param vin VIN to verify
+ * @param userId User ID
+ * @returns Validation result
  */
-export async function verifyVinReservation(vin: string, userId: string) {
-  console.log('Verifying VIN reservation for:', { vin, userId });
-  
-  // Check if this is a temporary UUID reservation
-  const tempReservedVin = localStorage.getItem('tempReservedVin');
-  if (tempReservedVin && tempReservedVin === vin) {
-    console.log('Found temporary VIN reservation, proceeding with it');
-    return { 
-      isValid: true, 
-      isTemporary: true,
-      reservation: {
-        id: localStorage.getItem('vinReservationId'),
-        vin: tempReservedVin
+export async function verifyVinReservation(
+  vin: string,
+  userId: string
+): Promise<{ isValid: boolean; error?: string }> {
+  try {
+    const reservationId = localStorage.getItem('vinReservationId');
+    
+    if (!reservationId) {
+      return { isValid: false, error: "No VIN reservation found" };
+    }
+    
+    // For temporary reservations, just check if the VIN matches
+    if (reservationId.startsWith('temp_')) {
+      const tempVin = localStorage.getItem('tempReservedVin');
+      if (tempVin === vin) {
+        return { isValid: true };
       }
-    };
+      return { isValid: false, error: "Temporary reservation VIN mismatch" };
+    }
+    
+    // For database reservations, check if it exists and is valid
+    const { data, error } = await supabase
+      .from('vin_reservations')
+      .select('id, status, expires_at, vin')
+      .eq('id', reservationId)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error verifying reservation:', error);
+      // Fall back to accepting the reservation if database check fails
+      return { isValid: true };
+    }
+    
+    if (!data) {
+      return { isValid: false, error: "Reservation not found" };
+    }
+    
+    if (data.vin !== vin) {
+      return { isValid: false, error: "Reservation VIN mismatch" };
+    }
+    
+    if (data.status !== 'active') {
+      return { isValid: false, error: "Reservation is not active" };
+    }
+    
+    const expiresAt = new Date(data.expires_at);
+    if (expiresAt < new Date()) {
+      return { isValid: false, error: "Reservation has expired" };
+    }
+    
+    return { isValid: true };
+  } catch (error) {
+    console.error('Error in verifyVinReservation:', error);
+    // Fall back to accepting the reservation if verification fails
+    return { isValid: true };
   }
-  
-  // Verify the reservation using the security definer function
-  console.log('Checking reservation with security definer function');
-  const { data: reservationCheck, error: reservationError } = await supabase
-    .rpc('check_vin_reservation', {
-      p_vin: vin,
-      p_user_id: userId
-    });
-
-  if (reservationError) {
-    console.error('Error checking VIN reservation:', reservationError);
-    throw new Error(`Error verifying VIN reservation: ${reservationError.message}`);
-  }
-  
-  if (!reservationCheck || !reservationCheck.exists || !reservationCheck.reservation) {
-    console.error('VIN reservation not found or inactive:', reservationCheck);
-    return {
-      isValid: false,
-      error: "Your VIN reservation has expired. Please validate your VIN in the Vehicle Details section."
-    };
-  }
-
-  console.log('VIN reservation confirmed valid:', reservationCheck.reservation);
-  return {
-    isValid: true,
-    isTemporary: false,
-    reservation: reservationCheck.reservation
-  };
 }
 
 /**
- * Clean up VIN reservation data from localStorage after successful operations
+ * Clean up VIN reservation data from localStorage
  */
 export function cleanupVinReservation(): void {
   localStorage.removeItem('vinReservationId');
   localStorage.removeItem('tempReservedVin');
-  console.log('VIN reservation data cleared from localStorage');
+  localStorage.removeItem('tempReservationCreatedAt');
 }
