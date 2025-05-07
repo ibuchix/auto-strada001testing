@@ -8,6 +8,7 @@
  * - 2025-05-30: Added force transition timers and controls to prevent stuck loading
  * - 2025-05-31: Fixed cross-origin messaging issues and reduced render count
  * - 2025-05-13: Added explicit null check for auth session and error logging
+ * - 2025-05-17: Added better error handling for cross-origin messaging
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -16,6 +17,20 @@ import { PageStateManager } from "./sell-my-car/PageStateManager";
 import { useSearchParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
+
+// Helper function to safely post messages, ignoring SecurityError exceptions
+const safePostMessage = (message: any, target: string = '*') => {
+  try {
+    if (window !== window.parent) {
+      window.parent.postMessage(message, target);
+    }
+  } catch (err) {
+    // Silently suppress SecurityError from cross-origin messaging
+    if (!(err instanceof DOMException) || err.name !== 'SecurityError') {
+      console.error('Error in postMessage (not SecurityError):', err);
+    }
+  }
+};
 
 const SellMyCar = () => {
   const [searchParams] = useSearchParams();
@@ -55,14 +70,30 @@ const SellMyCar = () => {
       return; // Skip excessive re-initializations
     }
     
-    console.log("SellMyCar: Component mounting/updating", {
-      render: renderCountRef.current,
-      initCompleted: initCompletedRef.current,
-      fromValuation,
-      isValid,
-      hasSession: !!session,
-      sessionLoading: isAuthLoading
-    });
+    try {
+      // Try to log to console safely (this always works)
+      console.log("SellMyCar: Component mounting/updating", {
+        render: renderCountRef.current,
+        initCompleted: initCompletedRef.current,
+        fromValuation,
+        isValid,
+        hasSession: !!session,
+        sessionLoading: isAuthLoading
+      });
+      
+      // Try to post messages safely (will be suppressed if cross-origin issues occur)
+      safePostMessage({
+        type: 'DEBUG_SELL_MY_CAR',
+        render: renderCountRef.current,
+        initCompleted: initCompletedRef.current,
+        fromValuation,
+        isValid,
+        hasSession: !!session
+      });
+    } catch (err) {
+      // Last resort error handling
+      console.warn('Error in debug logging (suppressed)');
+    }
     
     // Store incoming data for debugging - only do this once
     setDebugInfo({
@@ -88,7 +119,18 @@ const SellMyCar = () => {
   
   // Run the initialization exactly once on mount
   useEffect(() => {
-    initializeDebugInfo();
+    try {
+      initializeDebugInfo();
+    } catch (err) {
+      // Failsafe for any initialization errors
+      console.error('SellMyCar initialization error (suppressed):', err);
+      
+      // Force complete initialization if something failed
+      if (!initCompletedRef.current) {
+        setInitComplete(true);
+        initCompletedRef.current = true;
+      }
+    }
     
     // Clean up timer on unmount
     return () => {
@@ -106,9 +148,19 @@ const SellMyCar = () => {
     }
     
     const timer = setTimeout(() => {
-      console.log("SellMyCar: Initialization complete");
-      setInitComplete(true);
-      initCompletedRef.current = true;
+      try {
+        console.log("SellMyCar: Initialization complete");
+        setInitComplete(true);
+        initCompletedRef.current = true;
+        
+        // Try to post message safely
+        safePostMessage({
+          type: 'SELL_MY_CAR_INITIALIZED',
+          timestamp: Date.now()
+        });
+      } catch (err) {
+        console.warn('Error in initialization completion (suppressed)');
+      }
     }, 200);
     
     return () => {

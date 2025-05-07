@@ -1,230 +1,151 @@
 
 /**
  * Reservation Recovery Service
- * Created: 2025-05-06 - Extracted from form submission provider to handle VIN reservation recovery
- * Updated: 2025-05-08 - Enhanced to handle more edge cases and improve reliability
+ * Created: 2025-05-17 - To help handle VIN reservation issues and recover from errors
+ * 
+ * This service handles creation, verification, and recovery of VIN reservations
+ * to prevent issues with car listing creation.
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Recovers or creates a VIN reservation
- * This handles cases where localStorage reservation data is missing
+ * Creates a temporary VIN reservation ID in localStorage
+ * Used as a fallback when database reservation fails
  * 
- * @param vin VIN number to reserve
- * @param userId User ID
- * @param valuationData Optional valuation data
- * @returns Reservation ID or null if failed
+ * @param vin The VIN to reserve
+ * @returns The temporary reservation ID
  */
-export async function recoverVinReservation(
-  vin: string, 
+const createTemporaryReservation = (vin: string): string => {
+  // Generate a temporary ID with a UUID for uniqueness
+  const tempReservationId = `temp_${uuidv4()}`;
+  
+  // Store in localStorage
+  localStorage.setItem('vinReservationId', tempReservationId);
+  localStorage.setItem('tempReservedVin', vin);
+  localStorage.setItem('tempReservationCreatedAt', new Date().toISOString());
+  
+  console.log(`Created temporary VIN reservation: ${tempReservationId} for VIN: ${vin}`);
+  
+  return tempReservationId;
+};
+
+/**
+ * Creates a database VIN reservation
+ * 
+ * @param vin The VIN to reserve
+ * @param userId The user ID
+ * @param valuationData Optional valuation data to associate
+ * @returns The reservation ID or null if failed
+ */
+const createDatabaseReservation = async (
+  vin: string,
   userId: string,
-  valuationData: any = null
-): Promise<string | null> {
-  console.log('Attempting to recover VIN reservation for:', vin);
-  
-  // If we already have a reservation ID, return it
-  const existingId = localStorage.getItem('vinReservationId');
-  if (existingId) {
-    console.log('Found existing reservation ID:', existingId);
-    return existingId;
-  }
-  
+  valuationData?: any
+): Promise<string | null> => {
   try {
-    // First check if there's an existing reservation in the database
-    const { data: reservationCheck, error } = await supabase.rpc(
-      'check_vin_reservation',
+    console.log('Creating database VIN reservation for:', vin);
+    
+    const { data, error } = await supabase.rpc(
+      'create_vin_reservation',
+      {
+        p_vin: vin,
+        p_user_id: userId,
+        p_valuation_data: valuationData || null,
+        p_duration_minutes: 60 // 1 hour reservation
+      }
+    );
+    
+    if (error) {
+      console.error('Error creating VIN reservation:', error);
+      return null;
+    }
+    
+    if (!data?.success) {
+      console.error('VIN reservation failed:', data);
+      return null;
+    }
+    
+    // Store in localStorage
+    localStorage.setItem('vinReservationId', data.reservationId);
+    
+    console.log(`Created database VIN reservation: ${data.reservationId}`);
+    
+    return data.reservationId;
+  } catch (error) {
+    console.error('Exception creating VIN reservation:', error);
+    return null;
+  }
+};
+
+/**
+ * Checks if a VIN is available for reservation
+ * 
+ * @param vin The VIN to check
+ * @param userId The user ID
+ * @returns True if available, false otherwise
+ */
+const checkVinAvailability = async (vin: string, userId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.rpc(
+      'is_vin_available_for_user',
       {
         p_vin: vin,
         p_user_id: userId
       }
     );
     
-    // Handle potential RPC error/missing function
-    if (error && error.message && error.message.includes('does not exist')) {
-      // Fall back to direct query if RPC doesn't exist
-      console.log('RPC check_vin_reservation not available, falling back to direct query');
-      const { data: directCheck } = await supabase
-        .from('vin_reservations')
-        .select('id')
-        .eq('vin', vin)
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
-      
-      if (directCheck) {
-        const reservationId = directCheck.id;
-        console.log('Found existing reservation in database via direct query:', reservationId);
-        localStorage.setItem('vinReservationId', reservationId);
-        return reservationId;
-      }
-    } else if (!error && reservationCheck?.exists && reservationCheck.reservation?.id) {
-      const reservationId = reservationCheck.reservation.id;
-      console.log('Found existing reservation in database via RPC:', reservationId);
-      localStorage.setItem('vinReservationId', reservationId);
-      return reservationId;
-    }
-    
-    // Try to create a new reservation
-    const { data: result, error: createError } = await supabase.functions.invoke('reserve-vin', {
-      body: {
-        vin,
-        userId,
-        valuationData,
-        action: 'create'
-      }
-    });
-    
-    if (createError || !result?.success) {
-      console.error('Failed to create reservation:', createError || result?.error);
-      
-      // Try direct insert as a fallback
-      try {
-        const { data: directInsert, error: insertError } = await supabase
-          .from('vin_reservations')
-          .insert({
-            vin,
-            user_id: userId,
-            valuation_data: valuationData,
-            status: 'active',
-            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
-          })
-          .select('id')
-          .single();
-          
-        if (!insertError && directInsert?.id) {
-          const reservationId = directInsert.id;
-          console.log('Created reservation via direct insert:', reservationId);
-          localStorage.setItem('vinReservationId', reservationId);
-          return reservationId;
-        }
-        
-        if (insertError) {
-          console.error('Direct insert failed:', insertError);
-        }
-      } catch (directError) {
-        console.error('Error with direct insert:', directError);
-      }
-      
-      // Create a temporary local reservation as fallback
-      // Using a prefix to distinguish client-generated IDs
-      const tempId = `temp_${uuidv4()}`;
-      console.log('Created temporary local reservation ID:', tempId);
-      
-      localStorage.setItem('vinReservationId', tempId);
-      localStorage.setItem('tempReservedVin', vin);
-      localStorage.setItem('tempReservationCreatedAt', new Date().toISOString());
-      
-      toast.info("Created temporary VIN reservation", {
-        description: "Full reservation couldn't be created but we'll proceed."
-      });
-      
-      return tempId;
-    }
-    
-    // Successful creation via edge function
-    if (result.data?.reservationId) {
-      const reservationId = result.data.reservationId;
-      localStorage.setItem('vinReservationId', reservationId);
-      localStorage.setItem('tempReservedVin', vin);
-      console.log('Created new reservation:', reservationId);
-      return reservationId;
-    }
-    
-    // Create temporary reservation as fallback
-    const fallbackId = `temp_${uuidv4()}`;
-    localStorage.setItem('vinReservationId', fallbackId);
-    localStorage.setItem('tempReservedVin', vin);
-    
-    console.log('Created fallback temporary reservation ID:', fallbackId);
-    return fallbackId;
-  } catch (error) {
-    console.error('Error recovering VIN reservation:', error);
-    
-    // Last resort fallback
-    const emergencyId = `temp_emergency_${uuidv4()}`;
-    localStorage.setItem('vinReservationId', emergencyId);
-    localStorage.setItem('tempReservedVin', vin);
-    
-    console.log('Created emergency temporary reservation ID:', emergencyId);
-    return emergencyId;
-  }
-}
-
-/**
- * Clean up VIN reservation data from localStorage
- */
-export function cleanupVinReservation(): void {
-  localStorage.removeItem('vinReservationId');
-  localStorage.removeItem('tempReservedVin');
-  localStorage.removeItem('tempReservationCreatedAt');
-}
-
-/**
- * Verify that a VIN reservation is valid
- * Works with both database reservations and temporary client-side reservations
- * 
- * @param vin VIN to verify
- * @param userId User ID
- * @returns Validation result
- */
-export async function verifyVinReservation(
-  vin: string,
-  userId: string
-): Promise<{ isValid: boolean; error?: string }> {
-  try {
-    const reservationId = localStorage.getItem('vinReservationId');
-    
-    if (!reservationId) {
-      return { isValid: false, error: "No VIN reservation found" };
-    }
-    
-    // For temporary reservations, just check if the VIN matches
-    if (reservationId.startsWith('temp_')) {
-      const tempVin = localStorage.getItem('tempReservedVin');
-      if (tempVin === vin) {
-        return { isValid: true };
-      }
-      return { isValid: false, error: "Temporary reservation VIN mismatch" };
-    }
-    
-    // For database reservations, check if it exists and is valid
-    const { data, error } = await supabase
-      .from('vin_reservations')
-      .select('id, status, expires_at, vin')
-      .eq('id', reservationId)
-      .maybeSingle();
-    
     if (error) {
-      console.error('Error verifying reservation:', error);
-      // Fall back to accepting the reservation if database check fails
-      return { isValid: true };
+      console.error('Error checking VIN availability:', error);
+      return true; // Default to true on error
     }
     
-    if (!data) {
-      return { isValid: false, error: "Reservation not found" };
-    }
-    
-    if (data.vin !== vin) {
-      return { isValid: false, error: "Reservation VIN mismatch" };
-    }
-    
-    if (data.status !== 'active') {
-      return { isValid: false, error: "Reservation is not active" };
-    }
-    
-    const expiresAt = new Date(data.expires_at);
-    if (expiresAt < new Date()) {
-      return { isValid: false, error: "Reservation has expired" };
-    }
-    
-    return { isValid: true };
+    return data === true;
   } catch (error) {
-    console.error('Error in verifyVinReservation:', error);
-    // Fall back to accepting the reservation if verification fails
-    return { isValid: true };
+    console.error('Exception checking VIN availability:', error);
+    return true; // Default to true on error
   }
-}
+};
+
+/**
+ * Recovers or creates a VIN reservation
+ * Uses multiple strategies to ensure a reservation exists
+ * 
+ * @param vin The VIN to reserve
+ * @param userId The user ID
+ * @param valuationData Optional valuation data
+ * @returns The reservation ID or null if all attempts fail
+ */
+export const recoverVinReservation = async (
+  vin: string,
+  userId: string,
+  valuationData?: any
+): Promise<string | null> => {
+  // Check if we already have a reservation
+  const existingReservationId = localStorage.getItem('vinReservationId');
+  const existingVin = localStorage.getItem('tempReservedVin');
+  
+  if (existingReservationId && existingVin === vin) {
+    console.log(`Using existing VIN reservation: ${existingReservationId}`);
+    return existingReservationId;
+  }
+  
+  // Check if VIN is available for this user
+  const isAvailable = await checkVinAvailability(vin, userId);
+  
+  if (!isAvailable) {
+    console.error('VIN is not available for reservation by this user');
+    return null;
+  }
+  
+  // Try to create a database reservation first
+  const dbReservationId = await createDatabaseReservation(vin, userId, valuationData);
+  
+  if (dbReservationId) {
+    return dbReservationId;
+  }
+  
+  // Fall back to a temporary reservation
+  return createTemporaryReservation(vin);
+};

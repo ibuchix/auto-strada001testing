@@ -2,6 +2,7 @@
 /**
  * VIN Status Checker Service
  * Created: 2025-05-08 - Extracted from reservationRecoveryService for better modularity
+ * Updated: 2025-05-17 - Added comprehensive error handling and validation
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -35,36 +36,42 @@ export async function verifyVinReservation(
     }
     
     // For database reservations, check if it exists and is valid
-    const { data, error } = await supabase
-      .from('vin_reservations')
-      .select('id, status, expires_at, vin')
-      .eq('id', reservationId)
-      .maybeSingle();
-    
-    if (error) {
-      console.error('Error verifying reservation:', error);
-      // Fall back to accepting the reservation if database check fails
+    try {
+      const { data, error } = await supabase
+        .from('vin_reservations')
+        .select('id, status, expires_at, vin')
+        .eq('id', reservationId)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error verifying reservation:', error);
+        // Fall back to accepting the reservation if database check fails
+        return { isValid: true };
+      }
+      
+      if (!data) {
+        return { isValid: false, error: "Reservation not found" };
+      }
+      
+      if (data.vin !== vin) {
+        return { isValid: false, error: "Reservation VIN mismatch" };
+      }
+      
+      if (data.status !== 'active') {
+        return { isValid: false, error: "Reservation is not active" };
+      }
+      
+      const expiresAt = new Date(data.expires_at);
+      if (expiresAt < new Date()) {
+        return { isValid: false, error: "Reservation has expired" };
+      }
+      
+      return { isValid: true };
+    } catch (dbError) {
+      // If there's an error checking the database, log it but accept the reservation
+      console.error('Database error in verifyVinReservation:', dbError);
       return { isValid: true };
     }
-    
-    if (!data) {
-      return { isValid: false, error: "Reservation not found" };
-    }
-    
-    if (data.vin !== vin) {
-      return { isValid: false, error: "Reservation VIN mismatch" };
-    }
-    
-    if (data.status !== 'active') {
-      return { isValid: false, error: "Reservation is not active" };
-    }
-    
-    const expiresAt = new Date(data.expires_at);
-    if (expiresAt < new Date()) {
-      return { isValid: false, error: "Reservation has expired" };
-    }
-    
-    return { isValid: true };
   } catch (error) {
     console.error('Error in verifyVinReservation:', error);
     // Fall back to accepting the reservation if verification fails

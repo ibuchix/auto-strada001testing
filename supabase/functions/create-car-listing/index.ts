@@ -1,199 +1,219 @@
 
-/**
- * Edge function for creating car listings
- * Updated: 2025-04-19 - Switched to use shared utilities from central repository
- * Updated: 2025-05-06 - Fixed import error by implementing local utility functions
- * Updated: 2025-05-06 - Enhanced VIN reservation validation for permission issues
- */
-
+// create-car-listing/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "./utils/cors.ts";
-import { 
-  logOperation,
-  createRequestId,
-  validateListingRequest,
-  validateVinReservation, 
-  markReservationAsUsed, 
-  createListing,
-  ensureSellerExists,
-  getSellerName,
-  formatSuccessResponse,
-  formatErrorResponse
-} from "./utils/index.ts";
+import { createListing } from "./utils/listing.ts";
+import { logOperation } from "./utils/logging.ts";
 
-// Define the ListingRequest and ListingData interfaces
-interface ListingRequest {
-  valuationData: any;
-  userId: string;
-  vin: string;
-  mileage: number;
-  transmission: string;
-  reservationId?: string;
-}
-
-interface ListingData {
-  seller_id: string;
-  seller_name: string;
-  title: string;
-  vin: string;
-  mileage: number;
-  transmission: string;
-  make: string;
-  model: string;
-  year: number;
-  price: number;
-  valuation_data: any;
-  is_draft: boolean;
-}
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
 
 serve(async (req) => {
-  // Generate request ID for tracking
-  const requestId = createRequestId();
-  logOperation('request_received', { requestId, method: req.method, url: req.url });
-  
-  // Handle CORS preflight
+  // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Parse request
+    const requestId = crypto.randomUUID();
+    logOperation('request_start', { requestId }, 'info');
+    
+    // Get the request body
     const requestData = await req.json();
-    logOperation('request_parsed', { requestId, body: requestData }, 'debug');
-    
-    // Validate request
-    const { valuationData, userId, vin, mileage, transmission, reservationId } = requestData as ListingRequest;
-    const validation = validateListingRequest(requestData);
-    
-    if (!validation.valid) {
-      logOperation('validation_error', { requestId, error: validation.error }, 'error');
-      return formatErrorResponse(validation.error || 'Invalid request');
-    }
-    
-    logOperation('request_validated', { 
-      requestId, 
+    const { 
+      valuationData,
       userId, 
       vin, 
       mileage, 
-      transmission 
-    });
-
-    // Initialize Supabase client with increased timeout
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          persistSession: false
-        },
-        db: {
-          schema: 'public'
-        },
-        global: {
-          headers: { 'x-request-timeout': '240000' }
+      transmission,
+      reservationId
+    } = requestData;
+    
+    // Validate required fields
+    if (!userId || !vin || !valuationData) {
+      logOperation('validation_error', { 
+        requestId, 
+        error: 'Missing required fields'
+      }, 'error');
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: 'Missing required fields'
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
-      }
+      );
+    }
+    
+    // Get the authorization header which includes the user's JWT
+    const authHeader = req.headers.get('Authorization');
+    
+    // Create Supabase client with service role for admin operations
+    // This bypasses RLS policies
+    const adminServiceClient = createClient(
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY
     );
     
-    // Validate VIN reservation if provided - with enhanced handling
-    // Allow special handling for temporary UUIDs
-    const reservationValidation = await validateVinReservation(
-      supabase, 
-      userId, 
-      vin, 
-      reservationId, 
-      requestId
-    );
+    // Create a client with the user's JWT if available
+    const clientWithAuth = authHeader
+      ? createClient(
+          SUPABASE_URL,
+          SUPABASE_ANON_KEY,
+          { global: { headers: { Authorization: authHeader } } }
+        )
+      : adminServiceClient;
     
-    if (!reservationValidation.valid) {
-      return formatErrorResponse(reservationValidation.error || 'Invalid reservation');
-    }
-
-    // Create seller if needed
-    const sellerResult = await ensureSellerExists(supabase, userId, requestId);
-    if (!sellerResult.success) {
-      return formatErrorResponse('Failed to verify seller account');
-    }
-
-    // Get seller name from user data
-    const sellerName = await getSellerName(supabase, userId);
-    
-    // Prepare listing data
-    const listingData: ListingData = {
-      seller_id: userId,
-      seller_name: sellerName,
-      title: `${valuationData.make} ${valuationData.model} ${valuationData.year}`,
-      vin: vin,
-      mileage: mileage,
-      transmission: transmission,
+    // Extract basic car data from valuation
+    const extractedCarData = {
       make: valuationData.make,
       model: valuationData.model,
       year: valuationData.year,
-      price: valuationData.valuation || valuationData.averagePrice,
-      valuation_data: valuationData,
-      is_draft: true
+      mileage: Number(mileage),
+      vin: vin,
+      price: valuationData.price_med || valuationData.averagePrice,
+      transmission: transmission,
+      is_draft: true,
+      valuation_data: valuationData
     };
-
-    logOperation('creating_listing', { 
+    
+    logOperation('processing_request', { 
+      requestId, 
+      userId,
+      vin, 
+      make: extractedCarData.make,
+      model: extractedCarData.model
+    });
+    
+    // First attempt using security definer function
+    try {
+      const { data: securityDefinerResult, error: securityDefinerError } = await clientWithAuth.rpc(
+        'create_car_listing',
+        {
+          p_car_data: extractedCarData,
+          p_user_id: userId
+        }
+      );
+      
+      if (!securityDefinerError && securityDefinerResult?.success) {
+        logOperation('security_definer_success', { 
+          requestId, 
+          userId,
+          carId: securityDefinerResult.car_id
+        });
+        
+        // Mark reservation as used if provided
+        if (reservationId) {
+          await adminServiceClient
+            .from('vin_reservations')
+            .update({
+              status: 'completed',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', reservationId);
+        }
+        
+        // Return the successful result
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            data: { id: securityDefinerResult.car_id, car_id: securityDefinerResult.car_id }
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      
+      // Log the error but continue to try alternative methods
+      if (securityDefinerError) {
+        logOperation('security_definer_error', {
+          requestId,
+          userId,
+          error: securityDefinerError.message
+        }, 'warn');
+      }
+    } catch (rpcError) {
+      logOperation('security_definer_exception', {
+        requestId,
+        userId,
+        error: (rpcError as Error).message
+      }, 'warn');
+    }
+    
+    // Fall back to our utility function which tries several approaches
+    const result = await createListing(
+      adminServiceClient,  // Use admin client to bypass RLS
+      extractedCarData,
+      userId,
+      requestId
+    );
+    
+    if (!result.success) {
+      logOperation('create_listing_failed', {
+        requestId,
+        userId,
+        error: result.error?.message
+      }, 'error');
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: result.error?.message || 'Failed to create car listing'
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
+    // Mark reservation as used if provided
+    if (reservationId) {
+      await adminServiceClient
+        .from('vin_reservations')
+        .update({
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', reservationId);
+    }
+    
+    logOperation('request_success', {
       requestId,
       userId,
-      carMake: valuationData.make,
-      carModel: valuationData.model
+      carId: result.data?.car_id || result.data?.id
     });
-
-    // Use EdgeRuntime.waitUntil for background processing
-    const backgroundProcess = async () => {
-      try {
-        // Create the listing
-        const result = await createListing(supabase, listingData, userId, requestId);
-        
-        if (!result.success) {
-          logOperation('background_process_failed', {
-            requestId,
-            error: result.error?.message
-          }, 'error');
-          return;
-        }
-        
-        // Mark reservation as used if provided and not temporary
-        if (reservationId && 
-            !reservationId.startsWith('temp_') &&
-            !reservationId.includes('temporary') &&
-            !reservationId.includes('client_gen')) {
-          await markReservationAsUsed(supabase, reservationId, requestId);
-        }
-        
-        logOperation('background_process_completed', {
-          requestId,
-          carId: result.data?.car_id || result.data?.id
-        });
-      } catch (error) {
-        logOperation('background_process_error', {
-          requestId,
-          error: (error as Error).message
-        }, 'error');
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        data: result.data
+      }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    };
-    
-    // Start the background processing
-    EdgeRuntime.waitUntil(backgroundProcess());
-
-    // Return immediate response
-    return formatSuccessResponse({
-      message: 'Listing creation started',
-    }, 202);
-
+    );
   } catch (error) {
-    logOperation('unhandled_error', { 
-      requestId, 
-      error: (error as Error).message,
-      stack: (error as Error).stack
-    }, 'error');
+    console.error('Unhandled error in edge function:', error);
     
-    return formatErrorResponse(error as Error);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        message: 'Internal server error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
   }
 });

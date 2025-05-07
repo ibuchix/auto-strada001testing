@@ -1758,6 +1758,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_verified_seller: {
+        Args: { p_user_id?: string }
+        Returns: boolean
+      }
       is_vin_available: {
         Args: { p_vin: string }
         Returns: boolean
