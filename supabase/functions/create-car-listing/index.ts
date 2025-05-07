@@ -136,14 +136,16 @@ serve(async (req) => {
         logOperation('security_definer_error', {
           requestId,
           userId,
-          error: securityDefinerError.message
+          error: securityDefinerError.message,
+          details: securityDefinerError
         }, 'warn');
       }
     } catch (rpcError) {
       logOperation('security_definer_exception', {
         requestId,
         userId,
-        error: (rpcError as Error).message
+        error: (rpcError as Error).message,
+        stack: (rpcError as Error).stack
       }, 'warn');
     }
     
@@ -159,13 +161,17 @@ serve(async (req) => {
       logOperation('create_listing_failed', {
         requestId,
         userId,
-        error: result.error?.message
+        error: result.error?.message,
+        errorDetails: result.error,
+        carData: extractedCarData
       }, 'error');
       
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: result.error?.message || 'Failed to create car listing'
+          message: result.error?.message || 'Failed to create car listing',
+          details: result.details || {},
+          code: result.code || 'UNKNOWN_ERROR'
         }),
         { 
           status: 500,
@@ -204,11 +210,23 @@ serve(async (req) => {
   } catch (error) {
     console.error('Unhandled error in edge function:', error);
     
+    // Attempt to extract most useful error information
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
         message: 'Internal server error',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage,
+        errorType: errorName,
+        // Include diagnostic information
+        diagnostic: {
+          timestamp: new Date().toISOString(),
+          isError: error instanceof Error,
+          stack: errorStack
+        }
       }),
       { 
         status: 500,

@@ -490,6 +490,7 @@ export type Database = {
           title: string | null
           transmission: string | null
           updated_at: string
+          valuation_data: Json | null
           vin: string | null
           year: number | null
         }
@@ -526,6 +527,7 @@ export type Database = {
           title?: string | null
           transmission?: string | null
           updated_at?: string
+          valuation_data?: Json | null
           vin?: string | null
           year?: number | null
         }
@@ -562,6 +564,7 @@ export type Database = {
           title?: string | null
           transmission?: string | null
           updated_at?: string
+          valuation_data?: Json | null
           vin?: string | null
           year?: number | null
         }
@@ -1686,6 +1689,7 @@ export type Database = {
           title: string | null
           transmission: string | null
           updated_at: string
+          valuation_data: Json | null
           vin: string | null
           year: number | null
         }[]
