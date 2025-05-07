@@ -1,6 +1,7 @@
 
 /**
  * Updated: 2025-07-22 - Added improved error handling with schema validation
+ * Updated: 2025-05-07 - Ensure price is set from reservePrice or valuation
  * Enhanced error handling for schema mismatches and column type issues
  */
 
@@ -29,8 +30,30 @@ export async function createListing(
     logOperation('listing_creation_start', {
       requestId,
       userId,
-      carKeys: Object.keys(carData)
+      carKeys: Object.keys(carData),
+      hasPrice: carData.price !== undefined,
+      priceValue: carData.price
     });
+
+    // Ensure price is set to avoid null constraint violations
+    if (!carData.price && carData.valuation_data) {
+      // Use reservePrice if available, otherwise use valuation
+      if (carData.valuation_data.reservePrice) {
+        carData.price = carData.valuation_data.reservePrice;
+        logOperation('price_fixed_from_reserve', {
+          requestId,
+          priceSource: 'reservePrice',
+          price: carData.price
+        });
+      } else if (carData.valuation_data.valuation) {
+        carData.price = carData.valuation_data.valuation;
+        logOperation('price_fixed_from_valuation', {
+          requestId,
+          priceSource: 'valuation',
+          price: carData.price
+        });
+      }
+    }
 
     // First approach: Use the upsert_car_listing function
     try {
@@ -83,7 +106,8 @@ export async function createListing(
     logOperation('trying_direct_insert', {
       requestId,
       userId,
-      fields: Object.keys(carInsertData)
+      fields: Object.keys(carInsertData),
+      price: carInsertData.price
     });
     
     const { data: car, error: insertError } = await supabase

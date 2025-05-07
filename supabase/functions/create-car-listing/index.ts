@@ -1,5 +1,10 @@
 
 // create-car-listing/index.ts
+/**
+ * Updated: 2025-05-07 - Fixed pricing by using reservePrice from valuation data
+ * This ensures the car listing uses the accurate reserve price calculated during valuation
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "./utils/cors.ts";
@@ -50,6 +55,26 @@ serve(async (req) => {
       );
     }
     
+    // Validate that valuation data contains a reserve price
+    if (!valuationData.reservePrice && !valuationData.valuation) {
+      logOperation('price_validation_error', {
+        requestId,
+        error: 'Missing reserve price in valuation data',
+        valuationKeys: Object.keys(valuationData)
+      }, 'error');
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'Valuation data is missing required reserve price information'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
     // Get the authorization header which includes the user's JWT
     const authHeader = req.headers.get('Authorization');
     
@@ -70,24 +95,57 @@ serve(async (req) => {
       : adminServiceClient;
     
     // Extract basic car data from valuation
+    // CRITICAL UPDATE: Use the reservePrice as the price field to ensure pricing accuracy
+    // Log price-related values for debugging
+    logOperation('price_data', {
+      requestId,
+      reservePrice: valuationData.reservePrice,
+      averagePrice: valuationData.averagePrice,
+      basePrice: valuationData.basePrice,
+      price_med: valuationData.price_med,
+      valuation: valuationData.valuation
+    });
+    
     const extractedCarData = {
       make: valuationData.make,
       model: valuationData.model,
       year: valuationData.year,
       mileage: Number(mileage),
       vin: vin,
-      price: valuationData.price_med || valuationData.averagePrice,
+      // Use reservePrice as the primary price value
+      price: valuationData.reservePrice || valuationData.valuation,
       transmission: transmission,
       is_draft: true,
       valuation_data: valuationData
     };
+    
+    // Validate that the price is actually set
+    if (!extractedCarData.price) {
+      logOperation('missing_price_error', {
+        requestId,
+        extractedCarData,
+        valuationDataKeys: Object.keys(valuationData)
+      }, 'error');
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'Failed to determine price from valuation data'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
     
     logOperation('processing_request', { 
       requestId, 
       userId,
       vin, 
       make: extractedCarData.make,
-      model: extractedCarData.model
+      model: extractedCarData.model,
+      price: extractedCarData.price
     });
     
     // First attempt using security definer function
