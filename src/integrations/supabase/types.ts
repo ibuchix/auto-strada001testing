@@ -467,6 +467,8 @@ export type Database = {
           features: Json | null
           finance_amount: number | null
           form_metadata: Json | null
+          has_private_plate: boolean | null
+          has_service_history: boolean | null
           id: string
           images: string[] | null
           is_auction: boolean | null
@@ -479,13 +481,16 @@ export type Database = {
           minimum_bid_increment: number | null
           mobile_number: string | null
           model: string | null
+          number_of_keys: number | null
           price: number
           registration_number: string | null
           required_photos: Json | null
           reserve_price: number | null
+          seat_material: string | null
           seller_id: string | null
           seller_name: string | null
           seller_notes: string | null
+          service_history_type: string | null
           status: string | null
           title: string | null
           transmission: string | null
@@ -504,6 +509,8 @@ export type Database = {
           features?: Json | null
           finance_amount?: number | null
           form_metadata?: Json | null
+          has_private_plate?: boolean | null
+          has_service_history?: boolean | null
           id?: string
           images?: string[] | null
           is_auction?: boolean | null
@@ -516,13 +523,16 @@ export type Database = {
           minimum_bid_increment?: number | null
           mobile_number?: string | null
           model?: string | null
+          number_of_keys?: number | null
           price?: number
           registration_number?: string | null
           required_photos?: Json | null
           reserve_price?: number | null
+          seat_material?: string | null
           seller_id?: string | null
           seller_name?: string | null
           seller_notes?: string | null
+          service_history_type?: string | null
           status?: string | null
           title?: string | null
           transmission?: string | null
@@ -541,6 +551,8 @@ export type Database = {
           features?: Json | null
           finance_amount?: number | null
           form_metadata?: Json | null
+          has_private_plate?: boolean | null
+          has_service_history?: boolean | null
           id?: string
           images?: string[] | null
           is_auction?: boolean | null
@@ -553,13 +565,16 @@ export type Database = {
           minimum_bid_increment?: number | null
           mobile_number?: string | null
           model?: string | null
+          number_of_keys?: number | null
           price?: number
           registration_number?: string | null
           required_photos?: Json | null
           reserve_price?: number | null
+          seat_material?: string | null
           seller_id?: string | null
           seller_name?: string | null
           seller_notes?: string | null
+          service_history_type?: string | null
           status?: string | null
           title?: string | null
           transmission?: string | null
@@ -1666,6 +1681,8 @@ export type Database = {
           features: Json | null
           finance_amount: number | null
           form_metadata: Json | null
+          has_private_plate: boolean | null
+          has_service_history: boolean | null
           id: string
           images: string[] | null
           is_auction: boolean | null
@@ -1678,13 +1695,16 @@ export type Database = {
           minimum_bid_increment: number | null
           mobile_number: string | null
           model: string | null
+          number_of_keys: number | null
           price: number
           registration_number: string | null
           required_photos: Json | null
           reserve_price: number | null
+          seat_material: string | null
           seller_id: string | null
           seller_name: string | null
           seller_notes: string | null
+          service_history_type: string | null
           status: string | null
           title: string | null
           transmission: string | null

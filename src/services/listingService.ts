@@ -7,6 +7,7 @@
  * Updated: 2025-05-06 - Refactored to use separate vinStatusChecker
  * Updated: 2025-05-17 - Added auth token passing to edge function for better permission handling
  * Updated: 2025-05-18 - Improved error handling with better diagnostics and error recovery
+ * Updated: 2025-07-22 - Added schema error detection and handling with user-friendly messages
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -116,8 +117,15 @@ export const createCarListing = async (
       
       // Handle specific error codes
       if (data?.code === 'SCHEMA_ERROR') {
-        toast.error('Database schema error', {
-          description: "The system encountered a database structure issue. Please contact support."
+        const errorDetails = data?.details || {};
+        
+        let friendlyMessage = "There was a problem with the data format.";
+        if (errorDetails.field) {
+          friendlyMessage = `There was a problem with the "${errorDetails.field}" field format.`;
+        }
+        
+        toast.error('Data format issue', {
+          description: friendlyMessage
         });
       } else {
         toast.error('Failed to create listing', {
@@ -165,3 +173,4 @@ export const createCarListing = async (
     throw error;
   }
 };
+

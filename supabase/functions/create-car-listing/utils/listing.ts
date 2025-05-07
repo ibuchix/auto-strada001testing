@@ -1,243 +1,196 @@
 
 /**
- * Listing utilities for create-car-listing
- * Created: 2025-05-08 - Added to support better listing creation
- * Updated: 2025-05-17 - Enhanced error handling and added multiple fallback approaches
- * Updated: 2025-05-18 - Added better database error handling and diagnostics
+ * Updated: 2025-07-22 - Added improved error handling with schema validation
+ * Enhanced error handling for schema mismatches and column type issues
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { logOperation } from "./logging.ts";
 
+// Define common schema error patterns to detect
+const SCHEMA_ERROR_PATTERNS = [
+  { pattern: /column "(.*?)" does not exist/, type: 'MISSING_COLUMN' },
+  { pattern: /value too long for type/, type: 'VALUE_TOO_LONG' },
+  { pattern: /invalid input syntax for type/, type: 'TYPE_MISMATCH' },
+  { pattern: /violates not-null constraint/, type: 'NULL_CONSTRAINT' },
+  { pattern: /violates foreign key constraint/, type: 'FOREIGN_KEY' }
+];
+
 /**
- * Creates a new car listing
- * 
- * @param supabase Supabase client
- * @param listingData Car listing data
- * @param userId User ID
- * @param requestId Request ID for tracking
- * @returns Result with success flag
+ * Create a car listing with robust error handling
  */
 export async function createListing(
   supabase: SupabaseClient,
-  listingData: any,
+  carData: Record<string, any>,
   userId: string,
   requestId: string
-): Promise<{ 
-  success: boolean; 
-  data?: any; 
-  error?: Error;
-  details?: Record<string, any>;
-  code?: string;
-}> {
+) {
   try {
-    logOperation('create_listing_start', { 
-      requestId, 
+    logOperation('listing_creation_start', {
+      requestId,
       userId,
-      make: listingData.make,
-      model: listingData.model
+      carKeys: Object.keys(carData)
     });
 
-    // First approach: Try to use the security definer function directly (most reliable)
-    try {
-      const { data: funcResult, error: funcError } = await supabase.rpc(
-        'create_car_listing',
-        { 
-          p_car_data: { ...listingData, seller_id: userId },
-          p_user_id: userId
-        }
-      );
-      
-      if (!funcError && funcResult?.success) {
-        logOperation('listing_created_via_definer_func', { 
-          requestId, 
-          userId,
-          carId: funcResult.car_id
-        });
-        
-        return { 
-          success: true, 
-          data: { car_id: funcResult.car_id, id: funcResult.car_id }
-        };
-      }
-      
-      if (funcError) {
-        logOperation('definer_func_error', {
-          requestId,
-          userId,
-          error: funcError.message,
-          details: funcError,
-          code: funcError.code
-        }, 'warn');
-        
-        // Check for specific database errors
-        if (funcError.message && (
-            funcError.message.includes('column') && 
-            funcError.message.includes('does not exist')
-        )) {
-          return {
-            success: false,
-            error: new Error("Database schema mismatch. Missing column detected."),
-            details: { originalError: funcError.message },
-            code: 'SCHEMA_ERROR'
-          };
-        }
-      }
-    } catch (error) {
-      logOperation('definer_func_exception', {
-        requestId,
-        userId,
-        error: (error as Error).message,
-        stack: (error as Error).stack
-      }, 'warn');
-    }
-    
-    // Second approach: Try to use the upsert_car_listing function
+    // First approach: Use the upsert_car_listing function
     try {
       const { data: upsertResult, error: upsertError } = await supabase.rpc(
         'upsert_car_listing',
         { 
-          car_data: { ...listingData, seller_id: userId },
+          car_data: {
+            ...carData,
+            seller_id: userId
+          },
           is_draft: true
         }
       );
       
-      if (!upsertError && upsertResult?.success) {
-        logOperation('listing_created_via_upsert_func', { 
-          requestId, 
+      if (!upsertError) {
+        logOperation('create_listing_upsert_success', {
+          requestId,
           userId,
-          carId: upsertResult.car_id
+          result: upsertResult
         });
         
-        return { 
-          success: true, 
+        return {
+          success: true,
           data: { car_id: upsertResult.car_id, id: upsertResult.car_id }
         };
       }
       
-      if (upsertError) {
-        logOperation('upsert_func_error', {
-          requestId,
-          userId,
-          error: upsertError.message,
-          details: upsertError,
-          code: upsertError.code
-        }, 'warn');
-        
-        // Check for specific database errors
-        if (upsertError.message && (
-            upsertError.message.includes('column') && 
-            upsertError.message.includes('does not exist')
-        )) {
-          return {
-            success: false,
-            error: new Error("Database schema mismatch during upsert. Missing column detected."),
-            details: { originalError: upsertError.message },
-            code: 'SCHEMA_ERROR'
-          };
-        }
-      }
-    } catch (error) {
-      logOperation('upsert_func_exception', {
+      // Log the error but continue to try alternative methods
+      logOperation('create_listing_upsert_error', {
         requestId,
         userId,
-        error: (error as Error).message,
-        stack: (error as Error).stack
+        error: upsertError.message,
+        details: upsertError
+      }, 'warn');
+    } catch (upsertException) {
+      logOperation('create_listing_upsert_exception', {
+        requestId,
+        error: (upsertException as Error).message
       }, 'warn');
     }
     
-    // Final approach: Direct insert as fallback
-    logOperation('using_direct_insert', {
+    // Second approach: Direct insertion
+    // Prepare car data with seller ID
+    const carInsertData = {
+      ...carData,
+      seller_id: userId,
+      is_draft: true
+    };
+    
+    logOperation('trying_direct_insert', {
       requestId,
-      userId
-    }, 'warn');
+      userId,
+      fields: Object.keys(carInsertData)
+    });
     
-    try {
-      const { data: inserted, error: insertError } = await supabase
-        .from('cars')
-        .insert({
-          ...listingData,
-          seller_id: userId,
-          is_draft: true
-        })
-        .select('id')
-        .single();
-    
-      if (insertError) {
-        logOperation('direct_insert_failed', {
+    const { data: car, error: insertError } = await supabase
+      .from('cars')
+      .insert(carInsertData)
+      .select('id')
+      .single();
+      
+    if (insertError) {
+      // Check for schema-related errors
+      const schemaError = detectSchemaError(insertError.message);
+      
+      if (schemaError) {
+        logOperation('create_listing_schema_error', {
           requestId,
           userId,
-          error: insertError.message,
-          details: insertError,
-          code: insertError.code
+          errorType: schemaError.type,
+          message: insertError.message,
+          affectedField: schemaError.field
         }, 'error');
         
-        // Check for schema errors
-        if (insertError.message && (
-            insertError.message.includes('column') && 
-            insertError.message.includes('does not exist')
-        )) {
-          const columnMatch = insertError.message.match(/column "([^"]+)" of relation/);
-          const missingColumn = columnMatch ? columnMatch[1] : "unknown";
-          
-          return {
-            success: false,
-            error: new Error(`Database schema mismatch. The column "${missingColumn}" is missing.`),
-            details: { 
-              originalError: insertError.message,
-              missingColumn: missingColumn,
-              fields: Object.keys(listingData)
-            },
-            code: 'SCHEMA_ERROR'
-          };
-        }
-        
-        return { 
-          success: false, 
-          error: new Error(insertError.message),
-          details: insertError,
-          code: insertError.code
+        return {
+          success: false,
+          error: new Error(`Schema error: ${schemaError.message || insertError.message}`),
+          details: {
+            errorType: schemaError.type,
+            field: schemaError.field
+          },
+          code: 'SCHEMA_ERROR'
         };
       }
       
-      logOperation('listing_created_direct', { 
-        requestId, 
-        userId,
-        carId: inserted.id
-      });
-      
-      return { 
-        success: true, 
-        data: { car_id: inserted.id, id: inserted.id }
-      };
-    } catch (error) {
-      logOperation('direct_insert_exception', {
+      // Log the general error
+      logOperation('create_listing_error', {
         requestId,
         userId,
-        error: (error as Error).message,
-        stack: (error as Error).stack
+        error: insertError.message
       }, 'error');
       
       return {
         success: false,
-        error: error as Error,
-        details: { message: (error as Error).message },
-        code: 'INSERT_EXCEPTION'
+        error: new Error(`Database error: ${insertError.message}`)
       };
     }
-  } catch (error) {
-    logOperation('listing_creation_exception', { 
-      requestId, 
+    
+    logOperation('create_listing_success', {
+      requestId,
       userId,
-      error: (error as Error).message,
-      stack: (error as Error).stack
+      carId: car.id
+    });
+    
+    return {
+      success: true,
+      data: { id: car.id, car_id: car.id }
+    };
+  } catch (error: any) {
+    logOperation('create_listing_exception', {
+      requestId,
+      userId,
+      error: error.message,
+      stack: error.stack
     }, 'error');
     
     return {
       success: false,
-      error: error as Error,
-      details: { message: (error as Error).message },
-      code: 'UNEXPECTED_ERROR'
+      error: error
     };
   }
+}
+
+/**
+ * Helper to detect and categorize schema errors
+ */
+function detectSchemaError(errorMessage: string): { type: string; field?: string; message?: string } | null {
+  for (const errorPattern of SCHEMA_ERROR_PATTERNS) {
+    const match = errorMessage.match(errorPattern.pattern);
+    if (match) {
+      const field = match[1] || 'unknown';
+      
+      let message = '';
+      switch (errorPattern.type) {
+        case 'MISSING_COLUMN':
+          message = `The field "${field}" is missing from the database schema.`;
+          break;
+        case 'VALUE_TOO_LONG':
+          message = `Value too long for field "${field}".`;
+          break;
+        case 'TYPE_MISMATCH':
+          message = `Invalid data type provided for a field.`;
+          break;
+        case 'NULL_CONSTRAINT':
+          message = `Required field cannot be null.`;
+          break;
+        case 'FOREIGN_KEY':
+          message = `Referenced record does not exist.`;
+          break;
+        default:
+          message = `Schema error with field "${field}".`;
+      }
+      
+      return {
+        type: errorPattern.type,
+        field,
+        message
+      };
+    }
+  }
+  
+  return null;
 }
