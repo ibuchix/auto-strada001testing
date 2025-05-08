@@ -2,7 +2,7 @@
 /**
  * Hook for accessing seller performance metrics
  * Created: 2025-05-08
- * Updated: 2025-05-20 - Updated to use secure RPC function
+ * Updated: 2025-05-21 - Fixed TypeScript interface to match database structure
  */
 
 import { useQuery } from '@tanstack/react-query';

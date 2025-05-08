@@ -3,10 +3,11 @@
  * Changes made:
  * - 2025-05-20: Created service to handle seller performance metrics retrieval
  * - 2025-05-20: Implemented secure RPC function calls to bypass RLS restrictions
+ * - 2025-05-21: Fixed TypeScript errors with proper interface handling
  */
 
 import { BaseService } from "./baseService";
-import { toast } from "sonner";
+import { SellerPerformanceMetrics } from "@/hooks/useSellerPerformance";
 
 export class SellerPerformanceService extends BaseService {
   /**
@@ -32,7 +33,7 @@ export class SellerPerformanceService extends BaseService {
       }
       
       console.log('Successfully retrieved performance metrics');
-      return data;
+      return data as SellerPerformanceMetrics;
     } catch (error: any) {
       this.handleError(error, "Failed to fetch seller performance metrics");
       return null;
