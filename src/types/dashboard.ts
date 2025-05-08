@@ -5,6 +5,7 @@
  * - 2024-09-22: Updated CarListing interface to match what's used in the application
  * - 2024-09-23: Made several fields optional to match actual database structure
  * - 2025-05-08: Added valuation_data field to CarListing interface
+ * - 2025-05-08: Added reserve_price field to CarListing interface
  */
 
 import { CarFeatures } from "@/types/forms";
@@ -31,6 +32,8 @@ export interface CarListing {
   valuation_data?: {
     reservePrice?: number;
     valuation?: number;
+    basePrice?: number;
     [key: string]: any;
   };
+  reserve_price?: number; // Added database reserve_price field
 }

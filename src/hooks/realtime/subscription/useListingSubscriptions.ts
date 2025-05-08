@@ -4,6 +4,7 @@
  * - 2024-12-11: Created dedicated hook for listing-related subscriptions
  * - 2025-05-08: Enhanced toast notifications for listing activation
  * - 2025-05-08: Added debug logging for realtime subscription events
+ * - 2025-05-08: Improved error handling and activation state tracking
  */
 
 import { useEffect } from 'react';
@@ -48,14 +49,26 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
             new: newRecord,
             is_draft_changed: oldRecord.is_draft !== newRecord.is_draft,
             old_is_draft: oldRecord.is_draft,
-            new_is_draft: newRecord.is_draft
+            new_is_draft: newRecord.is_draft,
+            old_status: oldRecord.status,
+            new_status: newRecord.status,
+            id: newRecord.id,
+            make: newRecord.make,
+            model: newRecord.model
           });
           
-          if (oldRecord.is_draft && !newRecord.is_draft) {
-            toast.success('Listing activated successfully', {
-              description: `Your ${newRecord.make} ${newRecord.model} is now live on the marketplace.`
-            });
-          } else if (oldRecord.status !== newRecord.status) {
+          // Handle is_draft status change (activation/deactivation)
+          if (oldRecord.is_draft !== newRecord.is_draft) {
+            if (oldRecord.is_draft && !newRecord.is_draft) {
+              toast.success('Listing activated successfully', {
+                description: `Your ${newRecord.make} ${newRecord.model} is now live on the marketplace.`
+              });
+            } else if (!oldRecord.is_draft && newRecord.is_draft) {
+              toast.info('Listing moved to drafts');
+            }
+          } 
+          // Handle listing status changes
+          else if (oldRecord.status !== newRecord.status) {
             // Handle listing approval status changes
             if (newRecord.status === 'approved') {
               toast.success('Your listing has been approved');
@@ -64,7 +77,9 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
             } else {
               toast.info(`Listing status changed to: ${newRecord.status}`);
             }
-          } else if (oldRecord.auction_status !== newRecord.auction_status) {
+          } 
+          // Handle auction status changes
+          else if (oldRecord.auction_status !== newRecord.auction_status) {
             if (newRecord.auction_status === 'sold') {
               toast.success('Your vehicle has been sold! 🎉');
             } else if (newRecord.auction_status === 'active') {
@@ -72,6 +87,10 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
             } else if (newRecord.auction_status === 'ended') {
               toast.info('Your auction has ended');
             }
+          }
+          // Handle other changes
+          else {
+            toast.info('Listing details updated');
           }
         } else if (payload.eventType === 'DELETE') {
           toast.info('Listing removed');

@@ -7,6 +7,7 @@
  * - 2024-09-07: Updated to work better with real-time updates
  * - 2025-05-08: Changed "Continue Editing" to "See Details" and improved activation error handling
  * - 2025-05-08: Updated to display reserve price from valuation data instead of price
+ * - 2025-05-08: Fixed to use database reserve_price field, improved error handling and added better logging
  */
 
 import { Card } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
+import { formatPrice } from "@/utils/valuation/reservePriceCalculator";
 
 interface ListingCardProps {
   id: string;
@@ -24,7 +26,8 @@ interface ListingCardProps {
   status: string;
   isDraft: boolean;
   onStatusChange?: () => void;
-  valuationData?: any; // Add valuation data prop
+  valuationData?: any;
+  reserve_price?: number; // Database reserve_price field
 }
 
 export const ListingCard = ({ 
@@ -34,18 +37,41 @@ export const ListingCard = ({
   status, 
   isDraft, 
   onStatusChange,
-  valuationData 
+  valuationData,
+  reserve_price
 }: ListingCardProps) => {
   const navigate = useNavigate();
   const [isActivating, setIsActivating] = useState(false);
-  const [displayPrice, setDisplayPrice] = useState<number>(price);
+  const [displayPrice, setDisplayPrice] = useState<number | null>(null);
   
-  // Extract reserve price from valuation data if available
+  // Determine which price to display with proper fallback logic
   useEffect(() => {
-    if (valuationData && valuationData.reservePrice) {
-      setDisplayPrice(valuationData.reservePrice);
+    // First priority: Use database reserve_price if available
+    if (reserve_price) {
+      console.log(`Using database reserve_price for card ${id}: ${reserve_price}`);
+      setDisplayPrice(reserve_price);
     }
-  }, [valuationData]);
+    // Second priority: Calculate from valuation data if available
+    else if (valuationData && valuationData.basePrice) {
+      try {
+        // Import from our utility to ensure consistent calculation
+        import('@/utils/valuation/reservePriceCalculator').then(({ calculateReservePrice }) => {
+          const basePrice = valuationData.basePrice;
+          const calculatedReserve = calculateReservePrice(basePrice);
+          console.log(`Calculated reserve price for card ${id}: ${calculatedReserve} from base ${basePrice}`);
+          setDisplayPrice(calculatedReserve);
+        });
+      } catch (error) {
+        console.error("Error calculating reserve price:", error);
+        setDisplayPrice(price); // Fallback to listing price
+      }
+    }
+    // Last priority: Use original price as fallback
+    else {
+      console.log(`No reserve price data available for card ${id}, using fallback price: ${price}`);
+      setDisplayPrice(price);
+    }
+  }, [id, price, reserve_price, valuationData]);
 
   const activateListing = async () => {
     if (isActivating) return;
@@ -53,13 +79,24 @@ export const ListingCard = ({
     setIsActivating(true);
     try {
       console.log('Activating listing with ID:', id);
+      
+      // Get current user session to confirm auth status
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        throw new Error("You must be logged in to activate a listing");
+      }
+      
+      console.log(`Auth status confirmed for user: ${sessionData.session.user.id}`);
+      
+      // Attempt to update the car record
       const { data, error } = await supabase
         .from('cars')
         .update({ 
           is_draft: false,
           status: 'available'
         })
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) {
         console.error('Error activating listing:', error);
@@ -73,13 +110,26 @@ export const ListingCard = ({
       if (onStatusChange) onStatusChange();
     } catch (error: any) {
       console.error('Error activating listing:', error);
-      toast.error(error.message || "Failed to activate listing");
+      
+      // Show more detailed error message based on error type
+      if (error.code === '42501') {
+        toast.error("Permission denied. You may not have access to activate this listing.");
+      } else if (error.code && error.code.startsWith('2')) {
+        toast.error(`Database error: ${error.message}`);
+      } else {
+        toast.error(error.message || "Failed to activate listing");
+      }
       
       // Only manually refresh if there was an error
       if (onStatusChange) onStatusChange();
     } finally {
       setIsActivating(false);
     }
+  };
+
+  const viewDetails = () => {
+    // Navigate to a car details view instead of the full form
+    navigate(`/dashboard/car/${id}`);
   };
 
   return (
@@ -91,7 +141,7 @@ export const ListingCard = ({
             Status: <span className="capitalize">{isDraft ? 'Draft' : status}</span>
           </p>
           <p className="text-primary font-semibold mt-1">
-            PLN {displayPrice?.toLocaleString()}
+            {displayPrice !== null ? formatPrice(displayPrice, 'PLN') : 'Calculating...'}
           </p>
         </div>
         <div className="flex gap-2">
@@ -109,7 +159,7 @@ export const ListingCard = ({
           <Button 
             variant="outline"
             size="sm"
-            onClick={() => navigate('/sell-my-car', { state: { draftId: id } })}
+            onClick={viewDetails}
             className="flex items-center gap-2"
           >
             {isDraft ? 'See Details' : 'View Listing'}

@@ -10,6 +10,7 @@
  * - 2024-11-24: Implemented a more direct query approach to bypass TypeScript limitations
  * - 2024-11-25: Fixed TypeScript errors by accessing Supabase URL and key properly
  * - 2025-05-08: Included valuation_data in query and transformation logic
+ * - 2025-05-08: Added reserve_price field to data transformation
  */
 
 import { useState, useCallback } from "react";
@@ -40,7 +41,8 @@ interface DbCarListing {
   features: any;
   description?: string;
   updated_at?: string;
-  valuation_data?: any; // Add valuation_data field
+  valuation_data?: any;
+  reserve_price?: number; // Added reserve_price field
   [key: string]: any; // Allow other fields from the database
 }
 
@@ -51,6 +53,7 @@ export const useSellerListings = (session: Session | null) => {
   
   // Function to force a refresh of the listings
   const forceRefresh = useCallback(() => {
+    console.log('Forcing refresh of seller listings');
     setRefreshKey(prev => prev + 1);
     setError(null);
     setIsRlsError(false);
@@ -63,6 +66,8 @@ export const useSellerListings = (session: Session | null) => {
     }
     
     try {
+      console.log(`Fetching listings for user: ${session.user.id}`);
+      
       // Use direct SQL query approach to bypass TypeScript RPC limitations
       // This uses a raw query with the security definer function via the REST API
       const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_seller_listings`, {
@@ -84,6 +89,7 @@ export const useSellerListings = (session: Session | null) => {
       }
       
       const funcData = await res.json() as DbCarListing[];
+      console.log(`Received ${funcData?.length || 0} listings from Supabase`);
       
       if (funcData && Array.isArray(funcData)) {
         return transformListingsData(funcData);
@@ -99,6 +105,7 @@ export const useSellerListings = (session: Session | null) => {
         .order("updated_at", { ascending: false });
         
       if (error) {
+        console.error("Error in direct query:", error);
         if (error.code === '42501' || error.message.includes('permission denied')) {
           setIsRlsError(true);
           setError("Permission denied. Row-level security is preventing access to your listings.");
@@ -113,6 +120,7 @@ export const useSellerListings = (session: Session | null) => {
         throw error;
       }
       
+      console.log(`Received ${data?.length || 0} listings from direct query`);
       return transformListingsData(data as DbCarListing[] || []);
       
     } catch (error: any) {
@@ -139,7 +147,8 @@ export const useSellerListings = (session: Session | null) => {
       mileage: item.mileage,
       images: item.images,
       updated_at: item.updated_at,
-      valuation_data: item.valuation_data, // Include valuation_data in transformation
+      valuation_data: item.valuation_data,
+      reserve_price: item.reserve_price, // Include reserve_price in transformation
       // Add any other required fields from CarListing interface
     }));
   };
