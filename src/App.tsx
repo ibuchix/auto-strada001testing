@@ -5,12 +5,14 @@
  * - 2025-05-08: Removed non-existent page imports causing build errors
  * - 2025-05-08: Simplified routes to maintain essential application flow
  * - 2025-05-08: Fixed router structure to prevent duplicate router error
+ * - 2025-05-08: Added AuthProvider to wrap RouterProvider for authentication context
  */
 
 import { useState, useEffect } from "react";
 import { createBrowserRouter, RouterProvider, RouteObject } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ui/theme-provider";
+import { AuthProvider } from "@/components/AuthProvider";
 
 // Pages currently available in the codebase
 import { OfflineIndicator } from "@/components/OfflineIndicator";
@@ -38,9 +40,11 @@ function App() {
   return (
     <div className="App">
       <ThemeProvider defaultTheme="light">
-        <RouterProvider router={router} />
-        <OfflineIndicator />
-        <Toaster />
+        <AuthProvider>
+          <RouterProvider router={router} />
+          <OfflineIndicator />
+          <Toaster />
+        </AuthProvider>
       </ThemeProvider>
     </div>
   );
