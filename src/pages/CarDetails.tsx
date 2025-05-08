@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2025-05-08: Created CarDetails page for viewing car listing details
@@ -7,6 +6,7 @@
  * - 2025-05-08: Added formatting utilities and proper reserve price calculation
  * - 2025-05-19: Fixed permission denied errors by using RPC function instead of direct query
  * - 2025-05-19: Improved reserve price display with proper fallback calculation
+ * - 2025-05-20: Fixed TypeScript error by using fetch_car_details RPC instead of get_seller_listings
  */
 
 import { useEffect, useState } from 'react';
@@ -40,12 +40,9 @@ const CarDetails = () => {
         setIsLoading(true);
         console.log('Fetching car details for ID:', id);
         
-        // Use an RPC function call instead of direct table query to avoid RLS issues
+        // Use the fetch_car_details RPC function that was created specifically for this purpose
         const { data, error } = await supabase
-          .rpc('get_seller_listings', { p_seller_id: session.user.id })
-          .select('*')
-          .eq('id', id)
-          .single();
+          .rpc('fetch_car_details', { p_car_id: id });
 
         if (error) {
           console.error('Error fetching car details:', error);

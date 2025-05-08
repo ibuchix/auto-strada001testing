@@ -6,6 +6,7 @@
  * - 2025-05-08: Simplified routes to maintain essential application flow
  * - 2025-05-08: Fixed router structure to prevent duplicate router error
  * - 2025-05-08: Added AuthProvider to wrap RouterProvider for authentication context
+ * - 2025-05-19: Restored all missing routes including authentication pages
  */
 
 import { useState, useEffect } from "react";
@@ -20,6 +21,14 @@ import SellerDashboard from "@/pages/SellerDashboard";
 import SellMyCar from "@/pages/SellMyCar";
 import CarDetails from "@/pages/CarDetails";
 import NotFound from "@/pages/NotFound";
+import Auth from "@/pages/Auth";
+import About from "@/pages/About";
+import Contact from "@/pages/Contact";
+import FAQ from "@/pages/FAQ";
+import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
+import Sellers from "@/pages/Sellers";
+import HowItWorks from "@/pages/HowItWorks";
 
 function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -50,7 +59,7 @@ function App() {
   );
 }
 
-// Simplified routes focused on seller functionality
+// Comprehensive routes for the seller application
 export const routes: RouteObject[] = [
   {
     path: "/",
@@ -67,6 +76,38 @@ export const routes: RouteObject[] = [
   {
     path: "/dashboard/car/:id",
     element: <CarDetails />,
+  },
+  {
+    path: "/auth",
+    element: <Auth />,
+  },
+  {
+    path: "/about",
+    element: <About />,
+  },
+  {
+    path: "/contact",
+    element: <Contact />,
+  },
+  {
+    path: "/faq",
+    element: <FAQ />,
+  },
+  {
+    path: "/terms",
+    element: <Terms />,
+  },
+  {
+    path: "/privacy",
+    element: <Privacy />,
+  },
+  {
+    path: "/sellers",
+    element: <Sellers />,
+  },
+  {
+    path: "/how-it-works",
+    element: <HowItWorks />,
   },
   // Catch-all route for any unmatched paths
   {
