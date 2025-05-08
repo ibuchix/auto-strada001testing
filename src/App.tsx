@@ -4,6 +4,7 @@
  * - 2025-05-08: Streamlined imports to focus on seller-side functionality
  * - 2025-05-08: Removed non-existent page imports causing build errors
  * - 2025-05-08: Simplified routes to maintain essential application flow
+ * - 2025-05-08: Fixed router structure to prevent duplicate router error
  */
 
 import { useState, useEffect } from "react";

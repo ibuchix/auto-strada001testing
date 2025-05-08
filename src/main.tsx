@@ -7,11 +7,11 @@
  * - 2025-04-29: Fixed provider nesting order to prevent rendering issues
  * - 2025-05-01: Fixed React.StrictMode implementation for consistent rendering
  * - 2025-05-08: Added SessionContextProvider for Supabase authentication
+ * - 2025-05-08: Removed duplicate BrowserRouter to fix router nesting error
  */
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './components/ui/theme-provider';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
@@ -39,15 +39,13 @@ if (!rootElement) {
   
   root.render(
     <React.StrictMode>
-      <BrowserRouter>
-        <ThemeProvider defaultTheme="light" storageKey="autostrada-theme">
-          <SessionContextProvider supabaseClient={supabase}>
-            <QueryClientProvider client={queryClient}>
-              <App />
-            </QueryClientProvider>
-          </SessionContextProvider>
-        </ThemeProvider>
-      </BrowserRouter>
+      <ThemeProvider defaultTheme="light" storageKey="autostrada-theme">
+        <SessionContextProvider supabaseClient={supabase}>
+          <QueryClientProvider client={queryClient}>
+            <App />
+          </QueryClientProvider>
+        </SessionContextProvider>
+      </ThemeProvider>
     </React.StrictMode>
   );
 }
