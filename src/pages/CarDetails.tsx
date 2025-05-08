@@ -5,6 +5,8 @@
  * - 2025-05-08: Implemented basic car information display and status management
  * - 2025-05-08: Added activation functionality directly from details page
  * - 2025-05-08: Added formatting utilities and proper reserve price calculation
+ * - 2025-05-19: Fixed permission denied errors by using RPC function instead of direct query
+ * - 2025-05-19: Improved reserve price display with proper fallback calculation
  */
 
 import { useEffect, useState } from 'react';
@@ -36,11 +38,13 @@ const CarDetails = () => {
 
       try {
         setIsLoading(true);
+        console.log('Fetching car details for ID:', id);
+        
+        // Use an RPC function call instead of direct table query to avoid RLS issues
         const { data, error } = await supabase
-          .from('cars')
+          .rpc('get_seller_listings', { p_seller_id: session.user.id })
           .select('*')
           .eq('id', id)
-          .eq('seller_id', session.user.id)
           .single();
 
         if (error) {
@@ -54,6 +58,7 @@ const CarDetails = () => {
           return;
         }
 
+        console.log('Car details retrieved:', data);
         setCar(data as CarListing);
       } catch (err: any) {
         console.error('Error in car details fetch:', err);
@@ -84,16 +89,13 @@ const CarDetails = () => {
         console.log(`Calculated reserve price on activation: ${finalReservePrice}`);
       }
       
-      // Attempt to update the car record
+      // Use the activate_listing function instead of direct update
       const { data, error } = await supabase
-        .from('cars')
-        .update({ 
-          is_draft: false,
-          status: 'available',
-          ...(finalReservePrice ? { reserve_price: finalReservePrice } : {})
-        })
-        .eq('id', car.id)
-        .select();
+        .rpc('activate_listing', { 
+          p_listing_id: car.id,
+          p_user_id: session.user.id,
+          p_reserve_price: finalReservePrice
+        });
 
       if (error) {
         console.error('Error activating listing:', error);

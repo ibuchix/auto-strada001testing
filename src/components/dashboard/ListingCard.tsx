@@ -10,6 +10,7 @@
  * - 2025-05-08: Fixed to use database reserve_price field, improved error handling and added better logging
  * - 2025-05-08: Added better error handling and detailed logging for activation issues
  * - 2025-05-08: Improved navigation to car details page
+ * - 2025-05-19: Fixed reserve price calculation to prioritize database field over calculated value
  */
 
 import { Card } from "@/components/ui/card";
@@ -19,7 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import { formatPrice } from "@/utils/valuation/reservePriceCalculator";
+import { formatPrice, calculateReservePrice } from "@/utils/valuation/reservePriceCalculator";
 
 interface ListingCardProps {
   id: string;
@@ -48,31 +49,38 @@ export const ListingCard = ({
   
   // Determine which price to display with proper fallback logic
   useEffect(() => {
-    // First priority: Use database reserve_price if available
-    if (reserve_price) {
-      console.log(`Using database reserve_price for card ${id}: ${reserve_price}`);
-      setDisplayPrice(reserve_price);
-    }
-    // Second priority: Calculate from valuation data if available
-    else if (valuationData && valuationData.basePrice) {
+    const calculateDisplayPrice = async () => {
       try {
-        // Import from our utility to ensure consistent calculation
-        import('@/utils/valuation/reservePriceCalculator').then(({ calculateReservePrice }) => {
-          const basePrice = valuationData.basePrice;
-          const calculatedReserve = calculateReservePrice(basePrice);
-          console.log(`Calculated reserve price for card ${id}: ${calculatedReserve} from base ${basePrice}`);
-          setDisplayPrice(calculatedReserve);
-        });
+        // First priority: Use database reserve_price if available
+        if (reserve_price) {
+          console.log(`Using database reserve_price for card ${id}: ${reserve_price}`);
+          setDisplayPrice(reserve_price);
+          return;
+        }
+        
+        // Second priority: Calculate from valuation data if available
+        if (valuationData && valuationData.basePrice) {
+          try {
+            const basePrice = valuationData.basePrice;
+            const calculatedReserve = calculateReservePrice(basePrice);
+            console.log(`Calculated reserve price for card ${id}: ${calculatedReserve} from base ${basePrice}`);
+            setDisplayPrice(calculatedReserve);
+            return;
+          } catch (error) {
+            console.error("Error calculating reserve price:", error);
+          }
+        }
+        
+        // Last priority: Use original price as fallback
+        console.log(`No reserve price data available for card ${id}, using fallback price: ${price}`);
+        setDisplayPrice(price);
       } catch (error) {
-        console.error("Error calculating reserve price:", error);
-        setDisplayPrice(price); // Fallback to listing price
+        console.error("Error in calculateDisplayPrice:", error);
+        setDisplayPrice(price); // Fallback in case of any errors
       }
-    }
-    // Last priority: Use original price as fallback
-    else {
-      console.log(`No reserve price data available for card ${id}, using fallback price: ${price}`);
-      setDisplayPrice(price);
-    }
+    };
+    
+    calculateDisplayPrice();
   }, [id, price, reserve_price, valuationData]);
 
   const activateListing = async () => {
@@ -93,12 +101,11 @@ export const ListingCard = ({
       // Calculate reserve price if missing
       let finalReservePrice = reserve_price;
       if (!finalReservePrice && valuationData?.basePrice) {
-        const { calculateReservePrice } = await import('@/utils/valuation/reservePriceCalculator');
         finalReservePrice = calculateReservePrice(valuationData.basePrice);
         console.log(`Calculated reserve price on activation: ${finalReservePrice}`);
       }
       
-      // Use the new security definer function to activate the listing
+      // Use the activate_listing function to activate the listing
       const { data, error } = await supabase.rpc(
         'activate_listing',
         { 

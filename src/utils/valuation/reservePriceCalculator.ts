@@ -4,6 +4,7 @@
  * - 2025-05-08: Created utility for consistent reserve price calculation
  * - 2025-05-08: Added formatPrice utility function
  * - 2025-05-08: Added log statements for debugging
+ * - 2025-05-19: Fixed calculation to handle zero/null inputs gracefully
  */
 
 /**
@@ -14,6 +15,12 @@
  * @returns calculated reserve price
  */
 export function calculateReservePrice(basePrice: number): number {
+  // Handle invalid inputs
+  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
+    console.warn(`Invalid base price provided: ${basePrice}`);
+    return 0;
+  }
+  
   console.log(`Calculating reserve price for base price: ${basePrice}`);
   
   // Define percentage brackets
@@ -57,6 +64,11 @@ export function calculateReservePrice(basePrice: number): number {
  * @returns Formatted price string
  */
 export function formatPrice(price: number, currency: string = 'PLN'): string {
+  // Handle invalid inputs
+  if (!price || isNaN(price)) {
+    return currency === 'PLN' ? '0 PLN' : '$0';
+  }
+  
   // Format the price with thousand separators
   const formattedPrice = new Intl.NumberFormat('pl-PL', {
     style: 'currency',
