@@ -3,12 +3,13 @@
  * Auth Provider Component
  * Updated: 2025-05-08 - Added userId storage in localStorage for cross-component access
  * Updated: 2025-05-08 - Added isSeller and refreshSellerStatus to AuthContextType interface
+ * Updated: 2025-05-23 - Fixed circular dependency issue with useSellerSession
  */
 
-import { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import { createContext, useContext, ReactNode, useState, useEffect, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { useSellerSession } from "@/hooks/useSellerSession";
+import { useSellerRoleCheck } from "@/hooks/seller/useSellerRoleCheck";
 
 interface AuthContextType {
   session: Session | null;
@@ -25,9 +26,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [isSeller, setIsSeller] = useState(false);
   
-  // Use the useSellerSession hook to get seller-specific session info
-  const { isSeller, refreshSellerStatus } = useSellerSession();
+  // Use the useSellerRoleCheck hook to get the checkSellerRole function
+  const { checkSellerRole } = useSellerRoleCheck();
+
+  // Initialize seller status when session changes
+  useEffect(() => {
+    if (session) {
+      checkSellerRole(session).then(sellerStatus => {
+        setIsSeller(sellerStatus);
+      });
+    } else {
+      setIsSeller(false);
+    }
+  }, [session, checkSellerRole]);
 
   useEffect(() => {
     async function getSession() {
@@ -74,6 +87,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Function to refresh seller status
+  const refreshSellerStatus = useCallback(async (): Promise<boolean> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setIsSeller(false);
+        return false;
+      }
+      
+      const sellerStatus = await checkSellerRole(session);
+      setIsSeller(sellerStatus);
+      return sellerStatus;
+    } catch (error: any) {
+      console.error("Error refreshing seller status:", error);
+      return false;
+    }
+  }, [checkSellerRole]);
 
   const signOut = async () => {
     try {

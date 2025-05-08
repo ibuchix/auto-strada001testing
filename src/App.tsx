@@ -9,6 +9,7 @@
  * - 2025-05-19: Restored all missing routes including authentication pages
  * - 2025-05-20: Fixed root route to use IndexPage instead of SellMyCar
  * - 2025-05-21: Updated IndexPage import and ensure it's properly rendered at root path
+ * - 2025-05-23: Fixed AuthProvider implementation to resolve circular dependency issues
  */
 
 import { useState, useEffect } from "react";

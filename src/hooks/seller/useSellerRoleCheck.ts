@@ -1,101 +1,62 @@
 
 /**
  * Changes made:
- * - 2025-05-08: Created hook for checking seller role status
- * - 2025-05-08: Added multiple fallback checks for greater reliability
- * - 2025-05-08: Added RLS-safe function call for role verification
+ * - 2025-05-08: Created hook for checking seller role in various sources
+ * - 2025-05-08: Added multiple verification methods with fallbacks
+ * - 2025-05-08: Updated to use direct supabase client instance
  */
 
+import { useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-export function useSellerRoleCheck() {
+export const useSellerRoleCheck = () => {
   /**
-   * Checks if the current user is a seller using multiple methods
-   * @param session Current user session
-   * @returns Boolean indicating if user is a seller
+   * Check if a user has the seller role using multiple sources with fallbacks
+   * This checks user metadata, profiles table, and sellers table
    */
-  const checkSellerRole = async (session: Session): Promise<boolean> => {
-    if (!session?.user) {
-      return false;
-    }
-    
+  const checkSellerRole = useCallback(async (session: Session | null): Promise<boolean> => {
     try {
-      // First method: Use security definer function
-      try {
-        const { data: functionResult, error: functionError } = await supabase.rpc(
-          'is_verified_seller',
-          { p_user_id: session.user.id }
-        );
-        
-        if (!functionError && functionResult === true) {
-          console.log("Seller verification succeeded via RPC function");
-          return true;
-        }
-      } catch (err) {
-        console.warn("Error checking seller status via RPC:", err);
+      if (!session?.user) {
+        return false;
       }
-      
-      // Second method: Check user metadata
-      if (session.user.user_metadata?.role === 'seller') {
-        console.log("Seller verification succeeded via user metadata");
-        
-        // Attempt to fix seller record if needed
-        try {
-          await supabase.rpc('ensure_seller_registration');
-        } catch (error) {
-          console.warn("Non-critical error ensuring seller registration:", error);
-        }
-        
+
+      // First check: User metadata (fastest, no DB query)
+      if (session.user.user_metadata?.role === "seller") {
+        console.log("User has seller role in metadata");
         return true;
       }
-      
-      // Third method: Try to get seller profile directly (might fail with RLS)
-      try {
-        const { data: seller, error: sellerError } = await supabase
-          .from('sellers')
-          .select('is_verified')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-          
-        if (!sellerError && seller?.is_verified) {
-          console.log("Seller verification succeeded via direct query");
-          return true;
-        }
-      } catch (error) {
-        console.warn("Error checking seller profile:", error);
+
+      // Second check: Profiles table
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (!profileError && profileData?.role === "seller") {
+        console.log("User has seller role in profiles table");
+        return true;
       }
-      
-      // Fourth method: Check profile role
-      try {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-          
-        if (!profileError && profile?.role === 'seller') {
-          console.log("Seller verification succeeded via profile role");
-          
-          // Attempt to fix seller record if needed
-          try {
-            await supabase.rpc('ensure_seller_registration');
-          } catch (error) {
-            console.warn("Non-critical error ensuring seller registration:", error);
-          }
-          
-          return true;
-        }
-      } catch (error) {
-        console.warn("Error checking profile role:", error);
+
+      // Third check: Sellers table
+      const { data: sellerData, error: sellerError } = await supabase
+        .from("sellers")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (!sellerError && sellerData) {
+        console.log("User exists in sellers table");
+        return true;
       }
-      
+
       return false;
     } catch (error) {
-      console.error("Error in seller role check:", error);
+      console.error("Error checking seller role:", error);
       return false;
     }
-  };
+  }, []);
 
   return { checkSellerRole };
-}
+};
