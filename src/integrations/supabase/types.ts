@@ -1647,7 +1647,11 @@ export type Database = {
         }[]
       }
       ensure_seller_registration: {
-        Args: { p_user_id?: string }
+        Args: Record<PropertyKey, never> | { p_user_id?: string }
+        Returns: Json
+      }
+      fetch_car_details: {
+        Args: { p_car_id: string }
         Returns: Json
       }
       get_auction_activity_metrics: {
@@ -1660,6 +1664,10 @@ export type Database = {
       }
       get_bid_status: {
         Args: { p_car_id: string; p_dealer_id: string }
+        Returns: Json
+      }
+      get_car_details: {
+        Args: { p_car_id: string; p_user_id: string }
         Returns: Json
       }
       get_dealer_bid_exposure: {
@@ -1679,6 +1687,51 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           suspended: boolean
           updated_at: string
+        }[]
+      }
+      get_seller_auction_cars: {
+        Args: { p_seller_id: string }
+        Returns: {
+          additional_photos: Json | null
+          address: string | null
+          auction_end_time: string | null
+          auction_status: string | null
+          created_at: string
+          current_bid: number | null
+          features: Json | null
+          finance_amount: number | null
+          form_metadata: Json | null
+          has_private_plate: boolean | null
+          has_service_history: boolean | null
+          id: string
+          images: string[] | null
+          is_auction: boolean | null
+          is_damaged: boolean | null
+          is_draft: boolean
+          is_manually_controlled: boolean | null
+          is_registered_in_poland: boolean | null
+          make: string | null
+          mileage: number | null
+          minimum_bid_increment: number | null
+          mobile_number: string | null
+          model: string | null
+          number_of_keys: number | null
+          price: number
+          registration_number: string | null
+          required_photos: Json | null
+          reserve_price: number | null
+          seat_material: string | null
+          seller_id: string | null
+          seller_name: string | null
+          seller_notes: string | null
+          service_history_type: string | null
+          status: string | null
+          title: string | null
+          transmission: string | null
+          updated_at: string
+          valuation_data: Json | null
+          vin: string | null
+          year: number | null
         }[]
       }
       get_seller_listings: {

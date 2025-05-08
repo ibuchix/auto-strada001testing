@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2025-05-08: Created CarDetails page for viewing car listing details
@@ -7,6 +8,7 @@
  * - 2025-05-19: Fixed permission denied errors by using RPC function instead of direct query
  * - 2025-05-19: Improved reserve price display with proper fallback calculation
  * - 2025-05-20: Fixed TypeScript error by using fetch_car_details RPC instead of get_seller_listings
+ * - 2025-05-20: Added fallback error handling and automatic seller registration
  */
 
 import { useEffect, useState } from 'react';
@@ -22,15 +24,18 @@ import { AlertCircle, ArrowLeft, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { CarListing } from '@/types/dashboard';
 import { formatPrice, calculateReservePrice } from '@/utils/valuation/reservePriceCalculator';
+import { useSellerSession } from '@/hooks/useSellerSession';
 
 const CarDetails = () => {
   const { id } = useParams<{ id: string }>();
   const { session } = useAuth();
   const navigate = useNavigate();
+  const { isSeller, refreshSellerStatus } = useSellerSession();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [car, setCar] = useState<CarListing | null>(null);
   const [isActivating, setIsActivating] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const fetchCarDetails = async () => {
@@ -40,12 +45,32 @@ const CarDetails = () => {
         setIsLoading(true);
         console.log('Fetching car details for ID:', id);
         
+        // Ensure user is registered as a seller first to avoid permission issues
+        if (!isSeller) {
+          console.log('User is not registered as seller yet, registering...');
+          const isRegistered = await refreshSellerStatus();
+          if (!isRegistered) {
+            console.warn('Failed to register user as seller');
+          }
+        }
+        
         // Use the fetch_car_details RPC function that was created specifically for this purpose
         const { data, error } = await supabase
           .rpc('fetch_car_details', { p_car_id: id });
 
         if (error) {
           console.error('Error fetching car details:', error);
+          
+          // If we got a function not found error and haven't retried too many times
+          if (error.message?.includes('could not find function') && retryCount < 2) {
+            console.log('Function not found, retrying in 1 second...');
+            setRetryCount(prev => prev + 1);
+            
+            // Wait a moment and retry - sometimes functions take a moment to propagate
+            setTimeout(() => fetchCarDetails(), 1000);
+            return;
+          }
+          
           setError(error.message);
           return;
         }
@@ -66,7 +91,7 @@ const CarDetails = () => {
     };
 
     fetchCarDetails();
-  }, [id, session]);
+  }, [id, session, isSeller]);
 
   const handleGoBack = () => {
     navigate('/dashboard/seller');

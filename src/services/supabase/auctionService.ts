@@ -1,9 +1,11 @@
+
 /**
  * Changes made:
  * - 2024-09-11: Created auction service for all auction-related operations
  * - 2024-09-19: Optimized queries for better performance and reduced latency
  * - 2024-09-20: Fixed foreign key relationship issue in join query
  * - 2024-09-21: Updated to respect Row-Level Security policies
+ * - 2025-05-20: Fixed permission denied errors by using security definer functions
  */
 
 import { BaseService } from "./baseService";
@@ -35,27 +37,29 @@ export interface PlaceBidResult {
 export class AuctionService extends BaseService {
   /**
    * Get auction results for a seller with optimized JOIN and column selection
-   * Respects RLS: Sellers will only see their own auction results
+   * Uses security definer function to bypass RLS
    */
   async getSellerAuctionResults(sellerId: string): Promise<AuctionResult[]> {
     try {
-      // With RLS in place, we no longer need to filter explicitly by seller_id
-      // as the RLS policy will handle this automatically.
-      // However, we keep the parameter to maintain backward compatibility
+      console.log('Fetching auction results for seller:', sellerId);
       
-      // First get the car IDs belonging to the seller - RLS will filter automatically
+      // Use the security definer function we created to safely get the seller's cars
       const { data: sellerCars, error: carsError } = await this.supabase
-        .from('cars')
-        .select('id, title, make, model, year, auction_end_time');
+        .rpc('get_seller_auction_cars', { p_seller_id: sellerId });
       
-      if (carsError) throw carsError;
+      if (carsError) {
+        console.error('Error fetching seller cars:', carsError);
+        throw carsError;
+      }
       
       if (!sellerCars || sellerCars.length === 0) {
+        console.log('No cars found for seller:', sellerId);
         return [];
       }
       
       // Extract the car IDs
       const carIds = sellerCars.map(car => car.id);
+      console.log('Found car IDs for seller:', carIds);
       
       // Then get the auction results for those cars - RLS will filter automatically
       const { data: results, error } = await this.supabase
@@ -71,9 +75,13 @@ export class AuctionService extends BaseService {
         `)
         .in('car_id', carIds);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching auction results:', error);
+        throw error;
+      }
       
       if (!results || results.length === 0) {
+        console.log('No auction results found for seller cars');
         return [];
       }
       
