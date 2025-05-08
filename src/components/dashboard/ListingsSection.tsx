@@ -5,6 +5,7 @@
  * - 2024-10-19: Updated "Create New Listing" button to navigate to homepage for VIN check
  * - 2025-05-08: Added valuation_data prop to ListingCard
  * - 2025-05-08: Added reserve_price prop to ListingCard
+ * - 2025-05-08: Improved logging and error handling in listing activation flow
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

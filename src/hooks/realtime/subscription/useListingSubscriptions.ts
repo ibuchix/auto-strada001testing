@@ -5,6 +5,8 @@
  * - 2025-05-08: Enhanced toast notifications for listing activation
  * - 2025-05-08: Added debug logging for realtime subscription events
  * - 2025-05-08: Improved error handling and activation state tracking
+ * - 2025-05-08: Enhanced toast messaging for draft status changes
+ * - 2025-05-08: Added more detailed logs for subscription events
  */
 
 import { useEffect } from 'react';
@@ -54,15 +56,22 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
             new_status: newRecord.status,
             id: newRecord.id,
             make: newRecord.make,
-            model: newRecord.model
+            model: newRecord.model,
+            reserve_price: newRecord.reserve_price
           });
           
           // Handle is_draft status change (activation/deactivation)
           if (oldRecord.is_draft !== newRecord.is_draft) {
             if (oldRecord.is_draft && !newRecord.is_draft) {
               toast.success('Listing activated successfully', {
-                description: `Your ${newRecord.make} ${newRecord.model} is now live on the marketplace.`
+                description: `Your ${newRecord.make} ${newRecord.model} is now live on the marketplace.`,
+                duration: 5000
               });
+              
+              // Add an info toast about next steps
+              setTimeout(() => {
+                toast.info('Dealers can now view and bid on your listing');
+              }, 1000);
             } else if (!oldRecord.is_draft && newRecord.is_draft) {
               toast.info('Listing moved to drafts');
             }
@@ -87,6 +96,10 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
             } else if (newRecord.auction_status === 'ended') {
               toast.info('Your auction has ended');
             }
+          }
+          // Handle reserve price changes
+          else if (oldRecord.reserve_price !== newRecord.reserve_price) {
+            console.log(`Reserve price updated from ${oldRecord.reserve_price} to ${newRecord.reserve_price}`);
           }
           // Handle other changes
           else {

@@ -8,6 +8,8 @@
  * - 2025-05-08: Changed "Continue Editing" to "See Details" and improved activation error handling
  * - 2025-05-08: Updated to display reserve price from valuation data instead of price
  * - 2025-05-08: Fixed to use database reserve_price field, improved error handling and added better logging
+ * - 2025-05-08: Added better error handling and detailed logging for activation issues
+ * - 2025-05-08: Improved navigation to car details page
  */
 
 import { Card } from "@/components/ui/card";
@@ -88,12 +90,21 @@ export const ListingCard = ({
       
       console.log(`Auth status confirmed for user: ${sessionData.session.user.id}`);
       
+      // Calculate reserve price if missing
+      let finalReservePrice = reserve_price;
+      if (!finalReservePrice && valuationData?.basePrice) {
+        const { calculateReservePrice } = await import('@/utils/valuation/reservePriceCalculator');
+        finalReservePrice = calculateReservePrice(valuationData.basePrice);
+        console.log(`Calculated reserve price on activation: ${finalReservePrice}`);
+      }
+      
       // Attempt to update the car record
       const { data, error } = await supabase
         .from('cars')
         .update({ 
           is_draft: false,
-          status: 'available'
+          status: 'available',
+          ...(finalReservePrice ? { reserve_price: finalReservePrice } : {})
         })
         .eq('id', id)
         .select();
@@ -128,7 +139,7 @@ export const ListingCard = ({
   };
 
   const viewDetails = () => {
-    // Navigate to a car details view instead of the full form
+    // Navigate to car details page
     navigate(`/dashboard/car/${id}`);
   };
 
