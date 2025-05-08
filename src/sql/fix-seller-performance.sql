@@ -47,3 +47,4 @@ COMMENT ON FUNCTION public.fetch_seller_performance(uuid) IS 'Fetch performance 
 
 -- Grant execute permissions to authenticated users
 GRANT EXECUTE ON FUNCTION public.fetch_seller_performance(uuid) TO authenticated;
+
