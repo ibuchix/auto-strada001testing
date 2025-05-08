@@ -4,6 +4,7 @@
  * Created: 2025-04-23
  * This hook properly manages form state to avoid React queue errors
  * Updated: 2025-04-29 - Fixed state handling to ensure dialog displays with results
+ * Updated: 2025-05-25 - Fixed onSubmit handler to use proper type signature
  */
 
 import { useState, useCallback } from "react";
@@ -14,6 +15,7 @@ import { useValuationErrorDialog } from "./useValuationErrorDialog";
 import { getValuation, cleanupValuationData } from "@/components/hero/valuation/services/valuationService";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { SubmitHandler } from "react-hook-form";
 
 export const useEnhancedValuationForm = () => {
   const navigate = useNavigate();
@@ -37,8 +39,8 @@ export const useEnhancedValuationForm = () => {
     },
   });
 
-  // Form submission handler with safety checks
-  const onSubmit = useCallback(async (data: ValuationFormData) => {
+  // Form submission handler with proper typing for React Hook Form
+  const handleFormSubmit: SubmitHandler<ValuationFormData> = useCallback(async (data: ValuationFormData) => {
     console.log("Form submission with data:", data);
     setIsLoading(true);
     
@@ -127,7 +129,7 @@ export const useEnhancedValuationForm = () => {
     errorDialogOpen,
     setErrorDialogOpen,
     valuationResult,
-    onSubmit: form.handleSubmit(onSubmit),
+    handleFormSubmit, // Use the properly typed handler now
     handleContinue,
     resetForm
   };

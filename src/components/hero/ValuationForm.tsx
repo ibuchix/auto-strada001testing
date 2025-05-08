@@ -9,6 +9,7 @@
  * - 2025-05-16: Fixed ValuationInput props to match types consistently
  * - 2025-05-17: Fixed type imports to use consistent ValuationFormData interface
  * - 2025-05-24: Fixed import paths and rendering issues to ensure content appears
+ * - 2025-05-25: Fixed form submission handler to resolve type mismatch error
  */
 
 import React, { useEffect } from 'react';
@@ -23,7 +24,7 @@ export const ValuationForm = () => {
     showDialog,
     setShowDialog,
     valuationResult,
-    onSubmit,
+    handleFormSubmit,
     resetForm
   } = useEnhancedValuationForm();
   
@@ -34,7 +35,7 @@ export const ValuationForm = () => {
 
   return (
     <div className="w-full max-w-md mx-auto bg-white/5 backdrop-blur-lg rounded-xl p-5 shadow-lg border border-gray-100">
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
         <ValuationInput form={form} />
       </form>
 
