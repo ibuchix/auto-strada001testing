@@ -9,6 +9,7 @@
  * - 2024-11-23: Fixed RPC function type compatibility issue using a more reliable approach
  * - 2024-11-24: Implemented a more direct query approach to bypass TypeScript limitations
  * - 2024-11-25: Fixed TypeScript errors by accessing Supabase URL and key properly
+ * - 2025-05-08: Included valuation_data in query and transformation logic
  */
 
 import { useState, useCallback } from "react";
@@ -39,6 +40,7 @@ interface DbCarListing {
   features: any;
   description?: string;
   updated_at?: string;
+  valuation_data?: any; // Add valuation_data field
   [key: string]: any; // Allow other fields from the database
 }
 
@@ -137,6 +139,7 @@ export const useSellerListings = (session: Session | null) => {
       mileage: item.mileage,
       images: item.images,
       updated_at: item.updated_at,
+      valuation_data: item.valuation_data, // Include valuation_data in transformation
       // Add any other required fields from CarListing interface
     }));
   };

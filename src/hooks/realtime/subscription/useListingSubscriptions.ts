@@ -2,6 +2,8 @@
 /**
  * Changes made:
  * - 2024-12-11: Created dedicated hook for listing-related subscriptions
+ * - 2025-05-08: Enhanced toast notifications for listing activation
+ * - 2025-05-08: Added debug logging for realtime subscription events
  */
 
 import { useEffect } from 'react';
@@ -17,6 +19,8 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
   
   useEffect(() => {
     if (!userId || !isActive) return;
+    
+    console.log('Setting up realtime listing subscriptions for user:', userId);
     
     // Subscribe to listing changes (status updates, approvals, etc.)
     const listingsChannel = setupChannel(
@@ -38,8 +42,19 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
           const oldRecord = payload.old as any;
           const newRecord = payload.new as any;
           
+          // Log full details for debugging
+          console.log('Listing update details:', {
+            old: oldRecord,
+            new: newRecord,
+            is_draft_changed: oldRecord.is_draft !== newRecord.is_draft,
+            old_is_draft: oldRecord.is_draft,
+            new_is_draft: newRecord.is_draft
+          });
+          
           if (oldRecord.is_draft && !newRecord.is_draft) {
-            toast.success('Listing activated successfully');
+            toast.success('Listing activated successfully', {
+              description: `Your ${newRecord.make} ${newRecord.model} is now live on the marketplace.`
+            });
           } else if (oldRecord.status !== newRecord.status) {
             // Handle listing approval status changes
             if (newRecord.status === 'approved') {
@@ -92,6 +107,7 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
     
     // Cleanup subscriptions on unmount
     return () => {
+      console.log('Cleaning up realtime listing subscriptions');
       supabase.removeChannel(listingsChannel);
       supabase.removeChannel(listingVerificationChannel);
     };

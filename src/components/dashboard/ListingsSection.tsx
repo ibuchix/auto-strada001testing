@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-09-05: Created ListingsSection component from SellerDashboard refactoring
  * - 2024-10-19: Updated "Create New Listing" button to navigate to homepage for VIN check
+ * - 2025-05-08: Added valuation_data prop to ListingCard
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +43,7 @@ export const ListingsSection = ({
                 status={listing.status}
                 isDraft={listing.is_draft}
                 onStatusChange={onStatusChange}
+                valuationData={listing.valuation_data}
               />
             ))}
           </div>
