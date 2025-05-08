@@ -11,6 +11,7 @@
  * - 2024-11-25: Fixed TypeScript errors by accessing Supabase URL and key properly
  * - 2025-05-08: Included valuation_data in query and transformation logic
  * - 2025-05-08: Added reserve_price field to data transformation
+ * - 2025-05-08: Enhanced error recovery with ensure_seller_registration function
  */
 
 import { useState, useCallback } from "react";
@@ -68,6 +69,13 @@ export const useSellerListings = (session: Session | null) => {
     try {
       console.log(`Fetching listings for user: ${session.user.id}`);
       
+      // First, try to ensure proper seller registration
+      try {
+        await supabase.rpc('ensure_seller_registration');
+      } catch (ensureError) {
+        console.warn("Non-critical error ensuring seller registration:", ensureError);
+      }
+      
       // Use direct SQL query approach to bypass TypeScript RPC limitations
       // This uses a raw query with the security definer function via the REST API
       const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_seller_listings`, {
@@ -108,11 +116,31 @@ export const useSellerListings = (session: Session | null) => {
         console.error("Error in direct query:", error);
         if (error.code === '42501' || error.message.includes('permission denied')) {
           setIsRlsError(true);
-          setError("Permission denied. Row-level security is preventing access to your listings.");
+          setError("Permission denied. Let's try to fix your seller account status.");
+          
+          // Try to repair registration on error
+          try {
+            console.log("Attempting to repair seller registration due to RLS error");
+            await supabase.rpc('ensure_seller_registration');
+            
+            // If repair succeeded, retry the query
+            const { data: retryData, error: retryError } = await supabase
+              .from("cars")
+              .select("*")
+              .eq("seller_id", session.user.id)
+              .order("updated_at", { ascending: false });
+              
+            if (!retryError && retryData) {
+              console.log("Successfully recovered from RLS error after registration repair");
+              return transformListingsData(retryData as DbCarListing[] || []);
+            }
+          } catch (repairError) {
+            console.error("Failed to repair seller registration:", repairError);
+          }
           
           // Show a helpful toast
           toast.error("Access denied to your listings", {
-            description: "This appears to be a database permission issue. Please contact support.",
+            description: "We're trying to fix this automatically. Please try refreshing the page.",
           });
         } else {
           setError(error.message);

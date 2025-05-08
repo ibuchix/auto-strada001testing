@@ -1536,6 +1536,14 @@ export type Database = {
       }
     }
     Functions: {
+      activate_listing: {
+        Args: {
+          p_listing_id: string
+          p_user_id: string
+          p_reserve_price?: number
+        }
+        Returns: Json
+      }
       admin_end_auction: {
         Args: { p_car_id: string; p_admin_id: string; p_sold?: boolean }
         Returns: Json
@@ -1637,6 +1645,10 @@ export type Database = {
           record_exists: boolean
           error_message: string
         }[]
+      }
+      ensure_seller_registration: {
+        Args: { p_user_id?: string }
+        Returns: Json
       }
       get_auction_activity_metrics: {
         Args: { p_car_id: string }

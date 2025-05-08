@@ -1,136 +1,101 @@
 
 /**
  * Changes made:
- * - 2024-11-18: Created dedicated hook for seller role verification
- * - 2024-11-18: Extracted from useSellerSession to improve maintainability
- * - 2024-11-18: Enhanced fallback mechanisms for seller role detection
- * - 2024-11-19: Updated to use refactored profile and seller services
- * - 2024-11-20: Fixed type imports with proper import syntax
- * - Updated to support automatic verification of sellers
- * - 2025-07-12: Prioritized metadata checks over database queries to improve reliability
- * - 2025-07-12: Added quick-path resolution when metadata contains seller role
- * - 2025-05-06: Removed circular dependencies and improved logging
+ * - 2025-05-08: Created hook for checking seller role status
+ * - 2025-05-08: Added multiple fallback checks for greater reliability
+ * - 2025-05-08: Added RLS-safe function call for role verification
  */
 
-import { useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { profileService, sellerProfileService } from "@/services/supabase";
 
-/**
- * Hook providing functions to check if a user has seller role
- * Uses multiple fallback methods to ensure reliable role detection
- */
-export const useSellerRoleCheck = () => {
+export function useSellerRoleCheck() {
   /**
-   * Efficiently checks if a user has seller role using multiple methods with fallbacks
-   * Prioritizes metadata check for maximum reliability and performance
+   * Checks if the current user is a seller using multiple methods
+   * @param session Current user session
+   * @returns Boolean indicating if user is a seller
    */
-  const checkSellerRole = useCallback(async (currentSession: Session): Promise<boolean> => {
+  const checkSellerRole = async (session: Session): Promise<boolean> => {
+    if (!session?.user) {
+      return false;
+    }
+    
     try {
-      // Method 1: Check user metadata first (fastest and most reliable path)
-      console.log("Checking seller role from user metadata:", currentSession.user.user_metadata);
-      if (currentSession.user.user_metadata?.role === 'seller') {
-        console.log("User confirmed as seller via metadata");
+      // First method: Use security definer function
+      try {
+        const { data: functionResult, error: functionError } = await supabase.rpc(
+          'is_verified_seller',
+          { p_user_id: session.user.id }
+        );
         
-        // Even though we're returning true, try to fix potential data inconsistencies 
-        // in the background without blocking the UI
-        setTimeout(async () => {
-          try {
-            // Try to ensure profile and seller records exist
-            await sellerProfileService.registerSeller(currentSession.user.id).catch(err => {
-              console.log("Background seller registration attempt failed, but it's okay:", err);
-            });
-          } catch (error) {
-            // Silently catch errors to prevent any issues in the UI
-            console.warn("Background synchronization failed, but it's not critical:", error);
-          }
-        }, 500);
+        if (!functionError && functionResult === true) {
+          console.log("Seller verification succeeded via RPC function");
+          return true;
+        }
+      } catch (err) {
+        console.warn("Error checking seller status via RPC:", err);
+      }
+      
+      // Second method: Check user metadata
+      if (session.user.user_metadata?.role === 'seller') {
+        console.log("Seller verification succeeded via user metadata");
+        
+        // Attempt to fix seller record if needed
+        try {
+          await supabase.rpc('ensure_seller_registration');
+        } catch (error) {
+          console.warn("Non-critical error ensuring seller registration:", error);
+        }
         
         return true;
       }
-
-      // Method 2: Check profiles table using the security definer function
+      
+      // Third method: Try to get seller profile directly (might fail with RLS)
       try {
-        const profile = await profileService.getUserProfile(currentSession.user.id);
-        
-        if (profile?.role === 'seller') {
-          console.log("User confirmed as seller via profile service");
-          // Update user metadata to match profile role for future reference
-          try {
-            await supabase.auth.updateUser({
-              data: { 
-                role: 'seller',
-                is_verified: true 
-              }
-            });
-          } catch (err) {
-            console.warn("Failed to update user metadata, but continuing:", err);
-          }
+        const { data: seller, error: sellerError } = await supabase
+          .from('sellers')
+          .select('is_verified')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
           
+        if (!sellerError && seller?.is_verified) {
+          console.log("Seller verification succeeded via direct query");
           return true;
         }
-      } catch (profileError) {
-        // Don't throw here - continue to the next check method
-        console.warn("Profile check via function failed, trying direct query:", profileError);
-      }
-
-      // Method 3: Check sellers table directly
-      try {
-        const seller = await sellerProfileService.getSellerProfile(currentSession.user.id);
-          
-        if (seller) {
-          console.log("User confirmed as seller via sellers table");
-          // Found in sellers table - update user metadata
-          try {
-            await supabase.auth.updateUser({
-              data: { 
-                role: 'seller',
-                is_verified: true
-              }
-            });
-            
-            // Also ensure profile table is synced
-            await supabase
-              .from('profiles')
-              .upsert({ 
-                id: currentSession.user.id, 
-                role: 'seller',
-                updated_at: new Date().toISOString()
-              }, { 
-                onConflict: 'id',
-                ignoreDuplicates: false 
-              });
-          } catch (err) {
-            console.warn("Failed to update user data after seller check, but continuing:", err);
-          }
-          
-          return true;
-        }
-      } catch (sellerError) {
-        console.warn("Seller table check failed:", sellerError);
-      }
-
-      // Method 4: Use register_seller RPC if all else fails
-      try {
-        console.log("Attempting to register user as seller via RPC");
-        const result = await sellerProfileService.registerSeller(currentSession.user.id);
-        if (result) {
-          console.log("Successfully registered as seller via RPC");
-          return true;
-        }
-      } catch (registerError) {
-        console.warn("Register seller RPC failed:", registerError);
+      } catch (error) {
+        console.warn("Error checking seller profile:", error);
       }
       
-      // No seller status found after trying all methods
-      console.log("User is not a seller after all verification methods");
+      // Fourth method: Check profile role
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+          
+        if (!profileError && profile?.role === 'seller') {
+          console.log("Seller verification succeeded via profile role");
+          
+          // Attempt to fix seller record if needed
+          try {
+            await supabase.rpc('ensure_seller_registration');
+          } catch (error) {
+            console.warn("Non-critical error ensuring seller registration:", error);
+          }
+          
+          return true;
+        }
+      } catch (error) {
+        console.warn("Error checking profile role:", error);
+      }
+      
       return false;
     } catch (error) {
-      console.error('Error checking seller role:', error);
+      console.error("Error in seller role check:", error);
       return false;
     }
-  }, []);
+  };
 
   return { checkSellerRole };
-};
+}

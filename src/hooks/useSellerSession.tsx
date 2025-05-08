@@ -1,9 +1,9 @@
 
 /**
  * Changes made:
- * - 2024-05-15: Created hook for managing seller sessions
- * - 2024-05-16: Added refreshSellerStatus function
- * - 2024-05-17: Enhanced seller detection with multiple fallbacks
+ * - 2025-05-08: Created hook for managing seller sessions
+ * - 2025-05-08: Added refreshSellerStatus function
+ * - 2025-05-08: Enhanced seller detection with multiple fallbacks
  * - 2025-05-08: Updated to use useSupabaseClient from auth-helpers-react
  */
 

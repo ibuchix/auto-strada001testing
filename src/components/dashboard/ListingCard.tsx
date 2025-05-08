@@ -98,19 +98,54 @@ export const ListingCard = ({
         console.log(`Calculated reserve price on activation: ${finalReservePrice}`);
       }
       
-      // Attempt to update the car record
-      const { data, error } = await supabase
-        .from('cars')
-        .update({ 
-          is_draft: false,
-          status: 'available',
-          ...(finalReservePrice ? { reserve_price: finalReservePrice } : {})
-        })
-        .eq('id', id)
-        .select();
+      // Use the new security definer function to activate the listing
+      const { data, error } = await supabase.rpc(
+        'activate_listing',
+        { 
+          p_listing_id: id,
+          p_user_id: sessionData.session.user.id,
+          p_reserve_price: finalReservePrice
+        }
+      );
 
       if (error) {
         console.error('Error activating listing:', error);
+        
+        // If we got a permission error, try to repair the seller registration
+        if (error.code === '42501' || error.message.includes('permission denied')) {
+          console.log('Permission error detected, attempting seller registration repair');
+          
+          // Try to ensure proper seller registration
+          const { data: repairData, error: repairError } = await supabase.rpc(
+            'ensure_seller_registration'
+          );
+          
+          if (!repairError && repairData?.success) {
+            console.log('Successfully repaired seller registration:', repairData);
+            
+            // Try activation again
+            const { data: retryData, error: retryError } = await supabase.rpc(
+              'activate_listing',
+              { 
+                p_listing_id: id,
+                p_user_id: sessionData.session.user.id,
+                p_reserve_price: finalReservePrice
+              }
+            );
+            
+            if (retryError) {
+              throw retryError;
+            }
+            
+            toast.success('Listing activated successfully');
+            if (onStatusChange) onStatusChange();
+            return;
+          } else {
+            console.error('Failed to repair seller registration:', repairError || 'Unknown error');
+            throw new Error('Failed to repair your seller profile. Please contact support.');
+          }
+        }
+        
         throw error;
       }
       

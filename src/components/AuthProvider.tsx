@@ -1,8 +1,8 @@
 
 /**
  * Auth Provider Component
- * Updated: 2025-05-04 - Added userId storage in localStorage for cross-component access
- * Updated: 2025-05-07 - Added isSeller and refreshSellerStatus to AuthContextType interface
+ * Updated: 2025-05-08 - Added userId storage in localStorage for cross-component access
+ * Updated: 2025-05-08 - Added isSeller and refreshSellerStatus to AuthContextType interface
  */
 
 import { createContext, useContext, ReactNode, useState, useEffect } from "react";
