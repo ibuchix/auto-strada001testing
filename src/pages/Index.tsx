@@ -9,9 +9,10 @@
  * - 2025-05-01: Verified component is correctly exporting as default for routing
  * - 2025-05-21: Updated component to ensure it renders properly as root route
  * - 2025-05-22: Fixed navigation spacing to ensure hero section appears correctly
+ * - 2025-05-24: Fixed layout and content rendering to resolve blank page issue
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Hero } from '@/components/Hero';
 import { HowItWorks } from '@/components/HowItWorks';
 import { Benefits } from '@/components/Benefits';
@@ -22,18 +23,23 @@ import { Navigation } from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
 
 const IndexPage = () => {
+  // Add log to verify component mounting
+  useEffect(() => {
+    console.log("IndexPage mounted");
+  }, []);
+
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white flex flex-col">
       <Navigation />
-      <div className="pt-16"> {/* Add padding-top to account for fixed navigation */}
+      <main className="flex-grow">
         <Hero />
         <HowItWorks />
         <Benefits />
         <Testimonials />
         <VerifiedDealers />
         <BottomCTA />
-        <Footer />
-      </div>
+      </main>
+      <Footer />
     </div>
   );
 };

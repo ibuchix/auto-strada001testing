@@ -6,6 +6,7 @@
  * - 2024-03-20: Simplified component to focus on vehicle valuation
  * - 2024-07-06: Fixed refetch reference error
  * - 2025-05-22: Fixed spacing and layout to ensure proper rendering on homepage
+ * - 2025-05-24: Fixed z-index and visibility issues to resolve blank content
  */
 
 import { ValuationForm } from "@/components/hero/ValuationForm";
@@ -59,9 +60,9 @@ export const Hero = () => {
     <div className="relative min-h-[700px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-gray-50">
       <BackgroundPattern />
 
-      <div className="container relative z-10 max-w-4xl mx-auto px-4 py-20">
-        <div className="text-center max-w-2xl mx-auto animate-fade-in">
-          <h1 className="text-6xl md:text-7xl font-bold mb-6 leading-tight">
+      <div className="container relative z-20 max-w-4xl mx-auto px-4 py-16">
+        <div className="text-center max-w-2xl mx-auto">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
             <span className="text-primary">Sell</span> your car with 
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-iris"> confidence</span>
           </h1>

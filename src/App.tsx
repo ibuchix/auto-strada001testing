@@ -10,6 +10,7 @@
  * - 2025-05-20: Fixed root route to use IndexPage instead of SellMyCar
  * - 2025-05-21: Updated IndexPage import and ensure it's properly rendered at root path
  * - 2025-05-23: Fixed AuthProvider implementation to resolve circular dependency issues
+ * - 2025-05-24: Fixed router initialization to resolve blank home page
  */
 
 import { useState, useEffect } from "react";
@@ -33,35 +34,6 @@ import Privacy from "@/pages/Privacy";
 import Sellers from "@/pages/Sellers";
 import HowItWorks from "@/pages/HowItWorks";
 import IndexPage from "@/pages/Index";
-
-function App() {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
-  return (
-    <div className="App">
-      <ThemeProvider defaultTheme="light">
-        <AuthProvider>
-          <RouterProvider router={router} />
-          <OfflineIndicator />
-          <Toaster />
-        </AuthProvider>
-      </ThemeProvider>
-    </div>
-  );
-}
 
 // Comprehensive routes for the seller application
 export const routes: RouteObject[] = [
@@ -122,5 +94,34 @@ export const routes: RouteObject[] = [
 
 // Create a router with the defined routes
 const router = createBrowserRouter(routes);
+
+function App() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  return (
+    <div className="App">
+      <ThemeProvider defaultTheme="light">
+        <AuthProvider>
+          <RouterProvider router={router} />
+          <OfflineIndicator />
+          <Toaster />
+        </AuthProvider>
+      </ThemeProvider>
+    </div>
+  );
+}
 
 export default App;
