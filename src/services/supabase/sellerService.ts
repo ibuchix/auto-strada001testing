@@ -4,6 +4,7 @@
  * - 2024-09-11: Created seller service for all seller-related operations
  * - 2024-09-12: Removed redundant code trying to register service
  * - 2024-09-19: Optimized queries for better performance and reduced latency
+ * - 2025-05-22: Fixed TypeScript interface usage to match SellerPerformanceMetrics
  */
 
 import { BaseService } from "./baseService";
@@ -19,10 +20,10 @@ export class SellerService extends BaseService {
       const { data, error } = await this.supabase
         .from('seller_performance_metrics')
         .select(`
-          id, seller_id, total_listings, sold_listings, active_listings,
+          seller_id, total_listings, sold_listings, active_listings,
           cancelled_listings, total_earnings, average_price,
           highest_price_sold, reserve_price_met_rate, listing_approval_rate,
-          last_listing_date, last_sale_date
+          last_listing_date, last_sale_date, created_at, updated_at
         `)
         .eq('seller_id', sellerId)
         .maybeSingle();
@@ -31,20 +32,22 @@ export class SellerService extends BaseService {
       
       if (!data) {
         // Return default values if no metrics exist yet
+        const timestamp = new Date().toISOString();
         return {
-          id: '',
           seller_id: sellerId,
           total_listings: 0,
           sold_listings: 0,
           active_listings: 0,
           cancelled_listings: 0,
           total_earnings: 0,
-          average_price: null,
-          highest_price_sold: null,
-          reserve_price_met_rate: null,
-          listing_approval_rate: null,
-          last_listing_date: null,
-          last_sale_date: null
+          average_price: undefined,
+          highest_price_sold: undefined,
+          reserve_price_met_rate: undefined,
+          listing_approval_rate: undefined,
+          last_listing_date: undefined,
+          last_sale_date: undefined,
+          created_at: timestamp,
+          updated_at: timestamp
         };
       }
       

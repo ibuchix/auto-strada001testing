@@ -5,6 +5,7 @@
  * - 2024-03-20: Cleaned up imports
  * - 2024-03-20: Simplified component to focus on vehicle valuation
  * - 2024-07-06: Fixed refetch reference error
+ * - 2025-05-22: Fixed spacing and layout to ensure proper rendering on homepage
  */
 
 import { ValuationForm } from "@/components/hero/ValuationForm";
@@ -55,7 +56,7 @@ export const Hero = () => {
   ];
 
   return (
-    <div className="relative min-h-[700px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-gray-50 mt-4">
+    <div className="relative min-h-[700px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-gray-50">
       <BackgroundPattern />
 
       <div className="container relative z-10 max-w-4xl mx-auto px-4 py-20">

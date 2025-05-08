@@ -8,6 +8,7 @@
  * - 2025-04-29: Removed unnecessary import causing nested provider issues
  * - 2025-05-01: Verified component is correctly exporting as default for routing
  * - 2025-05-21: Updated component to ensure it renders properly as root route
+ * - 2025-05-22: Fixed navigation spacing to ensure hero section appears correctly
  */
 
 import React from 'react';
@@ -24,13 +25,15 @@ const IndexPage = () => {
   return (
     <div className="min-h-screen bg-white">
       <Navigation />
-      <Hero />
-      <HowItWorks />
-      <Benefits />
-      <Testimonials />
-      <VerifiedDealers />
-      <BottomCTA />
-      <Footer />
+      <div className="pt-16"> {/* Add padding-top to account for fixed navigation */}
+        <Hero />
+        <HowItWorks />
+        <Benefits />
+        <Testimonials />
+        <VerifiedDealers />
+        <BottomCTA />
+        <Footer />
+      </div>
     </div>
   );
 };
