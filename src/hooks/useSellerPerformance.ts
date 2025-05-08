@@ -1,50 +1,51 @@
 
 /**
- * Changes made:
- * - 2024-09-10: Created hook for fetching seller performance metrics data for the seller dashboard
- * - 2024-09-11: Updated to use the new service layer for Supabase interactions
- * - 2024-09-21: Updated to respect RLS policies
- * - 2024-09-22: Fixed useOptimizedQuery parameter format
- * - 2024-09-23: Fixed query parameter format to match updated useOptimizedQuery
- * - 2024-10-16: Updated to use updated useOptimizedQuery function with proper parameter syntax
+ * Hook for accessing seller performance metrics
+ * Created: 2025-05-08
+ * Updated: 2025-05-20 - Updated to use secure RPC function
  */
 
-import { Session } from "@supabase/supabase-js";
-import { useOptimizedQuery } from "./useOptimizedQuery";
-import { sellerService } from "@/services/supabase/sellerService";
+import { useQuery } from '@tanstack/react-query';
+import { Session } from '@supabase/supabase-js';
+import { sellerPerformanceService } from '@/services/supabase/sellerPerformanceService';
 
 export interface SellerPerformanceMetrics {
-  id: string;
   seller_id: string;
   total_listings: number;
-  sold_listings: number;
   active_listings: number;
+  sold_listings: number;
   cancelled_listings: number;
   total_earnings: number;
-  average_price: number | null;
-  highest_price_sold: number | null;
-  reserve_price_met_rate: number | null;
-  listing_approval_rate: number | null;
-  last_listing_date: string | null;
-  last_sale_date: string | null;
+  average_time_to_sell?: string;
+  average_price?: number;
+  highest_price_sold?: number;
+  reserve_price_met_rate?: number;
+  listing_approval_rate?: number;
+  last_listing_date?: string;
+  last_sale_date?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export const useSellerPerformance = (session: Session | null) => {
-  // Function to fetch seller performance metrics
-  const fetchPerformanceMetrics = async () => {
-    if (!session?.user) throw new Error("No authenticated user");
-    
-    return await sellerService.getSellerPerformanceMetrics(session.user.id);
-  };
+  return useQuery<SellerPerformanceMetrics | null>({
+    queryKey: ['seller-performance', session?.user?.id],
+    queryFn: async () => {
+      if (!session?.user) {
+        return null;
+      }
 
-  // Use React Query with RLS-compliant options
-  return useOptimizedQuery(
-    ['seller_performance', session?.user?.id],
-    fetchPerformanceMetrics,
-    {
-      enabled: !!session?.user,
-      requireAuth: true, // Requires authentication for RLS to work
-      cacheKey: session?.user?.id ? `seller_performance_${session.user.id}` : undefined,
-    }
-  );
+      try {
+        // Use the service to get performance metrics
+        const metrics = await sellerPerformanceService.getSellerPerformanceMetrics(session.user.id);
+        return metrics as SellerPerformanceMetrics; 
+      } catch (error) {
+        console.error('Error fetching seller performance metrics:', error);
+        return null;
+      }
+    },
+    enabled: !!session?.user,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 2,
+  });
 };

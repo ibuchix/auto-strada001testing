@@ -7,6 +7,7 @@
  * - 2025-05-08: Fixed router structure to prevent duplicate router error
  * - 2025-05-08: Added AuthProvider to wrap RouterProvider for authentication context
  * - 2025-05-19: Restored all missing routes including authentication pages
+ * - 2025-05-20: Fixed root route to use IndexPage instead of SellMyCar
  */
 
 import { useState, useEffect } from "react";
@@ -29,6 +30,7 @@ import Terms from "@/pages/Terms";
 import Privacy from "@/pages/Privacy";
 import Sellers from "@/pages/Sellers";
 import HowItWorks from "@/pages/HowItWorks";
+import IndexPage from "@/pages/Index";
 
 function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -63,7 +65,7 @@ function App() {
 export const routes: RouteObject[] = [
   {
     path: "/",
-    element: <SellMyCar />,
+    element: <IndexPage />,
   },
   {
     path: "/dashboard/seller",
