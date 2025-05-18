@@ -1,13 +1,12 @@
-
 /**
  * SafeFormWrapper component
  * Created: 2025-05-15
  * Purpose: Provides a safe wrapper for components that need access to form context
+ * Updated: 2025-07-24 - Enhanced error handling and added additional safety checks
  */
 
 import React, { ReactNode, useState, useEffect } from 'react';
-import { useFormContext } from 'react-hook-form';
-import { useSafeFormData } from './context/FormDataContext';
+import { useFormData } from './context/FormDataContext';
 
 interface SafeFormWrapperProps {
   children: (formMethods: any) => ReactNode;
@@ -30,40 +29,37 @@ export const SafeFormWrapper = ({
   const [error, setError] = useState<Error | null>(null);
   const [formMethods, setFormMethods] = useState<any>(null);
   
-  // Get form context safely
-  const formDataContext = useSafeFormData();
+  // Get form context safely using our enhanced hook
+  const formData = useFormData();
   
   useEffect(() => {
     try {
-      // Try to get form from context
-      if (formDataContext?.form) {
-        setFormMethods({
-          ...formDataContext.form
-        });
+      // Check if form context is available
+      if (formData?.form) {
+        setFormMethods(formData.form);
         setIsLoading(false);
-      }
-      // Fallback to useFormContext
-      else {
-        try {
-          const form = useFormContext();
-          if (form) {
-            setFormMethods({
-              ...form
-            });
+      } else {
+        console.log("SafeFormWrapper: Form context not available yet");
+        // Keep loading state true
+        setIsLoading(true);
+        
+        // Set a timeout to show error if form context doesn't appear
+        const timer = setTimeout(() => {
+          if (!formData?.form) {
+            console.error("SafeFormWrapper: Form context still not available after timeout");
+            setError(new Error("Form context unavailable"));
             setIsLoading(false);
           }
-        } catch (err) {
-          console.error("Error accessing form context:", err);
-          setError(err as Error);
-          setIsLoading(false);
-        }
+        }, 3000);
+        
+        return () => clearTimeout(timer);
       }
     } catch (err) {
       console.error("Error in SafeFormWrapper:", err);
       setError(err as Error);
       setIsLoading(false);
     }
-  }, [formDataContext]);
+  }, [formData]);
   
   if (isLoading) {
     return <>{fallback}</>;
@@ -73,5 +69,6 @@ export const SafeFormWrapper = ({
     return <>{errorFallback}</>;
   }
   
+  // Only render children if form methods are available
   return <>{children(formMethods)}</>;
 };

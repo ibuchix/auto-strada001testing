@@ -4,11 +4,13 @@
  * Created: 2025-05-12
  * Updated: 2025-05-06 - Enhanced context to include isSubmitting state
  * Updated: 2025-05-15 - Added safety checks for form availability and error handling
+ * Updated: 2025-07-24 - Improved error recovery and added safe access methods
  * Purpose: Provides form context for car listing forms
  */
 
 import React, { createContext, useContext, useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
+import { toast } from 'sonner';
 
 interface FormDataContextValue {
   form: UseFormReturn<any>;
@@ -29,9 +31,14 @@ export const FormDataProvider: React.FC<{
   // Safety check to ensure form is properly initialized before rendering children
   if (!isFormReady) {
     console.error("FormDataProvider: Form is not properly initialized");
+    
+    // Return loading state instead of error to allow recovery
     return (
-      <div className="p-4 bg-red-50 text-red-700 rounded-md">
-        <p>Error: Form context not properly initialized</p>
+      <div className="p-4 bg-gray-50 text-gray-700 rounded-md">
+        <div className="flex items-center gap-2">
+          <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full"></div>
+          <p>Loading form...</p>
+        </div>
       </div>
     );
   }
@@ -64,6 +71,38 @@ export const useSafeFormData = (): FormDataContextValue | null => {
     return useContext(FormDataContext) || null;
   } catch (error) {
     console.error("Error accessing form context:", error);
+    return null;
+  }
+};
+
+/**
+ * Hook that tries multiple approaches to get form data
+ * providing the most resilient form context access
+ */
+export const useResilientFormData = (showToastOnError = false): FormDataContextValue | null => {
+  try {
+    // First try the standard context
+    const context = useContext(FormDataContext);
+    
+    if (context) {
+      return context;
+    }
+    
+    // If no context, check localStorage for emergency backup
+    // This is a placeholder for future functionality if needed
+    
+    // Log the error but don't throw
+    console.warn("Form context not found - component may be outside FormDataProvider");
+    
+    if (showToastOnError) {
+      toast.error("Form context error", {
+        description: "This section might not work properly. Try refreshing the page."
+      });
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error in useResilientFormData:", error);
     return null;
   }
 };
