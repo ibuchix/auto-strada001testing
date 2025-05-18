@@ -4,6 +4,7 @@
  * Created: 2025-07-10
  * Updated: 2025-07-18 - Fixed file path structure, standardized upload process
  * Updated: 2025-05-23 - Added improved error handling and database verification
+ * Updated: 2025-05-24 - Fixed file existence verification method
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -169,12 +170,26 @@ export const getPublicUrl = (filePath: string): string => {
  */
 export const verifyFileExists = async (filePath: string): Promise<boolean> => {
   try {
-    // Try to get metadata for the file
+    // Extract the folder path from the full file path
+    const pathParts = filePath.split('/');
+    const fileName = pathParts.pop() || '';
+    const folderPath = pathParts.join('/');
+    
+    // Use the list method to check if the file exists in the folder
     const { data, error } = await supabase.storage
       .from('car-images')
-      .getPublicUrl(filePath);
+      .list(folderPath, {
+        limit: 100,
+        search: fileName
+      });
     
-    return !error && !!data;
+    if (error) {
+      console.error('Error checking file existence:', error);
+      return false;
+    }
+    
+    // Check if the file exists in the returned list
+    return data !== null && data.some(file => file.name === fileName);
   } catch (error) {
     console.error('Error checking file existence:', error);
     return false;
