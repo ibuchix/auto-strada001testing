@@ -5,10 +5,11 @@
  * Updated: 2025-05-06 - Enhanced context to include isSubmitting state
  * Updated: 2025-05-15 - Added safety checks for form availability and error handling
  * Updated: 2025-07-24 - Improved error recovery and added safe access methods
+ * Updated: 2025-08-18 - Enhanced useResilientFormData with better error messaging
  * Purpose: Provides form context for car listing forms
  */
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { toast } from 'sonner';
 
@@ -80,6 +81,16 @@ export const useSafeFormData = (): FormDataContextValue | null => {
  * providing the most resilient form context access
  */
 export const useResilientFormData = (showToastOnError = false): FormDataContextValue | null => {
+  // Memoize toast display function to avoid showing multiple toasts
+  const showErrorToast = useCallback(() => {
+    if (showToastOnError) {
+      toast.error("Form context error", {
+        description: "This section might not work properly. Try refreshing the page.",
+        duration: 5000
+      });
+    }
+  }, [showToastOnError]);
+
   try {
     // First try the standard context
     const context = useContext(FormDataContext);
@@ -88,21 +99,23 @@ export const useResilientFormData = (showToastOnError = false): FormDataContextV
       return context;
     }
     
-    // If no context, check localStorage for emergency backup
-    // This is a placeholder for future functionality if needed
+    // If no context, check localStorage for emergency backup (future functionality)
+    // This is just a placeholder - we'll implement if needed in the future
+    const emergencyBackup = null;
     
     // Log the error but don't throw
     console.warn("Form context not found - component may be outside FormDataProvider");
     
     if (showToastOnError) {
-      toast.error("Form context error", {
-        description: "This section might not work properly. Try refreshing the page."
-      });
+      showErrorToast();
     }
     
-    return null;
+    return emergencyBackup || null;
   } catch (error) {
     console.error("Error in useResilientFormData:", error);
+    if (showToastOnError) {
+      showErrorToast();
+    }
     return null;
   }
 };

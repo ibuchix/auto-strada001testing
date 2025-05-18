@@ -3,6 +3,7 @@
  * Photo Helper Utilities
  * Created: 2025-05-12
  * Purpose: Helper functions for handling photo uploads
+ * Updated: 2025-08-18 - Added support for rim photos
  */
 
 import { UseFormSetValue, UseFormGetValues } from 'react-hook-form';
@@ -16,15 +17,29 @@ export const setPhotoField = (
   setValue(`vehiclePhotos.${fieldName}`, value, { shouldDirty: true });
 };
 
+// Helper to set rim photo field specifically
+export const setRimPhotoField = (
+  position: string,
+  value: string,
+  setValue: UseFormSetValue<any>
+) => {
+  setValue(`rimPhotos.${position}`, value, { shouldDirty: true });
+};
+
 // Update the vehicle photos object with all photos
 export const updateVehiclePhotos = (
   setValue: UseFormSetValue<any>,
   getValues: UseFormGetValues<any>
 ) => {
   const vehiclePhotos = getValues('vehiclePhotos') || {};
+  const rimPhotos = getValues('rimPhotos') || {};
   
   setValue('vehiclePhotos', {
     ...vehiclePhotos
+  }, { shouldDirty: true });
+  
+  setValue('rimPhotos', {
+    ...rimPhotos
   }, { shouldDirty: true });
 };
 
@@ -41,4 +56,20 @@ export const fileToBase64 = (file: File): Promise<string> => {
 // Generate a unique ID for files
 export const generateFileId = (): string => {
   return Math.random().toString(36).substring(2, 11);
+};
+
+// Validate image file type and size
+export const validateImageFile = (file: File): { valid: boolean; message?: string } => {
+  // Check if file is an image
+  if (!file.type.startsWith('image/')) {
+    return { valid: false, message: 'File must be an image' };
+  }
+  
+  // Check file size (max 10MB)
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  if (file.size > maxSize) {
+    return { valid: false, message: 'File size exceeds 10MB limit' };
+  }
+  
+  return { valid: true };
 };

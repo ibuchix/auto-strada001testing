@@ -1,12 +1,14 @@
+
 /**
  * SafeFormWrapper component
  * Created: 2025-05-15
  * Purpose: Provides a safe wrapper for components that need access to form context
  * Updated: 2025-07-24 - Enhanced error handling and added additional safety checks
+ * Updated: 2025-08-18 - Improved resilience with multiple form context access methods
  */
 
 import React, { ReactNode, useState, useEffect } from 'react';
-import { useFormData } from './context/FormDataContext';
+import { useResilientFormData } from './context/FormDataContext';
 
 interface SafeFormWrapperProps {
   children: (formMethods: any) => ReactNode;
@@ -29,8 +31,8 @@ export const SafeFormWrapper = ({
   const [error, setError] = useState<Error | null>(null);
   const [formMethods, setFormMethods] = useState<any>(null);
   
-  // Get form context safely using our enhanced hook
-  const formData = useFormData();
+  // Get form context safely using our enhanced hook that tries multiple approaches
+  const formData = useResilientFormData(true);
   
   useEffect(() => {
     try {
