@@ -5,6 +5,7 @@
  * Updated: 2025-05-05 - Added auto-population of fields from valuation data
  * Updated: 2025-05-06 - Fixed TypeScript errors related to error handling and form props
  * Updated: 2025-05-18 - Fixed type errors for form value assignments
+ * Updated: 2025-05-19 - Fixed TypeScript errors related to toString calls on potentially never types
  */
 
 import { useState, useEffect } from "react";
@@ -56,7 +57,7 @@ export const VehicleDetailsSection = () => {
       if (storedData.year) {
         const yearValue = typeof storedData.year === 'number' 
           ? storedData.year 
-          : parseInt(storedData.year.toString(), 10);
+          : parseInt(String(storedData.year), 10);
         
         if (!isNaN(yearValue)) {
           form.setValue("year", yearValue);
@@ -67,7 +68,7 @@ export const VehicleDetailsSection = () => {
       if (storedData.mileage) {
         const mileageValue = typeof storedData.mileage === 'number' 
           ? storedData.mileage 
-          : parseInt(storedData.mileage.toString(), 10);
+          : parseInt(String(storedData.mileage), 10);
         
         if (!isNaN(mileageValue)) {
           form.setValue("mileage", mileageValue); 
