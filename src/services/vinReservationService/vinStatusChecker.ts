@@ -4,6 +4,7 @@
  * Created: 2025-05-08 - Extracted from reservationRecoveryService for better modularity
  * Updated: 2025-05-17 - Added comprehensive error handling and validation
  * Updated: 2025-05-18 - Fixed permission issue by using RPC function instead of direct table access
+ * Updated: 2025-06-12 - Updated error handling and comments for better clarity
  */
 
 import { supabase } from "@/integrations/supabase/client";

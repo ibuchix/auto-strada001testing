@@ -1760,6 +1760,23 @@ export type Database = {
           unique_bidders: number | null
         }[]
       }
+      fetch_seller_auction_results_complete: {
+        Args: { p_seller_id: string }
+        Returns: {
+          id: string
+          car_id: string
+          final_price: number
+          total_bids: number
+          unique_bidders: number
+          sale_status: string
+          created_at: string
+          title: string
+          make: string
+          model: string
+          year: number
+          auction_end_time: string
+        }[]
+      }
       fetch_seller_performance: {
         Args: { p_seller_id?: string }
         Returns: Json

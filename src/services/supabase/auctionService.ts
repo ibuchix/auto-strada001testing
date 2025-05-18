@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-09-11: Created auction service for all auction-related operations
@@ -6,6 +5,7 @@
  * - 2024-09-20: Fixed foreign key relationship issue in join query
  * - 2024-09-21: Updated to respect Row-Level Security policies
  * - 2025-05-20: Fixed permission denied errors by using security definer functions
+ * - 2025-06-12: Replaced direct table access with secure RPC function
  */
 
 import { BaseService } from "./baseService";
@@ -36,73 +36,31 @@ export interface PlaceBidResult {
 
 export class AuctionService extends BaseService {
   /**
-   * Get auction results for a seller with optimized JOIN and column selection
+   * Get auction results for a seller using secure RPC function
    * Uses security definer function to bypass RLS
    */
   async getSellerAuctionResults(sellerId: string): Promise<AuctionResult[]> {
     try {
       console.log('Fetching auction results for seller:', sellerId);
       
-      // Use the security definer function we created to safely get the seller's cars
-      const { data: sellerCars, error: carsError } = await this.supabase
-        .rpc('get_seller_auction_cars', { p_seller_id: sellerId });
+      // Use the new security definer function that combines cars and auction results
+      const { data, error } = await this.supabase
+        .rpc('fetch_seller_auction_results_complete', { 
+          p_seller_id: sellerId 
+        });
       
-      if (carsError) {
-        console.error('Error fetching seller cars:', carsError);
-        throw carsError;
-      }
-      
-      if (!sellerCars || sellerCars.length === 0) {
-        console.log('No cars found for seller:', sellerId);
-        return [];
-      }
-      
-      // Extract the car IDs
-      const carIds = sellerCars.map(car => car.id);
-      console.log('Found car IDs for seller:', carIds);
-      
-      // Then get the auction results for those cars - RLS will filter automatically
-      const { data: results, error } = await this.supabase
-        .from('auction_results')
-        .select(`
-          id, 
-          car_id,
-          final_price, 
-          total_bids, 
-          unique_bidders,
-          sale_status, 
-          created_at
-        `)
-        .in('car_id', carIds);
-
       if (error) {
         console.error('Error fetching auction results:', error);
         throw error;
       }
       
-      if (!results || results.length === 0) {
-        console.log('No auction results found for seller cars');
+      if (!data || data.length === 0) {
+        console.log('No auction results found for seller');
         return [];
       }
       
-      // Combine the data
-      return results.map(result => {
-        const car = sellerCars.find(c => c.id === result.car_id);
-        return {
-          id: result.id,
-          car_id: result.car_id,
-          final_price: result.final_price,
-          total_bids: result.total_bids || 0,
-          unique_bidders: result.unique_bidders || 0,
-          sale_status: result.sale_status,
-          created_at: result.created_at,
-          title: car?.title || 'Unknown Vehicle',
-          make: car?.make || 'Unknown',
-          model: car?.model || '',
-          year: car?.year || new Date().getFullYear(),
-          auction_end_time: car?.auction_end_time
-        };
-      });
+      // The data is already in the format we need
+      return data as AuctionResult[];
     } catch (error: any) {
       this.handleError(error, "Failed to fetch auction results");
       return [];
