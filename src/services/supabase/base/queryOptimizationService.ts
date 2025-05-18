@@ -3,9 +3,9 @@
  * Changes made:
  * - 2024-10-15: Extracted query optimization functionality from baseService.ts
  * - 2024-10-21: Fixed type import from @supabase/postgrest-js to @supabase/supabase-js
+ * - 2025-05-18: Fixed PostgrestFilterBuilder import by using generic types instead
  */
 
-import { PostgrestFilterBuilder } from "@supabase/supabase-js";
 import { RetryService } from "./retryService";
 
 export class QueryOptimizationService extends RetryService {
@@ -15,11 +15,10 @@ export class QueryOptimizationService extends RetryService {
    * @param columns The columns to select (defaults to '*')
    * @returns The optimized query
    */
-  protected optimizeSelect<T extends PostgrestFilterBuilder<any>>(
+  protected optimizeSelect<T extends { select: (columns: string) => T }>(
     query: T,
     columns: string = '*'
   ): T {
-    // @ts-ignore - This is safe as select() exists on all query builders
     return query.select(columns);
   }
 
@@ -30,7 +29,7 @@ export class QueryOptimizationService extends RetryService {
    * @param pageSize The number of items per page
    * @returns Paginated query
    */
-  protected paginateQuery<T extends PostgrestFilterBuilder<any>>(
+  protected paginateQuery<T extends { range: (start: number, end: number) => T }>(
     query: T, 
     page: number = 1, 
     pageSize: number = 20
@@ -38,7 +37,6 @@ export class QueryOptimizationService extends RetryService {
     const start = (page - 1) * pageSize;
     const end = start + pageSize - 1;
     
-    // @ts-ignore - This is safe as range() exists on all filter builders
     return query.range(start, end);
   }
 
