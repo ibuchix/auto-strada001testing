@@ -4,6 +4,7 @@
  * - 2024-06-07: Created FormSuccessDialog to show after successful form submission
  * - 2028-06-15: Added micro-interactions for success dialog
  * - 2025-06-13: Added auto-navigation to seller dashboard
+ * - 2025-06-14: Enhanced auto-redirect with progress bar and countdown timer
  */
 
 import {
