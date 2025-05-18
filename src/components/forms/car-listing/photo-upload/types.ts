@@ -1,7 +1,15 @@
 
 /**
  * TypeScript interfaces for photo upload components
+ * Created: 2025-07-19
  */
+
+export interface PhotoItem {
+  id: string;
+  title: string;
+  description: string;
+  required: boolean;
+}
 
 export interface PhotoUploadError {
   message: string;

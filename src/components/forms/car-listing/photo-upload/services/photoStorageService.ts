@@ -3,6 +3,7 @@
  * Service for managing photo storage operations
  * Updated: 2025-05-18 - Added verification and recovery for database records
  * Updated: 2025-07-18 - Fixed path structure and database record creation
+ * Updated: 2025-07-19 - Fixed supabase.sql usage with standard methods
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -99,17 +100,28 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
     // Update the cars table if this is a required photo
     if (category.startsWith('required_') || category.includes('rim_')) {
       try {
+        // Get current required_photos JSONB object
+        const { data: car, error: getError } = await supabase
+          .from('cars')
+          .select('required_photos')
+          .eq('id', carId)
+          .single();
+          
+        if (getError) {
+          console.error('Error fetching car required_photos:', getError);
+          throw getError;
+        }
+        
+        // Update the required_photos object with the new photo
+        const requiredPhotos = car?.required_photos || {};
+        requiredPhotos[category] = filePath;
+        
+        // Update the car record with the modified JSONB
         const { error: updateError } = await supabase
           .from('cars')
-          .update({
-            required_photos: supabase.sql`jsonb_set(
-              COALESCE(required_photos, '{}'::jsonb), 
-              array[${category}], 
-              ${JSON.stringify(filePath)}
-            )`
-          })
+          .update({ required_photos: requiredPhotos })
           .eq('id', carId);
-
+          
         if (updateError) {
           console.error('Error updating car required_photos:', updateError);
         }

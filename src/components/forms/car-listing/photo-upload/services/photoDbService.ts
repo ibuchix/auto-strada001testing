@@ -3,6 +3,7 @@
  * Service for managing photo database operations
  * Updated: 2025-05-18 - Fixed database recording consistency issues
  * Updated: 2025-07-18 - Added better support for rim photos and standardized categories
+ * Updated: 2025-07-19 - Fixed supabase.sql usage with standard methods
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -80,19 +81,30 @@ export const savePhotoToDb = async (filePath: string, carId: string, category: s
     } else if (category.includes('rim_')) {
       // Handle rim photos separately to ensure they're stored correctly
       try {
-        const { error: rimError } = await supabase
+        // Get current required_photos JSONB object
+        const { data: car, error: getError } = await supabase
           .from('cars')
-          .update({
-            required_photos: supabase.sql`jsonb_set(
-              COALESCE(required_photos, '{}'::jsonb), 
-              array[${category}], 
-              ${JSON.stringify(filePath)}
-            )`
-          })
+          .select('required_photos')
+          .eq('id', carId)
+          .single();
+          
+        if (getError) {
+          console.error('Error fetching car required_photos:', getError);
+          throw getError;
+        }
+        
+        // Update the required_photos object with the new rim photo
+        const requiredPhotos = car.required_photos || {};
+        requiredPhotos[category] = filePath;
+        
+        // Update the car record with the modified JSONB
+        const { error: updateError } = await supabase
+          .from('cars')
+          .update({ required_photos: requiredPhotos })
           .eq('id', carId);
-
-        if (rimError) {
-          console.error('Error updating car rim photos:', rimError);
+          
+        if (updateError) {
+          console.error('Error updating car rim photos:', updateError);
         }
       } catch (err) {
         console.error('Exception updating car rim photos:', err);

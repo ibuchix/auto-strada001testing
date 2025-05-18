@@ -3,8 +3,9 @@
  * Data for required photo sections
  * - 2025-04-05: Updated to use imported PhotoItem interface
  * - 2025-04-05: Ensured all required properties are correctly set
+ * - 2025-07-19: Fixed import path for PhotoItem interface
  */
-import { PhotoItem } from "../components/PhotoSection";
+import { PhotoItem } from "../types";
 
 export const exteriorPhotos: PhotoItem[] = [
   {
