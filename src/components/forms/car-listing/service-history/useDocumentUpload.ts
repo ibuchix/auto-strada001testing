@@ -5,12 +5,14 @@
  * Updated: 2025-05-03 - Added missing properties to match component usage
  * Updated: 2025-05-04 - Fixed hook return type to include all necessary properties
  * Updated: 2025-05-04 - Fixed removeUploadedFile and other missing properties
+ * Updated: 2025-05-23 - Fixed finalization of uploads and proper database recording
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { CarListingFormData, ServiceHistoryFile } from '@/types/forms';
 import { tempFileStorageService } from '@/services/supabase/tempFileStorageService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -166,6 +168,7 @@ export function useDocumentUpload() {
     } catch (err) {
       clearInterval(interval);
       console.error("Error uploading files:", err);
+      setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -189,6 +192,67 @@ export function useDocumentUpload() {
     removeFile(id);
   }, [removeFile]);
   
+  /**
+   * Finalize uploads to database
+   */
+  const finalizeUploads = useCallback(async (carId: string): Promise<boolean> => {
+    if (!carId || files.length === 0) return false;
+    
+    try {
+      setUploading(true);
+      setError(null);
+      
+      // For each file, ensure it's recorded in the car_file_uploads table
+      const promises = files.map(async (file) => {
+        if (!file.url) return false;
+        
+        try {
+          // Check if already in the database
+          const { data: existingRecord } = await supabase
+            .from('car_file_uploads')
+            .select('id')
+            .eq('file_path', file.url)
+            .eq('car_id', carId)
+            .maybeSingle();
+          
+          if (!existingRecord) {
+            // Create database record
+            await supabase
+              .from('car_file_uploads')
+              .insert({
+                car_id: carId,
+                file_path: file.url,
+                file_type: file.type,
+                category: 'service_document',
+                upload_status: 'completed',
+                image_metadata: {
+                  name: file.name,
+                  type: file.type,
+                  uploadDate: file.uploadDate
+                }
+              });
+          }
+          
+          return true;
+        } catch (error) {
+          console.error('Error finalizing document upload:', error);
+          return false;
+        }
+      });
+      
+      const results = await Promise.all(promises);
+      const allSucceeded = results.every(result => result);
+      
+      return allSucceeded;
+    } catch (error) {
+      console.error('Error finalizing all document uploads:', error);
+      setError('Failed to finalize document uploads');
+      return false;
+    } finally {
+      setUploading(false);
+    }
+  }, [files]);
+  
   return {
     files,
     uploading,
@@ -202,6 +266,7 @@ export function useDocumentUpload() {
     handleFileUpload,
     removeSelectedFile,
     removeUploadedFile,
-    isUploading: uploading
+    isUploading: uploading,
+    finalizeUploads
   };
 }

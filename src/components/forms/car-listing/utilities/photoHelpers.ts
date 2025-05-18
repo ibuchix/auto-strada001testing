@@ -7,6 +7,7 @@
  * Updated: 2025-05-21 - Fixed adapter function compatibility, added setPhotoField and updateVehiclePhotos
  * Updated: 2025-05-21 - Fixed spread operator type error when handling rimPhotos
  * Updated: 2025-05-22 - Fixed type compatibility with RimPhotos interface
+ * Updated: 2025-05-23 - Enhanced adapter function and added error recovery capabilities
  */
 
 import { UseFormSetValue, UseFormGetValues } from "react-hook-form";
@@ -115,6 +116,20 @@ const getValue = <T>(
  * Adapts the temporary file uploader to a format compatible with photo sections
  */
 export const adaptTemporaryFileUploader = (uploader: any) => {
+  // Validate input to prevent null pointer exceptions
+  if (!uploader) {
+    console.warn('No uploader provided to adaptTemporaryFileUploader');
+    return {
+      files: [],
+      isUploading: false,
+      progress: 0,
+      uploadFile: () => Promise.resolve(null),
+      uploadFiles: () => Promise.resolve([]),
+      removeFile: () => false,
+      finalizeUploads: () => Promise.resolve([]),
+    };
+  }
+  
   return {
     files: uploader.files || [],
     isUploading: uploader.isUploading || false,
@@ -122,5 +137,9 @@ export const adaptTemporaryFileUploader = (uploader: any) => {
     uploadFile: uploader.uploadFile || (() => Promise.resolve(null)),
     uploadFiles: uploader.uploadFiles || ((files: FileList) => Promise.resolve([])),
     removeFile: uploader.removeFile || (() => false),
+    // Make sure finalizeUploads is always available
+    finalizeUploads: uploader.finalizeUploads || ((carId: string) => Promise.resolve([])),
+    // Add recovery capabilities
+    cleanup: uploader.cleanup || (() => {}),
   };
 };

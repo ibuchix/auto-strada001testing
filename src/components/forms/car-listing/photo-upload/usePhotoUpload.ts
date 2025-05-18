@@ -9,26 +9,30 @@
  * - 2025-05-07: Added diagnosticId prop and exposed uploadFile and resetUploadState
  * - 2028-06-01: Enhanced with error tracking, retry functionality
  * - 2028-06-10: Removed diagnostic logging functionality
+ * - 2025-05-23: Added database record verification and upload recovery
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { uploadPhoto } from './services/photoStorageService';
-import { logUploadAttempt, updateUploadAttempt } from './services/uploadDiagnostics';
+import { recoverPhotoRecords, verifyPhotoDbRecord } from './services/photoDbService';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface UsePhotoUploadProps {
   carId?: string;
   category?: string;
   onProgressUpdate?: (progress: number) => void;
   maxRetries?: number;
+  automaticRecovery?: boolean;
 }
 
 export const usePhotoUpload = ({ 
   carId, 
   category = 'general', 
   onProgressUpdate,
-  maxRetries = 2
+  maxRetries = 2,
+  automaticRecovery = true
 }: UsePhotoUploadProps = {}) => {
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -37,6 +41,7 @@ export const usePhotoUpload = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const attemptIdRef = useRef<string | null>(null);
   const retryCountRef = useRef<number>(0);
+  const recoveryAttemptedRef = useRef<boolean>(false);
 
   // Log event information
   const logEvent = (event: string, data: any = {}) => {
@@ -48,8 +53,31 @@ export const usePhotoUpload = ({
       retryCount: retryCountRef.current
     });
   };
+  
+  // Check for orphaned uploads on component mount
+  useEffect(() => {
+    if (carId && automaticRecovery && !recoveryAttemptedRef.current) {
+      recoveryAttemptedRef.current = true;
+      
+      // Use immediate executor to run async code
+      (async () => {
+        try {
+          logEvent('checkOrphanedUploads', { carId });
+          const recoveredCount = await recoverPhotoRecords(carId);
+          
+          if (recoveredCount > 0) {
+            toast.success(`Recovered ${recoveredCount} photo records`);
+            logEvent('recoveredOrphanedUploads', { carId, recoveredCount });
+          }
+        } catch (error) {
+          // No need to show an error to the user, just log it
+          logEvent('recoveryError', { error });
+        }
+      })();
+    }
+  }, [carId, automaticRecovery]);
 
-  const resetUploadState = () => {
+  const resetUploadState = useCallback(() => {
     logEvent('resetUploadState', { message: 'Reset upload state' });
     setUploadProgress(0);
     setIsUploading(false);
@@ -57,7 +85,7 @@ export const usePhotoUpload = ({
     retryCountRef.current = 0;
     attemptIdRef.current = null;
     setCurrentFile(null);
-  };
+  }, []);
 
   const uploadFile = async (file: File, uploadPath: string): Promise<string | null> => {
     if (!file) {
@@ -79,35 +107,28 @@ export const usePhotoUpload = ({
       uploadPath 
     });
     
-    // Log the upload attempt
-    attemptIdRef.current = logUploadAttempt({
-      filename: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      success: false,
-      uploadPath
-    });
-    
     setIsUploading(true);
     setUploadProgress(0);
     
+    // Generate a unique ID for this upload attempt
+    attemptIdRef.current = `upload-${new Date().getTime()}-${Math.random().toString(36).substring(2, 9)}`;
+    
     try {
-      // Upload the file and get the URL
+      // Simulate progress updates (actual progress comes from the server)
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress = Math.min(progress + 5, 90);
+        setUploadProgress(progress);
+        if (onProgressUpdate) onProgressUpdate(progress);
+      }, 200);
+      
+      // Upload the file
       const result = await uploadPhoto(file, carId || 'temp', category);
       
-      // Update progress
+      // Clear interval and set to 100%
+      clearInterval(progressInterval);
       setUploadProgress(100);
-      if (onProgressUpdate) {
-        onProgressUpdate(100);
-      }
-      
-      // Update upload tracking
-      if (attemptIdRef.current) {
-        updateUploadAttempt(attemptIdRef.current, {
-          success: true,
-          responseData: { filePath: result }
-        });
-      }
+      if (onProgressUpdate) onProgressUpdate(100);
       
       logEvent('uploadFile-completed', { 
         message: 'File upload completed successfully',
@@ -117,156 +138,85 @@ export const usePhotoUpload = ({
       // Reset retry counter on success
       retryCountRef.current = 0;
       
+      // Update UI with the uploaded photo
+      if (result) {
+        setUploadedPhotos(prev => [...prev, result]);
+      }
+      
       return result;
     } catch (error: any) {
       const errorMessage = error.message || "Failed to upload file";
       setUploadError(errorMessage);
-      
-      // Update upload tracking
-      if (attemptIdRef.current) {
-        updateUploadAttempt(attemptIdRef.current, {
-          success: false,
-          error: errorMessage
-        });
-      }
       
       logEvent('uploadFile-error', { 
         message: 'File upload failed',
         error: errorMessage
       });
       
-      // Handle retry logic
-      if (retryCountRef.current < maxRetries) {
-        retryCountRef.current++;
-        
-        logEvent('uploadFile-retry', { 
-          message: `Automatic retry attempt ${retryCountRef.current} of ${maxRetries}`,
-          fileName: file.name
-        });
-        
-        toast.error(`Upload failed: ${errorMessage}`, {
-          description: `Retrying... (Attempt ${retryCountRef.current} of ${maxRetries})`,
-          duration: 3000
-        });
-        
-        // Retry after a short delay
-        return new Promise(resolve => {
-          setTimeout(async () => {
-            const result = await uploadFile(file, uploadPath);
-            resolve(result);
-          }, 1000);
-        });
-      }
+      // Handle retry logic via the caller, rather than here
+      // This gives the caller more control over the retry flow
       
-      toast.error(errorMessage, {
-        description: "Failed to upload file after multiple attempts",
-        action: {
-          label: "Retry",
-          onClick: () => {
-            retryCountRef.current = 0;
-            uploadFile(file, uploadPath);
-          }
-        }
+      toast.error(`Upload failed: ${errorMessage}`, {
+        description: retryCountRef.current > 0 ? `Failed after ${retryCountRef.current + 1} attempts` : undefined,
       });
       
-      return null;
+      throw error;
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
-
-  const retryUpload = async () => {
-    if (!currentFile) {
-      logEvent('retryUpload-error', { message: 'No file available to retry' });
+  
+  // Handle retry logic
+  const retryUpload = useCallback(async (): Promise<string | null> => {
+    if (!currentFile || !carId) return null;
+    
+    if (retryCountRef.current < maxRetries) {
+      retryCountRef.current++;
+      
+      logEvent('uploadFile-retry', { 
+        message: `Manual retry attempt ${retryCountRef.current} of ${maxRetries}`,
+        fileName: currentFile.name
+      });
+      
+      toast.info(`Retrying upload... (Attempt ${retryCountRef.current} of ${maxRetries})`);
+      
+      try {
+        return await uploadFile(currentFile, category);
+      } catch (error) {
+        // Error handling is already done in uploadFile
+        return null;
+      }
+    } else {
+      toast.error(`Maximum retry attempts (${maxRetries}) reached. Please try again later.`);
       return null;
     }
-    
-    retryCountRef.current = 0;
-    logEvent('retryUpload-manual', { 
-      message: 'Manual retry initiated',
-      fileName: currentFile.name
-    });
-    
-    return uploadFile(currentFile, carId || 'temp');
-  };
-
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (!carId) {
-      toast.error("Car ID is required to upload photos.");
-      return;
-    }
-
-    setIsUploading(true);
-    setUploadProgress(0);
+  }, [currentFile, carId, maxRetries, category, uploadFile]);
+  
+  // Verify database record exists for a file
+  const verifyUploadRecord = useCallback(async (filePath: string): Promise<boolean> => {
+    if (!carId || !filePath) return false;
     
     try {
-      const totalFiles = acceptedFiles.length;
-      let completedFiles = 0;
-      
-      logEvent('onDrop-start', { 
-        message: `Starting batch upload of ${totalFiles} files`,
-        totalFiles
-      });
-      
-      const uploadPromises = acceptedFiles.map(async (file) => {
-        const result = await uploadFile(file, carId);
-        
-        // Update progress
-        completedFiles++;
-        const newProgress = Math.round((completedFiles / totalFiles) * 100);
-        setUploadProgress(newProgress);
-        if (onProgressUpdate) {
-          onProgressUpdate(newProgress);
-        }
-        
-        return result;
-      });
-
-      const results = await Promise.all(uploadPromises);
-      const successfulUploads = results.filter(Boolean) as string[];
-      
-      setUploadedPhotos(prevPhotos => [...prevPhotos, ...successfulUploads]);
-      
-      logEvent('onDrop-complete', { 
-        message: `Batch upload completed: ${successfulUploads.length} of ${totalFiles} files successful`,
-        totalFiles,
-        successfulCount: successfulUploads.length
-      });
-      
-      toast.success(`${successfulUploads.length} of ${totalFiles} photos uploaded successfully!`);
-    } catch (error: any) {
-      logEvent('onDrop-error', { 
-        message: 'Batch upload encountered an error',
-        error: error.message 
-      });
-      
-      console.error("Error uploading photos:", error);
-      toast.error(error.message || "Failed to upload photos");
-    } finally {
-      setIsUploading(false);
+      logEvent('verifyUploadRecord', { filePath });
+      return await verifyPhotoDbRecord(filePath, carId);
+    } catch (error) {
+      logEvent('verifyUploadRecordError', { filePath, error });
+      return false;
     }
-  }, [carId, category, onProgressUpdate]);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.png', '.jpg', '.webp']
-    },
-    maxFiles: 10,
-    disabled: isUploading
-  });
+  }, [carId]);
 
   return {
-    getRootProps,
-    getInputProps,
-    isDragActive,
+    uploadedPhotos,
     isUploading,
     uploadProgress,
-    uploadedPhotos,
-    setUploadedPhotos,
+    uploadError,
+    currentFile,
     uploadFile,
     resetUploadState,
     retryUpload,
-    uploadError
+    retryCount: retryCountRef.current,
+    maxRetries,
+    verifyUploadRecord
   };
 };
