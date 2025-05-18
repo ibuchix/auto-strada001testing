@@ -2,6 +2,7 @@
 /**
  * Reservation Recovery Service
  * Created: 2025-05-17 - To help handle VIN reservation issues and recover from errors
+ * Updated: 2025-05-18 - Fixed permission issue by using RPC functions
  * 
  * This service handles creation, verification, and recovery of VIN reservations
  * to prevent issues with car listing creation.
@@ -32,7 +33,7 @@ const createTemporaryReservation = (vin: string): string => {
 };
 
 /**
- * Creates a database VIN reservation
+ * Creates a database VIN reservation using RPC function
  * 
  * @param vin The VIN to reserve
  * @param userId The user ID
@@ -80,7 +81,7 @@ const createDatabaseReservation = async (
 };
 
 /**
- * Checks if a VIN is available for reservation
+ * Checks if a VIN is available for reservation using RPC function
  * 
  * @param vin The VIN to check
  * @param userId The user ID

@@ -3,6 +3,7 @@
  * VIN Status Checker Service
  * Created: 2025-05-08 - Extracted from reservationRecoveryService for better modularity
  * Updated: 2025-05-17 - Added comprehensive error handling and validation
+ * Updated: 2025-05-18 - Fixed permission issue by using RPC function instead of direct table access
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -35,37 +36,37 @@ export async function verifyVinReservation(
       return { isValid: false, error: "Temporary reservation VIN mismatch" };
     }
     
-    // For database reservations, check if it exists and is valid
+    // For database reservations, use RPC function instead of direct table access
     try {
-      const { data, error } = await supabase
-        .from('vin_reservations')
-        .select('id, status, expires_at, vin')
-        .eq('id', reservationId)
-        .maybeSingle();
+      console.log(`Checking reservation validity for VIN: ${vin}, using RPC function`);
+      
+      const { data, error } = await supabase.rpc(
+        'check_vin_reservation',
+        { 
+          p_vin: vin,
+          p_user_id: userId
+        }
+      );
       
       if (error) {
-        console.error('Error verifying reservation:', error);
+        console.error('RPC error verifying reservation:', error);
         // Fall back to accepting the reservation if database check fails
         return { isValid: true };
       }
       
-      if (!data) {
-        return { isValid: false, error: "Reservation not found" };
+      if (!data || !data.exists) {
+        console.log('RPC check returned no reservation or expired reservation:', data);
+        return { isValid: false, error: data?.message || "Reservation not found or expired" };
       }
       
-      if (data.vin !== vin) {
+      // Check reservation details from the RPC response
+      const reservationDetails = data.reservation;
+      
+      if (reservationDetails && reservationDetails.vin !== vin) {
         return { isValid: false, error: "Reservation VIN mismatch" };
       }
       
-      if (data.status !== 'active') {
-        return { isValid: false, error: "Reservation is not active" };
-      }
-      
-      const expiresAt = new Date(data.expires_at);
-      if (expiresAt < new Date()) {
-        return { isValid: false, error: "Reservation has expired" };
-      }
-      
+      console.log('Valid reservation confirmed via RPC');
       return { isValid: true };
     } catch (dbError) {
       // If there's an error checking the database, log it but accept the reservation

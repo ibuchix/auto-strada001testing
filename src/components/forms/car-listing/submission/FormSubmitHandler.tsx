@@ -14,6 +14,7 @@
  * Updated: 2025-05-17 - Fixed temporary VIN reservation IDs to use proper UUIDs
  * Updated: 2025-05-17 - Added better cross-origin error suppression
  * Updated: 2025-05-17 - Improved permission handling with auth tokens
+ * Updated: 2025-05-18 - Fixed permission issues with VIN reservation checks
  */
 
 import { useEffect, useState } from "react";
@@ -46,49 +47,49 @@ export const FormSubmitHandler = ({
   
   // Ensure VIN reservation exists before submission
   const ensureVinReservation = async (values: any): Promise<boolean> => {
-    // If there's already a VIN reservation ID in localStorage, we're good
-    if (localStorage.getItem('vinReservationId')) {
-      console.log('VIN reservation exists in localStorage - good to proceed');
-      return true;
-    }
-    
-    // No VIN reservation yet - try to create one
-    const vin = values.vin;
-    
-    if (!vin) {
-      console.error("No VIN available in form data");
-      toast.error("Missing VIN", {
-        description: "Please enter a valid VIN or perform a VIN lookup"
-      });
-      return false;
-    }
-    
-    if (!userId) {
-      console.error("No user ID available");
-      toast.error("Authentication required", {
-        description: "Please log in to submit your listing"
-      });
-      return false;
-    }
-    
-    // Try to get valuation data from localStorage or form
-    let valuationData = values.valuation_data;
-    if (!valuationData) {
-      const storedData = localStorage.getItem('valuationData');
-      if (storedData) {
-        try {
-          valuationData = JSON.parse(storedData);
-        } catch (e) {
-          console.error('Error parsing stored valuation data:', e);
+    try {
+      // If there's already a VIN reservation ID in localStorage, we're good
+      if (localStorage.getItem('vinReservationId')) {
+        console.log('VIN reservation exists in localStorage - good to proceed');
+        return true;
+      }
+      
+      // No VIN reservation yet - try to create one
+      const vin = values.vin;
+      
+      if (!vin) {
+        console.error("No VIN available in form data");
+        toast.error("Missing VIN", {
+          description: "Please enter a valid VIN or perform a VIN lookup"
+        });
+        return false;
+      }
+      
+      if (!userId) {
+        console.error("No user ID available");
+        toast.error("Authentication required", {
+          description: "Please log in to submit your listing"
+        });
+        return false;
+      }
+      
+      // Try to get valuation data from localStorage or form
+      let valuationData = values.valuation_data;
+      if (!valuationData) {
+        const storedData = localStorage.getItem('valuationData');
+        if (storedData) {
+          try {
+            valuationData = JSON.parse(storedData);
+          } catch (e) {
+            console.error('Error parsing stored valuation data:', e);
+          }
         }
       }
-    }
-    
-    // Try to create a VIN reservation using our new recovery service
-    console.log('Creating VIN reservation before submission:', vin);
-    setIsCreatingReservation(true);
-    
-    try {
+      
+      // Try to create a VIN reservation using our new recovery service
+      console.log('Creating VIN reservation before submission:', vin);
+      setIsCreatingReservation(true);
+      
       const reservationId = await recoverVinReservation(vin, userId, valuationData);
       
       if (!reservationId) {

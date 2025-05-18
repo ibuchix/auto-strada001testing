@@ -1,12 +1,13 @@
 
 /**
  * Service for managing photo storage operations
+ * Updated: 2025-05-18 - Added verification and recovery for database records
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { compressImage } from '../utils/imageCompression';
-import { savePhotoToDb } from './photoDbService';
+import { savePhotoToDb, verifyPhotoDbRecord } from './photoDbService';
 
 /**
  * Uploads a photo to Supabase Storage and saves info to the database
@@ -18,7 +19,7 @@ import { savePhotoToDb } from './photoDbService';
 export const uploadPhoto = async (file: File, carId: string, category: string): Promise<string | null> => {
   try {
     // Show file size for debugging
-    console.log(`Uploading file: ${file.name}, size: ${(file.size / 1024).toFixed(2)} KB`);
+    console.log(`Uploading file: ${file.name}, size: ${(file.size / 1024).toFixed(2)} KB for car ${carId}`);
     
     // Validate inputs
     if (!file) throw new Error('No file provided for upload');
@@ -46,6 +47,8 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const filePath = `${carId}/${category}/${uuidv4()}.${fileExt}`;
     
+    console.log(`Uploading to storage path: ${filePath}`);
+    
     const { data, error } = await supabase.storage
       .from('car-images')
       .upload(filePath, fileToUpload, {
@@ -70,9 +73,18 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
     const { data: { publicUrl } } = supabase.storage
       .from('car-images')
       .getPublicUrl(filePath);
+    
+    console.log(`File uploaded successfully. Public URL: ${publicUrl}`);
 
-    // Save to database
+    // Save to database with verification
     await savePhotoToDb(filePath, carId, category);
+    
+    // Double check that the database record was created
+    const recordExists = await verifyPhotoDbRecord(filePath, carId);
+    if (!recordExists) {
+      console.warn(`Database record verification failed for ${filePath}. Attempting recovery...`);
+      await savePhotoToDb(filePath, carId, category);
+    }
     
     return publicUrl;
   } catch (error: any) {
