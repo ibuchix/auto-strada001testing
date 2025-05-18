@@ -1,214 +1,206 @@
 
 /**
- * Temporary File Upload Hook
- * Created: 2025-06-18
- * Updated: 2025-06-20 - Fixed type compatibility with TempStoredFile
- * Updated: 2025-05-08 - Updated to use proper types from forms.ts
- * 
- * Hook for managing temporary file uploads during form completion
+ * Hook for temporary file upload management
+ * Created: 2025-07-18
  */
-
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { tempFileStorage } from "@/services/temp-storage/tempFileStorageService";
-import { TempStoredFile, TemporaryFile } from "@/types/forms";
+import { uploadImagesForCar } from '@/services/supabase/uploadService';
+import { supabase } from '@/integrations/supabase/client';
 
-// Updated interface to support all needed options
-export interface UseTemporaryFileUploadOptions {
-  category: string;
-  allowMultiple: boolean;
-  maxFiles?: number;
-  // Added for backwards compatibility
-  accept?: Record<string, string[]>;
+export interface TemporaryFile {
+  id: string;
+  file?: File;
+  preview: string;
+  url?: string;
 }
 
-export const useTemporaryFileUpload = ({ 
+interface UseTemporaryFileUploadOptions {
+  category: string;
+  allowMultiple?: boolean;
+  maxFiles?: number;
+}
+
+export const useTemporaryFileUpload = ({
   category,
   allowMultiple = false,
-  maxFiles = 10
+  maxFiles = 1
 }: UseTemporaryFileUploadOptions) => {
   const [files, setFiles] = useState<TemporaryFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<Error | null>(null);
   
-  // Get remaining session time
-  const remainingSessionTime = tempFileStorage.getRemainingSessionTime ? 
-    tempFileStorage.getRemainingSessionTime() : 
-    30; // Default to 30 minutes if method not available
+  // Track remaining session time
+  const sessionStartTime = useRef(Date.now());
+  const sessionDuration = useRef(30); // 30 minutes default
   
-  // Function to upload a single file
+  const remainingSessionTime = useCallback(() => {
+    const elapsedMinutes = (Date.now() - sessionStartTime.current) / (1000 * 60);
+    return Math.max(0, sessionDuration.current - Math.floor(elapsedMinutes));
+  }, []);
+  
+  // Function to create object URLs for previews
+  const createPreview = useCallback((file: File): string => {
+    return URL.createObjectURL(file);
+  }, []);
+  
+  // Upload a single file
   const uploadFile = useCallback(async (file: File): Promise<TemporaryFile | null> => {
+    if (!file) return null;
+    
+    setIsUploading(true);
+    setProgress(0);
+    
     try {
-      setIsUploading(true);
-      setProgress(10);
-      setError(null);
+      // Generate a temporary ID
+      const id = uuidv4();
       
-      // Create a temporary URL for preview
-      const previewUrl = URL.createObjectURL(file);
+      // Create a preview
+      const preview = createPreview(file);
       
-      // Simulate upload progress (for better UX)
-      const progressTimer = setTimeout(() => setProgress(50), 300);
-      
-      // Add to temporary storage - simulate storage if not available
-      let storedFile: { id: string, file: File, url: string };
-      
-      if (tempFileStorage.uploadFile) {
-        storedFile = await tempFileStorage.uploadFile(file, category);
-      } else {
-        // Fallback if the method isn't available
-        storedFile = {
-          id: uuidv4(),
-          file,
-          url: previewUrl
-        };
+      // If not allowing multiple, remove existing files
+      if (!allowMultiple) {
+        // Revoke existing object URLs to prevent memory leaks
+        files.forEach(file => {
+          if (file.preview && file.preview.startsWith('blob:')) {
+            URL.revokeObjectURL(file.preview);
+          }
+        });
+        setFiles([]);
       }
       
-      // Clear the progress timer
-      clearTimeout(progressTimer);
-      setProgress(100);
-      
-      // Create the temporary file object
+      // For now, store locally until form is submitted
       const tempFile: TemporaryFile = {
-        id: storedFile.id,
-        file: storedFile.file,
-        url: storedFile.url,
-        preview: previewUrl,
-        uploaded: true,
-        uploadedAt: new Date(),
-        category: category,
-        createdAt: new Date()
+        id,
+        file,
+        preview,
       };
       
-      // Add to state
-      if (allowMultiple) {
-        setFiles(prev => [...prev, tempFile]);
-      } else {
-        // If not allowing multiple, replace existing file
-        setFiles([tempFile]);
-      }
+      setFiles(prevFiles => [...prevFiles, tempFile]);
+      setProgress(100);
       
+      // Return the temporary file
       return tempFile;
-    } catch (err: any) {
-      console.error('Error uploading file:', err);
-      setError(err instanceof Error ? err : new Error('Failed to upload file'));
+    } catch (error) {
+      console.error('Error uploading file:', error);
       return null;
     } finally {
       setIsUploading(false);
-      setProgress(0);
     }
-  }, [category, allowMultiple]);
+  }, [files, allowMultiple, createPreview]);
   
-  // Function to upload multiple files
-  const uploadFiles = useCallback(async (fileList: FileList | File[]): Promise<TemporaryFile[]> => {
+  // Upload multiple files
+  const uploadFiles = useCallback(async (fileList: FileList | File[]) => {
+    const filesToUpload = Array.from(fileList);
+    
+    // Enforce max files limit
+    if (files.length + filesToUpload.length > maxFiles) {
+      console.warn(`Cannot upload more than ${maxFiles} files`);
+      return;
+    }
+    
+    setIsUploading(true);
+    
     try {
-      setIsUploading(true);
-      setError(null);
+      const results: TemporaryFile[] = [];
       
-      // Convert FileList to array
-      const filesToUpload = Array.from(fileList);
-      
-      // Limit to max files
-      const filesToProcess = allowMultiple 
-        ? filesToUpload.slice(0, maxFiles - files.length) 
-        : filesToUpload.slice(0, 1);
-      
-      if (filesToProcess.length === 0) {
-        return [];
-      }
-      
-      // Upload each file
-      const uploadedFiles: TemporaryFile[] = [];
-      
-      for (let i = 0; i < filesToProcess.length; i++) {
-        // Update progress
-        setProgress(Math.round((i / filesToProcess.length) * 100));
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
         
-        // Upload file
-        const uploadedFile = await uploadFile(filesToProcess[i]);
-        if (uploadedFile) {
-          uploadedFiles.push(uploadedFile);
-        }
+        // Update progress
+        setProgress(Math.round((i / filesToUpload.length) * 100));
+        
+        // Upload the file
+        const result = await uploadFile(file);
+        if (result) results.push(result);
       }
       
-      return uploadedFiles;
-    } catch (err: any) {
-      console.error('Error uploading files:', err);
-      setError(err instanceof Error ? err : new Error('Failed to upload files'));
-      return [];
+      return results;
+    } catch (error) {
+      console.error('Error uploading files:', error);
     } finally {
       setIsUploading(false);
       setProgress(0);
     }
-  }, [uploadFile, files.length, allowMultiple, maxFiles]);
+  }, [files.length, maxFiles, uploadFile]);
   
-  // Function to remove a file
+  // Remove a file
   const removeFile = useCallback((fileId: string): boolean => {
-    const fileToRemove = files.find(f => f.id === fileId);
+    const fileIndex = files.findIndex(file => file.id === fileId);
     
-    if (fileToRemove) {
-      // Remove from temporary storage if method exists
-      if (tempFileStorage.removeFile) {
-        tempFileStorage.removeFile(fileId);
-      }
-      
-      // Revoke object URL
-      if (fileToRemove.preview) {
-        URL.revokeObjectURL(fileToRemove.preview);
-      }
-      
-      // Remove from state
-      setFiles(prev => prev.filter(f => f.id !== fileId));
-      
-      return true;
+    if (fileIndex === -1) return false;
+    
+    // Revoke object URL to prevent memory leaks
+    const file = files[fileIndex];
+    if (file.preview && file.preview.startsWith('blob:')) {
+      URL.revokeObjectURL(file.preview);
     }
     
-    return false;
+    // Remove the file
+    setFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+    
+    return true;
   }, [files]);
   
-  // Function to clear all files
-  const clearFiles = useCallback(() => {
+  // Upload all files to storage (when form is submitted)
+  const finalizeUploads = useCallback(async (carId: string): Promise<string[]> => {
+    if (!carId || files.length === 0) return [];
+    
+    setIsUploading(true);
+    
+    try {
+      // Get user from session
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user?.id;
+      
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Upload all files using the uploadImagesForCar service
+      const filesToUpload = files
+        .filter(file => file.file) // Only upload files that have a File object
+        .map(file => file.file!);
+      
+      // Upload the files
+      const uploadedPaths = await uploadImagesForCar(filesToUpload, carId, category, userId);
+      
+      // Get public URLs
+      const publicUrls = uploadedPaths.map(path => {
+        const { data } = supabase.storage
+          .from('car-images')
+          .getPublicUrl(path);
+        return data.publicUrl;
+      });
+      
+      return publicUrls;
+    } catch (error) {
+      console.error('Error finalizing uploads:', error);
+      return [];
+    } finally {
+      setIsUploading(false);
+    }
+  }, [files, category]);
+  
+  // Cleanup function (called on unmount)
+  const cleanup = useCallback(() => {
     // Revoke all object URLs
     files.forEach(file => {
-      if (file.preview) {
+      if (file.preview && file.preview.startsWith('blob:')) {
         URL.revokeObjectURL(file.preview);
       }
     });
-    
-    // Clear state
-    setFiles([]);
-    
-    // Note: We don't clear from tempFileStorage here as other components might use those files
   }, [files]);
-  
-  // Adapter method to convert TemporaryFile[] to TempStoredFile[]
-  const getStoredFiles = useCallback((): TempStoredFile[] => {
-    return files.map(file => ({
-      id: file.id,
-      file: file.file,
-      category: file.category || category,
-      url: file.url,
-      createdAt: file.createdAt || new Date(),
-      preview: file.preview,
-      uploaded: file.uploaded,
-      uploadedAt: file.uploadedAt.toISOString(),
-      name: file.file.name,
-      size: file.file.size,
-      type: file.file.type
-    }));
-  }, [files, category]);
   
   return {
     files,
-    storedFiles: getStoredFiles(),
     isUploading,
     progress,
-    error,
+    remainingSessionTime: remainingSessionTime(),
     uploadFile,
     uploadFiles,
     removeFile,
-    clearFiles,
-    setProgress,
-    remainingSessionTime
+    finalizeUploads,
+    cleanup
   };
 };

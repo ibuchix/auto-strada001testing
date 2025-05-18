@@ -2,6 +2,7 @@
 /**
  * Service for managing photo storage operations
  * Updated: 2025-05-18 - Added verification and recovery for database records
+ * Updated: 2025-07-18 - Fixed path structure and database record creation
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +27,14 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
     if (!carId) throw new Error('Car ID is required for photo upload');
     if (!category) throw new Error('Category is required for photo upload');
     
+    // Get user ID from auth session
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    
+    if (!userId) {
+      throw new Error('User is not authenticated. Please sign in to upload photos.');
+    }
+    
     // Validate file type
     const validImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
     if (!validImageTypes.includes(file.type)) {
@@ -43,9 +52,10 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       }
     }
 
-    // Create unique file path with type-based organization
+    // Create unique file path with standardized structure
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const filePath = `${carId}/${category}/${uuidv4()}.${fileExt}`;
+    const fileName = `${uuidv4()}.${fileExt}`;
+    const filePath = `cars/${userId}/${carId}/${category}/${fileName}`;
     
     console.log(`Uploading to storage path: ${filePath}`);
     
@@ -86,6 +96,28 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       await savePhotoToDb(filePath, carId, category);
     }
     
+    // Update the cars table if this is a required photo
+    if (category.startsWith('required_') || category.includes('rim_')) {
+      try {
+        const { error: updateError } = await supabase
+          .from('cars')
+          .update({
+            required_photos: supabase.sql`jsonb_set(
+              COALESCE(required_photos, '{}'::jsonb), 
+              array[${category}], 
+              ${JSON.stringify(filePath)}
+            )`
+          })
+          .eq('id', carId);
+
+        if (updateError) {
+          console.error('Error updating car required_photos:', updateError);
+        }
+      } catch (err) {
+        console.error('Exception updating car required_photos:', err);
+      }
+    }
+    
     return publicUrl;
   } catch (error: any) {
     console.error('Error during photo upload:', error);
@@ -96,4 +128,26 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
     // Rethrow with better message
     throw new Error(errorMessage);
   }
+};
+
+/**
+ * Uploads multiple photos in a batch
+ */
+export const uploadMultiplePhotos = async (
+  files: File[],
+  carId: string,
+  category: string
+): Promise<string[]> => {
+  const results: string[] = [];
+  
+  for (const file of files) {
+    try {
+      const url = await uploadPhoto(file, carId, category);
+      if (url) results.push(url);
+    } catch (error) {
+      console.error(`Error uploading file ${file.name}:`, error);
+    }
+  }
+  
+  return results;
 };

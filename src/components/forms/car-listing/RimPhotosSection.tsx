@@ -1,241 +1,127 @@
+
 /**
- * RimPhotosSection component
- * Created: 2025-07-24
- * Updated: 2025-07-25 - Fixed type issues with rimPhotos
- * Updated: 2025-05-15 - Added safe form context handling to prevent destructuring errors 
+ * Component for uploading rim photos
+ * Created: 2025-07-18
  */
-
-import React, { useState } from "react";
-import { useFormContext } from "react-hook-form";
+import React, { useState } from 'react';
+import { Camera, UploadCloud } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CarListingFormData, RimPhotos } from "@/types/forms";
-import { useSafeFormData } from "./context/FormDataContext";
+import { useFormContext } from 'react-hook-form';
+import { uploadPhoto } from './photo-upload/services/photoStorageService';
 
-interface RimPhotosProps {
-  onUpload?: (photos: RimPhotos) => void;
-}
-
-export const RimPhotosSection = ({ onUpload }: RimPhotosProps) => {
-  const [uploading, setUploading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+export const RimPhotosSection = () => {
+  const [uploadingRim, setUploadingRim] = useState<string | null>(null);
+  const form = useFormContext();
+  const [rimPhotos, setRimPhotos] = useState<Record<string, string>>({
+    rim_front_left: '',
+    rim_front_right: '',
+    rim_rear_left: '',
+    rim_rear_right: '',
+  });
   
-  // Get the form context safely
-  const formDataContext = useSafeFormData();
+  // Get car ID from form
+  const carId = form.watch('id');
   
-  let register, setValue, watch;
-  
-  try {
-    // Try to get form methods from context first
-    if (formDataContext?.form) {
-      register = formDataContext.form.register;
-      setValue = formDataContext.form.setValue;
-      watch = formDataContext.form.watch;
-      if (isLoading) setIsLoading(false);
-    } 
-    // Fall back to useFormContext
-    else {
-      const form = useFormContext<CarListingFormData>();
-      register = form.register;
-      setValue = form.setValue;
-      watch = form.watch;
-      if (isLoading) setIsLoading(false);
+  const handleUploadRimPhoto = async (file: File, position: string) => {
+    if (!carId) {
+      console.error('Car ID is required for rim photo upload');
+      return;
     }
-  } catch (err) {
-    console.error("Error accessing form context in RimPhotosSection:", err);
-    setError(err as Error);
-    setIsLoading(false);
-  }
-  
-  // Fallback empty object for rimPhotos if watch is unavailable
-  const defaultRimPhotos = {
-    front_left: '',
-    front_right: '',
-    rear_left: '',
-    rear_right: ''
-  };
-  
-  // Safely watch the rimPhotos field with fallback
-  const rimPhotos = watch ? watch("rimPhotos") || defaultRimPhotos : defaultRimPhotos;
-  
-  // If still loading, show a loading indicator
-  if (isLoading) {
-    return <div className="p-4 text-center">Loading rim photos section...</div>;
-  }
-  
-  // If there was an error accessing form context, show error message
-  if (error || !register || !setValue || !watch) {
-    return (
-      <div className="p-4 bg-amber-50 border border-amber-200 rounded-md">
-        <p className="text-amber-800">
-          There was an issue loading the rim photos section. Please try refreshing the page.
-        </p>
-      </div>
-    );
-  }
-  
-  // Handle individual image upload
-  const handleImageUpload = async (position: keyof RimPhotos, file: File) => {
-    setUploading(true);
     
     try {
-      // Simulate upload - replace with actual upload logic
-      const imageUrl = URL.createObjectURL(file);
+      setUploadingRim(position);
       
-      // Update form with new image URL
-      const updatedRimPhotos: RimPhotos = {
-        ...rimPhotos,
-        [position]: imageUrl
-      };
+      // Upload using the photoStorageService
+      const photoUrl = await uploadPhoto(file, carId, `rim_${position}`);
       
-      // Set the form value
-      setValue("rimPhotos", updatedRimPhotos, { shouldDirty: true });
-      
-      // Call the onUpload callback if provided
-      if (onUpload) {
-        onUpload(updatedRimPhotos);
+      if (photoUrl) {
+        // Update local state
+        setRimPhotos(prev => ({
+          ...prev,
+          [`rim_${position}`]: photoUrl
+        }));
+        
+        // Update form values
+        const requiredPhotos = form.getValues('required_photos') || {};
+        form.setValue('required_photos', {
+          ...requiredPhotos,
+          [`rim_${position}`]: photoUrl
+        }, { shouldDirty: true });
       }
     } catch (error) {
-      console.error(`Error uploading ${position} rim photo:`, error);
+      console.error(`Error uploading rim photo for ${position}:`, error);
     } finally {
-      setUploading(false);
-    }
-  };
-  
-  // Handle file input change
-  const handleFileChange = (position: keyof RimPhotos) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleImageUpload(position, file);
-    }
-  };
-  
-  // Clear a specific image
-  const clearImage = (position: keyof RimPhotos) => {
-    const updatedRimPhotos = { ...rimPhotos };
-    updatedRimPhotos[position] = '';
-    
-    setValue("rimPhotos", updatedRimPhotos, { shouldDirty: true });
-    
-    if (onUpload) {
-      onUpload(updatedRimPhotos);
+      setUploadingRim(null);
     }
   };
   
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">Rim Photos</h3>
-      <p className="text-sm text-muted-foreground">
-        Please upload photos of all four rims to document their condition
-      </p>
-      
-      <div className="grid grid-cols-2 gap-4">
-        {/* Front Left Rim */}
-        <RimPhotoUploader 
-          label="Front Left Rim"
-          position="front_left"
-          imageUrl={rimPhotos.front_left}
-          onChange={handleFileChange("front_left")}
-          onClear={() => clearImage("front_left")}
-          disabled={uploading}
-        />
-        
-        {/* Front Right Rim */}
-        <RimPhotoUploader 
-          label="Front Right Rim"
-          position="front_right"
-          imageUrl={rimPhotos.front_right}
-          onChange={handleFileChange("front_right")}
-          onClear={() => clearImage("front_right")}
-          disabled={uploading}
-        />
-        
-        {/* Rear Left Rim */}
-        <RimPhotoUploader 
-          label="Rear Left Rim"
-          position="rear_left"
-          imageUrl={rimPhotos.rear_left}
-          onChange={handleFileChange("rear_left")}
-          onClear={() => clearImage("rear_left")}
-          disabled={uploading}
-        />
-        
-        {/* Rear Right Rim */}
-        <RimPhotoUploader 
-          label="Rear Right Rim"
-          position="rear_right"
-          imageUrl={rimPhotos.rear_right}
-          onChange={handleFileChange("rear_right")}
-          onClear={() => clearImage("rear_right")}
-          disabled={uploading}
-        />
-      </div>
-    </div>
-  );
-};
-
-interface RimPhotoUploaderProps {
-  label: string;
-  position: string;
-  imageUrl?: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onClear: () => void;
-  disabled?: boolean;
-}
-
-const RimPhotoUploader = ({
-  label,
-  position,
-  imageUrl,
-  onChange,
-  onClear,
-  disabled
-}: RimPhotoUploaderProps) => {
-  return (
-    <div className="border rounded-md p-3 space-y-2">
-      <p className="text-sm font-medium">{label}</p>
-      
-      {imageUrl ? (
-        <div className="relative">
-          <img 
-            src={imageUrl} 
-            alt={label}
-            className="w-full h-48 object-cover rounded-md"
-          />
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            className="absolute top-2 right-2 opacity-90"
-            onClick={onClear}
-            disabled={disabled}
-          >
-            Remove
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-48 bg-gray-100 rounded-md">
-          <input
-            type="file"
-            id={`rim-photo-${position}`}
-            accept="image/*"
-            onChange={onChange}
-            className="hidden"
-            disabled={disabled}
-          />
-          <label
-            htmlFor={`rim-photo-${position}`}
-            className="cursor-pointer flex flex-col items-center justify-center w-full h-full"
-          >
-            <div className="p-2 bg-gray-200 rounded-full mb-2">
-              <svg className="w-6 h-6 text-gray-500" fill="none" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
+    <Card className="mb-4">
+      <CardHeader>
+        <CardTitle className="text-lg">Rim Photos (Optional)</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4">
+          {['front_left', 'front_right', 'rear_left', 'rear_right'].map((position) => (
+            <div key={position} className="flex flex-col items-center">
+              <p className="mb-2 text-sm font-medium capitalize">{position.replace('_', ' ')}</p>
+              
+              <Card className="w-full aspect-square overflow-hidden relative">
+                {rimPhotos[`rim_${position}`] ? (
+                  <img 
+                    src={rimPhotos[`rim_${position}`]} 
+                    alt={`${position} rim`} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center p-4 text-center">
+                    {uploadingRim === position ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <span className="text-sm text-gray-500">Uploading...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <Camera className="h-10 w-10 text-gray-400 mb-2" />
+                        <p className="text-xs text-gray-600">Upload rim photo</p>
+                      </>
+                    )}
+                  </div>
+                )}
+                
+                {!uploadingRim && (
+                  <input 
+                    type="file"
+                    id={`rim-${position}`}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleUploadRimPhoto(e.target.files[0], position);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                )}
+              </Card>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2"
+                disabled={!!uploadingRim}
+                asChild
+              >
+                <label htmlFor={`rim-${position}`} className="flex items-center gap-2 cursor-pointer">
+                  <UploadCloud className="h-4 w-4" />
+                  {rimPhotos[`rim_${position}`] ? 'Replace' : 'Upload'}
+                </label>
+              </Button>
             </div>
-            <span className="text-sm text-gray-500">Upload Image</span>
-          </label>
+          ))}
         </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };

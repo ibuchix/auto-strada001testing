@@ -2,6 +2,7 @@
 /**
  * Service for managing photo database operations
  * Updated: 2025-05-18 - Fixed database recording consistency issues
+ * Updated: 2025-07-18 - Added better support for rim photos and standardized categories
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -36,43 +37,66 @@ export const savePhotoToDb = async (filePath: string, carId: string, category: s
 
     console.log('Successfully saved to car_file_uploads:', uploadData);
 
-    // Get current additional_photos from car
-    const { data: car, error: carError } = await supabase
-      .from('cars')
-      .select('additional_photos')
-      .eq('id', carId)
-      .single();
-
-    if (carError) {
-      console.error('Error fetching car data:', carError);
-      throw carError;
-    }
-
-    // Update the additional_photos array
-    const currentPhotos = car.additional_photos || [];
-    
-    // Convert to array if JSON is not an array
-    const photosArray = Array.isArray(currentPhotos) ? currentPhotos : [];
-    
-    // Avoid duplicates
-    if (!photosArray.includes(filePath)) {
-      const newPhotos = [...photosArray, filePath];
-
-      // Update the car record
-      const { data: updateData, error: updateError } = await supabase
+    // For additional photos only, add to the additional_photos array
+    if (category === 'additional_photos') {
+      // Get current additional_photos from car
+      const { data: car, error: carError } = await supabase
         .from('cars')
-        .update({ additional_photos: newPhotos })
+        .select('additional_photos')
         .eq('id', carId)
-        .select();
+        .single();
 
-      if (updateError) {
-        console.error('Error updating car additional_photos:', updateError);
-        throw updateError;
+      if (carError) {
+        console.error('Error fetching car data:', carError);
+        throw carError;
       }
+
+      // Update the additional_photos array
+      const currentPhotos = car.additional_photos || [];
       
-      console.log('Successfully updated car additional_photos:', updateData);
-    } else {
-      console.log(`Skipping duplicate entry for ${filePath}`);
+      // Convert to array if JSON is not an array
+      const photosArray = Array.isArray(currentPhotos) ? currentPhotos : [];
+      
+      // Avoid duplicates
+      if (!photosArray.includes(filePath)) {
+        const newPhotos = [...photosArray, filePath];
+
+        // Update the car record
+        const { data: updateData, error: updateError } = await supabase
+          .from('cars')
+          .update({ additional_photos: newPhotos })
+          .eq('id', carId)
+          .select();
+
+        if (updateError) {
+          console.error('Error updating car additional_photos:', updateError);
+          throw updateError;
+        }
+        
+        console.log('Successfully updated car additional_photos:', updateData);
+      } else {
+        console.log(`Skipping duplicate entry for ${filePath}`);
+      }
+    } else if (category.includes('rim_')) {
+      // Handle rim photos separately to ensure they're stored correctly
+      try {
+        const { error: rimError } = await supabase
+          .from('cars')
+          .update({
+            required_photos: supabase.sql`jsonb_set(
+              COALESCE(required_photos, '{}'::jsonb), 
+              array[${category}], 
+              ${JSON.stringify(filePath)}
+            )`
+          })
+          .eq('id', carId);
+
+        if (rimError) {
+          console.error('Error updating car rim photos:', rimError);
+        }
+      } catch (err) {
+        console.error('Exception updating car rim photos:', err);
+      }
     }
 
     return filePath;
@@ -106,5 +130,28 @@ export const verifyPhotoDbRecord = async (filePath: string, carId: string): Prom
   } catch (error) {
     console.error('Exception verifying photo record:', error);
     return false;
+  }
+};
+
+/**
+ * Gets all photos for a car by category
+ */
+export const getCarPhotosByCategory = async (carId: string, category: string): Promise<string[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('car_file_uploads')
+      .select('file_path')
+      .eq('car_id', carId)
+      .eq('category', category);
+    
+    if (error) {
+      console.error('Error getting car photos by category:', error);
+      return [];
+    }
+    
+    return data?.map(item => item.file_path) || [];
+  } catch (error) {
+    console.error('Exception getting car photos by category:', error);
+    return [];
   }
 };

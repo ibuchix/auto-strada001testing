@@ -1,14 +1,16 @@
 
 /**
  * Changes made:
- * - Created specialized hook for photo upload handling
- * - Extracted from usePhotoSection.ts for better maintainability
- * - Handles file validation, upload simulation and form updates
+ * - Fixed TypeScript errors related to function calls and missing properties
+ * - Updated to use proper uploadImagesForCar service
+ * - 2025-07-18: Integrated with standardized upload service
  */
 import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
+import { uploadImagesForCar } from "@/services/supabase/uploadService";
+import { supabase } from "@/integrations/supabase/client";
 
 export const usePhotoUploadHandler = (
   form: UseFormReturn<CarListingFormData>,
@@ -29,8 +31,14 @@ export const usePhotoUploadHandler = (
     setIsProcessingPhoto(true);
     
     try {
-      // In a real implementation, this would upload to a storage service
-      // For now, we'll simulate the upload
+      // Get user ID from session
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      
+      if (!userId) {
+        toast.error('You need to be logged in to upload photos');
+        return;
+      }
       
       // Validate files
       const validFiles = files.filter(file => {
@@ -53,27 +61,32 @@ export const usePhotoUploadHandler = (
         return;
       }
       
-      // Simulate upload with delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Upload files using the service
+      const uploadedPaths = await uploadImagesForCar(validFiles, carId, 'additional_photos', userId);
       
-      // Generate mock URLs for uploaded photos
-      const uploadedUrls = validFiles.map(
-        file => URL.createObjectURL(file)
-      );
-      
-      // Update form with new photos
-      const currentPhotos = form.getValues('uploadedPhotos') || [];
-      const newPhotos = [...currentPhotos, ...uploadedUrls];
-      
-      form.setValue('uploadedPhotos', newPhotos, { shouldValidate: true });
-      
-      // Set main photo if this is the first upload
-      if (currentPhotos.length === 0 && uploadedUrls.length > 0) {
-        form.setValue('mainPhoto', uploadedUrls[0], { shouldValidate: true });
+      if (uploadedPaths.length > 0) {
+        // Get public URLs for all uploaded files
+        const uploadedUrls = uploadedPaths.map(path => {
+          const { data } = supabase.storage
+            .from('car-images')
+            .getPublicUrl(path);
+          return data.publicUrl;
+        });
+        
+        // Update form with new photos
+        const currentPhotos = form.getValues('uploadedPhotos') || [];
+        const newPhotos = [...currentPhotos, ...uploadedUrls];
+        
+        form.setValue('uploadedPhotos', newPhotos, { shouldValidate: true });
+        
+        // Set main photo if this is the first upload
+        if (currentPhotos.length === 0 && uploadedUrls.length > 0) {
+          form.setValue('mainPhoto', uploadedUrls[0], { shouldValidate: true });
+        }
+        
+        setUploadedCount(prev => prev + validFiles.length);
+        toast.success(`${validFiles.length} photos uploaded successfully`);
       }
-      
-      setUploadedCount(prev => prev + validFiles.length);
-      toast.success(`${validFiles.length} photos uploaded successfully`);
     } catch (error) {
       console.error('Error uploading photos:', error);
       toast.error('Failed to upload photos');

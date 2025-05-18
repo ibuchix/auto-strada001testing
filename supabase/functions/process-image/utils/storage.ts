@@ -8,8 +8,12 @@ export async function uploadFileToStorage(file: File, carId: string, type: strin
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
+  // Get user ID from auth session or fallback to admin ID for server-side uploads
+  const userId = Deno.env.get('ADMIN_USER_ID') ?? 'system';
+  
   const fileExt = file.name.split('.').pop();
-  const filePath = `${carId}/${type}.${fileExt}`;
+  // Use standardized path structure
+  const filePath = `cars/${userId}/${carId}/${type}/${crypto.randomUUID()}.${fileExt}`;
 
   const { error: uploadError } = await supabase.storage
     .from('car-images')
@@ -31,7 +35,8 @@ export async function logFileUpload(supabase: any, carId: string, filePath: stri
     .insert({
       car_id: carId,
       file_path: filePath,
-      file_type: type,
+      file_type: file.type,
+      category: type,
       upload_status: 'completed',
       image_metadata: {
         size: file.size,
@@ -43,27 +48,32 @@ export async function logFileUpload(supabase: any, carId: string, filePath: stri
 
 export async function updateCarRecord(supabase: any, type: string, filePath: string, carId: string) {
   if (type.includes('service_document')) {
-    // Service documents are handled separately in the ServiceHistorySection component
+    // Service documents are handled separately
     return;
   }
 
-  if (type.includes('additional_')) {
+  if (type.includes('additional_') || type === 'additional_photos') {
+    // For additional photos, append to the array
     await supabase
       .from('cars')
       .update({
-        additional_photos: supabase.sql`array_append(additional_photos, ${filePath})`
+        additional_photos: supabase.sql`array_append(COALESCE(additional_photos, '[]'::jsonb), ${filePath})`
       })
       .eq('id', carId);
-  } else {
+  } else if (type.includes('rim_') || type.startsWith('required_')) {
+    // For rim or required photos, update the required_photos JSONB
     await supabase
       .from('cars')
       .update({
         required_photos: supabase.sql`jsonb_set(
-          required_photos,
+          COALESCE(required_photos, '{}'::jsonb),
           array[${type}],
-          ${filePath}
+          to_jsonb(${filePath}::text)
         )`
       })
       .eq('id', carId);
+  } else if (type.includes('damage_')) {
+    // For damage photos, they're handled through damage_reports table
+    // We don't need to update the car record directly
   }
 }

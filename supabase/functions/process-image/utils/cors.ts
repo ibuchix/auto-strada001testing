@@ -1,7 +1,13 @@
 
-/**
- * CORS utilities for process-image
- * Updated: 2025-04-19 - Switched to use shared utilities from central repository
- */
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+};
 
-export { corsHeaders, handleCorsOptions } from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
+export function handleCorsOptions(): Response {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders
+  });
+}

@@ -1,39 +1,32 @@
 
 /**
- * Component for displaying a section of photo uploads
- * - 2025-04-05: Created to provide better section organization
- * - 2025-04-05: Enhanced with better visual styling and animations
- * - 2025-04-05: Added PhotoItem interface and exported it for use in other files
- * - 2025-04-05: Updated PhotoItem interface to make required property non-optional
- * - 2025-04-06: Harmonized with app design system using consistent styling, typography and spacing
- * - 2025-06-20: Updated PhotoUpload props to ensure correct type usage
+ * Component for displaying and uploading photos by category
+ * Created: 2025-07-18
  */
-import { LucideIcon } from "lucide-react";
-import { PhotoUpload } from "../PhotoUpload";
-import { PhotoValidationIndicator } from "../../validation/PhotoValidationIndicator";
-import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
-
-// Export this interface so it can be used in requiredPhotoData.ts
-export interface PhotoItem {
-  id: string;
-  title: string;
-  description: string;
-  required: boolean; // Changed from optional to required
-}
+import React from 'react';
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Trash2, UploadCloud, LucideIcon } from "lucide-react";
+import { cn } from '@/lib/utils';
 
 interface PhotoSectionProps {
   title: string;
-  description: string;
-  icon: LucideIcon;
-  photos: PhotoItem[];
+  description?: string;
+  icon?: LucideIcon;
+  photos: {
+    id: string;
+    title: string;
+    description?: string;
+    required?: boolean;
+  }[];
   uploadedPhotos: Record<string, boolean>;
   activeUploads: Record<string, boolean>;
-  progress?: number;
+  progress: number;
   onFileSelect: (file: File, type: string) => Promise<string | null>;
-  onPhotoUploaded: (type: string) => void;
-  onUploadError: (type: string, error: string) => void;
-  onUploadRetry: (type: string) => void;
+  onPhotoUploaded?: (type: string) => void;
+  onUploadError?: (type: string, error: string) => void;
+  onUploadRetry?: (type: string) => void;
 }
 
 export const PhotoSection = ({
@@ -47,71 +40,107 @@ export const PhotoSection = ({
   onFileSelect,
   onPhotoUploaded,
   onUploadError,
-  onUploadRetry
+  onUploadRetry,
 }: PhotoSectionProps) => {
-  // Check if all photos in this section are required
-  const allPhotosRequired = photos.every(photo => photo.required);
-  
-  // Check if all required photos are uploaded
-  const allRequiredUploaded = photos
-    .filter(photo => photo.required)
-    .every(photo => uploadedPhotos[photo.id]);
-  
   return (
-    <Card className="p-5 border-accent bg-white shadow-sm">
-      <div className="space-y-5 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-accent/80 flex items-center justify-center">
-              <Icon className="h-4 w-4 text-primary" />
-            </div>
-            <h3 className="text-lg font-oswald text-dark">{title}</h3>
-          </div>
-          
-          {allPhotosRequired && (
-            <PhotoValidationIndicator
-              isUploaded={allRequiredUploaded}
-              isRequired={true}
-              photoType={title}
-              hideRequiredLabel={!allRequiredUploaded}
-            />
-          )}
-        </div>
-        
-        <p className="text-sm text-subtitle">{description}</p>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {photos.map((photo) => (
-            <div key={photo.id} className={cn(
-              "transition-all duration-500 transform",
-              uploadedPhotos[photo.id] ? "scale-100 opacity-100" : "hover:scale-[1.02]"
-            )}>
-              <PhotoUpload
-                id={photo.id}
-                title={photo.title}
-                description={photo.description}
-                isUploading={!!activeUploads[photo.id]}
-                isRequired={photo.required}
-                isUploaded={!!uploadedPhotos[photo.id]}
-                progress={progress}
-                onFileSelect={(file) => 
-                  onFileSelect(file, photo.id)
-                    .then((result) => {
-                      if (result) {
-                        onPhotoUploaded(photo.id);
-                      }
-                      return result;
-                    })
-                    .catch((error) => {
-                      onUploadError(photo.id, error.message || "Upload failed");
-                      return null;
-                    })
-                }
-              />
-            </div>
-          ))}
-        </div>
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 mb-2">
+        {Icon && <Icon className="h-5 w-5 text-muted-foreground" />}
+        <h3 className="text-lg font-medium">{title}</h3>
       </div>
-    </Card>
+      
+      {description && (
+        <p className="text-sm text-muted-foreground">{description}</p>
+      )}
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {photos.map((photo) => (
+          <Card key={photo.id} className="overflow-hidden border-2 transition-colors duration-200">
+            <CardContent className="p-0 relative aspect-square">
+              {uploadedPhotos[photo.id] ? (
+                <div className="relative w-full h-full">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-green-100 text-green-800 text-xs font-medium rounded px-2.5 py-1">
+                      Uploaded
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  className={cn(
+                    "h-full flex flex-col items-center justify-center p-4 text-center",
+                    activeUploads[photo.id] ? "bg-gray-100" : ""
+                  )}
+                >
+                  {activeUploads[photo.id] ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      <span className="text-sm text-gray-500">Uploading...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <UploadCloud className="h-10 w-10 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-600">{photo.title}</p>
+                      {photo.description && (
+                        <p className="text-xs text-gray-500 mt-1">{photo.description}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="flex justify-between p-2 bg-gray-50">
+              {photo.required && (
+                <Badge variant="outline" className="bg-white">Required</Badge>
+              )}
+              
+              <input
+                type="file"
+                id={`upload-${photo.id}`}
+                className="hidden"
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    onFileSelect(e.target.files[0], photo.id)
+                      .then((result) => {
+                        if (result && onPhotoUploaded) {
+                          onPhotoUploaded(photo.id);
+                        }
+                      })
+                      .catch((error) => {
+                        if (onUploadError) {
+                          onUploadError(photo.id, error.message || 'Upload failed');
+                        }
+                      });
+                    e.target.value = '';
+                  }
+                }}
+              />
+              
+              {uploadedPhotos[photo.id] ? (
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => {
+                    // Add logic to remove the photo
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={activeUploads[photo.id]}
+                  asChild
+                >
+                  <label htmlFor={`upload-${photo.id}`}>Upload</label>
+                </Button>
+              )}
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 };
