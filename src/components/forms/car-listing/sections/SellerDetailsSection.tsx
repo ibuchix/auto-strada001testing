@@ -3,6 +3,7 @@
  * SellerDetailsSection component
  * Created: 2025-07-18
  * Updated: 2025-05-15 - Added safe form context handling to prevent destructuring errors
+ * Updated: 2025-05-18 - Fixed TypeScript error by using useResilientFormData instead of useSafeFormData
  */
 
 import React, { useState } from 'react';
@@ -11,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CarListingFormData } from '@/types/forms';
-import { useSafeFormData } from '../context/FormDataContext';
+import { useResilientFormData } from '../context/FormDataContext';
 
 export const SellerDetailsSection = () => {
   // Use a loading state to track when we're ready to render
@@ -19,7 +20,7 @@ export const SellerDetailsSection = () => {
   const [error, setError] = useState<Error | null>(null);
   
   // Use our safe version of form context
-  const formDataContext = useSafeFormData();
+  const formDataContext = useResilientFormData(true);
   
   // Safely try to access form context
   let register: any;

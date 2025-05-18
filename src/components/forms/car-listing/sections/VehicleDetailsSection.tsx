@@ -4,6 +4,7 @@
  * Updated: 2025-05-05 - Removed redundant VIN lookup for users coming from valuation
  * Updated: 2025-05-05 - Added auto-population of fields from valuation data
  * Updated: 2025-05-06 - Fixed TypeScript errors related to error handling and form props
+ * Updated: 2025-05-18 - Fixed type errors for form value assignments
  */
 
 import { useState, useEffect } from "react";
@@ -50,11 +51,40 @@ export const VehicleDetailsSection = () => {
       console.log("Auto-filling form with valuation data:", storedData);
       
       form.setValue("vin", storedData.vin || "");
+      
+      // Safely convert year to number or use default
+      if (storedData.year) {
+        const yearValue = typeof storedData.year === 'number' 
+          ? storedData.year 
+          : parseInt(storedData.year.toString(), 10);
+        
+        if (!isNaN(yearValue)) {
+          form.setValue("year", yearValue);
+        }
+      }
+      
+      // Safely convert mileage to number or use default
+      if (storedData.mileage) {
+        const mileageValue = typeof storedData.mileage === 'number' 
+          ? storedData.mileage 
+          : parseInt(storedData.mileage.toString(), 10);
+        
+        if (!isNaN(mileageValue)) {
+          form.setValue("mileage", mileageValue); 
+        }
+      }
+      
       form.setValue("make", storedData.make || "");
       form.setValue("model", storedData.model || "");
-      form.setValue("year", storedData.year || "");
-      form.setValue("mileage", storedData.mileage || "");
-      form.setValue("transmission", storedData.transmission || "");
+      
+      // Validate and assign transmission
+      if (storedData.transmission) {
+        const validTransmission = ["manual", "automatic", "semi-automatic"].includes(storedData.transmission)
+          ? storedData.transmission as "manual" | "automatic" | "semi-automatic"
+          : "manual";
+        
+        form.setValue("transmission", validTransmission);
+      }
       
       // Set a flag to indicate we've applied the data
       setValuationDataApplied(true);
@@ -66,7 +96,7 @@ export const VehicleDetailsSection = () => {
     }
   }, [form, valuationDataApplied, hasFormData]);
   
-  const handleVinSubmit = (e) => {
+  const handleVinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (vin) {
       handleVinLookup(vin);
@@ -174,7 +204,7 @@ export const VehicleDetailsSection = () => {
             <div>
               <Label htmlFor="transmission">Transmission*</Label>
               <Select
-                onValueChange={(value) => form.setValue("transmission", value)}
+                onValueChange={(value: "manual" | "automatic" | "semi-automatic") => form.setValue("transmission", value)}
                 defaultValue={form.watch("transmission")}
               >
                 <SelectTrigger>
@@ -194,4 +224,3 @@ export const VehicleDetailsSection = () => {
     </FormSection>
   );
 };
-
