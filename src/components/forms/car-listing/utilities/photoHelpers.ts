@@ -4,9 +4,10 @@
  * Created: 2025-07-10
  * Updated: 2025-08-18 - Added rim photo helpers
  * Updated: 2025-05-20 - Improved type safety and rim photo handling
+ * Updated: 2025-05-21 - Fixed adapter function compatibility, added setPhotoField and updateVehiclePhotos
  */
 
-import { UseFormSetValue } from "react-hook-form";
+import { UseFormSetValue, UseFormGetValues } from "react-hook-form";
 import { CarListingFormData } from '@/types/forms';
 import { TemporaryFile } from '@/hooks/useTemporaryFileUpload';
 
@@ -35,6 +36,50 @@ export const setRimPhotoField = (
   } catch (error) {
     console.error('Error setting rim photo field:', error);
     throw error;
+  }
+};
+
+/**
+ * Sets a regular photo field in the form
+ */
+export const setPhotoField = (
+  fieldName: string,
+  value: string,
+  setValue: UseFormSetValue<CarListingFormData>
+): void => {
+  try {
+    // Set the value for the specific field
+    setValue(fieldName as any, value, { shouldDirty: true });
+    console.log(`Updated photo field: ${fieldName}`);
+  } catch (error) {
+    console.error(`Error setting photo field ${fieldName}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Updates the vehiclePhotos object in the form
+ */
+export const updateVehiclePhotos = (
+  setValue: UseFormSetValue<CarListingFormData>,
+  getValues: UseFormGetValues<CarListingFormData>
+): void => {
+  try {
+    // Create a consolidated object with all photo URLs
+    const vehiclePhotos = {
+      frontView: getValues('frontView') || '',
+      rearView: getValues('rearView') || '',
+      driverSide: getValues('driverSide') || '',
+      passengerSide: getValues('passengerSide') || '',
+      dashboard: getValues('dashboard') || '',
+      interiorFront: getValues('interiorFront') || '',
+      interiorRear: getValues('interiorRear') || '',
+    };
+    
+    // Update the vehiclePhotos object in the form
+    setValue('vehiclePhotos', vehiclePhotos, { shouldDirty: true });
+  } catch (error) {
+    console.error('Error updating vehicle photos:', error);
   }
 };
 
@@ -68,7 +113,7 @@ export const adaptTemporaryFileUploader = (uploader: any) => {
     isUploading: uploader.isUploading || false,
     progress: uploader.progress || 0,
     uploadFile: uploader.uploadFile || (() => Promise.resolve(null)),
+    uploadFiles: uploader.uploadFiles || ((files: FileList) => Promise.resolve([])),
     removeFile: uploader.removeFile || (() => false),
   };
 };
-

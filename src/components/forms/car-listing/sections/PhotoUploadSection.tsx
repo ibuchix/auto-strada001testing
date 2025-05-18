@@ -1,8 +1,8 @@
-
 /**
  * Component for uploading photos to a car listing
  * Created: 2025-05-12
  * Purpose: Handles photo upload for car listings
+ * Updated: 2025-05-21 - Fixed imports for setPhotoField and updateVehiclePhotos
  */
 
 import React from 'react';

@@ -1,4 +1,3 @@
-
 /**
  * Component for uploading photos to a car listing
  * Changes made:
@@ -14,6 +13,7 @@
  * - 2025-05-03: Updated adapter function to properly map TemporaryFile to required PhotoUploaderProps shape
  * - 2025-05-08: Fixed adapter function return type for uploadFiles to ensure type compatibility
  * - 2025-08-28: Fixed type compatibility with PhotoUploaderProps
+ * - 2025-05-21: Fixed imports for setPhotoField and updateVehiclePhotos
  */
 import React from 'react';
 import { useFormData } from './context/FormDataContext';

@@ -1,4 +1,3 @@
-
 /**
  * Photos Upload Section Component
  * Created: 2025-06-17
@@ -7,8 +6,7 @@
  * Updated: 2025-08-27 - Improved error handling and consistent design
  * Updated: 2025-08-27 - Fixed missing uploads array error
  * Updated: 2025-08-28 - Fixed type compatibility with PhotoUploaderProps
- * 
- * This component handles the upload of all required vehicle photos
+ * Updated: 2025-05-21 - Fixed adaptTemporaryFileUploader function to include uploadFiles property
  */
 
 import { useState, useEffect } from "react";
