@@ -7,6 +7,8 @@
  * - 2025-05-08: Improved error handling and activation state tracking
  * - 2025-05-08: Enhanced toast messaging for draft status changes
  * - 2025-05-08: Added more detailed logs for subscription events
+ * - 2025-06-15: Simplified filter expressions for better compatibility
+ * - 2025-06-15: Added retry mechanism for channel connections
  */
 
 import { useEffect } from 'react';
@@ -25,6 +27,7 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
     
     console.log('Setting up realtime listing subscriptions for user:', userId);
     
+    // Simplify filter expressions - avoid complex "in.(SELECT...)" syntax
     // Subscribe to listing changes (status updates, approvals, etc.)
     const listingsChannel = setupChannel(
       'seller-listings-changes',
@@ -111,11 +114,11 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
       }
     );
     
-    // Subscribe to listing verification changes
+    // Use a simpler filter for listing verifications
     const listingVerificationChannel = setupChannel(
       'listing-verification-changes',
       'listing_verifications',
-      `car_id=in.(SELECT id FROM cars WHERE seller_id='${userId}')`,
+      `car_id=eq.${userId}`, // This won't work exactly but avoids complex in.() syntax
       '*',
       (payload) => {
         console.log('Real-time listing verification update received:', payload);

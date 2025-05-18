@@ -1678,6 +1678,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      check_vin_reservation: {
+        Args: { p_vin: string; p_user_id: string }
+        Returns: Json
+      }
       cleanup_expired_vin_reservations: {
         Args: Record<PropertyKey, never>
         Returns: number
