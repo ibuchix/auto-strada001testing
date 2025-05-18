@@ -2,6 +2,7 @@
 /**
  * API route handler for car image uploads
  * Created: 2025-05-24
+ * Updated: 2025-05-18 - Fixed file upload to edge function
  * 
  * This file serves as a proxy between the client-side image upload requests 
  * and the process-image edge function.
@@ -39,15 +40,26 @@ export async function POST(request: Request) {
     
     // Forward to the process-image edge function
     console.log(`API route: Invoking process-image edge function with type "${type}"`);
+    
+    const body = { 
+      carId,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+      type
+    };
+    
+    // Create a new FormData object to send to the edge function
+    const functionFormData = new FormData();
+    
+    // Add the metadata as JSON
+    functionFormData.append('metadata', JSON.stringify(body));
+    
+    // Add the file
+    functionFormData.append('file', file);
+    
     const { data, error } = await supabase.functions.invoke('process-image', {
-      body: { 
-        carId,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        type
-      },
-      file: file,
+      body: functionFormData,
     });
 
     if (error) {
