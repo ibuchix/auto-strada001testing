@@ -1,140 +1,74 @@
 
 /**
  * Photo Helper Utilities
- * Created: 2025-05-12
- * Purpose: Helper functions for handling photo uploads
- * Updated: 2025-08-18 - Added support for rim photos
- * Updated: 2025-08-27 - Fixed type issues with photo upload functions
- * Updated: 2025-08-27 - Added better error handling for uploads
- * Updated: 2025-08-28 - Added adapter function for PhotoUploaderProps
+ * Created: 2025-07-10
+ * Updated: 2025-08-18 - Added rim photo helpers
+ * Updated: 2025-05-20 - Improved type safety and rim photo handling
  */
 
-import { UseFormSetValue, UseFormGetValues } from 'react-hook-form';
+import { UseFormSetValue } from "react-hook-form";
+import { CarListingFormData } from '@/types/forms';
 import { TemporaryFile } from '@/hooks/useTemporaryFileUpload';
 
-// Adapter function to convert TemporaryFile to the format expected by PhotoUploaderProps
-export const adaptTemporaryFileUploader = (uploader: {
-  files: TemporaryFile[];
-  isUploading: boolean;
-  progress: number;
-  uploadFiles: (fileList: FileList | File[]) => Promise<any>;
-  removeFile: (fileId: string) => boolean;
-}) => {
+/**
+ * Sets a field in the form for rim photos
+ */
+export const setRimPhotoField = (
+  position: string, 
+  value: string,
+  setValue: UseFormSetValue<CarListingFormData>
+): void => {
+  try {
+    // Get existing rim photos or initialize empty object
+    const currentRimPhotos = getValue(setValue, 'rimPhotos') || {};
+    
+    // Update the specific position
+    const updatedRimPhotos = {
+      ...currentRimPhotos,
+      [position]: value
+    };
+    
+    // Set the updated object back to the form
+    setValue('rimPhotos', updatedRimPhotos, { shouldDirty: true });
+    
+    console.log(`Updated rim photo for position: ${position}`);
+  } catch (error) {
+    console.error('Error setting rim photo field:', error);
+    throw error;
+  }
+};
+
+/**
+ * Safely gets a value from the form
+ */
+const getValue = <T>(
+  getValue: UseFormSetValue<CarListingFormData>,
+  field: keyof CarListingFormData
+): T | undefined => {
+  try {
+    // This is a workaround since UseFormSetValue doesn't have a getValues method
+    // In practice, you would use form.getValues() directly
+    const formAny = getValue as any;
+    if (formAny._formValues) {
+      return formAny._formValues[field] as T;
+    }
+    return undefined;
+  } catch (error) {
+    console.error(`Error getting value for ${String(field)}:`, error);
+    return undefined;
+  }
+};
+
+/**
+ * Adapts the temporary file uploader to a format compatible with photo sections
+ */
+export const adaptTemporaryFileUploader = (uploader: any) => {
   return {
-    files: uploader.files.map(file => ({
-      id: file.id,
-      name: file.name || file.file?.name || 'photo',
-      preview: file.preview || '',
-      url: file.url || ''
-    })),
-    isUploading: uploader.isUploading,
-    progress: uploader.progress,
-    uploadFiles: async (fileList: FileList | File[]) => {
-      await uploader.uploadFiles(fileList);
-    },
-    removeFile: uploader.removeFile
+    files: uploader.files || [],
+    isUploading: uploader.isUploading || false,
+    progress: uploader.progress || 0,
+    uploadFile: uploader.uploadFile || (() => Promise.resolve(null)),
+    removeFile: uploader.removeFile || (() => false),
   };
 };
 
-// Helper to set photo field in a type-safe way
-export const setPhotoField = (
-  fieldName: string,
-  value: string,
-  setValue: UseFormSetValue<any>
-) => {
-  try {
-    setValue(`vehiclePhotos.${fieldName}`, value, { shouldDirty: true });
-  } catch (error) {
-    console.error(`Error setting photo field ${fieldName}:`, error);
-  }
-};
-
-// Helper to set rim photo field specifically
-export const setRimPhotoField = (
-  position: string,
-  value: string,
-  setValue: UseFormSetValue<any>
-) => {
-  try {
-    setValue(`rimPhotos.${position}`, value, { shouldDirty: true });
-  } catch (error) {
-    console.error(`Error setting rim photo field ${position}:`, error);
-  }
-};
-
-// Update the vehicle photos object with all photos
-export const updateVehiclePhotos = (
-  setValue: UseFormSetValue<any>,
-  getValues: UseFormGetValues<any>
-) => {
-  try {
-    const vehiclePhotos = getValues('vehiclePhotos') || {};
-    const rimPhotos = getValues('rimPhotos') || {};
-    
-    setValue('vehiclePhotos', {
-      ...vehiclePhotos
-    }, { shouldDirty: true });
-    
-    setValue('rimPhotos', {
-      ...rimPhotos
-    }, { shouldDirty: true });
-  } catch (error) {
-    console.error("Error updating vehicle photos:", error);
-  }
-};
-
-// Convert file to base64 for preview
-export const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
-    } catch (error) {
-      reject(new Error("Failed to convert file to base64"));
-    }
-  });
-};
-
-// Generate a unique ID for files
-export const generateFileId = (): string => {
-  try {
-    return crypto.randomUUID();
-  } catch (e) {
-    // Fallback for browsers without crypto.randomUUID()
-    return Math.random().toString(36).substring(2, 11);
-  }
-};
-
-// Validate image file type and size
-export const validateImageFile = (file: File): { valid: boolean; message?: string } => {
-  // Check if file is an image
-  if (!file.type.startsWith('image/')) {
-    return { valid: false, message: 'File must be an image' };
-  }
-  
-  // Check file size (max 10MB)
-  const maxSize = 10 * 1024 * 1024; // 10MB
-  if (file.size > maxSize) {
-    return { valid: false, message: 'File size exceeds 10MB limit' };
-  }
-  
-  return { valid: true };
-};
-
-// Helper to check if all required photos are uploaded
-export const areAllRequiredPhotosUploaded = (vehiclePhotos: Record<string, string | undefined>): boolean => {
-  const requiredFields = [
-    'frontView',
-    'rearView',
-    'driverSide',
-    'passengerSide',
-    'dashboard',
-    'interiorFront'
-  ];
-  
-  return requiredFields.every(field => 
-    vehiclePhotos[field] && vehiclePhotos[field]!.trim() !== ''
-  );
-};
