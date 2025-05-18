@@ -3,27 +3,61 @@
  * ValuationResult Component
  * Created: 2025-05-24 - Added to ensure ValuationForm renders properly
  * Updated: 2025-05-25 - Modified to only show reserve price to sellers
+ * Updated: 2025-05-26 - Added onClick handler for List My Car button and loading state feedback
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { LockIcon } from "lucide-react";
+import { LockIcon, Loader2 } from "lucide-react";
 
 interface ValuationResultProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   result: any;
   onReset: () => void;
+  onContinue?: () => void; // Add onContinue prop
 }
 
 export const ValuationResult: React.FC<ValuationResultProps> = ({
   open,
   onOpenChange,
   result,
-  onReset
+  onReset,
+  onContinue
 }) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Handle continue button click with processing state
+  const handleContinue = () => {
+    if (onContinue) {
+      setIsProcessing(true);
+      
+      // Log the click action for debugging
+      console.log("ValuationResult: List My Car button clicked", {
+        hasHandler: !!onContinue,
+        resultData: {
+          make: result?.make,
+          model: result?.model,
+          vin: result?.vin,
+          reservePrice: result?.reservePrice
+        },
+        timestamp: new Date().toISOString()
+      });
+      
+      // Call the onContinue function from props
+      onContinue();
+      
+      // Reset processing state after a timeout in case navigation fails
+      setTimeout(() => {
+        setIsProcessing(false);
+      }, 5000);
+    } else {
+      console.error("ValuationResult: No continue handler provided");
+    }
+  };
+
   // Handle case where result contains an error
   if (result?.error) {
     return (
@@ -103,11 +137,25 @@ export const ValuationResult: React.FC<ValuationResultProps> = ({
           )}
         </div>
         <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={onReset}>New Valuation</Button>
-          <Button className="bg-primary hover:bg-primary/90">List My Car</Button>
+          <Button variant="outline" onClick={onReset} disabled={isProcessing}>
+            New Valuation
+          </Button>
+          <Button 
+            className="bg-primary hover:bg-primary/90 relative" 
+            onClick={handleContinue}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                Processing...
+              </span>
+            ) : (
+              "List My Car"
+            )}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 };
-

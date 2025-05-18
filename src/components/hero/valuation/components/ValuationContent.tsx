@@ -9,7 +9,7 @@
  * Updated: 2025-05-23 - Removed price verification display as per business requirements
  * Updated: 2025-05-24 - Fixed mileage propagation to child components
  * Updated: 2025-05-25 - Improved button functionality and interactions
- * Updated: 2025-08-01 - Enhanced data storage for valuation flow to sell my car page
+ * Updated: 2025-05-26 - Enhanced processing state handling and added detailed logs
  */
 
 import { ValuationPriceDisplay } from "./ValuationPriceDisplay";
@@ -94,8 +94,11 @@ export const ValuationContent = ({
   }, [make, model, year, vin, transmission, mileage, reservePrice, averagePrice, apiSource, hasRequiredData]);
   
   useEffect(() => {
-    console.log("ValuationContent rendering with hasRequiredData:", hasRequiredData);
-  }, [hasRequiredData]);
+    console.log("ValuationContent rendering with hasRequiredData:", {
+      hasRequiredData,
+      isProcessing
+    });
+  }, [hasRequiredData, isProcessing]);
   
   useEffect(() => {
     console.log("ValuationContent received props:", {
@@ -110,14 +113,29 @@ export const ValuationContent = ({
       transmission,
       hasValuation,
       isLoggedIn,
-      apiSource
+      apiSource,
+      hasOnContinueHandler: !!onContinue
     });
-  }, [make, model, year, vin, reservePrice, averagePrice, transmission, mileage, hasValuation, isLoggedIn, apiSource]);
+  }, [make, model, year, vin, reservePrice, averagePrice, transmission, mileage, hasValuation, isLoggedIn, apiSource, onContinue]);
 
   // Handle continue button click with processing state
   const handleContinue = () => {
     if (onContinue) {
       setIsProcessing(true);
+      
+      // Add detailed logging for debugging
+      console.log("ValuationContent: Continue button clicked", {
+        hasHandler: !!onContinue,
+        valuationData: {
+          make,
+          model,
+          year,
+          vin,
+          reservePrice,
+          mileage
+        },
+        timestamp: new Date().toISOString()
+      });
       
       // Check if valuation data is in localStorage
       const valuationData = localStorage.getItem('valuationData');
@@ -147,10 +165,20 @@ export const ValuationContent = ({
         }
       }
       
-      // Small timeout to show processing state
+      // Call the provided continue handler
+      onContinue();
+      
+      // Reset processing state after a timeout to prevent stuck UI if navigation fails
       setTimeout(() => {
-        onContinue();
-      }, 300);
+        if (setIsProcessing) {
+          setIsProcessing(false);
+        }
+      }, 5000);
+    } else {
+      console.error("ValuationContent: No continue handler provided");
+      toast.error("Navigation error", {
+        description: "Unable to continue to listing form"
+      });
     }
   };
 

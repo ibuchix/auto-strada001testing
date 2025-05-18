@@ -5,6 +5,7 @@
  * This hook properly manages form state to avoid React queue errors
  * Updated: 2025-04-29 - Fixed state handling to ensure dialog displays with results
  * Updated: 2025-05-25 - Fixed onSubmit handler to use proper type signature
+ * Updated: 2025-05-26 - Added better continue handling and enhanced with useValuationContinue
  */
 
 import { useState, useCallback } from "react";
@@ -16,12 +17,16 @@ import { getValuation, cleanupValuationData } from "@/components/hero/valuation/
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { SubmitHandler } from "react-hook-form";
+import { useValuationContinue } from "./useValuationContinue";
 
 export const useEnhancedValuationForm = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [valuationResult, setValuationResult] = useState<any>(null);
+  
+  // Use the valuation continue hook for navigation handling
+  const { handleContinue: navigateToListing } = useValuationContinue();
   
   // Properly initialize dialog state
   const { 
@@ -107,10 +112,40 @@ export const useEnhancedValuationForm = () => {
 
   // Handler for continuing to car listing
   const handleContinue = useCallback(() => {
-    console.log("Continue to listing triggered");
-    setShowDialog(false);
-    navigate('/sell-my-car?from=valuation');
-  }, [navigate]);
+    console.log("Continue to listing triggered", {
+      valuationData: valuationResult ? {
+        make: valuationResult.make,
+        model: valuationResult.model,
+        vin: valuationResult.vin,
+        reservePrice: valuationResult.reservePrice
+      } : null,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      // Close the dialog
+      setShowDialog(false);
+      
+      // Use the valuation continue hook to handle navigation
+      navigateToListing(valuationResult);
+      
+      toast.success("Preparing your listing", {
+        description: "Setting up your car details"
+      });
+    } catch (error) {
+      console.error("Error in continue handler:", error);
+      toast.error("Navigation error", {
+        description: "Please try again or refresh the page"
+      });
+      
+      // As a fallback, try direct navigation
+      try {
+        navigate('/sell-my-car?from=valuation');
+      } catch (navError) {
+        console.error("Direct navigation also failed:", navError);
+      }
+    }
+  }, [navigate, valuationResult, navigateToListing]);
 
   // Reset form state
   const resetForm = useCallback(() => {

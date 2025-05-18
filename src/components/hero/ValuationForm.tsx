@@ -10,12 +10,14 @@
  * - 2025-05-17: Fixed type imports to use consistent ValuationFormData interface
  * - 2025-05-24: Fixed import paths and rendering issues to ensure content appears
  * - 2025-05-25: Fixed form submission handler to resolve type mismatch error
+ * - 2025-05-26: Added onContinue handler to properly navigate after valuation
  */
 
 import React, { useEffect } from 'react';
 import ValuationInput from './ValuationInput';
 import { ValuationResult } from './ValuationResult';
 import { useEnhancedValuationForm } from '@/hooks/valuation/useEnhancedValuationForm';
+import { useValuationResultNavigation } from '@/components/hero/valuation/hooks/useValuationResultNavigation';
 
 export const ValuationForm = () => {
   const {
@@ -25,13 +27,23 @@ export const ValuationForm = () => {
     setShowDialog,
     valuationResult,
     handleFormSubmit,
-    resetForm
+    resetForm,
+    handleContinue
   } = useEnhancedValuationForm();
   
   // Log to help debug rendering
   useEffect(() => {
-    console.log("ValuationForm rendered");
-  }, []);
+    console.log("ValuationForm rendered with dialog state:", {
+      showDialog,
+      hasValuationResult: !!valuationResult,
+      resultDetails: valuationResult ? {
+        make: valuationResult.make,
+        model: valuationResult.model,
+        vin: valuationResult.vin,
+        reservePrice: valuationResult.reservePrice
+      } : null
+    });
+  }, [showDialog, valuationResult]);
 
   return (
     <div className="w-full max-w-md mx-auto bg-white/5 backdrop-blur-lg rounded-xl p-5 shadow-lg border border-gray-100">
@@ -45,6 +57,7 @@ export const ValuationForm = () => {
           onOpenChange={setShowDialog}
           result={valuationResult}
           onReset={resetForm}
+          onContinue={handleContinue} // Add the continue handler prop
         />
       )}
     </div>
