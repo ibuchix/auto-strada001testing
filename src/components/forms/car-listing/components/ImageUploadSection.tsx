@@ -3,6 +3,7 @@
  * Image Upload Section for car listing forms
  * Created: 2025-06-04
  * Updated: 2025-07-24 - Fixed form field types and form value setting
+ * Updated: 2025-05-24 - Added connection to form submission and improved upload state management
  * 
  * This component handles image uploads and prevents auto-saving during uploads
  * to avoid performance issues and flickering.
@@ -41,13 +42,37 @@ export const ImageUploadSection = ({
     uploadProgress,
     startUpload,
     finishUpload,
-    updateProgress
+    updateProgress,
+    finalizeUploads
   } = useImageUploadManager({ 
     form, 
     pauseAutoSave, 
     resumeAutoSave, 
     carId 
   });
+  
+  // Make the finalizeUploads method available for the form submission
+  useEffect(() => {
+    // Set up global access to the finalizeUploads function for form submission
+    (window as any).__tempFileUploadManager = {
+      finalizeUploads: async (id: string) => {
+        console.log(`Finalizing uploads for car ${id}`);
+        try {
+          // Use the current carId or the one provided
+          const result = await finalizeUploads(id || carId || '');
+          return result;
+        } catch (err) {
+          console.error('Error finalizing uploads:', err);
+          throw err;
+        }
+      }
+    };
+    
+    // Cleanup
+    return () => {
+      (window as any).__tempFileUploadManager = null;
+    };
+  }, [finalizeUploads, carId]);
   
   // Initialize images from form data on mount
   useEffect(() => {
@@ -71,27 +96,45 @@ export const ImageUploadSection = ({
         const file = acceptedFiles[i];
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('carId', carId);
+        formData.append('type', 'additional_photos');
         
         // Update progress as we process each file
         updateProgress(Math.round((i / acceptedFiles.length) * 100));
         
-        // Upload image
-        const response = await fetch(`/api/upload-car-image?carId=${carId}`, {
-          method: 'POST',
-          body: formData,
-        });
+        console.log(`Uploading file ${file.name} for car ${carId}`);
         
-        if (!response.ok) throw new Error('Upload failed');
-        
-        const { filePath } = await response.json();
-        newImages.push(filePath);
+        try {
+          // Upload image using our new API endpoint
+          const response = await fetch(`/api/upload-car-image`, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            console.error(`Upload failed with status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Upload failed');
+          }
+          
+          const data = await response.json();
+          console.log(`Upload successful:`, data);
+          
+          if (data.filePath) {
+            newImages.push(data.filePath);
+          } else if (data.publicUrl) {
+            newImages.push(data.publicUrl);
+          }
+        } catch (uploadError) {
+          console.error(`Error uploading file ${file.name}:`, uploadError);
+          // Continue with other files even if this one fails
+        }
       }
       
       // Update local state
       setImages(newImages);
       
       // Update form values - fixed the 'images' field assignment
-      const formData = form.getValues();
       form.setValue("images", newImages, { shouldDirty: true });
       
       // Complete upload successfully

@@ -8,8 +8,9 @@
  * - Added retry capability for failed submissions
  * - Enhanced accessibility
  * - 2025-04-17: Fixed toast import path
+ * - 2025-05-24: Added enhanced loading states and upload verification
  */
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -20,6 +21,7 @@ interface FormSubmitButtonProps extends ButtonProps {
   children?: React.ReactNode;
   onSubmitClick?: () => void;
   formId?: string;
+  onVerifyUploads?: () => Promise<boolean>;
 }
 
 export const FormSubmitButton = ({
@@ -29,13 +31,23 @@ export const FormSubmitButton = ({
   className,
   onSubmitClick,
   formId = "unknown",
+  onVerifyUploads,
   ...props
 }: FormSubmitButtonProps) => {
   const [clickAttempts, setClickAttempts] = useState(0);
   const [lastClickTime, setLastClickTime] = useState(0);
+  const [verifyingUploads, setVerifyingUploads] = useState(false);
+  const [submissionPhase, setSubmissionPhase] = useState<'idle' | 'verifying' | 'uploading' | 'submitting'>('idle');
   
-  // Enhanced click handler with debugging
-  const handleClick = useCallback((e: React.MouseEvent) => {
+  // Reset submission phase when isSubmitting changes to false
+  useEffect(() => {
+    if (!isSubmitting && submissionPhase !== 'idle') {
+      setSubmissionPhase('idle');
+    }
+  }, [isSubmitting]);
+  
+  // Enhanced click handler with upload verification
+  const handleClick = useCallback(async (e: React.MouseEvent) => {
     const now = Date.now();
     const timeSinceLastClick = now - lastClickTime;
     
@@ -54,12 +66,12 @@ export const FormSubmitButton = ({
     setClickAttempts(prev => prev + 1);
     setLastClickTime(now);
     
-    // If button is already submitting or disabled, show feedback
-    if (isSubmitting) {
-      console.log(`[FormSubmitButton][${formId}] Already submitting, ignoring click`);
+    // If button is already in a loading state, show feedback
+    if (isSubmitting || verifyingUploads) {
+      console.log(`[FormSubmitButton][${formId}] Already processing, ignoring click`);
       toast({
         title: "Processing",
-        description: "Your submission is being processed..."
+        description: `Your submission is being ${submissionPhase}. Please wait...`
       });
       return;
     }
@@ -69,11 +81,49 @@ export const FormSubmitButton = ({
       return;
     }
     
-    // Call the provided click handler
+    // Verify uploads if handler is provided
+    if (onVerifyUploads) {
+      try {
+        setVerifyingUploads(true);
+        setSubmissionPhase('verifying');
+        
+        console.log(`[FormSubmitButton][${formId}] Verifying uploads before submission`);
+        const uploadsComplete = await onVerifyUploads();
+        
+        if (!uploadsComplete) {
+          console.log(`[FormSubmitButton][${formId}] Uploads not complete, aborting submission`);
+          toast({
+            variant: "destructive",
+            title: "Files still uploading",
+            description: "Please wait for all files to finish uploading before submitting."
+          });
+          setVerifyingUploads(false);
+          setSubmissionPhase('idle');
+          return;
+        }
+        
+        console.log(`[FormSubmitButton][${formId}] All uploads verified, proceeding with submission`);
+        setSubmissionPhase('submitting');
+      } catch (error) {
+        console.error(`[FormSubmitButton][${formId}] Error verifying uploads:`, error);
+        toast({
+          variant: "destructive",
+          title: "Upload Verification Error",
+          description: "There was a problem verifying your uploads. Please try again."
+        });
+        setVerifyingUploads(false);
+        setSubmissionPhase('idle');
+        return;
+      } finally {
+        setVerifyingUploads(false);
+      }
+    }
+    
+    // Continue with the provided click handler
     if (onSubmitClick) {
       try {
         console.log(`[FormSubmitButton][${formId}] Calling onSubmitClick handler`);
-        onSubmitClick();
+        await onSubmitClick();
       } catch (error) {
         console.error(`[FormSubmitButton][${formId}] Error in click handler:`, error);
         toast({
@@ -81,25 +131,42 @@ export const FormSubmitButton = ({
           title: "Submission Error",
           description: "There was a problem processing your request. Please try again."
         });
+        setSubmissionPhase('idle');
       }
     }
-  }, [isSubmitting, props.disabled, onSubmitClick, formId, clickAttempts, lastClickTime]);
+  }, [isSubmitting, verifyingUploads, props.disabled, onSubmitClick, formId, clickAttempts, lastClickTime, onVerifyUploads, submissionPhase]);
+  
+  // Determine loading text based on submission phase
+  const getStatusText = () => {
+    switch(submissionPhase) {
+      case 'verifying': 
+        return "Verifying uploads...";
+      case 'uploading': 
+        return "Finalizing uploads...";
+      case 'submitting': 
+        return loadingText;
+      default: 
+        return loadingText;
+    }
+  };
+  
+  const isProcessing = isSubmitting || verifyingUploads;
   
   return (
     <Button
       type="submit"
       className={`relative ${className}`}
-      disabled={isSubmitting || props.disabled}
-      aria-busy={isSubmitting}
+      disabled={isProcessing || props.disabled}
+      aria-busy={isProcessing}
       onClick={handleClick}
       data-testid="form-submit-button"
-      aria-label={isSubmitting ? loadingText : (children?.toString() || "Submit")}
+      aria-label={isProcessing ? getStatusText() : (children?.toString() || "Submit")}
       {...props}
     >
-      {isSubmitting ? (
+      {isProcessing ? (
         <span className="flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
-          {loadingText}
+          {getStatusText()}
         </span>
       ) : (
         <span className="flex items-center gap-2">

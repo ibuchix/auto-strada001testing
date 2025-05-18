@@ -1,31 +1,38 @@
 
-import { corsHeaders } from './cors.ts';
+/**
+ * Validation utilities for the process-image edge function
+ */
 
-export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-export const ALLOWED_DOCUMENT_TYPES = [
-  'application/pdf', 
-  'application/msword', 
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-];
-
-export function validateUpload(file: File, type: string): void {
-  if (!file || !type) {
-    throw new Error('Missing required fields');
+export function validateUpload(file: File, type: string) {
+  // Check if file exists
+  if (!file) {
+    throw new Error('No file provided');
   }
-
-  // Validate file type based on upload category
-  const isServiceDocument = type.includes('service_document');
-  const allowedTypes = isServiceDocument 
-    ? [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOCUMENT_TYPES]
-    : ALLOWED_IMAGE_TYPES;
   
-  if (!allowedTypes.includes(file.type)) {
-    throw new Error(`File type ${file.type} not allowed for ${isServiceDocument ? 'documents' : 'images'}`);
+  // Check if type is provided
+  if (!type) {
+    throw new Error('File category (type) is required');
   }
-
-  // Check file size
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`File size must be less than ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
+  
+  // Validate file type (allow images only)
+  const allowedMimeTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'image/svg+xml',
+    'application/pdf' // Allow PDFs for documents
+  ];
+  
+  if (!allowedMimeTypes.includes(file.type)) {
+    throw new Error(`Invalid file type: ${file.type}. Allowed types: ${allowedMimeTypes.join(', ')}`);
   }
+  
+  // Validate file size (max 10MB)
+  const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+  if (file.size > maxSizeBytes) {
+    throw new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB. Maximum size: 10MB`);
+  }
+  
+  return true;
 }

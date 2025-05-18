@@ -15,15 +15,18 @@
  * Updated: 2025-05-17 - Added better cross-origin error suppression
  * Updated: 2025-05-17 - Improved permission handling with auth tokens
  * Updated: 2025-05-18 - Fixed permission issues with VIN reservation checks
+ * Updated: 2025-05-24 - Added image upload finalization check before submission
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext, useRef } from "react";
 import { useFormData } from "../context/FormDataContext";
 import { useFormSubmission } from "./FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { recoverVinReservation } from "@/services/reservationRecoveryService";
+// Import FormSubmitButton to use our enhanced version
+import { FormSubmitButton } from "../FormSubmitButton";
 
 interface FormSubmitHandlerProps {
   onSubmitSuccess?: (carId: string) => void;
@@ -41,9 +44,62 @@ export const FormSubmitHandler = ({
   const { submissionState, submitForm, resetSubmissionState } = useFormSubmission();
   const { form } = useFormData();
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
+  const [isFinalizingUploads, setIsFinalizingUploads] = useState(false);
+  const temporaryUploaderRef = useRef<{ finalizeUploads?: (carId: string) => Promise<any> }>(null);
   
   // Check if we have valid userId before allowing submission
-  const isSubmitDisabled = !userId || submissionState.isSubmitting || isCreatingReservation;
+  const isSubmitDisabled = !userId || submissionState.isSubmitting || isCreatingReservation || isFinalizingUploads;
+  
+  // Add support for image upload finalization
+  const registerUploader = (uploader: any) => {
+    if (uploader && uploader.finalizeUploads) {
+      temporaryUploaderRef.current = uploader;
+    }
+  };
+  
+  // Verify and finalize all uploads before submission
+  const verifyUploads = async (): Promise<boolean> => {
+    if (!temporaryUploaderRef.current || !temporaryUploaderRef.current.finalizeUploads) {
+      console.log("No upload finalizer registered, proceeding with submission");
+      return true; // No uploader registered, assume all is well
+    }
+    
+    if (!carId) {
+      console.error("Missing carId, cannot finalize uploads");
+      toast.error("Missing car ID", {
+        description: "Cannot process uploads without a car ID"
+      });
+      return false;
+    }
+    
+    try {
+      setIsFinalizingUploads(true);
+      console.log(`Finalizing uploads for car ${carId}`);
+      
+      // Allow some time for any pending uploads to complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const results = await temporaryUploaderRef.current.finalizeUploads(carId);
+      
+      console.log(`Upload finalization complete, results:`, results);
+      
+      if (Array.isArray(results) && results.length > 0) {
+        toast.success(`${results.length} files processed successfully`, {
+          description: "Your images are ready for submission"
+        });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error finalizing uploads:", error);
+      toast.error("Upload error", {
+        description: "Failed to process some uploads. You may try again or proceed with available images."
+      });
+      return false;
+    } finally {
+      setIsFinalizingUploads(false);
+    }
+  };
   
   // Ensure VIN reservation exists before submission
   const ensureVinReservation = async (values: any): Promise<boolean> => {
@@ -86,7 +142,7 @@ export const FormSubmitHandler = ({
         }
       }
       
-      // Try to create a VIN reservation using our new recovery service
+      // Try to create a VIN reservation using our recovery service
       console.log('Creating VIN reservation before submission:', vin);
       setIsCreatingReservation(true);
       
@@ -135,7 +191,10 @@ export const FormSubmitHandler = ({
         return;
       }
       
-      // Ensure VIN reservation exists
+      // First, finalize any pending uploads
+      await verifyUploads();
+      
+      // Then ensure VIN reservation exists
       const reservationCreated = await ensureVinReservation(values);
       if (!reservationCreated) {
         return;
@@ -198,6 +257,15 @@ export const FormSubmitHandler = ({
     };
   }, [resetSubmissionState]);
   
+  // Register image uploader from context if available
+  useEffect(() => {
+    // This would be implemented to connect to any image uploaders in the form
+    const uploadManager = (window as any).__tempFileUploadManager;
+    if (uploadManager) {
+      registerUploader(uploadManager);
+    }
+  }, []);
+  
   return (
     <div className="flex flex-col gap-4">
       {submissionState.error && (
@@ -206,24 +274,16 @@ export const FormSubmitHandler = ({
         </div>
       )}
       
-      <Button 
-        type="button" 
-        onClick={handleSubmit} 
+      <FormSubmitButton 
+        onSubmitClick={handleSubmit} 
+        isSubmitting={submissionState.isSubmitting || isCreatingReservation || isFinalizingUploads}
         disabled={isSubmitDisabled}
-        className={`${submissionState.isSubmitting || isCreatingReservation ? "opacity-70" : ""} bg-[#DC143C] hover:bg-[#DC143C]/90`}
+        className={`${isSubmitDisabled ? "opacity-70" : ""} bg-[#DC143C] hover:bg-[#DC143C]/90`}
+        onVerifyUploads={verifyUploads}
+        formId="car-listing-form"
       >
-        {submissionState.isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Submitting...
-          </>
-        ) : isCreatingReservation ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Preparing submission...
-          </>
-        ) : "Submit Listing"}
-      </Button>
+        Submit Listing
+      </FormSubmitButton>
       
       {submissionState.isSuccessful && (
         <div className="bg-green-50 text-green-800 p-4 rounded-md">
