@@ -1548,6 +1548,96 @@ export type Database = {
         Args: { p_car_id: string; p_admin_id: string; p_sold?: boolean }
         Returns: Json
       }
+      admin_get_active_auctions: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          additional_photos: Json | null
+          address: string | null
+          auction_end_time: string | null
+          auction_status: string | null
+          created_at: string
+          current_bid: number | null
+          features: Json | null
+          finance_amount: number | null
+          form_metadata: Json | null
+          has_private_plate: boolean | null
+          has_service_history: boolean | null
+          id: string
+          images: string[] | null
+          is_auction: boolean | null
+          is_damaged: boolean | null
+          is_draft: boolean
+          is_manually_controlled: boolean | null
+          is_registered_in_poland: boolean | null
+          make: string | null
+          mileage: number | null
+          minimum_bid_increment: number | null
+          mobile_number: string | null
+          model: string | null
+          number_of_keys: number | null
+          price: number
+          registration_number: string | null
+          required_photos: Json | null
+          reserve_price: number | null
+          seat_material: string | null
+          seller_id: string | null
+          seller_name: string | null
+          seller_notes: string | null
+          service_history_type: string | null
+          status: string | null
+          title: string | null
+          transmission: string | null
+          updated_at: string
+          valuation_data: Json | null
+          vin: string | null
+          year: number | null
+        }[]
+      }
+      admin_get_auction_listings: {
+        Args: { p_show_all?: boolean; p_status?: string }
+        Returns: {
+          additional_photos: Json | null
+          address: string | null
+          auction_end_time: string | null
+          auction_status: string | null
+          created_at: string
+          current_bid: number | null
+          features: Json | null
+          finance_amount: number | null
+          form_metadata: Json | null
+          has_private_plate: boolean | null
+          has_service_history: boolean | null
+          id: string
+          images: string[] | null
+          is_auction: boolean | null
+          is_damaged: boolean | null
+          is_draft: boolean
+          is_manually_controlled: boolean | null
+          is_registered_in_poland: boolean | null
+          make: string | null
+          mileage: number | null
+          minimum_bid_increment: number | null
+          mobile_number: string | null
+          model: string | null
+          number_of_keys: number | null
+          price: number
+          registration_number: string | null
+          required_photos: Json | null
+          reserve_price: number | null
+          seat_material: string | null
+          seller_id: string | null
+          seller_name: string | null
+          seller_notes: string | null
+          service_history_type: string | null
+          status: string | null
+          title: string | null
+          transmission: string | null
+          updated_at: string
+          valuation_data: Json | null
+          vin: string | null
+          year: number | null
+        }[]
+      }
       analyze_bidding_strategy: {
         Args: { p_dealer_id: string }
         Returns: Json
@@ -1654,9 +1744,41 @@ export type Database = {
         Args: { p_car_id: string }
         Returns: Json
       }
+      fetch_seller_auction_results: {
+        Args: { p_seller_id?: string }
+        Returns: {
+          auction_id: string | null
+          bid_count: number | null
+          bidding_activity_timeline: Json | null
+          car_id: string | null
+          created_at: string | null
+          final_price: number | null
+          highest_bid_dealer_id: string | null
+          id: string
+          sale_status: string | null
+          total_bids: number | null
+          unique_bidders: number | null
+        }[]
+      }
       get_auction_activity_metrics: {
         Args: { p_car_id: string }
         Returns: Json
+      }
+      get_auction_results_for_seller: {
+        Args: { p_seller_id: string }
+        Returns: {
+          auction_id: string | null
+          bid_count: number | null
+          bidding_activity_timeline: Json | null
+          car_id: string | null
+          created_at: string | null
+          final_price: number | null
+          highest_bid_dealer_id: string | null
+          id: string
+          sale_status: string | null
+          total_bids: number | null
+          unique_bidders: number | null
+        }[]
       }
       get_bid_recommendations: {
         Args: { p_car_id: string; p_dealer_id: string }
@@ -1844,7 +1966,7 @@ export type Database = {
         Returns: boolean
       }
       is_seller: {
-        Args: Record<PropertyKey, never>
+        Args: Record<PropertyKey, never> | { p_user_id?: string }
         Returns: boolean
       }
       is_verified_seller: {
