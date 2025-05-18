@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-06-07: Created FormSuccessDialog to show after successful form submission
  * - 2028-06-15: Added micro-interactions for success dialog
+ * - 2025-06-13: Added auto-navigation to seller dashboard
  */
 
 import {
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Check, ArrowRight, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Progress } from "@/components/ui/progress";
 
 interface FormSuccessDialogProps {
   open: boolean;
@@ -32,6 +34,8 @@ export const FormSuccessDialog = ({
   const [showTitle, setShowTitle] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const [showButtons, setShowButtons] = useState(false);
+  const [autoRedirectSeconds, setAutoRedirectSeconds] = useState(5);
+  const [redirectProgress, setRedirectProgress] = useState(0);
 
   // Staggered animation effect
   useEffect(() => {
@@ -52,8 +56,32 @@ export const FormSuccessDialog = ({
       setShowTitle(false);
       setShowDescription(false);
       setShowButtons(false);
+      setAutoRedirectSeconds(5);
+      setRedirectProgress(0);
     }
   }, [open]);
+
+  // Auto-redirect countdown timer
+  useEffect(() => {
+    if (!open || autoRedirectSeconds <= 0) return;
+    
+    const timer = setInterval(() => {
+      setAutoRedirectSeconds((prev) => {
+        const newValue = prev - 1;
+        setRedirectProgress(((5 - newValue) / 5) * 100);
+        return newValue;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [open, autoRedirectSeconds]);
+  
+  // Redirect to dashboard when countdown reaches zero
+  useEffect(() => {
+    if (autoRedirectSeconds === 0) {
+      handleViewDashboard();
+    }
+  }, [autoRedirectSeconds]);
 
   const handleViewDashboard = () => {
     navigate("/seller-dashboard");
@@ -88,6 +116,13 @@ export const FormSuccessDialog = ({
             You will receive a confirmation email with details about next steps. 
             You can view the status of your listing on your dashboard.
           </p>
+          
+          <div className="mt-4 space-y-2 text-center">
+            <p className="text-sm font-medium">
+              Redirecting to dashboard in {autoRedirectSeconds} {autoRedirectSeconds === 1 ? 'second' : 'seconds'}
+            </p>
+            <Progress value={redirectProgress} className="h-2" />
+          </div>
         </div>
         
         <DialogFooter className={`flex flex-col sm:flex-row gap-2 transition-all duration-500 ${showButtons ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-4'}`}>

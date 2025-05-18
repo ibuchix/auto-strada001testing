@@ -3,6 +3,7 @@
  * Changes made:
  * - Added reference to saving functionality for resuming later
  * - 2028-06-15: Added micro-interactions for success dialog
+ * - 2025-06-13: Added auto-navigation to dashboard
  */
 
 import {
@@ -15,8 +16,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, ArrowRight, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Progress } from "@/components/ui/progress";
 
 interface SuccessDialogProps {
   open: boolean;
@@ -31,11 +33,14 @@ export const SuccessDialog = ({
   lastSaved,
   carId
 }: SuccessDialogProps) => {
+  const navigate = useNavigate();
   const [showIcon, setShowIcon] = useState(false);
   const [showTitle, setShowTitle] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const [showContent, setShowContent] = useState(false);
   const [showButtons, setShowButtons] = useState(false);
+  const [autoRedirectSeconds, setAutoRedirectSeconds] = useState(5);
+  const [redirectProgress, setRedirectProgress] = useState(0);
 
   // Staggered animation effect
   useEffect(() => {
@@ -59,8 +64,38 @@ export const SuccessDialog = ({
       setShowDescription(false);
       setShowContent(false);
       setShowButtons(false);
+      setAutoRedirectSeconds(5);
+      setRedirectProgress(0);
     }
   }, [open]);
+  
+  // Auto-redirect countdown timer
+  useEffect(() => {
+    if (!open || autoRedirectSeconds <= 0) return;
+    
+    const timer = setInterval(() => {
+      setAutoRedirectSeconds((prev) => {
+        const newValue = prev - 1;
+        setRedirectProgress(((5 - newValue) / 5) * 100);
+        return newValue;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [open, autoRedirectSeconds]);
+  
+  // Redirect to dashboard when countdown reaches zero
+  useEffect(() => {
+    if (autoRedirectSeconds === 0) {
+      handleNavigateToDashboard();
+    }
+  }, [autoRedirectSeconds]);
+  
+  // Handle automatic navigation to dashboard
+  const handleNavigateToDashboard = () => {
+    navigate("/dashboard/seller");
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -93,6 +128,13 @@ export const SuccessDialog = ({
           <p className="mt-3 text-xs text-gray-500">
             Need to make changes? Use the Save & Continue Later feature to resume editing anytime.
           </p>
+          
+          <div className="mt-4 space-y-2 text-center">
+            <p className="text-sm font-medium">
+              Redirecting to dashboard in {autoRedirectSeconds} {autoRedirectSeconds === 1 ? 'second' : 'seconds'}
+            </p>
+            <Progress value={redirectProgress} className="h-2" />
+          </div>
         </div>
 
         <DialogFooter className={`sm:justify-center gap-3 transition-all duration-500 ${showButtons ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-4'}`}>
@@ -105,7 +147,7 @@ export const SuccessDialog = ({
             </Button>
           )}
           <Button asChild className="bg-[#DC143C] hover:bg-[#DC143C]/90 group">
-            <Link to="/dashboard/seller">
+            <Link to="/dashboard/seller" onClick={() => onOpenChange(false)}>
               Go to Dashboard
               <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
