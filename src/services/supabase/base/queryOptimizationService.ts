@@ -2,9 +2,10 @@
 /**
  * Changes made:
  * - 2024-10-15: Extracted query optimization functionality from baseService.ts
+ * - 2024-10-21: Fixed type import from @supabase/postgrest-js to @supabase/supabase-js
  */
 
-import { PostgrestBuilder } from "@supabase/postgrest-js";
+import { PostgrestFilterBuilder } from "@supabase/supabase-js";
 import { RetryService } from "./retryService";
 
 export class QueryOptimizationService extends RetryService {
@@ -14,7 +15,7 @@ export class QueryOptimizationService extends RetryService {
    * @param columns The columns to select (defaults to '*')
    * @returns The optimized query
    */
-  protected optimizeSelect<T extends PostgrestBuilder<any, any>>(
+  protected optimizeSelect<T extends PostgrestFilterBuilder<any>>(
     query: T,
     columns: string = '*'
   ): T {
@@ -29,7 +30,7 @@ export class QueryOptimizationService extends RetryService {
    * @param pageSize The number of items per page
    * @returns Paginated query
    */
-  protected paginateQuery<T extends PostgrestBuilder<any, any>>(
+  protected paginateQuery<T extends PostgrestFilterBuilder<any>>(
     query: T, 
     page: number = 1, 
     pageSize: number = 20
