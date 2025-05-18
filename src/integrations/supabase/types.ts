@@ -1760,6 +1760,10 @@ export type Database = {
           unique_bidders: number | null
         }[]
       }
+      fetch_seller_performance: {
+        Args: { p_seller_id?: string }
+        Returns: Json
+      }
       get_auction_activity_metrics: {
         Args: { p_car_id: string }
         Returns: Json
@@ -1903,24 +1907,7 @@ export type Database = {
       }
       get_seller_performance_metrics: {
         Args: { p_seller_id: string }
-        Returns: {
-          active_listings: number
-          average_price: number | null
-          average_time_to_sell: unknown | null
-          cancelled_listings: number
-          created_at: string
-          highest_price_sold: number | null
-          id: string
-          last_listing_date: string | null
-          last_sale_date: string | null
-          listing_approval_rate: number | null
-          reserve_price_met_rate: number | null
-          seller_id: string
-          sold_listings: number
-          total_earnings: number
-          total_listings: number
-          updated_at: string
-        }[]
+        Returns: Json
       }
       get_seller_profile: {
         Args: { p_user_id: string }

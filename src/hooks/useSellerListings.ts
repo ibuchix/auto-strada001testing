@@ -19,7 +19,6 @@ import { Session } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CarListing } from "@/types/dashboard";
-import { AuthErrorHandler } from "@/components/error-handling/AuthErrorHandler";
 import { toast } from "sonner";
 
 // Get the Supabase URL and key from the environment variables
