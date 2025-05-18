@@ -4,6 +4,8 @@
  * Created: 2025-05-12
  * Purpose: Helper functions for handling photo uploads
  * Updated: 2025-08-18 - Added support for rim photos
+ * Updated: 2025-08-27 - Fixed type issues with photo upload functions
+ * Updated: 2025-08-27 - Added better error handling for uploads
  */
 
 import { UseFormSetValue, UseFormGetValues } from 'react-hook-form';
@@ -14,7 +16,11 @@ export const setPhotoField = (
   value: string,
   setValue: UseFormSetValue<any>
 ) => {
-  setValue(`vehiclePhotos.${fieldName}`, value, { shouldDirty: true });
+  try {
+    setValue(`vehiclePhotos.${fieldName}`, value, { shouldDirty: true });
+  } catch (error) {
+    console.error(`Error setting photo field ${fieldName}:`, error);
+  }
 };
 
 // Helper to set rim photo field specifically
@@ -23,7 +29,11 @@ export const setRimPhotoField = (
   value: string,
   setValue: UseFormSetValue<any>
 ) => {
-  setValue(`rimPhotos.${position}`, value, { shouldDirty: true });
+  try {
+    setValue(`rimPhotos.${position}`, value, { shouldDirty: true });
+  } catch (error) {
+    console.error(`Error setting rim photo field ${position}:`, error);
+  }
 };
 
 // Update the vehicle photos object with all photos
@@ -31,31 +41,44 @@ export const updateVehiclePhotos = (
   setValue: UseFormSetValue<any>,
   getValues: UseFormGetValues<any>
 ) => {
-  const vehiclePhotos = getValues('vehiclePhotos') || {};
-  const rimPhotos = getValues('rimPhotos') || {};
-  
-  setValue('vehiclePhotos', {
-    ...vehiclePhotos
-  }, { shouldDirty: true });
-  
-  setValue('rimPhotos', {
-    ...rimPhotos
-  }, { shouldDirty: true });
+  try {
+    const vehiclePhotos = getValues('vehiclePhotos') || {};
+    const rimPhotos = getValues('rimPhotos') || {};
+    
+    setValue('vehiclePhotos', {
+      ...vehiclePhotos
+    }, { shouldDirty: true });
+    
+    setValue('rimPhotos', {
+      ...rimPhotos
+    }, { shouldDirty: true });
+  } catch (error) {
+    console.error("Error updating vehicle photos:", error);
+  }
 };
 
 // Convert file to base64 for preview
 export const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    } catch (error) {
+      reject(new Error("Failed to convert file to base64"));
+    }
   });
 };
 
 // Generate a unique ID for files
 export const generateFileId = (): string => {
-  return Math.random().toString(36).substring(2, 11);
+  try {
+    return crypto.randomUUID();
+  } catch (e) {
+    // Fallback for browsers without crypto.randomUUID()
+    return Math.random().toString(36).substring(2, 11);
+  }
 };
 
 // Validate image file type and size
@@ -72,4 +95,20 @@ export const validateImageFile = (file: File): { valid: boolean; message?: strin
   }
   
   return { valid: true };
+};
+
+// Helper to check if all required photos are uploaded
+export const areAllRequiredPhotosUploaded = (vehiclePhotos: Record<string, string | undefined>): boolean => {
+  const requiredFields = [
+    'frontView',
+    'rearView',
+    'driverSide',
+    'passengerSide',
+    'dashboard',
+    'interiorFront'
+  ];
+  
+  return requiredFields.every(field => 
+    vehiclePhotos[field] && vehiclePhotos[field]!.trim() !== ''
+  );
 };
