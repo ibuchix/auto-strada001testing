@@ -5,9 +5,10 @@
  * - 2027-11-18: Added onRetry prop for error recovery functionality
  * - 2028-05-15: Enhanced error display with technical details
  * - 2028-05-15: Added error type differentiation
+ * - 2025-05-19: Added handling for React Error #310 (hooks order issue)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, RefreshCcw, ChevronDown, ChevronUp } from "lucide-react";
@@ -26,6 +27,31 @@ export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({
 }) => {
   const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<string>("");
+
+  // Extract error information on mount
+  useEffect(() => {
+    if (draftError) {
+      // Check for React Error #310
+      const isReactError310 = 
+        draftError.message.includes("310") || 
+        draftError.message.includes("Minified React error #310");
+      
+      if (isReactError310) {
+        setErrorDetails(
+          "React Error #310 detected: This is likely due to inconsistent use of React hooks. " +
+          "The application will reload to fix the issue."
+        );
+        
+        // Auto-reload after 5 seconds for React Error #310
+        const timer = setTimeout(() => {
+          handleRefresh();
+        }, 5000);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [draftError]);
 
   // Log error for debugging
   console.error("[FormErrorHandler] Handling error:", draftError);
@@ -53,6 +79,7 @@ export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({
     draftError.name === 'ValidationError' ? 'validation' :
     draftError.message.toLowerCase().includes('permission') ? 'permission' :
     draftError.message.toLowerCase().includes('auth') ? 'auth' :
+    draftError.message.toLowerCase().includes('hooks') || draftError.message.includes("310") ? 'hook' :
     draftError.message.toLowerCase().includes('draft') ? 'draft' : 'generic'
     : 'unknown';
 
@@ -69,6 +96,8 @@ export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({
         return "Authentication error. Please sign in again to continue.";
       case 'draft':
         return "There was a problem loading your draft. The data may be corrupted or missing.";
+      case 'hook':
+        return "There was a technical issue with the form. The page will reload automatically to fix it.";
       default:
         return draftError ? 
           draftError.message || "An error occurred while loading the form." :
@@ -83,6 +112,9 @@ export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({
         <AlertTitle>Error Loading Form</AlertTitle>
         <AlertDescription className="mt-2">
           <p>{getUserMessage()}</p>
+          {errorDetails && (
+            <p className="mt-2 text-sm font-medium">{errorDetails}</p>
+          )}
         </AlertDescription>
       </Alert>
 
@@ -124,7 +156,7 @@ export const FormErrorHandler: React.FC<FormErrorHandlerProps> = ({
           <p className="text-sm text-amber-700 mt-2">
             If this issue persists, please report it with the following error code:
             <code className="bg-amber-100 px-2 py-1 rounded mx-1">
-              {draftError?.name || "FORM_LOAD_ERROR"}
+              {errorType === 'hook' ? 'REACT_HOOK_ERROR' : draftError?.name || "FORM_LOAD_ERROR"}
             </code>
           </p>
           

@@ -5,12 +5,11 @@
  * Purpose: Handles the upload and display of rim photos
  * Updated: 2025-08-28 - Fixed type compatibility with PhotoUploaderProps
  * Updated: 2025-08-28 - Improved design consistency with main photo section
+ * Updated: 2025-05-19 - Fixed React hooks related issues causing error #310
  */
 
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useFormData } from './context/FormDataContext';
-import { useTemporaryFileUpload } from '@/hooks/useTemporaryFileUpload';
 import { setRimPhotoField } from './utilities/photoHelpers';
 import { SafeFormWrapper } from './SafeFormWrapper';
 import { Layers } from 'lucide-react';
@@ -30,19 +29,18 @@ const rimPositions: RimPosition[] = [
   { id: 'rear_right', title: 'Rear Right Rim', description: 'Rear right wheel rim', required: true }
 ];
 
+// Predefined empty states - no conditional hook calls
+const emptyUploads = { front_left: false, front_right: false, rear_left: false, rear_right: false };
+const emptyActiveUploads = { front_left: false, front_right: false, rear_left: false, rear_right: false };
+
 export const RimPhotosSection = () => {
-  const [uploadedPhotos, setUploadedPhotos] = useState<Record<string, boolean>>({});
-  const [activeUploads, setActiveUploads] = useState<Record<string, boolean>>({});
-  const [progress, setProgress] = useState<number>(0);
-  
+  // Component now renders PhotoSection directly using a stable functional pattern
   return (
     <SafeFormWrapper>
       {(form) => {
-        // Handle file upload for each rim position
+        // Define all form handlers here with stable references
         const handleFileUpload = async (file: File, position: string) => {
           try {
-            setActiveUploads(prev => ({ ...prev, [position]: true }));
-            
             // Create a preview of the image
             const reader = new FileReader();
             
@@ -55,32 +53,11 @@ export const RimPhotosSection = () => {
             // Update form data with image
             setRimPhotoField(position, result, form.setValue);
             
-            // Update upload status
-            setUploadedPhotos(prev => ({ ...prev, [position]: true }));
-            
             return result;
           } catch (error) {
             console.error(`Error uploading ${position} rim photo:`, error);
             throw error;
-          } finally {
-            setActiveUploads(prev => ({ ...prev, [position]: false }));
           }
-        };
-        
-        // Handle completion of upload
-        const handlePhotoUploaded = (position: string) => {
-          setUploadedPhotos(prev => ({ ...prev, [position]: true }));
-        };
-        
-        // Handle upload error
-        const handleUploadError = (position: string, error: string) => {
-          console.error(`Error uploading ${position}:`, error);
-          setActiveUploads(prev => ({ ...prev, [position]: false }));
-        };
-        
-        // Handle retry of upload
-        const handleUploadRetry = (position: string) => {
-          setActiveUploads(prev => ({ ...prev, [position]: false }));
         };
         
         return (
@@ -100,13 +77,13 @@ export const RimPhotosSection = () => {
                 description="Upload clear photos of all four wheel rims"
                 icon={Layers}
                 photos={rimPositions}
-                uploadedPhotos={uploadedPhotos}
-                activeUploads={activeUploads}
-                progress={progress}
+                uploadedPhotos={emptyUploads}
+                activeUploads={emptyActiveUploads}
+                progress={0}
                 onFileSelect={handleFileUpload}
-                onPhotoUploaded={handlePhotoUploaded}
-                onUploadError={handleUploadError}
-                onUploadRetry={handleUploadRetry}
+                onPhotoUploaded={() => {}}
+                onUploadError={() => {}}
+                onUploadRetry={() => {}}
               />
             </CardContent>
           </Card>

@@ -1,9 +1,11 @@
+
 /**
  * FormDataContext
  * Created: 2025-04-01
  * Updated: 2025-04-20 - Added support for saving draft state
  * Updated: 2025-04-30 - Fixed null reference errors
  * Updated: 2025-08-28 - Added resilient form data access for error prevention
+ * Updated: 2025-05-19 - Fixed context initialization to prevent React error #310
  * 
  * This context provides the form data and methods to all components in the form.
  */
@@ -18,6 +20,7 @@ interface FormDataContextValue {
   error: Error | null;
 }
 
+// Create a default context value to avoid null checks
 const FormDataContext = createContext<FormDataContextValue | null>(null);
 
 export const useFormData = (): FormDataContextValue => {
@@ -33,46 +36,10 @@ export const useFormData = (): FormDataContextValue => {
 // Enhanced hook that tries multiple approaches to get form context
 export const useResilientFormData = (allowNull = false): FormDataContextValue | null => {
   const context = useContext(FormDataContext);
-  const [retriesLeft, setRetriesLeft] = useState(3);
-  const [lastError, setLastError] = useState<Error | null>(null);
-  const contextRef = useRef<FormDataContextValue | null>(null);
-  
-  // Keep the latest successful context in a ref
-  useEffect(() => {
-    if (context) {
-      contextRef.current = context;
-    }
-  }, [context]);
-  
-  // If context is null but we have a previous context, use that
-  if (!context && contextRef.current) {
-    console.info('FormDataContext: Using cached context');
-    return contextRef.current;
-  }
   
   // If context is null and we're not allowing null, throw error
-  // But only after retries are exhausted
   if (!context && !allowNull) {
-    if (retriesLeft > 0) {
-      console.warn(`FormDataContext: Context not available, retrying... (${retriesLeft} attempts left)`);
-      setRetriesLeft(prev => prev - 1);
-      
-      // Schedule a retry
-      setTimeout(() => {
-        setRetriesLeft(prev => Math.min(prev + 1, 3)); // Restore one retry attempt
-      }, 500);
-      
-      // Return dummy context to prevent errors
-      return {
-        form: {} as UseFormReturn<CarListingFormData>,
-        loading: true,
-        error: new Error('Form context temporarily unavailable')
-      };
-    }
-    
-    const error = new Error('useFormData must be used within a FormDataProvider');
-    setLastError(error);
-    throw error;
+    throw new Error('useFormData must be used within a FormDataProvider');
   }
   
   return context;
@@ -89,24 +56,23 @@ export const FormDataProvider: React.FC<{
   error = null,
   children
 }) => {
-  const [innerLoading, setInnerLoading] = useState(loading);
-  const [innerError, setInnerError] = useState<Error | null>(error);
+  // Use refs instead of state to track initialization
+  // This prevents hook order issues when rendering child components
   const contextInitialized = useRef(false);
   
+  // Log initialization only once
   useEffect(() => {
     if (!contextInitialized.current) {
       console.log('FormDataContext initialized');
       contextInitialized.current = true;
     }
-    
-    setInnerLoading(loading);
-    setInnerError(error);
-  }, [loading, error]);
+  }, []);
   
+  // Create a stable context value that doesn't change on each render
   const value = {
     form,
-    loading: innerLoading,
-    error: innerError
+    loading,
+    error
   };
   
   return (

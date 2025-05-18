@@ -5,7 +5,7 @@
  * Updated: 2025-05-05 - Added auto-population of fields from valuation data
  * Updated: 2025-05-06 - Fixed TypeScript errors related to error handling and form props
  * Updated: 2025-05-18 - Fixed type errors for form value assignments
- * Updated: 2025-05-19 - Fixed TypeScript errors related to toString calls on potentially never types
+ * Updated: 2025-05-19 - Fixed TypeScript errors related to toString calls and React error #310
  */
 
 import { useState, useEffect } from "react";
@@ -153,7 +153,7 @@ export const VehicleDetailsSection = () => {
                 {...form.register("vin")}
                 placeholder="Vehicle Identification Number"
               />
-              <FieldError message={form.formState.errors.vin?.message?.toString()} />
+              <FieldError message={form.formState.errors.vin?.message ? String(form.formState.errors.vin?.message) : undefined} />
             </div>
 
             <div>
@@ -164,7 +164,7 @@ export const VehicleDetailsSection = () => {
                 {...form.register("year", { valueAsNumber: true })}
                 placeholder="Vehicle Year"
               />
-              <FieldError message={form.formState.errors.year?.message?.toString()} />
+              <FieldError message={form.formState.errors.year?.message ? String(form.formState.errors.year?.message) : undefined} />
             </div>
           </div>
 
@@ -176,7 +176,7 @@ export const VehicleDetailsSection = () => {
                 {...form.register("make")}
                 placeholder="Vehicle Make (e.g., Toyota)"
               />
-              <FieldError message={form.formState.errors.make?.message?.toString()} />
+              <FieldError message={form.formState.errors.make?.message ? String(form.formState.errors.make?.message) : undefined} />
             </div>
 
             <div>
@@ -186,7 +186,7 @@ export const VehicleDetailsSection = () => {
                 {...form.register("model")}
                 placeholder="Vehicle Model (e.g., Camry)"
               />
-              <FieldError message={form.formState.errors.model?.message?.toString()} />
+              <FieldError message={form.formState.errors.model?.message ? String(form.formState.errors.model?.message) : undefined} />
             </div>
           </div>
 
@@ -199,7 +199,7 @@ export const VehicleDetailsSection = () => {
                 {...form.register("mileage", { valueAsNumber: true })}
                 placeholder="Vehicle Mileage"
               />
-              <FieldError message={form.formState.errors.mileage?.message?.toString()} />
+              <FieldError message={form.formState.errors.mileage?.message ? String(form.formState.errors.mileage?.message) : undefined} />
             </div>
 
             <div>
@@ -217,7 +217,7 @@ export const VehicleDetailsSection = () => {
                   <SelectItem value="semi-automatic">Semi-automatic</SelectItem>
                 </SelectContent>
               </Select>
-              <FieldError message={form.formState.errors.transmission?.message?.toString()} />
+              <FieldError message={form.formState.errors.transmission?.message ? String(form.formState.errors.transmission?.message) : undefined} />
             </div>
           </div>
         </div>

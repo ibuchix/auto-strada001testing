@@ -1,7 +1,6 @@
 
 /**
  * Changes made:
- * - Removed diagnostic-related code
  * - 2025-11-02: Added error boundary handling for draft loading errors
  * - 2025-11-03: Added retry functionality for draft loading errors
  * - 2025-11-04: Added support for loading drafts from URL parameters
@@ -16,6 +15,7 @@
  * - 2025-05-14: Fixed FormErrorHandler prop name (error → draftError)
  * - 2025-05-15: Added form initialization safeguards and error handling
  * - 2025-05-16: Fixed provider hierarchy to ensure consistent form submission flow
+ * - 2025-05-19: Fixed React error #310 by ensuring consistent hook order
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -32,7 +32,8 @@ import { getFormDefaults } from "./car-listing/hooks/useFormHelpers";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { FormStateProvider } from "./car-listing/context/FormStateContext";
+import { FormStateProvider } from "./car-listing/components/FormStateProvider";
+import { ErrorProvider } from "@/contexts/ErrorContext";
 
 interface CarListingFormProps {
   fromValuation?: boolean;
@@ -53,21 +54,12 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
   const draftId = urlDraftId || locationDraftId;
   
   // Initialize the form with proper type conversion and error handling
+  // IMPORTANT: Always create the form in the same way on every render
+  // to prevent React Error #310
   const initialFormValues = getFormDefaults();
-  const [formInitialized, setFormInitialized] = useState(false);
-  
-  let form;
-  try {
-    form = useForm<CarListingFormData>({
-      defaultValues: initialFormValues,
-    });
-    if (!formInitialized) {
-      setFormInitialized(true);
-    }
-  } catch (error) {
-    console.error("Error initializing form:", error);
-    setFormError(error as Error);
-  }
+  const form = useForm<CarListingFormData>({
+    defaultValues: initialFormValues,
+  });
   
   // Determine if coming from valuation based on props, URL params, or location state
   const isFromValuation = fromValuation || 
@@ -76,43 +68,14 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
                           !!localStorage.getItem('valuationData');
 
   useEffect(() => {
-    if (urlDraftId) {
-      console.log("Loading draft from URL parameter:", urlDraftId);
-    } else if (locationDraftId) {
-      console.log("Loading draft from location state:", locationDraftId);
-    }
-    
-    // Log valuation status
-    if (isFromValuation) {
-      console.log("CarListingForm: Form initialized with valuation data", {
-        fromProp: fromValuation,
-        fromLocationState: !!location.state?.fromValuation,
-        fromSearchParam: searchParams.get('from') === 'valuation',
-        hasValuationData: !!localStorage.getItem('valuationData')
-      });
-      
-      // Show toast to inform user their data was loaded
-      const valuationData = localStorage.getItem('valuationData');
-      if (valuationData) {
-        try {
-          const parsedData = JSON.parse(valuationData);
-          toast.success("Vehicle valuation data loaded", {
-            description: `${parsedData.year || ''} ${parsedData.make || ''} ${parsedData.model || ''}`.trim(),
-            duration: 5000
-          });
-        } catch (e) {
-          console.error("Error parsing valuation data:", e);
-        }
-      }
-    }
-
     // Set ready state after a short delay to ensure we have session data
+    // This helps prevent context errors with React hooks
     const timer = setTimeout(() => {
       setIsReady(true);
-    }, 100);
+    }, 200);
 
     return () => clearTimeout(timer);
-  }, [urlDraftId, locationDraftId, fromValuation, location.state, searchParams, isFromValuation]);
+  }, []);
 
   const handleDraftError = useCallback((error: Error) => {
     console.error("Draft loading error:", error);
@@ -159,34 +122,27 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
       </div>
     );
   }
-  
-  // Handle case where form failed to initialize
-  if (!form) {
-    return (
-      <div className="p-6 bg-white rounded-lg shadow-sm">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Form Initialization Error</AlertTitle>
-          <AlertDescription>
-            Could not initialize the form. Please try refreshing the page.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
 
   // Wait for ready state before rendering form components
   if (!isReady) {
     return <LoadingIndicator message="Preparing form..." />;
   }
 
+  // Proper provider nesting order to avoid hook errors:
+  // 1. ErrorProvider (top level)
+  // 2. FormStateProvider (shared state)
+  // 3. FormSubmissionProvider (form submission logic)
+  // 4. FormDataProvider (form field data)
+  // 5. Actual form content
   return (
-    <FormStateProvider>
-      <FormSubmissionProvider userId={session.user.id}>
-        <FormDataProvider form={form}>
-          <FormContent carId={draftId} />
-        </FormDataProvider>
-      </FormSubmissionProvider>
-    </FormStateProvider>
+    <ErrorProvider>
+      <FormStateProvider>
+        <FormSubmissionProvider userId={session.user.id}>
+          <FormDataProvider form={form} loading={false} error={null}>
+            <FormContent carId={draftId} />
+          </FormDataProvider>
+        </FormSubmissionProvider>
+      </FormStateProvider>
+    </ErrorProvider>
   );
 };
