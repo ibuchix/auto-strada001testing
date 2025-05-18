@@ -6,10 +6,11 @@
  * Updated: 2025-05-20 - Improved type safety and rim photo handling
  * Updated: 2025-05-21 - Fixed adapter function compatibility, added setPhotoField and updateVehiclePhotos
  * Updated: 2025-05-21 - Fixed spread operator type error when handling rimPhotos
+ * Updated: 2025-05-22 - Fixed type compatibility with RimPhotos interface
  */
 
 import { UseFormSetValue, UseFormGetValues } from "react-hook-form";
-import { CarListingFormData } from '@/types/forms';
+import { CarListingFormData, RimPhotos } from '@/types/forms';
 import { TemporaryFile } from '@/hooks/useTemporaryFileUpload';
 
 /**
@@ -25,18 +26,18 @@ export const setRimPhotoField = (
     const currentRimPhotos = getValue(setValue, 'rimPhotos') || {};
     
     // Make sure currentRimPhotos is treated as a valid object before spreading
-    const safeRimPhotos: Record<string, string> = typeof currentRimPhotos === 'object' && currentRimPhotos !== null 
-      ? currentRimPhotos as Record<string, string>
+    const safeRimPhotos: Partial<RimPhotos> = typeof currentRimPhotos === 'object' && currentRimPhotos !== null 
+      ? currentRimPhotos as Partial<RimPhotos>
       : {};
     
-    // Update the specific position
+    // Update the specific position with type safety
     const updatedRimPhotos = {
       ...safeRimPhotos,
       [position]: value
     };
     
     // Set the updated object back to the form
-    setValue('rimPhotos', updatedRimPhotos, { shouldDirty: true });
+    setValue('rimPhotos', updatedRimPhotos as RimPhotos, { shouldDirty: true });
     
     console.log(`Updated rim photo for position: ${position}`);
   } catch (error) {
