@@ -13,6 +13,7 @@
  * - 2025-07-25: Fixed type errors with form field setting
  * - 2025-05-03: Updated adapter function to properly map TemporaryFile to required PhotoUploaderProps shape
  * - 2025-05-08: Fixed adapter function return type for uploadFiles to ensure type compatibility
+ * - 2025-08-28: Fixed type compatibility with PhotoUploaderProps
  */
 import React from 'react';
 import { useFormData } from './context/FormDataContext';
@@ -22,40 +23,12 @@ import { AlertCircle, Info, X } from 'lucide-react';
 import { useTemporaryFileUpload } from '@/hooks/useTemporaryFileUpload';
 import { RequiredPhotosGrid } from './photo-upload/RequiredPhotosGrid';
 import { Button } from '@/components/ui/button';
-import { setPhotoField, updateVehiclePhotos } from './utilities/photoHelpers';
+import { setPhotoField, updateVehiclePhotos, adaptTemporaryFileUploader } from './utilities/photoHelpers';
 
 interface PhotoUploadProps {
   carId?: string;
   onValidate?: () => Promise<boolean>;
 }
-
-// Define the expected props shape for the photo uploader
-interface PhotoUploaderProps {
-  files: { id: string; name: string; preview: string; url: string; }[];
-  isUploading: boolean;
-  progress: number;
-  uploadFiles: (fileList: FileList | File[]) => Promise<void>;
-  removeFile: (fileId: string) => boolean;
-}
-
-// Adapter function to convert between types safely
-const adaptFileUploader = (uploader: ReturnType<typeof useTemporaryFileUpload>): PhotoUploaderProps => {
-  return {
-    files: uploader.files.map(file => ({
-      id: file.id,
-      name: file.file?.name || 'photo',  // Add the missing name property
-      preview: file.preview || '',
-      url: file.url || ''
-    })),
-    isUploading: uploader.isUploading,
-    progress: uploader.progress,
-    // Wrapping the uploadFiles function to ensure the return type is Promise<void>
-    uploadFiles: async (fileList: FileList | File[]) => {
-      await uploader.uploadFiles(fileList);
-    },
-    removeFile: uploader.removeFile
-  };
-};
 
 export const PhotoUploadSection = ({ 
   carId, 
@@ -191,7 +164,7 @@ export const PhotoUploadSection = ({
     additionalPhotos.files
   ]);
   
-  // Rest of component stays the same
+  // Rest of component
   return (
     <FormSection 
       title="Vehicle Photos"
@@ -223,13 +196,13 @@ export const PhotoUploadSection = ({
 
       <div className="space-y-8 mb-8">
         <RequiredPhotosGrid
-          frontView={adaptFileUploader(frontView)}
-          rearView={adaptFileUploader(rearView)}
-          driverSide={adaptFileUploader(driverSide)}
-          passengerSide={adaptFileUploader(passengerSide)}
-          dashboard={adaptFileUploader(dashboard)}
-          interiorFront={adaptFileUploader(interiorFront)}
-          interiorRear={adaptFileUploader(interiorRear)}
+          frontView={adaptTemporaryFileUploader(frontView)}
+          rearView={adaptTemporaryFileUploader(rearView)}
+          driverSide={adaptTemporaryFileUploader(driverSide)}
+          passengerSide={adaptTemporaryFileUploader(passengerSide)}
+          dashboard={adaptTemporaryFileUploader(dashboard)}
+          interiorFront={adaptTemporaryFileUploader(interiorFront)}
+          interiorRear={adaptTemporaryFileUploader(interiorRear)}
         />
       </div>
       

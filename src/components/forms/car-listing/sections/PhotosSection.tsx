@@ -6,6 +6,7 @@
  * Updated: 2025-05-04 - Added RimPhotosSection to the photo upload form
  * Updated: 2025-08-27 - Improved error handling and consistent design
  * Updated: 2025-08-27 - Fixed missing uploads array error
+ * Updated: 2025-08-28 - Fixed type compatibility with PhotoUploaderProps
  * 
  * This component handles the upload of all required vehicle photos
  */
@@ -17,9 +18,10 @@ import { AlertCircle, Check, Camera } from "lucide-react";
 import { useFormData } from "../context/FormDataContext";
 import { useTemporaryFileUpload } from "@/hooks/useTemporaryFileUpload";
 import { RequiredPhotosGrid } from "../photo-upload/RequiredPhotosGrid";
+import { adaptTemporaryFileUploader } from "../utilities/photoHelpers";
 import { PhotoSection } from "../photo-upload/components/PhotoSection";
 import { RimPhotosSection } from "../RimPhotosSection";
-import { DamagePhotosSection } from "../sections/DamagePhotosSection";
+import { DamagePhotosSection } from "./DamagePhotosSection";
 import { SafeFormWrapper } from "../SafeFormWrapper";
 
 export const PhotosSection = ({ carId }: { carId?: string }) => {
@@ -164,23 +166,56 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
                 ) : null}
                 
                 <RequiredPhotosGrid
-                  frontView={frontView}
-                  rearView={rearView}
-                  driverSide={driverSide}
-                  passengerSide={passengerSide}
-                  dashboard={dashboard}
-                  interiorFront={interiorFront}
-                  interiorRear={interiorRear}
+                  frontView={adaptTemporaryFileUploader(frontView)}
+                  rearView={adaptTemporaryFileUploader(rearView)}
+                  driverSide={adaptTemporaryFileUploader(driverSide)}
+                  passengerSide={adaptTemporaryFileUploader(passengerSide)}
+                  dashboard={adaptTemporaryFileUploader(dashboard)}
+                  interiorFront={adaptTemporaryFileUploader(interiorFront)}
+                  interiorRear={adaptTemporaryFileUploader(interiorRear)}
                 />
               </CardContent>
             </Card>
             
             {/* Additional Photos Section */}
-            <PhotoSection 
-              title="Additional Photos"
-              description="Upload any additional photos of your vehicle"
-              uploader={additionalPhotos}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Additional Photos</CardTitle>
+                <CardDescription>
+                  Upload any additional photos of your vehicle
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {additionalPhotos.files.map((file) => (
+                    <div key={file.id} className="aspect-square rounded-md overflow-hidden border">
+                      <img 
+                        src={file.preview} 
+                        alt="Additional photo" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                  
+                  {additionalPhotos.files.length < 10 && (
+                    <label
+                      htmlFor="additional-photos"
+                      className="aspect-square border-2 border-dashed rounded-md flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                    >
+                      <Camera className="h-8 w-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-500">Add Photo</span>
+                      <input 
+                        type="file"
+                        id="additional-photos"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => e.target.files && additionalPhotos.uploadFiles(e.target.files)}
+                      />
+                    </label>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
             
             {/* Rim Photos Section */}
             <RimPhotosSection />

@@ -2,6 +2,7 @@
 /**
  * Hook for temporary file upload management
  * Created: 2025-07-18
+ * Updated: 2025-08-28 - Added name field to TemporaryFile to fix type compatibility
  */
 import { useState, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface TemporaryFile {
   id: string;
   file?: File;
+  name: string; // Added name field to fix type compatibility
   preview: string;
   url?: string;
 }
@@ -73,7 +75,9 @@ export const useTemporaryFileUpload = ({
       const tempFile: TemporaryFile = {
         id,
         file,
+        name: file.name || 'upload', // Add name property for type compatibility
         preview,
+        url: '' // Initialize url as empty string for type compatibility
       };
       
       setFiles(prevFiles => [...prevFiles, tempFile]);

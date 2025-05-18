@@ -6,9 +6,35 @@
  * Updated: 2025-08-18 - Added support for rim photos
  * Updated: 2025-08-27 - Fixed type issues with photo upload functions
  * Updated: 2025-08-27 - Added better error handling for uploads
+ * Updated: 2025-08-28 - Added adapter function for PhotoUploaderProps
  */
 
 import { UseFormSetValue, UseFormGetValues } from 'react-hook-form';
+import { TemporaryFile } from '@/hooks/useTemporaryFileUpload';
+
+// Adapter function to convert TemporaryFile to the format expected by PhotoUploaderProps
+export const adaptTemporaryFileUploader = (uploader: {
+  files: TemporaryFile[];
+  isUploading: boolean;
+  progress: number;
+  uploadFiles: (fileList: FileList | File[]) => Promise<any>;
+  removeFile: (fileId: string) => boolean;
+}) => {
+  return {
+    files: uploader.files.map(file => ({
+      id: file.id,
+      name: file.name || file.file?.name || 'photo',
+      preview: file.preview || '',
+      url: file.url || ''
+    })),
+    isUploading: uploader.isUploading,
+    progress: uploader.progress,
+    uploadFiles: async (fileList: FileList | File[]) => {
+      await uploader.uploadFiles(fileList);
+    },
+    removeFile: uploader.removeFile
+  };
+};
 
 // Helper to set photo field in a type-safe way
 export const setPhotoField = (
