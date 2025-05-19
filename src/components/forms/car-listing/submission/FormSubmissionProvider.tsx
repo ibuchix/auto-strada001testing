@@ -1,3 +1,4 @@
+
 /**
  * Form Submission Provider
  * Created: 2025-07-23
@@ -11,6 +12,7 @@
  * Updated: 2025-05-17 - Fixed permission denied errors with security definer functions
  * Updated: 2025-05-06 - Refactored to use separate reservation recovery service
  * Updated: 2025-05-22 - Fixed return type consistency to match useFormSubmission
+ * Updated: 2025-05-23 - Updated submitForm to ensure consistent return types
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
@@ -227,7 +229,7 @@ export const FormSubmissionProvider = ({
       toast.success('Your car listing has been submitted successfully!');
       setSubmitSuccess(carId);
       
-      // Return the car ID
+      // Return the car ID for proper type compatibility with useFormSubmission
       return carId;
     } catch (error: any) {
       console.error('Error submitting form:', error);

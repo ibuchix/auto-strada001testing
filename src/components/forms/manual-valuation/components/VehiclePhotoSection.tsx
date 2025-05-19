@@ -3,6 +3,7 @@
  * Component for vehicle photo uploads
  * - 2024-08-27: Fixed type definition for onFileSelect to accept Promise<string | null>
  * - 2025-05-20: Added upload progress indicator and current file display
+ * - 2025-05-23: Fixed type definitions to properly handle File vs FileList compatibility
  */
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Camera } from "lucide-react";
@@ -15,7 +16,7 @@ interface VehiclePhotoSectionProps {
   progress: number;
   uploadingFile?: string | null;
   onFileSelect: (file: File, type: string) => Promise<string | null>;
-  onAdditionalPhotosSelect: (files: File[]) => void;
+  onAdditionalPhotosSelect: (files: File[] | FileList) => void;
 }
 
 export const VehiclePhotoSection = ({

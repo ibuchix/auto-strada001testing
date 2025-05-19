@@ -11,6 +11,7 @@
  * - 2025-05-20: Added image upload association with car ID
  * - 2025-05-21: Fixed upload association process and error handling
  * - 2025-05-22: Added null check for data to fix TypeScript error
+ * - 2025-05-23: Fixed type annotations for proper TypeScript checks
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
@@ -20,6 +21,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFormState } from '../context/FormStateContext';
 import { CarListingFormData } from '@/types/forms';
 import { associateTempUploadsWithCar } from '@/services/supabase/uploadService';
+
+// Define explicit type for Supabase response data to prevent "never" type issues
+interface SubmissionResponseData {
+  id: string;
+  [key: string]: any;
+}
 
 // Diagnostic logging utility
 const logSubmissionEvent = (event: string, data = {}) => {
@@ -47,14 +54,14 @@ export const useFormSubmission = (formId: string) => {
   }, [formId]);
   
   // Handle form submission
-  const submitForm = useCallback(async (formData: CarListingFormData) => {
+  const submitForm = useCallback(async (formData: CarListingFormData): Promise<string | null> => {
     // Prevent rapid multiple submissions
     const now = Date.now();
     if (now - lastSubmissionTime.current < 2000) {
       logSubmissionEvent('Submission throttled - too frequent', { 
         timeSinceLastSubmission: now - lastSubmissionTime.current 
       });
-      return { success: false, error: 'Please wait before submitting again' };
+      return null;
     }
     
     lastSubmissionTime.current = now;
@@ -83,7 +90,7 @@ export const useFormSubmission = (formId: string) => {
           title: "Submission Error",
           description: error
         });
-        return { success: false, error };
+        return null;
       }
       
       // Prepare data for submission
@@ -109,7 +116,9 @@ export const useFormSubmission = (formId: string) => {
         .from('cars')
         .upsert(submissionData, { 
           onConflict: 'id'
-        });
+        })
+        // Explicitly type the response data
+        .returns<SubmissionResponseData[]>();
       
       if (error) {
         logSubmissionEvent('Database error', { submissionId, error: error.message });
@@ -119,7 +128,7 @@ export const useFormSubmission = (formId: string) => {
           title: "Submission Error",
           description: error.message
         });
-        return { success: false, error: error.message };
+        return null;
       }
       
       // Update form state to reflect successful submission
@@ -130,7 +139,6 @@ export const useFormSubmission = (formId: string) => {
       
       // Now that we have a car ID, associate any temporary uploads with it
       // Extract the car ID from the response or submission data
-      // Add null check for data to fix TypeScript error
       const carId = data && data.length > 0 ? data[0]?.id : submissionData?.id;
       
       if (carId) {
@@ -181,7 +189,8 @@ export const useFormSubmission = (formId: string) => {
         description: "Your car listing has been submitted successfully."
       });
       
-      return { success: true, data, carId };
+      // Return car ID for proper type compatibility with FormSubmitHandler
+      return carId || null;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown submission error';
       
@@ -198,7 +207,7 @@ export const useFormSubmission = (formId: string) => {
         description: errorMessage
       });
       
-      return { success: false, error: errorMessage };
+      return null;
     } finally {
       setIsSubmitting(false);
     }
