@@ -11,7 +11,7 @@
  * - Error handling and feedback
  */
 
-import { useEffect, useState, useContext, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useFormData } from "../context/FormDataContext";
 import { useFormSubmission } from "./FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
@@ -49,12 +49,22 @@ export const FormSubmitHandler = ({
     
     // Log status of global uploader connection
     if (globalUploaderRef.current) {
-      console.log('FormSubmitHandler: Connected to global upload manager', globalUploaderRef.current);
+      console.log('[FormSubmitHandler] Connected to global upload manager', globalUploaderRef.current);
     } else {
-      console.warn('FormSubmitHandler: Global upload manager not available');
+      console.warn('[FormSubmitHandler] Global upload manager not available');
     }
     
+    // Set up periodic checks for the upload manager
+    const checkInterval = setInterval(() => {
+      const uploader = (window as any).__tempFileUploadManager;
+      if (!globalUploaderRef.current && uploader) {
+        console.log('[FormSubmitHandler] Found global upload manager during periodic check');
+        globalUploaderRef.current = uploader;
+      }
+    }, 2000); // Check every 2 seconds
+    
     return () => {
+      clearInterval(checkInterval);
       globalUploaderRef.current = null;
     };
   }, []);
@@ -66,19 +76,34 @@ export const FormSubmitHandler = ({
     globalUploaderRef.current = uploader;
     
     if (!uploader) {
-      console.log("No upload manager available, proceeding with submission");
-      return true; // No uploader registered, assume all is well
+      console.log("[FormSubmitHandler] No upload manager available");
+      
+      // Show warning toast but allow submission
+      toast.warning('Upload manager not found', {
+        description: 'Image uploads may not be included in your listing'
+      });
+      
+      return true; // Continue with submission
     }
     
     try {
+      console.log("[FormSubmitHandler] Verifying uploads before submission");
+      
       // First check if uploads are complete
       if (uploader.checkUploadsComplete && typeof uploader.checkUploadsComplete === 'function') {
         const uploadsComplete = uploader.checkUploadsComplete();
+        const pendingFileCount = uploader.pendingFileCount ? uploader.pendingFileCount() : 0;
         
-        if (!uploadsComplete) {
-          console.log('Uploads still in progress, please wait');
+        console.log("[FormSubmitHandler] Upload check results:", { 
+          uploadsComplete, 
+          pendingFileCount,
+          carId 
+        });
+        
+        if (!uploadsComplete && pendingFileCount > 0) {
+          console.log('[FormSubmitHandler] Uploads still in progress, please wait');
           toast.warning('Files are still uploading', {
-            description: 'Please wait for uploads to complete before submitting'
+            description: `Please wait for ${pendingFileCount} file(s) to complete uploading`
           });
           return false;
         }
@@ -87,19 +112,26 @@ export const FormSubmitHandler = ({
       // If we have a carId, we can finalize any pending uploads
       if (carId && uploader.finalizeUploads && typeof uploader.finalizeUploads === 'function') {
         setIsFinalizingUploads(true);
-        console.log(`Finalizing uploads for car ${carId} before submission`);
+        console.log(`[FormSubmitHandler] Finalizing uploads for car ${carId} before submission`);
         
         try {
+          toast.info('Processing uploads', {
+            description: 'Please wait while we finalize your images'
+          });
+          
           const results = await uploader.finalizeUploads(carId);
-          console.log('Upload finalization results:', results);
+          console.log('[FormSubmitHandler] Upload finalization results:', results);
           
           if (Array.isArray(results) && results.length > 0) {
             toast.success(`Processed ${results.length} images`, {
               description: 'All images ready for submission'
             });
+            
+            // Add a small delay to allow UI to update
+            await new Promise(resolve => setTimeout(resolve, 500));
           }
         } catch (error) {
-          console.error('Error finalizing uploads:', error);
+          console.error('[FormSubmitHandler] Error finalizing uploads:', error);
           toast.error('Error processing images', {
             description: 'Some images may not be included in your listing'
           });
@@ -107,12 +139,19 @@ export const FormSubmitHandler = ({
         } finally {
           setIsFinalizingUploads(false);
         }
+      } else if (!carId) {
+        console.warn('[FormSubmitHandler] No carId available for finalizing uploads');
       }
       
       return true;
     } catch (error) {
-      console.error("Error in upload verification:", error);
+      console.error("[FormSubmitHandler] Error in upload verification:", error);
       setIsFinalizingUploads(false);
+      
+      toast.error('Upload verification error', {
+        description: 'Proceeding with submission, but images may not be included'
+      });
+      
       return true; // Continue with submission despite errors
     }
   };
@@ -122,7 +161,7 @@ export const FormSubmitHandler = ({
     try {
       // If there's already a VIN reservation ID in localStorage, we're good
       if (localStorage.getItem('vinReservationId')) {
-        console.log('VIN reservation exists in localStorage - good to proceed');
+        console.log('[FormSubmitHandler] VIN reservation exists in localStorage - good to proceed');
         return true;
       }
       
@@ -130,7 +169,7 @@ export const FormSubmitHandler = ({
       const vin = values.vin;
       
       if (!vin) {
-        console.error("No VIN available in form data");
+        console.error("[FormSubmitHandler] No VIN available in form data");
         toast.error("Missing VIN", {
           description: "Please enter a valid VIN or perform a VIN lookup"
         });
@@ -138,7 +177,7 @@ export const FormSubmitHandler = ({
       }
       
       if (!userId) {
-        console.error("No user ID available");
+        console.error("[FormSubmitHandler] No user ID available");
         toast.error("Authentication required", {
           description: "Please log in to submit your listing"
         });
@@ -153,13 +192,13 @@ export const FormSubmitHandler = ({
           try {
             valuationData = JSON.parse(storedData);
           } catch (e) {
-            console.error('Error parsing stored valuation data:', e);
+            console.error('[FormSubmitHandler] Error parsing stored valuation data:', e);
           }
         }
       }
       
       // Try to create a VIN reservation using our recovery service
-      console.log('Creating VIN reservation before submission:', vin);
+      console.log('[FormSubmitHandler] Creating VIN reservation before submission:', vin);
       setIsCreatingReservation(true);
       
       const reservationId = await recoverVinReservation(vin, userId, valuationData);
@@ -169,12 +208,12 @@ export const FormSubmitHandler = ({
           description: "Proceeding with submission, but it may be delayed or fail."
         });
       } else {
-        console.log(`Successfully created/recovered reservation ID: ${reservationId}`);
+        console.log(`[FormSubmitHandler] Successfully created/recovered reservation ID: ${reservationId}`);
       }
       
       return true;
     } catch (error) {
-      console.error("Error creating VIN reservation:", error);
+      console.error("[FormSubmitHandler] Error creating VIN reservation:", error);
       toast.error("Failed to reserve VIN", {
         description: "Please try again or contact support."
       });
@@ -213,37 +252,47 @@ export const FormSubmitHandler = ({
         return;
       }
       
-      console.log(`Form submission starting with VIN reservation: ${localStorage.getItem('vinReservationId')}`);
+      console.log(`[FormSubmitHandler] Form submission starting with VIN reservation: ${localStorage.getItem('vinReservationId')}`);
       
       // Add the user ID to the form data to satisfy RLS policies
       values.seller_id = userId;
+      
+      // Ensure vin is uppercase for consistency
+      if (values.vin) {
+        values.vin = values.vin.toUpperCase();
+      }
       
       // Submit the form
       const result = await submitForm(values);
       
       if (result && onSubmitSuccess) {
-        console.log(`Form submitted successfully with car ID: ${result}`);
+        console.log(`[FormSubmitHandler] Form submitted successfully with car ID: ${result}`);
         
         // Clear the VIN reservation ID since it's been used successfully
         localStorage.removeItem('vinReservationId');
         localStorage.removeItem('tempReservedVin');
         
+        // Show a confirmation toast
+        toast.success('Listing submitted successfully!', {
+          description: 'Your car listing has been submitted for review.'
+        });
+        
         onSubmitSuccess(result);
       }
     } catch (error) {
-      console.error("Error submitting form:", error);
+      console.error("[FormSubmitHandler] Error submitting form:", error);
       
       // Add detailed error logging
       if (error instanceof Error) {
-        console.error(`Error name: ${error.name}`);
-        console.error(`Error message: ${error.message}`);
-        console.error(`Error stack: ${error.stack}`);
+        console.error(`[FormSubmitHandler] Error name: ${error.name}`);
+        console.error(`[FormSubmitHandler] Error message: ${error.message}`);
+        console.error(`[FormSubmitHandler] Error stack: ${error.stack}`);
       }
       
       // Special handling for cross-origin error 
       // (happens when using in iframes, doesn't affect functionality)
       if (error instanceof DOMException && error.name === "SecurityError") {
-        console.warn("Suppressing cross-origin error - does not affect functionality");
+        console.warn("[FormSubmitHandler] Suppressing cross-origin error - does not affect functionality");
       } else {
         // Check if it's a VIN reservation issue
         if (error instanceof Error && error.message.includes('VIN reservation')) {

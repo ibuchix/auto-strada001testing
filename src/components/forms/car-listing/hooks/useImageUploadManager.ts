@@ -1,13 +1,13 @@
-
 /**
  * Image Upload Manager Hook
  * Created: 2025-05-24
- * Updated: 2025-05-19 - Enhanced upload tracking and verification capabilities
+ * Updated: 2025-05-19 - Enhanced upload tracking, verification capabilities, and fallback mechanisms
  * 
  * Manages image uploads for car listings, including:
  * - Auto-save pausing during uploads
  * - Progress tracking
  * - Upload finalization for form submission
+ * - Direct storage upload fallback
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -15,7 +15,6 @@ import { UseFormReturn } from 'react-hook-form';
 import { CarListingFormData } from '@/types/forms';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { uploadImagesForCar } from '@/services/supabase/uploadService';
 
 interface UseImageUploadManagerProps {
   form: UseFormReturn<CarListingFormData>;
@@ -36,6 +35,9 @@ export const useImageUploadManager = ({
   // Keep track of temporary files that need to be finalized
   const pendingFilesRef = useRef<File[]>([]);
   const lastUploadTimeRef = useRef<number>(0);
+  const uploadAttemptsRef = useRef<{[key: string]: number}>({});
+  const uploadErrorsRef = useRef<{[key: string]: Error}>({});
+  const maxAttemptsPerFile = 3;
   
   // Start upload process
   const startUpload = useCallback(() => {
@@ -43,7 +45,7 @@ export const useImageUploadManager = ({
     setUploadProgress(0);
     lastUploadTimeRef.current = Date.now();
     if (pauseAutoSave) {
-      console.log('Pausing auto-save during upload');
+      console.log('[ImageUploadManager] Pausing auto-save during upload');
       pauseAutoSave();
     }
   }, [pauseAutoSave]);
@@ -61,7 +63,7 @@ export const useImageUploadManager = ({
     lastUploadTimeRef.current = Date.now();
     
     if (resumeAutoSave) {
-      console.log('Resuming auto-save after upload');
+      console.log('[ImageUploadManager] Resuming auto-save after upload');
       resumeAutoSave();
     }
     
@@ -76,7 +78,8 @@ export const useImageUploadManager = ({
   
   // Register a file to be finalized later
   const registerPendingFile = useCallback((file: File) => {
-    console.log(`Registering pending file: ${file.name} (${file.size} bytes)`);
+    const fileId = `${file.name}-${file.size}-${Date.now()}`;
+    console.log(`[ImageUploadManager] Registering pending file: ${file.name} (${file.size} bytes) with ID: ${fileId}`);
     pendingFilesRef.current.push(file);
     lastUploadTimeRef.current = Date.now();
   }, []);
@@ -85,38 +88,28 @@ export const useImageUploadManager = ({
   const checkUploadsComplete = useCallback((): boolean => {
     const now = Date.now();
     const timeSinceLastUpload = now - lastUploadTimeRef.current;
+    const uploadThreshold = 10000; // 10 seconds threshold for upload completion
     
-    console.log(`Checking if uploads complete:`, {
+    console.log(`[ImageUploadManager] Checking if uploads complete:`, {
       pendingFiles: pendingFilesRef.current.length,
       isCurrentlyUploading: isUploading,
       timeSinceLastUpload: `${timeSinceLastUpload}ms`,
+      uploadThreshold: `${uploadThreshold}ms`,
     });
     
-    // If actively uploading or had recent upload activity, return false
-    if (isUploading || timeSinceLastUpload < 2000) {
+    // If actively uploading or had recent upload activity within threshold, return false
+    if (isUploading || timeSinceLastUpload < uploadThreshold) {
       return false;
     }
     
     return true;
   }, [isUploading]);
   
-  // Finalize all uploads when form is submitted
-  const finalizeUploads = useCallback(async (formCarId: string): Promise<string[]> => {
-    const targetCarId = formCarId || carId;
-    
-    if (!targetCarId) {
-      console.error('Missing carId, cannot finalize uploads');
-      return [];
-    }
-    
-    if (pendingFilesRef.current.length === 0) {
-      console.log('No pending files to finalize');
-      return [];
-    }
-    
-    console.log(`Finalizing ${pendingFilesRef.current.length} uploads for car ${targetCarId}`);
-    
+  // Direct upload to storage (fallback method)
+  const uploadDirectToStorage = useCallback(async (file: File, targetCarId: string, category: string): Promise<string | null> => {
     try {
+      console.log(`[ImageUploadManager] Attempting direct storage upload for ${file.name}`);
+      
       // Get user ID from session
       const { data } = await supabase.auth.getSession();
       const userId = data.session?.user?.id;
@@ -125,56 +118,179 @@ export const useImageUploadManager = ({
         throw new Error('User not authenticated');
       }
       
+      // Create unique file path
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `cars/${userId}/${targetCarId}/${category}/${fileName}`;
+      
+      // Upload to storage
+      const { data: uploadData, error } = await supabase.storage
+        .from('car-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('car-images')
+        .getPublicUrl(filePath);
+      
+      console.log(`[ImageUploadManager] Direct upload successful for ${file.name}. Path: ${filePath}`);
+      return publicUrl;
+    } catch (error) {
+      console.error('[ImageUploadManager] Direct upload failed:', error);
+      return null;
+    }
+  }, []);
+  
+  // Finalize all uploads when form is submitted
+  const finalizeUploads = useCallback(async (formCarId: string): Promise<string[]> => {
+    const targetCarId = formCarId || carId;
+    
+    if (!targetCarId) {
+      console.error('[ImageUploadManager] Missing carId, cannot finalize uploads');
+      return [];
+    }
+    
+    if (pendingFilesRef.current.length === 0) {
+      console.log('[ImageUploadManager] No pending files to finalize');
+      return [];
+    }
+    
+    console.log(`[ImageUploadManager] Finalizing ${pendingFilesRef.current.length} uploads for car ${targetCarId}`);
+    
+    try {
       setIsUploading(true);
       lastUploadTimeRef.current = Date.now();
       
-      // Upload all pending files using the upload service
-      const uploadedPaths = await uploadImagesForCar(
-        pendingFilesRef.current,
-        targetCarId,
-        'additional_photos',
-        userId
-      );
+      const results: string[] = [];
+      const errors: Error[] = [];
       
-      console.log(`Successfully uploaded ${uploadedPaths.length} files`);
+      // Process each file
+      for (const file of pendingFilesRef.current) {
+        try {
+          const fileId = `${file.name}-${file.size}`;
+          const attemptCount = uploadAttemptsRef.current[fileId] || 0;
+          
+          // Skip if max attempts reached
+          if (attemptCount >= maxAttemptsPerFile) {
+            console.warn(`[ImageUploadManager] Max attempts (${maxAttemptsPerFile}) reached for ${file.name}, skipping`);
+            errors.push(new Error(`Max upload attempts reached for ${file.name}`));
+            continue;
+          }
+          
+          // Try API route first
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('carId', targetCarId);
+          formData.append('type', 'additional_photos');
+          
+          console.log(`[ImageUploadManager] Uploading file ${file.name} for car ${targetCarId} (attempt ${attemptCount + 1})`);
+          uploadAttemptsRef.current[fileId] = attemptCount + 1;
+          
+          // Try the API route
+          const response = await fetch(`/api/upload-car-image`, {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Upload failed with status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          console.log(`[ImageUploadManager] Upload successful:`, data);
+          
+          if (data.filePath) {
+            results.push(data.filePath);
+          } else if (data.publicUrl) {
+            results.push(data.publicUrl);
+          }
+        } catch (uploadError) {
+          console.error(`[ImageUploadManager] Error uploading file ${file.name}:`, uploadError);
+          
+          // Try direct storage upload as fallback
+          console.log(`[ImageUploadManager] Attempting direct storage fallback for ${file.name}`);
+          const directUrl = await uploadDirectToStorage(file, targetCarId, 'additional_photos');
+          
+          if (directUrl) {
+            console.log(`[ImageUploadManager] Fallback successful for ${file.name}`);
+            results.push(directUrl);
+          } else {
+            errors.push(uploadError instanceof Error ? uploadError : new Error(`Failed to upload ${file.name}`));
+          }
+        }
+      }
       
-      // Clear pending files after successful upload
+      // Log summary
+      console.log(`[ImageUploadManager] Finalization complete: ${results.length} successful, ${errors.length} failed`);
+      
+      // Clear pending files after processing
       pendingFilesRef.current = [];
       
-      return uploadedPaths;
+      // Show a toast with the summary
+      if (results.length > 0) {
+        toast({
+          title: `${results.length} images uploaded successfully`,
+          description: errors.length > 0 ? `(${errors.length} failed)` : undefined,
+          variant: errors.length > 0 ? "default" : "success"
+        });
+      } else if (errors.length > 0) {
+        toast({
+          variant: "destructive",
+          title: "Upload failed",
+          description: `All ${errors.length} images failed to upload`
+        });
+      }
+      
+      return results;
     } catch (error) {
-      console.error('Error finalizing uploads:', error);
+      console.error('[ImageUploadManager] Error finalizing uploads:', error);
+      toast({
+        variant: "destructive",
+        title: "Upload Error",
+        description: "Failed to process image uploads. Please try again."
+      });
       throw error;
     } finally {
       setIsUploading(false);
       lastUploadTimeRef.current = Date.now();
     }
-  }, [carId]);
+  }, [carId, uploadDirectToStorage]);
   
   // Register the global uploader service for form submission to access
   useEffect(() => {
+    console.log('[ImageUploadManager] Registering global upload manager');
+    
     // Provide global access to finalization methods
     (window as any).__tempFileUploadManager = {
       finalizeUploads: async (id: string) => {
-        console.log(`Global uploader: Finalizing uploads for car ${id}`);
+        console.log(`[ImageUploadManager] Global uploader: Finalizing uploads for car ${id}`);
         try {
           return await finalizeUploads(id || carId || '');
         } catch (err) {
-          console.error('Error in global uploader finalize:', err);
+          console.error('[ImageUploadManager] Error in global uploader finalize:', err);
           throw err;
         }
       },
       checkUploadsComplete: () => {
         const result = checkUploadsComplete();
-        console.log(`Global uploader: Check uploads complete: ${result}`);
+        console.log(`[ImageUploadManager] Global uploader: Check uploads complete: ${result}`);
         return result;
+      },
+      pendingFileCount: () => {
+        return pendingFilesRef.current.length;
       }
     };
     
-    console.log('Image upload manager registered globally');
-    
     return () => {
-      console.log('Cleaning up image upload manager');
+      console.log('[ImageUploadManager] Cleaning up global upload manager');
       (window as any).__tempFileUploadManager = null;
     };
   }, [finalizeUploads, carId, checkUploadsComplete]);
@@ -187,6 +303,7 @@ export const useImageUploadManager = ({
     finishUpload,
     registerPendingFile,
     finalizeUploads,
-    checkUploadsComplete
+    checkUploadsComplete,
+    uploadDirectToStorage
   };
 };

@@ -21,70 +21,88 @@ serve(async (req) => {
     // Parse FormData from request
     let formData;
     let file;
+    let metadata;
     
     try {
       formData = await req.formData();
-      file = formData.get('file') as File;
-      console.log(`[${requestId}] Successfully parsed FormData, found file: ${!!file}`);
-    } catch (formError) {
-      // If formData fails, try parsing as JSON with a separate file
-      console.log(`[${requestId}] FormData parsing failed, trying JSON body`);
-      const jsonData = await req.json();
-      file = jsonData.file;
+      console.log(`[${requestId}] FormData keys:`, [...formData.keys()]);
       
-      if (!file) {
-        console.error(`[${requestId}] No file found in request`);
-        throw new Error('No file provided in request');
+      // Get file from FormData
+      file = formData.get('file') as File;
+      
+      // Get metadata - either as separate field or from request headers
+      const metadataStr = formData.get('metadata') as string;
+      if (metadataStr) {
+        try {
+          metadata = JSON.parse(metadataStr);
+          console.log(`[${requestId}] Metadata parsed from formData:`, metadata);
+        } catch (e) {
+          console.error(`[${requestId}] Error parsing metadata:`, e);
+        }
       }
       
-      // Use the rest of the JSON data as formData
-      const tempFormData = new FormData();
-      Object.keys(jsonData).forEach(key => {
-        if (key !== 'file') {
-          tempFormData.append(key, jsonData[key]);
+      console.log(`[${requestId}] Successfully parsed FormData, found file: ${!!file}, file type: ${file?.type}, file size: ${file?.size}`);
+    } catch (formError) {
+      // If formData fails, try parsing as JSON with a separate file
+      console.log(`[${requestId}] FormData parsing failed, trying JSON body:`, formError);
+      
+      try {
+        const jsonData = await req.json();
+        console.log(`[${requestId}] JSON data parsed:`, jsonData);
+        
+        file = jsonData.file;
+        metadata = jsonData;
+        
+        if (!file) {
+          console.error(`[${requestId}] No file found in JSON request`);
+          throw new Error('No file provided in request');
         }
-      });
-      formData = tempFormData;
+      } catch (jsonError) {
+        console.error(`[${requestId}] JSON parsing also failed:`, jsonError);
+        throw new Error('Failed to parse request body as FormData or JSON');
+      }
     }
     
-    const type = formData.get('type') as string;
-    const carId = formData.get('carId') as string;
+    // Extract required parameters from metadata or formData
+    const type = metadata?.type || formData?.get('type') as string || 'additional_photos';
+    const carId = metadata?.carId || formData?.get('carId') as string;
+    const incomingRequestId = metadata?.requestId || requestId;
 
-    console.log(`[${requestId}] Request parameters: type=${type}, carId=${carId}, file size=${file?.size || 'unknown'}`);
+    console.log(`[${incomingRequestId}] Request parameters: type=${type}, carId=${carId}, file size=${file?.size || 'unknown'}`);
 
     // Validate the upload
-    console.log(`[${requestId}] Validating upload`);
+    console.log(`[${incomingRequestId}] Validating upload`);
     validateUpload(file, type);
 
     // Upload file to storage
-    console.log(`[${requestId}] Uploading file to storage`);
+    console.log(`[${incomingRequestId}] Uploading file to storage`);
     const { filePath, supabase } = await uploadFileToStorage(file, carId, type);
-    console.log(`[${requestId}] File uploaded successfully to path: ${filePath}`);
+    console.log(`[${incomingRequestId}] File uploaded successfully to path: ${filePath}`);
 
     // Get the public URL
-    console.log(`[${requestId}] Getting public URL`);
+    console.log(`[${incomingRequestId}] Getting public URL`);
     const { data: { publicUrl } } = supabase.storage
       .from('car-images')
       .getPublicUrl(filePath);
-    console.log(`[${requestId}] Public URL: ${publicUrl}`);
+    console.log(`[${incomingRequestId}] Public URL: ${publicUrl}`);
 
     // Log the upload in the database
-    console.log(`[${requestId}] Logging upload in database`);
+    console.log(`[${incomingRequestId}] Logging upload in database`);
     await logFileUpload(supabase, carId, filePath, type, file);
 
     // Update car's photos or documents
-    console.log(`[${requestId}] Updating car record`);
+    console.log(`[${incomingRequestId}] Updating car record`);
     await updateCarRecord(supabase, type, filePath, carId);
 
     const duration = Date.now() - startTime;
-    console.log(`[${requestId}] Request completed successfully in ${duration}ms`);
+    console.log(`[${incomingRequestId}] Request completed successfully in ${duration}ms`);
 
     return new Response(
       JSON.stringify({ 
         message: 'File uploaded successfully',
         filePath,
         publicUrl,
-        requestId,
+        requestId: incomingRequestId,
         duration
       }),
       { 

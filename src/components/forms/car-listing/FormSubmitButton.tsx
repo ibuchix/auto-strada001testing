@@ -9,11 +9,11 @@
  * - Enhanced accessibility
  * - 2025-04-17: Fixed toast import path
  * - 2025-05-24: Added enhanced loading states and upload verification
- * - 2025-05-19: Fixed submission phase tracking and improved upload verification
+ * - 2025-05-19: Fixed submission phase tracking, improved upload verification, and added direct storage fallback
  */
 import React, { useState, useCallback, useEffect } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
-import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface FormSubmitButtonProps extends ButtonProps {
@@ -39,12 +39,15 @@ export const FormSubmitButton = ({
   const [lastClickTime, setLastClickTime] = useState(0);
   const [verifyingUploads, setVerifyingUploads] = useState(false);
   const [submissionPhase, setSubmissionPhase] = useState<'idle' | 'verifying' | 'uploading' | 'submitting'>('idle');
+  const [verificationRetries, setVerificationRetries] = useState(0);
+  const maxRetries = 3;
   
   // Reset submission phase when isSubmitting changes to false
   useEffect(() => {
     if (!isSubmitting && submissionPhase !== 'idle') {
       const timer = setTimeout(() => {
         setSubmissionPhase('idle');
+        setVerificationRetries(0);
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -64,7 +67,8 @@ export const FormSubmitButton = ({
       attempts: clickAttempts + 1,
       eventType: e.type,
       eventTarget: e.currentTarget.tagName,
-      submissionPhase
+      submissionPhase,
+      verificationRetries
     });
     
     // Update click tracking
@@ -92,39 +96,61 @@ export const FormSubmitButton = ({
         setVerifyingUploads(true);
         setSubmissionPhase('verifying');
         
-        console.log(`[FormSubmitButton][${formId}] Verifying uploads before submission`);
+        console.log(`[FormSubmitButton][${formId}] Verifying uploads before submission (attempt ${verificationRetries + 1})`);
+        
+        // Check for global uploader and get pending file count
+        const globalUploader = (window as any).__tempFileUploadManager;
+        const pendingCount = globalUploader?.pendingFileCount?.() || 0;
+        
+        console.log(`[FormSubmitButton][${formId}] Found ${pendingCount} pending files`);
         
         // Wait for upload verification - with a reasonable timeout
         const verificationPromise = onVerifyUploads();
         
-        // Add a timeout to ensure we don't wait forever
+        // Add a timeout to ensure we don't wait forever - increased to 15 seconds
         const timeoutPromise = new Promise<boolean>((resolve) => {
           setTimeout(() => {
             console.log(`[FormSubmitButton][${formId}] Verification timeout reached`);
-            resolve(true); // Assume uploads are done after timeout
-          }, 5000); // 5 second timeout
+            resolve(pendingCount === 0); // Only consider uploads done if no pending files
+          }, 15000); // 15 second timeout
         });
         
         // Race between verification and timeout
         const uploadsComplete = await Promise.race([verificationPromise, timeoutPromise]);
         
         if (!uploadsComplete) {
-          console.log(`[FormSubmitButton][${formId}] Uploads not complete, aborting submission`);
+          console.log(`[FormSubmitButton][${formId}] Uploads not complete`);
+          
+          // If we haven't exceeded max retries, retry verification
+          if (verificationRetries < maxRetries) {
+            setVerificationRetries(prev => prev + 1);
+            toast({
+              title: "Finalizing uploads",
+              description: `Still processing uploads (attempt ${verificationRetries + 1}/${maxRetries+1})...`
+            });
+            
+            // Add a slight delay before retrying
+            setTimeout(() => {
+              handleClick(e);
+            }, 5000);
+            
+            setVerifyingUploads(false);
+            return;
+          }
+          
+          // Max retries exceeded, show warning but proceed
           toast({
-            variant: "destructive",
-            title: "Files still uploading",
-            description: "Please wait for all files to finish uploading before submitting."
+            variant: "warning",
+            title: "Some uploads may not be complete",
+            description: "Proceeding with submission, but some images may not be included."
           });
-          setVerifyingUploads(false);
-          setSubmissionPhase('idle');
-          return;
         }
         
         // After verification, proceed to uploading phase if needed
         setSubmissionPhase('uploading');
         
         // Add a slight delay to allow any pending uploads to finalize
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         console.log(`[FormSubmitButton][${formId}] All uploads verified, proceeding with submission`);
         setSubmissionPhase('submitting');
@@ -158,7 +184,7 @@ export const FormSubmitButton = ({
         setSubmissionPhase('idle');
       }
     }
-  }, [isSubmitting, verifyingUploads, props.disabled, onSubmitClick, formId, clickAttempts, lastClickTime, onVerifyUploads, submissionPhase]);
+  }, [isSubmitting, verifyingUploads, props.disabled, onSubmitClick, formId, clickAttempts, lastClickTime, onVerifyUploads, submissionPhase, verificationRetries]);
   
   // Determine loading text based on submission phase
   const getStatusText = () => {
@@ -166,11 +192,24 @@ export const FormSubmitButton = ({
       case 'verifying': 
         return "Verifying uploads...";
       case 'uploading': 
-        return "Finalizing uploads...";
+        return `Finalizing uploads${verificationRetries > 0 ? ` (retry ${verificationRetries})` : ''}...`;
       case 'submitting': 
         return loadingText;
       default: 
         return loadingText;
+    }
+  };
+  
+  // Get the appropriate icon for the current state
+  const getStatusIcon = () => {
+    switch(submissionPhase) {
+      case 'verifying':
+        return <AlertCircle className="h-4 w-4 animate-pulse" />;
+      case 'uploading':
+        return <Upload className="h-4 w-4 animate-bounce" />;
+      case 'submitting':
+      default:
+        return <Loader2 className="h-4 w-4 animate-spin" />;
     }
   };
   
@@ -184,12 +223,13 @@ export const FormSubmitButton = ({
       aria-busy={isProcessing}
       onClick={handleClick}
       data-testid="form-submit-button"
+      data-phase={submissionPhase}
       aria-label={isProcessing ? getStatusText() : (children?.toString() || "Submit")}
       {...props}
     >
       {isProcessing ? (
         <span className="flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          {getStatusIcon()}
           {getStatusText()}
         </span>
       ) : (
