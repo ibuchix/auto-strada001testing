@@ -10,9 +10,8 @@
  * - 2025-06-21: Fixed references to CarFeatures interface and created_at handling
  * - 2025-07-22: Fixed incomplete implementation
  * - 2025-05-05: Fixed type issues and removed is_draft property
- * - 2025-05-14: Fixed financeAmount handling to consistently use number type
- * - 2025-05-15: Fixed financeAmount property in CarEntity
- * - 2025-05-19: Fixed database schema mismatch by consolidating photo fields
+ * - 2025-05-06: Fixed Date to string conversion issue
+ * - 2025-05-19: Updated to include required_photos in CarEntity
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";

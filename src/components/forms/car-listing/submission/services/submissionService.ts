@@ -2,6 +2,7 @@
 /**
  * Car Listing Submission Service
  * Created: 2025-05-19
+ * Updated: 2025-05-19 - Fixed function signature to match usage in useCarForm.ts
  * 
  * Handles the API calls for submitting car listing data.
  */

@@ -10,6 +10,7 @@
  * Updated: 2025-05-07 - Added ExtendedStoredFile type with uploadedAt property
  * Updated: 2025-05-08 - Fixed ExtendedStoredFile type to correctly include all properties
  * Updated: 2025-05-15 - Added financeAmount to CarEntity interface
+ * Updated: 2025-05-19 - Added required_photos property to fix schema compatibility
  */
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -173,9 +174,23 @@ export interface CarListingFormData {
   driverSide?: string;
   passengerSide?: string;
   dashboard?: string;
+  exterior_front?: string;
+  exterior_rear?: string;
+  exterior_side?: string;
+  interior_front?: string;
+  interior_rear?: string;
+  odometer?: string;
+  trunk?: string;
+  engine?: string;
+  damage_front?: string;
+  damage_rear?: string;
+  damage_side?: string;
+  wheel?: string;
+  roof?: string;
   interiorFront?: string;
   interiorRear?: string;
   requiredPhotosComplete?: boolean;
+  required_photos?: Record<string, string>;
   
   // Warning lights
   warningLightPhotos?: string[];
@@ -241,7 +256,8 @@ export interface CarEntity {
   status?: string;
   transmission: "manual" | "automatic" | "semi-automatic";
   features?: CarFeatures;
-  financeAmount?: number | null; // Added the missing property with type number | null
+  financeAmount?: number | null;
+  required_photos?: Record<string, string>;
 }
 
 // Add AuctionStatus export for submission.ts

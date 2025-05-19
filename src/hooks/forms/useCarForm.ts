@@ -13,6 +13,7 @@
  * - 2025-05-29: Fixed infinite re-render by adding initialization guards
  * - 2025-05-30: Added force loading mechanisms to prevent stuck states
  * - 2025-05-31: Added direct localStorage access and render prevention for reliable loading
+ * - 2025-05-19: Fixed function call parameter mismatch for submitCarListing
  */
 
 import { useCallback, useEffect, useRef } from "react";
@@ -72,8 +73,8 @@ export function useCarForm({
         // Ensure seller_id is set
         data.seller_id = userId;
         
-        // Submit the car listing
-        const result = await submitCarListing(data as CarListingFormData, userId, draftId);
+        // Submit the car listing - fixed parameter count
+        const result = await submitCarListing(data as CarListingFormData, userId);
         
         toast.success("Car listing submitted successfully!");
         
