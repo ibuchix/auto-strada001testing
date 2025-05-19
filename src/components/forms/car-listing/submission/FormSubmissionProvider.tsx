@@ -10,6 +10,7 @@
  * Updated: 2025-05-17 - Improved handling of temporary UUID-based VIN reservation IDs
  * Updated: 2025-05-17 - Fixed permission denied errors with security definer functions
  * Updated: 2025-05-06 - Refactored to use separate reservation recovery service
+ * Updated: 2025-05-22 - Fixed return type consistency to match useFormSubmission
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';

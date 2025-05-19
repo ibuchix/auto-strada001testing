@@ -7,6 +7,7 @@
  * - 2024-08-25: Refactored into smaller, more maintainable components
  * - 2024-08-27: Fixed type mismatch between handleFileUpload and component props
  * - 2025-05-20: Added progress feedback and current file indicator
+ * - 2025-05-22: Fixed type incompatibility between FileList and File
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -38,8 +39,20 @@ export const PhotoUploadSection = ({ form, onProgressUpdate }: PhotoUploadSectio
         isUploading={isUploading}
         progress={progress}
         uploadingFile={uploadingFile}
-        onFileSelect={handleFileUpload}
-        onAdditionalPhotosSelect={handleAdditionalPhotos}
+        // Create an adapter function to handle FileList vs File type mismatch
+        onFileSelect={(file, type) => {
+          // This function expects a File and returns a Promise<string | null>
+          return handleFileUpload(file, type);
+        }}
+        // Create an adapter function for additional photos
+        onAdditionalPhotosSelect={(files) => {
+          // Convert FileList to File array if needed
+          if (files instanceof FileList) {
+            const fileArray = Array.from(files);
+            return handleAdditionalPhotos(fileArray);
+          }
+          return handleAdditionalPhotos(files);
+        }}
       />
       
       <DocumentUploader

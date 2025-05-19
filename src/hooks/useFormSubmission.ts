@@ -10,6 +10,7 @@
  * - Fixed TypeScript error with Supabase upsert options
  * - 2025-05-20: Added image upload association with car ID
  * - 2025-05-21: Fixed upload association process and error handling
+ * - 2025-05-22: Added null check for data to fix TypeScript error
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
@@ -129,7 +130,8 @@ export const useFormSubmission = (formId: string) => {
       
       // Now that we have a car ID, associate any temporary uploads with it
       // Extract the car ID from the response or submission data
-      const carId = data?.[0]?.id || submissionData?.id;
+      // Add null check for data to fix TypeScript error
+      const carId = data && data.length > 0 ? data[0]?.id : submissionData?.id;
       
       if (carId) {
         logSubmissionEvent('Associating temporary uploads with car ID', { 

@@ -4,6 +4,7 @@
  * Created: 2025-05-13
  * Updated: 2025-05-19 - Fixed upload verification integration and loading state management
  * Updated: 2025-05-21 - Fixed temporary upload association during form submission
+ * Updated: 2025-05-22 - Fixed TypeScript errors with result type definitions
  * 
  * This component handles form submission, including:
  * - VIN reservation validation and creation
@@ -26,6 +27,13 @@ interface FormSubmitHandlerProps {
   onSubmitError?: (error: Error) => void;
   carId?: string;
   userId?: string;
+}
+
+// Define the type for the submission result to match what's returned from FormSubmissionProvider
+interface SubmitResult {
+  success: boolean;
+  carId?: string;
+  error?: string;
 }
 
 export const FormSubmitHandler = ({
@@ -81,7 +89,13 @@ export const FormSubmitHandler = ({
       setIsVerifyingImages(false);
       
       // Submit the form - car ID will be generated and images associated in the submission hook
-      const result = await submitForm(form.getValues());
+      // Since submitForm now returns a Promise<string | null>, we need to handle it differently
+      const submittedCarId = await submitForm(form.getValues());
+      
+      // Create a result object that matches the expected structure
+      const result: SubmitResult = submittedCarId 
+        ? { success: true, carId: submittedCarId }
+        : { success: false, error: 'Submission failed - no car ID returned' };
       
       if (result.success) {
         // Clear any temporary image data from localStorage after successful submission
