@@ -6,6 +6,7 @@
  * Updated: 2025-05-23 - Enhanced with better error handling and finalization
  * Updated: 2025-05-19 - Integrated with global upload manager for better tracking
  * Updated: 2025-05-19 - Implemented immediate uploads to Supabase storage
+ * Updated: 2025-05-26 - Enhanced uploadFiles to process files sequentially for better reliability
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -17,7 +18,7 @@ import { toast } from '@/hooks/use-toast';
 export interface TemporaryFile {
   id: string;
   file?: File;
-  name: string; // Added name field to fix type compatibility
+  name: string;
   preview: string;
   url?: string;
   uploadComplete?: boolean;
@@ -100,7 +101,7 @@ export const useTemporaryFileUpload = ({
       const tempFile: TemporaryFile = {
         id,
         file,
-        name: file.name || 'upload', // Add name property for type compatibility
+        name: file.name || 'upload', 
         preview,
         uploadComplete: false // Initialize as not uploaded yet
       };
@@ -111,8 +112,8 @@ export const useTemporaryFileUpload = ({
       // Set upload progress to 10%
       setProgress(10);
       
-      // Immediately upload to Supabase storage using directUploadPhoto
-      console.log(`[useTemporaryFileUpload] Starting immediate upload for ${file.name} in category ${category}`);
+      // Log the upload attempt
+      console.log(`[useTemporaryFileUpload] Starting immediate upload for ${file.name} (${file.size} bytes) in category ${category}`);
       
       // Start real upload to Supabase
       const publicUrl = await directUploadPhoto(file, "temp", category);
@@ -142,6 +143,9 @@ export const useTemporaryFileUpload = ({
       
       // Mark completed in the global manager
       registerCompletion(uploadId);
+      
+      // Confirm upload in console
+      console.log(`[useTemporaryFileUpload] Successfully uploaded file ${file.name} to ${publicUrl}`);
       
       setTimeout(() => {
         setProgress(0);
@@ -178,7 +182,7 @@ export const useTemporaryFileUpload = ({
     }
   }, [files, allowMultiple, category, createPreview, onUploadComplete, registerUpload, registerCompletion, registerFailure]);
   
-  // Upload multiple files
+  // Upload multiple files - enhanced to process files sequentially for better reliability
   const uploadFiles = useCallback(async (fileList: FileList | File[]) => {
     const filesToUpload = Array.from(fileList);
     
@@ -201,6 +205,7 @@ export const useTemporaryFileUpload = ({
     try {
       const results: TemporaryFile[] = [];
       
+      // Process files sequentially for more reliable upload tracking
       for (let i = 0; i < filesToUpload.length; i++) {
         const file = filesToUpload[i];
         
@@ -208,12 +213,21 @@ export const useTemporaryFileUpload = ({
         setProgress(Math.round((i / filesToUpload.length) * 50));
         
         // Upload the file
+        console.log(`[useTemporaryFileUpload] Processing file ${i+1}/${filesToUpload.length}: ${file.name}`);
         const result = await uploadFile(file);
-        if (result) results.push(result);
+        
+        if (result) {
+          results.push(result);
+          console.log(`[useTemporaryFileUpload] Successfully processed file ${i+1}: ${file.name}`);
+        } else {
+          console.warn(`[useTemporaryFileUpload] Failed to process file ${i+1}: ${file.name}`);
+        }
         
         // Update progress as we process each file
         setProgress(Math.round(((i + 1) / filesToUpload.length) * 100));
       }
+      
+      console.log(`[useTemporaryFileUpload] Completed batch upload: ${results.length} successful of ${filesToUpload.length} files`);
       
       // Call onUploadComplete callback if provided
       if (onUploadComplete && results.length > 0) {
@@ -254,7 +268,7 @@ export const useTemporaryFileUpload = ({
   }, [files]);
   
   // Finalize uploads (called when form is submitted)
-  // Now much simpler since files are already uploaded
+  // Now enhanced to better handle already-uploaded files
   const finalizeUploads = useCallback(async (carId: string): Promise<string[]> => {
     if (!carId || files.length === 0) return [];
     
@@ -267,11 +281,11 @@ export const useTemporaryFileUpload = ({
       const results: string[] = [];
       let completedFiles = 0;
       
-      // Process each file - most should already be uploaded
       for (const tempFile of files) {
         try {
           // If file was already uploaded, just use the existing URL
           if (tempFile.uploadComplete && tempFile.remotePath) {
+            console.log(`[useTemporaryFileUpload] File ${tempFile.name} already uploaded, using existing path: ${tempFile.remotePath}`);
             results.push(tempFile.remotePath);
             completedFiles++;
             continue;
@@ -279,11 +293,15 @@ export const useTemporaryFileUpload = ({
           
           // Fallback: If file wasn't uploaded yet, upload it now
           if (tempFile.file) {
+            console.log(`[useTemporaryFileUpload] File ${tempFile.name} not yet uploaded, uploading now`);
             const publicUrl = await directUploadPhoto(tempFile.file, carId, category);
             
             if (publicUrl) {
               results.push(publicUrl);
               completedFiles++;
+              console.log(`[useTemporaryFileUpload] Successfully uploaded file during finalization: ${publicUrl}`);
+            } else {
+              console.error(`[useTemporaryFileUpload] Failed to upload file ${tempFile.name} during finalization`);
             }
           }
           
@@ -295,7 +313,7 @@ export const useTemporaryFileUpload = ({
         }
       }
       
-      console.log(`[useTemporaryFileUpload] Successfully finalized ${results.length} of ${files.length} uploads`);
+      console.log(`[useTemporaryFileUpload] Successfully finalized ${results.length} of ${files.length} uploads for car ${carId}`);
       return results;
     } catch (error) {
       console.error('[useTemporaryFileUpload] Error finalizing uploads:', error);

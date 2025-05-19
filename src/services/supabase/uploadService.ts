@@ -8,6 +8,7 @@
  * Updated: 2025-05-20 - Enhanced direct upload with improved temp ID handling
  * Updated: 2025-05-21 - Fixed temporary file tracking and association
  * Updated: 2025-05-24 - Enhanced immediate upload flow with better error handling
+ * Updated: 2025-05-26 - Improved temp file tracking in localStorage with proper consistency checks
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -209,7 +210,7 @@ export const directUploadPhoto = async (
     // Generate a consistent temporary ID for this session if working with a draft
     const uploadId = carId === "temp" ? getSessionTempId() : carId;
     
-    console.log(`Directly uploading file ${file.name} for ${carId === "temp" ? "temporary" : "existing"} car (${uploadId}), category: ${category}`);
+    console.log(`Directly uploading file ${file.name} (${file.size} bytes) for ${carId === "temp" ? "temporary" : "existing"} car (${uploadId}), category: ${category}`);
     
     // Create unique file path using consistent structure
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -289,7 +290,9 @@ export const directUploadPhoto = async (
     } else {
       // For temporary uploads, store metadata in localStorage for later association
       try {
-        const tempUploads: TempFileMetadata[] = JSON.parse(localStorage.getItem('tempFileUploads') || '[]');
+        const tempUploadsKey = 'tempFileUploads';
+        const tempUploadsStr = localStorage.getItem(tempUploadsKey);
+        const tempUploads: TempFileMetadata[] = tempUploadsStr ? JSON.parse(tempUploadsStr) : [];
         
         const newUpload: TempFileMetadata = {
           filePath,
@@ -299,9 +302,16 @@ export const directUploadPhoto = async (
           timestamp: new Date().toISOString()
         };
         
-        tempUploads.push(newUpload);
-        localStorage.setItem('tempFileUploads', JSON.stringify(tempUploads));
-        console.log(`Stored temp upload metadata for future association: ${filePath}`);
+        // Check if we already have this file path stored to avoid duplicates
+        const existingIndex = tempUploads.findIndex(tu => tu.filePath === filePath);
+        if (existingIndex >= 0) {
+          tempUploads[existingIndex] = newUpload;
+        } else {
+          tempUploads.push(newUpload);
+        }
+        
+        localStorage.setItem(tempUploadsKey, JSON.stringify(tempUploads));
+        console.log(`Stored temp upload metadata (${tempUploads.length} total) for future association: ${filePath}`);
       } catch (e) {
         console.warn('Could not store temp upload metadata:', e);
       }
@@ -349,43 +359,71 @@ export const associateTempUploadsWithCar = async (carId: string): Promise<number
     
     console.log(`Associating temp uploads for session ${tempSessionId} with car ID ${carId}`);
     
-    const tempUploads: TempFileMetadata[] = JSON.parse(tempUploadsStr);
-    let associatedCount = 0;
-    
-    for (const upload of tempUploads) {
-      try {
-        console.log(`Processing upload association for ${upload.filePath} in category ${upload.category}`);
-        
-        // Record in database
-        await supabase
-          .from('car_file_uploads')
-          .insert({
-            car_id: carId,
-            file_path: upload.filePath,
-            file_type: 'image/jpeg', // Default if not available
-            upload_status: 'completed',
-            category: upload.category,
-            image_metadata: {
-              url: upload.publicUrl
-            }
-          });
+    try {
+      const tempUploads: TempFileMetadata[] = JSON.parse(tempUploadsStr);
+      let associatedCount = 0;
+      const successfullyAssociated: string[] = [];
+      
+      for (const upload of tempUploads) {
+        try {
+          console.log(`Processing upload association for ${upload.filePath} in category ${upload.category}`);
           
-        // Update car record
-        await updateCarRecordWithImage(carId, upload.filePath, upload.category);
-        associatedCount++;
-      } catch (error) {
-        console.error(`Error associating upload ${upload.filePath} with car ${carId}:`, error);
+          // Record in database
+          const { error: dbError } = await supabase
+            .from('car_file_uploads')
+            .insert({
+              car_id: carId,
+              file_path: upload.filePath,
+              file_type: 'image/jpeg', // Default if not available
+              upload_status: 'completed',
+              category: upload.category,
+              image_metadata: {
+                url: upload.publicUrl
+              }
+            });
+            
+          if (dbError) {
+            console.warn(`Database error associating file ${upload.filePath}:`, dbError);
+            continue;
+          }
+          
+          // Update car record
+          await updateCarRecordWithImage(carId, upload.filePath, upload.category);
+          associatedCount++;
+          successfullyAssociated.push(upload.filePath);
+        } catch (error) {
+          console.error(`Error associating upload ${upload.filePath} with car ${carId}:`, error);
+        }
       }
-    }
-    
-    // Clear processed uploads
-    if (associatedCount > 0) {
-      localStorage.removeItem('tempFileUploads');
-      localStorage.removeItem('tempSessionId');
+      
+      // Only remove successfully associated uploads from localStorage
+      if (successfullyAssociated.length > 0) {
+        try {
+          const remaining = tempUploads.filter(
+            upload => !successfullyAssociated.includes(upload.filePath)
+          );
+          
+          if (remaining.length > 0) {
+            // Some files weren't associated, keep them in localStorage
+            localStorage.setItem('tempFileUploads', JSON.stringify(remaining));
+            console.log(`Kept ${remaining.length} unassociated files in localStorage`);
+          } else {
+            // All files were associated, clear localStorage
+            localStorage.removeItem('tempFileUploads');
+            localStorage.removeItem('tempSessionId');
+            console.log(`Cleared temporary storage after associating all ${associatedCount} uploads`);
+          }
+        } catch (e) {
+          console.warn('Error updating localStorage after association:', e);
+        }
+      }
+      
       console.log(`Associated ${associatedCount} temporary uploads with car ${carId}`);
+      return associatedCount;
+    } catch (parseError) {
+      console.error('Error parsing temporary uploads from localStorage:', parseError);
+      return 0;
     }
-    
-    return associatedCount;
   } catch (error) {
     console.error('Error associating temporary uploads:', error);
     return 0;

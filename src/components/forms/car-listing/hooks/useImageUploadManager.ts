@@ -5,6 +5,7 @@
  * Updated: 2025-05-19 - Enhanced upload tracking, verification capabilities, and fallback mechanisms
  * Updated: 2025-05-24 - Modified to work with immediate uploads
  * Updated: 2025-05-25 - Added missing imports and interface definition for TempFileMetadata
+ * Updated: 2025-05-26 - Improved error handling and tracking for pending files
  * 
  * Manages image uploads for car listings, including:
  * - Auto-save pausing during uploads
@@ -121,7 +122,7 @@ export const useImageUploadManager = ({
   // Direct upload to storage (fallback method)
   const uploadDirectToStorage = useCallback(async (file: File, targetCarId: string, category: string): Promise<string | null> => {
     try {
-      console.log(`[ImageUploadManager] Attempting direct storage upload for ${file.name}`);
+      console.log(`[ImageUploadManager] Attempting direct storage upload for ${file.name} (${file.size} bytes)`);
       
       // Use the directUploadPhoto from uploadService directly
       const publicUrl = await directUploadPhoto(file, targetCarId, category);
@@ -139,7 +140,6 @@ export const useImageUploadManager = ({
   }, []);
   
   // Finalize all uploads when form is submitted
-  // Now optimized to handle already-uploaded files
   const finalizeUploads = useCallback(async (formCarId: string): Promise<string[]> => {
     const targetCarId = formCarId || carId;
     
