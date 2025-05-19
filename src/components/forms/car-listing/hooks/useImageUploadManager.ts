@@ -2,6 +2,7 @@
  * Image Upload Manager Hook
  * Created: 2025-05-24
  * Updated: 2025-05-19 - Enhanced upload tracking, verification capabilities, and fallback mechanisms
+ * Updated: 2025-05-24 - Modified to work with immediate uploads
  * 
  * Manages image uploads for car listings, including:
  * - Auto-save pausing during uploads
@@ -110,37 +111,14 @@ export const useImageUploadManager = ({
     try {
       console.log(`[ImageUploadManager] Attempting direct storage upload for ${file.name}`);
       
-      // Get user ID from session
-      const { data } = await supabase.auth.getSession();
-      const userId = data.session?.user?.id;
+      // Use the directUploadPhoto from uploadService directly
+      const publicUrl = await directUploadPhoto(file, targetCarId, category);
       
-      if (!userId) {
-        throw new Error('User not authenticated');
+      if (!publicUrl) {
+        throw new Error('Failed to upload file to storage');
       }
       
-      // Create unique file path
-      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `cars/${userId}/${targetCarId}/${category}/${fileName}`;
-      
-      // Upload to storage
-      const { data: uploadData, error } = await supabase.storage
-        .from('car-images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('car-images')
-        .getPublicUrl(filePath);
-      
-      console.log(`[ImageUploadManager] Direct upload successful for ${file.name}. Path: ${filePath}`);
+      console.log(`[ImageUploadManager] Direct upload successful for ${file.name}. URL: ${publicUrl}`);
       return publicUrl;
     } catch (error) {
       console.error('[ImageUploadManager] Direct upload failed:', error);
@@ -149,6 +127,7 @@ export const useImageUploadManager = ({
   }, []);
   
   // Finalize all uploads when form is submitted
+  // Now optimized to handle already-uploaded files
   const finalizeUploads = useCallback(async (formCarId: string): Promise<string[]> => {
     const targetCarId = formCarId || carId;
     
@@ -157,8 +136,32 @@ export const useImageUploadManager = ({
       return [];
     }
     
+    // Check if we have any pending files that need to be uploaded
     if (pendingFilesRef.current.length === 0) {
       console.log('[ImageUploadManager] No pending files to finalize');
+      
+      // Instead, try to associate any uploads that were done already
+      try {
+        // We don't need to upload anything, just associate the existing uploads
+        if (typeof associateTempUploadsWithCar === 'function') {
+          const count = await associateTempUploadsWithCar(targetCarId);
+          console.log(`[ImageUploadManager] Associated ${count} temporary uploads with car ${targetCarId}`);
+          
+          // Get the URLs from localStorage to return
+          const tempUploadsStr = localStorage.getItem('tempFileUploads');
+          if (tempUploadsStr) {
+            try {
+              const tempUploads: TempFileMetadata[] = JSON.parse(tempUploadsStr);
+              return tempUploads.map(tu => tu.publicUrl);
+            } catch (e) {
+              console.warn('[ImageUploadManager] Error parsing temp uploads:', e);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[ImageUploadManager] Error associating temp uploads:', error);
+      }
+      
       return [];
     }
     
@@ -184,47 +187,22 @@ export const useImageUploadManager = ({
             continue;
           }
           
-          // Try API route first
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('carId', targetCarId);
-          formData.append('type', 'additional_photos');
-          
-          console.log(`[ImageUploadManager] Uploading file ${file.name} for car ${targetCarId} (attempt ${attemptCount + 1})`);
+          // Update retry count
           uploadAttemptsRef.current[fileId] = attemptCount + 1;
           
-          // Try the API route
-          const response = await fetch(`/api/upload-car-image`, {
-            method: 'POST',
-            body: formData,
-          });
+          console.log(`[ImageUploadManager] Uploading file ${file.name} for car ${targetCarId} (attempt ${attemptCount + 1})`);
           
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Upload failed with status: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          console.log(`[ImageUploadManager] Upload successful:`, data);
-          
-          if (data.filePath) {
-            results.push(data.filePath);
-          } else if (data.publicUrl) {
-            results.push(data.publicUrl);
-          }
-        } catch (uploadError) {
-          console.error(`[ImageUploadManager] Error uploading file ${file.name}:`, uploadError);
-          
-          // Try direct storage upload as fallback
-          console.log(`[ImageUploadManager] Attempting direct storage fallback for ${file.name}`);
+          // Use direct storage upload as the primary method now
           const directUrl = await uploadDirectToStorage(file, targetCarId, 'additional_photos');
           
           if (directUrl) {
-            console.log(`[ImageUploadManager] Fallback successful for ${file.name}`);
             results.push(directUrl);
           } else {
-            errors.push(uploadError instanceof Error ? uploadError : new Error(`Failed to upload ${file.name}`));
+            errors.push(new Error(`Failed to upload ${file.name}`));
           }
+        } catch (uploadError) {
+          console.error(`[ImageUploadManager] Error uploading file ${file.name}:`, uploadError);
+          errors.push(uploadError instanceof Error ? uploadError : new Error(`Failed to upload ${file.name}`));
         }
       }
       

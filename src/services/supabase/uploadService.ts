@@ -1,4 +1,3 @@
-
 /**
  * Upload Service for supabase storage
  * Created: 2025-07-10
@@ -8,6 +7,7 @@
  * Updated: 2025-05-19 - Fixed direct storage upload implementation, removed API dependency
  * Updated: 2025-05-20 - Enhanced direct upload with improved temp ID handling
  * Updated: 2025-05-21 - Fixed temporary file tracking and association
+ * Updated: 2025-05-24 - Enhanced immediate upload flow with better error handling
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -216,17 +216,43 @@ export const directUploadPhoto = async (
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = `cars/${userId}/${uploadId}/${category}/${fileName}`;
     
-    // Upload to storage directly
-    const { error: uploadError } = await supabase.storage
-      .from('car-images')
-      .upload(filePath, fileToUpload, {
-        cacheControl: '3600',
-        upsert: true
-      });
-      
-    if (uploadError) {
-      console.error('Error with direct upload:', uploadError);
-      throw uploadError;
+    // Upload to storage directly with better error handling and retry capability
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('car-images')
+        .upload(filePath, fileToUpload, {
+          cacheControl: '3600',
+          upsert: true
+        });
+        
+      if (uploadError) {
+        console.error('Error with direct upload:', uploadError);
+        throw uploadError;
+      }
+    } catch (uploadError) {
+      // Add retry logic for common network errors
+      if (uploadError instanceof Error && 
+          (uploadError.message.includes('network') || 
+           uploadError.message.includes('timeout'))) {
+        // Wait a moment and try once more
+        console.log('Network error during upload, retrying once...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const { error: retryError } = await supabase.storage
+          .from('car-images')
+          .upload(filePath, fileToUpload, {
+            cacheControl: '3600',
+            upsert: true
+          });
+          
+        if (retryError) {
+          console.error('Error with retry upload:', retryError);
+          throw retryError;
+        }
+      } else {
+        // For other errors, just throw
+        throw uploadError;
+      }
     }
     
     console.log(`Direct upload successful: ${filePath}`);
