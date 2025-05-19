@@ -10,6 +10,7 @@
  * - 2025-04-17: Fixed toast import path
  * - 2025-05-24: Added enhanced loading states and upload verification
  * - 2025-05-19: Fixed submission phase tracking, improved upload verification, and added direct storage fallback
+ * - 2025-05-19: Fixed toast variant type error by changing "warning" to "default"
  */
 import React, { useState, useCallback, useEffect } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
@@ -140,7 +141,7 @@ export const FormSubmitButton = ({
           
           // Max retries exceeded, show warning but proceed
           toast({
-            variant: "warning",
+            variant: "default", // Changed from "warning" to "default"
             title: "Some uploads may not be complete",
             description: "Proceeding with submission, but some images may not be included."
           });

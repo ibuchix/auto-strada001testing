@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as ToastPrimitives from "@radix-ui/react-toast"
 import { cva, type VariantProps } from "class-variance-authority"
@@ -32,6 +33,8 @@ const toastVariants = cva(
           "destructive group border-[#DC143C]/20 bg-[#DC143C]/10 text-[#DC143C]",
         success:
           "border-[#21CA6F]/20 bg-[#21CA6F]/10 text-[#21CA6F]",
+        warning:
+          "border-[#FFA500]/20 bg-[#FFA500]/10 text-[#B45309]",
       },
     },
     defaultVariants: {
@@ -66,6 +69,7 @@ const ToastAction = React.forwardRef<
       "group-[.toast-action-destructive]:border-[#DC143C] group-[.toast-action-destructive]:text-[#DC143C] group-[.toast-action-destructive]:hover:bg-[#DC143C]/10",
       "group-[.toast-action-success]:border-[#21CA6F] group-[.toast-action-success]:text-[#21CA6F] group-[.toast-action-success]:hover:bg-[#21CA6F]/10",
       "group-[.toast-action-default]:border-[#4B4DED] group-[.toast-action-default]:text-[#4B4DED] group-[.toast-action-default]:hover:bg-[#4B4DED]/10",
+      "group-[.toast-action-warning]:border-[#FFA500] group-[.toast-action-warning]:text-[#FFA500] group-[.toast-action-warning]:hover:bg-[#FFA500]/10",
       "group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive/10",
       className
     )}

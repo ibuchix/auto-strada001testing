@@ -1,8 +1,8 @@
-
 /**
  * Image Upload Section for car listing forms
  * Created: 2025-06-04
  * Updated: 2025-05-19 - Enhanced upload tracking, added better form integration and fallback mechanisms
+ * Updated: 2025-05-19 - Fixed toast variant type errors by changing "warning" to "default" 
  * 
  * This component handles image uploads and prevents auto-saving during uploads
  * to avoid performance issues and flickering.
@@ -83,7 +83,7 @@ export const ImageUploadSection = ({
     
     if (images.length >= maxImages) {
       toast({
-        variant: "warning",
+        variant: "default", // Changed from "warning" to "default"
         title: "Maximum images reached",
         description: `You can only upload up to ${maxImages} images.`
       });
@@ -276,7 +276,7 @@ export const ImageUploadSection = ({
       )}
       
       {!carId && (
-        <Alert variant="warning" className="mb-4">
+        <Alert variant="default" className="mb-4">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Please save the form first before uploading images.
