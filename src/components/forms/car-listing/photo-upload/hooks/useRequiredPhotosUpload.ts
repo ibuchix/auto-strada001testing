@@ -1,138 +1,103 @@
 
 /**
- * Hook to manage the state and functions for required photos uploading
- * Changes made:
- * - Added validation integration with onValidationChange callback
- * - Enhanced state persistence with localStorage
- * - Added detailed logging for debugging
+ * Hook for managing required photo uploads
+ * Created: 2024-09-26
+ * Updated: 2025-05-20 - Enhanced with direct upload capabilities
  */
-import { useState, useEffect } from "react";
-import { ValidationError } from "../../utils/validation";
 
-interface UseRequiredPhotosUploadProps {
+import { useState, useCallback, useEffect } from 'react';
+import { allRequiredPhotos } from "../data/requiredPhotoData";
+import { directUploadPhoto } from '@/services/supabase/uploadService';
+
+interface RequiredPhotosUploadProps {
   onValidationChange?: (isValid: boolean) => void;
+  carId?: string;
 }
 
-export const useRequiredPhotosUpload = ({ onValidationChange }: UseRequiredPhotosUploadProps = {}) => {
-  const [uploadedPhotos, setUploadedPhotos] = useState<Record<string, boolean>>({
-    exterior_front: false,
-    exterior_rear: false,
-    exterior_driver: false,
-    exterior_passenger: false,
-    interior_front: false,
-    interior_rear: false,
-    dashboard: false,
-    odometer: false,
-  });
-  
-  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
-  const [recoveryAttempted, setRecoveryAttempted] = useState(false);
+export const useRequiredPhotosUpload = ({ onValidationChange, carId = 'temp' }: RequiredPhotosUploadProps) => {
+  const [uploadedPhotos, setUploadedPhotos] = useState<Record<string, boolean>>({});
   const [activeUploads, setActiveUploads] = useState<Record<string, boolean>>({});
+  const [errorState, setErrorState] = useState<Record<string, string>>({});
 
-  // Check for any previously uploaded photos in localStorage
-  useEffect(() => {
-    if (!recoveryAttempted) {
-      try {
-        const savedPhotos = localStorage.getItem('uploadedRequiredPhotos');
-        if (savedPhotos) {
-          const parsedPhotos = JSON.parse(savedPhotos);
-          setUploadedPhotos(prev => ({
-            ...prev,
-            ...parsedPhotos
-          }));
-          setRecoveryAttempted(true);
-        }
-      } catch (error) {
-        console.error('Failed to recover photos', error);
-      }
-    }
-  }, [recoveryAttempted]);
-
-  // Save upload state to localStorage
-  useEffect(() => {
-    // Only save if we have at least one uploaded photo
-    if (Object.values(uploadedPhotos).some(Boolean)) {
-      localStorage.setItem('uploadedRequiredPhotos', JSON.stringify(uploadedPhotos));
-    }
+  // Calculate completion percentage
+  const getCompletionPercentage = useCallback(() => {
+    const totalRequired = allRequiredPhotos.filter(photo => photo.required).length;
+    if (totalRequired === 0) return 100;
+    
+    const completedRequired = allRequiredPhotos
+      .filter(photo => photo.required && uploadedPhotos[photo.id])
+      .length;
+    
+    return Math.round((completedRequired / totalRequired) * 100);
   }, [uploadedPhotos]);
-
-  // Validate and notify parent
+  
+  // Effect to validate photos
   useEffect(() => {
-    const isValid = Object.values(uploadedPhotos).every(Boolean);
+    const requiredPhotos = allRequiredPhotos.filter(photo => photo.required);
+    const allRequiredUploaded = requiredPhotos.every(photo => uploadedPhotos[photo.id]);
+    
     if (onValidationChange) {
-      onValidationChange(isValid);
+      onValidationChange(allRequiredUploaded);
     }
   }, [uploadedPhotos, onValidationChange]);
-
-  const handlePhotoUploaded = (type: string) => {
-    setUploadedPhotos((prev) => {
-      return { ...prev, [type]: true };
-    });
-    
-    // Clear any errors for this photo
-    if (uploadErrors[type]) {
-      setUploadErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[type];
-        return newErrors;
-      });
-    }
-    
-    // Remove from active uploads
-    setActiveUploads(prev => {
-      const newUploads = { ...prev };
-      delete newUploads[type];
-      return newUploads;
-    });
-  };
   
-  const handleUploadError = (type: string, error: string) => {
-    setUploadErrors(prev => ({
-      ...prev,
-      [type]: error
-    }));
-    
-    // Remove from active uploads
-    setActiveUploads(prev => {
-      const newUploads = { ...prev };
-      delete newUploads[type];
-      return newUploads;
-    });
-  };
-
-  const handleUploadRetry = (type: string) => {
-    // Clear any errors for this photo
-    if (uploadErrors[type]) {
-      setUploadErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[type];
-        return newErrors;
-      });
+  // Set a photo as active upload
+  const setActiveUpload = useCallback((photoId: string) => {
+    setActiveUploads(prev => ({ ...prev, [photoId]: true }));
+    setErrorState(prev => ({ ...prev, [photoId]: '' }));
+  }, []);
+  
+  // Handle successful upload
+  const handlePhotoUploaded = useCallback((photoId: string) => {
+    setActiveUploads(prev => ({ ...prev, [photoId]: false }));
+    setUploadedPhotos(prev => ({ ...prev, [photoId]: true }));
+    setErrorState(prev => ({ ...prev, [photoId]: '' }));
+  }, []);
+  
+  // Handle upload errors
+  const handleUploadError = useCallback((photoId: string, error: string) => {
+    setActiveUploads(prev => ({ ...prev, [photoId]: false }));
+    setErrorState(prev => ({ ...prev, [photoId]: error }));
+  }, []);
+  
+  // Handle retry
+  const handleUploadRetry = useCallback((photoId: string) => {
+    setErrorState(prev => ({ ...prev, [photoId]: '' }));
+  }, []);
+  
+  // Direct upload function for required photos
+  const uploadRequiredPhoto = useCallback(async (file: File, photoId: string): Promise<string | null> => {
+    try {
+      if (!file) {
+        throw new Error('No file provided');
+      }
+      
+      setActiveUpload(photoId);
+      
+      // Direct upload using the service
+      const publicUrl = await directUploadPhoto(file, carId, `required_${photoId}`);
+      
+      if (publicUrl) {
+        handlePhotoUploaded(photoId);
+        return publicUrl;
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      handleUploadError(photoId, error instanceof Error ? error.message : 'Upload failed');
+      return null;
     }
-  };
-
-  // Get completion percentage
-  const getCompletionPercentage = () => {
-    const totalPhotos = Object.keys(uploadedPhotos).length;
-    const completedPhotos = Object.values(uploadedPhotos).filter(Boolean).length;
-    return Math.round((completedPhotos / totalPhotos) * 100);
-  };
-
-  const setActiveUpload = (type: string) => {
-    setActiveUploads(prev => ({
-      ...prev,
-      [type]: true
-    }));
-  };
-
+  }, [carId, setActiveUpload, handlePhotoUploaded, handleUploadError]);
+  
   return {
     uploadedPhotos,
-    uploadErrors,
     activeUploads,
+    errorState,
+    setActiveUpload,
     handlePhotoUploaded,
     handleUploadError,
     handleUploadRetry,
     getCompletionPercentage,
-    setActiveUpload
+    uploadRequiredPhoto
   };
 };

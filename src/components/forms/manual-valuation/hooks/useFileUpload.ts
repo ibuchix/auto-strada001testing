@@ -4,6 +4,7 @@
  * - 2024-08-27: Updated return type for handleFileUpload to be explicit about returning string | null
  * - 2024-09-01: Optimized file upload with better memory management and parallel processing
  * - 2025-05-19: Refactored to use direct Supabase uploads instead of API routes
+ * - 2025-05-20: Enhanced with direct upload methods and improved progress reporting
  */
 import { useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +12,6 @@ import { UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { directUploadPhoto } from "@/services/supabase/uploadService";
-import { useTempFileUploadManager } from "@/hooks/useTempFileUploadManager";
 
 interface UseFileUploadProps {
   form: UseFormReturn<any>;
@@ -21,12 +21,7 @@ interface UseFileUploadProps {
 export const useFileUpload = ({ form, onProgressUpdate }: UseFileUploadProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const { 
-    registerUpload, 
-    registerCompletion, 
-    registerFailure,
-    getPendingCount 
-  } = useTempFileUploadManager();
+  const [uploadingFile, setUploadingFile] = useState<string | null>(null);
   
   // Memoize update function to prevent recreations
   const updateProgress = useCallback((newProgress: number) => {
@@ -34,40 +29,20 @@ export const useFileUpload = ({ form, onProgressUpdate }: UseFileUploadProps) =>
     if (onProgressUpdate) onProgressUpdate(newProgress);
   }, [onProgressUpdate]);
 
-  // Generate storage paths only once per file
-  const createStoragePath = useCallback((file: File, type: string): string => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${crypto.randomUUID()}.${fileExt}`;
-    return `${type}/${fileName}`;
-  }, []);
-
   const handleFileUpload = useCallback(async (file: File, type: string): Promise<string | null> => {
     if (!file) return null;
 
     setIsUploading(true);
-    updateProgress(0);
+    setUploadingFile(file.name);
+    updateProgress(10);
     
-    // Register with the upload manager
-    const uploadId = registerUpload(file);
-
     try {
-      // Generate fake progress updates
-      let progress = 0;
-      const progressInterval = setInterval(() => {
-        progress += 5;
-        if (progress <= 90) {
-          updateProgress(progress);
-        } else {
-          clearInterval(progressInterval);
-        }
-      }, 200);
-      
+      console.log(`[useFileUpload] Starting direct upload for ${file.name} (type: ${type})`);
+
       // Use direct upload method instead of API route
-      console.log(`[useFileUpload] Starting direct upload for ${file.name}`);
+      updateProgress(30);
       const publicUrl = await directUploadPhoto(file, "temp", type);
-      
-      clearInterval(progressInterval);
-      updateProgress(100);
+      updateProgress(90);
       
       if (!publicUrl) {
         throw new Error("Failed to get public URL for uploaded file");
@@ -79,26 +54,24 @@ export const useFileUpload = ({ form, onProgressUpdate }: UseFileUploadProps) =>
         shouldValidate: true,
         shouldDirty: true
       });
-      
-      // Mark as completed in the upload manager
-      registerCompletion(uploadId);
 
       console.log(`[useFileUpload] Upload successful: ${publicUrl}`);
+      updateProgress(100);
+      
+      // Success notification with toast
       toast.success(`Photo uploaded successfully`);
       return publicUrl;
     } catch (error: any) {
       console.error('[useFileUpload] Upload error:', error);
-      
-      // Mark as failed in the upload manager
-      registerFailure(uploadId);
-      
       toast.error(error.message || 'Failed to upload photo');
       return null;
     } finally {
       setIsUploading(false);
-      updateProgress(0);
+      setUploadingFile(null);
+      // Reset progress after a short delay to show completion
+      setTimeout(() => updateProgress(0), 1000);
     }
-  }, [form, updateProgress, createStoragePath, registerUpload, registerCompletion, registerFailure]);
+  }, [form, updateProgress]);
 
   const handleDocumentUpload = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -108,59 +81,19 @@ export const useFileUpload = ({ form, onProgressUpdate }: UseFileUploadProps) =>
     
     try {
       const newDocuments = Array.from(files);
-      
       const totalFiles = newDocuments.length;
-      let completedFiles = 0;
       const uploadUrls: string[] = [];
-      const uploadIds: string[] = [];
       
-      // Register all files with upload manager
-      newDocuments.forEach(file => {
-        uploadIds.push(registerUpload(file));
-      });
-      
-      // Process uploads in parallel batches of 3 for better performance
+      // Process uploads in batches of 3 for better performance
       const batchSize = 3;
       for (let i = 0; i < newDocuments.length; i += batchSize) {
         const batch = newDocuments.slice(i, i + batchSize);
         
-        const uploadPromises = batch.map(async (file, batchIndex) => {
-          // Get session for user ID
-          const { data } = await supabase.auth.getSession();
-          const userId = data.session?.user?.id;
-          
-          if (!userId) {
-            console.error('[useFileUpload] No user session found');
-            return null;
-          }
-          
-          // Create unique file path
-          const fileExt = file.name.split('.').pop();
-          const fileName = `valuation/service_documents/${uuidv4()}.${fileExt}`;
-          
-          // Upload directly to storage
-          const { error: uploadError } = await supabase.storage
-            .from('car-images')
-            .upload(fileName, file, {
-              cacheControl: '3600',
-              upsert: true
-            });
-            
-          if (uploadError) {
-            console.error('[useFileUpload] Error uploading document:', uploadError);
-            registerFailure(uploadIds[i + batchIndex]);
-            return null;
-          }
-          
-          // Get public URL
-          const { data: { publicUrl } } = supabase.storage
-            .from('car-images')
-            .getPublicUrl(fileName);
-          
-          // Mark completed in upload manager  
-          registerCompletion(uploadIds[i + batchIndex]);
-            
-          return publicUrl;
+        setUploadingFile(`Uploading ${i+1}-${Math.min(i+batch.length, totalFiles)} of ${totalFiles} files...`);
+        
+        const uploadPromises = batch.map(async (file) => {
+          // Use direct upload for documents too
+          return directUploadPhoto(file, "temp", "service_documents");
         });
         
         // Wait for batch to complete
@@ -170,7 +103,7 @@ export const useFileUpload = ({ form, onProgressUpdate }: UseFileUploadProps) =>
         batchResults.filter(Boolean).forEach(url => url && uploadUrls.push(url));
         
         // Update progress
-        completedFiles += batch.length;
+        const completedFiles = i + batch.length;
         const newProgress = Math.round((completedFiles / totalFiles) * 100);
         updateProgress(newProgress);
       }
@@ -190,15 +123,21 @@ export const useFileUpload = ({ form, onProgressUpdate }: UseFileUploadProps) =>
       toast.error(error.message || 'Failed to upload documents');
     } finally {
       setIsUploading(false);
+      setUploadingFile(null);
       updateProgress(0);
     }
-  }, [form, updateProgress, registerUpload, registerCompletion, registerFailure]);
+  }, [form, updateProgress]);
   
   const handleAdditionalPhotos = useCallback((files: File[]) => {
     // Process in parallel with Promise.all for better performance
     Promise.all(
       files.map((file, index) => handleFileUpload(file, `additional_${index}`))
-    );
+    ).then(results => {
+      const successCount = results.filter(Boolean).length;
+      if (successCount > 0) {
+        toast.success(`${successCount} additional photos uploaded`);
+      }
+    });
   }, [handleFileUpload]);
   
   const removeUploadedFile = useCallback((url: string) => {
@@ -229,6 +168,7 @@ export const useFileUpload = ({ form, onProgressUpdate }: UseFileUploadProps) =>
   return useMemo(() => ({
     isUploading,
     progress,
+    uploadingFile,
     handleFileUpload,
     handleDocumentUpload,
     handleAdditionalPhotos,
@@ -236,6 +176,7 @@ export const useFileUpload = ({ form, onProgressUpdate }: UseFileUploadProps) =>
   }), [
     isUploading,
     progress,
+    uploadingFile,
     handleFileUpload,
     handleDocumentUpload,
     handleAdditionalPhotos,

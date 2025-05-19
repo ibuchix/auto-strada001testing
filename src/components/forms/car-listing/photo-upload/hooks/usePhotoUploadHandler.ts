@@ -4,12 +4,13 @@
  * - Fixed TypeScript errors related to function calls and missing properties
  * - Updated to use proper uploadImagesForCar service
  * - 2025-07-18: Integrated with standardized upload service
+ * - 2025-05-20: Updated to use direct uploads for immediate processing
  */
 import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
-import { uploadImagesForCar } from "@/services/supabase/uploadService";
+import { directUploadPhoto } from "@/services/supabase/uploadService";
 import { supabase } from "@/integrations/supabase/client";
 
 export const usePhotoUploadHandler = (
@@ -18,17 +19,14 @@ export const usePhotoUploadHandler = (
 ) => {
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [uploadedCount, setUploadedCount] = useState(0);
+  const [currentUpload, setCurrentUpload] = useState<string | null>(null);
   
   // Handle photo uploads
   const handlePhotoUpload = useCallback(async (files: File[]) => {
-    if (!carId) {
-      toast.error('Please save your listing first before uploading photos');
-      return;
-    }
-    
     if (!files || files.length === 0) return;
     
     setIsProcessingPhoto(true);
+    setCurrentUpload("Processing photos...");
     
     try {
       // Get user ID from session
@@ -60,19 +58,26 @@ export const usePhotoUploadHandler = (
         toast.error('No valid files to upload');
         return;
       }
+
+      const uploadedUrls: string[] = [];
       
-      // Upload files using the service
-      const uploadedPaths = await uploadImagesForCar(validFiles, carId, 'additional_photos', userId);
-      
-      if (uploadedPaths.length > 0) {
-        // Get public URLs for all uploaded files
-        const uploadedUrls = uploadedPaths.map(path => {
-          const { data } = supabase.storage
-            .from('car-images')
-            .getPublicUrl(path);
-          return data.publicUrl;
-        });
+      // Process each file individually with direct upload
+      for (const [index, file] of validFiles.entries()) {
+        setCurrentUpload(`Uploading ${index + 1}/${validFiles.length}: ${file.name}`);
         
+        // Use direct upload approach
+        const publicUrl = await directUploadPhoto(
+          file, 
+          carId || "temp", 
+          'additional_photos'
+        );
+        
+        if (publicUrl) {
+          uploadedUrls.push(publicUrl);
+        }
+      }
+      
+      if (uploadedUrls.length > 0) {
         // Update form with new photos
         const currentPhotos = form.getValues('uploadedPhotos') || [];
         const newPhotos = [...currentPhotos, ...uploadedUrls];
@@ -87,17 +92,19 @@ export const usePhotoUploadHandler = (
         setUploadedCount(prev => prev + validFiles.length);
         toast.success(`${validFiles.length} photos uploaded successfully`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading photos:', error);
-      toast.error('Failed to upload photos');
+      toast.error(error.message || 'Failed to upload photos');
     } finally {
       setIsProcessingPhoto(false);
+      setCurrentUpload(null);
     }
   }, [carId, form]);
 
   return {
     isProcessingPhoto,
     uploadedCount,
+    currentUpload,
     handlePhotoUpload
   };
 };

@@ -6,6 +6,7 @@
  * - 2024-08-16: Fixed File constructor usage for document preview
  * - 2024-08-25: Refactored into smaller, more maintainable components
  * - 2024-08-27: Fixed type mismatch between handleFileUpload and component props
+ * - 2025-05-20: Added progress feedback and current file indicator
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -24,6 +25,7 @@ export const PhotoUploadSection = ({ form, onProgressUpdate }: PhotoUploadSectio
   const {
     isUploading,
     progress,
+    uploadingFile,
     handleFileUpload,
     handleDocumentUpload,
     handleAdditionalPhotos,
@@ -35,6 +37,7 @@ export const PhotoUploadSection = ({ form, onProgressUpdate }: PhotoUploadSectio
       <VehiclePhotoSection 
         isUploading={isUploading}
         progress={progress}
+        uploadingFile={uploadingFile}
         onFileSelect={handleFileUpload}
         onAdditionalPhotosSelect={handleAdditionalPhotos}
       />

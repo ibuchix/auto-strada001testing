@@ -2,6 +2,7 @@
 /**
  * Component for vehicle photo uploads
  * - 2024-08-27: Fixed type definition for onFileSelect to accept Promise<string | null>
+ * - 2025-05-20: Added upload progress indicator and current file display
  */
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Camera } from "lucide-react";
@@ -12,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 interface VehiclePhotoSectionProps {
   isUploading: boolean;
   progress: number;
+  uploadingFile?: string | null;
   onFileSelect: (file: File, type: string) => Promise<string | null>;
   onAdditionalPhotosSelect: (files: File[]) => void;
 }
@@ -19,6 +21,7 @@ interface VehiclePhotoSectionProps {
 export const VehiclePhotoSection = ({
   isUploading,
   progress,
+  uploadingFile,
   onFileSelect,
   onAdditionalPhotosSelect
 }: VehiclePhotoSectionProps) => {
@@ -43,7 +46,10 @@ export const VehiclePhotoSection = ({
       {progress > 0 && progress < 100 && (
         <div className="space-y-2">
           <Progress value={progress} className="h-2" />
-          <p className="text-sm text-subtitle">Upload progress: {Math.round(progress)}%</p>
+          <div className="flex justify-between">
+            <p className="text-sm text-subtitle">Upload progress: {Math.round(progress)}%</p>
+            {uploadingFile && <p className="text-sm text-subtitle">{uploadingFile}</p>}
+          </div>
         </div>
       )}
 

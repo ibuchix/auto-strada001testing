@@ -11,6 +11,7 @@
  * - Improved spacing and typography
  * - 2025-04-05: Updated to handle the non-optional required property in PhotoItem
  * - 2025-04-06: Harmonized with app design system
+ * - 2025-05-20: Updated to use direct uploads for immediate processing
  */
 
 import { Separator } from "@/components/ui/separator";
@@ -27,13 +28,15 @@ interface RequiredPhotosProps {
   progress?: number;
   onFileSelect: (file: File, type: string) => Promise<string | null>;
   onValidationChange?: (isValid: boolean) => void;
+  carId?: string;
 }
 
 export const RequiredPhotos = ({ 
   isUploading, 
   progress, 
   onFileSelect,
-  onValidationChange
+  onValidationChange,
+  carId
 }: RequiredPhotosProps) => {
   const {
     uploadedPhotos,
@@ -42,12 +45,16 @@ export const RequiredPhotos = ({
     handleUploadError,
     handleUploadRetry,
     getCompletionPercentage,
-    setActiveUpload
-  } = useRequiredPhotosUpload({ onValidationChange });
+    setActiveUpload,
+    uploadRequiredPhoto
+  } = useRequiredPhotosUpload({ 
+    onValidationChange,
+    carId
+  });
   
   // Generate validation errors for displaying in summary
   const validationErrors: ValidationError[] = allRequiredPhotos
-    .filter(photo => !uploadedPhotos[photo.id])
+    .filter(photo => photo.required && !uploadedPhotos[photo.id])
     .map(photo => ({
       field: `photo_${photo.id}`,
       message: `${photo.title} photo is required`,
@@ -61,7 +68,16 @@ export const RequiredPhotos = ({
   const handleFileUpload = async (file: File, type: string) => {
     // Set as active upload before starting
     setActiveUpload(type);
-    return await onFileSelect(file, type);
+    
+    // Delegate to the provided onFileSelect function
+    const result = await onFileSelect(file, type);
+    
+    // If the upload was successful, mark the photo as uploaded
+    if (result) {
+      handlePhotoUploaded(type);
+    }
+    
+    return result;
   };
 
   return (

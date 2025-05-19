@@ -8,6 +8,7 @@
  * - Improved error handling and reporting
  * - Fixed state management issues
  * - Fixed TypeScript error with Supabase upsert options
+ * - 2025-05-20: Added image upload association with car ID
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
@@ -16,18 +17,19 @@ import { prepareSubmission } from '../utils/submission';
 import { supabase } from '@/integrations/supabase/client';
 import { useFormState } from '../context/FormStateContext';
 import { CarListingFormData } from '@/types/forms';
+import { associateTempUploadsWithCar } from '@/services/supabase/uploadService';
 
 // Diagnostic logging utility
-const logSubmissionEvent = (event, data = {}) => {
+const logSubmissionEvent = (event: string, data = {}) => {
   console.log(`[FormSubmission][${new Date().toISOString()}] ${event}`, {
     ...data,
     timestamp: performance.now()
   });
 };
 
-export const useFormSubmission = (formId) => {
+export const useFormSubmission = (formId: string) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { updateFormState } = useFormState();
   const submissionAttempts = useRef(0);
   const lastSubmissionTime = useRef(0);
@@ -124,6 +126,31 @@ export const useFormSubmission = (formId) => {
         isSubmitted: true,
         lastSubmitted: new Date().toISOString()
       });
+      
+      // Now that we have a car ID, associate any temporary uploads with it
+      if (submissionData?.id) {
+        logSubmissionEvent('Associating temporary uploads with car ID', { 
+          submissionId, 
+          carId: submissionData.id 
+        });
+        
+        try {
+          const associatedCount = await associateTempUploadsWithCar(submissionData.id);
+          if (associatedCount > 0) {
+            logSubmissionEvent('Successfully associated temp uploads', { 
+              submissionId, 
+              count: associatedCount 
+            });
+          }
+        } catch (associationError) {
+          // Non-fatal error - log but continue
+          console.error('Error associating uploads:', associationError);
+          logSubmissionEvent('Error associating uploads', { 
+            submissionId, 
+            error: associationError instanceof Error ? associationError.message : String(associationError)
+          });
+        }
+      }
       
       logSubmissionEvent('Submission successful', { submissionId });
       toast({

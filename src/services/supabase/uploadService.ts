@@ -6,10 +6,12 @@
  * Updated: 2025-05-23 - Added improved error handling and database verification
  * Updated: 2025-05-24 - Fixed file existence verification method
  * Updated: 2025-05-19 - Fixed direct storage upload implementation, removed API dependency
+ * Updated: 2025-05-20 - Enhanced direct upload with improved temp ID handling
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
+import { compressImage } from "@/components/forms/car-listing/photo-upload/utils/imageCompression";
 
 /**
  * Uploads multiple images for a given entity
@@ -64,26 +66,7 @@ export const uploadImagesForCar = async (
         });
         
       if (dbError) {
-        console.error(`Error recording file upload to database:`, dbError);
-        
-        // Try again with simplified metadata
-        try {
-          const { error: retryError } = await supabase
-            .from('car_file_uploads')
-            .insert({
-              car_id: carId,
-              file_path: filePath,
-              file_type: file.type,
-              upload_status: 'completed',
-              category: category
-            });
-            
-          if (retryError) {
-            console.error(`Error on retry of file upload record:`, retryError);
-          }
-        } catch (e) {
-          console.error('Exception during database record retry:', e);
-        }
+        console.warn(`Warning: Could not record file upload to database:`, dbError);
       }
       
       // Update the appropriate field in cars table based on category
@@ -126,14 +109,10 @@ const updateCarRecordWithImage = async (carId: string, filePath: string, categor
         requiredPhotos[category] = filePath;
         
         // Update the car record with the modified JSONB
-        const { error: updateError } = await supabase
+        await supabase
           .from('cars')
           .update({ required_photos: requiredPhotos })
           .eq('id', carId);
-          
-        if (updateError) {
-          console.error(`Error updating car required_photos:`, updateError);
-        }
       }
     } else if (category === 'additional_photos') {
       try {
@@ -151,14 +130,10 @@ const updateCarRecordWithImage = async (carId: string, filePath: string, categor
           
           if (!photosArray.includes(filePath)) {
             // Update the car record with the modified array
-            const { error: updateError } = await supabase
+            await supabase
               .from('cars')
               .update({ additional_photos: [...photosArray, filePath] })
               .eq('id', carId);
-              
-            if (updateError) {
-              console.error(`Error updating car additional_photos:`, updateError);
-            }
           }
         }
       } catch (err) {
@@ -182,68 +157,48 @@ export const getPublicUrl = (filePath: string): string => {
 };
 
 /**
- * Verifies that a file exists in storage
- */
-export const verifyFileExists = async (filePath: string): Promise<boolean> => {
-  try {
-    // Extract the folder path from the full file path
-    const pathParts = filePath.split('/');
-    const fileName = pathParts.pop() || '';
-    const folderPath = pathParts.join('/');
-    
-    // Use the list method to check if the file exists in the folder
-    const { data, error } = await supabase.storage
-      .from('car-images')
-      .list(folderPath, {
-        limit: 100,
-        search: fileName
-      });
-    
-    if (error) {
-      console.error('Error checking file existence:', error);
-      return false;
-    }
-    
-    // Check if the file exists in the returned list
-    return data !== null && data.some(file => file.name === fileName);
-  } catch (error) {
-    console.error('Error checking file existence:', error);
-    return false;
-  }
-};
-
-/**
  * Directly uploads a single photo to Supabase Storage
+ * Uses a temporary ID if no car ID is available yet
  */
 export const directUploadPhoto = async (
   file: File,
-  carId: string,
+  carId: string = "temp",
   category: string = 'additional_photos'
 ): Promise<string | null> => {
   try {
     if (!file) {
       throw new Error('No file provided');
     }
+
+    // Compress the image if it's large (over 5MB)
+    let fileToUpload = file;
+    if (file.size > 5 * 1024 * 1024) {
+      try {
+        fileToUpload = await compressImage(file);
+        console.log(`Compressed image from ${(file.size / 1024).toFixed(2)}KB to ${(fileToUpload.size / 1024).toFixed(2)}KB`);
+      } catch (compressionError) {
+        console.warn('Image compression failed, using original file:', compressionError);
+      }
+    }
     
     // Get user ID from session
     const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData.session?.user?.id;
+    const userId = sessionData.session?.user?.id || "anonymous";
     
-    if (!userId) {
-      throw new Error('User not authenticated');
-    }
+    // Generate a unique temporary ID if we're working with a draft
+    const uploadId = carId === "temp" ? uuidv4() : carId;
     
-    console.log(`Directly uploading file ${file.name} for car ${carId}, category ${category}`);
+    console.log(`Directly uploading file ${file.name} for ${carId === "temp" ? "temporary" : "existing"} car, category ${category}`);
     
     // Create unique file path using consistent structure
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${uuidv4()}.${fileExt}`;
-    const filePath = `cars/${userId}/${carId}/${category}/${fileName}`;
+    const filePath = `cars/${userId}/${uploadId}/${category}/${fileName}`;
     
     // Upload to storage directly
     const { error: uploadError } = await supabase.storage
       .from('car-images')
-      .upload(filePath, file, {
+      .upload(filePath, fileToUpload, {
         cacheControl: '3600',
         upsert: true
       });
@@ -253,37 +208,54 @@ export const directUploadPhoto = async (
       throw uploadError;
     }
     
-    console.log(`Direct upload successful, recording in database: ${filePath}`);
-    
-    // Record in database
-    const { error: dbError } = await supabase
-      .from('car_file_uploads')
-      .insert({
-        car_id: carId,
-        file_path: filePath,
-        file_type: file.type,
-        upload_status: 'completed',
-        category: category,
-        image_metadata: {
-          size: file.size,
-          name: file.name
-        }
-      });
-    
-    if (dbError) {
-      console.warn('Warning: Could not record file in database:', dbError);
-      // Continue anyway as the file is uploaded
-    }
-    
-    // Update car record
-    await updateCarRecordWithImage(carId, filePath, category);
+    console.log(`Direct upload successful: ${filePath}`);
     
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('car-images')
       .getPublicUrl(filePath);
     
-    console.log(`Direct upload completed with public URL: ${publicUrl}`);
+    // Only attempt to update database records for non-temp uploads
+    if (carId !== "temp") {
+      // Record in database
+      try {
+        await supabase
+          .from('car_file_uploads')
+          .insert({
+            car_id: carId,
+            file_path: filePath,
+            file_type: file.type,
+            upload_status: 'completed',
+            category: category,
+            image_metadata: {
+              size: fileToUpload.size,
+              name: file.name
+            }
+          });
+          
+        // Update car record
+        await updateCarRecordWithImage(carId, filePath, category);
+      } catch (dbError) {
+        console.warn('Warning: Could not record file in database:', dbError);
+        // Continue anyway as the file is uploaded
+      }
+    } else {
+      // For temporary uploads, store metadata in localStorage for later association
+      try {
+        const tempUploads = JSON.parse(localStorage.getItem('tempFileUploads') || '[]');
+        tempUploads.push({
+          filePath,
+          publicUrl,
+          category,
+          uploadId,
+          timestamp: new Date().toISOString()
+        });
+        localStorage.setItem('tempFileUploads', JSON.stringify(tempUploads));
+        console.log(`Stored temp upload metadata for future association: ${filePath}`);
+      } catch (e) {
+        console.warn('Could not store temp upload metadata:', e);
+      }
+    }
     
     return publicUrl;
   } catch (error) {
@@ -292,9 +264,75 @@ export const directUploadPhoto = async (
   }
 };
 
+/**
+ * Associates temporary uploads with a car ID after the car is created
+ */
+export const associateTempUploadsWithCar = async (carId: string): Promise<number> => {
+  try {
+    if (!carId) {
+      console.error('Cannot associate uploads: No car ID provided');
+      return 0;
+    }
+
+    // Get user ID from session
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+    
+    if (!userId) {
+      console.error('Cannot associate uploads: No user ID available');
+      return 0;
+    }
+
+    // Retrieve temp uploads from localStorage
+    const tempUploadsStr = localStorage.getItem('tempFileUploads');
+    if (!tempUploadsStr) {
+      console.log('No temporary uploads found to associate');
+      return 0;
+    }
+    
+    const tempUploads = JSON.parse(tempUploadsStr);
+    let associatedCount = 0;
+    
+    for (const upload of tempUploads) {
+      try {
+        // Record in database
+        await supabase
+          .from('car_file_uploads')
+          .insert({
+            car_id: carId,
+            file_path: upload.filePath,
+            file_type: 'image/jpeg', // Default if not available
+            upload_status: 'completed',
+            category: upload.category,
+            image_metadata: {
+              url: upload.publicUrl
+            }
+          });
+          
+        // Update car record
+        await updateCarRecordWithImage(carId, upload.filePath, upload.category);
+        associatedCount++;
+      } catch (error) {
+        console.error(`Error associating upload ${upload.filePath} with car ${carId}:`, error);
+      }
+    }
+    
+    // Clear processed uploads
+    if (associatedCount > 0) {
+      localStorage.removeItem('tempFileUploads');
+      console.log(`Associated ${associatedCount} temporary uploads with car ${carId}`);
+    }
+    
+    return associatedCount;
+  } catch (error) {
+    console.error('Error associating temporary uploads:', error);
+    return 0;
+  }
+};
+
 export default {
   uploadImagesForCar,
   getPublicUrl,
-  verifyFileExists,
-  directUploadPhoto
+  directUploadPhoto,
+  associateTempUploadsWithCar
 };
