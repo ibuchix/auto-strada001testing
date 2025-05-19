@@ -12,6 +12,7 @@
  * Updated: 2025-05-26 - Fixed FormSubmission context import to use local context
  * Updated: 2025-05-19 - Added throttling feedback and improved error handling
  * Updated: 2025-05-20 - Removed duplicate throttling logic to use centralized implementation
+ * Updated: 2025-05-31 - Fixed handling of submission result to match updated provider
  */
 
 import { useState, useEffect, useRef, useCallback, memo } from "react";
@@ -19,7 +20,7 @@ import { useFormData } from "../context/FormDataContext";
 import { useFormSubmission } from "../submission/FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface FormSubmitHandlerProps {
   onSubmitSuccess?: (carId: string) => void;
@@ -81,12 +82,17 @@ export const FormSubmitHandler = memo(({
       // Check if cooling down
       if (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0) {
         console.log(`[FormSubmitHandler] Cooling down, ${cooldownTimeRemaining}s remaining`);
-        toast.info(`Please wait ${cooldownTimeRemaining} seconds before submitting again`);
+        toast({
+          description: `Please wait ${cooldownTimeRemaining} seconds before submitting again`
+        });
         return;
       }
       
       if (!userId) {
-        toast.error('You must be logged in to submit a form');
+        toast({
+          variant: "destructive",
+          description: 'You must be logged in to submit a form'
+        });
         return;
       }
 
@@ -136,7 +142,8 @@ export const FormSubmitHandler = memo(({
         onSubmitError(error instanceof Error ? error : new Error('Unknown error during submission'));
       }
       
-      toast.error('Failed to submit form', {
+      toast({
+        variant: "destructive",
         description: error instanceof Error ? error.message : 'An unknown error occurred'
       });
       

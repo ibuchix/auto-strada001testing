@@ -6,6 +6,7 @@
  * Updated: 2025-05-26 - Fixed context implementation to use car-listing specific FormStateContext
  * Updated: 2025-05-19 - Fixed throttling issues and enhanced error feedback
  * Updated: 2025-05-20 - Enhanced with cooldown tracking and consolidated throttling logic
+ * Updated: 2025-05-31 - Fixed submitForm implementation to provide required submission function 
  * 
  * Provides consistent submission handling with proper type handling
  */
@@ -13,6 +14,7 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { CarListingFormData } from '@/types/forms';
 import { useFormSubmission as useFormSubmissionHook } from '@/hooks/useFormSubmission';
+import { submitCarListing } from './services/submissionService';
 
 interface FormSubmissionContextType {
   submissionState: {
@@ -60,7 +62,12 @@ export const FormSubmissionProvider = ({
   const submitForm = async (data: CarListingFormData): Promise<string | null> => {
     setIsSuccessful(false);
     
-    const result = await baseSubmitForm(data);
+    // Provide the second argument - a submission function that handles the actual submission
+    const result = await baseSubmitForm(data, async (formData: CarListingFormData) => {
+      // This is the actual submission function that will be called by baseSubmitForm
+      const response = await submitCarListing(formData, userId);
+      return response?.id || null;
+    });
     
     // Set success state based on result
     if (result) {
