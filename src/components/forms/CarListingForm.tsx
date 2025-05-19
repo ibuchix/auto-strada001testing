@@ -17,6 +17,7 @@
  * - 2025-05-16: Fixed provider hierarchy to ensure consistent form submission flow
  * - 2025-05-19: Fixed React error #310 by ensuring consistent hook order
  * - 2025-05-19: Updated FormSubmissionProvider to use correct props (formId -> userId)
+ * - 2025-05-26: Fixed FormStateProvider import to use car-listing specific provider
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -33,7 +34,7 @@ import { getFormDefaults } from "./car-listing/hooks/useFormHelpers";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { FormStateProvider } from "./car-listing/components/FormStateProvider";
+import { FormStateProvider } from "./car-listing/context/FormStateContext";
 import { ErrorProvider } from "@/contexts/ErrorContext";
 
 interface CarListingFormProps {

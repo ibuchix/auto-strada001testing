@@ -2,9 +2,10 @@
 /**
  * Form submission hook
  * Updated: 2025-05-04 - Fixed TypeScript errors with import conflicts
+ * Updated: 2025-05-26 - Updated to use car-listing specific FormStateContext
  */
 
-// File is being imported but also defined here, so import renamed
+// Import the hook directly from the root hooks folder
 import { useFormSubmission as useFormSubmissionHook } from '@/hooks/useFormSubmission';
 export { useFormSubmissionHook };
 

@@ -3,6 +3,7 @@
  * FormStateContext for car listing form
  * Created: 2025-07-12
  * Updated: 2025-07-23 - Extended context type definition with additional fields
+ * Updated: 2025-05-26 - Enhanced context with better error handling and improved type definitions
  * Provides form state context for the car listing form
  */
 
@@ -19,6 +20,8 @@ interface FormState {
   hasInitializedHooks: boolean;
   lastStep?: number;
   isComplete?: boolean;
+  isSubmitted?: boolean;
+  lastSubmitted?: string | null;
 }
 
 interface FormStateContextType {
@@ -34,7 +37,9 @@ const defaultFormState: FormState = {
   draftLoadError: null,
   filteredStepsArray: [],
   totalSteps: 1,
-  hasInitializedHooks: false
+  hasInitializedHooks: false,
+  isSubmitted: false,
+  lastSubmitted: null
 };
 
 const FormStateContext = createContext<FormStateContextType | undefined>(undefined);
@@ -67,7 +72,7 @@ export const useFormState = (): FormStateContextType => {
   const context = useContext(FormStateContext);
   
   if (context === undefined) {
-    throw new Error('useFormState must be used within a FormStateProvider');
+    throw new Error('useFormState must be used within a FormStateProvider (car-listing specific version)');
   }
   
   return context;

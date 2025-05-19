@@ -9,6 +9,7 @@
  * Updated: 2025-05-24 - Refactored for better consistency and type safety
  * Updated: 2025-05-19 - Fixed import path to use correct file name
  * Updated: 2025-05-19 - Updated to use submitError property
+ * Updated: 2025-05-26 - Fixed FormSubmission context import to use local context
  * 
  * This component handles form submission, including:
  * - VIN reservation validation and creation
@@ -19,7 +20,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useFormData } from "../context/FormDataContext";
-import { useFormSubmission } from "./FormSubmissionProvider";
+import { useFormSubmission } from "../submission/FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";

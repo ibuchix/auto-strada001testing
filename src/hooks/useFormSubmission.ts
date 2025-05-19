@@ -8,12 +8,13 @@
  * - 2025-05-24: Fixed null checks and type annotations
  * - 2025-05-19: Fixed arithmetic comparison issues and type casting
  * - 2025-05-19: Fixed void return type issues with lastSubmission time
+ * - 2025-05-26: Fixed context implementation to use car-listing specific FormStateContext
  */
 
 import { useCallback } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { CarListingFormData } from '@/types/forms';
-import { useFormState } from '../context/FormStateContext';
+import { useFormState } from '@/components/forms/car-listing/context/FormStateContext';
 import { useSubmissionState } from './submission/useSubmissionState';
 import { useSubmissionLogger } from './submission/useSubmissionLogger';
 import { useDataProcessing } from './submission/useDataProcessing';

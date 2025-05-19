@@ -6,9 +6,11 @@
  * - 2024-06-24: Added memoization to prevent frequent state updates
  * - 2024-08-10: Enhanced memoization strategy for the entire state object
  * - Added reference comparison to prevent unnecessary re-renders
+ * - 2025-05-26: Updated to be a wrapper around the FormStateContext
  */
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useMemo } from "react";
+import { useFormState as useContextFormState } from "../context/FormStateContext";
 
 export interface FormState {
   isInitializing: boolean;
@@ -21,51 +23,9 @@ export interface FormState {
   hasInitializedHooks: boolean;
 }
 
-const defaultFormState: FormState = {
-  isInitializing: true,
-  currentStep: 0,
-  lastSaved: null,
-  carId: undefined,
-  draftLoadError: null,
-  filteredStepsArray: [],
-  totalSteps: 1,
-  hasInitializedHooks: false
-};
-
 export const useFormState = (initialState?: Partial<FormState>) => {
-  const [formState, setFormState] = useState<FormState>({
-    ...defaultFormState,
-    ...initialState
-  });
+  const { formState, updateFormState } = useContextFormState();
   
-  // Use a ref to track the previous state for comparison
-  const prevStateRef = useRef<FormState>(formState);
-
-  // Memoize the update function to prevent recreating it on each render
-  const updateFormState = useCallback((updater: Partial<FormState> | ((prev: FormState) => FormState)) => {
-    if (typeof updater === 'function') {
-      setFormState(prev => {
-        const nextState = updater(prev);
-        // Only update if something actually changed
-        if (JSON.stringify(nextState) === JSON.stringify(prev)) {
-          return prev; // Return previous state reference if nothing changed
-        }
-        prevStateRef.current = nextState;
-        return nextState;
-      });
-    } else {
-      setFormState(prev => {
-        const nextState = { ...prev, ...updater };
-        // Only update if something actually changed
-        if (JSON.stringify(nextState) === JSON.stringify(prev)) {
-          return prev; // Return previous state reference if nothing changed
-        }
-        prevStateRef.current = nextState;
-        return nextState;
-      });
-    }
-  }, []);
-
   // Return memoized result to prevent unnecessary rerenders
   return useMemo(() => ({
     formState,

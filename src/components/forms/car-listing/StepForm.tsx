@@ -4,6 +4,7 @@
  * Updated: 2025-07-03 - Completely refactored to remove Next.js dependencies and fix type issues
  * Updated: 2025-07-24 - Fixed FormSubmissionContext import and related hooks
  * Updated: 2025-05-19 - Fixed property naming for error/submitError and isSuccessful
+ * Updated: 2025-05-26 - Updated to use car-listing specific FormSubmission context
  */
 
 import { useState, useEffect } from "react";
