@@ -5,12 +5,13 @@
  * Updated: 2025-05-19 - Fixed toast API usage
  * Updated: 2025-05-24 - Enhanced to support immediate uploads
  * Updated: 2025-05-20 - Added debouncing and better error handling
+ * Updated: 2025-06-02 - Fixed toast API usage to use Sonner format and improved error handling
  * 
  * Handles associating temporary uploads with a car ID after successful submission
  */
 
 import { associateTempUploadsWithCar } from '@/services/supabase/uploadService';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export const useImageAssociation = () => {
   const associateImages = async (carId: string, submissionId: string): Promise<number> => {
@@ -30,10 +31,7 @@ export const useImageAssociation = () => {
         tempUploads = JSON.parse(tempUploadsStr);
       } catch (error) {
         console.error(`[ImageAssociation][${submissionId}] Error parsing temp uploads:`, error);
-        toast({
-          variant: "default",
-          description: "There was an issue with your uploaded images. They may need to be uploaded again."
-        });
+        toast("There was an issue with your uploaded images. They may need to be uploaded again.");
         return 0;
       }
       
@@ -52,10 +50,7 @@ export const useImageAssociation = () => {
       if (associatedCount > 0) {
         console.log(`[ImageAssociation][${submissionId}] Successfully associated ${associatedCount} images`);
         
-        toast({
-          variant: "default",
-          description: `Successfully associated ${associatedCount} images with your listing.`
-        });
+        toast(`Successfully associated ${associatedCount} images with your listing.`);
         
         // Clear the temp uploads from localStorage after successful association
         localStorage.removeItem('tempFileUploads');
@@ -72,11 +67,8 @@ export const useImageAssociation = () => {
       });
       
       // Only show toast for critical errors
-      if (error instanceof Error && error.message.includes('database') || error.message.includes('permission')) {
-        toast({
-          variant: "default", // Less alarming than destructive
-          description: "Some images may not have been properly associated with your listing."
-        });
+      if (error instanceof Error && (error.message.includes('database') || error.message.includes('permission'))) {
+        toast("Some images may not have been properly associated with your listing.");
       }
       
       return 0;

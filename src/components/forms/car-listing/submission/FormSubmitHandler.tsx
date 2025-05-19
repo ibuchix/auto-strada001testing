@@ -14,6 +14,7 @@
  * Updated: 2025-05-20 - Removed duplicate throttling logic to use centralized implementation
  * Updated: 2025-05-31 - Fixed handling of submission result to match updated provider
  * Updated: 2025-06-01 - Fixed TypeScript errors with toast usage
+ * Updated: 2025-06-02 - Added image association with car records after successful submission
  */
 
 import { useState, useEffect, useRef, useCallback, memo } from "react";
@@ -22,6 +23,7 @@ import { useFormSubmission } from "../submission/FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { useImageAssociation } from "@/hooks/submission/useImageAssociation";
 
 interface FormSubmitHandlerProps {
   onSubmitSuccess?: (carId: string) => void;
@@ -44,6 +46,7 @@ export const FormSubmitHandler = memo(({
   const [isVerifyingImages, setIsVerifyingImages] = useState(false);
   const tempSessionIdRef = useRef<string | null>(null);
   const submissionInProgressRef = useRef<boolean>(false);
+  const { associateImages } = useImageAssociation();
   
   // Reset submission flags when isSubmitting changes to false
   useEffect(() => {
@@ -118,6 +121,21 @@ export const FormSubmitHandler = memo(({
       const submittedCarId = await submitForm(form.getValues());
       
       if (submittedCarId) {
+        // Associate temp uploads with the car ID
+        console.log(`[FormSubmitHandler] Associating images with car ID: ${submittedCarId}`);
+        try {
+          const submissionId = `sub-${Date.now()}`;
+          const associatedCount = await associateImages(submittedCarId, submissionId);
+          console.log(`[FormSubmitHandler] Associated ${associatedCount} images with car ID: ${submittedCarId}`);
+          
+          if (associatedCount > 0) {
+            toast.success(`Successfully associated ${associatedCount} images with your listing`);
+          }
+        } catch (associationError) {
+          console.error('[FormSubmitHandler] Error associating images:', associationError);
+          toast.error('Your listing was saved, but there was an issue with some image uploads');
+        }
+        
         // Call onSubmitSuccess callback if provided
         if (onSubmitSuccess) {
           onSubmitSuccess(submittedCarId);
@@ -150,7 +168,8 @@ export const FormSubmitHandler = memo(({
     submitError, 
     onSubmitSuccess, 
     onSubmitError,
-    cooldownTimeRemaining
+    cooldownTimeRemaining,
+    associateImages
   ]);
   
   // Get loading or cooldown state text

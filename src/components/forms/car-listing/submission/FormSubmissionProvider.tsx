@@ -7,6 +7,7 @@
  * Updated: 2025-05-19 - Fixed throttling issues and enhanced error feedback
  * Updated: 2025-05-20 - Enhanced with cooldown tracking and consolidated throttling logic
  * Updated: 2025-05-31 - Fixed submitForm implementation to provide required submission function 
+ * Updated: 2025-06-02 - Added better error handling and improved submission flow
  * 
  * Provides consistent submission handling with proper type handling
  */
@@ -62,19 +63,36 @@ export const FormSubmissionProvider = ({
   const submitForm = async (data: CarListingFormData): Promise<string | null> => {
     setIsSuccessful(false);
     
-    // Provide the second argument - a submission function that handles the actual submission
-    const result = await baseSubmitForm(data, async (formData: CarListingFormData) => {
-      // This is the actual submission function that will be called by baseSubmitForm
-      const response = await submitCarListing(formData, userId);
-      return response?.id || null;
-    });
-    
-    // Set success state based on result
-    if (result) {
-      setIsSuccessful(true);
+    try {
+      console.log('[FormSubmissionProvider] Starting form submission process');
+      
+      // Provide the second argument - a submission function that handles the actual submission
+      const result = await baseSubmitForm(data, async (formData: CarListingFormData) => {
+        // This is the actual submission function that will be called by baseSubmitForm
+        console.log('[FormSubmissionProvider] Submitting car listing data');
+        const response = await submitCarListing(formData, userId);
+        
+        if (!response?.id) {
+          console.error('[FormSubmissionProvider] No ID returned from submission service');
+          throw new Error('Failed to create listing: No ID returned from server');
+        }
+        
+        return response.id;
+      });
+      
+      // Set success state based on result
+      if (result) {
+        console.log(`[FormSubmissionProvider] Submission successful with ID: ${result}`);
+        setIsSuccessful(true);
+      } else {
+        console.warn('[FormSubmissionProvider] Submission completed but no ID returned');
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('[FormSubmissionProvider] Submission error:', error);
+      return null;
     }
-    
-    return result;
   };
   
   // Reset submission state
