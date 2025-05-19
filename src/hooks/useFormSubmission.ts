@@ -6,7 +6,7 @@
  * - 2025-05-24: Refactored into smaller, more maintainable modules
  * - 2025-05-24: Improved type safety throughout the submission process
  * - 2025-05-24: Fixed null checks and type annotations
- * - 2025-05-19: Fixed arithmetic comparison issues
+ * - 2025-05-19: Fixed arithmetic comparison issues and type casting
  */
 
 import { useCallback } from 'react';
@@ -40,10 +40,10 @@ export const useFormSubmission = (formId: string) => {
   const submitForm = useCallback(async (formData: CarListingFormData): Promise<string | null> => {
     // Prevent rapid multiple submissions
     const now = Date.now();
-    const lastSubmissionTime = updateLastSubmissionTime();
-    if (now - lastSubmissionTime < 2000) {
+    const lastSubmission = updateLastSubmissionTime();
+    if (now - (lastSubmission || 0) < 2000) {
       logSubmissionEvent('Submission throttled - too frequent', { 
-        timeSinceLastAttempt: now - lastSubmissionTime 
+        timeSinceLastAttempt: now - (lastSubmission || 0) 
       });
       return null;
     }

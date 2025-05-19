@@ -8,6 +8,7 @@
  * Updated: 2025-05-23 - Improved type handling and consistency with return types
  * Updated: 2025-05-24 - Refactored for better consistency and type safety
  * Updated: 2025-05-19 - Fixed import path to use correct file name
+ * Updated: 2025-05-19 - Updated to use submitError property
  * 
  * This component handles form submission, including:
  * - VIN reservation validation and creation
@@ -37,6 +38,7 @@ export const FormSubmitHandler = ({
   userId
 }: FormSubmitHandlerProps) => {
   const { submissionState, submitForm, resetSubmissionState } = useFormSubmission();
+  const { submitError, isSubmitting } = submissionState;
   const { form } = useFormData();
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
@@ -53,7 +55,7 @@ export const FormSubmitHandler = ({
   }, []);
   
   // Check if we have valid userId before allowing submission
-  const isSubmitDisabled = !userId || submissionState.isSubmitting || isCreatingReservation || isProcessingImages;
+  const isSubmitDisabled = !userId || isSubmitting || isCreatingReservation || isProcessingImages;
   
   // Handle form submission with proper image handling
   const handleSubmit = async () => {
@@ -103,8 +105,8 @@ export const FormSubmitHandler = ({
         }
       } else {
         // Call onSubmitError callback if provided
-        if (onSubmitError) {
-          onSubmitError(new Error('Submission failed - no car ID returned'));
+        if (onSubmitError && submitError) {
+          onSubmitError(new Error(submitError));
         }
       }
     } catch (error) {
@@ -131,7 +133,7 @@ export const FormSubmitHandler = ({
         disabled={isSubmitDisabled}
         className="min-w-[150px]"
       >
-        {submissionState.isSubmitting || isProcessingImages ? (
+        {isSubmitting || isProcessingImages ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             {isVerifyingImages ? 'Verifying Images...' : isProcessingImages ? 'Processing Images...' : 'Submitting...'}

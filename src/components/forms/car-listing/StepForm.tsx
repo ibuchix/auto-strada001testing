@@ -3,6 +3,7 @@
  * StepForm Component
  * Updated: 2025-07-03 - Completely refactored to remove Next.js dependencies and fix type issues
  * Updated: 2025-07-24 - Fixed FormSubmissionContext import and related hooks
+ * Updated: 2025-05-19 - Fixed property naming for error/submitError and isSuccessful
  */
 
 import { useState, useEffect } from "react";
@@ -13,7 +14,7 @@ import { FormStep } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { FormSubmissionContext, useFormSubmission } from "./submission/FormSubmissionProvider";
+import { useFormSubmission } from "./submission/FormSubmissionProvider";
 import { FormTransactionError } from "./submission/FormTransactionError";
 import { TransactionStatus } from "./types";
 import { useFormController } from "./hooks/useFormController";
@@ -49,8 +50,8 @@ export const StepForm = ({
 }: StepFormProps) => {
   const { validateCurrentStep } = useFormValidation(form);
   const { saveFormData } = useFormStorage();
-  const formSubmission = useFormSubmission(); // Fixed import
-  const { isSubmitting, error } = formSubmission.submissionState;
+  const formSubmission = useFormSubmission();
+  const { isSubmitting, submitError } = formSubmission.submissionState;
   const { submitForm } = formSubmission;
   
   const [isFormComplete, setIsFormComplete] = useState(false);
@@ -164,7 +165,7 @@ export const StepForm = ({
       await submitForm(formData);
       
       // If successful, mark as complete and call onComplete
-      if (formSubmission.submissionState.isSuccessful) {
+      if (!submitError) {
         setIsFormComplete(true);
         if (onComplete) onComplete();
       }
@@ -267,9 +268,9 @@ export const StepForm = ({
         </Alert>
       )}
       
-      {error && (
+      {submitError && (
         <FormTransactionError 
-          error={error} 
+          error={submitError} 
           onRetry={() => setValidationError(null)} 
         />
       )}

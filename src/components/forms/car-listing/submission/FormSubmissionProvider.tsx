@@ -2,7 +2,7 @@
 /**
  * Form Submission Provider
  * Created: 2025-05-24
- * Updated: 2025-05-19 - Fixed naming conflict and file name typo
+ * Updated: 2025-05-19 - Fixed naming conflict, file name typo, and added isSuccessful flag
  * 
  * Provides consistent submission handling with proper type handling
  */
@@ -15,12 +15,13 @@ interface FormSubmissionContextType {
   submissionState: {
     isSubmitting: boolean;
     submitError: string | null;
+    isSuccessful?: boolean;
   };
   submitForm: (data: CarListingFormData) => Promise<string | null>;
   resetSubmissionState: () => void;
 }
 
-const FormSubmissionContext = createContext<FormSubmissionContextType | undefined>(undefined);
+export const FormSubmissionContext = createContext<FormSubmissionContextType | undefined>(undefined);
 
 export const useFormSubmission = () => {
   const context = useContext(FormSubmissionContext);
@@ -32,12 +33,14 @@ export const useFormSubmission = () => {
 
 interface FormSubmissionProviderProps {
   children: ReactNode;
-  formId: string;
+  formId?: string;
+  userId: string;
 }
 
 export const FormSubmissionProvider = ({ 
   children, 
-  formId 
+  formId = 'default',
+  userId
 }: FormSubmissionProviderProps) => {
   const { 
     submitForm: baseSubmitForm, 
@@ -45,21 +48,30 @@ export const FormSubmissionProvider = ({
     submitError, 
     resetSubmitError 
   } = useFormSubmissionHook(formId);
+
+  const [isSuccessful, setIsSuccessful] = useState(false);
   
   // Submit form with consistent return type
   const submitForm = async (data: CarListingFormData): Promise<string | null> => {
-    return baseSubmitForm(data);
+    setIsSuccessful(false);
+    const result = await baseSubmitForm(data);
+    if (result) {
+      setIsSuccessful(true);
+    }
+    return result;
   };
   
   // Reset submission state
   const resetSubmissionState = () => {
     resetSubmitError();
+    setIsSuccessful(false);
   };
   
   const value = {
     submissionState: {
       isSubmitting,
-      submitError
+      submitError,
+      isSuccessful
     },
     submitForm,
     resetSubmissionState
