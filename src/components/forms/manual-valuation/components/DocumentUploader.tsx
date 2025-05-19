@@ -4,6 +4,7 @@
  * - 2024-08-25: Created initial implementation
  * - 2024-08-27: Fixed file type handling
  * - 2025-05-23: Fixed FileList vs File compatibility issue
+ * - 2025-05-24: Refactored for better type safety and handling of file inputs
  */
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ interface DocumentUploaderProps {
   uploadedFiles: any[];
   isUploading: boolean;
   progress: number;
+  // Accept either File or FileList for flexibility
   onDocumentUpload: (file: File | FileList) => Promise<string | null>;
   onRemoveUploadedFile: (fileUrl: string) => void;
 }

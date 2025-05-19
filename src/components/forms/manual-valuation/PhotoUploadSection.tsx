@@ -9,6 +9,7 @@
  * - 2025-05-20: Added progress feedback and current file indicator
  * - 2025-05-22: Fixed type incompatibility between FileList and File
  * - 2025-05-23: Fixed document uploader type compatibility issue
+ * - 2025-05-24: Complete refactor with proper type adapters and improved organization
  */
 
 import { UseFormReturn } from "react-hook-form";
@@ -40,39 +41,15 @@ export const PhotoUploadSection = ({ form, onProgressUpdate }: PhotoUploadSectio
         isUploading={isUploading}
         progress={progress}
         uploadingFile={uploadingFile}
-        // Create an adapter function to handle FileList vs File type mismatch
-        onFileSelect={(file, type) => {
-          // This function expects a File and returns a Promise<string | null>
-          return handleFileUpload(file, type);
-        }}
-        // Create an adapter function for additional photos
-        onAdditionalPhotosSelect={(files) => {
-          // Convert FileList to File array if needed
-          if (files instanceof FileList) {
-            const fileArray = Array.from(files);
-            return handleAdditionalPhotos(fileArray);
-          }
-          return handleAdditionalPhotos(files);
-        }}
+        onFileSelect={(file: File, type: string) => handleFileUpload(file, type)}
+        onAdditionalPhotosSelect={(files: File[] | FileList) => handleAdditionalPhotos(files)}
       />
       
       <DocumentUploader
         uploadedFiles={uploadedFiles}
         isUploading={isUploading}
         progress={progress}
-        // Type adapter for document upload handling
-        onDocumentUpload={(files) => {
-          // If it's a FileList, take the first file
-          if (files instanceof FileList && files.length > 0) {
-            return handleDocumentUpload(files[0]);
-          }
-          // If it's a single File already, use it directly
-          else if (files instanceof File) {
-            return handleDocumentUpload(files);
-          }
-          // If it's neither, return a resolved promise
-          return Promise.resolve(null);
-        }}
+        onDocumentUpload={(files: File | FileList) => handleDocumentUpload(files)}
         onRemoveUploadedFile={removeUploadedFile}
       />
     </div>

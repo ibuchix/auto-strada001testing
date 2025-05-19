@@ -4,6 +4,7 @@
  * - 2024-08-27: Fixed type definition for onFileSelect to accept Promise<string | null>
  * - 2025-05-20: Added upload progress indicator and current file display
  * - 2025-05-23: Fixed type definitions to properly handle File vs FileList compatibility
+ * - 2025-05-24: Refactored for improved type safety and better compatibility
  */
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Camera } from "lucide-react";

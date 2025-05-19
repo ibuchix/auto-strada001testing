@@ -6,6 +6,7 @@
  * Updated: 2025-05-21 - Fixed temporary upload association during form submission
  * Updated: 2025-05-22 - Fixed TypeScript errors with result type definitions
  * Updated: 2025-05-23 - Improved type handling and consistency with return types
+ * Updated: 2025-05-24 - Refactored for better consistency and type safety
  * 
  * This component handles form submission, including:
  * - VIN reservation validation and creation
@@ -16,25 +17,16 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useFormData } from "../context/FormDataContext";
-import { useFormSubmission } from "./FormSubmissionProvider";
+import { useFormSubmission } from "./FormSubmissisionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-// Import FormSubmitButton to use our enhanced version
-import { FormSubmitButton } from "../FormSubmitButton";
 
 interface FormSubmitHandlerProps {
   onSubmitSuccess?: (carId: string) => void;
   onSubmitError?: (error: Error) => void;
   carId?: string;
   userId?: string;
-}
-
-// Define the type for the submission result to match what's returned from FormSubmissionProvider
-interface SubmitResult {
-  success: boolean;
-  carId?: string;
-  error?: string;
 }
 
 export const FormSubmitHandler = ({
@@ -89,16 +81,10 @@ export const FormSubmitHandler = ({
       
       setIsVerifyingImages(false);
       
-      // Submit the form - car ID will be generated and images associated in the submission hook
-      // Since submitForm now returns a Promise<string | null>, we need to handle it differently
+      // Submit the form
       const submittedCarId = await submitForm(form.getValues());
       
-      // Create a result object that matches the expected structure
-      const result: SubmitResult = submittedCarId 
-        ? { success: true, carId: submittedCarId }
-        : { success: false, error: 'Submission failed - no car ID returned' };
-      
-      if (result.success) {
+      if (submittedCarId) {
         // Clear any temporary image data from localStorage after successful submission
         if (localStorage.getItem('tempFileUploads')) {
           console.log('[FormSubmitHandler] Clearing temp file uploads after successful submission');
@@ -111,13 +97,13 @@ export const FormSubmitHandler = ({
         }
         
         // Call onSubmitSuccess callback if provided
-        if (onSubmitSuccess && result.carId) {
-          onSubmitSuccess(result.carId);
+        if (onSubmitSuccess) {
+          onSubmitSuccess(submittedCarId);
         }
       } else {
         // Call onSubmitError callback if provided
-        if (onSubmitError && result.error) {
-          onSubmitError(new Error(result.error));
+        if (onSubmitError) {
+          onSubmitError(new Error('Submission failed - no car ID returned'));
         }
       }
     } catch (error) {
