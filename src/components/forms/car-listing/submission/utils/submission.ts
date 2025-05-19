@@ -12,26 +12,34 @@
  * - 2025-05-05: Fixed type issues and removed is_draft property
  * - 2025-05-14: Fixed financeAmount handling to consistently use number type
  * - 2025-05-15: Fixed financeAmount property in CarEntity
+ * - 2025-05-19: Fixed database schema mismatch by consolidating photo fields
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
 import { toStringValue, toNumberValue } from "@/utils/typeConversion";
+import { consolidatePhotoFields } from "./photoProcessor";
 
 export const prepareFormDataForSubmission = (data: CarListingFormData) => {
+  // First consolidate photo fields to prevent schema errors
+  const { updatedFormData } = consolidatePhotoFields(data);
+  
   return {
-    ...data,
+    ...updatedFormData,
     // Ensure financeAmount is consistently a number or null
-    financeAmount: data.financeAmount !== undefined && data.financeAmount !== null ? 
-      Number(data.financeAmount) : null,
+    financeAmount: updatedFormData.financeAmount !== undefined && updatedFormData.financeAmount !== null ? 
+      Number(updatedFormData.financeAmount) : null,
   };
 };
 
 export const prepareFormDataForApi = (data: CarListingFormData) => {
+  // Use the same photo consolidation for API calls
+  const { updatedFormData } = consolidatePhotoFields(data);
+  
   return {
-    ...data,
+    ...updatedFormData,
     // Ensure financeAmount is consistently a number or null
-    financeAmount: data.financeAmount !== undefined && data.financeAmount !== null ? 
-      Number(data.financeAmount) : null,
+    financeAmount: updatedFormData.financeAmount !== undefined && updatedFormData.financeAmount !== null ? 
+      Number(updatedFormData.financeAmount) : null,
   };
 };
 
@@ -43,44 +51,49 @@ export const prepareFormDataForApi = (data: CarListingFormData) => {
  * @returns A CarEntity object ready for database submission
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
+  // Process photo fields to match database schema expectations
+  const { updatedFormData, requiredPhotos } = consolidatePhotoFields(formData);
+  
   // Ensure features property has all required fields
   const carFeatures: CarFeatures = {
-    airConditioning: formData.features?.airConditioning || false,
-    bluetooth: formData.features?.bluetooth || false,
-    cruiseControl: formData.features?.cruiseControl || false,
-    leatherSeats: formData.features?.leatherSeats || false,
-    navigation: formData.features?.navigation || false,
-    parkingSensors: formData.features?.parkingSensors || false,
-    sunroof: formData.features?.sunroof || false,
-    satNav: formData.features?.satNav || false,
-    panoramicRoof: formData.features?.panoramicRoof || false,
-    reverseCamera: formData.features?.reverseCamera || false,
-    heatedSeats: formData.features?.heatedSeats || false,
-    upgradedSound: formData.features?.upgradedSound || false,
-    alloyWheels: formData.features?.alloyWheels || false,
+    airConditioning: updatedFormData.features?.airConditioning || false,
+    bluetooth: updatedFormData.features?.bluetooth || false,
+    cruiseControl: updatedFormData.features?.cruiseControl || false,
+    leatherSeats: updatedFormData.features?.leatherSeats || false,
+    navigation: updatedFormData.features?.navigation || false,
+    parkingSensors: updatedFormData.features?.parkingSensors || false,
+    sunroof: updatedFormData.features?.sunroof || false,
+    satNav: updatedFormData.features?.satNav || false,
+    panoramicRoof: updatedFormData.features?.panoramicRoof || false,
+    reverseCamera: updatedFormData.features?.reverseCamera || false,
+    heatedSeats: updatedFormData.features?.heatedSeats || false,
+    upgradedSound: updatedFormData.features?.upgradedSound || false,
+    alloyWheels: updatedFormData.features?.alloyWheels || false,
   };
   
   // Ensure all required fields are present with default values if needed
   const entity: Partial<CarEntity> = {
-    ...formData,
-    id: formData.id || '',
-    created_at: formData.created_at ? new Date(formData.created_at).toISOString() : new Date().toISOString(),
+    ...updatedFormData,
+    id: updatedFormData.id || '',
+    created_at: updatedFormData.created_at ? new Date(updatedFormData.created_at).toISOString() : new Date().toISOString(),
     updated_at: new Date().toISOString(),
     status: 'draft',
     // Ensure required fields have values
-    make: formData.make || '',
-    model: formData.model || '',
-    year: formData.year || 0,
-    price: formData.price || 0,
-    mileage: formData.mileage || 0,
-    vin: formData.vin || '',
+    make: updatedFormData.make || '',
+    model: updatedFormData.model || '',
+    year: updatedFormData.year || 0,
+    price: updatedFormData.price || 0,
+    mileage: updatedFormData.mileage || 0,
+    vin: updatedFormData.vin || '',
     // Cast transmission to the expected type
-    transmission: formData.transmission || 'manual',
+    transmission: updatedFormData.transmission || 'manual',
     // Use properly typed features
     features: carFeatures,
     // Ensure financeAmount is a number or null
-    financeAmount: formData.financeAmount !== undefined && formData.financeAmount !== null ? 
-      Number(formData.financeAmount) : null,
+    financeAmount: updatedFormData.financeAmount !== undefined && updatedFormData.financeAmount !== null ? 
+      Number(updatedFormData.financeAmount) : null,
+    // Add the consolidated required_photos field
+    required_photos: requiredPhotos
   };
   
   return entity;
