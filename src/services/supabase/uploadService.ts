@@ -7,11 +7,32 @@
  * Updated: 2025-05-24 - Fixed file existence verification method
  * Updated: 2025-05-19 - Fixed direct storage upload implementation, removed API dependency
  * Updated: 2025-05-20 - Enhanced direct upload with improved temp ID handling
+ * Updated: 2025-05-21 - Fixed temporary file tracking and association
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 import { compressImage } from "@/components/forms/car-listing/photo-upload/utils/imageCompression";
+
+// Define types for temporary file tracking
+interface TempFileMetadata {
+  filePath: string;
+  publicUrl: string;
+  category: string; 
+  uploadId: string;
+  timestamp: string;
+}
+
+// Consistent temp ID for a session
+const getSessionTempId = (): string => {
+  let tempId = localStorage.getItem('tempSessionId');
+  if (!tempId) {
+    tempId = `temp_${uuidv4()}`;
+    localStorage.setItem('tempSessionId', tempId);
+    console.log(`Created new session temp ID: ${tempId}`);
+  }
+  return tempId;
+};
 
 /**
  * Uploads multiple images for a given entity
@@ -158,7 +179,7 @@ export const getPublicUrl = (filePath: string): string => {
 
 /**
  * Directly uploads a single photo to Supabase Storage
- * Uses a temporary ID if no car ID is available yet
+ * Uses a session-consistent temporary ID if no car ID is available yet
  */
 export const directUploadPhoto = async (
   file: File,
@@ -185,10 +206,10 @@ export const directUploadPhoto = async (
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session?.user?.id || "anonymous";
     
-    // Generate a unique temporary ID if we're working with a draft
-    const uploadId = carId === "temp" ? uuidv4() : carId;
+    // Generate a consistent temporary ID for this session if working with a draft
+    const uploadId = carId === "temp" ? getSessionTempId() : carId;
     
-    console.log(`Directly uploading file ${file.name} for ${carId === "temp" ? "temporary" : "existing"} car, category ${category}`);
+    console.log(`Directly uploading file ${file.name} for ${carId === "temp" ? "temporary" : "existing"} car (${uploadId}), category: ${category}`);
     
     // Create unique file path using consistent structure
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -242,14 +263,17 @@ export const directUploadPhoto = async (
     } else {
       // For temporary uploads, store metadata in localStorage for later association
       try {
-        const tempUploads = JSON.parse(localStorage.getItem('tempFileUploads') || '[]');
-        tempUploads.push({
+        const tempUploads: TempFileMetadata[] = JSON.parse(localStorage.getItem('tempFileUploads') || '[]');
+        
+        const newUpload: TempFileMetadata = {
           filePath,
           publicUrl,
           category,
           uploadId,
           timestamp: new Date().toISOString()
-        });
+        };
+        
+        tempUploads.push(newUpload);
         localStorage.setItem('tempFileUploads', JSON.stringify(tempUploads));
         console.log(`Stored temp upload metadata for future association: ${filePath}`);
       } catch (e) {
@@ -290,11 +314,22 @@ export const associateTempUploadsWithCar = async (carId: string): Promise<number
       return 0;
     }
     
-    const tempUploads = JSON.parse(tempUploadsStr);
+    // Get the temp session ID
+    const tempSessionId = localStorage.getItem('tempSessionId');
+    if (!tempSessionId) {
+      console.log('No temp session ID found, cannot associate uploads');
+      return 0;
+    }
+    
+    console.log(`Associating temp uploads for session ${tempSessionId} with car ID ${carId}`);
+    
+    const tempUploads: TempFileMetadata[] = JSON.parse(tempUploadsStr);
     let associatedCount = 0;
     
     for (const upload of tempUploads) {
       try {
+        console.log(`Processing upload association for ${upload.filePath} in category ${upload.category}`);
+        
         // Record in database
         await supabase
           .from('car_file_uploads')
@@ -320,6 +355,7 @@ export const associateTempUploadsWithCar = async (carId: string): Promise<number
     // Clear processed uploads
     if (associatedCount > 0) {
       localStorage.removeItem('tempFileUploads');
+      localStorage.removeItem('tempSessionId');
       console.log(`Associated ${associatedCount} temporary uploads with car ${carId}`);
     }
     

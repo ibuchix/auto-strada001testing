@@ -9,6 +9,7 @@
  * - Fixed state management issues
  * - Fixed TypeScript error with Supabase upsert options
  * - 2025-05-20: Added image upload association with car ID
+ * - 2025-05-21: Fixed upload association process and error handling
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
@@ -101,8 +102,7 @@ export const useFormSubmission = (formId: string) => {
         }
       });
       
-      // Submit to database - Fixed TypeScript error by removing returning option 
-      // which is not supported in this Supabase client version
+      // Submit to database
       logSubmissionEvent('Sending to database', { submissionId });
       const { data, error } = await supabase
         .from('cars')
@@ -128,18 +128,32 @@ export const useFormSubmission = (formId: string) => {
       });
       
       // Now that we have a car ID, associate any temporary uploads with it
-      if (submissionData?.id) {
+      // Extract the car ID from the response or submission data
+      const carId = data?.[0]?.id || submissionData?.id;
+      
+      if (carId) {
         logSubmissionEvent('Associating temporary uploads with car ID', { 
           submissionId, 
-          carId: submissionData.id 
+          carId: carId 
         });
         
         try {
-          const associatedCount = await associateTempUploadsWithCar(submissionData.id);
+          // Try to associate temp uploads with the new car ID
+          const associatedCount = await associateTempUploadsWithCar(carId);
+          
           if (associatedCount > 0) {
             logSubmissionEvent('Successfully associated temp uploads', { 
               submissionId, 
               count: associatedCount 
+            });
+            
+            toast({
+              title: "Images Uploaded",
+              description: `Successfully associated ${associatedCount} images with your listing.`
+            });
+          } else {
+            logSubmissionEvent('No temp uploads to associate', { 
+              submissionId
             });
           }
         } catch (associationError) {
@@ -150,6 +164,13 @@ export const useFormSubmission = (formId: string) => {
             error: associationError instanceof Error ? associationError.message : String(associationError)
           });
         }
+      } else {
+        // Log the missing car ID issue
+        logSubmissionEvent('No car ID available for association', { 
+          submissionId,
+          dataReceived: !!data,
+          submissionDataHasId: !!submissionData?.id
+        });
       }
       
       logSubmissionEvent('Submission successful', { submissionId });
@@ -158,7 +179,7 @@ export const useFormSubmission = (formId: string) => {
         description: "Your car listing has been submitted successfully."
       });
       
-      return { success: true, data };
+      return { success: true, data, carId };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown submission error';
       

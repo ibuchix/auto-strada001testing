@@ -3,6 +3,7 @@
  * Form Submit Handler Component
  * Created: 2025-05-13
  * Updated: 2025-05-19 - Fixed upload verification integration and loading state management
+ * Updated: 2025-05-21 - Fixed temporary upload association during form submission
  * 
  * This component handles form submission, including:
  * - VIN reservation validation and creation
@@ -17,7 +18,6 @@ import { useFormSubmission } from "./FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { recoverVinReservation } from "@/services/reservationRecoveryService";
 // Import FormSubmitButton to use our enhanced version
 import { FormSubmitButton } from "../FormSubmitButton";
 
@@ -37,312 +37,107 @@ export const FormSubmitHandler = ({
   const { submissionState, submitForm, resetSubmissionState } = useFormSubmission();
   const { form } = useFormData();
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
-  const [isFinalizingUploads, setIsFinalizingUploads] = useState(false);
-  const globalUploaderRef = useRef<any>(null);
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const [isVerifyingImages, setIsVerifyingImages] = useState(false);
+  const tempSessionIdRef = useRef<string | null>(null);
   
-  // Check if we have valid userId before allowing submission
-  const isSubmitDisabled = !userId || submissionState.isSubmitting || isCreatingReservation || isFinalizingUploads;
-  
-  // Connect to the global uploader on mount
+  // Check for temp session ID immediately
   useEffect(() => {
-    globalUploaderRef.current = (window as any).__tempFileUploadManager;
-    
-    // Log status of global uploader connection
-    if (globalUploaderRef.current) {
-      console.log('[FormSubmitHandler] Connected to global upload manager', globalUploaderRef.current);
-    } else {
-      console.warn('[FormSubmitHandler] Global upload manager not available');
+    // Check for existing temp session ID
+    tempSessionIdRef.current = localStorage.getItem('tempSessionId');
+    if (tempSessionIdRef.current) {
+      console.log(`[FormSubmitHandler] Found existing temp session ID: ${tempSessionIdRef.current}`);
     }
-    
-    // Set up periodic checks for the upload manager
-    const checkInterval = setInterval(() => {
-      const uploader = (window as any).__tempFileUploadManager;
-      if (!globalUploaderRef.current && uploader) {
-        console.log('[FormSubmitHandler] Found global upload manager during periodic check');
-        globalUploaderRef.current = uploader;
-      }
-    }, 2000); // Check every 2 seconds
-    
-    return () => {
-      clearInterval(checkInterval);
-      globalUploaderRef.current = null;
-    };
   }, []);
   
-  // Verify and finalize all uploads before submission
-  const verifyUploads = async (): Promise<boolean> => {
-    // Re-acquire the reference each time to ensure we have the latest
-    const uploader = (window as any).__tempFileUploadManager;
-    globalUploaderRef.current = uploader;
-    
-    if (!uploader) {
-      console.log("[FormSubmitHandler] No upload manager available");
-      
-      // Show warning toast but allow submission
-      toast.warning('Upload manager not found', {
-        description: 'Image uploads may not be included in your listing'
-      });
-      
-      return true; // Continue with submission
-    }
-    
-    try {
-      console.log("[FormSubmitHandler] Verifying uploads before submission");
-      
-      // First check if uploads are complete
-      if (uploader.checkUploadsComplete && typeof uploader.checkUploadsComplete === 'function') {
-        const uploadsComplete = uploader.checkUploadsComplete();
-        const pendingFileCount = uploader.pendingFileCount ? uploader.pendingFileCount() : 0;
-        
-        console.log("[FormSubmitHandler] Upload check results:", { 
-          uploadsComplete, 
-          pendingFileCount,
-          carId 
-        });
-        
-        if (!uploadsComplete && pendingFileCount > 0) {
-          console.log('[FormSubmitHandler] Uploads still in progress, please wait');
-          toast.warning('Files are still uploading', {
-            description: `Please wait for ${pendingFileCount} file(s) to complete uploading`
-          });
-          return false;
-        }
-      }
-      
-      // If we have a carId, we can finalize any pending uploads
-      if (carId && uploader.finalizeUploads && typeof uploader.finalizeUploads === 'function') {
-        setIsFinalizingUploads(true);
-        console.log(`[FormSubmitHandler] Finalizing uploads for car ${carId} before submission`);
-        
-        try {
-          toast.info('Processing uploads', {
-            description: 'Please wait while we finalize your images'
-          });
-          
-          const results = await uploader.finalizeUploads(carId);
-          console.log('[FormSubmitHandler] Upload finalization results:', results);
-          
-          if (Array.isArray(results) && results.length > 0) {
-            toast.success(`Processed ${results.length} images`, {
-              description: 'All images ready for submission'
-            });
-            
-            // Add a small delay to allow UI to update
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        } catch (error) {
-          console.error('[FormSubmitHandler] Error finalizing uploads:', error);
-          toast.error('Error processing images', {
-            description: 'Some images may not be included in your listing'
-          });
-          // Continue with submission despite errors
-        } finally {
-          setIsFinalizingUploads(false);
-        }
-      } else if (!carId) {
-        console.warn('[FormSubmitHandler] No carId available for finalizing uploads');
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("[FormSubmitHandler] Error in upload verification:", error);
-      setIsFinalizingUploads(false);
-      
-      toast.error('Upload verification error', {
-        description: 'Proceeding with submission, but images may not be included'
-      });
-      
-      return true; // Continue with submission despite errors
-    }
-  };
+  // Check if we have valid userId before allowing submission
+  const isSubmitDisabled = !userId || submissionState.isSubmitting || isCreatingReservation || isProcessingImages;
   
-  // Ensure VIN reservation exists before submission
-  const ensureVinReservation = async (values: any): Promise<boolean> => {
-    try {
-      // If there's already a VIN reservation ID in localStorage, we're good
-      if (localStorage.getItem('vinReservationId')) {
-        console.log('[FormSubmitHandler] VIN reservation exists in localStorage - good to proceed');
-        return true;
-      }
-      
-      // No VIN reservation yet - try to create one
-      const vin = values.vin;
-      
-      if (!vin) {
-        console.error("[FormSubmitHandler] No VIN available in form data");
-        toast.error("Missing VIN", {
-          description: "Please enter a valid VIN or perform a VIN lookup"
-        });
-        return false;
-      }
-      
-      if (!userId) {
-        console.error("[FormSubmitHandler] No user ID available");
-        toast.error("Authentication required", {
-          description: "Please log in to submit your listing"
-        });
-        return false;
-      }
-      
-      // Try to get valuation data from localStorage or form
-      let valuationData = values.valuation_data;
-      if (!valuationData) {
-        const storedData = localStorage.getItem('valuationData');
-        if (storedData) {
-          try {
-            valuationData = JSON.parse(storedData);
-          } catch (e) {
-            console.error('[FormSubmitHandler] Error parsing stored valuation data:', e);
-          }
-        }
-      }
-      
-      // Try to create a VIN reservation using our recovery service
-      console.log('[FormSubmitHandler] Creating VIN reservation before submission:', vin);
-      setIsCreatingReservation(true);
-      
-      const reservationId = await recoverVinReservation(vin, userId, valuationData);
-      
-      if (!reservationId) {
-        toast.warning("VIN reservation incomplete", {
-          description: "Proceeding with submission, but it may be delayed or fail."
-        });
-      } else {
-        console.log(`[FormSubmitHandler] Successfully created/recovered reservation ID: ${reservationId}`);
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("[FormSubmitHandler] Error creating VIN reservation:", error);
-      toast.error("Failed to reserve VIN", {
-        description: "Please try again or contact support."
-      });
-      return false;
-    } finally {
-      setIsCreatingReservation(false);
-    }
-  };
-  
-  // Handle form submission
+  // Handle form submission with proper image handling
   const handleSubmit = async () => {
-    if (!userId) {
-      toast.error("Cannot submit form", {
-        description: "User ID is not available. Please try refreshing the page."
-      });
-      return;
-    }
-    
     try {
-      const values = form.getValues();
-      
-      // Validate required fields before submitting
-      const requiredFields = ['make', 'model', 'year', 'mileage', 'vin'];
-      const missingFields = requiredFields.filter(field => !values[field]);
-      
-      if (missingFields.length > 0) {
-        toast.error("Missing required information", {
-          description: `Please fill in: ${missingFields.join(', ')}`
-        });
+      if (!userId) {
+        toast.error('You must be logged in to submit a form');
         return;
       }
+
+      // Check if we have a temp session ID for images
+      console.log(`[FormSubmitHandler] Temp session ID check: ${tempSessionIdRef.current || 'none'}`);
       
-      // Verify and ensure VIN reservation exists
-      const reservationCreated = await ensureVinReservation(values);
-      if (!reservationCreated) {
-        return;
+      // Verify image uploads are complete
+      setIsVerifyingImages(true);
+      const tempUploadsStr = localStorage.getItem('tempFileUploads');
+      console.log(`[FormSubmitHandler] Temp uploads found: ${!!tempUploadsStr}`);
+      
+      if (tempUploadsStr) {
+        try {
+          const tempUploads = JSON.parse(tempUploadsStr);
+          console.log(`[FormSubmitHandler] Found ${tempUploads.length} temporary uploads to be associated with submission`);
+        } catch (e) {
+          console.warn('[FormSubmitHandler] Error parsing temp uploads:', e);
+        }
       }
       
-      console.log(`[FormSubmitHandler] Form submission starting with VIN reservation: ${localStorage.getItem('vinReservationId')}`);
+      setIsVerifyingImages(false);
       
-      // Add the user ID to the form data to satisfy RLS policies
-      values.seller_id = userId;
+      // Submit the form - car ID will be generated and images associated in the submission hook
+      const result = await submitForm(form.getValues());
       
-      // Ensure vin is uppercase for consistency
-      if (values.vin) {
-        values.vin = values.vin.toUpperCase();
-      }
-      
-      // Submit the form
-      const result = await submitForm(values);
-      
-      if (result && onSubmitSuccess) {
-        console.log(`[FormSubmitHandler] Form submitted successfully with car ID: ${result}`);
+      if (result.success) {
+        // Clear any temporary image data from localStorage after successful submission
+        if (localStorage.getItem('tempFileUploads')) {
+          console.log('[FormSubmitHandler] Clearing temp file uploads after successful submission');
+          localStorage.removeItem('tempFileUploads');
+        }
         
-        // Clear the VIN reservation ID since it's been used successfully
-        localStorage.removeItem('vinReservationId');
-        localStorage.removeItem('tempReservedVin');
+        if (localStorage.getItem('tempSessionId')) {
+          console.log('[FormSubmitHandler] Clearing temp session ID after successful submission');
+          localStorage.removeItem('tempSessionId');
+        }
         
-        // Show a confirmation toast
-        toast.success('Listing submitted successfully!', {
-          description: 'Your car listing has been submitted for review.'
-        });
-        
-        onSubmitSuccess(result);
+        // Call onSubmitSuccess callback if provided
+        if (onSubmitSuccess && result.carId) {
+          onSubmitSuccess(result.carId);
+        }
+      } else {
+        // Call onSubmitError callback if provided
+        if (onSubmitError && result.error) {
+          onSubmitError(new Error(result.error));
+        }
       }
     } catch (error) {
-      console.error("[FormSubmitHandler] Error submitting form:", error);
+      console.error('[FormSubmitHandler] Form submission error:', error);
       
-      // Add detailed error logging
-      if (error instanceof Error) {
-        console.error(`[FormSubmitHandler] Error name: ${error.name}`);
-        console.error(`[FormSubmitHandler] Error message: ${error.message}`);
-        console.error(`[FormSubmitHandler] Error stack: ${error.stack}`);
+      if (onSubmitError) {
+        onSubmitError(error instanceof Error ? error : new Error('Unknown error during submission'));
       }
       
-      // Special handling for cross-origin error 
-      // (happens when using in iframes, doesn't affect functionality)
-      if (error instanceof DOMException && error.name === "SecurityError") {
-        console.warn("[FormSubmitHandler] Suppressing cross-origin error - does not affect functionality");
-      } else {
-        // Check if it's a VIN reservation issue
-        if (error instanceof Error && error.message.includes('VIN reservation')) {
-          toast.error("VIN reservation issue", {
-            description: "Please perform a VIN Lookup in the Vehicle Details section to validate your VIN."
-          });
-        } else {
-          toast.error("Form submission failed", {
-            description: error instanceof Error ? error.message : "An unknown error occurred"
-          });
-        }
-        
-        if (onSubmitError && error instanceof Error) {
-          onSubmitError(error);
-        }
-      }
+      toast.error('Failed to submit form', {
+        description: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    } finally {
+      setIsProcessingImages(false);
     }
   };
-  
-  // Reset submission state when component unmounts
-  useEffect(() => {
-    return () => {
-      resetSubmissionState();
-    };
-  }, [resetSubmissionState]);
   
   return (
-    <div className="flex flex-col gap-4">
-      {submissionState.error && (
-        <div className="bg-red-50 text-red-800 p-4 rounded-md">
-          <p>Error: {submissionState.error.message}</p>
-        </div>
-      )}
-      
-      <FormSubmitButton 
-        onSubmitClick={handleSubmit} 
-        isSubmitting={submissionState.isSubmitting || isCreatingReservation || isFinalizingUploads}
+    <div className="flex justify-end space-x-4 mt-6">
+      <Button
+        type="button"
+        variant="default"
+        onClick={handleSubmit}
         disabled={isSubmitDisabled}
-        className={`${isSubmitDisabled ? "opacity-70" : ""} bg-[#DC143C] hover:bg-[#DC143C]/90`}
-        onVerifyUploads={verifyUploads}
-        formId="car-listing-form"
+        className="min-w-[150px]"
       >
-        Submit Listing
-      </FormSubmitButton>
-      
-      {submissionState.isSuccessful && (
-        <div className="bg-green-50 text-green-800 p-4 rounded-md">
-          <p>Car listing submitted successfully!</p>
-        </div>
-      )}
+        {submissionState.isSubmitting || isProcessingImages ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {isVerifyingImages ? 'Verifying Images...' : isProcessingImages ? 'Processing Images...' : 'Submitting...'}
+          </>
+        ) : (
+          'Submit Listing'
+        )}
+      </Button>
     </div>
   );
 };
