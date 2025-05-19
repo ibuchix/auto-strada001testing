@@ -3,6 +3,7 @@
  * Submission State Hook
  * Created: 2025-05-24
  * Updated: 2025-05-19 - Made updateLastSubmissionTime return the timestamp
+ * Updated: 2025-05-19 - Fixed throttling issue by keeping lastSubmissionTime in state
  * 
  * Manages submission state including loading status, errors, and reset functionality
  */
@@ -27,7 +28,7 @@ export const useSubmissionState = (formId: string) => {
     attempts: 0
   });
   const submissionAttempts = useRef(0);
-  const lastSubmissionTime = useRef(0);
+  const lastSubmissionTimeRef = useRef(0);
   
   // Reset submission state when form ID changes
   useEffect(() => {
@@ -39,7 +40,7 @@ export const useSubmissionState = (formId: string) => {
       attempts: 0
     });
     submissionAttempts.current = 0;
-    lastSubmissionTime.current = 0;
+    lastSubmissionTimeRef.current = 0;
     
     console.log('[SubmissionState] Reset state for form ID:', formId);
   }, [formId]);
@@ -68,9 +69,9 @@ export const useSubmissionState = (formId: string) => {
   
   const updateLastSubmissionTime = () => {
     const now = Date.now();
-    lastSubmissionTime.current = now;
+    lastSubmissionTimeRef.current = now;
     setState(prev => ({ ...prev, lastSubmissionTime: now }));
-    return now; // Return the timestamp so it can be used in calculations
+    return now;
   };
   
   const startSubmission = () => {

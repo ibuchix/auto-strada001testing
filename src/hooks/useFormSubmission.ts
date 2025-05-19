@@ -9,6 +9,7 @@
  * - 2025-05-19: Fixed arithmetic comparison issues and type casting
  * - 2025-05-19: Fixed void return type issues with lastSubmission time
  * - 2025-05-26: Fixed context implementation to use car-listing specific FormStateContext
+ * - 2025-05-19: Fixed throttling logic by checking timestamps before updating
  */
 
 import { useCallback } from 'react';
@@ -40,17 +41,33 @@ export const useFormSubmission = (formId: string) => {
   
   // Handle form submission
   const submitForm = useCallback(async (formData: CarListingFormData): Promise<string | null> => {
-    // Prevent rapid multiple submissions
+    // Prevent rapid multiple submissions by checking BEFORE updating timestamp
     const now = Date.now();
-    const lastSubmission = updateLastSubmissionTime(); // This now returns the timestamp
+    
+    // Get the last submission time WITHOUT updating it yet
+    const lastSubmission = lastSubmissionTime;
     
     if (now - lastSubmission < 2000) {
+      // Calculate cooldown time remaining
+      const cooldownRemaining = Math.ceil((2000 - (now - lastSubmission)) / 1000);
+      
       logSubmissionEvent('Submission throttled - too frequent', { 
-        timeSinceLastAttempt: now - lastSubmission
+        timeSinceLastAttempt: now - lastSubmission,
+        cooldownRemaining: cooldownRemaining
       });
+      
+      // Show user feedback about throttling
+      toast({
+        title: "Please wait before submitting again",
+        description: `You can submit again in ${cooldownRemaining} second${cooldownRemaining !== 1 ? 's' : ''}`,
+        variant: "default"
+      });
+      
       return null;
     }
     
+    // Only now update the submission timestamp
+    updateLastSubmissionTime();
     incrementAttempt();
     
     // Generate unique submission ID for tracing
@@ -58,7 +75,8 @@ export const useFormSubmission = (formId: string) => {
     
     logSubmissionEvent('Submission started', { 
       submissionId, 
-      formId
+      formId,
+      timeSinceLastAttempt: now - lastSubmission
     });
     
     try {
@@ -158,7 +176,8 @@ export const useFormSubmission = (formId: string) => {
     validateFormData, 
     prepareFormData, 
     submitToDatabase,
-    associateImages
+    associateImages,
+    lastSubmissionTime
   ]);
   
   return {

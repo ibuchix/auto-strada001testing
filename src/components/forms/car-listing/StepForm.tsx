@@ -1,16 +1,16 @@
-
 /**
  * StepForm Component
  * Updated: 2025-07-03 - Completely refactored to remove Next.js dependencies and fix type issues
  * Updated: 2025-07-24 - Fixed FormSubmissionContext import and related hooks
  * Updated: 2025-05-19 - Fixed property naming for error/submitError and isSuccessful
  * Updated: 2025-05-26 - Updated to use car-listing specific FormSubmission context
+ * Updated: 2025-05-19 - Added throttling feedback and improved form submission handling
  */
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { FormStep } from "./types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UseFormReturn } from "react-hook-form";
@@ -52,7 +52,7 @@ export const StepForm = ({
   const { validateCurrentStep } = useFormValidation(form);
   const { saveFormData } = useFormStorage();
   const formSubmission = useFormSubmission();
-  const { isSubmitting, submitError } = formSubmission.submissionState;
+  const { isSubmitting, submitError, cooldownTimeRemaining } = formSubmission.submissionState;
   const { submitForm } = formSubmission;
   
   const [isFormComplete, setIsFormComplete] = useState(false);
@@ -148,6 +148,12 @@ export const StepForm = ({
   // Handle form submission
   const handleFormSubmit = async () => {
     try {
+      // If there's a cooldown in effect, show message and don't proceed
+      if (cooldownTimeRemaining && cooldownTimeRemaining > 0) {
+        setValidationError(`Please wait ${cooldownTimeRemaining} second${cooldownTimeRemaining !== 1 ? 's' : ''} before submitting again.`);
+        return;
+      }
+      
       // Validate the current step first
       const isValid = await validateCurrentStep();
       
@@ -165,7 +171,7 @@ export const StepForm = ({
       // Submit the form
       await submitForm(formData);
       
-      // If successful, mark as complete and call onComplete
+      // If successful and no error, mark as complete and call onComplete
       if (!submitError) {
         setIsFormComplete(true);
         if (onComplete) onComplete();
@@ -205,12 +211,21 @@ export const StepForm = ({
           <Button
             type="button"
             onClick={handleFormSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || (cooldownTimeRemaining && cooldownTimeRemaining > 0)}
             className="flex items-center gap-1"
           >
-            Submit
-            {isSubmitting && (
-              <span className="ml-2 animate-spin">⟳</span>
+            {cooldownTimeRemaining && cooldownTimeRemaining > 0 ? (
+              <>
+                <Clock className="h-4 w-4 mr-1" />
+                Wait {cooldownTimeRemaining}s
+              </>
+            ) : (
+              <>
+                Submit
+                {isSubmitting && (
+                  <span className="ml-2 animate-spin">⟳</span>
+                )}
+              </>
             )}
           </Button>
         ) : (

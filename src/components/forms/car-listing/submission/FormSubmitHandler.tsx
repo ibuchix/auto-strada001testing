@@ -10,12 +10,7 @@
  * Updated: 2025-05-19 - Fixed import path to use correct file name
  * Updated: 2025-05-19 - Updated to use submitError property
  * Updated: 2025-05-26 - Fixed FormSubmission context import to use local context
- * 
- * This component handles form submission, including:
- * - VIN reservation validation and creation
- * - Image upload finalization
- * - Form data processing and submission
- * - Error handling and feedback
+ * Updated: 2025-05-19 - Added throttling feedback and improved error handling
  */
 
 import { useEffect, useState, useRef } from "react";
@@ -23,7 +18,7 @@ import { useFormData } from "../context/FormDataContext";
 import { useFormSubmission } from "../submission/FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 
 interface FormSubmitHandlerProps {
   onSubmitSuccess?: (carId: string) => void;
@@ -38,13 +33,14 @@ export const FormSubmitHandler = ({
   carId,
   userId
 }: FormSubmitHandlerProps) => {
-  const { submissionState, submitForm, resetSubmissionState } = useFormSubmission();
-  const { submitError, isSubmitting } = submissionState;
+  const { submissionState, submitForm } = useFormSubmission();
+  const { submitError, isSubmitting, isSuccessful } = submissionState;
   const { form } = useFormData();
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [isVerifyingImages, setIsVerifyingImages] = useState(false);
   const tempSessionIdRef = useRef<string | null>(null);
+  const [lastAttemptTime, setLastAttemptTime] = useState<number>(0);
   
   // Check for temp session ID immediately
   useEffect(() => {
@@ -58,9 +54,27 @@ export const FormSubmitHandler = ({
   // Check if we have valid userId before allowing submission
   const isSubmitDisabled = !userId || isSubmitting || isCreatingReservation || isProcessingImages;
   
+  // Effect to reset successful status
+  useEffect(() => {
+    if (isSuccessful) {
+      // Show success feedback if needed
+      toast.success("Form submitted successfully");
+    }
+  }, [isSuccessful]);
+  
   // Handle form submission with proper image handling
   const handleSubmit = async () => {
     try {
+      // Throttle check - prevent rapid submissions
+      const now = Date.now();
+      if (now - lastAttemptTime < 2000) {
+        const cooldownRemaining = Math.ceil((2000 - (now - lastAttemptTime)) / 1000);
+        toast.info(`Please wait ${cooldownRemaining} second${cooldownRemaining !== 1 ? 's' : ''} before submitting again`);
+        return;
+      }
+      
+      setLastAttemptTime(now);
+      
       if (!userId) {
         toast.error('You must be logged in to submit a form');
         return;
@@ -104,9 +118,9 @@ export const FormSubmitHandler = ({
         if (onSubmitSuccess) {
           onSubmitSuccess(submittedCarId);
         }
-      } else {
+      } else if (submitError) {
         // Call onSubmitError callback if provided
-        if (onSubmitError && submitError) {
+        if (onSubmitError) {
           onSubmitError(new Error(submitError));
         }
       }
