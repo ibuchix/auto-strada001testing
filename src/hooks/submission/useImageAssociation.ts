@@ -2,12 +2,13 @@
 /**
  * Image Association Hook
  * Created: 2025-05-24
+ * Updated: 2025-05-19 - Fixed toast API usage
  * 
  * Handles associating temporary uploads with a car ID after successful submission
  */
 
 import { associateTempUploadsWithCar } from '@/services/supabase/uploadService';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 export const useImageAssociation = () => {
   const associateImages = async (carId: string, submissionId: string): Promise<number> => {
@@ -19,7 +20,7 @@ export const useImageAssociation = () => {
         console.log(`[ImageAssociation][${submissionId}] Successfully associated ${associatedCount} images`);
         
         toast({
-          title: "Images Uploaded",
+          variant: "default",
           description: `Successfully associated ${associatedCount} images with your listing.`
         });
       } else {

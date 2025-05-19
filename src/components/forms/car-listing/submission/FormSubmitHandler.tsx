@@ -7,6 +7,7 @@
  * Updated: 2025-05-22 - Fixed TypeScript errors with result type definitions
  * Updated: 2025-05-23 - Improved type handling and consistency with return types
  * Updated: 2025-05-24 - Refactored for better consistency and type safety
+ * Updated: 2025-05-19 - Fixed import path to use correct file name
  * 
  * This component handles form submission, including:
  * - VIN reservation validation and creation
@@ -17,7 +18,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useFormData } from "../context/FormDataContext";
-import { useFormSubmission } from "./FormSubmissisionProvider";
+import { useFormSubmission } from "./FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";

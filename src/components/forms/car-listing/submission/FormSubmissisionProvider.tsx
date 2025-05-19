@@ -2,13 +2,14 @@
 /**
  * Form Submission Provider
  * Created: 2025-05-24
+ * Updated: 2025-05-19 - Fixed naming conflict with imported hook
  * 
  * Provides consistent submission handling with proper type handling
  */
 
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { CarListingFormData } from '@/types/forms';
-import { useFormSubmission } from '@/hooks/useFormSubmission';
+import { useFormSubmission as useFormSubmissionHook } from '@/hooks/useFormSubmission';
 
 interface FormSubmissionContextType {
   submissionState: {
@@ -43,7 +44,7 @@ export const FormSubmissionProvider = ({
     isSubmitting, 
     submitError, 
     resetSubmitError 
-  } = useFormSubmission(formId);
+  } = useFormSubmissionHook(formId);
   
   // Submit form with consistent return type
   const submitForm = async (data: CarListingFormData): Promise<string | null> => {
