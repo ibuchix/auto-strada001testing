@@ -1,8 +1,10 @@
+
 /**
  * Image Upload Manager Hook
  * Created: 2025-05-24
  * Updated: 2025-05-19 - Enhanced upload tracking, verification capabilities, and fallback mechanisms
  * Updated: 2025-05-24 - Modified to work with immediate uploads
+ * Updated: 2025-05-25 - Added missing imports and interface definition for TempFileMetadata
  * 
  * Manages image uploads for car listings, including:
  * - Auto-save pausing during uploads
@@ -16,6 +18,16 @@ import { UseFormReturn } from 'react-hook-form';
 import { CarListingFormData } from '@/types/forms';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { directUploadPhoto, associateTempUploadsWithCar } from '@/services/supabase/uploadService';
+
+// Define the TempFileMetadata interface
+interface TempFileMetadata {
+  filePath: string;
+  publicUrl: string;
+  category: string;
+  uploadId: string;
+  timestamp: string;
+}
 
 interface UseImageUploadManagerProps {
   form: UseFormReturn<CarListingFormData>;
