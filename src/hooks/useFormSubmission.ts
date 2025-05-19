@@ -7,6 +7,7 @@
  * - 2025-05-24: Improved type safety throughout the submission process
  * - 2025-05-24: Fixed null checks and type annotations
  * - 2025-05-19: Fixed arithmetic comparison issues and type casting
+ * - 2025-05-19: Fixed void return type issues with lastSubmission time
  */
 
 import { useCallback } from 'react';
@@ -22,7 +23,7 @@ import { useImageAssociation } from './submission/useImageAssociation';
 export const useFormSubmission = (formId: string) => {
   const { updateFormState } = useFormState();
   const { 
-    state: { isSubmitting, submitError },
+    state: { isSubmitting, submitError, lastSubmissionTime },
     setSubmitting,
     setSubmitError,
     incrementAttempt,
@@ -40,15 +41,15 @@ export const useFormSubmission = (formId: string) => {
   const submitForm = useCallback(async (formData: CarListingFormData): Promise<string | null> => {
     // Prevent rapid multiple submissions
     const now = Date.now();
-    const lastSubmission = updateLastSubmissionTime();
-    if (now - (lastSubmission || 0) < 2000) {
+    const lastSubmission = updateLastSubmissionTime(); // This now returns the timestamp
+    
+    if (now - lastSubmission < 2000) {
       logSubmissionEvent('Submission throttled - too frequent', { 
-        timeSinceLastAttempt: now - (lastSubmission || 0) 
+        timeSinceLastAttempt: now - lastSubmission
       });
       return null;
     }
     
-    updateLastSubmissionTime();
     incrementAttempt();
     
     // Generate unique submission ID for tracing

@@ -2,6 +2,7 @@
 /**
  * Submission State Hook
  * Created: 2025-05-24
+ * Updated: 2025-05-19 - Made updateLastSubmissionTime return the timestamp
  * 
  * Manages submission state including loading status, errors, and reset functionality
  */
@@ -62,12 +63,14 @@ export const useSubmissionState = (formId: string) => {
   const incrementAttempt = () => {
     submissionAttempts.current += 1;
     setState(prev => ({ ...prev, attempts: submissionAttempts.current }));
+    return submissionAttempts.current;
   };
   
   const updateLastSubmissionTime = () => {
     const now = Date.now();
     lastSubmissionTime.current = now;
     setState(prev => ({ ...prev, lastSubmissionTime: now }));
+    return now; // Return the timestamp so it can be used in calculations
   };
   
   const startSubmission = () => {
