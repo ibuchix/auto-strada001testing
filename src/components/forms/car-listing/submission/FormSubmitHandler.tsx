@@ -15,6 +15,7 @@
  * Updated: 2025-05-31 - Fixed handling of submission result to match updated provider
  * Updated: 2025-06-01 - Fixed TypeScript errors with toast usage
  * Updated: 2025-06-02 - Added image association with car records after successful submission
+ * Updated: 2025-06-03 - Added improved throttling bypass for image association
  */
 
 import { useState, useEffect, useRef, useCallback, memo } from "react";
@@ -46,7 +47,8 @@ export const FormSubmitHandler = memo(({
   const [isVerifyingImages, setIsVerifyingImages] = useState(false);
   const tempSessionIdRef = useRef<string | null>(null);
   const submissionInProgressRef = useRef<boolean>(false);
-  const { associateImages } = useImageAssociation();
+  const submissionResultRef = useRef<string | null>(null);
+  const { associateImages, isAssociating, resetRetryState } = useImageAssociation();
   
   // Reset submission flags when isSubmitting changes to false
   useEffect(() => {
@@ -61,6 +63,36 @@ export const FormSubmitHandler = memo(({
       return () => clearTimeout(timer);
     }
   }, [isSubmitting]);
+  
+  // Handle successful car ID - trigger image association as a separate process
+  useEffect(() => {
+    // If we have a car ID from a successful submission, associate images
+    if (submissionResultRef.current && !isProcessingImages && !isAssociating) {
+      const associateImagesWithCar = async () => {
+        try {
+          setIsProcessingImages(true);
+          const submissionId = `sub-${Date.now()}`;
+          const carId = submissionResultRef.current as string;
+          
+          // Reset retry state for this car
+          resetRetryState(carId);
+          
+          console.log(`[FormSubmitHandler] Starting image association for car ID: ${carId}`);
+          const associatedCount = await associateImages(carId, submissionId);
+          console.log(`[FormSubmitHandler] Associated ${associatedCount} images with car ID: ${carId}`);
+          
+          // Clear the submission result ref
+          submissionResultRef.current = null;
+        } catch (error) {
+          console.error('[FormSubmitHandler] Error in image association:', error);
+        } finally {
+          setIsProcessingImages(false);
+        }
+      };
+      
+      associateImagesWithCar();
+    }
+  }, [associateImages, isProcessingImages, isAssociating, resetRetryState]);
   
   // Check for temp session ID immediately
   useEffect(() => {
@@ -86,7 +118,18 @@ export const FormSubmitHandler = memo(({
       // Check if cooling down
       if (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0) {
         console.log(`[FormSubmitHandler] Cooling down, ${cooldownTimeRemaining}s remaining`);
-        toast(`Please wait ${cooldownTimeRemaining} seconds before submitting again`);
+        
+        // Show toast with more helpful message
+        toast(`Please wait ${cooldownTimeRemaining} seconds before submitting again`, {
+          description: "This prevents accidental duplicate submissions."
+        });
+        
+        // Check if we have a prior successful submission that needs image association
+        if (submissionResultRef.current) {
+          console.log(`[FormSubmitHandler] Have existing submission result, processing image association only`);
+          return;
+        }
+        
         return;
       }
       
@@ -115,28 +158,15 @@ export const FormSubmitHandler = memo(({
       }
       
       setIsVerifyingImages(false);
-      setIsProcessingImages(true);
       
       // Submit the form
       const submittedCarId = await submitForm(form.getValues());
       
       if (submittedCarId) {
-        // Associate temp uploads with the car ID
-        console.log(`[FormSubmitHandler] Associating images with car ID: ${submittedCarId}`);
-        try {
-          const submissionId = `sub-${Date.now()}`;
-          const associatedCount = await associateImages(submittedCarId, submissionId);
-          console.log(`[FormSubmitHandler] Associated ${associatedCount} images with car ID: ${submittedCarId}`);
-          
-          if (associatedCount > 0) {
-            toast.success(`Successfully associated ${associatedCount} images with your listing`);
-          }
-        } catch (associationError) {
-          console.error('[FormSubmitHandler] Error associating images:', associationError);
-          toast.error('Your listing was saved, but there was an issue with some image uploads');
-        }
+        // Store car ID for image association process
+        submissionResultRef.current = submittedCarId;
         
-        // Call onSubmitSuccess callback if provided
+        // Call onSubmitSuccess callback if provided (this should happen right away)
         if (onSubmitSuccess) {
           onSubmitSuccess(submittedCarId);
         }
@@ -147,8 +177,8 @@ export const FormSubmitHandler = memo(({
         }
       }
       
-      setIsProcessingImages(false);
-      submissionInProgressRef.current = false;
+      // Note: Image association will happen via the useEffect when submissionResultRef is populated
+      
     } catch (error) {
       console.error('[FormSubmitHandler] Form submission error:', error);
       
@@ -158,7 +188,6 @@ export const FormSubmitHandler = memo(({
       
       toast.error(error instanceof Error ? error.message : 'An unknown error occurred');
       
-      setIsProcessingImages(false);
       submissionInProgressRef.current = false;
     }
   }, [
@@ -168,14 +197,13 @@ export const FormSubmitHandler = memo(({
     submitError, 
     onSubmitSuccess, 
     onSubmitError,
-    cooldownTimeRemaining,
-    associateImages
+    cooldownTimeRemaining
   ]);
   
   // Get loading or cooldown state text
   const getButtonText = () => {
     if (isVerifyingImages) return 'Verifying Images...';
-    if (isProcessingImages) return 'Processing Images...';
+    if (isProcessingImages || isAssociating) return 'Processing Images...';
     if (isSubmitting) return 'Submitting...';
     if (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0) {
       return `Wait ${cooldownTimeRemaining}s`;
@@ -192,7 +220,7 @@ export const FormSubmitHandler = memo(({
         disabled={isSubmitDisabled || (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0)}
         className="min-w-[150px]"
       >
-        {(isSubmitting || isProcessingImages || isVerifyingImages || (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0)) ? (
+        {(isSubmitting || isProcessingImages || isVerifyingImages || isAssociating || (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0)) ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             {getButtonText()}

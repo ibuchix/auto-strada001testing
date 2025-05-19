@@ -8,14 +8,14 @@
  * Updated: 2025-05-20 - Enhanced with cooldown tracking and consolidated throttling logic
  * Updated: 2025-05-31 - Fixed submitForm implementation to provide required submission function 
  * Updated: 2025-06-02 - Added better error handling and improved submission flow
- * 
- * Provides consistent submission handling with proper type handling
+ * Updated: 2025-06-03 - Enhanced throttling logic and improved responsiveness
  */
 
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { CarListingFormData } from '@/types/forms';
 import { useFormSubmission as useFormSubmissionHook } from '@/hooks/useFormSubmission';
 import { submitCarListing } from './services/submissionService';
+import { toast } from 'sonner';
 
 interface FormSubmissionContextType {
   submissionState: {
@@ -63,6 +63,15 @@ export const FormSubmissionProvider = ({
   const submitForm = async (data: CarListingFormData): Promise<string | null> => {
     setIsSuccessful(false);
     
+    // Early validation for duplicate submissions during cooldown
+    if (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0) {
+      console.log(`[FormSubmissionProvider] Submission throttled: Cooldown ${cooldownTimeRemaining}s remaining`);
+      toast.warning(`Submission throttled`, {
+        description: `Please wait ${cooldownTimeRemaining} seconds before trying again.`
+      });
+      return null;
+    }
+    
     try {
       console.log('[FormSubmissionProvider] Starting form submission process');
       
@@ -84,13 +93,30 @@ export const FormSubmissionProvider = ({
       if (result) {
         console.log(`[FormSubmissionProvider] Submission successful with ID: ${result}`);
         setIsSuccessful(true);
+        
+        // Notify user of successful submission
+        toast.success('Listing submitted successfully', {
+          description: 'Your car listing has been created.'
+        });
       } else {
         console.warn('[FormSubmissionProvider] Submission completed but no ID returned');
+        
+        // Only show error if there's an actual error message
+        if (submitError) {
+          toast.error('Submission failed', {
+            description: submitError
+          });
+        }
       }
       
       return result;
     } catch (error) {
       console.error('[FormSubmissionProvider] Submission error:', error);
+      
+      toast.error('Error submitting listing', {
+        description: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+      
       return null;
     }
   };

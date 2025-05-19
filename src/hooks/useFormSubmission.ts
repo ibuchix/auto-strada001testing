@@ -5,6 +5,7 @@
  * Updated: 2025-05-19: Added proper throttling with cooldown state exposure
  * Updated: 2025-05-19: Fixed throttling implementation to avoid race conditions
  * Updated: 2025-05-20: Enhanced error handling and state management
+ * Updated: 2025-06-03: Reduced cooldown period and improved throttling feedback
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -16,7 +17,7 @@ type SubmissionState = {
   lastSubmissionTime: number | null;
 };
 
-export const useFormSubmission = (formId: string, cooldownPeriodMs = 5000) => {
+export const useFormSubmission = (formId: string, cooldownPeriodMs = 1200) => {
   const [submissionState, setSubmissionState] = useState<SubmissionState>({
     isSubmitting: false,
     submitError: null,
@@ -80,7 +81,7 @@ export const useFormSubmission = (formId: string, cooldownPeriodMs = 5000) => {
     
     // Check if we're in the cooldown period
     if (lastSubmissionTime && now - lastSubmissionTime < cooldownPeriodMs) {
-      console.log(`[useFormSubmission][${formId}] Throttled: Attempted submission too soon`);
+      console.log(`[useFormSubmission][${formId}] Throttled: Attempted submission too soon, please wait ${Math.ceil((cooldownPeriodMs - (now - lastSubmissionTime)) / 1000)}s`);
       return false;
     }
     
