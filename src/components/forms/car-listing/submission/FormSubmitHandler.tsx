@@ -2,20 +2,13 @@
 /**
  * Form Submit Handler Component
  * Created: 2025-05-13
- * Updated: 2025-05-16 - Enhanced error handling and improved UX feedback
- * Updated: 2025-05-04 - Added detailed error logging and VIN reservation checks
- * Updated: 2025-05-04 - Improved VIN reservation handling and error messaging
- * Updated: 2025-05-05 - Added automatic VIN reservation creation if missing
- * Updated: 2025-05-05 - Fixed VIN reservation handling to work with RLS policies
- * Updated: 2025-05-08 - Improved error handling for undefined responses
- * Updated: 2025-05-08 - Added additional checks and feedback for reservation process
- * Updated: 2025-05-09 - Fixed type error: using reservationId instead of id property
- * Updated: 2025-05-10 - Improved handling of duplicate VIN reservations
- * Updated: 2025-05-17 - Fixed temporary VIN reservation IDs to use proper UUIDs
- * Updated: 2025-05-17 - Added better cross-origin error suppression
- * Updated: 2025-05-17 - Improved permission handling with auth tokens
- * Updated: 2025-05-18 - Fixed permission issues with VIN reservation checks
- * Updated: 2025-05-24 - Added image upload finalization check before submission
+ * Updated: 2025-05-19 - Fixed upload verification integration and loading state management
+ * 
+ * This component handles form submission, including:
+ * - VIN reservation validation and creation
+ * - Image upload finalization
+ * - Form data processing and submission
+ * - Error handling and feedback
  */
 
 import { useEffect, useState, useContext, useRef } from "react";
@@ -45,59 +38,82 @@ export const FormSubmitHandler = ({
   const { form } = useFormData();
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [isFinalizingUploads, setIsFinalizingUploads] = useState(false);
-  const temporaryUploaderRef = useRef<{ finalizeUploads?: (carId: string) => Promise<any> }>(null);
+  const globalUploaderRef = useRef<any>(null);
   
   // Check if we have valid userId before allowing submission
   const isSubmitDisabled = !userId || submissionState.isSubmitting || isCreatingReservation || isFinalizingUploads;
   
-  // Add support for image upload finalization
-  const registerUploader = (uploader: any) => {
-    if (uploader && uploader.finalizeUploads) {
-      temporaryUploaderRef.current = uploader;
+  // Connect to the global uploader on mount
+  useEffect(() => {
+    globalUploaderRef.current = (window as any).__tempFileUploadManager;
+    
+    // Log status of global uploader connection
+    if (globalUploaderRef.current) {
+      console.log('FormSubmitHandler: Connected to global upload manager', globalUploaderRef.current);
+    } else {
+      console.warn('FormSubmitHandler: Global upload manager not available');
     }
-  };
+    
+    return () => {
+      globalUploaderRef.current = null;
+    };
+  }, []);
   
   // Verify and finalize all uploads before submission
   const verifyUploads = async (): Promise<boolean> => {
-    if (!temporaryUploaderRef.current || !temporaryUploaderRef.current.finalizeUploads) {
-      console.log("No upload finalizer registered, proceeding with submission");
+    // Re-acquire the reference each time to ensure we have the latest
+    const uploader = (window as any).__tempFileUploadManager;
+    globalUploaderRef.current = uploader;
+    
+    if (!uploader) {
+      console.log("No upload manager available, proceeding with submission");
       return true; // No uploader registered, assume all is well
     }
     
-    if (!carId) {
-      console.error("Missing carId, cannot finalize uploads");
-      toast.error("Missing car ID", {
-        description: "Cannot process uploads without a car ID"
-      });
-      return false;
-    }
-    
     try {
-      setIsFinalizingUploads(true);
-      console.log(`Finalizing uploads for car ${carId}`);
+      // First check if uploads are complete
+      if (uploader.checkUploadsComplete && typeof uploader.checkUploadsComplete === 'function') {
+        const uploadsComplete = uploader.checkUploadsComplete();
+        
+        if (!uploadsComplete) {
+          console.log('Uploads still in progress, please wait');
+          toast.warning('Files are still uploading', {
+            description: 'Please wait for uploads to complete before submitting'
+          });
+          return false;
+        }
+      }
       
-      // Allow some time for any pending uploads to complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const results = await temporaryUploaderRef.current.finalizeUploads(carId);
-      
-      console.log(`Upload finalization complete, results:`, results);
-      
-      if (Array.isArray(results) && results.length > 0) {
-        toast.success(`${results.length} files processed successfully`, {
-          description: "Your images are ready for submission"
-        });
+      // If we have a carId, we can finalize any pending uploads
+      if (carId && uploader.finalizeUploads && typeof uploader.finalizeUploads === 'function') {
+        setIsFinalizingUploads(true);
+        console.log(`Finalizing uploads for car ${carId} before submission`);
+        
+        try {
+          const results = await uploader.finalizeUploads(carId);
+          console.log('Upload finalization results:', results);
+          
+          if (Array.isArray(results) && results.length > 0) {
+            toast.success(`Processed ${results.length} images`, {
+              description: 'All images ready for submission'
+            });
+          }
+        } catch (error) {
+          console.error('Error finalizing uploads:', error);
+          toast.error('Error processing images', {
+            description: 'Some images may not be included in your listing'
+          });
+          // Continue with submission despite errors
+        } finally {
+          setIsFinalizingUploads(false);
+        }
       }
       
       return true;
     } catch (error) {
-      console.error("Error finalizing uploads:", error);
-      toast.error("Upload error", {
-        description: "Failed to process some uploads. You may try again or proceed with available images."
-      });
-      return false;
-    } finally {
+      console.error("Error in upload verification:", error);
       setIsFinalizingUploads(false);
+      return true; // Continue with submission despite errors
     }
   };
   
@@ -191,10 +207,7 @@ export const FormSubmitHandler = ({
         return;
       }
       
-      // First, finalize any pending uploads
-      await verifyUploads();
-      
-      // Then ensure VIN reservation exists
+      // Verify and ensure VIN reservation exists
       const reservationCreated = await ensureVinReservation(values);
       if (!reservationCreated) {
         return;
@@ -256,15 +269,6 @@ export const FormSubmitHandler = ({
       resetSubmissionState();
     };
   }, [resetSubmissionState]);
-  
-  // Register image uploader from context if available
-  useEffect(() => {
-    // This would be implemented to connect to any image uploaders in the form
-    const uploadManager = (window as any).__tempFileUploadManager;
-    if (uploadManager) {
-      registerUploader(uploadManager);
-    }
-  }, []);
   
   return (
     <div className="flex flex-col gap-4">

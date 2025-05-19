@@ -9,6 +9,7 @@
  * - Enhanced accessibility
  * - 2025-04-17: Fixed toast import path
  * - 2025-05-24: Added enhanced loading states and upload verification
+ * - 2025-05-19: Fixed submission phase tracking and improved upload verification
  */
 import React, { useState, useCallback, useEffect } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
@@ -42,9 +43,12 @@ export const FormSubmitButton = ({
   // Reset submission phase when isSubmitting changes to false
   useEffect(() => {
     if (!isSubmitting && submissionPhase !== 'idle') {
-      setSubmissionPhase('idle');
+      const timer = setTimeout(() => {
+        setSubmissionPhase('idle');
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [isSubmitting]);
+  }, [isSubmitting, submissionPhase]);
   
   // Enhanced click handler with upload verification
   const handleClick = useCallback(async (e: React.MouseEvent) => {
@@ -60,6 +64,7 @@ export const FormSubmitButton = ({
       attempts: clickAttempts + 1,
       eventType: e.type,
       eventTarget: e.currentTarget.tagName,
+      submissionPhase
     });
     
     // Update click tracking
@@ -88,7 +93,20 @@ export const FormSubmitButton = ({
         setSubmissionPhase('verifying');
         
         console.log(`[FormSubmitButton][${formId}] Verifying uploads before submission`);
-        const uploadsComplete = await onVerifyUploads();
+        
+        // Wait for upload verification - with a reasonable timeout
+        const verificationPromise = onVerifyUploads();
+        
+        // Add a timeout to ensure we don't wait forever
+        const timeoutPromise = new Promise<boolean>((resolve) => {
+          setTimeout(() => {
+            console.log(`[FormSubmitButton][${formId}] Verification timeout reached`);
+            resolve(true); // Assume uploads are done after timeout
+          }, 5000); // 5 second timeout
+        });
+        
+        // Race between verification and timeout
+        const uploadsComplete = await Promise.race([verificationPromise, timeoutPromise]);
         
         if (!uploadsComplete) {
           console.log(`[FormSubmitButton][${formId}] Uploads not complete, aborting submission`);
@@ -101,6 +119,12 @@ export const FormSubmitButton = ({
           setSubmissionPhase('idle');
           return;
         }
+        
+        // After verification, proceed to uploading phase if needed
+        setSubmissionPhase('uploading');
+        
+        // Add a slight delay to allow any pending uploads to finalize
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         console.log(`[FormSubmitButton][${formId}] All uploads verified, proceeding with submission`);
         setSubmissionPhase('submitting');

@@ -2,8 +2,7 @@
 /**
  * Image Upload Section for car listing forms
  * Created: 2025-06-04
- * Updated: 2025-07-24 - Fixed form field types and form value setting
- * Updated: 2025-05-24 - Added connection to form submission and improved upload state management
+ * Updated: 2025-05-19 - Enhanced upload tracking and added better form integration
  * 
  * This component handles image uploads and prevents auto-saving during uploads
  * to avoid performance issues and flickering.
@@ -18,7 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormLabel } from "@/components/ui/form";
 import { useDropzone } from "react-dropzone";
-import { UploadCloud, X, ImageIcon } from "lucide-react";
+import { UploadCloud, X, ImageIcon, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ImageUploadSectionProps {
   maxImages?: number;
@@ -35,6 +35,7 @@ export const ImageUploadSection = ({
 }: ImageUploadSectionProps) => {
   const form = useFormContext<CarListingFormData>();
   const [images, setImages] = useState<string[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   
   // Use the image upload manager to handle uploads and auto-save pausing
   const {
@@ -43,7 +44,8 @@ export const ImageUploadSection = ({
     startUpload,
     finishUpload,
     updateProgress,
-    finalizeUploads
+    registerPendingFile,
+    checkUploadsComplete
   } = useImageUploadManager({ 
     form, 
     pauseAutoSave, 
@@ -51,34 +53,18 @@ export const ImageUploadSection = ({
     carId 
   });
   
-  // Make the finalizeUploads method available for the form submission
-  useEffect(() => {
-    // Set up global access to the finalizeUploads function for form submission
-    (window as any).__tempFileUploadManager = {
-      finalizeUploads: async (id: string) => {
-        console.log(`Finalizing uploads for car ${id}`);
-        try {
-          // Use the current carId or the one provided
-          const result = await finalizeUploads(id || carId || '');
-          return result;
-        } catch (err) {
-          console.error('Error finalizing uploads:', err);
-          throw err;
-        }
-      }
-    };
-    
-    // Cleanup
-    return () => {
-      (window as any).__tempFileUploadManager = null;
-    };
-  }, [finalizeUploads, carId]);
-  
   // Initialize images from form data on mount
   useEffect(() => {
     const formImages = form.getValues().images || [];
     setImages(Array.isArray(formImages) ? formImages : []);
-  }, [form]);
+    
+    // Log connection status
+    console.log('ImageUploadSection: Connected to image upload manager', { 
+      carId,
+      isUploading,
+      currentImages: formImages?.length
+    });
+  }, [form, carId, isUploading]);
   
   // Handle file drop/selection
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -86,10 +72,12 @@ export const ImageUploadSection = ({
     
     // Start upload process - this will pause auto-save
     startUpload();
+    setUploadError(null);
     
     try {
       const newImages = [...images];
       
+      // Process each file
       for (let i = 0; i < acceptedFiles.length; i++) {
         if (newImages.length >= maxImages) break;
         
@@ -99,13 +87,16 @@ export const ImageUploadSection = ({
         formData.append('carId', carId);
         formData.append('type', 'additional_photos');
         
+        // Register the file for potential later finalization
+        registerPendingFile(file);
+        
         // Update progress as we process each file
         updateProgress(Math.round((i / acceptedFiles.length) * 100));
         
         console.log(`Uploading file ${file.name} for car ${carId}`);
         
         try {
-          // Upload image using our new API endpoint
+          // Upload image using our API endpoint
           const response = await fetch(`/api/upload-car-image`, {
             method: 'POST',
             body: formData,
@@ -127,23 +118,23 @@ export const ImageUploadSection = ({
           }
         } catch (uploadError) {
           console.error(`Error uploading file ${file.name}:`, uploadError);
+          setUploadError(`Failed to upload ${file.name}. Please try again.`);
           // Continue with other files even if this one fails
         }
       }
       
-      // Update local state
+      // Update local state and form values
       setImages(newImages);
-      
-      // Update form values - fixed the 'images' field assignment
       form.setValue("images", newImages, { shouldDirty: true });
       
       // Complete upload successfully
       finishUpload(true);
     } catch (error) {
       console.error('Error uploading images:', error);
+      setUploadError(error instanceof Error ? error.message : 'Upload failed');
       finishUpload(false, error instanceof Error ? error : new Error('Upload failed'));
     }
-  }, [carId, images, maxImages, startUpload, updateProgress, finishUpload, form]);
+  }, [carId, images, maxImages, startUpload, updateProgress, finishUpload, form, registerPendingFile]);
   
   // Set up dropzone
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -159,8 +150,6 @@ export const ImageUploadSection = ({
     const newImages = [...images];
     newImages.splice(index, 1);
     setImages(newImages);
-    
-    // Update form values - fixed the 'images' field assignment
     form.setValue("images", newImages, { shouldDirty: true });
   };
   
@@ -172,6 +161,13 @@ export const ImageUploadSection = ({
           Upload up to {maxImages} images of your car. First image will be the main image.
         </p>
       </div>
+      
+      {uploadError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{uploadError}</AlertDescription>
+        </Alert>
+      )}
       
       {/* Upload zone */}
       <div
