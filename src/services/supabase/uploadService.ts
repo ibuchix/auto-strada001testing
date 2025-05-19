@@ -5,6 +5,7 @@
  * Updated: 2025-07-18 - Fixed file path structure, standardized upload process
  * Updated: 2025-05-23 - Added improved error handling and database verification
  * Updated: 2025-05-24 - Fixed file existence verification method
+ * Updated: 2025-05-19 - Fixed direct storage upload implementation, removed API dependency
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +22,7 @@ export const uploadImagesForCar = async (
 ): Promise<string[]> => {
   if (!files || files.length === 0) return [];
   
-  console.log(`Starting upload of ${files.length} files for car ${carId} (category: ${category})`);
+  console.log(`Starting direct upload of ${files.length} files for car ${carId} (category: ${category})`);
   
   const uploadPromises = files.map(async (file) => {
     const fileExt = file.name.split('.').pop();
@@ -31,82 +32,108 @@ export const uploadImagesForCar = async (
     
     console.log(`Uploading file to path: ${filePath}`);
     
-    const { error, data } = await supabase.storage
-      .from('car-images')
-      .upload(filePath, file);
-    
-    if (error) {
-      console.error(`Error uploading ${category} image:`, error);
-      throw new Error(`Failed to upload image: ${error.message}`);
-    }
-    
-    // After successful upload, add record to car_file_uploads table
-    const { error: dbError } = await supabase
-      .from('car_file_uploads')
-      .insert({
-        car_id: carId,
-        file_path: filePath,
-        file_type: file.type,
-        upload_status: 'completed',
-        category: category,
-        image_metadata: {
-          size: file.size,
-          name: file.name,
-          type: file.type,
-          originalName: file.name
-        }
-      });
+    try {
+      // Direct upload to Supabase storage - no API involved
+      const { error, data } = await supabase.storage
+        .from('car-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
       
-    if (dbError) {
-      console.error(`Error recording file upload:`, dbError);
-      
-      // Try again with simplified metadata
-      try {
-        const { error: retryError } = await supabase
-          .from('car_file_uploads')
-          .insert({
-            car_id: carId,
-            file_path: filePath,
-            file_type: file.type,
-            upload_status: 'completed',
-            category: category
-          });
-          
-        if (retryError) {
-          console.error(`Error on retry of file upload record:`, retryError);
-        }
-      } catch (e) {
-        console.error('Exception during database record retry:', e);
+      if (error) {
+        console.error(`Error uploading ${category} image:`, error);
+        throw new Error(`Failed to upload image: ${error.message}`);
       }
-    }
-    
-    // Update the appropriate field in cars table based on category
-    if (category.includes('rim_') || category.startsWith('required_')) {
-      try {
-        // Get current required_photos JSONB object
-        const { data: car, error: getError } = await supabase
-          .from('cars')
-          .select('required_photos')
-          .eq('id', carId)
-          .single();
-          
-        if (!getError && car) {
-          // Update the required_photos object with the new photo
-          const requiredPhotos = car.required_photos || {};
-          requiredPhotos[category] = filePath;
-          
-          // Update the car record with the modified JSONB
-          const { error: updateError } = await supabase
-            .from('cars')
-            .update({ required_photos: requiredPhotos })
-            .eq('id', carId);
-            
-          if (updateError) {
-            console.error(`Error updating car required_photos:`, updateError);
+      
+      // After successful upload, add record to car_file_uploads table
+      const { error: dbError } = await supabase
+        .from('car_file_uploads')
+        .insert({
+          car_id: carId,
+          file_path: filePath,
+          file_type: file.type,
+          upload_status: 'completed',
+          category: category,
+          image_metadata: {
+            size: file.size,
+            name: file.name,
+            type: file.type,
+            originalName: file.name
           }
+        });
+        
+      if (dbError) {
+        console.error(`Error recording file upload to database:`, dbError);
+        
+        // Try again with simplified metadata
+        try {
+          const { error: retryError } = await supabase
+            .from('car_file_uploads')
+            .insert({
+              car_id: carId,
+              file_path: filePath,
+              file_type: file.type,
+              upload_status: 'completed',
+              category: category
+            });
+            
+          if (retryError) {
+            console.error(`Error on retry of file upload record:`, retryError);
+          }
+        } catch (e) {
+          console.error('Exception during database record retry:', e);
         }
-      } catch (err) {
-        console.error('Exception updating car required_photos:', err);
+      }
+      
+      // Update the appropriate field in cars table based on category
+      await updateCarRecordWithImage(carId, filePath, category);
+      
+      return filePath;
+    } catch (error) {
+      console.error(`Error uploading file ${file.name}:`, error);
+      return null;
+    }
+  });
+  
+  // Execute all uploads and catch errors for each one individually
+  const results = await Promise.all(uploadPromises);
+  
+  // Filter out failed uploads
+  const successfulUploads = results.filter(r => r !== null) as string[];
+  
+  console.log(`Direct upload completed: ${successfulUploads.length} successful, ${results.length - successfulUploads.length} failed`);
+  
+  return successfulUploads;
+};
+
+/**
+ * Helper function to update car record with image paths
+ */
+const updateCarRecordWithImage = async (carId: string, filePath: string, category: string): Promise<void> => {
+  try {
+    if (category.includes('rim_') || category.startsWith('required_')) {
+      // Get current required_photos JSONB object
+      const { data: car, error: getError } = await supabase
+        .from('cars')
+        .select('required_photos')
+        .eq('id', carId)
+        .single();
+        
+      if (!getError && car) {
+        // Update the required_photos object with the new photo
+        const requiredPhotos = car.required_photos || {};
+        requiredPhotos[category] = filePath;
+        
+        // Update the car record with the modified JSONB
+        const { error: updateError } = await supabase
+          .from('cars')
+          .update({ required_photos: requiredPhotos })
+          .eq('id', carId);
+          
+        if (updateError) {
+          console.error(`Error updating car required_photos:`, updateError);
+        }
       }
     } else if (category === 'additional_photos') {
       try {
@@ -138,20 +165,9 @@ export const uploadImagesForCar = async (
         console.error('Exception updating car additional_photos:', err);
       }
     }
-    
-    return filePath;
-  });
-  
-  // Execute all uploads and catch errors for each one individually
-  const results = await Promise.all(
-    uploadPromises.map(p => p.catch(error => {
-      console.error('Upload failed:', error);
-      return null;
-    }))
-  );
-  
-  // Filter out failed uploads
-  return results.filter(r => r !== null) as string[];
+  } catch (error) {
+    console.error('Error updating car record with image:', error);
+  }
 };
 
 /**
@@ -196,8 +212,89 @@ export const verifyFileExists = async (filePath: string): Promise<boolean> => {
   }
 };
 
+/**
+ * Directly uploads a single photo to Supabase Storage
+ */
+export const directUploadPhoto = async (
+  file: File,
+  carId: string,
+  category: string = 'additional_photos'
+): Promise<string | null> => {
+  try {
+    if (!file) {
+      throw new Error('No file provided');
+    }
+    
+    // Get user ID from session
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+    
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+    
+    console.log(`Directly uploading file ${file.name} for car ${carId}, category ${category}`);
+    
+    // Create unique file path using consistent structure
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `${uuidv4()}.${fileExt}`;
+    const filePath = `cars/${userId}/${carId}/${category}/${fileName}`;
+    
+    // Upload to storage directly
+    const { error: uploadError } = await supabase.storage
+      .from('car-images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+      
+    if (uploadError) {
+      console.error('Error with direct upload:', uploadError);
+      throw uploadError;
+    }
+    
+    console.log(`Direct upload successful, recording in database: ${filePath}`);
+    
+    // Record in database
+    const { error: dbError } = await supabase
+      .from('car_file_uploads')
+      .insert({
+        car_id: carId,
+        file_path: filePath,
+        file_type: file.type,
+        upload_status: 'completed',
+        category: category,
+        image_metadata: {
+          size: file.size,
+          name: file.name
+        }
+      });
+    
+    if (dbError) {
+      console.warn('Warning: Could not record file in database:', dbError);
+      // Continue anyway as the file is uploaded
+    }
+    
+    // Update car record
+    await updateCarRecordWithImage(carId, filePath, category);
+    
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('car-images')
+      .getPublicUrl(filePath);
+    
+    console.log(`Direct upload completed with public URL: ${publicUrl}`);
+    
+    return publicUrl;
+  } catch (error) {
+    console.error('Direct upload failed:', error);
+    return null;
+  }
+};
+
 export default {
   uploadImagesForCar,
   getPublicUrl,
-  verifyFileExists
+  verifyFileExists,
+  directUploadPhoto
 };

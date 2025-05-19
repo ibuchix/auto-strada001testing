@@ -1,14 +1,15 @@
-
 /**
  * Hook for temporary file upload management
  * Created: 2025-07-18
  * Updated: 2025-08-28 - Added name field to TemporaryFile to fix type compatibility
  * Updated: 2025-05-23 - Enhanced with better error handling and finalization
+ * Updated: 2025-05-19 - Integrated with global upload manager for better tracking
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { uploadImagesForCar } from '@/services/supabase/uploadService';
+import { directUploadPhoto } from '@/services/supabase/uploadService';
 import { supabase } from '@/integrations/supabase/client';
+import { useTempFileUploadManager } from './useTempFileUploadManager';
 
 export interface TemporaryFile {
   id: string;
@@ -36,6 +37,14 @@ export const useTemporaryFileUpload = ({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   
+  // Use the global temp file upload manager
+  const { 
+    registerUpload, 
+    registerCompletion, 
+    registerFailure,
+    getPendingCount 
+  } = useTempFileUploadManager();
+  
   // Track remaining session time
   const sessionStartTime = useRef(Date.now());
   const sessionDuration = useRef(30); // 30 minutes default
@@ -61,6 +70,9 @@ export const useTemporaryFileUpload = ({
     setProgress(0);
     setError(null);
     
+    // Register with the global upload manager
+    const uploadId = registerUpload(file);
+    
     try {
       // Generate a temporary ID
       const id = uuidv4();
@@ -79,15 +91,6 @@ export const useTemporaryFileUpload = ({
         setFiles([]);
       }
       
-      // For now, store locally until form is submitted
-      const tempFile: TemporaryFile = {
-        id,
-        file,
-        name: file.name || 'upload', // Add name property for type compatibility
-        preview,
-        url: '' // Initialize url as empty string for type compatibility
-      };
-      
       // Simulate upload progress
       let p = 0;
       const interval = setInterval(() => {
@@ -98,6 +101,15 @@ export const useTemporaryFileUpload = ({
           clearInterval(interval);
         }
       }, 100);
+      
+      // For now, store locally until form is submitted
+      const tempFile: TemporaryFile = {
+        id,
+        file,
+        name: file.name || 'upload', // Add name property for type compatibility
+        preview,
+        url: '' // Initialize url as empty string for type compatibility
+      };
       
       // Update state with new file
       setFiles(prevFiles => {
@@ -110,6 +122,9 @@ export const useTemporaryFileUpload = ({
         setProgress(100);
         setIsUploading(false);
         
+        // Mark completed in the global manager
+        registerCompletion(uploadId);
+        
         // Call onUploadComplete callback if provided
         if (onUploadComplete) {
           onUploadComplete([tempFile]);
@@ -120,12 +135,16 @@ export const useTemporaryFileUpload = ({
       return tempFile;
     } catch (error) {
       console.error('Error uploading file:', error);
+      
+      // Mark as failed in the global manager
+      registerFailure(uploadId);
+      
       setError(error instanceof Error ? error.message : "Upload failed");
       return null;
     } finally {
       setIsUploading(false);
     }
-  }, [files, allowMultiple, createPreview, onUploadComplete]);
+  }, [files, allowMultiple, createPreview, onUploadComplete, registerUpload, registerCompletion, registerFailure]);
   
   // Upload multiple files
   const uploadFiles = useCallback(async (fileList: FileList | File[]) => {
@@ -196,6 +215,8 @@ export const useTemporaryFileUpload = ({
     setError(null);
     
     try {
+      console.log(`[useTemporaryFileUpload] Finalizing ${files.length} uploads for car ${carId}`);
+      
       // Get user from session
       const { data } = await supabase.auth.getSession();
       const userId = data.session?.user?.id;
@@ -205,38 +226,34 @@ export const useTemporaryFileUpload = ({
         throw new Error('User not authenticated');
       }
       
-      // Upload all files using the uploadImagesForCar service
-      const filesToUpload = files
-        .filter(file => file.file) // Only upload files that have a File object
-        .map(file => file.file!);
+      const results: string[] = [];
+      let completedFiles = 0;
       
-      // Use real progress if possible
-      let pct = 0;
-      const interval = setInterval(() => {
-        pct = Math.min(pct + 5, 90);
-        setProgress(pct);
-      }, 200);
+      // Upload each file using direct upload
+      for (const tempFile of files) {
+        if (!tempFile.file) continue;
+        
+        try {
+          // Use direct upload
+          const publicUrl = await directUploadPhoto(tempFile.file, carId, category);
+          
+          if (publicUrl) {
+            results.push(publicUrl);
+          }
+          
+          // Update progress
+          completedFiles++;
+          const progress = Math.round((completedFiles / files.length) * 100);
+          setProgress(progress);
+        } catch (error) {
+          console.error(`Error uploading file ${tempFile.name}:`, error);
+        }
+      }
       
-      // Upload the files
-      console.log(`Finalizing ${filesToUpload.length} uploads for car ${carId}`);
-      const uploadedPaths = await uploadImagesForCar(filesToUpload, carId, category, userId);
-      
-      // Complete progress
-      clearInterval(interval);
-      setProgress(100);
-      
-      // Get public URLs
-      const publicUrls = uploadedPaths.map(path => {
-        const { data } = supabase.storage
-          .from('car-images')
-          .getPublicUrl(path);
-        return data.publicUrl;
-      });
-      
-      console.log(`Successfully finalized ${publicUrls.length} uploads`);
-      return publicUrls;
+      console.log(`[useTemporaryFileUpload] Successfully finalized ${results.length} of ${files.length} uploads`);
+      return results;
     } catch (error) {
-      console.error('Error finalizing uploads:', error);
+      console.error('[useTemporaryFileUpload] Error finalizing uploads:', error);
       setError(error instanceof Error ? error.message : "Finalization failed");
       return [];
     } finally {
@@ -260,6 +277,22 @@ export const useTemporaryFileUpload = ({
     return cleanup;
   }, [cleanup]);
   
+  // Create a verification function that can be used by the submit button
+  const verifyUploads = useCallback(async (): Promise<boolean> => {
+    // Check with the global manager if there are any pending uploads
+    const pendingCount = getPendingCount();
+    
+    console.log(`[useTemporaryFileUpload] Verifying uploads, ${pendingCount} pending`);
+    
+    // If there are no pending uploads, we're good to go
+    if (pendingCount === 0) {
+      return true;
+    }
+    
+    // Otherwise, need to wait for uploads to complete
+    return false;
+  }, [getPendingCount]);
+  
   return {
     files,
     isUploading,
@@ -270,6 +303,7 @@ export const useTemporaryFileUpload = ({
     uploadFiles,
     removeFile,
     finalizeUploads,
+    verifyUploads,
     cleanup
   };
 };

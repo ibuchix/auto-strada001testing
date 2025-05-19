@@ -1,9 +1,11 @@
+
 /**
  * Service for managing photo storage operations
  * Updated: 2025-05-18 - Added verification and recovery for database records
  * Updated: 2025-07-18 - Fixed path structure and database record creation
  * Updated: 2025-07-19 - Fixed supabase.sql usage with standard methods
  * Updated: 2025-05-23 - Added retry mechanism and enhanced error handling
+ * Updated: 2025-05-19 - Removed API route dependency and implemented direct upload
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -27,7 +29,7 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
   let lastError: Error | null = null;
   
   // Add detailed logging for debugging
-  console.log(`Starting upload for file: ${file.name}, size: ${(file.size / 1024).toFixed(2)} KB, category: ${category}, carId: ${carId}`);
+  console.log(`Starting direct upload for file: ${file.name}, size: ${(file.size / 1024).toFixed(2)} KB, category: ${category}, carId: ${carId}`);
   
   while (retryCount <= MAX_RETRIES) {
     try {
@@ -70,9 +72,9 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       const fileName = `${uuidv4()}.${fileExt}`;
       const filePath = `cars/${userId}/${carId}/${category}/${fileName}`;
       
-      console.log(`Uploading to storage path: ${filePath}`);
+      console.log(`Direct upload to storage path: ${filePath}`);
       
-      // Upload to storage
+      // Direct upload to storage - no API route involved
       const { data, error } = await supabase.storage
         .from('car-images')
         .upload(filePath, fileToUpload, {
@@ -81,7 +83,7 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
         });
 
       if (error) {
-        console.error('Error uploading image:', error);
+        console.error('Error with direct upload:', error);
         
         // Check for specific storage errors
         if (error.message?.includes('unauthorized')) {
@@ -129,36 +131,7 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       }
       
       // Update the cars table if this is a required photo
-      if (category.startsWith('required_') || category.includes('rim_')) {
-        try {
-          // Get current required_photos JSONB object
-          const { data: car, error: getError } = await supabase
-            .from('cars')
-            .select('required_photos')
-            .eq('id', carId)
-            .single();
-            
-          if (getError) {
-            console.error('Error fetching car required_photos:', getError);
-          } else {
-            // Update the required_photos object with the new photo
-            const requiredPhotos = car?.required_photos || {};
-            requiredPhotos[category] = filePath;
-            
-            // Update the car record with the modified JSONB
-            const { error: updateError } = await supabase
-              .from('cars')
-              .update({ required_photos: requiredPhotos })
-              .eq('id', carId);
-              
-            if (updateError) {
-              console.error('Error updating car required_photos:', updateError);
-            }
-          }
-        } catch (err) {
-          console.error('Exception updating car required_photos:', err);
-        }
-      }
+      await updateCarRecordWithImage(carId, filePath, category);
       
       return publicUrl;
     } catch (error: any) {
@@ -187,6 +160,74 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
   }
   
   return null;
+};
+
+/**
+ * Helper function to update car record with image paths
+ */
+const updateCarRecordWithImage = async (carId: string, filePath: string, category: string): Promise<void> => {
+  if (category.startsWith('required_') || category.includes('rim_')) {
+    try {
+      // Get current required_photos JSONB object
+      const { data: car, error: getError } = await supabase
+        .from('cars')
+        .select('required_photos')
+        .eq('id', carId)
+        .single();
+        
+      if (getError) {
+        console.error('Error fetching car required_photos:', getError);
+      } else {
+        // Update the required_photos object with the new photo
+        const requiredPhotos = car?.required_photos || {};
+        requiredPhotos[category] = filePath;
+        
+        // Update the car record with the modified JSONB
+        const { error: updateError } = await supabase
+          .from('cars')
+          .update({ required_photos: requiredPhotos })
+          .eq('id', carId);
+          
+        if (updateError) {
+          console.error('Error updating car required_photos:', updateError);
+        }
+      }
+    } catch (err) {
+      console.error('Exception updating car required_photos:', err);
+    }
+  } else if (category === 'additional_photos') {
+    try {
+      // Get current additional_photos array
+      const { data: car, error: getError } = await supabase
+        .from('cars')
+        .select('additional_photos')
+        .eq('id', carId)
+        .single();
+        
+      if (getError) {
+        console.error('Error fetching car additional_photos:', getError);
+      } else {
+        // Update the additional_photos array with the new photo
+        let additionalPhotos = car?.additional_photos || [];
+        if (!Array.isArray(additionalPhotos)) {
+          additionalPhotos = [];
+        }
+        additionalPhotos.push(filePath);
+        
+        // Update the car record with the modified array
+        const { error: updateError } = await supabase
+          .from('cars')
+          .update({ additional_photos: additionalPhotos })
+          .eq('id', carId);
+          
+        if (updateError) {
+          console.error('Error updating car additional_photos:', updateError);
+        }
+      }
+    } catch (err) {
+      console.error('Exception updating car additional_photos:', err);
+    }
+  }
 };
 
 /**

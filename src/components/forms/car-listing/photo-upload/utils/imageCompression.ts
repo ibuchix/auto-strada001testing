@@ -1,19 +1,21 @@
-
 /**
- * Utility functions for compressing images
- * Created: 2025-07-19
+ * Image compression utility
+ * Created: 2025-05-19 - Added to improve upload performance
  */
 
 /**
- * Compresses an image file to reduce size while maintaining reasonable quality
- * @param file The image file to compress
- * @param quality The quality level (0.1 to 1.0)
- * @returns A promise that resolves to a compressed File object
+ * Compresses an image file to reduce its size
+ * This helps with faster uploads and lower storage usage
  */
-export const compressImage = async (file: File, quality: number = 0.7): Promise<File> => {
+export const compressImage = async (file: File, targetSizeMB: number = 2): Promise<File> => {
+  // If file is already smaller than target size, return it as is
+  if (file.size <= targetSizeMB * 1024 * 1024) {
+    return file;
+  }
+  
   return new Promise((resolve, reject) => {
     try {
-      // Create a FileReader to read the image
+      // Create a FileReader to read the image file
       const reader = new FileReader();
       
       reader.onload = (event) => {
@@ -22,30 +24,35 @@ export const compressImage = async (file: File, quality: number = 0.7): Promise<
           return;
         }
         
-        // Create an Image object to draw on canvas
+        // Create an image element to load the file
         const img = new Image();
         
         img.onload = () => {
           try {
-            // Create a canvas element to compress the image
+            // Calculate compression ratio based on file size
+            const originalSizeMB = file.size / (1024 * 1024);
+            let quality = Math.min(0.9, targetSizeMB / originalSizeMB);
+            
+            // Ensure quality is reasonable (between 0.3 and 0.9)
+            quality = Math.max(0.3, quality);
+            
+            // Create a canvas to draw the image
             const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
             
-            if (!ctx) {
-              reject(new Error('Failed to get canvas context'));
-              return;
-            }
-            
-            // Calculate dimensions (max 1920px on longest side)
+            // Keep original dimensions but limit max size to prevent memory issues
+            const maxDimension = 2000;
             let width = img.width;
             let height = img.height;
             
-            if (width > height && width > 1920) {
-              height = Math.round((height * 1920) / width);
-              width = 1920;
-            } else if (height > 1920) {
-              width = Math.round((width * 1920) / height);
-              height = 1920;
+            // Scale down if image is too large
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
+              } else {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
             }
             
             // Set canvas dimensions
@@ -53,32 +60,42 @@ export const compressImage = async (file: File, quality: number = 0.7): Promise<
             canvas.height = height;
             
             // Draw image on canvas
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Get compressed data URL
-            const dataUrl = canvas.toDataURL('image/jpeg', quality);
-            
-            // Convert data URL to Blob
-            const byteString = atob(dataUrl.split(',')[1]);
-            const mimeType = dataUrl.split(',')[0].split(':')[1].split(';')[0];
-            
-            const ab = new ArrayBuffer(byteString.length);
-            const ia = new Uint8Array(ab);
-            
-            for (let i = 0; i < byteString.length; i++) {
-              ia[i] = byteString.charCodeAt(i);
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Failed to get canvas context'));
+              return;
             }
             
-            // Create File from Blob
-            const blob = new Blob([ab], { type: mimeType });
-            const compressedFile = new File([blob], file.name, {
-              type: mimeType,
-              lastModified: file.lastModified,
-            });
+            ctx.drawImage(img, 0, 0, width, height);
             
-            resolve(compressedFile);
-          } catch (err) {
-            reject(err);
+            // Convert canvas to Blob
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  reject(new Error('Failed to compress image'));
+                  return;
+                }
+                
+                // Create new file from Blob
+                const compressedFile = new File(
+                  [blob],
+                  file.name,
+                  {
+                    type: 'image/jpeg', // Convert to JPEG for better compression
+                    lastModified: file.lastModified
+                  }
+                );
+                
+                console.log(`Compressed ${file.name} from ${(file.size / 1024).toFixed(2)} KB to ${(compressedFile.size / 1024).toFixed(2)} KB (${Math.round((1 - compressedFile.size / file.size) * 100)}% reduction)`);
+                
+                resolve(compressedFile);
+              },
+              'image/jpeg',
+              quality
+            );
+          } catch (error) {
+            console.error('Error during image compression:', error);
+            reject(error);
           }
         };
         
@@ -86,18 +103,20 @@ export const compressImage = async (file: File, quality: number = 0.7): Promise<
           reject(new Error('Failed to load image'));
         };
         
-        // Set image source
-        img.src = event.target.result as string;
+        // Set the image source to the loaded file
+        img.src = event.target.result.toString();
       };
       
-      reader.onerror = (err) => {
-        reject(err);
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
       };
       
-      // Read the file
       reader.readAsDataURL(file);
-    } catch (err) {
-      reject(err);
+    } catch (error) {
+      console.error('Error in image compression:', error);
+      reject(error);
     }
   });
 };
+
+export default compressImage;

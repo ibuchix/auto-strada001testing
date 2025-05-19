@@ -10,6 +10,7 @@
  * - 2028-06-01: Enhanced with error tracking, retry functionality
  * - 2028-06-10: Removed diagnostic logging functionality
  * - 2025-05-23: Added database record verification and upload recovery
+ * - 2025-05-19: Implemented direct upload without API routes
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -42,6 +43,7 @@ export const usePhotoUpload = ({
   const attemptIdRef = useRef<string | null>(null);
   const retryCountRef = useRef<number>(0);
   const recoveryAttemptedRef = useRef<boolean>(false);
+  const uploadStartTimeRef = useRef<number>(0);
 
   // Log event information
   const logEvent = (event: string, data: any = {}) => {
@@ -50,7 +52,8 @@ export const usePhotoUpload = ({
       timestamp: new Date().toISOString(),
       carId,
       category,
-      retryCount: retryCountRef.current
+      retryCount: retryCountRef.current,
+      elapsedTime: uploadStartTimeRef.current ? `${Date.now() - uploadStartTimeRef.current}ms` : 'N/A'
     });
   };
   
@@ -85,26 +88,37 @@ export const usePhotoUpload = ({
     retryCountRef.current = 0;
     attemptIdRef.current = null;
     setCurrentFile(null);
+    uploadStartTimeRef.current = 0;
   }, []);
 
-  const uploadFile = async (file: File, uploadPath: string): Promise<string | null> => {
+  const uploadFile = async (file: File, uploadCategory = category): Promise<string | null> => {
     if (!file) {
       logEvent('uploadFile-error', { 
         message: 'Attempted to upload null file',
-        uploadPath 
+        uploadCategory 
       });
+      return null;
+    }
+    
+    if (!carId) {
+      logEvent('uploadFile-error', {
+        message: 'No carId provided for upload',
+        uploadCategory
+      });
+      toast.error('Cannot upload without a car ID. Please save the form first.');
       return null;
     }
 
     // Store the current file for potential retries
     setCurrentFile(file);
     setUploadError(null);
+    uploadStartTimeRef.current = Date.now();
     
     logEvent('uploadFile-started', { 
       message: 'Starting file upload',
       fileName: file.name, 
       fileSize: file.size, 
-      uploadPath 
+      uploadCategory 
     });
     
     setIsUploading(true);
@@ -122,8 +136,8 @@ export const usePhotoUpload = ({
         if (onProgressUpdate) onProgressUpdate(progress);
       }, 200);
       
-      // Upload the file
-      const result = await uploadPhoto(file, carId || 'temp', category);
+      // Direct upload without using API route
+      const result = await uploadPhoto(file, carId, uploadCategory);
       
       // Clear interval and set to 100%
       clearInterval(progressInterval);
@@ -132,7 +146,8 @@ export const usePhotoUpload = ({
       
       logEvent('uploadFile-completed', { 
         message: 'File upload completed successfully',
-        result 
+        result,
+        duration: `${Date.now() - uploadStartTimeRef.current}ms`
       });
       
       // Reset retry counter on success
@@ -150,11 +165,9 @@ export const usePhotoUpload = ({
       
       logEvent('uploadFile-error', { 
         message: 'File upload failed',
-        error: errorMessage
+        error: errorMessage,
+        duration: `${Date.now() - uploadStartTimeRef.current}ms`
       });
-      
-      // Handle retry logic via the caller, rather than here
-      // This gives the caller more control over the retry flow
       
       toast.error(`Upload failed: ${errorMessage}`, {
         description: retryCountRef.current > 0 ? `Failed after ${retryCountRef.current + 1} attempts` : undefined,
@@ -164,6 +177,7 @@ export const usePhotoUpload = ({
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+      uploadStartTimeRef.current = 0;
     }
   };
   
@@ -191,7 +205,7 @@ export const usePhotoUpload = ({
       toast.error(`Maximum retry attempts (${maxRetries}) reached. Please try again later.`);
       return null;
     }
-  }, [currentFile, carId, maxRetries, category, uploadFile]);
+  }, [currentFile, carId, maxRetries, category]);
   
   // Verify database record exists for a file
   const verifyUploadRecord = useCallback(async (filePath: string): Promise<boolean> => {
@@ -206,13 +220,26 @@ export const usePhotoUpload = ({
     }
   }, [carId]);
 
+  // Enhanced upload handling with error tracking
+  const safeUploadFile = useCallback(async (file: File, uploadCategory = category): Promise<string | null> => {
+    try {
+      return await uploadFile(file, uploadCategory);
+    } catch (error) {
+      console.error('Safe upload failed:', error);
+      
+      // Show user-friendly message but return null to prevent further errors
+      toast.error('Unable to upload image. Please try again later.');
+      return null;
+    }
+  }, [uploadFile, category]);
+
   return {
     uploadedPhotos,
     isUploading,
     uploadProgress,
     uploadError,
     currentFile,
-    uploadFile,
+    uploadFile: safeUploadFile, // Use the safe version by default
     resetUploadState,
     retryUpload,
     retryCount: retryCountRef.current,

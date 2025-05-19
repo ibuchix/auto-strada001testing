@@ -11,6 +11,7 @@
  * - 2025-05-24: Added enhanced loading states and upload verification
  * - 2025-05-19: Fixed submission phase tracking, improved upload verification, and added direct storage fallback
  * - 2025-05-19: Fixed toast variant type error by changing "warning" to "default"
+ * - 2025-05-19: Enhanced state management and improved upload verification with timeout control
  */
 import React, { useState, useCallback, useEffect } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
@@ -41,6 +42,7 @@ export const FormSubmitButton = ({
   const [verifyingUploads, setVerifyingUploads] = useState(false);
   const [submissionPhase, setSubmissionPhase] = useState<'idle' | 'verifying' | 'uploading' | 'submitting'>('idle');
   const [verificationRetries, setVerificationRetries] = useState(0);
+  const [verificationTimeout, setVerificationTimeout] = useState<NodeJS.Timeout | null>(null);
   const maxRetries = 3;
   
   // Reset submission phase when isSubmitting changes to false
@@ -53,6 +55,15 @@ export const FormSubmitButton = ({
       return () => clearTimeout(timer);
     }
   }, [isSubmitting, submissionPhase]);
+  
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (verificationTimeout) {
+        clearTimeout(verificationTimeout);
+      }
+    };
+  }, [verificationTimeout]);
   
   // Enhanced click handler with upload verification
   const handleClick = useCallback(async (e: React.MouseEvent) => {
@@ -71,6 +82,12 @@ export const FormSubmitButton = ({
       submissionPhase,
       verificationRetries
     });
+    
+    // Prevent rapid successive clicks (throttling)
+    if (timeSinceLastClick < 1000) {
+      console.log(`[FormSubmitButton][${formId}] Click throttled (${timeSinceLastClick}ms since last click)`);
+      return;
+    }
     
     // Update click tracking
     setClickAttempts(prev => prev + 1);
@@ -105,58 +122,78 @@ export const FormSubmitButton = ({
         
         console.log(`[FormSubmitButton][${formId}] Found ${pendingCount} pending files`);
         
-        // Wait for upload verification - with a reasonable timeout
-        const verificationPromise = onVerifyUploads();
+        // Set a timeout to ensure verification doesn't hang indefinitely (increased to 15 seconds)
+        if (verificationTimeout) {
+          clearTimeout(verificationTimeout);
+        }
         
-        // Add a timeout to ensure we don't wait forever - increased to 15 seconds
-        const timeoutPromise = new Promise<boolean>((resolve) => {
-          setTimeout(() => {
-            console.log(`[FormSubmitButton][${formId}] Verification timeout reached`);
-            resolve(pendingCount === 0); // Only consider uploads done if no pending files
-          }, 15000); // 15 second timeout
-        });
-        
-        // Race between verification and timeout
-        const uploadsComplete = await Promise.race([verificationPromise, timeoutPromise]);
-        
-        if (!uploadsComplete) {
-          console.log(`[FormSubmitButton][${formId}] Uploads not complete`);
+        const timeout = setTimeout(() => {
+          console.log(`[FormSubmitButton][${formId}] Verification timeout reached`);
           
-          // If we haven't exceeded max retries, retry verification
+          // If there are pending files, we should warn but allow the submission to proceed
+          if (pendingCount > 0) {
+            toast({
+              variant: "default", // Changed from "warning" to "default"
+              title: "Some uploads may not be complete",
+              description: "Proceeding with submission, but some images may not be included."
+            });
+          }
+          
+          handleVerificationComplete(pendingCount === 0);
+        }, 15000); // 15 second timeout
+        
+        setVerificationTimeout(timeout);
+        
+        // Run the actual verification
+        try {
+          const uploadsComplete = await onVerifyUploads();
+          
+          // Clear timeout as verification completed in time
+          if (verificationTimeout) {
+            clearTimeout(verificationTimeout);
+            setVerificationTimeout(null);
+          }
+          
+          handleVerificationComplete(uploadsComplete);
+        } catch (error) {
+          console.error(`[FormSubmitButton][${formId}] Verification error:`, error);
+          
+          // Clear timeout as verification errored
+          if (verificationTimeout) {
+            clearTimeout(verificationTimeout);
+            setVerificationTimeout(null);
+          }
+          
+          // Handle verification error
           if (verificationRetries < maxRetries) {
             setVerificationRetries(prev => prev + 1);
             toast({
-              title: "Finalizing uploads",
+              variant: "default",
+              title: "Verifying uploads",
               description: `Still processing uploads (attempt ${verificationRetries + 1}/${maxRetries+1})...`
             });
             
             // Add a slight delay before retrying
             setTimeout(() => {
               handleClick(e);
-            }, 5000);
+            }, 3000);
             
             setVerifyingUploads(false);
             return;
+          } else {
+            // Max retries exceeded, show warning but proceed
+            toast({
+              variant: "default", // Changed from "warning" to "default"
+              title: "Upload verification failed",
+              description: "Proceeding with submission, but some images may not be included."
+            });
+            
+            // Continue to submission phase
+            handleVerificationComplete(true);
           }
-          
-          // Max retries exceeded, show warning but proceed
-          toast({
-            variant: "default", // Changed from "warning" to "default"
-            title: "Some uploads may not be complete",
-            description: "Proceeding with submission, but some images may not be included."
-          });
         }
-        
-        // After verification, proceed to uploading phase if needed
-        setSubmissionPhase('uploading');
-        
-        // Add a slight delay to allow any pending uploads to finalize
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        console.log(`[FormSubmitButton][${formId}] All uploads verified, proceeding with submission`);
-        setSubmissionPhase('submitting');
       } catch (error) {
-        console.error(`[FormSubmitButton][${formId}] Error verifying uploads:`, error);
+        console.error(`[FormSubmitButton][${formId}] Error in verification process:`, error);
         toast({
           variant: "destructive",
           title: "Upload Verification Error",
@@ -165,10 +202,75 @@ export const FormSubmitButton = ({
         setVerifyingUploads(false);
         setSubmissionPhase('idle');
         return;
-      } finally {
-        setVerifyingUploads(false);
+      }
+    } else {
+      // No verification needed, proceed directly to submission
+      continueWithSubmission();
+    }
+  }, [
+    isSubmitting, 
+    verifyingUploads, 
+    props.disabled, 
+    onVerifyUploads, 
+    formId, 
+    clickAttempts, 
+    lastClickTime, 
+    submissionPhase, 
+    verificationRetries,
+    verificationTimeout,
+    maxRetries
+  ]);
+  
+  // Helper function to handle verification completion
+  const handleVerificationComplete = useCallback((uploadsComplete: boolean) => {
+    console.log(`[FormSubmitButton][${formId}] Verification complete, uploads complete: ${uploadsComplete}`);
+    
+    if (!uploadsComplete) {
+      console.log(`[FormSubmitButton][${formId}] Uploads not complete`);
+      
+      // If we haven't exceeded max retries, retry verification
+      if (verificationRetries < maxRetries) {
+        setVerificationRetries(prev => prev + 1);
+        toast({
+          title: "Finalizing uploads",
+          description: `Still processing uploads (attempt ${verificationRetries + 1}/${maxRetries+1})...`
+        });
+        
+        // Add a slight delay before retrying
+        setTimeout(() => {
+          try {
+            console.log(`[FormSubmitButton][${formId}] Retrying verification...`);
+            setSubmissionPhase('verifying');
+            handleClick(new MouseEvent('click') as any);
+          } catch (error) {
+            console.error(`[FormSubmitButton][${formId}] Error in retry:`, error);
+          }
+        }, 3000);
+        
+        return;
+      } else {
+        // Max retries exceeded, show warning but proceed
+        toast({
+          variant: "default", // Changed from "warning" to "default"
+          title: "Some uploads may not be complete",
+          description: "Proceeding with submission, but some images may not be included."
+        });
       }
     }
+    
+    // After verification, proceed to uploading phase if needed
+    setSubmissionPhase('uploading');
+    
+    // Add a slight delay to allow any pending uploads to finalize
+    setTimeout(() => {
+      console.log(`[FormSubmitButton][${formId}] All uploads verified, proceeding with submission`);
+      continueWithSubmission();
+    }, 1000);
+  }, [formId, verificationRetries, maxRetries, handleClick]);
+  
+  // Continue with submission after verification
+  const continueWithSubmission = useCallback(async () => {
+    setSubmissionPhase('submitting');
     
     // Continue with the provided click handler
     if (onSubmitClick) {
@@ -185,7 +287,9 @@ export const FormSubmitButton = ({
         setSubmissionPhase('idle');
       }
     }
-  }, [isSubmitting, verifyingUploads, props.disabled, onSubmitClick, formId, clickAttempts, lastClickTime, onVerifyUploads, submissionPhase, verificationRetries]);
+    
+    setVerifyingUploads(false);
+  }, [onSubmitClick, formId]);
   
   // Determine loading text based on submission phase
   const getStatusText = () => {

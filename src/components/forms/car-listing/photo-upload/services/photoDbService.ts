@@ -1,173 +1,61 @@
 
 /**
  * Service for managing photo database operations
- * Updated: 2025-05-18 - Fixed database recording consistency issues
- * Updated: 2025-07-18 - Added better support for rim photos and standardized categories
- * Updated: 2025-07-19 - Fixed supabase.sql usage with standard methods
- * Updated: 2025-05-23 - Enhanced error handling and recovery capabilities
+ * Created: 2025-05-19 - Added as part of upload refactoring
  */
 
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Saves the photo information to the database
+ * Saves information about an uploaded photo to the database
  * @param filePath The path of the uploaded file
- * @param carId The ID of the car
+ * @param carId The ID of the car the photo belongs to
  * @param category The category of the photo
- * @returns A promise that resolves to the file path
  */
-export const savePhotoToDb = async (filePath: string, carId: string, category: string): Promise<string> => {
+export const savePhotoToDb = async (filePath: string, carId: string, category: string): Promise<void> => {
+  console.log(`Recording file in database: ${filePath}`);
+  
   try {
-    console.log(`Saving photo to database: ${filePath} for car ${carId} (category: ${category})`);
-    
-    // Insert into car_file_uploads table for tracking with double-check
-    const { data: uploadData, error: uploadError } = await supabase
+    const { error } = await supabase
       .from('car_file_uploads')
       .insert({
         car_id: carId,
         file_path: filePath,
-        file_type: 'image/jpeg',
+        file_type: getFileTypeFromPath(filePath),
         upload_status: 'completed',
-        category: category,
-        // Add timestamp for better tracking
-        created_at: new Date().toISOString()
-      })
-      .select();
-
-    if (uploadError) {
-      console.error('Error saving to car_file_uploads:', uploadError);
-      throw uploadError;
+        category: category
+      });
+    
+    if (error) {
+      console.error('Error saving photo to database:', error);
+      throw error;
     }
-
-    console.log('Successfully saved to car_file_uploads:', uploadData);
-
-    // For additional photos only, add to the additional_photos array
-    if (category === 'additional_photos') {
-      // Get current additional_photos from car
-      const { data: car, error: carError } = await supabase
-        .from('cars')
-        .select('additional_photos')
-        .eq('id', carId)
-        .single();
-
-      if (carError) {
-        console.error('Error fetching car data:', carError);
-        throw carError;
-      }
-
-      // Update the additional_photos array with defensive coding
-      let currentPhotos = car?.additional_photos;
-      
-      // Handle all possible data types gracefully
-      let photosArray: string[] = [];
-      
-      if (Array.isArray(currentPhotos)) {
-        photosArray = currentPhotos;
-      } else if (currentPhotos && typeof currentPhotos === 'object') {
-        // Try to convert from JSONB if it's an object
-        try {
-          photosArray = Object.values(currentPhotos);
-        } catch (e) {
-          photosArray = [];
-        }
-      } else if (typeof currentPhotos === 'string') {
-        // Handle string case (shouldn't happen but just in case)
-        try {
-          const parsed = JSON.parse(currentPhotos);
-          photosArray = Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-          photosArray = [currentPhotos];
-        }
-      }
-      
-      // Avoid duplicates
-      if (!photosArray.includes(filePath)) {
-        const newPhotos = [...photosArray, filePath];
-
-        // Update the car record
-        const { data: updateData, error: updateError } = await supabase
-          .from('cars')
-          .update({ additional_photos: newPhotos })
-          .eq('id', carId)
-          .select();
-
-        if (updateError) {
-          console.error('Error updating car additional_photos:', updateError);
-          throw updateError;
-        }
-        
-        console.log('Successfully updated car additional_photos:', updateData);
-      } else {
-        console.log(`Skipping duplicate entry for ${filePath}`);
-      }
-    } else if (category.includes('rim_')) {
-      // Handle rim photos separately to ensure they're stored correctly
-      try {
-        // Get current required_photos JSONB object
-        const { data: car, error: getError } = await supabase
-          .from('cars')
-          .select('required_photos')
-          .eq('id', carId)
-          .single();
-          
-        if (getError) {
-          console.error('Error fetching car required_photos:', getError);
-          throw getError;
-        }
-        
-        // Update the required_photos object with the new rim photo
-        const requiredPhotos = car?.required_photos || {};
-        requiredPhotos[category] = filePath;
-        
-        // Update the car record with the modified JSONB
-        const { error: updateError } = await supabase
-          .from('cars')
-          .update({ required_photos: requiredPhotos })
-          .eq('id', carId);
-          
-        if (updateError) {
-          console.error('Error updating car rim photos:', updateError);
-          throw updateError;
-        }
-        
-        console.log('Successfully updated rim photos in required_photos');
-      } catch (err) {
-        console.error('Exception updating car rim photos:', err);
-        throw err;
-      }
-    }
-
-    return filePath;
   } catch (error) {
-    console.error('Error saving photo to database:', error);
+    console.error('Exception saving photo to database:', error);
     throw error;
   }
 };
 
 /**
- * Verify if the car_file_uploads record exists for a given file path
- * @param filePath The path of the uploaded file
- * @param carId The ID of the car
- * @returns A promise that resolves to a boolean indicating if the record exists
+ * Verifies that a photo record exists in the database
+ * @param filePath The path of the file to verify
+ * @param carId The ID of the car the photo belongs to
  */
 export const verifyPhotoDbRecord = async (filePath: string, carId: string): Promise<boolean> => {
   try {
-    console.log(`Verifying database record for ${filePath}`);
     const { data, error } = await supabase
       .from('car_file_uploads')
       .select('id')
       .eq('car_id', carId)
       .eq('file_path', filePath)
-      .maybeSingle();
+      .limit(1);
     
     if (error) {
       console.error('Error verifying photo record:', error);
       return false;
     }
     
-    const exists = !!data;
-    console.log(`Database record ${exists ? 'exists' : 'does not exist'}`);
-    return exists;
+    return data !== null && data.length > 0;
   } catch (error) {
     console.error('Exception verifying photo record:', error);
     return false;
@@ -175,111 +63,157 @@ export const verifyPhotoDbRecord = async (filePath: string, carId: string): Prom
 };
 
 /**
- * Gets all photos for a car by category
- */
-export const getCarPhotosByCategory = async (carId: string, category: string): Promise<string[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('car_file_uploads')
-      .select('file_path')
-      .eq('car_id', carId)
-      .eq('category', category);
-    
-    if (error) {
-      console.error('Error getting car photos by category:', error);
-      return [];
-    }
-    
-    return data?.map(item => item.file_path) || [];
-  } catch (error) {
-    console.error('Exception getting car photos by category:', error);
-    return [];
-  }
-};
-
-/**
- * Recover missing database records for uploaded photos
+ * Recovers orphaned photo records by checking storage against database
+ * @param carId The ID of the car to recover records for
  */
 export const recoverPhotoRecords = async (carId: string): Promise<number> => {
   try {
+    // Get user ID from session
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    
+    if (!userId || !carId) {
+      return 0;
+    }
+    
     console.log(`Attempting to recover photo records for car ${carId}`);
     
-    // First get any required_photos from the car record
-    const { data: car, error: carError } = await supabase
-      .from('cars')
-      .select('required_photos, additional_photos')
-      .eq('id', carId)
-      .single();
+    // List all files in the car's folder
+    const folderPath = `cars/${userId}/${carId}`;
+    const { data: folders, error: folderError } = await supabase.storage
+      .from('car-images')
+      .list(folderPath);
       
-    if (carError) {
-      console.error('Error fetching car data for recovery:', carError);
+    if (folderError || !folders || folders.length === 0) {
+      console.log('No folders to recover or error listing folders:', folderError);
       return 0;
     }
     
     let recoveredCount = 0;
-    const requiredPhotos = car?.required_photos || {};
-    const additionalPhotos = car?.additional_photos || [];
     
-    // Process required photos
-    for (const [category, filePath] of Object.entries(requiredPhotos)) {
-      if (typeof filePath === 'string') {
-        try {
-          // Check if record exists
-          const exists = await verifyPhotoDbRecord(filePath, carId);
+    // Check each category folder
+    for (const folder of folders) {
+      if (!folder.name || folder.id) continue; // Skip files, only process folders
+      
+      const categoryPath = `${folderPath}/${folder.name}`;
+      const { data: files, error: filesError } = await supabase.storage
+        .from('car-images')
+        .list(categoryPath);
+        
+      if (filesError || !files) continue;
+      
+      for (const file of files) {
+        if (file.id) continue; // Skip folders
+        
+        const filePath = `${categoryPath}/${file.name}`;
+        
+        // Check if file record exists in database
+        const { data, error } = await supabase
+          .from('car_file_uploads')
+          .select('id')
+          .eq('car_id', carId)
+          .eq('file_path', filePath)
+          .limit(1);
           
-          if (!exists) {
-            // Create the missing record
-            await supabase
-              .from('car_file_uploads')
-              .insert({
-                car_id: carId,
-                file_path: filePath,
-                file_type: 'image/jpeg',
-                upload_status: 'recovered',
-                category: category,
-                created_at: new Date().toISOString()
-              });
-              
+        // If record doesn't exist, create it
+        if (!error && (!data || data.length === 0)) {
+          const { error: insertError } = await supabase
+            .from('car_file_uploads')
+            .insert({
+              car_id: carId,
+              file_path: filePath,
+              file_type: getFileTypeFromPath(file.name),
+              upload_status: 'completed',
+              category: folder.name
+            });
+            
+          if (!insertError) {
             recoveredCount++;
+            
+            // Also update the car record
+            await updateCarRecordWithImage(carId, filePath, folder.name);
           }
-        } catch (e) {
-          console.error(`Error recovering required photo for ${category}:`, e);
         }
       }
     }
     
-    // Process additional photos
-    if (Array.isArray(additionalPhotos)) {
-      for (const filePath of additionalPhotos) {
-        try {
-          // Check if record exists
-          const exists = await verifyPhotoDbRecord(filePath, carId);
-          
-          if (!exists) {
-            // Create the missing record
-            await supabase
-              .from('car_file_uploads')
-              .insert({
-                car_id: carId,
-                file_path: filePath,
-                file_type: 'image/jpeg',
-                upload_status: 'recovered',
-                category: 'additional_photos',
-                created_at: new Date().toISOString()
-              });
-              
-            recoveredCount++;
-          }
-        } catch (e) {
-          console.error(`Error recovering additional photo:`, e);
-        }
-      }
-    }
-    
-    console.log(`Recovery complete: ${recoveredCount} records created`);
+    console.log(`Recovered ${recoveredCount} photo records for car ${carId}`);
     return recoveredCount;
   } catch (error) {
-    console.error('Exception during photo record recovery:', error);
+    console.error('Error recovering photo records:', error);
     return 0;
+  }
+};
+
+/**
+ * Updates the car record with the image path
+ */
+const updateCarRecordWithImage = async (carId: string, filePath: string, category: string): Promise<void> => {
+  try {
+    if (category.includes('required_') || category.includes('rim_')) {
+      // Get current required_photos JSONB object
+      const { data: car, error: getError } = await supabase
+        .from('cars')
+        .select('required_photos')
+        .eq('id', carId)
+        .single();
+        
+      if (!getError && car) {
+        // Update the required_photos object with the new photo
+        const requiredPhotos = car.required_photos || {};
+        requiredPhotos[category] = filePath;
+        
+        // Update the car record with the modified JSONB
+        await supabase
+          .from('cars')
+          .update({ required_photos: requiredPhotos })
+          .eq('id', carId);
+      }
+    } else if (category.includes('additional')) {
+      // Get current additional_photos array
+      const { data: car, error: getError } = await supabase
+        .from('cars')
+        .select('additional_photos')
+        .eq('id', carId)
+        .single();
+        
+      if (!getError && car) {
+        // Update the additional_photos array with the new photo
+        let additionalPhotos = car.additional_photos || [];
+        if (!Array.isArray(additionalPhotos)) {
+          additionalPhotos = [];
+        }
+        if (!additionalPhotos.includes(filePath)) {
+          additionalPhotos.push(filePath);
+          
+          // Update the car record with the modified array
+          await supabase
+            .from('cars')
+            .update({ additional_photos: additionalPhotos })
+            .eq('id', carId);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error updating car record with image:', error);
+  }
+};
+
+/**
+ * Helper function to get file type from file path
+ */
+const getFileTypeFromPath = (filePath: string): string => {
+  const extension = filePath.split('.').pop()?.toLowerCase();
+  
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    default:
+      return 'application/octet-stream';
   }
 };
