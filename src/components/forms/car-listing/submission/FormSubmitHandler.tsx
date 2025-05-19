@@ -13,6 +13,7 @@
  * Updated: 2025-05-19 - Added throttling feedback and improved error handling
  * Updated: 2025-05-20 - Removed duplicate throttling logic to use centralized implementation
  * Updated: 2025-05-31 - Fixed handling of submission result to match updated provider
+ * Updated: 2025-06-01 - Fixed TypeScript errors with toast usage
  */
 
 import { useState, useEffect, useRef, useCallback, memo } from "react";
@@ -82,17 +83,12 @@ export const FormSubmitHandler = memo(({
       // Check if cooling down
       if (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0) {
         console.log(`[FormSubmitHandler] Cooling down, ${cooldownTimeRemaining}s remaining`);
-        toast({
-          description: `Please wait ${cooldownTimeRemaining} seconds before submitting again`
-        });
+        toast(`Please wait ${cooldownTimeRemaining} seconds before submitting again`);
         return;
       }
       
       if (!userId) {
-        toast({
-          variant: "destructive",
-          description: 'You must be logged in to submit a form'
-        });
+        toast.error('You must be logged in to submit a form');
         return;
       }
 
@@ -142,10 +138,7 @@ export const FormSubmitHandler = memo(({
         onSubmitError(error instanceof Error ? error : new Error('Unknown error during submission'));
       }
       
-      toast({
-        variant: "destructive",
-        description: error instanceof Error ? error.message : 'An unknown error occurred'
-      });
+      toast.error(error instanceof Error ? error.message : 'An unknown error occurred');
       
       setIsProcessingImages(false);
       submissionInProgressRef.current = false;
