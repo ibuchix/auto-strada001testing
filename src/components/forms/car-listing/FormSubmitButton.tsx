@@ -13,6 +13,7 @@
  * - 2025-05-19: Fixed toast variant type error by changing "warning" to "default"
  * - 2025-05-19: Enhanced state management and improved upload verification with timeout control
  * - 2025-05-20: Removed duplicate throttling and using centralized cooling state
+ * - 2025-05-19: Fixed toast.info() usage to use standard toast object notation
  */
 import React, { useState, useCallback, useEffect, memo } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
@@ -74,7 +75,10 @@ export const FormSubmitButton = memo(({
     // Don't proceed if there's an active cooldown timer
     if (cooldownTimeRemaining > 0) {
       console.log(`[FormSubmitButton][${formId}] Cooling down, ${cooldownTimeRemaining}s remaining`);
-      toast.info(`Please wait ${cooldownTimeRemaining} seconds before submitting again`);
+      toast({
+        title: "Please wait",
+        description: `Please wait ${cooldownTimeRemaining} seconds before submitting again`,
+      });
       return;
     }
     

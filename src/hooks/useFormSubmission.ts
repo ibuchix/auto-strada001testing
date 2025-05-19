@@ -1,196 +1,144 @@
 
 /**
- * Enhanced Form Submission Logic - Refactored
- * 
- * Changes:
- * - 2025-05-24: Refactored into smaller, more maintainable modules
- * - 2025-05-24: Improved type safety throughout the submission process
- * - 2025-05-24: Fixed null checks and type annotations
- * - 2025-05-19: Fixed arithmetic comparison issues and type casting
- * - 2025-05-19: Fixed void return type issues with lastSubmission time
- * - 2025-05-26: Fixed context implementation to use car-listing specific FormStateContext
- * - 2025-05-19: Fixed throttling logic by checking timestamps before updating
- * - 2025-05-20: Centralized throttling logic and removed duplicate implementations
+ * Central Form Submission Hook
+ * Created: 2025-05-19
+ * Updated: 2025-05-19: Added proper throttling with cooldown state exposure
+ * Updated: 2025-05-19: Fixed throttling implementation to avoid race conditions
+ * Updated: 2025-05-20: Enhanced error handling and state management
  */
 
-import { useCallback } from 'react';
-import { toast } from '@/hooks/use-toast';
-import { CarListingFormData } from '@/types/forms';
-import { useFormState } from '@/components/forms/car-listing/context/FormStateContext';
-import { useSubmissionState } from './submission/useSubmissionState';
-import { useSubmissionLogger } from './submission/useSubmissionLogger';
-import { useDataProcessing } from './submission/useDataProcessing';
-import { useFormSubmitter } from './submission/useFormSubmitter';
-import { useImageAssociation } from './submission/useImageAssociation';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
-export const useFormSubmission = (formId: string) => {
-  const { updateFormState } = useFormState();
-  const { 
-    state: { isSubmitting, submitError, lastSubmissionTime, cooldownTimeRemaining },
-    setSubmitting,
-    setSubmitError,
-    incrementAttempt,
-    updateLastSubmissionTime,
-    startSubmission,
-    resetSubmitError,
-    canSubmit
-  } = useSubmissionState(formId);
+type SubmissionState = {
+  isSubmitting: boolean;
+  submitError: string | null;
+  cooldownTimeRemaining: number;
+  lastSubmissionTime: number | null;
+};
+
+export const useFormSubmission = (formId: string, cooldownPeriodMs = 5000) => {
+  const [submissionState, setSubmissionState] = useState<SubmissionState>({
+    isSubmitting: false,
+    submitError: null,
+    cooldownTimeRemaining: 0,
+    lastSubmissionTime: null
+  });
   
-  const { logSubmissionEvent } = useSubmissionLogger();
-  const { validateFormData, prepareFormData } = useDataProcessing();
-  const { submitToDatabase } = useFormSubmitter();
-  const { associateImages } = useImageAssociation();
+  // Track the cooldown timer using a ref
+  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Handle form submission
-  const submitForm = useCallback(async (formData: CarListingFormData): Promise<string | null> => {
-    // Check if submission is allowed (throttling check)
-    if (!canSubmit()) {
-      // Display user feedback - already handled by the canSubmit function
-      // that will start the countdown timer if needed
-      logSubmissionEvent('Submission throttled - too frequent', { 
-        timeSinceLastAttempt: Date.now() - lastSubmissionTime,
-        cooldownRemaining: cooldownTimeRemaining
-      });
-      
-      // Show toast notification with cooldown information
-      if (cooldownTimeRemaining > 0) {
-        toast({
-          title: "Please wait before submitting again",
-          description: `You can submit again in ${cooldownTimeRemaining} second${cooldownTimeRemaining !== 1 ? 's' : ''}`,
-          variant: "default"
-        });
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
       }
+    };
+  }, []);
+  
+  // Update cooldown timer
+  useEffect(() => {
+    const updateCooldown = () => {
+      const { lastSubmissionTime } = submissionState;
       
-      return null;
+      if (!lastSubmissionTime) return;
+      
+      const now = Date.now();
+      const elapsedTime = now - lastSubmissionTime;
+      const remainingTime = Math.max(0, Math.ceil((cooldownPeriodMs - elapsedTime) / 1000));
+      
+      if (remainingTime > 0) {
+        setSubmissionState(prev => ({
+          ...prev,
+          cooldownTimeRemaining: remainingTime
+        }));
+      } else {
+        // Clear cooldown when done
+        setSubmissionState(prev => ({
+          ...prev,
+          cooldownTimeRemaining: 0
+        }));
+        
+        // Clear the interval when cooldown is complete
+        if (cooldownTimerRef.current) {
+          clearInterval(cooldownTimerRef.current);
+          cooldownTimerRef.current = null;
+        }
+      }
+    };
+    
+    // Set up the cooldown timer
+    if (submissionState.lastSubmissionTime && !cooldownTimerRef.current) {
+      updateCooldown();
+      cooldownTimerRef.current = setInterval(updateCooldown, 1000);
+    }
+  }, [submissionState.lastSubmissionTime, cooldownPeriodMs]);
+  
+  const startSubmission = useCallback(() => {
+    const now = Date.now();
+    const { lastSubmissionTime } = submissionState;
+    
+    // Check if we're in the cooldown period
+    if (lastSubmissionTime && now - lastSubmissionTime < cooldownPeriodMs) {
+      console.log(`[useFormSubmission][${formId}] Throttled: Attempted submission too soon`);
+      return false;
     }
     
-    // Only now update the submission timestamp
-    updateLastSubmissionTime();
-    incrementAttempt();
+    setSubmissionState(prev => ({
+      ...prev,
+      isSubmitting: true,
+      submitError: null,
+      lastSubmissionTime: now
+    }));
     
-    // Generate unique submission ID for tracing
-    const submissionId = startSubmission();
-    
-    logSubmissionEvent('Submission started', { 
-      submissionId, 
-      formId
-    });
+    return true;
+  }, [submissionState, cooldownPeriodMs, formId]);
+  
+  const completeSubmission = useCallback((success: boolean, error?: string) => {
+    setSubmissionState(prev => ({
+      ...prev,
+      isSubmitting: false,
+      submitError: success ? null : (error || 'Unknown error')
+    }));
+  }, []);
+  
+  const resetSubmitError = useCallback(() => {
+    setSubmissionState(prev => ({ ...prev, submitError: null }));
+  }, []);
+  
+  // Generic submit function that handles throttling and state
+  const submitForm = useCallback(async <T,>(
+    formData: T, 
+    submitFn: (data: T) => Promise<any>
+  ): Promise<any> => {
+    // Don't proceed if we can't start (e.g., throttled)
+    if (!startSubmission()) {
+      return null;
+    }
     
     try {
-      setSubmitting(true);
-      setSubmitError(null);
+      console.log(`[useFormSubmission][${formId}] Starting submission`);
+      const result = await submitFn(formData);
       
-      // Validate form data
-      const validationError = validateFormData(formData);
-      if (validationError) {
-        logSubmissionEvent('Validation failed', { submissionId, error: validationError });
-        setSubmitError(validationError);
-        return null;
-      }
-      
-      // Prepare data for submission
-      logSubmissionEvent('Preparing submission data', { submissionId });
-      const submissionData = prepareFormData(formData);
-      
-      // Log the actual data being submitted (excluding sensitive fields)
-      logSubmissionEvent('Submission data prepared', { 
-        submissionId,
-        dataSnapshot: {
-          vin: submissionData.vin,
-          make: submissionData.make,
-          model: submissionData.model,
-          year: submissionData.year,
-          mileage: submissionData.mileage,
-        }
-      });
-      
-      // Submit to database
-      logSubmissionEvent('Sending to database', { submissionId });
-      const { data, error } = await submitToDatabase(submissionData);
-      
-      if (error) {
-        logSubmissionEvent('Database error', { submissionId, error: error.message });
-        setSubmitError(error.message);
-        return null;
-      }
-      
-      // Update form state to reflect successful submission
-      updateFormState({
-        isSubmitted: true,
-        lastSubmitted: new Date().toISOString()
-      });
-      
-      // Now that we have a car ID, associate any temporary uploads with it
-      // Extract the car ID from the response or submission data
-      const carId = data && data.length > 0 ? data[0]?.id : submissionData?.id;
-      
-      if (carId) {
-        // Use a debounced approach to associate images
-        setTimeout(async () => {
-          try {
-            await associateImages(carId, submissionId);
-          } catch (error) {
-            console.error('[FormSubmission] Non-fatal error associating images:', error);
-          }
-        }, 500);
-      } else {
-        // Log the missing car ID issue
-        logSubmissionEvent('No car ID available for association', { 
-          submissionId,
-          dataReceived: !!data,
-          submissionDataHasId: !!submissionData?.id
-        });
-      }
-      
-      logSubmissionEvent('Submission successful', { submissionId });
-      toast({
-        description: "Your car listing has been submitted successfully."
-      });
-      
-      // Return car ID for proper type compatibility
-      return carId || null;
+      completeSubmission(true);
+      return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown submission error';
+      console.error(`[useFormSubmission][${formId}] Submission error:`, error);
       
-      logSubmissionEvent('Submission exception', { 
-        submissionId, 
-        error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      
-      setSubmitError(errorMessage);
-      toast({
-        variant: "destructive",
-        description: errorMessage
-      });
-      
+      completeSubmission(false, errorMessage);
       return null;
-    } finally {
-      setSubmitting(false);
     }
-  }, [
-    formId, 
-    updateFormState, 
-    setSubmitting, 
-    setSubmitError, 
-    incrementAttempt, 
-    updateLastSubmissionTime, 
-    startSubmission, 
-    logSubmissionEvent,
-    validateFormData, 
-    prepareFormData, 
-    submitToDatabase,
-    associateImages,
-    lastSubmissionTime,
-    canSubmit,
-    cooldownTimeRemaining
-  ]);
+  }, [startSubmission, completeSubmission, formId]);
   
   return {
+    submissionState,
     submitForm,
-    isSubmitting,
-    submitError,
+    startSubmission,
+    completeSubmission,
     resetSubmitError,
-    cooldownTimeRemaining
+    isSubmitting: submissionState.isSubmitting,
+    submitError: submissionState.submitError,
+    cooldownTimeRemaining: submissionState.cooldownTimeRemaining
   };
 };
