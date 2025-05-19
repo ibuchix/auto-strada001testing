@@ -12,10 +12,11 @@
  * - 2025-05-19: Fixed submission phase tracking, improved upload verification, and added direct storage fallback
  * - 2025-05-19: Fixed toast variant type error by changing "warning" to "default"
  * - 2025-05-19: Enhanced state management and improved upload verification with timeout control
+ * - 2025-05-20: Removed duplicate throttling and using centralized cooling state
  */
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, memo } from "react";
 import { Button, ButtonProps } from "@/components/ui/button";
-import { Loader2, AlertCircle, CheckCircle, Upload } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle, Upload, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface FormSubmitButtonProps extends ButtonProps {
@@ -25,9 +26,10 @@ interface FormSubmitButtonProps extends ButtonProps {
   onSubmitClick?: () => void;
   formId?: string;
   onVerifyUploads?: () => Promise<boolean>;
+  cooldownTimeRemaining?: number;
 }
 
-export const FormSubmitButton = ({
+export const FormSubmitButton = memo(({
   isSubmitting = false,
   loadingText = "Submitting...",
   children = "Submit",
@@ -35,14 +37,15 @@ export const FormSubmitButton = ({
   onSubmitClick,
   formId = "unknown",
   onVerifyUploads,
+  cooldownTimeRemaining = 0,
   ...props
 }: FormSubmitButtonProps) => {
   const [clickAttempts, setClickAttempts] = useState(0);
-  const [lastClickTime, setLastClickTime] = useState(0);
   const [verifyingUploads, setVerifyingUploads] = useState(false);
   const [submissionPhase, setSubmissionPhase] = useState<'idle' | 'verifying' | 'uploading' | 'submitting'>('idle');
   const [verificationRetries, setVerificationRetries] = useState(0);
   const [verificationTimeout, setVerificationTimeout] = useState<NodeJS.Timeout | null>(null);
+  const submissionInProgressRef = React.useRef<boolean>(false);
   const maxRetries = 3;
   
   // Reset submission phase when isSubmitting changes to false
@@ -51,6 +54,7 @@ export const FormSubmitButton = ({
       const timer = setTimeout(() => {
         setSubmissionPhase('idle');
         setVerificationRetries(0);
+        submissionInProgressRef.current = false;
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -67,15 +71,24 @@ export const FormSubmitButton = ({
   
   // Enhanced click handler with upload verification
   const handleClick = useCallback(async (e: React.MouseEvent) => {
-    const now = Date.now();
-    const timeSinceLastClick = now - lastClickTime;
+    // Don't proceed if there's an active cooldown timer
+    if (cooldownTimeRemaining > 0) {
+      console.log(`[FormSubmitButton][${formId}] Cooling down, ${cooldownTimeRemaining}s remaining`);
+      toast.info(`Please wait ${cooldownTimeRemaining} seconds before submitting again`);
+      return;
+    }
+    
+    // Prevent handling if submission is already in progress
+    if (submissionInProgressRef.current) {
+      console.log(`[FormSubmitButton][${formId}] Submission already in progress, ignoring click`);
+      return;
+    }
     
     // Log click event for debugging
     console.log(`[FormSubmitButton][${formId}] Button clicked`, {
       timestamp: new Date().toISOString(),
       isSubmitting,
       disabled: props.disabled,
-      timeSinceLastClick: `${timeSinceLastClick}ms`,
       attempts: clickAttempts + 1,
       eventType: e.type,
       eventTarget: e.currentTarget.tagName,
@@ -83,15 +96,9 @@ export const FormSubmitButton = ({
       verificationRetries
     });
     
-    // Prevent rapid successive clicks (throttling)
-    if (timeSinceLastClick < 1000) {
-      console.log(`[FormSubmitButton][${formId}] Click throttled (${timeSinceLastClick}ms since last click)`);
-      return;
-    }
-    
     // Update click tracking
     setClickAttempts(prev => prev + 1);
-    setLastClickTime(now);
+    submissionInProgressRef.current = true;
     
     // If button is already in a loading state, show feedback
     if (isSubmitting || verifyingUploads) {
@@ -105,6 +112,7 @@ export const FormSubmitButton = ({
     
     if (props.disabled) {
       console.log(`[FormSubmitButton][${formId}] Button is disabled, ignoring click`);
+      submissionInProgressRef.current = false;
       return;
     }
     
@@ -133,7 +141,7 @@ export const FormSubmitButton = ({
           // If there are pending files, we should warn but allow the submission to proceed
           if (pendingCount > 0) {
             toast({
-              variant: "default", // Changed from "warning" to "default"
+              variant: "default",
               title: "Some uploads may not be complete",
               description: "Proceeding with submission, but some images may not be included."
             });
@@ -183,7 +191,7 @@ export const FormSubmitButton = ({
           } else {
             // Max retries exceeded, show warning but proceed
             toast({
-              variant: "default", // Changed from "warning" to "default"
+              variant: "default",
               title: "Upload verification failed",
               description: "Proceeding with submission, but some images may not be included."
             });
@@ -201,6 +209,7 @@ export const FormSubmitButton = ({
         });
         setVerifyingUploads(false);
         setSubmissionPhase('idle');
+        submissionInProgressRef.current = false;
         return;
       }
     } else {
@@ -214,11 +223,11 @@ export const FormSubmitButton = ({
     onVerifyUploads, 
     formId, 
     clickAttempts, 
-    lastClickTime, 
     submissionPhase, 
     verificationRetries,
     verificationTimeout,
-    maxRetries
+    maxRetries,
+    cooldownTimeRemaining
   ]);
   
   // Helper function to handle verification completion
@@ -251,7 +260,7 @@ export const FormSubmitButton = ({
       } else {
         // Max retries exceeded, show warning but proceed
         toast({
-          variant: "default", // Changed from "warning" to "default"
+          variant: "default",
           title: "Some uploads may not be complete",
           description: "Proceeding with submission, but some images may not be included."
         });
@@ -289,10 +298,16 @@ export const FormSubmitButton = ({
     }
     
     setVerifyingUploads(false);
+    submissionInProgressRef.current = false;
   }, [onSubmitClick, formId]);
   
   // Determine loading text based on submission phase
   const getStatusText = () => {
+    // If in cooldown, show countdown
+    if (cooldownTimeRemaining > 0) {
+      return `Wait ${cooldownTimeRemaining}s`;
+    }
+    
     switch(submissionPhase) {
       case 'verifying': 
         return "Verifying uploads...";
@@ -307,6 +322,10 @@ export const FormSubmitButton = ({
   
   // Get the appropriate icon for the current state
   const getStatusIcon = () => {
+    if (cooldownTimeRemaining > 0) {
+      return <Clock className="h-4 w-4" />;
+    }
+    
     switch(submissionPhase) {
       case 'verifying':
         return <AlertCircle className="h-4 w-4 animate-pulse" />;
@@ -318,7 +337,7 @@ export const FormSubmitButton = ({
     }
   };
   
-  const isProcessing = isSubmitting || verifyingUploads;
+  const isProcessing = isSubmitting || verifyingUploads || cooldownTimeRemaining > 0;
   
   return (
     <Button
@@ -344,4 +363,7 @@ export const FormSubmitButton = ({
       )}
     </Button>
   );
-};
+});
+
+// Add display name for better debugging
+FormSubmitButton.displayName = 'FormSubmitButton';

@@ -1,19 +1,22 @@
 
 /**
  * Submission Logger Hook
- * Created: 2025-05-24
+ * Created: 2025-05-20
  * 
- * Provides logging utilities for tracking submission process
+ * Provides consistent logging for form submissions with timestamp and formatting
  */
 
-// Diagnostic logging utility
+import { useCallback } from 'react';
+
 export const useSubmissionLogger = () => {
-  const logSubmissionEvent = (event: string, data: Record<string, any> = {}) => {
-    console.log(`[FormSubmission][${new Date().toISOString()}] ${event}`, {
+  const logSubmissionEvent = useCallback((message: string, data: Record<string, any> = {}) => {
+    const timestamp = new Date().toISOString();
+    
+    console.log(`[FormSubmission][${timestamp}] ${message}`, {
       ...data,
-      timestamp: performance.now()
+      timestamp: Date.now()
     });
-  };
+  }, []);
   
   return {
     logSubmissionEvent

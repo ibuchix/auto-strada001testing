@@ -10,6 +10,7 @@
  * - 2025-05-19: Fixed void return type issues with lastSubmission time
  * - 2025-05-26: Fixed context implementation to use car-listing specific FormStateContext
  * - 2025-05-19: Fixed throttling logic by checking timestamps before updating
+ * - 2025-05-20: Centralized throttling logic and removed duplicate implementations
  */
 
 import { useCallback } from 'react';
@@ -25,13 +26,14 @@ import { useImageAssociation } from './submission/useImageAssociation';
 export const useFormSubmission = (formId: string) => {
   const { updateFormState } = useFormState();
   const { 
-    state: { isSubmitting, submitError, lastSubmissionTime },
+    state: { isSubmitting, submitError, lastSubmissionTime, cooldownTimeRemaining },
     setSubmitting,
     setSubmitError,
     incrementAttempt,
     updateLastSubmissionTime,
     startSubmission,
-    resetSubmitError
+    resetSubmitError,
+    canSubmit
   } = useSubmissionState(formId);
   
   const { logSubmissionEvent } = useSubmissionLogger();
@@ -41,27 +43,23 @@ export const useFormSubmission = (formId: string) => {
   
   // Handle form submission
   const submitForm = useCallback(async (formData: CarListingFormData): Promise<string | null> => {
-    // Prevent rapid multiple submissions by checking BEFORE updating timestamp
-    const now = Date.now();
-    
-    // Get the last submission time WITHOUT updating it yet
-    const lastSubmission = lastSubmissionTime;
-    
-    if (now - lastSubmission < 2000) {
-      // Calculate cooldown time remaining
-      const cooldownRemaining = Math.ceil((2000 - (now - lastSubmission)) / 1000);
-      
+    // Check if submission is allowed (throttling check)
+    if (!canSubmit()) {
+      // Display user feedback - already handled by the canSubmit function
+      // that will start the countdown timer if needed
       logSubmissionEvent('Submission throttled - too frequent', { 
-        timeSinceLastAttempt: now - lastSubmission,
-        cooldownRemaining: cooldownRemaining
+        timeSinceLastAttempt: Date.now() - lastSubmissionTime,
+        cooldownRemaining: cooldownTimeRemaining
       });
       
-      // Show user feedback about throttling
-      toast({
-        title: "Please wait before submitting again",
-        description: `You can submit again in ${cooldownRemaining} second${cooldownRemaining !== 1 ? 's' : ''}`,
-        variant: "default"
-      });
+      // Show toast notification with cooldown information
+      if (cooldownTimeRemaining > 0) {
+        toast({
+          title: "Please wait before submitting again",
+          description: `You can submit again in ${cooldownTimeRemaining} second${cooldownTimeRemaining !== 1 ? 's' : ''}`,
+          variant: "default"
+        });
+      }
       
       return null;
     }
@@ -75,8 +73,7 @@ export const useFormSubmission = (formId: string) => {
     
     logSubmissionEvent('Submission started', { 
       submissionId, 
-      formId,
-      timeSinceLastAttempt: now - lastSubmission
+      formId
     });
     
     try {
@@ -128,7 +125,14 @@ export const useFormSubmission = (formId: string) => {
       const carId = data && data.length > 0 ? data[0]?.id : submissionData?.id;
       
       if (carId) {
-        await associateImages(carId, submissionId);
+        // Use a debounced approach to associate images
+        setTimeout(async () => {
+          try {
+            await associateImages(carId, submissionId);
+          } catch (error) {
+            console.error('[FormSubmission] Non-fatal error associating images:', error);
+          }
+        }, 500);
       } else {
         // Log the missing car ID issue
         logSubmissionEvent('No car ID available for association', { 
@@ -177,13 +181,16 @@ export const useFormSubmission = (formId: string) => {
     prepareFormData, 
     submitToDatabase,
     associateImages,
-    lastSubmissionTime
+    lastSubmissionTime,
+    canSubmit,
+    cooldownTimeRemaining
   ]);
   
   return {
     submitForm,
     isSubmitting,
     submitError,
-    resetSubmitError
+    resetSubmitError,
+    cooldownTimeRemaining
   };
 };

@@ -5,6 +5,7 @@
  * Updated: 2025-05-19 - Fixed naming conflict, file name typo, and added isSuccessful flag
  * Updated: 2025-05-26 - Fixed context implementation to use car-listing specific FormStateContext
  * Updated: 2025-05-19 - Fixed throttling issues and enhanced error feedback
+ * Updated: 2025-05-20 - Enhanced with cooldown tracking and consolidated throttling logic
  * 
  * Provides consistent submission handling with proper type handling
  */
@@ -49,38 +50,21 @@ export const FormSubmissionProvider = ({
     submitForm: baseSubmitForm, 
     isSubmitting, 
     submitError, 
-    resetSubmitError 
+    resetSubmitError,
+    cooldownTimeRemaining
   } = useFormSubmissionHook(formId);
 
   const [isSuccessful, setIsSuccessful] = useState(false);
-  const [cooldownTimeRemaining, setCooldownTimeRemaining] = useState<number>(0);
   
   // Submit form with consistent return type
   const submitForm = async (data: CarListingFormData): Promise<string | null> => {
     setIsSuccessful(false);
-    
-    // Reset cooldown counter when attempting a new submission
-    setCooldownTimeRemaining(0);
     
     const result = await baseSubmitForm(data);
     
     // Set success state based on result
     if (result) {
       setIsSuccessful(true);
-    } 
-    // If no result but also no error, it might be throttled
-    else if (!submitError) {
-      // Start cooldown counter
-      setCooldownTimeRemaining(2);
-      const timer = setInterval(() => {
-        setCooldownTimeRemaining(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
     }
     
     return result;
@@ -90,7 +74,6 @@ export const FormSubmissionProvider = ({
   const resetSubmissionState = () => {
     resetSubmitError();
     setIsSuccessful(false);
-    setCooldownTimeRemaining(0);
   };
   
   const value = {

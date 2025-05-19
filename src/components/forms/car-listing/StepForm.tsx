@@ -1,3 +1,4 @@
+
 /**
  * StepForm Component
  * Updated: 2025-07-03 - Completely refactored to remove Next.js dependencies and fix type issues
@@ -5,9 +6,10 @@
  * Updated: 2025-05-19 - Fixed property naming for error/submitError and isSuccessful
  * Updated: 2025-05-26 - Updated to use car-listing specific FormSubmission context
  * Updated: 2025-05-19 - Added throttling feedback and improved form submission handling
+ * Updated: 2025-05-20 - Fixed throttling by using centralized cooling state
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
@@ -17,7 +19,6 @@ import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { useFormSubmission } from "./submission/FormSubmissionProvider";
 import { FormTransactionError } from "./submission/FormTransactionError";
-import { TransactionStatus } from "./types";
 import { useFormController } from "./hooks/useFormController";
 import { useFormStorage } from "./hooks/useFormStorage";
 import { useFormValidation } from "./hooks/useFormValidation";
@@ -36,7 +37,7 @@ interface StepFormProps {
   onComplete?: () => void;
 }
 
-export const StepForm = ({
+export const StepForm = memo(({
   form,
   steps,
   currentStep,
@@ -112,7 +113,7 @@ export const StepForm = ({
   };
   
   // Navigate to the next step
-  const navigateToNextStep = async (): Promise<boolean> => {
+  const navigateToNextStep = useCallback(async (): Promise<boolean> => {
     try {
       // Validate current step
       const isValid = await validateCurrentStep();
@@ -143,10 +144,10 @@ export const StepForm = ({
       setValidationError("An unexpected error occurred. Please try again.");
       return false;
     }
-  };
+  }, [currentStep, steps.length, validateCurrentStep, setCurrentStep]);
   
   // Handle form submission
-  const handleFormSubmit = async () => {
+  const handleFormSubmit = useCallback(async () => {
     try {
       // If there's a cooldown in effect, show message and don't proceed
       if (cooldownTimeRemaining && cooldownTimeRemaining > 0) {
@@ -180,7 +181,14 @@ export const StepForm = ({
       console.error("Error submitting form:", error);
       setValidationError("Failed to submit form. Please try again.");
     }
-  };
+  }, [
+    submitForm, 
+    validateCurrentStep, 
+    form, 
+    submitError, 
+    onComplete, 
+    cooldownTimeRemaining
+  ]);
 
   // Helper to check if a step is completed
   const isStepCompleted = (stepIndex: number): boolean => {
@@ -244,7 +252,7 @@ export const StepForm = ({
   };
   
   // Render step indicators
-  const renderStepIndicators = () => {
+  const renderStepIndicators = useCallback(() => {
     return (
       <div className="flex justify-center mb-6">
         {steps.map((step, index) => (
@@ -272,7 +280,7 @@ export const StepForm = ({
         ))}
       </div>
     );
-  };
+  }, [steps, currentStep]);
   
   return (
     <div className="space-y-6">
@@ -309,4 +317,7 @@ export const StepForm = ({
       )}
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+StepForm.displayName = 'StepForm';

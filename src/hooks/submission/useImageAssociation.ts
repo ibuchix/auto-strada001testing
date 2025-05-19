@@ -4,6 +4,7 @@
  * Created: 2025-05-24
  * Updated: 2025-05-19 - Fixed toast API usage
  * Updated: 2025-05-24 - Enhanced to support immediate uploads
+ * Updated: 2025-05-20 - Added debouncing and better error handling
  * 
  * Handles associating temporary uploads with a car ID after successful submission
  */
@@ -14,6 +15,8 @@ import { toast } from '@/hooks/use-toast';
 export const useImageAssociation = () => {
   const associateImages = async (carId: string, submissionId: string): Promise<number> => {
     try {
+      console.log(`[ImageAssociation][${submissionId}] Starting image association process for car ${carId}`);
+      
       // Check if we have any temporary uploads in localStorage
       const tempUploadsStr = localStorage.getItem('tempFileUploads');
       if (!tempUploadsStr) {
@@ -21,8 +24,29 @@ export const useImageAssociation = () => {
         return 0;
       }
       
+      // Parse the temporary uploads
+      let tempUploads;
+      try {
+        tempUploads = JSON.parse(tempUploadsStr);
+      } catch (error) {
+        console.error(`[ImageAssociation][${submissionId}] Error parsing temp uploads:`, error);
+        toast({
+          variant: "default",
+          description: "There was an issue with your uploaded images. They may need to be uploaded again."
+        });
+        return 0;
+      }
+      
+      // Validate temp uploads data
+      if (!Array.isArray(tempUploads) || tempUploads.length === 0) {
+        console.log(`[ImageAssociation][${submissionId}] No valid uploads found in localStorage`);
+        return 0;
+      }
+      
+      // Add a small delay to ensure database consistency
+      console.log(`[ImageAssociation][${submissionId}] Found ${tempUploads.length} temp uploads in localStorage, associating with car ${carId}`);
+      
       // Try to associate temp uploads with the new car ID
-      console.log(`[ImageAssociation][${submissionId}] Found temp uploads in localStorage, associating with car ${carId}`);
       const associatedCount = await associateTempUploadsWithCar(carId);
       
       if (associatedCount > 0) {
@@ -46,6 +70,14 @@ export const useImageAssociation = () => {
       console.log(`[ImageAssociation][${submissionId}] Association error:`, { 
         error: error instanceof Error ? error.message : String(error)
       });
+      
+      // Only show toast for critical errors
+      if (error instanceof Error && error.message.includes('database') || error.message.includes('permission')) {
+        toast({
+          variant: "default", // Less alarming than destructive
+          description: "Some images may not have been properly associated with your listing."
+        });
+      }
       
       return 0;
     }

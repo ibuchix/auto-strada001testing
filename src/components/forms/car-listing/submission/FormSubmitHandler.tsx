@@ -11,9 +11,10 @@
  * Updated: 2025-05-19 - Updated to use submitError property
  * Updated: 2025-05-26 - Fixed FormSubmission context import to use local context
  * Updated: 2025-05-19 - Added throttling feedback and improved error handling
+ * Updated: 2025-05-20 - Removed duplicate throttling logic to use centralized implementation
  */
 
-import { useEffect, useState, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { useFormData } from "../context/FormDataContext";
 import { useFormSubmission } from "../submission/FormSubmissionProvider";
 import { Button } from "@/components/ui/button";
@@ -27,20 +28,34 @@ interface FormSubmitHandlerProps {
   userId?: string;
 }
 
-export const FormSubmitHandler = ({
+export const FormSubmitHandler = memo(({
   onSubmitSuccess,
   onSubmitError,
   carId,
   userId
 }: FormSubmitHandlerProps) => {
   const { submissionState, submitForm } = useFormSubmission();
-  const { submitError, isSubmitting, isSuccessful } = submissionState;
+  const { submitError, isSubmitting, cooldownTimeRemaining } = submissionState;
   const { form } = useFormData();
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [isVerifyingImages, setIsVerifyingImages] = useState(false);
   const tempSessionIdRef = useRef<string | null>(null);
-  const [lastAttemptTime, setLastAttemptTime] = useState<number>(0);
+  const submissionInProgressRef = useRef<boolean>(false);
+  
+  // Reset submission flags when isSubmitting changes to false
+  useEffect(() => {
+    if (!isSubmitting && submissionInProgressRef.current) {
+      const timer = setTimeout(() => {
+        submissionInProgressRef.current = false;
+        setIsProcessingImages(false);
+        setIsVerifyingImages(false);
+        setIsCreatingReservation(false);
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isSubmitting]);
   
   // Check for temp session ID immediately
   useEffect(() => {
@@ -54,32 +69,29 @@ export const FormSubmitHandler = ({
   // Check if we have valid userId before allowing submission
   const isSubmitDisabled = !userId || isSubmitting || isCreatingReservation || isProcessingImages;
   
-  // Effect to reset successful status
-  useEffect(() => {
-    if (isSuccessful) {
-      // Show success feedback if needed
-      toast.success("Form submitted successfully");
-    }
-  }, [isSuccessful]);
-  
   // Handle form submission with proper image handling
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     try {
-      // Throttle check - prevent rapid submissions
-      const now = Date.now();
-      if (now - lastAttemptTime < 2000) {
-        const cooldownRemaining = Math.ceil((2000 - (now - lastAttemptTime)) / 1000);
-        toast.info(`Please wait ${cooldownRemaining} second${cooldownRemaining !== 1 ? 's' : ''} before submitting again`);
+      // Prevent submission if already in progress
+      if (submissionInProgressRef.current) {
+        console.log(`[FormSubmitHandler] Submission already in progress, ignoring click`);
         return;
       }
       
-      setLastAttemptTime(now);
+      // Check if cooling down
+      if (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0) {
+        console.log(`[FormSubmitHandler] Cooling down, ${cooldownTimeRemaining}s remaining`);
+        toast.info(`Please wait ${cooldownTimeRemaining} seconds before submitting again`);
+        return;
+      }
       
       if (!userId) {
         toast.error('You must be logged in to submit a form');
         return;
       }
 
+      submissionInProgressRef.current = true;
+      
       // Check if we have a temp session ID for images
       console.log(`[FormSubmitHandler] Temp session ID check: ${tempSessionIdRef.current || 'none'}`);
       
@@ -98,22 +110,12 @@ export const FormSubmitHandler = ({
       }
       
       setIsVerifyingImages(false);
+      setIsProcessingImages(true);
       
       // Submit the form
       const submittedCarId = await submitForm(form.getValues());
       
       if (submittedCarId) {
-        // Clear any temporary image data from localStorage after successful submission
-        if (localStorage.getItem('tempFileUploads')) {
-          console.log('[FormSubmitHandler] Clearing temp file uploads after successful submission');
-          localStorage.removeItem('tempFileUploads');
-        }
-        
-        if (localStorage.getItem('tempSessionId')) {
-          console.log('[FormSubmitHandler] Clearing temp session ID after successful submission');
-          localStorage.removeItem('tempSessionId');
-        }
-        
         // Call onSubmitSuccess callback if provided
         if (onSubmitSuccess) {
           onSubmitSuccess(submittedCarId);
@@ -124,6 +126,9 @@ export const FormSubmitHandler = ({
           onSubmitError(new Error(submitError));
         }
       }
+      
+      setIsProcessingImages(false);
+      submissionInProgressRef.current = false;
     } catch (error) {
       console.error('[FormSubmitHandler] Form submission error:', error);
       
@@ -134,9 +139,29 @@ export const FormSubmitHandler = ({
       toast.error('Failed to submit form', {
         description: error instanceof Error ? error.message : 'An unknown error occurred'
       });
-    } finally {
+      
       setIsProcessingImages(false);
+      submissionInProgressRef.current = false;
     }
+  }, [
+    userId, 
+    submitForm, 
+    form, 
+    submitError, 
+    onSubmitSuccess, 
+    onSubmitError,
+    cooldownTimeRemaining
+  ]);
+  
+  // Get loading or cooldown state text
+  const getButtonText = () => {
+    if (isVerifyingImages) return 'Verifying Images...';
+    if (isProcessingImages) return 'Processing Images...';
+    if (isSubmitting) return 'Submitting...';
+    if (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0) {
+      return `Wait ${cooldownTimeRemaining}s`;
+    }
+    return 'Submit Listing';
   };
   
   return (
@@ -145,13 +170,13 @@ export const FormSubmitHandler = ({
         type="button"
         variant="default"
         onClick={handleSubmit}
-        disabled={isSubmitDisabled}
+        disabled={isSubmitDisabled || (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0)}
         className="min-w-[150px]"
       >
-        {isSubmitting || isProcessingImages ? (
+        {(isSubmitting || isProcessingImages || isVerifyingImages || (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0)) ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {isVerifyingImages ? 'Verifying Images...' : isProcessingImages ? 'Processing Images...' : 'Submitting...'}
+            {getButtonText()}
           </>
         ) : (
           'Submit Listing'
@@ -159,4 +184,7 @@ export const FormSubmitHandler = ({
       </Button>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+FormSubmitHandler.displayName = 'FormSubmitHandler';
