@@ -4,6 +4,7 @@
  * Created: 2025-06-16
  * Updated: 2025-06-19 - Fixed type conversion issue and proper component exports
  * Updated: 2025-07-22 - Fixed type errors with field names
+ * Updated: 2025-05-21 - Updated field names to use snake_case to match database schema
  * 
  * Vehicle condition section for car listing form
  */
@@ -17,7 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 export const ConditionSection = () => {
   const { form } = useFormData();
   
-  const serviceHistoryVisible = form.watch("hasServiceHistory");
+  const serviceHistoryVisible = form.watch("has_service_history");
   
   return (
     <div className="space-y-6">
@@ -26,7 +27,7 @@ export const ConditionSection = () => {
       <div className="space-y-6">
         <FormField
           control={form.control}
-          name="isDamaged"
+          name="is_damaged"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center space-x-3 space-y-0">
               <FormControl>
@@ -47,7 +48,7 @@ export const ConditionSection = () => {
         
         <FormField
           control={form.control}
-          name="hasServiceHistory"
+          name="has_service_history"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center space-x-3 space-y-0">
               <FormControl>
@@ -69,7 +70,7 @@ export const ConditionSection = () => {
         {serviceHistoryVisible && (
           <FormField
             control={form.control}
-            name="serviceHistoryType"
+            name="service_history_type"
             render={({ field }) => (
               <FormItem className="space-y-3">
                 <FormLabel>Service History Type</FormLabel>

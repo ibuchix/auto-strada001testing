@@ -4,6 +4,7 @@
  * - Updated to use FormDataContext instead of requiring form prop
  * - 2025-07-25: Fixed type errors with form fields and feature names
  * - 2025-07-26: Fixed feature checkboxes and context usage
+ * - 2025-05-21: Updated to properly use typed features from CarFeatures interface
  */
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
@@ -15,7 +16,7 @@ import { CarFeatures } from "@/types/forms";
 export const FeaturesSection = () => {
   const { form } = useFormData();
   
-  const features = {
+  const features: Record<string, string> = {
     airConditioning: "Air Conditioning",
     bluetooth: "Bluetooth",
     cruiseControl: "Cruise Control",
@@ -35,7 +36,7 @@ export const FeaturesSection = () => {
     <div className="space-y-4">
       <Label>Vehicle Features</Label>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {(Object.entries(features) as [keyof CarFeatures, string][]).map(([key, label]) => (
+        {Object.entries(features).map(([key, label]) => (
           <Controller
             key={key}
             control={form.control}

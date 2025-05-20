@@ -4,6 +4,7 @@
  * Created: 2025-06-18
  * Updated: 2025-07-22 - Fixed type errors with form field names
  * Updated: 2025-07-25 - Fixed type errors with numberOfKeys and other fields
+ * Updated: 2025-05-21 - Updated field names to use snake_case to match database schema
  * 
  * Component for collecting additional information about the vehicle
  */
@@ -29,7 +30,7 @@ export const AdditionalInfoSection = () => {
         {/* Seat Material */}
         <Controller
           control={form.control}
-          name="seatMaterial"
+          name="seat_material"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Seat Material</FormLabel>
@@ -56,7 +57,7 @@ export const AdditionalInfoSection = () => {
         {/* Number of Keys */}
         <Controller
           control={form.control}
-          name="numberOfKeys"
+          name="number_of_keys"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Number of Keys</FormLabel>
@@ -82,7 +83,7 @@ export const AdditionalInfoSection = () => {
         {/* Registered in Poland */}
         <Controller
           control={form.control}
-          name="isRegisteredInPoland"
+          name="is_registered_in_poland"
           render={({ field }) => (
             <FormItem className="space-y-3">
               <FormLabel>Is the vehicle registered in Poland?</FormLabel>
@@ -92,14 +93,14 @@ export const AdditionalInfoSection = () => {
                 className="flex flex-col space-y-1"
               >
                 <FormItem className="flex items-center space-x-3 space-y-0">
-                  <RadioGroupItem value="true" id="isRegisteredInPoland-yes" />
-                  <FormLabel htmlFor="isRegisteredInPoland-yes" className="font-normal">
+                  <RadioGroupItem value="true" id="is_registered_in_poland-yes" />
+                  <FormLabel htmlFor="is_registered_in_poland-yes" className="font-normal">
                     Yes
                   </FormLabel>
                 </FormItem>
                 <FormItem className="flex items-center space-x-3 space-y-0">
-                  <RadioGroupItem value="false" id="isRegisteredInPoland-no" />
-                  <FormLabel htmlFor="isRegisteredInPoland-no" className="font-normal">
+                  <RadioGroupItem value="false" id="is_registered_in_poland-no" />
+                  <FormLabel htmlFor="is_registered_in_poland-no" className="font-normal">
                     No
                   </FormLabel>
                 </FormItem>
@@ -112,7 +113,7 @@ export const AdditionalInfoSection = () => {
         {/* Warning Lights */}
         <Controller
           control={form.control}
-          name="hasWarningLights"
+          name="has_warning_lights"
           render={({ field }) => (
             <FormItem className="space-y-3">
               <FormLabel>Are there any warning lights on the dashboard?</FormLabel>
@@ -122,14 +123,14 @@ export const AdditionalInfoSection = () => {
                 className="flex flex-col space-y-1"
               >
                 <FormItem className="flex items-center space-x-3 space-y-0">
-                  <RadioGroupItem value="true" id="hasWarningLights-yes" />
-                  <FormLabel htmlFor="hasWarningLights-yes" className="font-normal">
+                  <RadioGroupItem value="true" id="has_warning_lights-yes" />
+                  <FormLabel htmlFor="has_warning_lights-yes" className="font-normal">
                     Yes
                   </FormLabel>
                 </FormItem>
                 <FormItem className="flex items-center space-x-3 space-y-0">
-                  <RadioGroupItem value="false" id="hasWarningLights-no" />
-                  <FormLabel htmlFor="hasWarningLights-no" className="font-normal">
+                  <RadioGroupItem value="false" id="has_warning_lights-no" />
+                  <FormLabel htmlFor="has_warning_lights-no" className="font-normal">
                     No
                   </FormLabel>
                 </FormItem>

@@ -2,6 +2,7 @@
 /**
  * Type definitions for car listing form data
  * - Updated 2025-05-20: Added last_saved field to match database schema
+ * - Updated 2025-05-21: Fixed field naming inconsistencies (camelCase to snake_case)
  */
 export interface CarListingFormData {
   id?: string;
@@ -40,5 +41,46 @@ export interface CarListingFormData {
   seller_name?: string;
   service_history_type?: string;
   seat_material?: string;
-  last_saved?: string; // New field to track when form was last saved
+  last_saved?: string;
+  
+  // Additional fields that may be needed by the form but not in the database schema
+  damage_photos?: string[];
+  damage_reports?: DamageReport[];
+  finance_provider?: string;
+  finance_end_date?: string;
+  finance_document?: string;
+  has_outstanding_finance?: boolean;
+  has_warning_lights?: boolean;
+  condition_rating?: number;
+  contact_email?: string;
+}
+
+export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
+
+export interface CarFeatures {
+  airConditioning: boolean;
+  bluetooth: boolean;
+  cruiseControl: boolean;
+  leatherSeats: boolean;
+  navigation: boolean;
+  parkingSensors: boolean;
+  sunroof: boolean;
+  satNav: boolean;
+  panoramicRoof: boolean;
+  reverseCamera: boolean;
+  heatedSeats: boolean;
+  upgradedSound: boolean;
+  alloyWheels: boolean;
+  keylessEntry?: boolean;
+  adaptiveCruiseControl?: boolean;
+  laneDepartureWarning?: boolean;
+}
+
+export interface DamageReport {
+  id: string;
+  description: string;
+  severity: 'minor' | 'moderate' | 'severe';
+  location?: string;
+  photo?: string;
+  type: DamageType;
 }

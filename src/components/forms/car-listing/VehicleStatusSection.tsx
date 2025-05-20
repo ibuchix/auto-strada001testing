@@ -6,6 +6,7 @@
  * - Fixed FormSection usage by adding required title prop
  * - Improved accessibility with better labeling
  * - Updated to use FormDataContext instead of requiring form prop
+ * - Updated 2025-05-21: Updated field names to use snake_case to match database schema
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormDescription } from "@/components/ui/form";
@@ -17,7 +18,7 @@ import { useFormData } from "./context/FormDataContext";
 
 export const VehicleStatusSection = () => {
   const { form } = useFormData();
-  const isDamaged = form.watch("isDamaged");
+  const isDamaged = form.watch("is_damaged");
   
   return (
     <FormSection title="Vehicle Status">
@@ -35,18 +36,18 @@ export const VehicleStatusSection = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="isRegisteredInPoland"
+              name="is_registered_in_poland"
               render={({ field }) => (
                 <FormItem className="flex items-start space-x-2">
                   <FormControl>
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      id="isRegisteredInPoland"
+                      id="is_registered_in_poland"
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel htmlFor="isRegisteredInPoland">Registered in Poland</FormLabel>
+                    <FormLabel htmlFor="is_registered_in_poland">Registered in Poland</FormLabel>
                     <FormDescription>
                       Vehicle is currently registered in Poland
                     </FormDescription>
@@ -57,18 +58,18 @@ export const VehicleStatusSection = () => {
             
             <FormField
               control={form.control}
-              name="hasPrivatePlate"
+              name="has_private_plate"
               render={({ field }) => (
                 <FormItem className="flex items-start space-x-2">
                   <FormControl>
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      id="hasPrivatePlate"
+                      id="has_private_plate"
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel htmlFor="hasPrivatePlate">Private Registration Plate</FormLabel>
+                    <FormLabel htmlFor="has_private_plate">Private Registration Plate</FormLabel>
                     <FormDescription>
                       Vehicle has a private/personalized plate
                     </FormDescription>
@@ -85,18 +86,18 @@ export const VehicleStatusSection = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="isDamaged"
+              name="is_damaged"
               render={({ field }) => (
                 <FormItem className="flex items-start space-x-2">
                   <FormControl>
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      id="isDamaged"
+                      id="is_damaged"
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel htmlFor="isDamaged">Vehicle is damaged</FormLabel>
+                    <FormLabel htmlFor="is_damaged">Vehicle is damaged</FormLabel>
                     <FormDescription>
                       Has visible damage or mechanical issues
                     </FormDescription>
@@ -107,18 +108,18 @@ export const VehicleStatusSection = () => {
             
             <FormField
               control={form.control}
-              name="hasWarningLights"
+              name="has_warning_lights"
               render={({ field }) => (
                 <FormItem className="flex items-start space-x-2">
                   <FormControl>
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      id="hasWarningLights"
+                      id="has_warning_lights"
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel htmlFor="hasWarningLights">Warning Lights</FormLabel>
+                    <FormLabel htmlFor="has_warning_lights">Warning Lights</FormLabel>
                     <FormDescription>
                       Dashboard warning lights are currently on
                     </FormDescription>
@@ -135,18 +136,18 @@ export const VehicleStatusSection = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="isSellingOnBehalf"
+              name="is_selling_on_behalf"
               render={({ field }) => (
                 <FormItem className="flex items-start space-x-2">
                   <FormControl>
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      id="isSellingOnBehalf"
+                      id="is_selling_on_behalf"
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel htmlFor="isSellingOnBehalf">Selling on behalf</FormLabel>
+                    <FormLabel htmlFor="is_selling_on_behalf">Selling on behalf</FormLabel>
                     <FormDescription>
                       Selling on behalf of someone else
                     </FormDescription>
@@ -157,18 +158,18 @@ export const VehicleStatusSection = () => {
             
             <FormField
               control={form.control}
-              name="hasOutstandingFinance"
+              name="has_outstanding_finance"
               render={({ field }) => (
                 <FormItem className="flex items-start space-x-2">
                   <FormControl>
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      id="hasOutstandingFinance"
+                      id="has_outstanding_finance"
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel htmlFor="hasOutstandingFinance">Outstanding Finance</FormLabel>
+                    <FormLabel htmlFor="has_outstanding_finance">Outstanding Finance</FormLabel>
                     <FormDescription>
                       Vehicle has outstanding finance
                     </FormDescription>

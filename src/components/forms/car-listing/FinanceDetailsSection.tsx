@@ -7,6 +7,7 @@
  * - Updated to use FormDataContext instead of requiring form prop
  * - 2025-07-22: Fixed type errors with form field names
  * - 2025-07-25: Fixed issues with field types by using Controller
+ * - 2025-05-21: Updated field names to use snake_case to match database schema
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
@@ -28,10 +29,10 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
   const { form } = useFormData();
   const [showFinanceFields, setShowFinanceFields] = useState(false);
   
-  // Use watch to track hasOutstandingFinance field
-  const hasOutstandingFinance = form.watch("hasOutstandingFinance");
+  // Use watch to track has_outstanding_finance field
+  const hasOutstandingFinance = form.watch("has_outstanding_finance");
 
-  // Update visibility when hasOutstandingFinance changes
+  // Update visibility when has_outstanding_finance changes
   useEffect(() => {
     setShowFinanceFields(Boolean(hasOutstandingFinance));
   }, [hasOutstandingFinance]);
@@ -82,7 +83,7 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Controller
             control={form.control}
-            name="financeAmount"
+            name="finance_amount"
             rules={{ 
               required: "Finance amount is required",
               pattern: {
@@ -117,7 +118,7 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
           
           <Controller
             control={form.control}
-            name="financeProvider"
+            name="finance_provider"
             rules={{ required: "Finance provider is required" }}
             render={({ field }) => (
               <FormItem>
@@ -151,7 +152,7 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
         <div className="space-y-3">
           <Controller
             control={form.control}
-            name="financeEndDate"
+            name="finance_end_date"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>End of Finance Agreement</FormLabel>
@@ -174,7 +175,7 @@ export const FinanceDetailsSection = ({ carId }: FinanceDetailsSectionProps) => 
         <div className="space-y-3">
           <Controller
             control={form.control}
-            name="financeDocument"
+            name="finance_document"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Finance Document (Optional)</FormLabel>

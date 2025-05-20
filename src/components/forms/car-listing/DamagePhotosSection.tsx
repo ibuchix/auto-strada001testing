@@ -4,6 +4,7 @@
  * Created: 2025-05-03
  * Updated: 2025-06-18 - Fixed type errors with temporary file upload hook
  * Updated: 2025-07-22 - Fixed field name from "damagePhotos" to the correct type
+ * Updated: 2025-05-21 - Updated field names to use snake_case to match database schema
  * 
  * Component for uploading photos of vehicle damage
  */
@@ -20,16 +21,16 @@ export const DamagePhotosSection = () => {
   const { form } = useFormData();
   const [isDamaged, setIsDamaged] = useState(false);
   
-  // Get isDamaged value from form
+  // Get is_damaged value from form
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === 'isDamaged' || name === undefined) {
-        setIsDamaged(!!value.isDamaged);
+      if (name === 'is_damaged' || name === undefined) {
+        setIsDamaged(!!value.is_damaged);
       }
     });
     
     // Initialize with current value
-    setIsDamaged(!!form.getValues('isDamaged'));
+    setIsDamaged(!!form.getValues('is_damaged'));
     
     return () => subscription.unsubscribe();
   }, [form]);
@@ -50,7 +51,7 @@ export const DamagePhotosSection = () => {
   // Update form data when files change
   useEffect(() => {
     const photoPreviews = files.map(file => file.preview || file.url);
-    form.setValue('damagePhotos', photoPreviews, { shouldDirty: true });
+    form.setValue('damage_photos', photoPreviews, { shouldDirty: true });
   }, [files, form]);
   
   // Handle file selection
