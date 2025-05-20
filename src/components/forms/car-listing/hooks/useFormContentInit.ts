@@ -5,16 +5,17 @@
  * - Created a specialized hook for form content initialization and setup
  * - 2025-05-31: Added fromValuation prop to initialization options
  * - 2025-06-01: Implemented loading valuation data during initialization
+ * - 2025-06-02: Fixed LoadDraftOptions interface reference
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
-import { useLoadDraft, LoadDraftOptions } from "./useLoadDraft";
+import { useLoadDraft } from "./useLoadDraft";
 import { toast } from "sonner";
 import { Session } from "@supabase/supabase-js";
 
-interface UseFormContentInitProps {
+interface FormContentInitOptions {
   session: Session;
   form: UseFormReturn<CarListingFormData>;
   draftId?: string;
@@ -30,7 +31,7 @@ export const useFormContentInit = ({
   onDraftError,
   retryCount = 0,
   fromValuation = false
-}: UseFormContentInitProps) => {
+}: FormContentInitOptions) => {
   const [state, setState] = useState({
     isInitializing: true,
     carId: undefined as string | undefined,
@@ -47,12 +48,12 @@ export const useFormContentInit = ({
     }
   }, [onDraftError]);
 
-  const loadDraftOptions: LoadDraftOptions = {
+  const loadDraftOptions = {
     form,
     userId: session.user.id,
     draftId,
     retryCount,
-    onLoaded: (draft) => {
+    onLoaded: (draft: any) => {
       setState(prev => ({ 
         ...prev, 
         carId: draft.carId, 
