@@ -22,7 +22,7 @@ export const useAuctionSubscriptions = (userId: string | undefined, isActive: bo
     const auctionScheduleChannel = setupChannel(
       'seller-auction-schedule-changes',
       'auction_schedules',
-      `car_id=in.(SELECT id FROM cars WHERE seller_id='${userId}')`,
+      `car_id=eq.${userId}`,
       '*',
       (payload) => {
         console.log('Real-time auction schedule update received:', payload);
@@ -50,7 +50,7 @@ export const useAuctionSubscriptions = (userId: string | undefined, isActive: bo
     const auctionResultsChannel = setupChannel(
       'seller-auction-results-changes',
       'auction_results',
-      `car_id=in.(SELECT id FROM cars WHERE seller_id='${userId}')`,
+      `car_id=eq.${userId}`,
       'INSERT',
       (payload) => {
         console.log('Real-time auction result update received:', payload);

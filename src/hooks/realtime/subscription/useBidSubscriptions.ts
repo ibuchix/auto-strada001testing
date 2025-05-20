@@ -22,7 +22,7 @@ export const useBidSubscriptions = (userId: string | undefined, isActive: boolea
     const bidsChannel = setupChannel(
       'seller-bids-changes',
       'bids',
-      `car_id=in.(SELECT id FROM cars WHERE seller_id='${userId}')`,
+      `car_id=eq.${userId}`,
       'INSERT',
       (payload) => {
         console.log('Real-time bid update received:', payload);

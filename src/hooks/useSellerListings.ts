@@ -12,6 +12,7 @@
  * - 2025-05-08: Included valuation_data in query and transformation logic
  * - 2025-05-08: Added reserve_price field to data transformation
  * - 2025-05-08: Enhanced error recovery with ensure_seller_registration function
+ * - 2025-07-19: Improved error handling for RLS issues and auth errors
  */
 
 import { useState, useCallback } from "react";
