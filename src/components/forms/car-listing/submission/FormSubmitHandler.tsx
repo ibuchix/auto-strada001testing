@@ -14,6 +14,7 @@
  * Updated: 2025-06-24 - Enhanced error messages with better field name formatting
  * Updated: 2025-06-25 - Added more detailed validation logs and improved error messaging
  * Updated: 2025-05-20 - Fixed FormProvider context usage with better error handling
+ * Updated: 2025-05-20 - Added image association functionality after form submission
  */
 
 import React, { useState } from "react";
@@ -26,6 +27,8 @@ import { prepareFormDataForSubmission } from "./utils/submission";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { standardizePhotoCategory, PHOTO_FIELD_MAP } from "@/utils/photoMapping";
+import { useImageAssociation } from "@/hooks/submission/useImageAssociation";
+import { v4 as uuidv4 } from "uuid";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -59,11 +62,19 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
   
   const { handleSubmit, formState, getValues } = formContext;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAssociatingImages, setIsAssociatingImages] = useState(false);
   const navigate = useNavigate();
+  
+  // Use the image association hook
+  const { associateImages, isAssociating } = useImageAssociation();
   
   const onSubmit = async (formData: CarListingFormData) => {
     try {
       setIsSubmitting(true);
+      
+      // Generate a unique submission ID for tracking
+      const submissionId = uuidv4().slice(0, 8);
+      console.log(`[FormSubmission][${submissionId}] Starting form submission...`);
       
       console.log("Starting form submission validation...");
       console.log("Form data for validation:", {
@@ -111,12 +122,32 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       const preparedData = prepareFormDataForSubmission(formData);
       
       // Log the final data being submitted
-      console.log("Submitting car listing:", preparedData);
+      console.log(`[FormSubmission][${submissionId}] Submitting car listing:`, preparedData);
       
       // In a real app, you would submit this data to your API
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Simulate successful submission
+      const newCarId = carId || `new-car-${submissionId}`;
+      console.log(`[FormSubmission][${submissionId}] Form submitted successfully, car ID: ${newCarId}`);
+      
+      // Associate images with the new car ID
+      setIsAssociatingImages(true);
+      try {
+        console.log(`[FormSubmission][${submissionId}] Associating images with car ID: ${newCarId}`);
+        const associatedCount = await associateImages(newCarId, submissionId);
+        console.log(`[FormSubmission][${submissionId}] Successfully associated ${associatedCount} images`);
+      } catch (imageError) {
+        console.error(`[FormSubmission][${submissionId}] Error associating images:`, imageError);
+        // Don't fail the submission if image association fails
+        toast.error("Warning: Some images may not have been properly associated with your listing", {
+          description: "Your listing has been submitted, but there was an issue with the images."
+        });
+      } finally {
+        setIsAssociatingImages(false);
+      }
+      
+      // Show success toast
       if (showAlerts) {
         toast.success("Listing Submitted", {
           description: "Your car listing has been submitted successfully.",
@@ -128,7 +159,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         onSuccess(preparedData);
       } else if (onSubmitSuccess) {
         // Call the onSubmitSuccess callback with the car ID
-        onSubmitSuccess(carId || 'new-car-id');
+        onSubmitSuccess(newCarId);
       } else {
         // Default success behavior - redirect to seller dashboard
         navigate("/seller/dashboard");
@@ -159,13 +190,13 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     <Button
       className="px-6"
       type="button"
-      disabled={isSubmitting || formState.isSubmitting}
+      disabled={isSubmitting || isAssociatingImages || formState.isSubmitting}
       onClick={handleSubmit(onSubmit)}
     >
-      {isSubmitting || formState.isSubmitting ? (
+      {isSubmitting || isAssociatingImages || formState.isSubmitting ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Submitting...
+          {isAssociatingImages ? "Associating Images..." : "Submitting..."}
         </>
       ) : (
         "Submit Listing"
