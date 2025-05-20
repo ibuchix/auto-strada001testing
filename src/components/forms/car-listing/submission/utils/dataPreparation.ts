@@ -1,59 +1,58 @@
 
 /**
- * Utilities for preparing submission data
- * Extracted to separate module for code splitting
- * Updated: 2025-06-21 - Fixed field access to match CarListingFormData
- * Updated: 2025-06-22 - Fixed field name errors (reservePrice → reserve_price)
+ * Data Preparation Utilities for Form Submission
+ * Created: 2025-05-18
+ * Updated: 2025-05-19 - Added support for transforming photo uploads
+ * Updated: 2025-05-20 - Fixed type conversion issues for numeric fields
+ * Updated: 2025-05-28 - Updated to use camelCase field names consistently
  */
 
 import { CarListingFormData } from "@/types/forms";
-import { calculateReservePrice } from "./reservePriceCalculator";
 
 /**
- * Prepares form data for submission to the database
- * 
- * @param data - Form data to prepare
- * @param userId - User ID submitting the form
- * @param carId - Optional existing car ID for updates
- * @returns Promise resolving to prepared submission data
+ * Process form data before submission to API
+ * Handles field type conversions and transformations
  */
-export const prepareSubmissionData = async (
-  data: CarListingFormData,
-  userId: string,
-  carId?: string
-): Promise<Record<string, any>> => {
-  // Calculate reserve price if not already set
-  const reservePrice = data.reserve_price || calculateReservePrice(Number(data.price));
+export const prepareFormData = (formData: CarListingFormData): Record<string, any> => {
+  // Create a copy of the form data
+  const processedData = { ...formData };
   
-  // Format the form data for database insertion
-  const formattedData = {
-    id: carId,
-    seller_id: userId,
-    seller_name: data.name || "",
-    address: data.address || "",
-    mobile_number: data.mobileNumber || "",
-    title: `${data.make} ${data.model} ${data.year}`,
-    make: data.make,
-    model: data.model,
-    year: Number(data.year),
-    mileage: Number(data.mileage),
-    price: Number(data.price),
-    reserve_price: reservePrice,
-    vin: data.vin,
-    is_damaged: !!data.isDamaged,
-    is_registered_in_poland: !!data.isRegisteredInPoland,
-    has_private_plate: !!data.hasPrivatePlate,
-    features: data.features || {},
-    service_history_type: data.serviceHistoryType,
-    seller_notes: data.sellerNotes,
-    seat_material: data.seatMaterial,
-    number_of_keys: Number(data.numberOfKeys || 1),
-    is_draft: false,
-    finance_amount: data.financeAmount ? Number(data.financeAmount) : null,
-    transmission: data.transmission || 'manual',
-    status: 'pending',
-    updated_at: new Date().toISOString()
-  };
+  // Convert string numbers to actual numbers
+  if (processedData.year) processedData.year = Number(processedData.year);
+  if (processedData.mileage) processedData.mileage = Number(processedData.mileage);
+  if (processedData.price) processedData.price = Number(processedData.price);
+  if (processedData.reservePrice) processedData.reservePrice = Number(processedData.reservePrice);
+  if (processedData.financeAmount) processedData.financeAmount = Number(processedData.financeAmount);
   
-  return formattedData;
+  // Generate a display title/name for the listing
+  if (!processedData.title && processedData.make && processedData.model) {
+    processedData.title = `${processedData.make} ${processedData.model} ${processedData.year || ''}`;
+  }
+  
+  // Ensure all required boolean fields are explicitly set
+  processedData.isDamaged = !!processedData.isDamaged;
+  processedData.hasPrivatePlate = !!processedData.hasPrivatePlate;
+  processedData.hasOutstandingFinance = !!processedData.hasOutstandingFinance;
+  processedData.hasServiceHistory = !!processedData.hasServiceHistory;
+  processedData.isRegisteredInPoland = !!processedData.isRegisteredInPoland;
+  
+  // Add timestamps
+  processedData.updated_at = new Date().toISOString();
+  
+  return processedData;
+};
+
+/**
+ * Transform uploaded files to the right format for storage
+ */
+export const transformUploadedFiles = (uploads: any[]): Record<string, any>[] => {
+  if (!Array.isArray(uploads)) return [];
+  
+  return uploads.map(upload => ({
+    name: upload.name || 'unnamed-file',
+    url: upload.url || upload.location || '',
+    type: upload.type || 'unknown',
+    size: upload.size || 0,
+    uploaded_at: upload.uploadedAt || upload.uploaded_at || new Date().toISOString()
+  }));
 };

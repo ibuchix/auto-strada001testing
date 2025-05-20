@@ -10,6 +10,7 @@
  * Updated: 2025-05-21 - Fixed adaptTemporaryFileUploader function to include uploadFiles property
  * Updated: 2025-05-20 - Added odometer photo uploader to match required fields in photoMapping.ts
  * Updated: 2025-05-27 - Fixed field naming to use camelCase consistently
+ * Updated: 2025-05-28 - Fixed field references for requiredPhotosComplete
  */
 
 import { useState, useEffect } from "react";
@@ -24,6 +25,7 @@ import { PhotoSection } from "../photo-upload/components/PhotoSection";
 import { RimPhotosSection } from "../RimPhotosSection";
 import { DamagePhotosSection } from "./DamagePhotosSection";
 import { SafeFormWrapper } from "../SafeFormWrapper";
+import { setFieldValue } from "@/utils/formHelpers";
 
 export const PhotosSection = ({ carId }: { carId?: string }) => {
   const [allPhotosUploaded, setAllPhotosUploaded] = useState(false);
@@ -137,7 +139,7 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
             setAllPhotosUploaded(requiredUploaded);
             
             // Update the requiredPhotosComplete field for form validation
-            form.setValue("requiredPhotosComplete", requiredUploaded);
+            setFieldValue(form, 'requiredPhotosComplete', requiredUploaded);
           } catch (error) {
             console.error("Error updating form with photos:", error);
             setUploadError("Failed to update form with photos");

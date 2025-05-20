@@ -9,11 +9,13 @@
  * Updated: 2025-05-22 - Fixed type compatibility with RimPhotos interface
  * Updated: 2025-05-23 - Enhanced adapter function and added error recovery capabilities
  * Updated: 2025-05-24 - Fixed uploadFiles return type to match PhotoUploaderProps interface
+ * Updated: 2025-05-28 - Fixed TypeScript errors with field names
  */
 
 import { UseFormSetValue, UseFormGetValues } from "react-hook-form";
 import { CarListingFormData, RimPhotos } from '@/types/forms';
 import { TemporaryFile } from '@/hooks/useTemporaryFileUpload';
+import { watchField, setFieldValue, getFieldValue } from "@/utils/formHelpers";
 
 /**
  * Sets a field in the form for rim photos
@@ -25,7 +27,7 @@ export const setRimPhotoField = (
 ): void => {
   try {
     // Get existing rim photos or initialize empty object
-    const currentRimPhotos = getValue(setValue, 'rimPhotos') || {};
+    const currentRimPhotos = getFieldValue<RimPhotos | undefined>(setValue as any, 'rimPhotos') || {};
     
     // Make sure currentRimPhotos is treated as a valid object before spreading
     const safeRimPhotos: Partial<RimPhotos> = typeof currentRimPhotos === 'object' && currentRimPhotos !== null 
@@ -39,7 +41,7 @@ export const setRimPhotoField = (
     };
     
     // Set the updated object back to the form
-    setValue('rimPhotos', updatedRimPhotos as RimPhotos, { shouldDirty: true });
+    setFieldValue(setValue as any, 'rimPhotos', updatedRimPhotos, { shouldDirty: true });
     
     console.log(`Updated rim photo for position: ${position}`);
   } catch (error) {
@@ -52,16 +54,16 @@ export const setRimPhotoField = (
  * Sets a regular photo field in the form
  */
 export const setPhotoField = (
-  fieldName: string,
+  fieldName: keyof CarListingFormData,
   value: string,
   setValue: UseFormSetValue<CarListingFormData>
 ): void => {
   try {
     // Set the value for the specific field
-    setValue(fieldName as any, value, { shouldDirty: true });
-    console.log(`Updated photo field: ${fieldName}`);
+    setValue(fieldName, value, { shouldDirty: true });
+    console.log(`Updated photo field: ${String(fieldName)}`);
   } catch (error) {
-    console.error(`Error setting photo field ${fieldName}:`, error);
+    console.error(`Error setting photo field ${String(fieldName)}:`, error);
     throw error;
   }
 };

@@ -5,8 +5,8 @@
  * - Updated 2025-05-21: Fixed field naming inconsistencies (camelCase to snake_case)
  * - Updated 2025-05-22: Added ServiceHistoryFile type and additional missing fields
  * - Updated 2025-05-23: Added warning_light fields and is_selling_on_behalf
- * - Updated 2025-05-23: Added photo_validation_passed and main_photo fields
  * - Updated 2025-05-24: Standardized to camelCase for frontend usage
+ * - Updated 2025-05-27: Fixed missing RimPhotos interface export and field definitions
  */
 export interface CarListingFormData {
   id?: string;
@@ -47,6 +47,16 @@ export interface CarListingFormData {
   seatMaterial?: string;
   lastSaved?: string;
   
+  // Frontend photo field names in camelCase
+  frontView?: string;
+  rearView?: string;
+  driverSide?: string;
+  passengerSide?: string;
+  dashboard?: string;
+  interiorFront?: string;
+  interiorRear?: string;
+  odometer?: string;
+  
   // Additional fields for form usage
   damagePhotos?: string[];
   damageReports?: DamageReport[];
@@ -72,6 +82,13 @@ export interface CarListingFormData {
   // Added missing fields
   photoValidationPassed?: boolean;
   mainPhoto?: string;
+  
+  // Rim photos
+  rimPhotos?: RimPhotos;
+  
+  // UI validation fields
+  requiredPhotosComplete?: boolean;
+  created_at?: string;
 }
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -112,3 +129,49 @@ export interface ServiceHistoryFile {
   uploadedAt: string;
   uploadDate?: string; // Alternative property for compatibility
 }
+
+export interface RimPhotos {
+  frontLeft?: string;
+  frontRight?: string;
+  rearLeft?: string;
+  rearRight?: string;
+}
+
+/**
+ * Car Entity represents the database schema for car records
+ */
+export interface CarEntity {
+  id: string;
+  seller_id: string;
+  title: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  mileage: number;
+  transmission: 'manual' | 'automatic' | 'semi-automatic';
+  features: CarFeatures;
+  is_damaged: boolean;
+  is_registered_in_poland: boolean;
+  has_private_plate: boolean;
+  finance_amount: number | null;
+  service_history_type: 'none' | 'partial' | 'full';
+  seller_notes?: string;
+  seat_material?: string;
+  number_of_keys: number;
+  status: string;
+  auction_status?: string;
+  is_draft: boolean;
+  created_at: string;
+  updated_at: string;
+  vin?: string;
+  address?: string;
+  mobile_number?: string;
+  seller_name?: string;
+  additional_photos?: any[];
+  required_photos?: Record<string, string>;
+  form_metadata?: any;
+  valuation_data?: any;
+  reserve_price?: number;
+}
+

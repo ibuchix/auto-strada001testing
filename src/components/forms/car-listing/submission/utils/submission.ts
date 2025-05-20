@@ -14,10 +14,10 @@
  * - 2025-05-19: Updated to include required_photos in CarEntity
  * - 2025-05-20: Improved consolidation of photo fields and removed references to non-existent fields
  * - 2025-05-27: Updated to handle camelCase to snake_case conversion consistently
+ * - 2025-05-28: Fixed CarEntity import and field references
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
-import { toStringValue, toNumberValue } from "@/utils/typeConversion";
 import { consolidatePhotoFields } from "./photoProcessor";
 import { convertToBackendFields } from "@/utils/formFieldMapping";
 

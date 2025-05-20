@@ -1,46 +1,54 @@
 
 /**
- * Service History Type Selector Component
- * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
+ * ServiceHistoryTypeSelector Component
+ * Created: 2025-05-20
+ * Updated: 2025-05-28 - Updated to use camelCase field names consistently
  */
 
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UseFormReturn } from "react-hook-form";
+import React from "react";
+import { useFormContext } from "react-hook-form";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { FormControl, FormItem, FormLabel } from "@/components/ui/form";
 import { CarListingFormData } from "@/types/forms";
 
-interface ServiceHistoryTypeSelectorProps {
-  form: UseFormReturn<CarListingFormData>;
-}
+export const ServiceHistoryTypeSelector = () => {
+  const { register, setValue } = useFormContext<CarListingFormData>();
+  
+  const handleChange = (value: string) => {
+    setValue("serviceHistoryType", value, { shouldDirty: true });
+  };
 
-export const ServiceHistoryTypeSelector = ({ form }: ServiceHistoryTypeSelectorProps) => {
   return (
-    <FormField
-      control={form.control}
-      name="service_history_type"
-      render={({ field }) => (
-        <FormItem className="w-full">
-          <FormLabel>Service History Type</FormLabel>
-          <Select
-            value={field.value || ""}
-            onValueChange={field.onChange}
-          >
-            <FormControl>
-              <SelectTrigger>
-                <SelectValue placeholder="Select service history type" />
-              </SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              <SelectItem value="full">Full Service History</SelectItem>
-              <SelectItem value="partial">Partial Service History</SelectItem>
-              <SelectItem value="digital">Digital Service Records</SelectItem>
-              <SelectItem value="stamped">Service Book Stamps Only</SelectItem>
-              <SelectItem value="none">No Service History</SelectItem>
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
+    <FormItem className="space-y-3">
+      <FormLabel className="text-base">What type of service history does the vehicle have?</FormLabel>
+      <FormControl>
+        <RadioGroup
+          defaultValue="none"
+          className="flex flex-col space-y-2"
+          onValueChange={handleChange}
+          {...register("serviceHistoryType")}
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="full" id="full" />
+            <Label htmlFor="full" className="font-normal">
+              Full service history
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="partial" id="partial" />
+            <Label htmlFor="partial" className="font-normal">
+              Partial service history
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="none" id="none" />
+            <Label htmlFor="none" className="font-normal">
+              No service history
+            </Label>
+          </div>
+        </RadioGroup>
+      </FormControl>
+    </FormItem>
   );
 };
