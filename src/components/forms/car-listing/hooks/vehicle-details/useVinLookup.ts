@@ -9,14 +9,16 @@
  * - 2025-04-07: Added structured result data for better integration
  * - 2025-04-28: Fixed TypeScript typing issues between different VehicleData interfaces
  * - 2025-05-04: Added VIN reservation creation after successful validation
+ * - 2025-05-20: Fixed user ID retrieval to use direct Supabase session instead of localStorage
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { validateVin, VehicleData as ValidationVehicleData, isValidVinFormat } from "@/services/supabase/valuation/vinValidationService";
 import { getVehicleData, storeVehicleData, VehicleData as StorageVehicleData } from "@/services/vehicleDataService";
 import { reserveVin } from "@/services/vinReservationService";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useVinLookup = (form: UseFormReturn<CarListingFormData>) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -24,6 +26,62 @@ export const useVinLookup = (form: UseFormReturn<CarListingFormData>) => {
     // Initialize with any existing vehicle data
     return getVehicleData();
   });
+  const [sessionChecked, setSessionChecked] = useState(false);
+  
+  // Check if we have a session at initialization
+  useEffect(() => {
+    let mounted = true;
+    
+    const checkSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (mounted && data.session?.user?.id) {
+          // If user ID is not in localStorage but we have a valid session, store it
+          if (!localStorage.getItem('userId')) {
+            localStorage.setItem('userId', data.session.user.id);
+            console.log('User ID stored in localStorage from useVinLookup:', data.session.user.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking session in useVinLookup:', error);
+      } finally {
+        if (mounted) {
+          setSessionChecked(true);
+        }
+      }
+    };
+    
+    checkSession();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  
+  const getUserId = async (): Promise<string | null> => {
+    // First try to get from localStorage for performance
+    const localStorageUserId = localStorage.getItem('userId');
+    if (localStorageUserId) {
+      return localStorageUserId;
+    }
+    
+    // If not in localStorage, get directly from session
+    try {
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user?.id;
+      
+      if (userId) {
+        // Store for future use
+        localStorage.setItem('userId', userId);
+        return userId;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting user ID from session:', error);
+      return null;
+    }
+  };
   
   const handleVinLookup = async (vin: string) => {
     // First validate the VIN format
@@ -91,15 +149,19 @@ export const useVinLookup = (form: UseFormReturn<CarListingFormData>) => {
       
       // Now create a VIN reservation to ensure this VIN can be used when submitting the form
       console.log('Creating VIN reservation for:', vin);
-      const userId = localStorage.getItem('userId');
+      
+      // Get user ID directly from session - this is the key change to fix the issue
+      const userId = await getUserId();
       
       if (!userId) {
-        console.error('Cannot create VIN reservation: User ID not available');
+        console.error('Cannot create VIN reservation: User ID not available from session');
         toast.error("Cannot reserve VIN", {
-          description: "User ID not available. Please make sure you're logged in."
+          description: "User authentication issue. Please make sure you're logged in and refresh the page."
         });
         return vehicleData;
       }
+      
+      console.log('Creating VIN reservation with user ID:', userId);
       
       const reservationResult = await reserveVin(vin, userId, vehicleData);
       
@@ -134,6 +196,7 @@ export const useVinLookup = (form: UseFormReturn<CarListingFormData>) => {
   return {
     isLoading,
     storedVehicleData,
-    handleVinLookup
+    handleVinLookup,
+    sessionChecked
   };
 };

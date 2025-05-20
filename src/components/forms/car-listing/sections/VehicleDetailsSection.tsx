@@ -6,6 +6,7 @@
  * Updated: 2025-05-06 - Fixed TypeScript errors related to error handling and form props
  * Updated: 2025-05-18 - Fixed type errors for form value assignments
  * Updated: 2025-05-19 - Fixed TypeScript errors related to toString calls and React error #310
+ * Updated: 2025-05-20 - Enhanced VIN reservation with direct session access
  */
 
 import { useState, useEffect } from "react";
@@ -20,14 +21,16 @@ import { useVehicleDataManager } from "../hooks/vehicle-details/useVehicleDataMa
 import { getStoredValidationData } from "@/services/supabase/valuation/vinValidationService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FieldError } from "@/components/errors/FieldError";
+import { supabase } from "@/integrations/supabase/client";
 
 export const VehicleDetailsSection = () => {
   const { form } = useFormData();
-  const { isLoading, handleVinLookup } = useVinLookup(form);
+  const { isLoading, handleVinLookup, sessionChecked } = useVinLookup(form);
   const { hasVehicleData, applyVehicleDataToForm } = useVehicleDataManager(form);
   const [vin, setVin] = useState("");
   const [fromValuation, setFromValuation] = useState(false);
   const [valuationDataApplied, setValuationDataApplied] = useState(false);
+  const [waitingForSession, setWaitingForSession] = useState(true);
 
   // Get form values
   const currentVin = form.watch("vin");
@@ -38,8 +41,42 @@ export const VehicleDetailsSection = () => {
   const transmission = form.watch("transmission");
   const hasFormData = !!(make && model && year);
 
+  // Check if user session is available
+  useEffect(() => {
+    let mounted = true;
+    
+    const checkSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (mounted && data.session) {
+          setWaitingForSession(false);
+          console.log("Session available in VehicleDetailsSection:", !!data.session);
+        }
+      } catch (error) {
+        console.error("Error checking session in VehicleDetailsSection:", error);
+        if (mounted) {
+          setWaitingForSession(false);
+        }
+      }
+    };
+    
+    // Only check session if we're still waiting
+    if (waitingForSession) {
+      checkSession();
+    }
+    
+    return () => {
+      mounted = false;
+    };
+  }, [waitingForSession]);
+
   // Check if we're coming from valuation and have data
   useEffect(() => {
+    // Only proceed if session is available and we're not still loading
+    if (waitingForSession || !sessionChecked) {
+      return;
+    }
+    
     // Check if we have valuation data in localStorage
     const storedData = getStoredValidationData();
     const hasUrlParam = window.location.search.includes('from=valuation') || window.location.search.includes('fromValuation=true');
@@ -92,10 +129,11 @@ export const VehicleDetailsSection = () => {
       
       // Create VIN reservation automatically if coming from valuation
       if (storedData.vin) {
+        console.log("Creating VIN reservation from valuation data");
         handleVinLookup(storedData.vin);
       }
     }
-  }, [form, valuationDataApplied, hasFormData]);
+  }, [form, valuationDataApplied, hasFormData, waitingForSession, sessionChecked, handleVinLookup]);
   
   const handleVinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +141,18 @@ export const VehicleDetailsSection = () => {
       handleVinLookup(vin);
     }
   };
+
+  // Show loading state if we're still waiting for the session
+  if (waitingForSession) {
+    return (
+      <FormSection title="Vehicle Details" subtitle="Preparing vehicle details form...">
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-[#DC143C]" />
+          <span className="ml-2">Loading user session data...</span>
+        </div>
+      </FormSection>
+    );
+  }
 
   return (
     <FormSection title="Vehicle Details" subtitle="Enter your vehicle's basic information">
