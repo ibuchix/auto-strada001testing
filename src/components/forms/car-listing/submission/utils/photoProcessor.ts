@@ -8,9 +8,7 @@
  * Updated: 2025-05-20 - Updated to ensure odometer is properly validated as a required field
  * Updated: 2025-05-27 - Updated to handle camelCase to snake_case conversion consistently
  * Updated: 2025-06-24 - Fixed consolidation logic to properly handle both naming conventions
- * 
- * Transforms individual photo fields into the required_photos JSONB structure 
- * expected by the database schema.
+ * Updated: 2025-06-25 - Enhanced photo field processing with better debugging and checks
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -30,10 +28,18 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
   // Extract photo fields from formData into a new object
   const requiredPhotos: Record<string, string> = {};
   
+  // Log the starting state for debugging
+  console.log("Starting photo consolidation with:", {
+    hasRequiredPhotos: !!formData.requiredPhotos,
+    hasVehiclePhotos: !!formData.vehiclePhotos,
+    expectedFields: REQUIRED_PHOTO_FIELDS
+  });
+  
   // Start by checking if there's already a requiredPhotos object
   if (formData.requiredPhotos) {
     // Copy existing requiredPhotos
     Object.assign(requiredPhotos, formData.requiredPhotos);
+    console.log("Found existing requiredPhotos:", Object.keys(requiredPhotos));
   }
   
   // Then add or update with any individual fields
@@ -47,6 +53,7 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
       // Only add non-empty values to the photos object
       if (value && typeof value === 'string') {
         requiredPhotos[standardKey] = value;
+        console.log(`Adding field ${key} as ${standardKey}`);
       }
       
       // Remove individual field only if it's not a core property we need
@@ -58,10 +65,12 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
   
   // Add any fields from vehiclePhotos object if it exists
   if (formData.vehiclePhotos && typeof formData.vehiclePhotos === 'object') {
+    console.log("Processing vehiclePhotos:", Object.keys(formData.vehiclePhotos));
     Object.entries(formData.vehiclePhotos).forEach(([key, value]) => {
       if (value && typeof value === 'string') {
         const standardKey = standardizePhotoCategory(key);
         requiredPhotos[standardKey] = value;
+        console.log(`Adding from vehiclePhotos: ${key} as ${standardKey}`);
       }
     });
   }
@@ -73,6 +82,7 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
   const hasAllRequiredPhotos = REQUIRED_PHOTO_FIELDS.every(field => !!requiredPhotos[field]);
   if (hasAllRequiredPhotos) {
     updatedFormData.photoValidationPassed = true;
+    console.log("All required photos are present, marking validation as passed");
   }
   
   // Log the consolidation results with detailed information for debugging

@@ -3,6 +3,7 @@
  * Hook for photo upload handlers
  * Created: 2025-05-20
  * Updated: 2025-05-21 - Fixed type issue with PhotoUploadState
+ * Updated: 2025-06-25 - Fixed variable reference for interiorRear and function calls
  */
 
 import React from 'react';
@@ -119,8 +120,18 @@ export const usePhotoUploadHandlers = ({
       setPhotoField('interiorRear', uploaders.interiorRear.files[0].preview || '', form);
     }
     
-    // Update vehicle photos object
-    updateVehiclePhotos(form);
+    // Create a photo updates object for the updateVehiclePhotos function
+    const photoUpdates: Record<string, string> = {};
+    if (uploaders.frontView.files.length > 0) photoUpdates.frontView = uploaders.frontView.files[0].preview || '';
+    if (uploaders.rearView.files.length > 0) photoUpdates.rearView = uploaders.rearView.files[0].preview || '';
+    if (uploaders.driverSide.files.length > 0) photoUpdates.driverSide = uploaders.driverSide.files[0].preview || '';
+    if (uploaders.passengerSide.files.length > 0) photoUpdates.passengerSide = uploaders.passengerSide.files[0].preview || '';
+    if (uploaders.dashboard.files.length > 0) photoUpdates.dashboard = uploaders.dashboard.files[0].preview || '';
+    if (uploaders.interiorFront.files.length > 0) photoUpdates.interiorFront = uploaders.interiorFront.files[0].preview || '';
+    if (uploaders.interiorRear.files.length > 0) photoUpdates.interiorRear = uploaders.interiorRear.files[0].preview || '';
+    
+    // Update vehicle photos object with the collected updates
+    updateVehiclePhotos(form, photoUpdates);
     
     if (state.allRequiredUploaded) {
       state.setValidationError(null);

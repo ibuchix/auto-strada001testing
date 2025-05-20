@@ -2,6 +2,7 @@
 /**
  * Photo Helper Utilities
  * Created: 2025-06-24
+ * Updated: 2025-06-25 - Added setPhotoField and setRimPhotoField functions
  * 
  * Contains helper functions for handling photo uploads and field naming
  * to ensure consistent handling between camelCase and snake_case fields.
@@ -25,12 +26,57 @@ export const adaptTemporaryFileUploader = (uploader: any) => {
 };
 
 /**
+ * Sets a photo field in the form data
+ */
+export const setPhotoField = (
+  fieldName: string,
+  value: string,
+  form: UseFormReturn<CarListingFormData>
+) => {
+  // Set the direct field
+  form.setValue(fieldName, value, { shouldDirty: true });
+  
+  // Also update the vehiclePhotos object
+  const vehiclePhotos = form.getValues('vehiclePhotos') || {};
+  form.setValue('vehiclePhotos', {
+    ...vehiclePhotos,
+    [fieldName]: value
+  }, { shouldDirty: true });
+  
+  // And update the standardized field in requiredPhotos
+  const requiredPhotos = form.getValues('requiredPhotos') || {};
+  const standardizedName = standardizePhotoCategory(fieldName);
+  form.setValue('requiredPhotos', {
+    ...requiredPhotos,
+    [standardizedName]: value
+  }, { shouldDirty: true });
+};
+
+/**
+ * Sets a rim photo field in the form data
+ */
+export const setRimPhotoField = (
+  position: string,
+  value: string,
+  form: UseFormReturn<CarListingFormData>
+) => {
+  // Get existing rim photos or initialize an empty object
+  const rimPhotos = form.getValues('rimPhotos') || {};
+  
+  // Update the specified position
+  form.setValue('rimPhotos', {
+    ...rimPhotos,
+    [position]: value
+  }, { shouldDirty: true });
+};
+
+/**
  * Updates vehicle photos in the form, ensuring both camelCase and 
  * snake_case variants are set for compatibility
  */
 export const updateVehiclePhotos = (
   form: UseFormReturn<CarListingFormData>, 
-  photoUpdates: Record<string, string | null>
+  photoUpdates: Record<string, string | null | undefined> = {}
 ) => {
   // First, get existing vehicle photos
   const vehiclePhotos = form.getValues('vehiclePhotos') || {};
@@ -71,3 +117,4 @@ export const updateVehiclePhotos = (
   
   return allRequiredPhotos;
 };
+

@@ -1,3 +1,4 @@
+
 /**
  * Form Submit Handler Component
  * Created: 2025-05-12
@@ -11,6 +12,7 @@
  * Updated: 2025-06-20 - Fixed destructuring syntax error and added null checks
  * Updated: 2025-06-24 - Improved photo field validation using standardizePhotoCategory
  * Updated: 2025-06-24 - Enhanced error messages with better field name formatting
+ * Updated: 2025-06-25 - Added more detailed validation logs and improved error messaging
  */
 
 import React, { useState } from "react";
@@ -22,7 +24,7 @@ import { validateRequiredPhotos } from "./utils/photoValidator";
 import { prepareFormDataForSubmission } from "./utils/submission";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { standardizePhotoCategory } from "@/utils/photoMapping";
+import { standardizePhotoCategory, PHOTO_FIELD_MAP } from "@/utils/photoMapping";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -53,7 +55,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     );
   }
   
-  const { handleSubmit, formState } = formContext;
+  const { handleSubmit, formState, getValues } = formContext;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   
@@ -61,20 +63,36 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     try {
       setIsSubmitting(true);
       
+      console.log("Starting form submission validation...");
+      console.log("Form data for validation:", {
+        photoValidationPassed: formData.photoValidationPassed,
+        hasRequiredPhotos: !!formData.requiredPhotos,
+        requiredPhotosKeys: formData.requiredPhotos ? Object.keys(formData.requiredPhotos) : [],
+        hasVehiclePhotos: !!formData.vehiclePhotos,
+        vehiclePhotoKeys: formData.vehiclePhotos ? Object.keys(formData.vehiclePhotos) : []
+      });
+      
       // Validate that all required photos have been uploaded
       const missingPhotoFields = validateRequiredPhotos(formData);
       
       if (missingPhotoFields.length > 0) {
         // Format field names for user-friendly display
         const formattedFields = missingPhotoFields.map(field => {
-          // Convert snake_case to display format (e.g., "exterior_front" -> "Exterior Front")
-          return field
+          // Try to find a camelCase equivalent for better display
+          const camelKey = Object.entries(PHOTO_FIELD_MAP).find(([_, v]) => v === field)?.[0];
+          const displayName = camelKey || field;
+          
+          // Convert to display format (e.g., "exterior_front" -> "Exterior Front")
+          return displayName
             .replace(/_/g, ' ')
+            .replace(/([A-Z])/g, ' $1')
             .replace(/^./, str => str.toUpperCase())
-            .replace(/\s(.)/g, (_, c) => ' ' + c.toUpperCase());
+            .replace(/\s(.)/g, (_, c) => ' ' + c.toUpperCase())
+            .trim();
         });
         
         const errorMessage = `Missing required photos: ${formattedFields.join(', ')}`;
+        console.error("Validation failed:", errorMessage);
         
         if (showAlerts) {
           toast.error("Missing Required Photos", {

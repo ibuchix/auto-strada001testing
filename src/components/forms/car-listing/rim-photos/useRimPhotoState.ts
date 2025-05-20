@@ -2,6 +2,7 @@
 /**
  * Hook for managing rim photo state
  * Created: 2025-05-20
+ * Updated: 2025-06-25 - Fixed import for setRimPhotoField from photoHelpers
  */
 
 import { useState, useEffect } from 'react';
