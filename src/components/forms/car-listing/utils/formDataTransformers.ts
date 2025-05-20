@@ -5,8 +5,6 @@
  * Updated: 2025-06-22 - Fixed type conversions and field mappings
  * Added: 2025-06-23 - Added missing transformDbToFormData function
  * Updated: 2025-08-24 - Added explicit mapping for damagePhotos to additional_photos
- * Updated: 2025-05-04 - Removed has_finance field, using finance_amount to determine if there's finance
- * Updated: 2025-05-14 - Fixed financeAmount type handling to consistently use number
  * Updated: 2025-05-24 - Updated to convert between camelCase and snake_case at data boundaries
  */
 

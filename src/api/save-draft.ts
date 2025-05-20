@@ -8,12 +8,13 @@
  * - 2025-06-06: Fixed saveFormData import by implementing local version
  * - 2025-06-16: Fixed TypeScript errors with form_metadata and valuation_data
  * - 2025-07-22: Fixed type error with valuation_data property
- * - 2025-05-20: Updated to include last_saved field in database records
+ * - 2025-05-24: Updated to use camelCase field names in frontend and transformers for database
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { apiClient } from "@/services/api/apiClientService";
 import { supabase } from "@/integrations/supabase/client";
+import { transformFormToDb } from "@/utils/dbTransformers";
 
 interface SaveDraftRequest {
   formData: CarListingFormData;
@@ -30,26 +31,26 @@ const saveFormData = async (
   carId?: string
 ) => {
   try {
-    // Set last_saved to current timestamp if not provided
-    if (!formData.last_saved) {
-      formData.last_saved = new Date().toISOString();
+    // Set lastSaved to current timestamp if not provided
+    if (!formData.lastSaved) {
+      formData.lastSaved = new Date().toISOString();
     }
     
-    // Enhanced form data with metadata
-    const enhancedData = {
+    // Transform data to snake_case for database insertion
+    const dbData = transformFormToDb({
       ...formData,
-      seller_id: userId,
-      is_draft: true,
-      valuation_data: valuationData || null,
-      updated_at: new Date().toISOString()
-    };
+      sellerId: userId,
+      isDraft: true,
+      valuationData: valuationData || null,
+    });
     
     // Save to database
     const { data, error } = await supabase
       .from('cars')
       .upsert({
         ...(carId ? { id: carId } : {}),
-        ...enhancedData
+        ...dbData,
+        updated_at: new Date().toISOString()
       })
       .select('id')
       .single();
@@ -70,14 +71,14 @@ export async function saveDraft(request: SaveDraftRequest) {
   
   try {
     // Extract valuation data if available
-    const valuationData = formData.valuation_data || {};
+    const valuationData = formData.valuationData || {};
     
     // Add metadata about form state
     const enhancedFormData = {
       ...formData,
-      last_saved: new Date().toISOString(),
-      form_metadata: {
-        ...(formData.form_metadata || {}),
+      lastSaved: new Date().toISOString(),
+      formMetadata: {
+        ...(formData.formMetadata || {}),
         currentStep,
         lastSavedAt: new Date().toISOString()
       }

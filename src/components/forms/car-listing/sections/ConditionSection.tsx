@@ -4,6 +4,7 @@
  * Created: 2025-06-20 - Added initial implementation
  * Updated: 2025-05-21 - Updated field names to use snake_case to match database schema
  * Updated: 2025-05-22 - Fixed remaining field names to use snake_case
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  * 
  * Allows the user to select the vehicle's condition and service history
  */
@@ -20,21 +21,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export const ConditionSection = () => {
   const { form } = useFormData();
   const [showServiceDocuments, setShowServiceDocuments] = useState(
-    form.watch('has_service_history') === true
+    form.watch('hasServiceHistory') === true
   );
   
   const handleServiceHistoryChange = (checked: boolean) => {
-    form.setValue('has_service_history', checked, { shouldValidate: true });
+    form.setValue('hasServiceHistory', checked, { shouldValidate: true });
     setShowServiceDocuments(checked);
     
     if (!checked) {
-      form.setValue('service_history_type', 'none', { shouldValidate: true });
-      form.setValue('service_history_files', [], { shouldValidate: true });
+      form.setValue('serviceHistoryType', 'none', { shouldValidate: true });
+      form.setValue('serviceHistoryFiles', [], { shouldValidate: true });
     }
   };
 
   const handleServiceHistoryTypeChange = (value: string) => {
-    form.setValue('service_history_type', value as 'full' | 'partial' | 'none', { shouldValidate: true });
+    form.setValue('serviceHistoryType', value as 'full' | 'partial' | 'none', { shouldValidate: true });
   };
 
   return (
@@ -50,12 +51,12 @@ export const ConditionSection = () => {
           <div className="space-y-4">
             <div className="flex items-start space-x-2">
               <Checkbox
-                id="has_service_history"
-                checked={form.watch('has_service_history')}
+                id="hasServiceHistory"
+                checked={form.watch('hasServiceHistory')}
                 onCheckedChange={handleServiceHistoryChange}
               />
               <div className="grid gap-1.5">
-                <Label htmlFor="has_service_history" className="font-medium">
+                <Label htmlFor="hasServiceHistory" className="font-medium">
                   This vehicle has service history
                 </Label>
                 <p className="text-sm text-muted-foreground">
@@ -70,7 +71,7 @@ export const ConditionSection = () => {
               <FormItem>
                 <FormLabel>Type of service history</FormLabel>
                 <Select
-                  value={form.watch('service_history_type') || 'none'}
+                  value={form.watch('serviceHistoryType') || 'none'}
                   onValueChange={handleServiceHistoryTypeChange}
                 >
                   <SelectTrigger>
@@ -85,7 +86,7 @@ export const ConditionSection = () => {
                 <FormMessage />
               </FormItem>
 
-              {(form.watch('service_history_type') === 'full' || form.watch('service_history_type') === 'partial') && (
+              {(form.watch('serviceHistoryType') === 'full' || form.watch('serviceHistoryType') === 'partial') && (
                 <ServiceHistoryUploader />
               )}
             </div>
