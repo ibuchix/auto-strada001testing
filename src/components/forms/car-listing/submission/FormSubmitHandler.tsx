@@ -1,4 +1,3 @@
-
 /**
  * Form Submit Handler Component
  * Created: 2025-05-12
@@ -10,6 +9,8 @@
  * Updated: 2025-05-30 - Fixed import for router and loading spinner
  * Updated: 2025-05-31 - Fixed imports and resolved build errors
  * Updated: 2025-06-20 - Fixed destructuring syntax error and added null checks
+ * Updated: 2025-06-24 - Improved photo field validation using standardizePhotoCategory
+ * Updated: 2025-06-24 - Enhanced error messages with better field name formatting
  */
 
 import React, { useState } from "react";
@@ -21,7 +22,7 @@ import { validateRequiredPhotos } from "./utils/photoValidator";
 import { prepareFormDataForSubmission } from "./utils/submission";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { convertToBackendFields } from "@/utils/formFieldMapping";
+import { standardizePhotoCategory } from "@/utils/photoMapping";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -66,10 +67,11 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       if (missingPhotoFields.length > 0) {
         // Format field names for user-friendly display
         const formattedFields = missingPhotoFields.map(field => {
-          // Convert camelCase to display format (e.g., "exteriorFront" -> "Exterior Front")
+          // Convert snake_case to display format (e.g., "exterior_front" -> "Exterior Front")
           return field
-            .replace(/([A-Z])/g, ' $1')
-            .replace(/^./, str => str.toUpperCase());
+            .replace(/_/g, ' ')
+            .replace(/^./, str => str.toUpperCase())
+            .replace(/\s(.)/g, (_, c) => ' ' + c.toUpperCase());
         });
         
         const errorMessage = `Missing required photos: ${formattedFields.join(', ')}`;
@@ -81,7 +83,6 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         }
         
         // Update form validation status
-        // We need to use the camelCase version of the field for the form
         setIsSubmitting(false);
         return false;
       }

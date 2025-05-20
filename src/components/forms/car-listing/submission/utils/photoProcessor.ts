@@ -7,6 +7,7 @@
  * Updated: 2025-05-23 - Enhanced validation with detailed debugging and error messages
  * Updated: 2025-05-20 - Updated to ensure odometer is properly validated as a required field
  * Updated: 2025-05-27 - Updated to handle camelCase to snake_case conversion consistently
+ * Updated: 2025-06-24 - Fixed consolidation logic to properly handle both naming conventions
  * 
  * Transforms individual photo fields into the required_photos JSONB structure 
  * expected by the database schema.
@@ -41,15 +42,17 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
     // Only process if the key is a known photo field or matches PHOTO_FIELD_MAP
     const standardKey = standardizePhotoCategory(key);
     if (PHOTO_FIELD_MAP[key] || Object.values(PHOTO_FIELD_MAP).includes(key)) {
-      const value = formData[key];
+      const value = formData[key as keyof typeof formData];
       
       // Only add non-empty values to the photos object
       if (value && typeof value === 'string') {
         requiredPhotos[standardKey] = value;
       }
       
-      // Remove the individual field from the updated form data
-      delete updatedFormData[key];
+      // Remove individual field only if it's not a core property we need
+      if (!['requiredPhotos', 'photoValidationPassed', 'requiredPhotosComplete'].includes(key)) {
+        delete (updatedFormData as any)[key];
+      }
     }
   });
   
@@ -66,6 +69,12 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
   // Add the consolidated requiredPhotos field to the updated form data
   updatedFormData.requiredPhotos = requiredPhotos;
   
+  // Auto-set photoValidationPassed if all required photos are present
+  const hasAllRequiredPhotos = REQUIRED_PHOTO_FIELDS.every(field => !!requiredPhotos[field]);
+  if (hasAllRequiredPhotos) {
+    updatedFormData.photoValidationPassed = true;
+  }
+  
   // Log the consolidation results with detailed information for debugging
   console.log("Photo field consolidation:", {
     originalKeys: Object.keys(formData).filter(k => 
@@ -74,7 +83,7 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
     ),
     consolidatedKeys: Object.keys(requiredPhotos),
     requiredFields: REQUIRED_PHOTO_FIELDS,
-    hasAllRequired: REQUIRED_PHOTO_FIELDS.every(field => !!requiredPhotos[field]),
+    hasAllRequired: hasAllRequiredPhotos,
     detailedMapping: REQUIRED_PHOTO_FIELDS.map(field => ({
       field,
       present: !!requiredPhotos[field],
@@ -96,35 +105,18 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
 };
 
 /**
- * Validates that all required photo fields are present
- * @returns Empty array if valid, otherwise array of missing field names
+ * Processes photo fields in the formData to prepare for submission
+ * Extracts and organizes photos according to their type
  */
-export const validateRequiredPhotos = (formData: CarListingFormData): string[] => {
-  // First consolidate the photo fields to ensure we're working with standardized data
+export const processPhotosForSubmission = (formData: CarListingFormData): { 
+  requiredPhotos: Record<string, string>;
+  additionalPhotos: string[];
+} => {
   const { requiredPhotos } = consolidatePhotoFields(formData);
+  const additionalPhotos = formData.uploadedPhotos || [];
   
-  // Check which required fields are missing
-  const missingFields = REQUIRED_PHOTO_FIELDS.filter(
-    field => !requiredPhotos[field]
-  );
-  
-  // Log detailed validation results
-  console.log("Photo validation results:", {
-    requiredFields: REQUIRED_PHOTO_FIELDS,
-    presentFields: Object.keys(requiredPhotos),
-    missingFields,
-    formDataFields: Object.keys(formData).filter(k => 
-      k.includes('photo') || 
-      k.includes('interior') || 
-      k.includes('exterior') || 
-      k === 'dashboard' || 
-      k === 'odometer'
-    ),
-    hasRequiredPhotosObject: !!formData.requiredPhotos,
-    vehiclePhotosPresent: !!formData.vehiclePhotos,
-    odometerPresent: !!requiredPhotos['odometer'] || 
-      !!(formData.vehiclePhotos && formData.vehiclePhotos.odometer)
-  });
-  
-  return missingFields;
+  return {
+    requiredPhotos,
+    additionalPhotos
+  };
 };

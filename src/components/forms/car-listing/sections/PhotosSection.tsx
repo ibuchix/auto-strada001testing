@@ -1,3 +1,4 @@
+
 /**
  * Photos Upload Section Component
  * Created: 2025-06-17
@@ -11,6 +12,7 @@
  * Updated: 2025-05-27 - Fixed field naming to use camelCase consistently
  * Updated: 2025-05-28 - Fixed field references for requiredPhotosComplete
  * Updated: 2025-05-30 - Updated to use consistent API for photo helper functions
+ * Updated: 2025-06-24 - Fixed photo field mapping to handle both camelCase and snake_case formats
  */
 
 import { useState, useEffect } from "react";
@@ -21,10 +23,10 @@ import { useFormData } from "../context/FormDataContext";
 import { useTemporaryFileUpload } from "@/hooks/useTemporaryFileUpload";
 import { RequiredPhotosGrid } from "../photo-upload/RequiredPhotosGrid";
 import { adaptTemporaryFileUploader, updateVehiclePhotos } from "../utilities/photoHelpers";
-import { PhotoSection } from "../photo-upload/components/PhotoSection";
 import { RimPhotosSection } from "../RimPhotosSection";
 import { DamagePhotosSection } from "./DamagePhotosSection";
 import { SafeFormWrapper } from "../SafeFormWrapper";
+import { REQUIRED_PHOTO_FIELDS, standardizePhotoCategory } from "@/utils/photoMapping";
 
 export const PhotosSection = ({ carId }: { carId?: string }) => {
   const [allPhotosUploaded, setAllPhotosUploaded] = useState(false);
@@ -79,7 +81,6 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
           maxFiles: 1
         });
         
-        // Add odometer uploader to match required fields
         const odometer = useTemporaryFileUpload({
           category: 'odometer',
           allowMultiple: false,
@@ -96,8 +97,8 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
         // Update form data when files change
         useEffect(() => {
           try {
-            // Update form values with current photo files
-            const vehiclePhotos = {
+            // Build an object with the vehicle photos
+            const vehiclePhotoUpdates = {
               frontView: frontView.files.length > 0 ? frontView.files[0].preview || '' : undefined,
               rearView: rearView.files.length > 0 ? rearView.files[0].preview || '' : undefined,
               driverSide: driverSide.files.length > 0 ? driverSide.files[0].preview || '' : undefined,
@@ -108,37 +109,35 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
               odometer: odometer.files.length > 0 ? odometer.files[0].preview || '' : undefined,
             };
             
-            form.setValue("vehiclePhotos", vehiclePhotos, { shouldDirty: true });
-            
-            // Also set individual fields for compatibility
-            if (frontView.files.length > 0) form.setValue("frontView", frontView.files[0].preview || '');
-            if (rearView.files.length > 0) form.setValue("rearView", rearView.files[0].preview || '');
-            if (driverSide.files.length > 0) form.setValue("driverSide", driverSide.files[0].preview || '');
-            if (passengerSide.files.length > 0) form.setValue("passengerSide", passengerSide.files[0].preview || '');
-            if (dashboard.files.length > 0) form.setValue("dashboard", dashboard.files[0].preview || '');
-            if (interiorFront.files.length > 0) form.setValue("interiorFront", interiorFront.files[0].preview || '');
-            if (interiorRear.files.length > 0) form.setValue("interiorRear", interiorRear.files[0].preview || '');
-            if (odometer.files.length > 0) form.setValue("odometer", odometer.files[0].preview || '');
+            // Update both camelCase and snake_case fields
+            updateVehiclePhotos(form, vehiclePhotoUpdates).then((allUploaded) => {
+              setAllPhotosUploaded(!!allUploaded);
+              form.setValue('requiredPhotosComplete', !!allUploaded, { shouldDirty: true });
+              
+              // Also set individual direct fields for legacy compatibility
+              if (frontView.files.length > 0) 
+                form.setValue("frontView", frontView.files[0].preview || '');
+              if (rearView.files.length > 0) 
+                form.setValue("rearView", rearView.files[0].preview || '');
+              if (driverSide.files.length > 0) 
+                form.setValue("driverSide", driverSide.files[0].preview || '');
+              if (passengerSide.files.length > 0) 
+                form.setValue("passengerSide", passengerSide.files[0].preview || '');
+              if (dashboard.files.length > 0) 
+                form.setValue("dashboard", dashboard.files[0].preview || '');
+              if (interiorFront.files.length > 0) 
+                form.setValue("interiorFront", interiorFront.files[0].preview || '');
+              if (interiorRear.files.length > 0) 
+                form.setValue("interiorRear", interiorRear.files[0].preview || '');
+              if (odometer.files.length > 0) 
+                form.setValue("odometer", odometer.files[0].preview || '');
+            });
             
             // Add any additional photos to uploadedPhotos array
             if (additionalPhotos.files.length > 0) {
               form.setValue("uploadedPhotos", additionalPhotos.files.map(f => f.preview || ''));
             }
             
-            // Check if all required photos are uploaded
-            const requiredUploaded = 
-              frontView.files.length > 0 &&
-              rearView.files.length > 0 &&
-              driverSide.files.length > 0 &&
-              passengerSide.files.length > 0 &&
-              dashboard.files.length > 0 &&
-              interiorFront.files.length > 0 &&
-              odometer.files.length > 0; // Added odometer to required check
-              
-            setAllPhotosUploaded(requiredUploaded);
-            
-            // Update the requiredPhotosComplete field for form validation
-            form.setValue('requiredPhotosComplete', requiredUploaded, { shouldDirty: true });
           } catch (error) {
             console.error("Error updating form with photos:", error);
             setUploadError("Failed to update form with photos");
@@ -151,9 +150,34 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
           dashboard.files,
           interiorFront.files,
           interiorRear.files,
-          odometer.files, // Added odometer to dependency array
+          odometer.files,
           additionalPhotos.files,
           form
+        ]);
+        
+        // Log validation state when photos change
+        useEffect(() => {
+          console.log("Photo validation state:", {
+            frontView: !!frontView.files.length, 
+            rearView: !!rearView.files.length,
+            driverSide: !!driverSide.files.length,
+            passengerSide: !!passengerSide.files.length,
+            dashboard: !!dashboard.files.length,
+            interiorFront: !!interiorFront.files.length,
+            interiorRear: !!interiorRear.files.length,
+            odometer: !!odometer.files.length,
+            allPhotosUploaded
+          });
+        }, [
+          frontView.files,
+          rearView.files,
+          driverSide.files,
+          passengerSide.files,
+          dashboard.files,
+          interiorFront.files,
+          interiorRear.files,
+          odometer.files,
+          allPhotosUploaded
         ]);
         
         return (

@@ -5,6 +5,7 @@
  * - 2025-04-05: Handles validation, saving, and error management
  * - 2025-05-23: Updated to use type-safe form helpers
  * - 2025-05-24: Updated to use camelCase consistently
+ * - 2025-06-24: Updated to use standardizePhotoCategory for consistent field mapping
  */
 import { useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
@@ -12,6 +13,7 @@ import { PhotoUploadError } from '../types';
 import { toast } from 'sonner';
 import { CarListingFormData } from '@/types/forms';
 import { watchField, setFieldValue, getFieldValue } from '@/utils/formHelpers';
+import { standardizePhotoCategory } from '@/utils/photoMapping';
 
 interface UsePhotoUploadSectionProps {
   form: UseFormReturn<CarListingFormData>;
@@ -69,7 +71,21 @@ export const usePhotoUploadSection = ({
       // Any additional processing...
       
       // Return the file URL if successful
-      return "https://example.com/photo.jpg";
+      const mockUrl = "https://example.com/photo.jpg";
+      
+      // Since this is a successful upload, also update the requiredPhotos object in the form
+      const requiredPhotos = getFieldValue<Record<string, string>>(form, 'requiredPhotos') || {};
+      const standardizedType = standardizePhotoCategory(type);
+      
+      // Add photo to requiredPhotos object using the standardized name
+      setFieldValue(form, 'requiredPhotos', {
+        ...requiredPhotos,
+        [standardizedType]: mockUrl
+      }, {
+        shouldDirty: true
+      });
+      
+      return mockUrl;
     } catch (error) {
       console.error("Error selecting file:", error);
       return null;
