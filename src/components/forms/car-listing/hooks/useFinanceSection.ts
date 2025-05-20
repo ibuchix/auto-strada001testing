@@ -4,8 +4,9 @@
  * - Created custom hook for Finance Details section
  * - Encapsulated finance data validation and state management
  * - Implemented document upload and preview functionality
- * - 2025-05-14 - Updated to handle finance_amount as a number instead of string
+ * - 2025-05-14 - Updated to handle financeAmount as a number instead of string
  * - 2025-05-20 - Updated field names to use snake_case to match database schema
+ * - 2025-05-24 - Updated to use camelCase field names consistently for frontend
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -17,8 +18,8 @@ export const useFinanceSection = (form: UseFormReturn<CarListingFormData>) => {
   const [isUploading, setIsUploading] = useState(false);
   const [documentPreviewUrl, setDocumentPreviewUrl] = useState<string | null>(null);
   
-  const hasOutstandingFinance = form.watch("has_outstanding_finance");
-  const financeDocument = form.watch("finance_document");
+  const hasOutstandingFinance = form.watch("hasOutstandingFinance");
+  const financeDocument = form.watch("financeDocument");
   
   // Update preview URL when document changes
   useEffect(() => {
@@ -62,7 +63,7 @@ export const useFinanceSection = (form: UseFormReturn<CarListingFormData>) => {
       }
       
       // Update form with document info
-      form.setValue('finance_document', previewUrl || 'document-uploaded', { shouldValidate: true });
+      form.setValue('financeDocument', previewUrl || 'document-uploaded', { shouldValidate: true });
       
       toast.success('Finance document uploaded successfully');
       return true;
@@ -77,7 +78,7 @@ export const useFinanceSection = (form: UseFormReturn<CarListingFormData>) => {
   
   // Remove uploaded document
   const removeDocument = useCallback(() => {
-    form.setValue('finance_document', null, { shouldValidate: true });
+    form.setValue('financeDocument', null, { shouldValidate: true });
     setDocumentPreviewUrl(null);
     toast.success('Finance document removed');
   }, [form]);
@@ -103,20 +104,20 @@ export const useFinanceSection = (form: UseFormReturn<CarListingFormData>) => {
   const validateFinanceSection = useCallback(() => {
     if (!hasOutstandingFinance) return true;
     
-    const { finance_amount, finance_provider } = form.getValues();
+    const { financeAmount, financeProvider } = form.getValues();
     let isValid = true;
     
     // Check required fields
-    if (finance_amount === null || finance_amount === undefined) {
-      form.setError('finance_amount', {
+    if (financeAmount === null || financeAmount === undefined) {
+      form.setError('financeAmount', {
         type: 'required',
         message: 'Please enter the outstanding finance amount'
       });
       isValid = false;
     }
     
-    if (!finance_provider) {
-      form.setError('finance_provider', {
+    if (!financeProvider) {
+      form.setError('financeProvider', {
         type: 'required',
         message: 'Please select your finance provider'
       });

@@ -1,7 +1,7 @@
 
 /**
  * Form Helper Hooks
- * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-24 - Updated field names to use camelCase consistently for frontend
  */
 
 import { DEFAULT_VALUES } from "../constants/defaultValues";
@@ -13,18 +13,18 @@ export const getInitialFormValues = (): Partial<CarListingFormData> => {
     ...DEFAULT_VALUES,
     // Ensure proper typing for enum values
     transmission: DEFAULT_VALUES.transmission as "manual" | "automatic" | "semi-automatic",
-    service_history_type: DEFAULT_VALUES.service_history_type as "full" | "partial" | "none"
+    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType as "full" | "partial" | "none"
   };
 };
 
 // Function to get form defaults with default values
 export const getFormDefaults = (): Partial<CarListingFormData> => {
   return {
-    is_selling_on_behalf: false,
-    has_service_history: false,
-    has_private_plate: false,
-    has_outstanding_finance: false,
-    is_damaged: false,
+    isSellingOnBehalf: false,
+    hasServiceHistory: false,
+    hasPrivatePlate: false,
+    hasOutstandingFinance: false,
+    isDamaged: false,
     make: "",
     model: "",
     year: new Date().getFullYear(),
@@ -50,8 +50,8 @@ export const getFormDefaults = (): Partial<CarListingFormData> => {
       adaptiveCruiseControl: false,
       laneDepartureWarning: false
     },
-    seller_id: "",
-    service_history_type: "none" as "none" | "partial" | "full",
-    from_valuation: false
+    sellerId: "",
+    serviceHistoryType: "none" as "none" | "partial" | "full",
+    fromValuation: false
   };
 };

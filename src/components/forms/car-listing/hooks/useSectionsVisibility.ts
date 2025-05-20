@@ -5,6 +5,7 @@
  * - 2028-06-10: Enhanced with dynamic section visibility based on form state
  * - 2025-04-03: Updated to support consolidated 3-step form structure
  * - 2025-05-20: Updated field names to use snake_case to match database schema
+ * - 2025-05-24: Updated to use camelCase field names consistently for frontend
  */
 
 import { useEffect, useState } from "react";
@@ -23,27 +24,27 @@ export const useSectionsVisibility = (
   const [visibleSections, setVisibleSections] = useState<string[]>([]);
   
   // Watch relevant form fields that affect section visibility
-  const is_damaged = useWatch({
+  const isDamaged = useWatch({
     control: form.control,
-    name: "is_damaged",
+    name: "isDamaged",
     defaultValue: false
   });
   
-  const has_outstanding_finance = useWatch({
+  const hasOutstandingFinance = useWatch({
     control: form.control,
-    name: "has_outstanding_finance",
+    name: "hasOutstandingFinance",
     defaultValue: false
   });
   
-  const has_warning_lights = useWatch({
+  const hasWarningLights = useWatch({
     control: form.control,
-    name: "has_warning_lights",
+    name: "hasWarningLights",
     defaultValue: false
   });
   
-  const is_registered_in_poland = useWatch({
+  const isRegisteredInPoland = useWatch({
     control: form.control,
-    name: "is_registered_in_poland",
+    name: "isRegisteredInPoland",
     defaultValue: true
   });
   
@@ -67,28 +68,28 @@ export const useSectionsVisibility = (
     const conditionalSections = [];
     
     // Only show damage section if the vehicle is damaged
-    if (is_damaged) {
+    if (isDamaged) {
       conditionalSections.push('damage');
     }
     
     // Only show warning lights section if there are warning lights
-    if (has_warning_lights) {
+    if (hasWarningLights) {
       conditionalSections.push('warning-lights');
     }
     
     // Only show finance details if there's finance on the vehicle
-    if (has_outstanding_finance) {
+    if (hasOutstandingFinance) {
       conditionalSections.push('finance-details');
     }
     
     // Only require rim photos if registered in Poland
-    if (is_registered_in_poland) {
+    if (isRegisteredInPoland) {
       conditionalSections.push('rims');
     }
     
     // Combine all visible sections
     setVisibleSections([...baseSections, ...conditionalSections]);
-  }, [is_damaged, has_outstanding_finance, has_warning_lights, is_registered_in_poland, carId]);
+  }, [isDamaged, hasOutstandingFinance, hasWarningLights, isRegisteredInPoland, carId]);
   
   // Compute the total number of steps (always 3 in this consolidated structure)
   const activeSteps = formSteps.filter(step => {

@@ -1,33 +1,42 @@
 
 /**
- * Form Container Component
- * Updated: 2025-05-20 - Fixed FormSectionRenderer props
+ * FormContainer Component
+ * Updated: 2025-05-24 - Fixed FormSectionRenderer props
  */
 
 import React from "react";
+import { FormSection } from "../FormSection";
+import { FormStepHeader } from "./FormStepHeader";
 import { FormSectionRenderer } from "./FormSectionRenderer";
+import { formSteps } from "../constants/formSteps";
 
 interface FormContainerProps {
-  sectionId?: string;
   carId?: string;
-  step?: number;
-  activeSections?: string[];
+  currentStep: number;
+  activeSections: string[];
 }
 
-export const FormContainer: React.FC<FormContainerProps> = ({
-  sectionId,
+export const FormContainer = ({
   carId,
-  activeSections = [],
-  step = 1
-}) => {
+  currentStep,
+  activeSections
+}: FormContainerProps) => {
+  // Get the current step's sections
+  const currentStepData = formSteps[currentStep - 1] || formSteps[0];
+  
+  // Filter out sections that should be active
+  const visibleSections = currentStepData.sections.filter(section => 
+    activeSections.includes(section.name)
+  );
+  
   return (
-    <div className="space-y-4">
-      <FormSectionRenderer 
-        sectionId={sectionId} 
-        carId={carId} 
-        activeSections={activeSections}
-        step={step}
+    <div className="space-y-8">
+      <FormStepHeader 
+        title={currentStepData.title}
+        description={currentStepData.description}
       />
+      
+      <FormSectionRenderer sections={visibleSections} />
     </div>
   );
 };

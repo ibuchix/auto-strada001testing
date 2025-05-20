@@ -2,14 +2,15 @@
 /**
  * Hook for providing form defaults
  * Created: 2025-07-26
- * Updated: 2025-07-27 - Fixed type issues with transmission and service_history_type
+ * Updated: 2025-07-27 - Fixed type issues with transmission and serviceHistoryType
  * Updated: 2025-05-03 - Updated DEFAULT_VALUES to use proper typed values
  * Updated: 2025-05-04 - Fixed TypeScript errors with type assertions for enums
  * Updated: 2025-05-05 - Fixed type compatibility with transmission field 
- * Updated: 2025-05-06 - Fixed service_history_type type compatibility issue
+ * Updated: 2025-05-06 - Fixed serviceHistoryType type compatibility issue
  * Updated: 2025-05-07 - Added explicit type casting for enum values
  * Updated: 2025-08-01 - Enhanced valuation data handling for strict price enforcement
  * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-24 - Updated to consistently use camelCase field names for frontend
  * Handles default values and loading valuation data
  */
 
@@ -23,7 +24,7 @@ export const getInitialFormValues = (): Partial<CarListingFormData> => {
     ...DEFAULT_VALUES,
     // Ensure proper typing for enum values
     transmission: DEFAULT_VALUES.transmission as "manual" | "automatic" | "semi-automatic",
-    service_history_type: DEFAULT_VALUES.service_history_type as "full" | "partial" | "none"
+    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType as "full" | "partial" | "none"
   };
 };
 
@@ -35,7 +36,7 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
     ...DEFAULT_VALUES,
     // Ensure proper typing for enum values
     transmission: DEFAULT_VALUES.transmission as "manual" | "automatic" | "semi-automatic",
-    service_history_type: DEFAULT_VALUES.service_history_type as "full" | "partial" | "none"
+    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType as "full" | "partial" | "none"
   });
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
             transmissionValue = valuationData.transmission as "manual" | "automatic" | "semi-automatic";
           }
 
-          // Ensure service_history_type is a valid enum value
+          // Ensure serviceHistoryType is a valid enum value
           const serviceHistoryValue: "full" | "partial" | "none" = 
             (valuationData.service_history_type === "full" || 
              valuationData.service_history_type === "partial") ? 
@@ -78,23 +79,23 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
           // Set default values based on valuation data
           const valuationDefaults: Partial<CarListingFormData> = {
             ...DEFAULT_VALUES,
-            from_valuation: true,
-            valuation_data: valuationData,
+            fromValuation: true,
+            valuationData: valuationData,
             make: valuationData.make || '',
             model: valuationData.model || '',
             year: valuationData.year || new Date().getFullYear(),
             mileage: valuationData.mileage || 0,
             vin: valuationData.vin || '',
             price: valuationPrice,
-            reserve_price: reservePriceValue,
+            reservePrice: reservePriceValue,
             // Ensure proper typing for enum values
             transmission: transmissionValue,
-            service_history_type: serviceHistoryValue
+            serviceHistoryType: serviceHistoryValue
           };
 
           console.log("Setting form defaults with prices:", {
             price: valuationPrice,
-            reserve_price: reservePriceValue
+            reservePrice: reservePriceValue
           });
 
           setDefaults(valuationDefaults);
