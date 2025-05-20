@@ -9,6 +9,7 @@
  * - 2025-05-31: Fixed cross-origin messaging issues and reduced render count
  * - 2025-05-13: Added explicit null check for auth session and error logging
  * - 2025-05-17: Added better error handling for cross-origin messaging
+ * - 2025-06-20: Fixed destructuring error by directly accessing auth properties
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -43,8 +44,10 @@ const SellMyCar = () => {
     timestamp: Date.now()
   });
 
-  // Get auth information
-  const { session, isLoading: isAuthLoading } = useAuth();
+  // Get auth information - use null check pattern
+  const auth = useAuth();
+  const session = auth?.session;
+  const isAuthLoading = auth?.isLoading || false;
 
   // Store initialization state in ref to prevent loops
   const initCompletedRef = useRef(false);

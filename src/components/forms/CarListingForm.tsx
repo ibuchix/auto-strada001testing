@@ -19,10 +19,11 @@
  * - 2025-05-19: Updated FormSubmissionProvider to use correct props (formId -> userId)
  * - 2025-05-26: Fixed FormStateProvider import to use car-listing specific provider
  * - 2025-06-07: Enhanced session null handling and added defensive checks
+ * - 2025-06-20: Fixed destructuring issues by improving safe initialization and guards
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/AuthProvider"; // Import from the correct location
 import { useLocation, useSearchParams } from "react-router-dom";
 import { FormSubmissionProvider } from "./car-listing/submission/FormSubmissionProvider";
 import { FormContent } from "./car-listing/FormContent";
@@ -43,7 +44,10 @@ interface CarListingFormProps {
 }
 
 export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) => {
-  const { session, isLoading: isSessionLoading } = useAuth();
+  // Make sure we're using the correct useAuth implementation
+  const auth = useAuth();
+  const { session, isLoading: isSessionLoading } = auth || { session: null, isLoading: true };
+  
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const locationDraftId = location.state?.draftId;
@@ -70,15 +74,18 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
                           !!location.state?.fromValuation ||
                           !!localStorage.getItem('valuationData');
 
+  // Set ready state after a delay to ensure auth is initialized
   useEffect(() => {
-    // Set ready state after a short delay to ensure we have session data
-    // This helps prevent context errors with React hooks
     const timer = setTimeout(() => {
+      console.log('[CarListingForm] Setting ready state', { 
+        hasSession: !!session, 
+        isLoading: isSessionLoading 
+      });
       setIsReady(true);
-    }, 200);
+    }, 500); // Longer delay to ensure auth is loaded
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [session, isSessionLoading]);
 
   const handleDraftError = useCallback((error: Error) => {
     console.error("Draft loading error:", error);
@@ -90,13 +97,22 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
     setRetryCount(prev => prev + 1);
   }, []);
 
-  // Show loading indicator while session is loading
-  if (isSessionLoading) {
+  // Show loading indicator while auth is initializing
+  if (isSessionLoading || !isReady) {
     return <LoadingIndicator message="Loading authentication..." />;
   }
 
+  // Check for missing authentication
   if (!session) {
-    return <FormErrorHandler draftError={new Error("Authentication required. Please sign in to continue.")} />;
+    return (
+      <Alert variant="destructive" className="m-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Authentication Required</AlertTitle>
+        <AlertDescription>
+          Please sign in to continue. You need to be authenticated to list a car.
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   // Get the userId safely with a fallback
@@ -134,10 +150,7 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
     );
   }
 
-  // Wait for ready state before rendering form components
-  if (!isReady) {
-    return <LoadingIndicator message="Preparing form..." />;
-  }
+  console.log('[CarListingForm] Rendering form components', { userId, draftId, isFromValuation });
 
   // Proper provider nesting order to avoid hook errors:
   // 1. ErrorProvider (top level)

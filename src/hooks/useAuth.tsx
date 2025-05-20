@@ -15,9 +15,10 @@
  * - 2024-12-28: Completely overhauled registerSeller with enhanced error handling, retry mechanisms, and recovery
  * - 2024-12-30: Refactored into smaller files for better maintainability
  * - 2025-06-07: Fixed circular dependency by exporting directly from auth index
+ * - 2025-06-20: Fixed circular imports by making this a direct import from AuthProvider
  */
 
-// This file is kept for backward compatibility
-// Export directly from the auth index to avoid circular dependencies
-export { useAuthActions as useAuth } from "./auth";
+// Directly export the AuthContext's useAuth hook to avoid circular dependencies
+export { useAuth } from "@/components/AuthProvider";
 
+// No longer exporting useAuthActions to prevent circular references

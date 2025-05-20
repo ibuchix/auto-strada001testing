@@ -12,8 +12,7 @@
  * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  * Updated: 2025-05-29 - Fixed FormSubmitHandler prop types
  * Updated: 2025-06-07 - Enhanced session handling with safer access patterns
- * 
- * Main content component for the car listing form
+ * Updated: 2025-06-20 - Fixed destructuring issues and added additional safety checks
  */
 
 import { VehicleDetailsSection } from "./sections/VehicleDetailsSection";
@@ -28,26 +27,49 @@ import { useAuth } from "@/components/AuthProvider";
 import { FinanceDetailsSection } from "./sections/FinanceDetailsSection";
 import { useFormData } from "./context/FormDataContext";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
 export const FormContent = ({ carId }: { carId?: string }) => {
-  const { session, isLoading } = useAuth();
+  const auth = useAuth(); // Safely get auth context
+  const [authChecked, setAuthChecked] = useState(false);
+  
+  // Use a safer pattern to access auth data with proper null checks
+  const session = auth?.session;
+  const isLoading = auth?.isLoading || false;
+  
   const { form } = useFormData();
-  const hasOutstandingFinance = form.watch("hasOutstandingFinance");
+  // Get form values safely with null check
+  const hasOutstandingFinance = form?.watch("hasOutstandingFinance") || false;
   
   // Set form metadata for valuation tracking
   useEffect(() => {
-    const hasValuationData = !!localStorage.getItem('valuationData');
-    if (hasValuationData) {
-      form.setValue('fromValuation', true);
+    if (form) { // Add null check
+      try {
+        const hasValuationData = !!localStorage.getItem('valuationData');
+        if (hasValuationData) {
+          form.setValue('fromValuation', true);
+        }
+      } catch (error) {
+        console.error("Error setting valuation flag:", error);
+      }
     }
   }, [form]);
   
-  // Handle loading and null session states
-  if (isLoading) {
+  // Set authChecked state after a delay
+  useEffect(() => {
+    if (!isLoading) {
+      const timer = setTimeout(() => {
+        setAuthChecked(true);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+  
+  // Handle loading state
+  if (isLoading || !authChecked) {
     return <LoadingIndicator message="Loading your session..." />;
   }
 
@@ -66,8 +88,9 @@ export const FormContent = ({ carId }: { carId?: string }) => {
     );
   }
 
-  // Ensure we have a user ID
-  if (!session.user?.id) {
+  // Ensure we have a user ID with a null check
+  const userId = session?.user?.id;
+  if (!userId) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-sm">
         <Alert variant="destructive">
@@ -81,8 +104,6 @@ export const FormContent = ({ carId }: { carId?: string }) => {
     );
   }
 
-  const userId = session.user.id;
-  
   const handleSubmitSuccess = (carId: string) => {
     console.log("Form submitted successfully with car ID:", carId);
     toast.success("Your car listing has been submitted successfully!", {

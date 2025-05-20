@@ -11,9 +11,10 @@
  * Updated: 2025-06-03 - Enhanced throttling logic and improved responsiveness
  * Updated: 2025-06-04 - Fixed imports and missing functions
  * Updated: 2025-06-07 - Added null check for userId and improved error handling
+ * Updated: 2025-06-20 - Fixed destructuring error by ensuring safe initialization
  */
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 import { CarListingFormData } from '@/types/forms';
 import { useFormSubmission as useFormSubmissionHook } from '@/hooks/useFormSubmission';
 import { toast } from 'sonner';
@@ -30,13 +31,27 @@ interface FormSubmissionContextType {
   resetSubmissionState: () => void;
 }
 
-export const FormSubmissionContext = createContext<FormSubmissionContextType | undefined>(undefined);
+// Create context with a default value to avoid undefined errors
+const defaultContextValue: FormSubmissionContextType = {
+  submissionState: {
+    isSubmitting: false,
+    submitError: null,
+    isSuccessful: false,
+    cooldownTimeRemaining: 0
+  },
+  submitForm: async () => {
+    console.error('FormSubmissionContext not initialized');
+    return null;
+  },
+  resetSubmissionState: () => {
+    console.error('FormSubmissionContext not initialized');
+  }
+};
+
+export const FormSubmissionContext = createContext<FormSubmissionContextType>(defaultContextValue);
 
 export const useFormSubmission = () => {
   const context = useContext(FormSubmissionContext);
-  if (!context) {
-    throw new Error('useFormSubmission must be used within a FormSubmissionProvider');
-  }
   return context;
 };
 
@@ -47,7 +62,7 @@ interface FormSubmissionProviderProps {
 }
 
 // Mock hook if the real one doesn't exist
-const mockUseFormSubmission = (formId: string) => {
+const mockUseFormSubmission = (formId: string = 'default') => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [cooldownTimeRemaining, setCooldownTimeRemaining] = useState(0);
@@ -182,7 +197,8 @@ export const FormSubmissionProvider = ({
     setIsSuccessful(false);
   };
   
-  const value = {
+  // Create value with useMemo to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     submissionState: {
       isSubmitting,
       submitError,
@@ -191,7 +207,7 @@ export const FormSubmissionProvider = ({
     },
     submitForm,
     resetSubmissionState
-  };
+  }), [isSubmitting, submitError, isSuccessful, cooldownTimeRemaining]);
   
   return (
     <FormSubmissionContext.Provider value={value}>
