@@ -6,6 +6,7 @@
  * - 2025-04-03: Updated to support consolidated 3-step form structure
  * - 2025-05-20: Updated field names to use snake_case to match database schema
  * - 2025-05-24: Updated to use camelCase field names consistently for frontend
+ * - 2025-05-25: Fixed field naming consistency throughout the hook
  */
 
 import { useEffect, useState } from "react";
@@ -93,7 +94,7 @@ export const useSectionsVisibility = (
   
   // Compute the total number of steps (always 3 in this consolidated structure)
   const activeSteps = formSteps.filter(step => {
-    return step.sections.some(section => visibleSections.includes(section));
+    return step.sections.some(section => visibleSections.includes(section.name));
   });
   
   return { 

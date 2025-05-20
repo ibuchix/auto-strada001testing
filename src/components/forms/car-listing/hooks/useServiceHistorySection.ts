@@ -3,6 +3,8 @@
  * Service History Section Hook
  * Updated: 2025-07-24 - Fixed ServiceHistoryFile type compatibility
  * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
+ * Updated: 2025-05-25 - Fixed field name consistency issues
  */
 
 import { useCallback, useState } from "react";
@@ -14,14 +16,14 @@ export const useServiceHistorySection = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   
-  // Watch for changes to the has_service_history field
-  const has_service_history = watch("has_service_history");
-  const service_history_type = watch("service_history_type");
-  const service_history_files = watch("service_history_files") || [];
+  // Watch for changes to the hasServiceHistory field
+  const hasServiceHistory = watch("hasServiceHistory");
+  const serviceHistoryType = watch("serviceHistoryType");
+  const serviceHistoryFiles = watch("serviceHistoryFiles") || [];
   
   // Handle service history type change
   const handleTypeChange = (value: string) => {
-    setValue("service_history_type", value as "full" | "partial" | "none", { shouldDirty: true });
+    setValue("serviceHistoryType", value as "full" | "partial" | "none", { shouldDirty: true });
   };
   
   // Handle file upload
@@ -56,8 +58,8 @@ export const useServiceHistorySection = () => {
       }
       
       // Update the form with the new files
-      const updatedFiles = [...service_history_files, ...newFiles];
-      setValue("service_history_files", updatedFiles, { shouldDirty: true });
+      const updatedFiles = [...serviceHistoryFiles, ...newFiles];
+      setValue("serviceHistoryFiles", updatedFiles, { shouldDirty: true });
       
     } catch (error) {
       console.error("Error uploading service history files:", error);
@@ -65,18 +67,18 @@ export const useServiceHistorySection = () => {
     } finally {
       setIsUploading(false);
     }
-  }, [service_history_files, setValue]);
+  }, [serviceHistoryFiles, setValue]);
   
   // Remove a file from the list
   const removeFile = useCallback((fileId: string) => {
-    const updatedFiles = service_history_files.filter(file => file.id !== fileId);
-    setValue("service_history_files", updatedFiles, { shouldDirty: true });
-  }, [service_history_files, setValue]);
+    const updatedFiles = serviceHistoryFiles.filter(file => file.id !== fileId);
+    setValue("serviceHistoryFiles", updatedFiles, { shouldDirty: true });
+  }, [serviceHistoryFiles, setValue]);
   
   return {
-    has_service_history,
-    service_history_type,
-    service_history_files,
+    hasServiceHistory,
+    serviceHistoryType,
+    serviceHistoryFiles,
     isUploading,
     uploadError,
     handleTypeChange,

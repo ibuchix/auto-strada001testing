@@ -11,6 +11,7 @@
  * Updated: 2025-08-01 - Enhanced valuation data handling for strict price enforcement
  * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
  * Updated: 2025-05-24 - Updated to consistently use camelCase field names for frontend
+ * Updated: 2025-05-25 - Fixed field naming consistency to avoid TypeScript errors
  * Handles default values and loading valuation data
  */
 
@@ -68,6 +69,12 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
 
           // Ensure serviceHistoryType is a valid enum value
           const serviceHistoryValue: "full" | "partial" | "none" = 
+            (valuationData.serviceHistoryType === "full" || 
+             valuationData.serviceHistoryType === "partial") ? 
+              valuationData.serviceHistoryType as "full" | "partial" : "none";
+
+          // Convert snake_case fields to camelCase
+          const serviceHistoryTypeValue: "full" | "partial" | "none" = 
             (valuationData.service_history_type === "full" || 
              valuationData.service_history_type === "partial") ? 
               valuationData.service_history_type as "full" | "partial" : "none";
@@ -90,7 +97,7 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
             reservePrice: reservePriceValue,
             // Ensure proper typing for enum values
             transmission: transmissionValue,
-            serviceHistoryType: serviceHistoryValue
+            serviceHistoryType: serviceHistoryTypeValue || serviceHistoryValue
           };
 
           console.log("Setting form defaults with prices:", {

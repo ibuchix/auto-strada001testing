@@ -2,6 +2,7 @@
 /**
  * Form Helper Hooks
  * Updated: 2025-05-24 - Updated field names to use camelCase consistently for frontend
+ * Updated: 2025-05-25 - Fixed field naming consistency issues
  */
 
 import { DEFAULT_VALUES } from "../constants/defaultValues";

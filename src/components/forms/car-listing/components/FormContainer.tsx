@@ -1,7 +1,8 @@
 
 /**
  * FormContainer Component
- * Updated: 2025-05-24 - Fixed FormSectionRenderer props
+ * Updated: 2025-05-24 - Fixed FormSectionRenderer props and structure
+ * Updated: 2025-05-25 - Fixed TypeScript errors with section types
  */
 
 import React from "react";
@@ -24,7 +25,7 @@ export const FormContainer = ({
   // Get the current step's sections
   const currentStepData = formSteps[currentStep - 1] || formSteps[0];
   
-  // Filter out sections that should be active
+  // Filter out sections that should be active based on their name property
   const visibleSections = currentStepData.sections.filter(section => 
     activeSections.includes(section.name)
   );
