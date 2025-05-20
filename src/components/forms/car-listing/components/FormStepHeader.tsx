@@ -1,7 +1,8 @@
 
 /**
  * FormStepHeader Component
- * Created: 2025-05-24 - Added to support structured form header display
+ * Created: 2025-05-27
+ * Displays the title and description for the current form step
  */
 
 import React from "react";
@@ -13,9 +14,9 @@ interface FormStepHeaderProps {
 
 export const FormStepHeader = ({ title, description }: FormStepHeaderProps) => {
   return (
-    <div className="space-y-2">
-      <h2 className="text-2xl font-bold text-dark">{title}</h2>
-      {description && <p className="text-gray-600">{description}</p>}
+    <div className="mb-6">
+      <h2 className="text-2xl font-bold">{title}</h2>
+      {description && <p className="text-gray-500 mt-1">{description}</p>}
     </div>
   );
 };

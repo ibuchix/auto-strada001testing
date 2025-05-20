@@ -3,10 +3,10 @@
  * FormSectionRenderer Component
  * Updated: 2025-05-24 - Created component to render form sections dynamically
  * Updated: 2025-05-26 - Fixed TypeScript errors with section types
+ * Updated: 2025-05-27 - Removed next/dynamic import and fixed TypeScript errors
  */
 
 import React from "react";
-import dynamic from "next/dynamic";
 import { ComponentType } from "react";
 
 // Section interfaces

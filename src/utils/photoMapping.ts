@@ -3,12 +3,13 @@
  * Created: 2025-05-20
  * Updated: 2025-05-23 - Added passenger_side to required fields and ensured consistent mapping
  * Updated: 2025-05-20 - Added odometer to required fields and ensured consistent mapping
+ * Updated: 2025-05-27 - Updated to handle camelCase to snake_case conversion consistently
  * 
  * Provides consistent mapping between client-side field names and server-side storage paths
  * to ensure photos are properly associated with car listings.
  */
 
-// Map between UI field names and database field names
+// Map between UI field names (camelCase) and database field names (snake_case)
 export const PHOTO_FIELD_MAP: Record<string, string> = {
   // Required photos - standard mapping
   'frontView': 'exterior_front',
@@ -23,9 +24,9 @@ export const PHOTO_FIELD_MAP: Record<string, string> = {
   'engine': 'engine',
   
   // Damage photos
-  'damage_front': 'damage_front',
-  'damage_rear': 'damage_rear',
-  'damage_side': 'damage_side',
+  'damageFront': 'damage_front',
+  'damageRear': 'damage_rear',
+  'damageSide': 'damage_side',
   
   // Other specific photos
   'wheel': 'wheel',
@@ -40,7 +41,7 @@ export const PHOTO_FIELD_MAP: Record<string, string> = {
   'interior_rear': 'interior_rear',
 };
 
-// Required photo fields that must be present
+// Required photo fields that must be present (using backend/database field names)
 export const REQUIRED_PHOTO_FIELDS = [
   'dashboard',
   'exterior_front',
@@ -49,7 +50,7 @@ export const REQUIRED_PHOTO_FIELDS = [
   'passenger_side',
   'interior_front',
   'interior_rear',
-  'odometer'  // Ensure odometer is in the required fields
+  'odometer'
 ];
 
 /**

@@ -13,11 +13,13 @@
  * - 2025-05-06: Fixed Date to string conversion issue
  * - 2025-05-19: Updated to include required_photos in CarEntity
  * - 2025-05-20: Improved consolidation of photo fields and removed references to non-existent fields
+ * - 2025-05-27: Updated to handle camelCase to snake_case conversion consistently
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
 import { toStringValue, toNumberValue } from "@/utils/typeConversion";
 import { consolidatePhotoFields } from "./photoProcessor";
+import { convertToBackendFields } from "@/utils/formFieldMapping";
 
 export const prepareFormDataForSubmission = (data: CarListingFormData) => {
   // First consolidate photo fields to prevent schema errors
@@ -44,26 +46,32 @@ export const prepareFormDataForSubmission = (data: CarListingFormData) => {
   cleanData.financeAmount = cleanData.financeAmount !== undefined && cleanData.financeAmount !== null ? 
     Number(cleanData.financeAmount) : null;
   
+  // Convert camelCase fields to snake_case for backend
+  const backendData = convertToBackendFields(cleanData);
+  
   // Explicitly add the required_photos object
-  cleanData.required_photos = requiredPhotos;
+  backendData.required_photos = requiredPhotos;
   
   console.log("Prepared form data (after consolidation):", {
-    hasRequiredPhotos: !!cleanData.required_photos,
-    remainingPhotoFields: Object.keys(cleanData).filter(key => photoFields.includes(key)),
-    requiredPhotosKeys: cleanData.required_photos ? Object.keys(cleanData.required_photos) : []
+    hasRequiredPhotos: !!backendData.required_photos,
+    remainingPhotoFields: Object.keys(backendData).filter(key => photoFields.includes(key)),
+    requiredPhotosKeys: backendData.required_photos ? Object.keys(backendData.required_photos) : []
   });
   
-  return cleanData;
+  return backendData;
 };
 
 export const prepareFormDataForApi = (data: CarListingFormData) => {
   // Use the same photo consolidation for API calls
   const { updatedFormData } = consolidatePhotoFields(data);
   
+  // Convert to backend field names
+  const backendData = convertToBackendFields(updatedFormData);
+  
   return {
-    ...updatedFormData,
-    // Ensure financeAmount is consistently a number or null
-    financeAmount: updatedFormData.financeAmount !== undefined && updatedFormData.financeAmount !== null ? 
+    ...backendData,
+    // Ensure finance_amount is consistently a number or null
+    finance_amount: updatedFormData.financeAmount !== undefined && updatedFormData.financeAmount !== null ? 
       Number(updatedFormData.financeAmount) : null,
   };
 };
@@ -96,9 +104,12 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     alloyWheels: updatedFormData.features?.alloyWheels || false,
   };
   
+  // Convert camelCase to snake_case for backend
+  const backendData = convertToBackendFields(updatedFormData);
+  
   // Ensure all required fields are present with default values if needed
   const entity: Partial<CarEntity> = {
-    ...updatedFormData,
+    ...backendData,
     id: updatedFormData.id || '',
     created_at: updatedFormData.created_at ? new Date(updatedFormData.created_at).toISOString() : new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -114,8 +125,8 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     transmission: updatedFormData.transmission || 'manual',
     // Use properly typed features
     features: carFeatures,
-    // Ensure financeAmount is a number or null
-    financeAmount: updatedFormData.financeAmount !== undefined && updatedFormData.financeAmount !== null ? 
+    // Ensure finance_amount is a number or null
+    finance_amount: updatedFormData.financeAmount !== undefined && updatedFormData.financeAmount !== null ? 
       Number(updatedFormData.financeAmount) : null,
     // Add the consolidated required_photos field
     required_photos: requiredPhotos

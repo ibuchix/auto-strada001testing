@@ -6,6 +6,7 @@
  * Updated: 2025-05-20 - Integrated with standardized photo field mapping
  * Updated: 2025-05-23 - Enhanced validation with detailed debugging and error messages
  * Updated: 2025-05-20 - Updated to ensure odometer is properly validated as a required field
+ * Updated: 2025-05-27 - Updated to handle camelCase to snake_case conversion consistently
  * 
  * Transforms individual photo fields into the required_photos JSONB structure 
  * expected by the database schema.
@@ -28,10 +29,10 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
   // Extract photo fields from formData into a new object
   const requiredPhotos: Record<string, string> = {};
   
-  // Start by checking if there's already a required_photos object
-  if (formData.required_photos) {
-    // Copy existing required_photos
-    Object.assign(requiredPhotos, formData.required_photos);
+  // Start by checking if there's already a requiredPhotos object
+  if (formData.requiredPhotos) {
+    // Copy existing requiredPhotos
+    Object.assign(requiredPhotos, formData.requiredPhotos);
   }
   
   // Then add or update with any individual fields
@@ -62,8 +63,8 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
     });
   }
   
-  // Add the consolidated required_photos field to the updated form data
-  updatedFormData.required_photos = requiredPhotos;
+  // Add the consolidated requiredPhotos field to the updated form data
+  updatedFormData.requiredPhotos = requiredPhotos;
   
   // Log the consolidation results with detailed information for debugging
   console.log("Photo field consolidation:", {
@@ -119,10 +120,9 @@ export const validateRequiredPhotos = (formData: CarListingFormData): string[] =
       k === 'dashboard' || 
       k === 'odometer'
     ),
-    hasRequiredPhotosObject: !!formData.required_photos,
+    hasRequiredPhotosObject: !!formData.requiredPhotos,
     vehiclePhotosPresent: !!formData.vehiclePhotos,
     odometerPresent: !!requiredPhotos['odometer'] || 
-      !!formData.odometer || 
       !!(formData.vehiclePhotos && formData.vehiclePhotos.odometer)
   });
   

@@ -6,6 +6,7 @@
  * Updated: 2025-05-20 - Fixed photo field consolidation and removed non-existent column references
  * Updated: 2025-06-01 - Improved error handling for JSONB structure errors
  * Updated: 2025-05-20 - Integrated with standardized photo field naming
+ * Updated: 2025-05-27 - Updated to handle camelCase to snake_case conversion consistently
  * 
  * Handles the API calls for submitting car listing data.
  */
@@ -15,6 +16,7 @@ import { prepareFormDataForSubmission } from "../utils/submission";
 import { validateRequiredPhotos } from "../utils/photoProcessor";
 import { supabase } from "@/integrations/supabase/client";
 import { REQUIRED_PHOTO_FIELDS } from "@/utils/photoMapping";
+import { convertToBackendFields } from "@/utils/formFieldMapping";
 
 export class ValidationSubmissionError extends Error {
   details?: any;

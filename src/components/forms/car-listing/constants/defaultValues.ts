@@ -2,6 +2,7 @@
 /**
  * Default Values for Car Listing Form
  * Created: 2025-05-26
+ * Updated: 2025-05-27 - Updated to use consistent camelCase for frontend field names
  * Defines the default values for the car listing form in camelCase for frontend use
  */
 

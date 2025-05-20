@@ -1,3 +1,4 @@
+
 /**
  * Form Submit Handler Component
  * Created: 2025-05-13
@@ -18,6 +19,7 @@
  * Updated: 2025-05-20 - Added detailed form data validation before submission to catch errors early
  * Updated: 2025-05-20 - Updated photo validation to include all required fields including odometer
  * Updated: 2025-05-20 - Added last_saved field to form submission for better tracking
+ * Updated: 2025-05-27 - Updated to use consistent camelCase field naming in frontend
  */
 
 import { useState, useEffect, useRef, useCallback, memo } from "react";
@@ -122,11 +124,11 @@ export const FormSubmitHandler = memo(({
          'interior_front', 'interior_rear', 'odometer', 'trunk', 'engine',
          'passenger_side'].includes(key)
       ),
-      hasRequiredPhotos: !!formData.required_photos,
-      requiredPhotosKeys: formData.required_photos ? Object.keys(formData.required_photos) : [],
+      hasRequiredPhotos: !!formData.requiredPhotos,
+      requiredPhotosKeys: formData.requiredPhotos ? Object.keys(formData.requiredPhotos) : [],
       hasOdometer: !!formData.odometer || 
                   !!(formData.vehiclePhotos && formData.vehiclePhotos.odometer) ||
-                  !!(formData.required_photos && formData.required_photos.odometer)
+                  !!(formData.requiredPhotos && formData.requiredPhotos.odometer)
     });
     
     // Validate required photo fields
@@ -213,11 +215,11 @@ export const FormSubmitHandler = memo(({
       setIsVerifyingImages(false);
       setIsValidatingForm(false);
       
-      // Add last_saved timestamp to form data before submission
+      // Add lastSaved timestamp to form data before submission
       const formValues = form.getValues();
       const formDataWithTimestamp = {
         ...formValues,
-        last_saved: new Date().toISOString()
+        lastSaved: new Date().toISOString()
       };
       
       // Submit the form with updated timestamp

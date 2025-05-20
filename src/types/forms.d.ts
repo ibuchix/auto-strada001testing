@@ -10,6 +10,7 @@
  * Updated: 2025-05-07 - Added ExtendedStoredFile type with uploadedAt property
  * Updated: 2025-05-08 - Fixed ExtendedStoredFile type to correctly include all properties
  * Updated: 2025-05-15 - Added financeAmount to CarEntity interface
+ * Updated: 2025-05-27 - Updated field names to use consistent camelCase in frontend
  */
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -131,7 +132,7 @@ export interface CarListingFormData {
   vin?: string;
   transmission?: "manual" | "automatic" | "semi-automatic";
   price?: number;
-  reserve_price?: number;
+  reservePrice?: number;
   
   // Additional info
   features?: CarFeatures;
@@ -150,6 +151,7 @@ export interface CarListingFormData {
   hasWarningLights?: boolean;
   isRegisteredInPoland?: boolean;
   photoValidationPassed?: boolean;
+  requiredPhotosComplete?: boolean;
   
   // Additional fields
   damageReports?: DamageReport[];
@@ -164,8 +166,7 @@ export interface CarListingFormData {
   numberOfKeys?: string | number;
   seatMaterial?: string;
   sellerNotes?: string;
-  registration_number?: string;
-  registrationNumber?: string; // For backward compatibility
+  registrationNumber?: string;
   
   // Required photos for each section
   frontView?: string;
@@ -175,7 +176,8 @@ export interface CarListingFormData {
   dashboard?: string;
   interiorFront?: string;
   interiorRear?: string;
-  requiredPhotosComplete?: boolean;
+  odometer?: string;
+  requiredPhotos?: Record<string, string>;
   
   // Warning lights
   warningLightPhotos?: string[];
@@ -185,8 +187,8 @@ export interface CarListingFormData {
   rimPhotos?: RimPhotos;
   
   // Seller information
-  seller_id?: string;
-  seller_name?: string;
+  sellerId?: string;
+  sellerName?: string;
   address?: {
     street?: string;
     city?: string;
@@ -203,7 +205,7 @@ export interface CarListingFormData {
   mainPhoto?: string;
   
   // Form metadata
-  form_metadata?: {
+  formMetadata?: {
     step?: number;
     lastSaved?: string;
     draftSaved?: boolean;
@@ -211,7 +213,7 @@ export interface CarListingFormData {
   };
   
   // Valuation data
-  valuation_data?: Record<string, any>;
+  valuationData?: Record<string, any>;
   fromValuation?: boolean;
   
   // Status
@@ -224,6 +226,9 @@ export interface CarListingFormData {
   previousOwners?: number;
   engineCapacity?: number;
   notes?: string;
+  
+  // Backend snake_case compatibility fields - these will be handled by the conversion utilities
+  lastSaved?: string;
 }
 
 /**
