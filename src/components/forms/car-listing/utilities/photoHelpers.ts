@@ -3,6 +3,7 @@
  * Photo Helper Utilities
  * Created: 2025-06-24
  * Updated: 2025-06-25 - Added setPhotoField and setRimPhotoField functions
+ * Updated: 2025-06-26 - Fixed TypeScript type errors with dynamic field names
  * 
  * Contains helper functions for handling photo uploads and field naming
  * to ensure consistent handling between camelCase and snake_case fields.
@@ -10,7 +11,8 @@
 
 import { standardizePhotoCategory } from "@/utils/photoMapping";
 import { CarListingFormData } from "@/types/forms";
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, Path } from "react-hook-form";
+import { setFieldValue } from "@/utils/formHelpers";
 
 /**
  * Adapts the temporary file uploader to the format expected by photo uploader components
@@ -33,8 +35,8 @@ export const setPhotoField = (
   value: string,
   form: UseFormReturn<CarListingFormData>
 ) => {
-  // Set the direct field
-  form.setValue(fieldName, value, { shouldDirty: true });
+  // Set the direct field using type assertion for dynamic field name
+  form.setValue(fieldName as Path<CarListingFormData>, value, { shouldDirty: true });
   
   // Also update the vehiclePhotos object
   const vehiclePhotos = form.getValues('vehiclePhotos') || {};
@@ -117,4 +119,3 @@ export const updateVehiclePhotos = (
   
   return allRequiredPhotos;
 };
-

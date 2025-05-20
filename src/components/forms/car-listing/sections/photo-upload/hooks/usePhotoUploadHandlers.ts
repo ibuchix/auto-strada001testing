@@ -4,6 +4,7 @@
  * Created: 2025-05-20
  * Updated: 2025-05-21 - Fixed type issue with PhotoUploadState
  * Updated: 2025-06-25 - Fixed variable reference for interiorRear and function calls
+ * Updated: 2025-06-26 - Fixed TypeScript issues and updated updateVehiclePhotos usage
  */
 
 import React from 'react';
@@ -97,41 +98,56 @@ export const usePhotoUploadHandlers = ({
     // Update form with photo array
     form.setValue('uploadedPhotos', photoArray, { shouldDirty: true });
     
-    // Update individual photo fields
-    if (uploaders.frontView.files.length > 0) {
-      setPhotoField('frontView', uploaders.frontView.files[0].preview || '', form);
-    }
-    if (uploaders.rearView.files.length > 0) {
-      setPhotoField('rearView', uploaders.rearView.files[0].preview || '', form);
-    }
-    if (uploaders.driverSide.files.length > 0) {
-      setPhotoField('driverSide', uploaders.driverSide.files[0].preview || '', form);
-    }
-    if (uploaders.passengerSide.files.length > 0) {
-      setPhotoField('passengerSide', uploaders.passengerSide.files[0].preview || '', form);
-    }
-    if (uploaders.dashboard.files.length > 0) {
-      setPhotoField('dashboard', uploaders.dashboard.files[0].preview || '', form);
-    }
-    if (uploaders.interiorFront.files.length > 0) {
-      setPhotoField('interiorFront', uploaders.interiorFront.files[0].preview || '', form);
-    }
-    if (uploaders.interiorRear.files.length > 0) {
-      setPhotoField('interiorRear', uploaders.interiorRear.files[0].preview || '', form);
-    }
-    
     // Create a photo updates object for the updateVehiclePhotos function
     const photoUpdates: Record<string, string> = {};
-    if (uploaders.frontView.files.length > 0) photoUpdates.frontView = uploaders.frontView.files[0].preview || '';
-    if (uploaders.rearView.files.length > 0) photoUpdates.rearView = uploaders.rearView.files[0].preview || '';
-    if (uploaders.driverSide.files.length > 0) photoUpdates.driverSide = uploaders.driverSide.files[0].preview || '';
-    if (uploaders.passengerSide.files.length > 0) photoUpdates.passengerSide = uploaders.passengerSide.files[0].preview || '';
-    if (uploaders.dashboard.files.length > 0) photoUpdates.dashboard = uploaders.dashboard.files[0].preview || '';
-    if (uploaders.interiorFront.files.length > 0) photoUpdates.interiorFront = uploaders.interiorFront.files[0].preview || '';
-    if (uploaders.interiorRear.files.length > 0) photoUpdates.interiorRear = uploaders.interiorRear.files[0].preview || '';
     
-    // Update vehicle photos object with the collected updates
-    updateVehiclePhotos(form, photoUpdates);
+    // Set individual photo fields and build the photoUpdates object
+    if (uploaders.frontView.files.length > 0) {
+      const value = uploaders.frontView.files[0].preview || '';
+      setPhotoField('frontView', value, form);
+      photoUpdates.frontView = value;
+    }
+    
+    if (uploaders.rearView.files.length > 0) {
+      const value = uploaders.rearView.files[0].preview || '';
+      setPhotoField('rearView', value, form);
+      photoUpdates.rearView = value;
+    }
+    
+    if (uploaders.driverSide.files.length > 0) {
+      const value = uploaders.driverSide.files[0].preview || '';
+      setPhotoField('driverSide', value, form);
+      photoUpdates.driverSide = value;
+    }
+    
+    if (uploaders.passengerSide.files.length > 0) {
+      const value = uploaders.passengerSide.files[0].preview || '';
+      setPhotoField('passengerSide', value, form);
+      photoUpdates.passengerSide = value;
+    }
+    
+    if (uploaders.dashboard.files.length > 0) {
+      const value = uploaders.dashboard.files[0].preview || '';
+      setPhotoField('dashboard', value, form);
+      photoUpdates.dashboard = value;
+    }
+    
+    if (uploaders.interiorFront.files.length > 0) {
+      const value = uploaders.interiorFront.files[0].preview || '';
+      setPhotoField('interiorFront', value, form);
+      photoUpdates.interiorFront = value;
+    }
+    
+    if (uploaders.interiorRear.files.length > 0) {
+      const value = uploaders.interiorRear.files[0].preview || '';
+      setPhotoField('interiorRear', value, form);
+      photoUpdates.interiorRear = value;
+    }
+    
+    // Update vehicle photos object with the collected updates if there are any
+    if (Object.keys(photoUpdates).length > 0) {
+      updateVehiclePhotos(form, photoUpdates);
+    }
     
     if (state.allRequiredUploaded) {
       state.setValidationError(null);
