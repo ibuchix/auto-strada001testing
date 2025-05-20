@@ -3,6 +3,7 @@
  * Service for managing photo database operations
  * Created: 2025-05-19 - Added as part of upload refactoring
  * Updated: 2025-05-20 - Fixed updateCarRecordWithImage to properly handle required_photos
+ * Updated: 2025-05-27 - Fixed TypeScript error by selecting both required_photos and additional_photos
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -157,7 +158,7 @@ const updateCarRecordWithImage = async (carId: string, filePath: string, categor
     // Get current car record
     const { data: car, error: getError } = await supabase
       .from('cars')
-      .select('required_photos')
+      .select('required_photos, additional_photos')
       .eq('id', carId)
       .single();
       
