@@ -9,7 +9,7 @@
  * - 2025-06-04: Improved change detection to reduce unnecessary saves
  * - 2025-06-04: Added better error handling for cross-origin issues
  * - 2025-06-07: Drastically reduced auto-save functionality in favor of manual saves
- * - 2025-05-20: Updated to properly use last_saved field from database
+ * - 2025-05-24: Updated to use camelCase field names consistently
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -135,7 +135,7 @@ export const useFormPersistence = ({
     const formData = form.getValues();
     
     // Set last_saved timestamp to now
-    formData.last_saved = new Date().toISOString();
+    formData.lastSaved = new Date().toISOString();
     
     // Always save to local storage first (even when offline)
     saveToLocalStorage(formData);

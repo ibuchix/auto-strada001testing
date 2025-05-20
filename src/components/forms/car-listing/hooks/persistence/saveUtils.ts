@@ -1,7 +1,7 @@
 
 /**
  * Utilities for form save operations
- * Created during refactoring of useFormPersistence.ts
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  * 
  * Changes made:
  * - 2025-06-04: Added safe postMessage handling
@@ -9,11 +9,13 @@
  * - 2025-06-04: Added save throttling to prevent excessive operations
  * - 2025-06-04: Enhanced caching of form data to reduce duplicate saves
  * - 2025-06-06: Fixed import for saveFormData function
+ * - 2025-05-24: Updated to use camelCase in frontend and handle snake_case conversion for database
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { CACHE_KEYS, saveToCache } from "@/services/offlineCacheService";
 import { supabase } from "@/integrations/supabase/client";
+import { transformFormToDb } from "@/utils/dbTransformers";
 
 // 24 hours cache TTL
 const CACHE_TTL = 86400000;
@@ -51,23 +53,23 @@ const saveFormDataInternal = async (
       throw new Error('User ID is required to save form data');
     }
 
-    // Prepare data for saving
-    const saveData = {
+    // Transform data to snake_case for database
+    const dbData = transformFormToDb({
       ...formData,
-      seller_id: userId,
-      is_draft: true,
+      sellerId: userId,
+      isDraft: true,
       // Add valuation data if available
-      valuation_data: valuationData || formData.valuation_data || null,
+      valuationData: valuationData || formData.valuationData || null,
       // Make sure to add current timestamp for updated_at
-      updated_at: new Date().toISOString()
-    };
+      lastSaved: new Date().toISOString()
+    });
 
     // Save to database
     const { data, error } = await supabase
       .from('cars')
       .upsert({
         ...(carId ? { id: carId } : {}),
-        ...saveData
+        ...dbData
       })
       .select('id')
       .single();
@@ -105,8 +107,8 @@ export const saveProgress = async (
     // Add metadata about form state
     const enhancedFormData = {
       ...formData,
-      form_metadata: {
-        ...formData.form_metadata,
+      formMetadata: {
+        ...formData.formMetadata,
         currentStep,
         lastSavedAt: new Date().toISOString()
       }
@@ -139,7 +141,7 @@ export const saveProgress = async (
     const result = await saveFormDataInternal(
       enhancedFormData,
       userId,
-      formData.valuation_data || {},
+      formData.valuationData || {},
       carId
     );
     

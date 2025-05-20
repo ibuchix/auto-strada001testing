@@ -12,6 +12,7 @@
  * - 2025-07-27: Fixed getInitialFormValues import
  * - 2025-05-06: Fixed transmission type compatibility issue
  * - 2025-05-08: Fixed import for getFormDefaults/getInitialFormValues
+ * - 2025-05-24: Updated to use camelCase field names consistently
  */
 
 import { useForm, UseFormReturn } from "react-hook-form";
@@ -30,7 +31,7 @@ type ValuationData = {
   year?: number | string;
   mileage?: number | string;
   transmission?: "manual" | "automatic" | "semi-automatic";
-  reserve_price?: number;
+  reservePrice?: number;
   [key: string]: any; // Allow additional properties
 };
 
@@ -123,64 +124,62 @@ const getValidatedValuationData = (): ValuationData | null => {
       ...data,
       year: safeParseNumber(data.year, new Date().getFullYear()),
       mileage: safeParseNumber(data.mileage, 0),
-      reserve_price: safeParseNumber(data.reserve_price, 0),
+      reservePrice: safeParseNumber(data.reservePrice, 0),
       transmission: validTransmission
     };
   } catch (error) {
-    console.error('Valuation data error:', error);
+    console.error("Error loading valuation data:", error);
     return null;
   }
 };
 
+// Get validated mileage from storage
 const getValidatedMileage = (): number | null => {
-  const tempMileage = localStorage.getItem('tempMileage');
-  const parsed = safeParseNumber(tempMileage, NaN);
-  return parsed >= 0 ? parsed : null;
-};
-
-const applyValuationData = (
-  form: UseFormReturn<CarListingFormData>, 
-  data: ValuationData
-) => {
-  // Essential fields to apply to the form
-  const fields: (keyof CarListingFormData)[] = [
-    'vin', 'make', 'model', 'year', 'mileage'
-  ];
-
-  fields.forEach(field => {
-    if (data[field] !== undefined) {
-      // Convert numeric string values to numbers
-      if (field === 'year' || field === 'mileage') {
-        form.setValue(field as any, Number(data[field]));
-      } else {
-        form.setValue(field as any, data[field] as any);
-      }
-    }
-  });
-  
-  // Set transmission separately with type checking
-  if (data.transmission) {
-    form.setValue('transmission', data.transmission);
-  }
-  
-  // Handle reserve price separately if needed for the form
-  if (data.reserve_price && form.getValues('reserve_price') === undefined) {
-    try {
-      form.setValue('reserve_price' as any, Number(data.reserve_price));
-    } catch (error) {
-      console.warn('Could not set reserve_price on form', error);
-    }
-  }
-};
-
-// Export a function to get valuation data from localStorage - kept for backward compatibility
-export const getValuationData = () => {
   try {
-    const valuationDataString = localStorage.getItem('valuationData');
-    if (!valuationDataString) return null;
-    return JSON.parse(valuationDataString);
+    const mileageStr = localStorage.getItem('temp_mileage');
+    if (!mileageStr) return null;
+    
+    const mileage = parseInt(mileageStr, 10);
+    return isNaN(mileage) ? null : mileage;
   } catch (error) {
-    console.error('Error parsing valuation data:', error);
+    console.error("Error loading mileage:", error);
     return null;
   }
+};
+
+// Helper to apply valuation data to form
+const applyValuationData = (
+  form: UseFormReturn<CarListingFormData>,
+  valuationData: ValuationData
+): void => {
+  // Set basic vehicle information
+  form.setValue('make', valuationData.make || '');
+  form.setValue('model', valuationData.model || '');
+  form.setValue('year', safeParseNumber(valuationData.year, new Date().getFullYear()));
+  form.setValue('mileage', safeParseNumber(valuationData.mileage, 0));
+  form.setValue('vin', valuationData.vin || '');
+  
+  // Set prices
+  if (valuationData.price) {
+    form.setValue('price', safeParseNumber(valuationData.price, 0));
+  }
+  
+  if (valuationData.reservePrice) {
+    form.setValue('reservePrice', safeParseNumber(valuationData.reservePrice, 0));
+  }
+  
+  // Set transmission if valid
+  if (
+    valuationData.transmission === 'automatic' ||
+    valuationData.transmission === 'manual' ||
+    valuationData.transmission === 'semi-automatic'
+  ) {
+    form.setValue('transmission', valuationData.transmission);
+  }
+  
+  // Store valuation data for future reference
+  form.setValue('valuationData', valuationData);
+  form.setValue('fromValuation', true);
+  
+  console.log('Valuation data applied to form:', valuationData);
 };

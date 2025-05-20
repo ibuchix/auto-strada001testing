@@ -13,7 +13,6 @@
  * - 2025-05-03: Fixed TypeScript errors related to useDocumentUpload hook properties
  * - 2025-05-04: Fixed property access and alignment with useDocumentUpload hook
  * - 2025-05-04: Resolved property mismatches with useDocumentUpload hook
- * - 2025-05-22: Updated field names to use snake_case to match database schema
  * - 2025-05-24: Updated to use camelCase field names consistently
  */
 

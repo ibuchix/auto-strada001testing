@@ -4,6 +4,7 @@
  * Updated: 2025-06-21 - Fixed FormDataContext access
  * Updated: 2025-06-22 - Fixed type errors with calculateReservePrice return handling
  * Updated: 2025-06-23 - Fixed Promise handling in useEffect for async calculations
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  */
 
 import { FormField } from "@/components/ui/form";
@@ -28,13 +29,13 @@ export const ReservePriceSection = () => {
         setCalculatedReserve(reservePrice);
         
         // Set the reserve price in the form
-        form.setValue("reserve_price", reservePrice);
+        form.setValue("reservePrice", reservePrice);
       } catch (error) {
         console.error("Error calculating reserve price:", error);
         // Set a fallback price in case of error
         const fallbackPrice = Math.round(Number(price) * 0.8);
         setCalculatedReserve(fallbackPrice);
-        form.setValue("reserve_price", fallbackPrice);
+        form.setValue("reservePrice", fallbackPrice);
       }
     };
     
@@ -52,7 +53,7 @@ export const ReservePriceSection = () => {
         <div>
           <FormField
             control={form.control}
-            name="reserve_price"
+            name="reservePrice"
             render={({ field }) => (
               <div className="space-y-2">
                 <label className="font-medium text-sm">Reserve Price (PLN)</label>

@@ -1,82 +1,63 @@
 
 /**
- * Form Section Renderer Component
- * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
- * Updated: 2025-05-22 - Fixed prop passing to FormSection component
- * Updated: 2025-05-23 - Added default activeSections to fix prop type error
+ * FormSectionRenderer Component
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  */
 
-import React from "react";
-import { useFormContext } from "react-hook-form";
-import { FormField } from "@/components/ui/form";
-import { Separator } from "@/components/ui/separator";
-import { FormSections } from "../FormSections";
-import { FormSection } from "../FormSection";
-import { FormSectionHeader } from "../FormSectionHeader";
-import { CarListingFormData } from "@/types/forms";
+import { useState, useEffect } from "react";
+import { useFormData } from "../context/FormDataContext";
+import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { useValuationData } from "@/hooks/useValuationData";
 
 interface FormSectionRendererProps {
-  activeSections?: string[];
-  step?: number;
-  carId?: string;
-  sectionId?: string;
+  sections: {
+    name: string;
+    component: React.ComponentType<any>;
+    condition?: (data: any) => boolean;
+  }[];
 }
 
-export const FormSectionRenderer = ({ 
-  activeSections = [], 
-  step = 1, 
-  carId,
-  sectionId 
-}: FormSectionRendererProps) => {
-  const form = useFormContext<CarListingFormData>();
+export const FormSectionRenderer = ({ sections }: FormSectionRendererProps) => {
+  const { form } = useFormData();
+  const [isVoluntaryValuation, setIsVoluntaryValuation] = useState(false);
+  const { getValuationData } = useValuationData();
   
-  const isValuationDriven = React.useMemo(() => {
-    // Use form data or defaultValues to check if this is from valuation
-    const formValues = form.getValues();
-    return !!formValues.from_valuation;
-  }, [form]);
-
-  // If a specific sectionId is provided, only render that section
-  const sectionsToRender = sectionId ? [sectionId] : activeSections;
-
+  // Check if this form is coming from valuation
+  useEffect(() => {
+    const formData = form.getValues();
+    const valuationData = getValuationData();
+    
+    // Check if form is from valuation
+    const isFromValuation = formData.fromValuation === true || 
+                           (valuationData !== null && Object.keys(valuationData).length > 0);
+    
+    setIsVoluntaryValuation(isFromValuation);
+  }, [form, getValuationData]);
+  
   return (
-    <div className="space-y-8 mb-8">
-      {sectionsToRender.map((sectionId, index) => {
-        // Get the section component
-        const SectionComponent = FormSections[sectionId];
-        
-        if (!SectionComponent) {
-          console.warn(`No component found for section ID: ${sectionId}`);
-          return null;
-        }
-        
-        // Get metadata about the section
-        const sectionMeta = Object.entries(FormSections).find(
-          ([id]) => id === sectionId
-        )?.[1];
-        
-        if (!sectionMeta) {
-          return null;
-        }
-        
-        // Skip sections that should be hidden when from valuation
-        if (isValuationDriven && sectionMeta.hideWhenFromValuation) {
+    <div className="space-y-8">
+      {isVoluntaryValuation && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Your vehicle information has been pre-filled based on your valuation. 
+            Please review and confirm the details.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {sections.map((section, index) => {
+        // Check if section should be rendered based on condition
+        if (section.condition && !section.condition(form.getValues())) {
           return null;
         }
         
         return (
-          <React.Fragment key={sectionId}>
-            <FormSection id={sectionId} title={sectionMeta.title}>
-              <FormSectionHeader
-                title={sectionMeta.title}
-                description={sectionMeta.description}
-              />
-              <SectionComponent carId={carId} />
-            </FormSection>
-            {index < sectionsToRender.length - 1 && (
-              <Separator className="my-6" />
-            )}
-          </React.Fragment>
+          <Card key={index} className="p-6">
+            <section.component />
+          </Card>
         );
       })}
     </div>
