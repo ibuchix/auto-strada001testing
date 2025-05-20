@@ -5,10 +5,12 @@
  * Updated: 2025-06-06: Added saveFormData function and improved error handling
  * Updated: 2025-05-20: Updated to use lastSaved field from database
  * Updated: 2025-06-01: Fixed camelCase/snake_case conversion for valuationData
+ * Updated: 2025-06-07: Updated to use camelCase in form data and snake_case in database
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
+import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
 
 /**
  * Clears the form save cache for a specific user and car
@@ -67,13 +69,19 @@ export const saveFormData = async (
     const now = new Date();
     
     // Prepare data for saving
+    const formDataForSave = prepareFormDataForSave(formData);
+    
+    // Convert camelCase form data to snake_case for the database
+    const dbData = transformObjectToSnakeCase(formDataForSave);
+    
+    // Add additional fields needed for the database in snake_case format
     const saveData = {
-      ...prepareFormDataForSave(formData),
+      ...dbData,
       seller_id: userId,
       is_draft: true,
       // Add last_saved timestamp
       last_saved: now.toISOString(),
-      // Add valuation data if available
+      // Add valuation data if available - already in snake_case format
       valuation_data: valuationData || formData.valuationData || null,
       // Make sure to add current timestamp for updated_at
       updated_at: now.toISOString()

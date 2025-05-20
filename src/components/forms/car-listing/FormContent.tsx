@@ -11,6 +11,7 @@
  * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
  * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  * Updated: 2025-05-29 - Fixed FormSubmitHandler prop types
+ * Updated: 2025-06-07 - Enhanced session handling with safer access patterns
  * 
  * Main content component for the car listing form
  */
@@ -29,12 +30,13 @@ import { useFormData } from "./context/FormDataContext";
 import { LoadingIndicator } from "@/components/common/LoadingIndicator";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export const FormContent = ({ carId }: { carId?: string }) => {
   const { session, isLoading } = useAuth();
   const { form } = useFormData();
   const hasOutstandingFinance = form.watch("hasOutstandingFinance");
-  const isDamaged = form.watch("isDamaged");
   
   // Set form metadata for valuation tracking
   useEffect(() => {
@@ -53,12 +55,33 @@ export const FormContent = ({ carId }: { carId?: string }) => {
   if (!session) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-sm">
-        <p className="text-center text-gray-600">
-          Session information is not available. Please try refreshing the page.
-        </p>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Authentication Required</AlertTitle>
+          <AlertDescription>
+            Session information is not available. Please try signing in again.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
+
+  // Ensure we have a user ID
+  if (!session.user?.id) {
+    return (
+      <div className="p-6 bg-white rounded-lg shadow-sm">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Authentication Error</AlertTitle>
+          <AlertDescription>
+            User ID not found. Please try signing in again.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const userId = session.user.id;
   
   const handleSubmitSuccess = (carId: string) => {
     console.log("Form submitted successfully with car ID:", carId);
@@ -93,7 +116,7 @@ export const FormContent = ({ carId }: { carId?: string }) => {
         <FormSubmitHandler 
           onSubmitSuccess={handleSubmitSuccess}
           onSubmitError={handleSubmitError}
-          userId={session.user.id}
+          userId={userId}
           carId={carId}
         />
       </FormSection>

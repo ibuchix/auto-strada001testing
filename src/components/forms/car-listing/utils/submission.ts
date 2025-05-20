@@ -12,16 +12,37 @@
  * - 2025-05-05: Fixed type issues and removed is_draft property 
  * - 2025-05-06: Fixed Date to string conversion issue
  * - 2025-06-01: Fixed transmission type to be one of the allowed values
+ * - 2025-06-07: Enhanced transmission validation to ensure valid type
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
-import { toStringValue, toNumberValue } from "@/utils/typeConversion";
+
+// Helper function to ensure transmission is a valid value
+const validateTransmission = (value: unknown): "manual" | "automatic" | "semi-automatic" => {
+  if (value === "automatic" || value === "semi-automatic" || value === "manual") {
+    return value;
+  }
+  // Default to manual if invalid value provided
+  return "manual";
+};
+
+// Helper functions for type conversion
+const toStringValue = (value: any): string => {
+  if (value === undefined || value === null) return '';
+  return String(value);
+};
+
+const toNumberValue = (value: any): number => {
+  if (value === undefined || value === null) return 0;
+  const num = Number(value);
+  return isNaN(num) ? 0 : num;
+};
 
 export const prepareFormDataForSubmission = (data: CarListingFormData) => {
   return {
     ...data,
     // Use toStringValue to ensure proper type conversion
-    financeAmount: toStringValue(data.financeAmount),
+    financeAmount: toNumberValue(data.financeAmount),
   };
 };
 
@@ -29,7 +50,7 @@ export const prepareFormDataForApi = (data: CarListingFormData) => {
   return {
     ...data,
     // Use toStringValue to ensure proper type conversion
-    financeAmount: toStringValue(data.financeAmount),
+    financeAmount: toNumberValue(data.financeAmount),
   };
 };
 
@@ -66,13 +87,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
       : new Date().toISOString();
   
   // Ensure transmission is one of the allowed types
-  let transmissionValue: "manual" | "automatic" | "semi-automatic" = "manual";
-  
-  if (formData.transmission === "automatic" || 
-      formData.transmission === "semi-automatic" || 
-      formData.transmission === "manual") {
-    transmissionValue = formData.transmission as "manual" | "automatic" | "semi-automatic";
-  }
+  const transmissionValue = validateTransmission(formData.transmission);
   
   // Ensure all required fields are present with default values if needed
   const entity: Partial<CarEntity> = {
@@ -88,7 +103,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     price: formData.price || 0,
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
-    // Cast transmission to the expected type
+    // Use validated transmission type
     transmission: transmissionValue,
     // Use properly typed features
     features: carFeatures

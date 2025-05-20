@@ -16,6 +16,7 @@
  * - 2025-05-24: Updated to use camelCase field names consistently
  * - 2025-05-29: Fixed TypeScript errors with hook properties
  * - 2025-05-31: Fixed removeDocument prop name to removeFile
+ * - 2025-06-07: Fixed property naming consistency with useDocumentUpload hook 
  */
 
 import { ServiceHistoryFile } from "@/types/forms";

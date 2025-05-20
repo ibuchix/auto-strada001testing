@@ -10,6 +10,7 @@
  * Updated: 2025-06-02 - Added better error handling and improved submission flow
  * Updated: 2025-06-03 - Enhanced throttling logic and improved responsiveness
  * Updated: 2025-06-04 - Fixed imports and missing functions
+ * Updated: 2025-06-07 - Added null check for userId and improved error handling
  */
 
 import { createContext, useContext, useState, ReactNode } from 'react';
@@ -42,7 +43,7 @@ export const useFormSubmission = () => {
 interface FormSubmissionProviderProps {
   children: ReactNode;
   formId?: string;
-  userId: string;
+  userId?: string;
 }
 
 // Mock hook if the real one doesn't exist
@@ -107,6 +108,15 @@ export const FormSubmissionProvider = ({
   // Submit form with consistent return type
   const submitForm = async (data: CarListingFormData): Promise<string | null> => {
     setIsSuccessful(false);
+    
+    // Check if we have a userId before proceeding
+    if (!userId) {
+      console.error('[FormSubmissionProvider] No user ID provided for submission');
+      toast.error('Authentication error', {
+        description: 'Unable to submit form: User ID not available. Please try signing in again.'
+      });
+      return null;
+    }
     
     // Early validation for duplicate submissions during cooldown
     if (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0) {

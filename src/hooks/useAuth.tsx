@@ -14,8 +14,10 @@
  * - 2024-12-22: Added debug logging and improved profiles update logic
  * - 2024-12-28: Completely overhauled registerSeller with enhanced error handling, retry mechanisms, and recovery
  * - 2024-12-30: Refactored into smaller files for better maintainability
+ * - 2025-06-07: Fixed circular dependency by exporting directly from auth index
  */
 
 // This file is kept for backward compatibility
-// Import from the new location to maintain existing functionality
-export * from "./auth";
+// Export directly from the auth index to avoid circular dependencies
+export { useAuthActions as useAuth } from "./auth";
+

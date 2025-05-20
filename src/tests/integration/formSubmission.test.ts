@@ -1,6 +1,8 @@
 
-// This is a mock test file for integration testing form submission
-// We'll fix the name property error by using sellerName instead
+/**
+ * This is a mock test file for integration testing form submission
+ * Updated: 2025-06-07 - Fixed property naming to use sellerName instead of name
+ */
 
 import { CarListingFormData } from '@/types/forms';
 

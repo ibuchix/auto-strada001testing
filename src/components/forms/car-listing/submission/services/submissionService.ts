@@ -1,114 +1,90 @@
 
 /**
- * Submission Service
- * Created: 2025-05-30
- * Updated: 2025-05-31 - Added proper camelCase field handling and fixed exports
+ * Car Listing Submission Service
+ * Created: 2025-06-07
+ * 
+ * Service to handle car listing form submissions
  */
 
 import { CarListingFormData } from "@/types/forms";
-import { prepareFormDataForSubmission } from "../utils/submission";
-import { transformFormToDb } from "@/utils/dbTransformers";
+import { supabase } from "@/integrations/supabase/client";
+import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
+import { toast } from "sonner";
 
-// Interface for submission result
-export interface SubmissionResult {
+interface SubmissionResult {
+  id: string;
   success: boolean;
-  error?: string;
-  carId?: string;
-  id?: string;
+  message?: string;
 }
-
-// Main function to submit car listings
-export const submitCarListing = async (formData: CarListingFormData, userId: string): Promise<SubmissionResult> => {
-  try {
-    // Process the form data
-    const processedData = prepareFormDataForSubmission(formData);
-    
-    // Add user ID
-    processedData.sellerId = userId;
-    
-    // Convert to snake_case for backend
-    const dbData = transformFormToDb(processedData);
-    
-    console.log("Submitting car listing:", dbData);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Return mock result
-    return {
-      success: true,
-      carId: formData.id || 'new-car-id',
-      id: formData.id || 'new-car-id'
-    };
-  } catch (error) {
-    console.error("Error submitting car listing:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred"
-    };
-  }
-};
 
 /**
- * Service to handle form submission to the backend
+ * Submits a car listing form to the database
+ * 
+ * @param formData The form data to submit
+ * @param userId The ID of the user submitting the form
+ * @returns A promise that resolves to a SubmissionResult object
  */
-export class SubmissionService {
-  /**
-   * Validate the form data before submission
-   */
-  validateFormData(formData: CarListingFormData): string[] {
-    // In a real implementation, this would validate required photos
-    return [];
-  }
-  
-  /**
-   * Process and transform form data for submission
-   */
-  prepareFormData(formData: CarListingFormData): Record<string, any> {
-    // First prepare the form data with business logic transformations
-    const preparedData = prepareFormDataForSubmission(formData);
+export const submitCarListing = async (
+  formData: CarListingFormData,
+  userId: string
+): Promise<SubmissionResult> => {
+  try {
+    console.log('[SubmissionService] Starting submission process');
     
-    // Then transform to snake_case for database
-    return transformFormToDb(preparedData);
-  }
-  
-  /**
-   * Submit the form data to the backend
-   */
-  async submitFormData(formData: CarListingFormData): Promise<SubmissionResult> {
-    try {
-      // First check for required photos
-      const missingPhotos = this.validateFormData(formData);
-      if (missingPhotos.length > 0) {
-        return {
-          success: false,
-          error: `Missing required photos: ${missingPhotos.join(', ')}`
-        };
-      }
-      
-      // Prepare data for submission
-      const dbData = this.prepareFormData(formData);
-      
-      // In a real implementation, this would send data to your API
-      console.log("Submitting form data to API:", dbData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      return {
-        success: true,
-        carId: formData.id || 'new-car-id',
-        id: formData.id || 'new-car-id'
-      };
-    } catch (error) {
-      console.error("Error submitting form:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred"
-      };
+    // Validate required fields are present
+    if (!formData.make || !formData.model || !formData.year) {
+      throw new Error('Missing required fields');
     }
-  }
-}
+    
+    // Ensure we have a valid user ID
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
 
-// Create singleton instance
-export const submissionService = new SubmissionService();
+    // Transform form data to snake_case for database compatibility
+    const dbData = transformObjectToSnakeCase({
+      ...formData,
+      sellerId: userId,
+      status: 'pending', // Change from draft to pending for submission
+      isDraft: false,
+      submittedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+
+    // Submit to database
+    const { data, error } = await supabase
+      .from('cars')
+      .upsert({
+        ...(formData.id ? { id: formData.id } : {}),
+        ...dbData
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('[SubmissionService] Database error:', error);
+      throw new Error(`Submission failed: ${error.message}`);
+    }
+
+    if (!data?.id) {
+      throw new Error('No ID returned from submission');
+    }
+
+    console.log('[SubmissionService] Submission successful:', data.id);
+    return {
+      id: data.id,
+      success: true,
+      message: 'Car listing submitted successfully'
+    };
+  } catch (error) {
+    console.error('[SubmissionService] Submission error:', error);
+    
+    // Show error notification
+    toast.error('Submission failed', {
+      description: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
+    
+    // Re-throw for handling by the caller
+    throw error;
+  }
+};

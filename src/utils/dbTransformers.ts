@@ -7,6 +7,7 @@
  * Updated: 2025-05-30 - Fixed TypeScript errors with direction type
  * Updated: 2025-05-31 - Added proper type handling for transform functions
  * Updated: 2025-06-01 - Fixed TransformDirection type issues
+ * Updated: 2025-06-07 - Fixed type safety for transformers with unknown intermediate
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -44,8 +45,10 @@ export function createDatabaseBoundary<T, R = Record<string, any>>(
 ): (data: T) => R {
   return (data: T): R => {
     if (direction === 'toDatabase') {
+      // Use unknown as intermediate type for safe type conversion
       return transformObjectToSnakeCase(data) as unknown as R;
     } else {
+      // Use unknown as intermediate type for safe type conversion
       return transformObjectToCamelCase(data) as unknown as R;
     }
   };
@@ -62,8 +65,11 @@ export function withDbTransformation<T, R>(
   const transform = createDatabaseBoundary<T, R>(direction);
   
   return async (data: T): Promise<T> => {
+    // Safe type conversion with unknown as intermediate
     const transformedData = transform(data) as R;
     const result = await operation(transformedData);
-    return direction === 'toDatabase' ? result : (transform(result as any) as unknown as T);
+    return direction === 'toDatabase' 
+      ? result 
+      : (transform(result as unknown as T) as unknown as T);
   };
 }

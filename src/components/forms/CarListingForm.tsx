@@ -18,6 +18,7 @@
  * - 2025-05-19: Fixed React error #310 by ensuring consistent hook order
  * - 2025-05-19: Updated FormSubmissionProvider to use correct props (formId -> userId)
  * - 2025-05-26: Fixed FormStateProvider import to use car-listing specific provider
+ * - 2025-06-07: Enhanced session null handling and added defensive checks
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -98,6 +99,14 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
     return <FormErrorHandler draftError={new Error("Authentication required. Please sign in to continue.")} />;
   }
 
+  // Get the userId safely with a fallback
+  const userId = session?.user?.id;
+  
+  // Double check that we have a userId before proceeding
+  if (!userId) {
+    return <FormErrorHandler draftError={new Error("User ID not found. Please sign in again.")} />;
+  }
+
   if (draftError) {
     return (
       <FormErrorHandler 
@@ -139,7 +148,7 @@ export const CarListingForm = ({ fromValuation = false }: CarListingFormProps) =
   return (
     <ErrorProvider>
       <FormStateProvider>
-        <FormSubmissionProvider userId={session.user.id}>
+        <FormSubmissionProvider userId={userId}>
           <FormDataProvider form={form} loading={false} error={null}>
             <FormContent carId={draftId} />
           </FormDataProvider>
