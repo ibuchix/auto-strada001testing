@@ -1,104 +1,94 @@
 
 /**
- * Changes made:
- * - 2024-12-30: Extracted from useAuth.tsx as part of refactoring for better maintainability
- * - 2024-12-30: Separated seller registration logic into a dedicated hook
- * - 2024-12-31: Refactored into smaller, more focused components
+ * useSellerRegistration hook
+ * Created: 2025-06-20 - Extracted from original useAuthActions for better modularity
+ * 
+ * Handles seller registration with the Supabase database
  */
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useRegistrationProcess } from "./useRegistrationProcess";
-import { useRegistrationVerification } from "./useRegistrationVerification";
-import { useRegistrationFallbacks } from "./useRegistrationFallbacks";
-import { AuthRegisterResult, AuthActionOptions } from "../types";
+import { AuthRegisterResult } from "../types";
 
 /**
- * Hook for seller registration functionality with comprehensive error handling
+ * Hook for handling seller registration
  */
 export const useSellerRegistration = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const { performRegistration } = useRegistrationProcess();
-  const { verifyRegistration } = useRegistrationVerification();
-  const { applyFallbackMethods } = useRegistrationFallbacks();
 
   /**
-   * Registers a user as a seller with comprehensive error handling and recovery
-   * - Uses multiple fallback mechanisms to ensure successful registration
-   * - Repairs inconsistent data states
-   * - Provides detailed logging for troubleshooting
-   * 
-   * @param userId The ID of the user to register as a seller
-   * @param options Optional configuration for the registration process
-   * @returns Promise resolving to a result object with success status
+   * Register a user as a seller by creating a seller record
+   * and updating the user's role in metadata and profiles
    */
-  const registerSeller = useCallback(async (
-    userId: string, 
-    options: AuthActionOptions = {}
-  ): Promise<AuthRegisterResult> => {
-    const { showToast = true } = options;
-    
+  const registerSeller = async (userId: string): Promise<boolean> => {
+    if (!userId) {
+      console.error("Cannot register seller: No user ID provided");
+      return false;
+    }
+
     try {
       setIsLoading(true);
-      console.log("Starting seller registration process for user:", userId);
-      
-      // Step 1: Try primary registration method
-      const primaryResult = await performRegistration(userId);
-      if (primaryResult.success) {
-        if (showToast) {
-          toast.success("Seller registration successful!");
+      console.log("Registering user as seller:", userId);
+
+      // Step 1: Create a record in the sellers table
+      const { error: sellerError } = await supabase
+        .from("sellers")
+        .insert({
+          user_id: userId,
+          status: "active",
+          created_at: new Date().toISOString(),
+        })
+        .single();
+
+      if (sellerError) {
+        // If the error is about uniqueness, the seller record might already exist
+        if (sellerError.code === "23505") {
+          console.log("Seller record already exists for user:", userId);
+        } else {
+          console.error("Failed to create seller record:", sellerError);
+          throw new Error(`Failed to create seller record: ${sellerError.message}`);
         }
-        return primaryResult;
       }
-      
-      // Step 2: Verify if user is already registered
-      const verificationResult = await verifyRegistration(userId);
-      if (verificationResult.success) {
-        if (showToast) {
-          toast.success("Seller registration successful!");
-        }
-        return verificationResult;
+
+      // Step 2: Update the user's role in metadata
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { role: "seller" },
+      });
+
+      if (updateError) {
+        console.error("Failed to update user role in metadata:", updateError);
+        throw new Error(`Failed to update user role: ${updateError.message}`);
       }
-      
-      // Step 3: Try fallback registration methods
-      const fallbackResult = await applyFallbackMethods(userId);
-      
-      if (fallbackResult.success) {
-        if (showToast) {
-          toast.success("Seller registration successful!");
-        }
-        return fallbackResult;
+
+      // Step 3: Update the profiles table
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ role: "seller" })
+        .eq("id", userId);
+
+      if (profileError) {
+        console.error("Failed to update user role in profiles:", profileError);
+        // Continue anyway since metadata update was successful
       }
+
+      console.log("Successfully registered user as seller:", userId);
+      toast.success("Registered as seller successfully");
       
-      // If we reach here, all methods failed
-      throw new Error("Could not verify seller registration was completed");
+      return true;
     } catch (error: any) {
-      console.error("Error registering seller:", error);
-      
-      // Provide more specific error messages based on the error type
-      const errorMessage = error.message === 'Failed to update user role' 
-        ? "Could not update your account role. Please try again."
-        : error.message === 'Failed to create seller profile'
-        ? "Could not create your seller profile. Please contact support."
-        : error.message === 'Could not verify seller registration was completed'
-        ? "Your account was created, but we couldn't verify your seller status. Please try to log out and log back in."
-        : "An unexpected error occurred during registration. Please try again.";
-        
-      if (showToast) {
-        toast.error(errorMessage);
-      }
-      
-      return { 
-        success: false, 
-        error: errorMessage 
-      };
+      console.error("Error in seller registration:", error);
+      toast.error("Failed to register as seller", {
+        description: error.message,
+      });
+      return false;
     } finally {
       setIsLoading(false);
     }
-  }, [performRegistration, verifyRegistration, applyFallbackMethods]);
+  };
 
   return {
     isLoading,
-    registerSeller
+    registerSeller,
   };
 };

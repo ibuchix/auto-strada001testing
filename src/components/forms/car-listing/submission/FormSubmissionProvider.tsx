@@ -12,6 +12,7 @@
  * Updated: 2025-06-04 - Fixed imports and missing functions
  * Updated: 2025-06-07 - Added null check for userId and improved error handling
  * Updated: 2025-06-20 - Fixed destructuring error by ensuring safe initialization
+ * Updated: 2025-06-20 - Fixed FormSubmissionContext initialization with proper defaults
  */
 
 import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
@@ -52,6 +53,10 @@ export const FormSubmissionContext = createContext<FormSubmissionContextType>(de
 
 export const useFormSubmission = () => {
   const context = useContext(FormSubmissionContext);
+  if (!context) {
+    console.error('useFormSubmission must be used within a FormSubmissionProvider');
+    return defaultContextValue;
+  }
   return context;
 };
 
@@ -115,7 +120,7 @@ export const FormSubmissionProvider = ({
     isSubmitting, 
     submitError, 
     resetSubmitError,
-    cooldownTimeRemaining
+    cooldownTimeRemaining = 0
   } = mockUseFormSubmission(formId);
 
   const [isSuccessful, setIsSuccessful] = useState(false);

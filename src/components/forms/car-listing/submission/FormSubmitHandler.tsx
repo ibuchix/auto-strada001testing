@@ -9,6 +9,7 @@
  * Updated: 2025-05-29 - Fixed imports and prop types
  * Updated: 2025-05-30 - Fixed import for router and loading spinner
  * Updated: 2025-05-31 - Fixed imports and resolved build errors
+ * Updated: 2025-06-20 - Fixed destructuring syntax error and added null checks
  */
 
 import React, { useState } from "react";
@@ -39,7 +40,19 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
   onSubmitError,
   carId
 }) => {
-  const { handleSubmit, formState } = useFormContext<CarListingFormData>();
+  const formContext = useFormContext<CarListingFormData>();
+  
+  // Add null check for formContext
+  if (!formContext) {
+    console.error("FormSubmitHandler must be used within a FormProvider");
+    return (
+      <Button className="px-6" type="button" disabled>
+        Submit Listing
+      </Button>
+    );
+  }
+  
+  const { handleSubmit, formState } = formContext;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   

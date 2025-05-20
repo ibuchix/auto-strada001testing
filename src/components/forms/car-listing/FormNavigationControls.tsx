@@ -4,6 +4,7 @@
  * Created: 2025-06-16
  * Updated: 2025-06-17 - Added FormSubmitHandler for last step
  * Updated: 2025-05-29 - Fixed FormSubmitHandler prop types
+ * Updated: 2025-06-20 - Fixed FormSubmitHandler props and added userId
  * 
  * Navigation controls for the multi-step form
  */
@@ -24,6 +25,7 @@ interface FormNavigationControlsProps {
   isNavigating: boolean;
   onSave: () => Promise<boolean>;
   carId?: string;
+  userId?: string;
 }
 
 export const FormNavigationControls = ({
@@ -38,6 +40,7 @@ export const FormNavigationControls = ({
   isNavigating,
   onSave,
   carId,
+  userId,
 }: FormNavigationControlsProps) => {
   return (
     <div className="flex flex-col md:flex-row md:justify-between gap-4 pt-4 border-t">
@@ -70,7 +73,10 @@ export const FormNavigationControls = ({
         </Button>
         
         {isLastStep ? (
-          <FormSubmitHandler />
+          <FormSubmitHandler 
+            carId={carId}
+            userId={userId}
+          />
         ) : (
           <Button
             type="button"
