@@ -1,9 +1,11 @@
+
 /**
  * Photo Field Mapping Utility
  * Created: 2025-05-20
  * Updated: 2025-05-23 - Added passenger_side to required fields and ensured consistent mapping
  * Updated: 2025-05-20 - Added odometer to required fields and ensured consistent mapping
  * Updated: 2025-05-27 - Updated to handle camelCase to snake_case conversion consistently
+ * Updated: 2025-05-20 - Ensured compatibility with process-image edge function mapping
  * 
  * Provides consistent mapping between client-side field names and server-side storage paths
  * to ensure photos are properly associated with car listings.
@@ -39,6 +41,10 @@ export const PHOTO_FIELD_MAP: Record<string, string> = {
   'passenger_side': 'passenger_side',
   'interior_front': 'interior_front',
   'interior_rear': 'interior_rear',
+  'dashboard': 'dashboard',
+  'odometer': 'odometer',
+  'trunk': 'trunk',
+  'engine': 'engine',
 };
 
 // Required photo fields that must be present (using backend/database field names)
@@ -59,11 +65,11 @@ export const REQUIRED_PHOTO_FIELDS = [
  */
 export const standardizePhotoCategory = (category: string): string => {
   // First check if this is a prefixed category like "required_exterior_front"
-  if (category.startsWith('required_')) {
+  if (category && category.startsWith('required_')) {
     const baseName = category.replace('required_', '');
     return PHOTO_FIELD_MAP[baseName] || baseName;
   }
   
   // Then check the mapping
-  return PHOTO_FIELD_MAP[category] || category;
+  return category && PHOTO_FIELD_MAP[category] ? PHOTO_FIELD_MAP[category] : category;
 };

@@ -3,6 +3,7 @@
  * Car Service for handling car listing operations
  * Created: 2025-07-10
  * Updated: 2025-07-12 - Fixed exports and added required functions
+ * Updated: 2025-05-20 - Fixed table name from car_listings to cars
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +17,7 @@ export const saveCarListing = async (
   userId: string
 ): Promise<{ id: string }> => {
   const { data, error } = await supabase
-    .from('car_listings')
+    .from('cars') // Fixed: Using correct table name 'cars' instead of 'car_listings'
     .insert({
       ...transformCarDataForStorage(carData),
       seller_id: userId,
@@ -43,7 +44,7 @@ export const updateCarListing = async (
   carData: Partial<CarListingFormData>
 ): Promise<{ id: string }> => {
   const { data, error } = await supabase
-    .from('car_listings')
+    .from('cars') // Fixed: Using correct table name 'cars' instead of 'car_listings'
     .update({
       ...transformCarDataForStorage(carData),
       updated_at: new Date().toISOString()

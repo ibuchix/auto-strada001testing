@@ -1,90 +1,109 @@
 
 /**
  * Car Listing Submission Service
- * Created: 2025-06-07
+ * Created: 2025-05-20
  * 
- * Service to handle car listing form submissions
+ * Service for handling car listing submissions
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
-import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
-import { toast } from "sonner";
-
-interface SubmissionResult {
-  id: string;
-  success: boolean;
-  message?: string;
-}
+import { useAuth } from "@/components/AuthProvider";
+import { prepareSubmission } from "../utils/submission";
 
 /**
- * Submits a car listing form to the database
- * 
- * @param formData The form data to submit
- * @param userId The ID of the user submitting the form
- * @returns A promise that resolves to a SubmissionResult object
+ * Submit a car listing to the database
  */
 export const submitCarListing = async (
   formData: CarListingFormData,
-  userId: string
-): Promise<SubmissionResult> => {
+  userId?: string
+): Promise<{ id: string }> => {
   try {
-    console.log('[SubmissionService] Starting submission process');
-    
-    // Validate required fields are present
-    if (!formData.make || !formData.model || !formData.year) {
-      throw new Error('Missing required fields');
-    }
-    
-    // Ensure we have a valid user ID
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-
-    // Transform form data to snake_case for database compatibility
-    const dbData = transformObjectToSnakeCase({
-      ...formData,
-      sellerId: userId,
-      status: 'pending', // Change from draft to pending for submission
-      isDraft: false,
-      submittedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+    console.log("Submitting car listing to database:", { 
+      formData: { ...formData, id: formData.id || 'new' },
+      hasUserId: !!userId
     });
-
-    // Submit to database
-    const { data, error } = await supabase
-      .from('cars')
-      .upsert({
-        ...(formData.id ? { id: formData.id } : {}),
-        ...dbData
-      })
-      .select('id')
-      .single();
-
-    if (error) {
-      console.error('[SubmissionService] Database error:', error);
-      throw new Error(`Submission failed: ${error.message}`);
+    
+    // Prepare data for submission
+    const preparedData = prepareSubmission(formData);
+    
+    // If editing (id exists), update the existing record
+    if (preparedData.id) {
+      const { data, error } = await supabase
+        .from('cars')
+        .update({
+          ...preparedData,
+          updated_at: new Date().toISOString(),
+          seller_id: userId || preparedData.seller_id
+        })
+        .eq('id', preparedData.id)
+        .select('id')
+        .single();
+      
+      if (error) {
+        console.error("Error updating car in database:", error);
+        throw error;
+      }
+      
+      console.log("Successfully updated car:", data);
+      return { id: data.id };
+    } else {
+      // Creating a new listing
+      const { data, error } = await supabase
+        .from('cars')
+        .insert({
+          ...preparedData,
+          seller_id: userId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+      
+      if (error) {
+        console.error("Error inserting car in database:", error);
+        throw error;
+      }
+      
+      console.log("Successfully created new car:", data);
+      return { id: data.id };
     }
-
-    if (!data?.id) {
-      throw new Error('No ID returned from submission');
-    }
-
-    console.log('[SubmissionService] Submission successful:', data.id);
-    return {
-      id: data.id,
-      success: true,
-      message: 'Car listing submitted successfully'
-    };
   } catch (error) {
-    console.error('[SubmissionService] Submission error:', error);
-    
-    // Show error notification
-    toast.error('Submission failed', {
-      description: error instanceof Error ? error.message : 'Unknown error occurred'
-    });
-    
-    // Re-throw for handling by the caller
+    console.error("Error in submitCarListing:", error);
     throw error;
   }
+};
+
+/**
+ * Fallback function for creating car listings when RPC is not available
+ */
+export const createCarUsingRPC = async (formData: CarListingFormData, userId: string): Promise<{ id: string }> => {
+  try {
+    const preparedData = prepareSubmission(formData);
+    
+    // Use create_car_listing RPC function if available
+    const { data, error } = await supabase
+      .rpc('create_car_listing', {
+        p_car_data: preparedData,
+        p_user_id: userId
+      });
+      
+    if (error) {
+      console.error("Error using create_car_listing RPC:", error);
+      // Fallback to regular insert
+      return submitCarListing(formData, userId);
+    }
+    
+    console.log("Successfully created car using RPC:", data);
+    return { id: data.car_id };
+  } catch (error) {
+    console.error("Error in createCarUsingRPC:", error);
+    // Fallback to regular insert
+    return submitCarListing(formData, userId);
+  }
+};
+
+export default {
+  submitCarListing,
+  createCarUsingRPC
 };

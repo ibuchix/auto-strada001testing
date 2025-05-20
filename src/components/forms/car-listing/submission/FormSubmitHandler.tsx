@@ -15,6 +15,7 @@
  * Updated: 2025-06-25 - Added more detailed validation logs and improved error messaging
  * Updated: 2025-05-20 - Fixed FormProvider context usage with better error handling
  * Updated: 2025-05-20 - Added image association functionality after form submission
+ * Updated: 2025-05-20 - Fixed car submission to use actual database and proper image association
  */
 
 import React, { useState } from "react";
@@ -29,6 +30,8 @@ import { Loader2 } from "lucide-react";
 import { standardizePhotoCategory, PHOTO_FIELD_MAP } from "@/utils/photoMapping";
 import { useImageAssociation } from "@/hooks/submission/useImageAssociation";
 import { v4 as uuidv4 } from "uuid";
+import { useAuth } from "@/components/AuthProvider";
+import { submitCarListing } from "./services/submissionService";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -67,6 +70,10 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
   
   // Use the image association hook
   const { associateImages, isAssociating } = useImageAssociation();
+  
+  // Get auth context
+  const auth = useAuth();
+  const session = auth?.session;
   
   const onSubmit = async (formData: CarListingFormData) => {
     try {
@@ -121,15 +128,38 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       // Prepare form data for submission
       const preparedData = prepareFormDataForSubmission(formData);
       
+      // Get the current user ID from props or auth context
+      const currentUserId = userId || session?.user?.id;
+      
+      if (!currentUserId) {
+        toast.error("Authentication Error", {
+          description: "Please log in to submit a listing",
+        });
+        setIsSubmitting(false);
+        return false;
+      }
+      
       // Log the final data being submitted
       console.log(`[FormSubmission][${submissionId}] Submitting car listing:`, preparedData);
       
-      // In a real app, you would submit this data to your API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Submit the data to the database
+      let result;
+      try {
+        result = await submitCarListing(preparedData, currentUserId);
+        console.log(`[FormSubmission][${submissionId}] Form submitted successfully, car ID: ${result.id}`);
+      } catch (error) {
+        console.error(`[FormSubmission][${submissionId}] Error submitting to database:`, error);
+        toast.error("Submission Failed", {
+          description: "There was an error saving your listing to the database. Please try again.",
+        });
+        if (onSubmitError && error instanceof Error) {
+          onSubmitError(error);
+        }
+        setIsSubmitting(false);
+        return false;
+      }
       
-      // Simulate successful submission
-      const newCarId = carId || `new-car-${submissionId}`;
-      console.log(`[FormSubmission][${submissionId}] Form submitted successfully, car ID: ${newCarId}`);
+      const newCarId = result.id;
       
       // Associate images with the new car ID
       setIsAssociatingImages(true);
@@ -162,7 +192,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         onSubmitSuccess(newCarId);
       } else {
         // Default success behavior - redirect to seller dashboard
-        navigate("/seller/dashboard");
+        navigate("/dashboard/seller");
       }
       
       return true;

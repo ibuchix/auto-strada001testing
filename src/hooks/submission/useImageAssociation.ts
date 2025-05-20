@@ -8,10 +8,11 @@
  * Updated: 2025-06-02 - Fixed toast API usage to use Sonner format and improved error handling
  * Updated: 2025-06-03 - Added retry capability and bypass for throttling
  * Updated: 2025-05-20 - Integrated with standardized photo field naming
+ * Updated: 2025-05-20 - Fixed image association with real car IDs and improved error handling
  */
 
 import { useState, useRef, useCallback } from 'react';
-import { associateTempUploadsWithCar } from '@/services/supabase/uploadService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { standardizePhotoCategory } from '@/utils/photoMapping';
 
@@ -77,44 +78,77 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
       // Add a small delay to ensure database consistency
       console.log(`[ImageAssociation][${submissionId}] Found ${tempUploads.length} temp uploads in localStorage, associating with car ${carId}`);
       
-      // Try to associate temp uploads with the new car ID with retry logic
+      // Associate temp uploads with car ID manually instead of using service
       let associatedCount = 0;
       let currentRetry = retryAttemptsRef.current[carId] || 0;
       
-      while (currentRetry <= retryConfig.maxRetries) {
-        try {
-          associatedCount = await associateTempUploadsWithCar(carId);
+      // Create database entries for car_file_uploads
+      try {
+        for (const upload of tempUploads) {
+          console.log(`[ImageAssociation][${submissionId}] Associating upload: category=${upload.category}, path=${upload.filePath}`);
           
-          // If successful, break the retry loop
-          if (associatedCount > 0) {
-            console.log(`[ImageAssociation][${submissionId}] Successfully associated ${associatedCount} images on attempt ${currentRetry + 1}`);
-            break;
-          } 
+          // Insert record directly through Supabase client
+          const { error } = await supabase
+            .from('car_file_uploads')
+            .insert({
+              car_id: carId,
+              file_path: upload.filePath,
+              file_type: 'image/jpeg', // Default assumption
+              upload_status: 'completed',
+              category: upload.category,
+              image_metadata: {
+                publicUrl: upload.publicUrl
+              }
+            });
           
-          // If no images were associated but there was no error, still try again
-          console.log(`[ImageAssociation][${submissionId}] No images associated on attempt ${currentRetry + 1}, retrying...`);
-          currentRetry++;
-          retryAttemptsRef.current[carId] = currentRetry;
-          
-          if (currentRetry <= retryConfig.maxRetries) {
-            // Wait before retrying
-            await sleep(retryConfig.delayMs);
-          }
-        } catch (error) {
-          console.error(`[ImageAssociation][${submissionId}] Error associating images on attempt ${currentRetry + 1}:`, error);
-          
-          // Increment retry counter
-          currentRetry++;
-          retryAttemptsRef.current[carId] = currentRetry;
-          
-          if (currentRetry <= retryConfig.maxRetries) {
-            // Wait before retrying
-            console.log(`[ImageAssociation][${submissionId}] Retrying in ${retryConfig.delayMs}ms...`);
-            await sleep(retryConfig.delayMs);
+          if (error) {
+            console.error(`[ImageAssociation][${submissionId}] Database error associating file ${upload.filePath}:`, error);
+            throw new Error(`Database error associating file: ${error.message}`);
           } else {
-            // Max retries reached, rethrow the error
-            throw error;
+            console.log(`[ImageAssociation][${submissionId}] Successfully added file record for ${upload.category}`);
+            associatedCount++;
           }
+          
+          // Also update the car record with the photo information
+          await updateCarPhotoRecord(carId, upload.category, upload.filePath);
+        }
+        
+        console.log(`[ImageAssociation][${submissionId}] Successfully processed ${associatedCount} uploads`);
+      } catch (error) {
+        // Handle errors during association
+        console.error(`[ImageAssociation][${submissionId}] Error during association:`, error);
+        
+        // Increment retry counter
+        currentRetry++;
+        retryAttemptsRef.current[carId] = currentRetry;
+        
+        if (currentRetry <= retryConfig.maxRetries) {
+          // Wait before retrying
+          console.log(`[ImageAssociation][${submissionId}] Retrying in ${retryConfig.delayMs}ms...`);
+          await sleep(retryConfig.delayMs);
+          
+          // Try one more time with direct SQL using RPC if available
+          try {
+            console.log(`[ImageAssociation][${submissionId}] Attempting emergency association via RPC...`);
+            const { data, error } = await supabase.rpc(
+              'associate_temp_uploads_with_car',
+              { p_car_id: carId }
+            );
+            
+            if (!error && data > 0) {
+              console.log(`[ImageAssociation][${submissionId}] RPC association successful, associated ${data} files`);
+              associatedCount = data;
+            } else if (error) {
+              console.error(`[ImageAssociation][${submissionId}] RPC association error:`, error);
+              throw error;
+            }
+          } catch (rpcError) {
+            console.error(`[ImageAssociation][${submissionId}] RPC association failed:`, rpcError);
+            // Just log this error, we've tried our best
+          }
+        } else {
+          // Max retries reached
+          console.error(`[ImageAssociation][${submissionId}] Max retries (${retryConfig.maxRetries}) reached`);
         }
       }
       
@@ -147,6 +181,49 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
       return 0;
     } finally {
       setIsAssociating(false);
+    }
+  };
+  
+  // Helper function to update car photo records
+  const updateCarPhotoRecord = async (carId: string, category: string, filePath: string) => {
+    try {
+      // First get current car data
+      const { data: car, error: getError } = await supabase
+        .from('cars')
+        .select('required_photos, additional_photos')
+        .eq('id', carId)
+        .single();
+      
+      if (getError) {
+        console.error(`Error fetching car ${carId} data:`, getError);
+        return;
+      }
+      
+      // Determine if this is a required photo or additional photo
+      if (category === 'additional_photos' || category.includes('additional')) {
+        // For additional photos, add to the array
+        const currentPhotos = car?.additional_photos || [];
+        const updatedPhotos = Array.isArray(currentPhotos) 
+          ? [...currentPhotos, filePath] 
+          : [filePath];
+        
+        await supabase
+          .from('cars')
+          .update({ additional_photos: updatedPhotos })
+          .eq('id', carId);
+      } else {
+        // For required photos, add to the required_photos object
+        const requiredPhotos = car?.required_photos || {};
+        requiredPhotos[category] = filePath;
+        
+        await supabase
+          .from('cars')
+          .update({ required_photos: requiredPhotos })
+          .eq('id', carId);
+      }
+    } catch (error) {
+      console.error(`Error updating car ${carId} with photo ${category}:`, error);
+      // Non-fatal error, continue
     }
   };
   
