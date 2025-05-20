@@ -3,6 +3,7 @@
  * Form Field Mapping Utility
  * Created: 2025-05-26
  * Updated: 2025-05-27 - Added additional field mappings and fixed type inconsistencies
+ * Updated: 2025-06-21 - Added verification_status and is_verified mappings for seller registration
  * 
  * This utility helps with mapping between frontend camelCase field names
  * and backend snake_case field names for consistent data handling.
@@ -42,6 +43,8 @@ export const FIELD_MAPPINGS: FieldMapEntry[] = [
   { frontend: 'isAuction', backend: 'is_auction' },
   { frontend: 'additionalPhotos', backend: 'additional_photos' },
   { frontend: 'sellerId', backend: 'seller_id' },
+  { frontend: 'verificationStatus', backend: 'verification_status' },
+  { frontend: 'isVerified', backend: 'is_verified' },
 ];
 
 // Get backend field name from frontend field name

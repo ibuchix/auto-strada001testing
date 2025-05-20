@@ -2,6 +2,7 @@
 /**
  * useSellerRegistration hook
  * Created: 2025-06-20 - Extracted from original useAuthActions for better modularity
+ * Updated: 2025-06-21 - Fixed database field naming to match schema (status → verification_status and is_verified)
  * 
  * Handles seller registration with the Supabase database
  */
@@ -36,7 +37,8 @@ export const useSellerRegistration = () => {
         .from("sellers")
         .insert({
           user_id: userId,
-          status: "active",
+          verification_status: "verified",
+          is_verified: true,
           created_at: new Date().toISOString(),
         })
         .single();

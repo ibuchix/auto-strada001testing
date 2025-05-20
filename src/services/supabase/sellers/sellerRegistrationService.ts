@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-12-31: Extracted registration logic from sellerProfileService.ts
  * - Updated to support automatic verification
+ * - 2025-06-21: Ensured consistent field naming (verification_status and is_verified) across all methods
  */
 
 import { BaseService } from "../baseService";

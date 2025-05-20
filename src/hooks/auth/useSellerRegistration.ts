@@ -3,6 +3,7 @@
  * Changes made:
  * - 2024-12-30: Extracted from useAuth.tsx as part of refactoring for better maintainability
  * - 2024-12-30: Separated seller registration logic into a dedicated hook
+ * - 2025-06-21: Fixed field names to use verification_status and is_verified to match database schema
  */
 
 import { useState, useCallback } from "react";
@@ -213,7 +214,8 @@ export const useSellerRegistration = () => {
                 user_id: userId,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
-                verification_status: 'pending'
+                verification_status: 'verified',
+                is_verified: true
               });
               
             if (sellerCreateError) {
