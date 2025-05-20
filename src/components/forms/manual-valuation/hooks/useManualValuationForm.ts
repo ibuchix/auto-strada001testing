@@ -8,6 +8,7 @@
  * - Updated: 2025-06-22 - Fixed type conversions and field access
  * - Updated: 2025-05-05 - Fixed TypeScript errors with conditionRating and other fields
  * - Updated: 2025-05-06 - Improved type safety for serviceHistoryType and fixed type errors
+ * - Updated: 2025-05-30 - Fixed type errors with numberOfKeys and field name references
  */
 
 import { useForm } from "react-hook-form";
@@ -31,7 +32,7 @@ export const useManualValuationForm = () => {
     notes?: string;
   }>({
     defaultValues: {
-      name: "",
+      sellerName: "",
       address: "",
       mobileNumber: "",
       conditionRating: 3,
@@ -59,7 +60,7 @@ export const useManualValuationForm = () => {
       sellerNotes: "",
       uploadedPhotos: [],
       seatMaterial: "cloth",
-      numberOfKeys: "1",
+      numberOfKeys: 1,
       transmission: "manual" as "manual" | "automatic" | "semi-automatic"
     },
   });
@@ -111,7 +112,7 @@ export const useManualValuationForm = () => {
         .from("manual_valuations")
         .insert({
           user_id: user.id,
-          name: data.name,
+          name: data.sellerName,
           make: data.make,
           model: data.model,
           year: safeParseInt(data.year) || new Date().getFullYear(),
@@ -131,7 +132,7 @@ export const useManualValuationForm = () => {
           address: data.address,
           mobile_number: data.mobileNumber,
           vin: data.vin,
-          registration_number: data.registration_number || data.registrationNumber,
+          registration_number: data.registrationNumber,
           accident_history: data.accidentHistory || '',
           contact_email: data.contactEmail || '',
           previous_owners: safeParseInt(data.previousOwners) || null,

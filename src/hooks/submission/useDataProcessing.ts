@@ -3,6 +3,7 @@
  * Data Processing Hook
  * Created: 2025-05-20
  * Updated: 2025-05-19: Fixed type issues with CarListingFormData title property
+ * Updated: 2025-05-30: Fixed name property access, using title instead
  * 
  * Handles validating and preparing form data for submission
  */
@@ -52,9 +53,9 @@ export const useDataProcessing = () => {
       cleanedData.model = cleanedData.model.trim();
     }
     
-    // Generate a title-like display name if not provided (name is the correct property in CarListingFormData)
-    if (!cleanedData.name && cleanedData.make && cleanedData.model && cleanedData.year) {
-      cleanedData.name = `${cleanedData.year} ${cleanedData.make} ${cleanedData.model}`;
+    // Generate a title if not provided
+    if (!cleanedData.title && cleanedData.make && cleanedData.model && cleanedData.year) {
+      cleanedData.title = `${cleanedData.year} ${cleanedData.make} ${cleanedData.model}`;
     }
     
     return cleanedData;

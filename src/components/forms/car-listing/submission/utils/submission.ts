@@ -9,9 +9,9 @@
  * - 2025-12-05: Enhanced prepareSubmission to properly handle CarFeatures
  * - 2025-06-21: Fixed references to CarFeatures interface and created_at handling
  * - 2025-07-22: Fixed incomplete implementation
- * - 2025-05-05: Fixed type issues and removed is_draft property
+ * - 2025-05-05: Fixed type issues and removed is_draft property 
  * - 2025-05-06: Fixed Date to string conversion issue
- * - 2025-05-29: Fixed transmission type issue
+ * - 2025-05-30: Fixed instanceof Date check with proper type handling
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -61,17 +61,18 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   // Convert Date to string if needed
   const createdAt = typeof formData.created_at === 'string' 
     ? formData.created_at 
-    : formData.created_at instanceof Date 
+    : (formData.created_at && typeof formData.created_at.toISOString === 'function')
       ? formData.created_at.toISOString() 
       : new Date().toISOString();
   
   // Ensure transmission is one of the allowed types
-  const transmission: "manual" | "automatic" | "semi-automatic" = 
-    (formData.transmission === "automatic" || 
-     formData.transmission === "semi-automatic" || 
-     formData.transmission === "manual") 
-      ? formData.transmission 
-      : "manual";
+  let transmission: "manual" | "automatic" | "semi-automatic" = "manual";
+  
+  if (formData.transmission === "automatic" || 
+      formData.transmission === "semi-automatic" || 
+      formData.transmission === "manual") {
+    transmission = formData.transmission;
+  }
   
   // Ensure all required fields are present with default values if needed
   const entity: Partial<CarEntity> = {

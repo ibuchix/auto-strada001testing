@@ -4,6 +4,7 @@
  * and database (snake_case) formats
  * 
  * Created: 2025-05-24
+ * Updated: 2025-05-30 - Fixed TypeScript errors with direction type
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -28,17 +29,22 @@ export function transformDbToForm<T = Partial<CarListingFormData>>(dbData: Recor
 }
 
 /**
+ * Direction type for database transformation
+ */
+export type TransformDirection = 'toDatabase' | 'toFrontend';
+
+/**
  * Creates a boundary function that handles the transformation
  * between frontend and database formats for any data
  */
 export function createDatabaseBoundary<T, R = Record<string, any>>(
-  direction: 'toDatabase' | 'toFrontend'
+  direction: TransformDirection
 ) {
-  return (data: direction extends 'toDatabase' ? T : R): direction extends 'toDatabase' ? R : T => {
+  return (data: T): R => {
     if (direction === 'toDatabase') {
-      return transformObjectToSnakeCase(data) as any;
+      return transformObjectToSnakeCase(data) as R;
     } else {
-      return transformObjectToCamelCase(data) as any;
+      return transformObjectToCamelCase(data) as R;
     }
   };
 }
@@ -49,13 +55,13 @@ export function createDatabaseBoundary<T, R = Record<string, any>>(
  */
 export function withDbTransformation<T, R>(
   operation: (data: R) => Promise<T>,
-  direction: 'toDatabase' | 'toFrontend' = 'toDatabase'
+  direction: TransformDirection = 'toDatabase'
 ) {
   const transform = createDatabaseBoundary<T, R>(direction);
   
-  return async (data: direction extends 'toDatabase' ? T : R): Promise<direction extends 'toDatabase' ? R : T> => {
-    const transformedData = transform(data as any);
-    const result = await operation(transformedData as R);
-    return direction === 'toDatabase' ? result as any : transform(result as any);
+  return async (data: T): Promise<T> => {
+    const transformedData = transform(data as any) as R;
+    const result = await operation(transformedData);
+    return direction === 'toDatabase' ? result : transform(result as any) as T;
   };
 }
