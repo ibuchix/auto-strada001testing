@@ -11,6 +11,7 @@
  * - 2025-07-22: Fixed incomplete implementation
  * - 2025-05-05: Fixed type issues and removed is_draft property 
  * - 2025-05-06: Fixed Date to string conversion issue
+ * - 2025-06-01: Fixed transmission type to be one of the allowed values
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -64,6 +65,15 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
       ? formData.created_at.toISOString() 
       : new Date().toISOString();
   
+  // Ensure transmission is one of the allowed types
+  let transmissionValue: "manual" | "automatic" | "semi-automatic" = "manual";
+  
+  if (formData.transmission === "automatic" || 
+      formData.transmission === "semi-automatic" || 
+      formData.transmission === "manual") {
+    transmissionValue = formData.transmission as "manual" | "automatic" | "semi-automatic";
+  }
+  
   // Ensure all required fields are present with default values if needed
   const entity: Partial<CarEntity> = {
     ...formData,
@@ -79,7 +89,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
     // Cast transmission to the expected type
-    transmission: formData.transmission || 'manual',
+    transmission: transmissionValue,
     // Use properly typed features
     features: carFeatures
   };

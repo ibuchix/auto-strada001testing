@@ -5,6 +5,7 @@
  * Updated: 2025-05-10 - Fixed TypeScript errors with title property
  * Updated: 2025-05-30 - Fixed camelCase/snake_case field name issues
  * Updated: 2025-05-31 - Fixed TypeScript errors with field property types
+ * Updated: 2025-06-01 - Fixed name property access and updatedAt handling
  */
 
 import { CarListingFormData } from '@/types/forms';

@@ -6,10 +6,16 @@
  * Created: 2025-05-24
  * Updated: 2025-05-30 - Fixed TypeScript errors with direction type
  * Updated: 2025-05-31 - Added proper type handling for transform functions
+ * Updated: 2025-06-01 - Fixed TransformDirection type issues
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { transformObjectToCamelCase, transformObjectToSnakeCase } from "./dataTransformers";
+
+/**
+ * Direction type for database transformation
+ */
+export type TransformDirection = 'toDatabase' | 'toFrontend';
 
 /**
  * Transforms form data (camelCase) to database format (snake_case)
@@ -28,11 +34,6 @@ export function transformDbToForm<T = Partial<CarListingFormData>>(dbData: Recor
   // First, convert all snake_case keys to camelCase
   return transformObjectToCamelCase(dbData) as T;
 }
-
-/**
- * Direction type for database transformation
- */
-export type TransformDirection = 'toDatabase' | 'toFrontend';
 
 /**
  * Creates a boundary function that handles the transformation

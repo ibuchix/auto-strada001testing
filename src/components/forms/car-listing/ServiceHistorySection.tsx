@@ -15,6 +15,7 @@
  * - 2025-05-04: Resolved property mismatches with useDocumentUpload hook
  * - 2025-05-24: Updated to use camelCase field names consistently
  * - 2025-05-29: Fixed TypeScript errors with hook properties
+ * - 2025-05-31: Fixed removeDocument prop name to removeFile
  */
 
 import { ServiceHistoryFile } from "@/types/forms";
@@ -38,7 +39,7 @@ export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => 
     isUploading,
     handleFileChange,
     uploadDocument,
-    removeDocument,
+    removeFile,
   } = useDocumentUpload();
 
   // Show the document upload section only if service history type is not "none"
@@ -61,7 +62,7 @@ export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => 
             
             <DocumentList
               uploadedFiles={serviceHistoryFiles}
-              onRemoveUploaded={removeDocument}
+              onRemoveUploaded={removeFile}
             />
           </div>
         )}

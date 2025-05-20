@@ -1,8 +1,10 @@
+
 /**
  * Form save utilities
  * Created: 2025-06-05
  * Updated: 2025-06-06: Added saveFormData function and improved error handling
- * Updated: 2025-05-20: Updated to use last_saved field from database
+ * Updated: 2025-05-20: Updated to use lastSaved field from database
+ * Updated: 2025-06-01: Fixed camelCase/snake_case conversion for valuationData
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -72,7 +74,7 @@ export const saveFormData = async (
       // Add last_saved timestamp
       last_saved: now.toISOString(),
       // Add valuation data if available
-      valuation_data: valuationData || formData.valuation_data || null,
+      valuation_data: valuationData || formData.valuationData || null,
       // Make sure to add current timestamp for updated_at
       updated_at: now.toISOString()
     };

@@ -9,6 +9,7 @@
  * - Updated 2025-05-27: Fixed missing RimPhotos interface export and field definitions
  * - Updated 2025-05-29: Added serviceHistoryCount to fix TypeScript errors
  * - Updated 2025-05-30: Fixed numberOfKeys type to be number | string for compatibility
+ * - Updated 2025-06-01: Added name property for test compatibility
  */
 export interface CarListingFormData {
   id?: string;
@@ -45,6 +46,7 @@ export interface CarListingFormData {
   registrationNumber?: string;
   address?: string;
   sellerName?: string;
+  name?: string; // Added for test compatibility
   serviceHistoryType?: string;
   seatMaterial?: string;
   lastSaved?: string;

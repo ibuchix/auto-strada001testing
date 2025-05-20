@@ -1,3 +1,4 @@
+
 /**
  * Form Types
  * Created: 2025-07-23
@@ -11,6 +12,7 @@
  * Updated: 2025-05-08 - Fixed ExtendedStoredFile type to correctly include all properties
  * Updated: 2025-05-15 - Added financeAmount to CarEntity interface
  * Updated: 2025-05-27 - Updated field names to use consistent camelCase in frontend
+ * Updated: 2025-06-01 - Added name property for test compatibility
  */
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -53,10 +55,10 @@ export interface ServiceHistoryFile {
 }
 
 export interface RimPhotos {
-  front_left: string;
-  front_right: string;
-  rear_left: string;
-  rear_right: string;
+  frontLeft?: string;
+  frontRight?: string;
+  rearLeft?: string;
+  rearRight?: string;
 }
 
 export interface SellerBankDetails {
@@ -229,6 +231,7 @@ export interface CarListingFormData {
   
   // Backend snake_case compatibility fields - these will be handled by the conversion utilities
   lastSaved?: string;
+  serviceHistoryCount?: number;
 }
 
 /**
@@ -252,7 +255,7 @@ export interface CarEntity {
   service_history_type: 'none' | 'partial' | 'full';
   seller_notes?: string;
   seat_material?: string;
-  number_of_keys: number;
+  number_of_keys: number | string; // Updated to match form field type
   status: string;
   auction_status?: string;
   is_draft: boolean;
