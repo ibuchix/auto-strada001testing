@@ -5,6 +5,7 @@
  * - 2025-04-05: Ensured all required properties are correctly set
  * - 2025-07-19: Fixed import path for PhotoItem interface
  * - 2025-05-23: Updated field IDs to match standardized naming in photoMapping.ts
+ * - 2025-05-20: Ensured odometer is included in required interior photos
  */
 import { PhotoItem } from "../types";
 

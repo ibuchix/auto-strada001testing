@@ -5,6 +5,7 @@
  * Updated: 2025-05-20 - Added more robust consolidation and validation logic
  * Updated: 2025-05-20 - Integrated with standardized photo field mapping
  * Updated: 2025-05-23 - Enhanced validation with detailed debugging and error messages
+ * Updated: 2025-05-20 - Updated to ensure odometer is properly validated as a required field
  * 
  * Transforms individual photo fields into the required_photos JSONB structure 
  * expected by the database schema.
@@ -78,7 +79,12 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
       present: !!requiredPhotos[field],
       source: Object.entries(PHOTO_FIELD_MAP)
         .filter(([_, value]) => value === field)
-        .map(([key]) => key)
+        .map(([key]) => key),
+      value: requiredPhotos[field] ? 
+        (requiredPhotos[field].length > 20 ? 
+          requiredPhotos[field].substring(0, 20) + '...' : 
+          requiredPhotos[field]) : 
+        'missing'
     }))
   });
   
@@ -114,7 +120,10 @@ export const validateRequiredPhotos = (formData: CarListingFormData): string[] =
       k === 'odometer'
     ),
     hasRequiredPhotosObject: !!formData.required_photos,
-    vehiclePhotosPresent: !!formData.vehiclePhotos
+    vehiclePhotosPresent: !!formData.vehiclePhotos,
+    odometerPresent: !!requiredPhotos['odometer'] || 
+      !!formData.odometer || 
+      !!(formData.vehiclePhotos && formData.vehiclePhotos.odometer)
   });
   
   return missingFields;

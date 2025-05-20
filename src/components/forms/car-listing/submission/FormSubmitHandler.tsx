@@ -17,6 +17,7 @@
  * Updated: 2025-06-02 - Added image association with car records after successful submission
  * Updated: 2025-06-03 - Added improved throttling bypass for image association
  * Updated: 2025-05-20 - Added detailed form data validation before submission to catch errors early
+ * Updated: 2025-05-20 - Updated photo validation to include all required fields including odometer
  */
 
 import { useState, useEffect, useRef, useCallback, memo } from "react";
@@ -118,17 +119,21 @@ export const FormSubmitHandler = memo(({
     console.log("[FormSubmitHandler] Form data structure:", {
       photoFields: Object.keys(formData).filter(key => 
         ['dashboard', 'exterior_front', 'exterior_rear', 'exterior_side', 
-         'interior_front', 'interior_rear', 'odometer', 'trunk', 'engine'].includes(key)
+         'interior_front', 'interior_rear', 'odometer', 'trunk', 'engine',
+         'passenger_side'].includes(key)
       ),
       hasRequiredPhotos: !!formData.required_photos,
-      requiredPhotosKeys: formData.required_photos ? Object.keys(formData.required_photos) : []
+      requiredPhotosKeys: formData.required_photos ? Object.keys(formData.required_photos) : [],
+      hasOdometer: !!formData.odometer || 
+                  !!(formData.vehiclePhotos && formData.vehiclePhotos.odometer) ||
+                  !!(formData.required_photos && formData.required_photos.odometer)
     });
     
     // Validate required photo fields
     const missingPhotoFields = validateRequiredPhotos(formData);
     if (missingPhotoFields.length > 0) {
       console.error("[FormSubmitHandler] Missing required photo fields:", missingPhotoFields);
-      toast.error(`Missing required photos: ${missingPhotoFields.join(', ')}`, {
+      toast.error(`Missing required photos: ${missingPhotoFields.map(field => field.replace('_', ' ')).join(', ')}`, {
         description: "Please upload all required photos before submitting"
       });
       return false;

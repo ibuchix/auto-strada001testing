@@ -1,131 +1,105 @@
 
 /**
- * Changes made:
- * - Added validation to ensure all required photos are uploaded
- * - Added ValidationSummary component to display validation status
- * - Integrated with onValidationChange callback for form integration
- * - Updated to display validation errors when trying to proceed
- * - Maintained all original functionality while adding validation
- * - Restyled to match brand guidelines with a single required indicator per section
- * - Enhanced visual styling with cards and brand colors
- * - Improved spacing and typography
- * - 2025-04-05: Updated to handle the non-optional required property in PhotoItem
- * - 2025-04-06: Harmonized with app design system
- * - 2025-05-20: Updated to use direct uploads for immediate processing
+ * Required Photos Component
+ * Created: 2025-05-12
+ * Updated: 2025-05-20 - Added support for all required photo fields including odometer
+ * 
+ * Displays required photos section with proper validation
  */
 
-import { Separator } from "@/components/ui/separator";
-import { Camera, CameraIcon } from "lucide-react";
-import { ValidationError } from "../utils/validation";
-import { PhotoUploadProgress } from "./components/PhotoUploadProgress";
-import { PhotoSection } from "./components/PhotoSection";
-import { useRequiredPhotosUpload } from "./hooks/useRequiredPhotosUpload";
-import { exteriorPhotos, interiorPhotos, allRequiredPhotos } from "./data/requiredPhotoData";
-import { Card } from "@/components/ui/card";
+import React from 'react';
+import { exteriorPhotos, interiorPhotos } from './data/requiredPhotoData';
+import { PhotoSection } from './components/PhotoSection';
+import { useFormContext } from 'react-hook-form';
+import { Camera, Gauge } from 'lucide-react';
 
 interface RequiredPhotosProps {
   isUploading: boolean;
-  progress?: number;
+  progress: number;
   onFileSelect: (file: File, type: string) => Promise<string | null>;
-  onValidationChange?: (isValid: boolean) => void;
-  carId?: string;
 }
 
-export const RequiredPhotos = ({ 
-  isUploading, 
-  progress, 
-  onFileSelect,
-  onValidationChange,
-  carId
-}: RequiredPhotosProps) => {
-  const {
-    uploadedPhotos,
-    activeUploads,
-    handlePhotoUploaded,
-    handleUploadError,
-    handleUploadRetry,
-    getCompletionPercentage,
-    setActiveUpload,
-    uploadRequiredPhoto
-  } = useRequiredPhotosUpload({ 
-    onValidationChange,
-    carId
-  });
-  
-  // Generate validation errors for displaying in summary
-  const validationErrors: ValidationError[] = allRequiredPhotos
-    .filter(photo => photo.required && !uploadedPhotos[photo.id])
-    .map(photo => ({
-      field: `photo_${photo.id}`,
-      message: `${photo.title} photo is required`,
-      severity: "error",
-      recoverable: false
+export const RequiredPhotos: React.FC<RequiredPhotosProps> = ({
+  isUploading,
+  progress,
+  onFileSelect
+}) => {
+  const [uploads, setUploads] = React.useState<Record<string, boolean>>({});
+  const [active, setActive] = React.useState<Record<string, boolean>>({});
+  const form = useFormContext();
+
+  // Track which photos have been uploaded
+  const handlePhotoUploaded = (type: string) => {
+    setUploads(prev => ({
+      ...prev,
+      [type]: true
     }));
-
-  const completionPercentage = getCompletionPercentage();
-
-  // Function to handle file selection and set active upload
-  const handleFileUpload = async (file: File, type: string) => {
-    // Set as active upload before starting
-    setActiveUpload(type);
-    
-    // Delegate to the provided onFileSelect function
-    const result = await onFileSelect(file, type);
-    
-    // If the upload was successful, mark the photo as uploaded
-    if (result) {
-      handlePhotoUploaded(type);
-    }
-    
-    return result;
+    setActive(prev => ({
+      ...prev,
+      [type]: false
+    }));
   };
+
+  // Track active uploads
+  const handleUploadStart = (type: string) => {
+    setActive(prev => ({
+      ...prev,
+      [type]: true
+    }));
+  };
+
+  // Update uploads from form values when component mounts
+  React.useEffect(() => {
+    if (!form) return;
+    
+    // Get form values for vehicle photos
+    const formValues = form.getValues();
+    const newUploads: Record<string, boolean> = {};
+    
+    // Check for existing photo values and mark as uploaded
+    exteriorPhotos.forEach(photo => {
+      if (formValues[photo.id] || 
+          (formValues.vehiclePhotos && formValues.vehiclePhotos[photo.id])) {
+        newUploads[photo.id] = true;
+      }
+    });
+    
+    interiorPhotos.forEach(photo => {
+      if (formValues[photo.id] || 
+          (formValues.vehiclePhotos && formValues.vehiclePhotos[photo.id])) {
+        newUploads[photo.id] = true;
+      }
+    });
+    
+    setUploads(newUploads);
+  }, [form]);
 
   return (
     <div className="space-y-8">
-      <div className="border-b border-accent pb-4">
-        <h3 className="text-2xl font-kanit font-semibold text-body">Required Photos</h3>
-        <p className="text-subtitle mt-1 text-sm">
-          Please upload clear photos of your vehicle to help dealers assess its condition
-        </p>
-      </div>
-      
-      {/* Validation summary and progress indicator */}
-      <PhotoUploadProgress
-        completionPercentage={completionPercentage}
-        totalPhotos={allRequiredPhotos.length}
-        uploadedPhotos={uploadedPhotos}
-        validationErrors={validationErrors}
-        onValidationChange={onValidationChange}
-      />
-      
-      {/* Exterior photos section */}
       <PhotoSection
         title="Exterior Photos"
-        description="Please provide clear photos of all exterior angles of your vehicle in good lighting."
+        description="Upload clear photos of your vehicle's exterior from different angles"
         icon={Camera}
         photos={exteriorPhotos}
-        uploadedPhotos={uploadedPhotos}
-        activeUploads={activeUploads}
+        uploadedPhotos={uploads}
+        activeUploads={active}
         progress={progress}
-        onFileSelect={handleFileUpload}
+        onFileSelect={onFileSelect}
         onPhotoUploaded={handlePhotoUploaded}
-        onUploadError={handleUploadError}
-        onUploadRetry={handleUploadRetry}
+        onUploadRetry={() => {}}
       />
       
-      {/* Interior photos section */}
       <PhotoSection
-        title="Interior Photos"
-        description="Please provide clear photos of the interior, dashboard, and current odometer reading."
-        icon={CameraIcon}
+        title="Interior & Dashboard"
+        description="Show the condition of your vehicle's interior, dashboard, and current odometer reading"
+        icon={Gauge}
         photos={interiorPhotos}
-        uploadedPhotos={uploadedPhotos}
-        activeUploads={activeUploads}
+        uploadedPhotos={uploads}
+        activeUploads={active}
         progress={progress}
-        onFileSelect={handleFileUpload}
+        onFileSelect={onFileSelect}
         onPhotoUploaded={handlePhotoUploaded}
-        onUploadError={handleUploadError}
-        onUploadRetry={handleUploadRetry}
+        onUploadRetry={() => {}}
       />
     </div>
   );

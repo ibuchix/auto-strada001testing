@@ -3,6 +3,7 @@
  * Required Photos Grid Component
  * Created: 2025-05-12
  * Purpose: Grid layout for required vehicle photos
+ * Updated: 2025-05-20: Added odometer photo uploader to match required fields in photoMapping.ts
  */
 
 import React from 'react';
@@ -31,6 +32,7 @@ interface RequiredPhotosGridProps {
   dashboard: PhotoUploaderProps;
   interiorFront: PhotoUploaderProps;
   interiorRear: PhotoUploaderProps;
+  odometer: PhotoUploaderProps;
 }
 
 const PhotoUploadBox = ({ 
@@ -104,7 +106,8 @@ export const RequiredPhotosGrid: React.FC<RequiredPhotosGridProps> = ({
   passengerSide,
   dashboard,
   interiorFront,
-  interiorRear
+  interiorRear,
+  odometer
 }) => {
   return (
     <div>
@@ -150,6 +153,12 @@ export const RequiredPhotosGrid: React.FC<RequiredPhotosGridProps> = ({
           title="Interior Rear" 
           uploader={interiorRear} 
           inputId="interior-rear-upload" 
+        />
+        
+        <PhotoUploadBox 
+          title="Odometer" 
+          uploader={odometer} 
+          inputId="odometer-upload" 
         />
       </div>
     </div>

@@ -1,8 +1,8 @@
-
 /**
  * Photo Field Mapping Utility
  * Created: 2025-05-20
  * Updated: 2025-05-23 - Added passenger_side to required fields and ensured consistent mapping
+ * Updated: 2025-05-20 - Added odometer to required fields and ensured consistent mapping
  * 
  * Provides consistent mapping between client-side field names and server-side storage paths
  * to ensure photos are properly associated with car listings.
@@ -48,7 +48,8 @@ export const REQUIRED_PHOTO_FIELDS = [
   'exterior_side',
   'passenger_side',
   'interior_front',
-  'odometer'
+  'interior_rear',
+  'odometer'  // Ensure odometer is in the required fields
 ];
 
 /**

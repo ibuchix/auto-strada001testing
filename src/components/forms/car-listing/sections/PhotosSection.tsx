@@ -1,3 +1,4 @@
+
 /**
  * Photos Upload Section Component
  * Created: 2025-06-17
@@ -7,6 +8,7 @@
  * Updated: 2025-08-27 - Fixed missing uploads array error
  * Updated: 2025-08-28 - Fixed type compatibility with PhotoUploaderProps
  * Updated: 2025-05-21 - Fixed adaptTemporaryFileUploader function to include uploadFiles property
+ * Updated: 2025-05-20 - Added odometer photo uploader to match required fields in photoMapping.ts
  */
 
 import { useState, useEffect } from "react";
@@ -75,6 +77,13 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
           maxFiles: 1
         });
         
+        // Add odometer uploader to match required fields
+        const odometer = useTemporaryFileUpload({
+          category: 'odometer',
+          allowMultiple: false,
+          maxFiles: 1
+        });
+        
         // For additional photos
         const additionalPhotos = useTemporaryFileUpload({
           category: 'additional_photos',
@@ -94,6 +103,7 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
               dashboard: dashboard.files.length > 0 ? dashboard.files[0].preview || '' : undefined,
               interiorFront: interiorFront.files.length > 0 ? interiorFront.files[0].preview || '' : undefined,
               interiorRear: interiorRear.files.length > 0 ? interiorRear.files[0].preview || '' : undefined,
+              odometer: odometer.files.length > 0 ? odometer.files[0].preview || '' : undefined,
             };
             
             form.setValue("vehiclePhotos", vehiclePhotos, { shouldDirty: true });
@@ -106,6 +116,7 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
             if (dashboard.files.length > 0) form.setValue("dashboard", dashboard.files[0].preview || '');
             if (interiorFront.files.length > 0) form.setValue("interiorFront", interiorFront.files[0].preview || '');
             if (interiorRear.files.length > 0) form.setValue("interiorRear", interiorRear.files[0].preview || '');
+            if (odometer.files.length > 0) form.setValue("odometer", odometer.files[0].preview || '');
             
             // Add any additional photos to uploadedPhotos array
             if (additionalPhotos.files.length > 0) {
@@ -119,7 +130,8 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
               driverSide.files.length > 0 &&
               passengerSide.files.length > 0 &&
               dashboard.files.length > 0 &&
-              interiorFront.files.length > 0;
+              interiorFront.files.length > 0 &&
+              odometer.files.length > 0; // Added odometer to required check
               
             setAllPhotosUploaded(requiredUploaded);
           } catch (error) {
@@ -134,6 +146,7 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
           dashboard.files,
           interiorFront.files,
           interiorRear.files,
+          odometer.files, // Added odometer to dependency array
           additionalPhotos.files,
           form
         ]);
@@ -171,6 +184,7 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
                   dashboard={adaptTemporaryFileUploader(dashboard)}
                   interiorFront={adaptTemporaryFileUploader(interiorFront)}
                   interiorRear={adaptTemporaryFileUploader(interiorRear)}
+                  odometer={adaptTemporaryFileUploader(odometer)} // Added odometer to grid props
                 />
               </CardContent>
             </Card>
