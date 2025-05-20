@@ -7,13 +7,14 @@
  * - 2024-12-18: Enhanced registration flow with better error handling and role assignment
  * - 2024-12-22: Added improved debugging and role consistency checks
  * - 2024-12-30: Updated import path for useAuthActions after refactoring
+ * - 2025-06-20: Fixed import to use useSellerRegistration instead of useAuthActions
  */
 
 import { useState, useEffect } from "react";
 import { useSession, useUser } from "@supabase/auth-helpers-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useAuthActions } from "@/hooks/auth";
+import { useSellerRegistration } from "@/hooks/auth/registration";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useAuthPage = () => {
@@ -23,7 +24,7 @@ export const useAuthPage = () => {
   const session = useSession();
   const user = useUser();
   const navigate = useNavigate();
-  const { isLoading, registerSeller } = useAuthActions();
+  const { isLoading, registerSeller } = useSellerRegistration();
 
   useEffect(() => {
     if (session) {

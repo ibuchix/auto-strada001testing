@@ -1,6 +1,6 @@
 
 /**
- * Types for auth-related hooks and functions
+ * Common type definitions for authentication hooks
  */
 
 export interface AuthRegisterResult {
