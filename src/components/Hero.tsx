@@ -7,6 +7,7 @@
  * - 2024-07-06: Fixed refetch reference error
  * - 2025-05-22: Fixed spacing and layout to ensure proper rendering on homepage
  * - 2025-05-24: Fixed z-index and visibility issues to resolve blank content
+ * - 2025-05-20: Added padding at the top to prevent navbar overlap with hero content
  */
 
 import { ValuationForm } from "@/components/hero/ValuationForm";
@@ -57,7 +58,7 @@ export const Hero = () => {
   ];
 
   return (
-    <div className="relative min-h-[700px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-gray-50">
+    <div className="relative min-h-[700px] flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-gray-50 pt-20"> {/* Added pt-20 to create space below navbar */}
       <BackgroundPattern />
 
       <div className="container relative z-20 max-w-4xl mx-auto px-4 py-16">
