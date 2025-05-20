@@ -1,6 +1,8 @@
+
 /**
  * PhotosSection Component
  * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  */
 import { useState, useEffect } from "react";
 import { useFormData } from "./context/FormDataContext";
@@ -110,7 +112,7 @@ export const PhotosSection = ({ carId }: PhotosSectionProps) => {
     maxFiles: 20
   });
   
-  const uploadedPhotos = form.watch('uploaded_photos') || [];
+  const uploadedPhotos = form.watch('uploadedPhotos') || [];
   
   // Handle file selection
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,7 +133,7 @@ export const PhotosSection = ({ carId }: PhotosSectionProps) => {
       if (imageUrls && imageUrls.length > 0) {
         // Update the form with the new image URLs
         const newUploadedPhotos = [...uploadedPhotos, ...imageUrls];
-        form.setValue('uploaded_photos', newUploadedPhotos, { shouldDirty: true });
+        form.setValue('uploadedPhotos', newUploadedPhotos, { shouldDirty: true });
       }
     } catch (error) {
       console.error("Error uploading images:", error);
@@ -143,7 +145,7 @@ export const PhotosSection = ({ carId }: PhotosSectionProps) => {
   const removePhoto = (index: number) => {
     const newPhotos = [...uploadedPhotos];
     newPhotos.splice(index, 1);
-    form.setValue('uploaded_photos', newPhotos, { shouldDirty: true });
+    form.setValue('uploadedPhotos', newPhotos, { shouldDirty: true });
   };
   
   return (

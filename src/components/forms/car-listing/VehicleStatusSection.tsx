@@ -2,6 +2,7 @@
 /**
  * Vehicle Status Section Component
  * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  */
 
 import { useFormData } from "./context/FormDataContext";
@@ -25,7 +26,7 @@ export const VehicleStatusSection = () => {
           {/* Has Private Registration Plate */}
           <FormField
             control={form.control}
-            name="has_private_plate"
+            name="hasPrivatePlate"
             render={({ field }) => (
               <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                 <FormControl>
@@ -47,7 +48,7 @@ export const VehicleStatusSection = () => {
           {/* Is Registered in Poland */}
           <FormField
             control={form.control}
-            name="is_registered_in_poland"
+            name="isRegisteredInPoland"
             render={({ field }) => (
               <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                 <FormControl>
@@ -69,7 +70,7 @@ export const VehicleStatusSection = () => {
           {/* Has Service History */}
           <FormField
             control={form.control}
-            name="has_service_history"
+            name="hasServiceHistory"
             render={({ field }) => (
               <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                 <FormControl>
@@ -91,7 +92,7 @@ export const VehicleStatusSection = () => {
           {/* Has Damage */}
           <FormField
             control={form.control}
-            name="is_damaged"
+            name="isDamaged"
             render={({ field }) => (
               <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                 <FormControl>
@@ -113,7 +114,7 @@ export const VehicleStatusSection = () => {
           {/* Has Outstanding Finance */}
           <FormField
             control={form.control}
-            name="has_outstanding_finance"
+            name="hasOutstandingFinance"
             render={({ field }) => (
               <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                 <FormControl>
@@ -135,7 +136,7 @@ export const VehicleStatusSection = () => {
           {/* Has Warning Lights */}
           <FormField
             control={form.control}
-            name="has_warning_lights"
+            name="hasWarningLights"
             render={({ field }) => (
               <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                 <FormControl>
@@ -157,7 +158,7 @@ export const VehicleStatusSection = () => {
           {/* Is Selling on Behalf of Someone */}
           <FormField
             control={form.control}
-            name="is_selling_on_behalf"
+            name="isSellingOnBehalf"
             render={({ field }) => (
               <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                 <FormControl>

@@ -2,6 +2,7 @@
 /**
  * SellerNotesSection Component
  * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
@@ -31,7 +32,7 @@ export const SellerNotesSection = ({
       <CardContent>
         <FormField
           control={form.control}
-          name="seller_notes"
+          name="sellerNotes"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Notes</FormLabel>

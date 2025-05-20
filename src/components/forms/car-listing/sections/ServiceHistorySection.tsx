@@ -4,6 +4,7 @@
  * Created: 2025-06-07
  * Contains fields for vehicle service history
  * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  */
 
 import { useFormData } from "../context/FormDataContext";
@@ -23,13 +24,13 @@ export const ServiceHistorySection = () => {
     return <div>Loading form...</div>;
   }
   
-  const has_service_history = form.watch("has_service_history");
+  const hasServiceHistory = form.watch("hasServiceHistory");
   
   return (
     <div className="space-y-6">
       <FormField
         control={form.control}
-        name="has_service_history"
+        name="hasServiceHistory"
         render={({ field }) => (
           <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
             <FormControl>
@@ -46,16 +47,15 @@ export const ServiceHistorySection = () => {
                 Check this if you have any service records for your vehicle
               </FormDescription>
             </div>
-            <FormMessage />
           </FormItem>
         )}
       />
       
-      {has_service_history && (
-        <>
+      {hasServiceHistory && (
+        <div className="space-y-6 pl-8 border-l-2 border-gray-200">
           <FormField
             control={form.control}
-            name="service_history_type"
+            name="serviceHistoryType"
             render={({ field }) => (
               <FormItem className="space-y-3">
                 <FormLabel>What type of service history do you have?</FormLabel>
@@ -63,25 +63,32 @@ export const ServiceHistorySection = () => {
                   <RadioGroup
                     onValueChange={field.onChange}
                     defaultValue={field.value}
-                    value={field.value}
                     className="flex flex-col space-y-1"
                   >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="full" id="full" />
-                      <Label htmlFor="full">Full service history</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="partial" id="partial" />
-                      <Label htmlFor="partial">Partial service history</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="stamped" id="stamped" />
-                      <Label htmlFor="stamped">Stamped service book only</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="digital" id="digital" />
-                      <Label htmlFor="digital">Digital service history</Label>
-                    </div>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="full" />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Full Service History
+                      </FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="partial" />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Partial Service History
+                      </FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <RadioGroupItem value="none" />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        No Documentation
+                      </FormLabel>
+                    </FormItem>
                   </RadioGroup>
                 </FormControl>
                 <FormMessage />
@@ -89,29 +96,21 @@ export const ServiceHistorySection = () => {
             )}
           />
           
-          <div className="border rounded-md p-4 space-y-4">
-            <h4 className="font-medium">Upload Service History Documents</h4>
-            <p className="text-sm text-gray-600">
-              Upload photos of your service book or service receipts to help verify the service history.
-            </p>
-            
-            <Button
-              type="button"
-              variant="outline"
-              disabled={uploading}
-              className="w-full py-8 border-dashed flex flex-col items-center justify-center"
-              onClick={() => {
-                // This would normally trigger file upload
-                setUploading(true);
-                setTimeout(() => setUploading(false), 1000);
-              }}
-            >
-              <Upload className="h-6 w-6 mb-2" />
-              <span>Click to upload documents</span>
-              <p className="text-xs text-gray-500 mt-1">PDF, JPG or PNG (max. 10MB)</p>
-            </Button>
-          </div>
-        </>
+          {(form.watch('serviceHistoryType') === 'full' || form.watch('serviceHistoryType') === 'partial') && (
+            <div>
+              <Label>Upload Service History Documents</Label>
+              <div className="mt-2 p-4 border border-dashed rounded-md flex flex-col items-center justify-center">
+                <Button type="button" variant="outline" className="mb-2">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Documents
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  PDF, PNG or JPG (max 5MB per file)
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

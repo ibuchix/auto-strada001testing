@@ -9,6 +9,7 @@
  * Updated: 2025-05-15 - Updated VehicleDetailsSection import path
  * Updated: 2025-05-16 - Improved submission handling and edge function integration
  * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  * 
  * Main content component for the car listing form
  */
@@ -31,14 +32,14 @@ import { toast } from "sonner";
 export const FormContent = ({ carId }: { carId?: string }) => {
   const { session, isLoading } = useAuth();
   const { form } = useFormData();
-  const hasOutstandingFinance = form.watch("has_outstanding_finance");
-  const isDamaged = form.watch("is_damaged");
+  const hasOutstandingFinance = form.watch("hasOutstandingFinance");
+  const isDamaged = form.watch("isDamaged");
   
   // Set form metadata for valuation tracking
   useEffect(() => {
     const hasValuationData = !!localStorage.getItem('valuationData');
     if (hasValuationData) {
-      form.setValue('from_valuation', true);
+      form.setValue('fromValuation', true);
     }
   }, [form]);
   
@@ -77,7 +78,7 @@ export const FormContent = ({ carId }: { carId?: string }) => {
       <VehicleDetailsSection />
       <VehicleStatusSection />
       
-      {/* Show Finance Details Section if has_outstanding_finance is true */}
+      {/* Show Finance Details Section if hasOutstandingFinance is true */}
       {hasOutstandingFinance && (
         <FinanceDetailsSection />
       )}

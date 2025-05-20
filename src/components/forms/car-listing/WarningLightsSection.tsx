@@ -2,6 +2,7 @@
 /**
  * Warning Lights Section Component
  * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  */
 
 import { useState } from "react";
@@ -29,7 +30,7 @@ export const WarningLightsSection = () => {
     // Update the state and form with new photo URLs
     const updatedPhotoUrls = [...photoUrls, ...newPhotoUrls];
     setPhotoUrls(updatedPhotoUrls);
-    form.setValue('warning_light_photos', updatedPhotoUrls, { shouldDirty: true });
+    form.setValue('warningLightPhotos', updatedPhotoUrls, { shouldDirty: true });
   };
 
   const removePhoto = (index: number) => {
@@ -37,7 +38,7 @@ export const WarningLightsSection = () => {
     URL.revokeObjectURL(updatedPhotoUrls[index]);
     updatedPhotoUrls.splice(index, 1);
     setPhotoUrls(updatedPhotoUrls);
-    form.setValue('warning_light_photos', updatedPhotoUrls, { shouldDirty: true });
+    form.setValue('warningLightPhotos', updatedPhotoUrls, { shouldDirty: true });
   };
 
   return (
@@ -51,7 +52,7 @@ export const WarningLightsSection = () => {
       <CardContent className="space-y-6">
         <FormField
           control={form.control}
-          name="warning_light_description"
+          name="warningLightDescription"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Warning Light Description</FormLabel>
