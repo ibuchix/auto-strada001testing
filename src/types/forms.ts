@@ -1,10 +1,10 @@
-
 /**
  * Type definitions for car listing form data
  * - Updated 2025-05-20: Added last_saved field to match database schema
  * - Updated 2025-05-21: Fixed field naming inconsistencies (camelCase to snake_case)
  * - Updated 2025-05-22: Added ServiceHistoryFile type and additional missing fields
  * - Updated 2025-05-23: Added warning_light fields and is_selling_on_behalf
+ * - Updated 2025-05-23: Added photo_validation_passed and main_photo fields
  */
 export interface CarListingFormData {
   id?: string;
@@ -66,6 +66,10 @@ export interface CarListingFormData {
   
   // Field for compatibility with existing code
   from_valuation?: boolean;
+  
+  // Added missing fields
+  photo_validation_passed?: boolean;
+  main_photo?: string;
 }
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';

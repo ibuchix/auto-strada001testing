@@ -2,6 +2,7 @@
 /**
  * Hook for form initialization
  * Updated: 2025-05-20 - Fixed loading property reference
+ * Updated: 2025-05-23 - Fixed property names to match current implementation
  */
 
 import { useState, useEffect } from "react";

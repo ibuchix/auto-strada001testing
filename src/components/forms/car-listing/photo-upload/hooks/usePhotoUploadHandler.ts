@@ -5,6 +5,7 @@
  * - Updated to use proper uploadImagesForCar service
  * - 2025-07-18: Integrated with standardized upload service
  * - 2025-05-20: Updated to use direct uploads for immediate processing
+ * - 2025-05-23: Updated to use type-safe form helpers
  */
 import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
@@ -12,6 +13,7 @@ import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
 import { directUploadPhoto } from "@/services/supabase/uploadService";
 import { supabase } from "@/integrations/supabase/client";
+import { watchField, setFieldValue, getFieldValue } from "@/utils/formHelpers";
 
 export const usePhotoUploadHandler = (
   form: UseFormReturn<CarListingFormData>,
@@ -79,14 +81,14 @@ export const usePhotoUploadHandler = (
       
       if (uploadedUrls.length > 0) {
         // Update form with new photos
-        const currentPhotos = form.getValues('uploadedPhotos') || [];
+        const currentPhotos = getFieldValue<string[]>(form, 'uploaded_photos') || [];
         const newPhotos = [...currentPhotos, ...uploadedUrls];
         
-        form.setValue('uploadedPhotos', newPhotos, { shouldValidate: true });
+        setFieldValue(form, 'uploaded_photos', newPhotos, { shouldValidate: true });
         
         // Set main photo if this is the first upload
         if (currentPhotos.length === 0 && uploadedUrls.length > 0) {
-          form.setValue('mainPhoto', uploadedUrls[0], { shouldValidate: true });
+          setFieldValue(form, 'main_photo', uploadedUrls[0], { shouldValidate: true });
         }
         
         setUploadedCount(prev => prev + validFiles.length);

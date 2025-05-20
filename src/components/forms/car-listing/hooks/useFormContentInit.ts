@@ -6,6 +6,7 @@
  * - 2025-05-31: Added fromValuation prop to initialization options
  * - 2025-06-01: Implemented loading valuation data during initialization
  * - 2025-06-02: Fixed LoadDraftOptions interface reference
+ * - 2025-05-23: Fixed loading draft options to use proper options format
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -22,6 +23,15 @@ interface FormContentInitOptions {
   onDraftError?: (error: Error) => void;
   retryCount?: number;
   fromValuation?: boolean;
+}
+
+// Interface to match what useLoadDraft accepts
+interface LoadDraftOptions {
+  userId: string;
+  draftId?: string;
+  retryCount?: number;
+  onLoaded?: (draft: any) => void;
+  onError?: (error: Error) => void;
 }
 
 export const useFormContentInit = ({
@@ -48,8 +58,8 @@ export const useFormContentInit = ({
     }
   }, [onDraftError]);
 
-  const loadDraftOptions = {
-    form,
+  // Prepare options for useLoadDraft
+  const loadOptions: LoadDraftOptions = {
     userId: session.user.id,
     draftId,
     retryCount,
@@ -64,7 +74,8 @@ export const useFormContentInit = ({
     onError: handleDraftError
   };
 
-  const { isLoading: isLoadingDraft, error } = useLoadDraft(loadDraftOptions);
+  // Pass form separately when calling useLoadDraft
+  const { isLoading: isLoadingDraft, error } = useLoadDraft(loadOptions, form);
 
   const resetDraftError = useCallback(() => {
     setState(prev => ({ ...prev, draftLoadError: null }));

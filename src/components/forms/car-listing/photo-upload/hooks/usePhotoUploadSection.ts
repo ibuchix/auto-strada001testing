@@ -3,12 +3,14 @@
  * Hook to manage photo upload section state and actions
  * - 2025-04-05: Created to separate state management from the UI component
  * - 2025-04-05: Handles validation, saving, and error management
+ * - 2025-05-23: Updated to use type-safe form helpers
  */
 import { useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { PhotoUploadError } from '../types';
 import { toast } from 'sonner';
 import { CarListingFormData } from '@/types/forms';
+import { watchField, setFieldValue, getFieldValue } from '@/utils/formHelpers';
 
 interface UsePhotoUploadSectionProps {
   form: UseFormReturn<CarListingFormData>;
@@ -25,12 +27,12 @@ export const usePhotoUploadSection = ({
   const [uploadError, setUploadError] = useState<PhotoUploadError | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [isPhotoSectionValid, setIsPhotoSectionValid] = useState(false);
-  const watchedPhotos = form.watch('uploadedPhotos') || [];
+  const watchedPhotos = watchField<string[]>(form, 'uploaded_photos') || [];
 
   // Handle validation change
   const handleValidationChange = (isValid: boolean) => {
     setIsPhotoSectionValid(isValid);
-    form.setValue('photoValidationPassed', isValid, { 
+    setFieldValue(form, 'photo_validation_passed', isValid, { 
       shouldValidate: true,
       shouldDirty: true 
     });
@@ -75,9 +77,9 @@ export const usePhotoUploadSection = ({
 
   // Handle removing a photo
   const handleRemovePhoto = (photoUrl: string) => {
-    const currentPhotos = form.getValues('uploadedPhotos') || [];
+    const currentPhotos = getFieldValue<string[]>(form, 'uploaded_photos') || [];
     const updatedPhotos = currentPhotos.filter(url => url !== photoUrl);
-    form.setValue('uploadedPhotos', updatedPhotos, {
+    setFieldValue(form, 'uploaded_photos', updatedPhotos, {
       shouldValidate: true,
       shouldDirty: true
     });

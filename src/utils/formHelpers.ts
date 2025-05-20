@@ -2,6 +2,7 @@
 /**
  * Form Helper Utilities
  * Created: 2025-05-22 - Added type-safe form field access utilities
+ * Updated: 2025-05-23 - Added dynamic field path handling and additional utility functions
  */
 
 import { Path, UseFormReturn } from "react-hook-form";
@@ -26,7 +27,7 @@ export function setFieldValue<T = any>(
   form: UseFormReturn<CarListingFormData>,
   fieldName: string,
   value: T,
-  options?: { shouldDirty?: boolean; shouldTouch?: boolean }
+  options?: { shouldDirty?: boolean; shouldTouch?: boolean; shouldValidate?: boolean }
 ): void {
   form.setValue(fieldName as Path<CarListingFormData>, value as any, options);
 }
@@ -40,6 +41,20 @@ export function registerField(
   fieldName: string
 ) {
   return form.register(fieldName as Path<CarListingFormData>);
+}
+
+/**
+ * Type-safe function to get values from a form
+ * for a specific field or all fields
+ */
+export function getFieldValue<T = any>(
+  form: UseFormReturn<CarListingFormData>,
+  fieldName?: string
+): T {
+  if (fieldName) {
+    return form.getValues(fieldName as Path<CarListingFormData>) as T;
+  }
+  return form.getValues() as T;
 }
 
 /**

@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-05-20 - Updated field names to use snake_case to match database schema
  * - 2025-05-22 - Fixed TypeScript type issues with form field names
+ * - 2025-05-23 - Updated to use type-safe form helpers
  */
 
 import { useState, useCallback } from "react";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, X, Image } from "lucide-react";
 import { toast } from "sonner";
 import { CarListingFormData } from "@/types/forms";
+import { watchField, setFieldValue } from "@/utils/formHelpers";
 
 interface PhotoUploadSectionProps {
   title: string;
@@ -29,10 +31,10 @@ export const PhotoUploadSection = ({
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   
-  // Type-safe field access using a function to handle dynamic field names
+  // Type-safe field access using our helper function
   const getPhotosList = useCallback(() => {
-    const value = form.watch(fieldName as any);
-    return (Array.isArray(value) ? value : []) as string[];
+    const value = watchField<string[]>(form, fieldName);
+    return Array.isArray(value) ? value : [];
   }, [form, fieldName]);
   
   // Get current photos from form
@@ -66,7 +68,7 @@ export const PhotoUploadSection = ({
         
         // Update form with new photos
         const updatedPhotos = [...photosList, ...newPhotoUrls];
-        form.setValue(fieldName as any, updatedPhotos, { shouldDirty: true });
+        setFieldValue(form, fieldName, updatedPhotos, { shouldDirty: true });
         
         toast.success(`${files.length} photo${files.length > 1 ? 's' : ''} uploaded successfully`);
       } catch (error) {
@@ -91,7 +93,7 @@ export const PhotoUploadSection = ({
     const updatedPhotos = [...photosList];
     URL.revokeObjectURL(updatedPhotos[index]);
     updatedPhotos.splice(index, 1);
-    form.setValue(fieldName as any, updatedPhotos, { shouldDirty: true });
+    setFieldValue(form, fieldName, updatedPhotos, { shouldDirty: true });
   };
   
   // Drag and drop handlers
