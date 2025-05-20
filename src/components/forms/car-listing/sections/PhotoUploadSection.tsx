@@ -1,8 +1,10 @@
+
 /**
  * Component for uploading photos to a car listing
  * Created: 2025-05-12
  * Purpose: Handles photo upload for car listings
  * Updated: 2025-05-21 - Fixed imports for setPhotoField and updateVehiclePhotos
+ * Updated: 2025-05-30 - Fixed type errors when passing form object to helper functions
  */
 
 import React from 'react';
@@ -158,29 +160,29 @@ export const PhotoUploadSection = ({
     
     // Update individual photo fields with string values only
     if (frontView.files.length > 0) {
-      setPhotoField('frontView', frontView.files[0].preview || '', form.setValue);
+      setPhotoField('frontView', frontView.files[0].preview || '', form);
     }
     if (rearView.files.length > 0) {
-      setPhotoField('rearView', rearView.files[0].preview || '', form.setValue);
+      setPhotoField('rearView', rearView.files[0].preview || '', form);
     }
     if (driverSide.files.length > 0) {
-      setPhotoField('driverSide', driverSide.files[0].preview || '', form.setValue);
+      setPhotoField('driverSide', driverSide.files[0].preview || '', form);
     }
     if (passengerSide.files.length > 0) {
-      setPhotoField('passengerSide', passengerSide.files[0].preview || '', form.setValue);
+      setPhotoField('passengerSide', passengerSide.files[0].preview || '', form);
     }
     if (dashboard.files.length > 0) {
-      setPhotoField('dashboard', dashboard.files[0].preview || '', form.setValue);
+      setPhotoField('dashboard', dashboard.files[0].preview || '', form);
     }
     if (interiorFront.files.length > 0) {
-      setPhotoField('interiorFront', interiorFront.files[0].preview || '', form.setValue);
+      setPhotoField('interiorFront', interiorFront.files[0].preview || '', form);
     }
     if (interiorRear.files.length > 0) {
-      setPhotoField('interiorRear', interiorRear.files[0].preview || '', form.setValue);
+      setPhotoField('interiorRear', interiorRear.files[0].preview || '', form);
     }
     
     // Update vehicle photos object
-    updateVehiclePhotos(form.setValue, form.getValues);
+    updateVehiclePhotos(form);
     
     if (allRequiredUploaded) {
       setValidationError(null);
