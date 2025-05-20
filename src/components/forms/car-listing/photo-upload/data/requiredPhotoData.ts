@@ -4,6 +4,7 @@
  * - 2025-04-05: Updated to use imported PhotoItem interface
  * - 2025-04-05: Ensured all required properties are correctly set
  * - 2025-07-19: Fixed import path for PhotoItem interface
+ * - 2025-05-23: Updated field IDs to match standardized naming in photoMapping.ts
  */
 import { PhotoItem } from "../types";
 
@@ -21,13 +22,13 @@ export const exteriorPhotos: PhotoItem[] = [
     required: true
   },
   {
-    id: "exterior_driver",
+    id: "exterior_side",
     title: "Driver Side",
     description: "Full side view from driver's side",
     required: true
   },
   {
-    id: "exterior_passenger",
+    id: "passenger_side",
     title: "Passenger Side",
     description: "Full side view from passenger's side",
     required: true

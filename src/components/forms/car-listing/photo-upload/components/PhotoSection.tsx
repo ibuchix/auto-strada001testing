@@ -2,6 +2,7 @@
 /**
  * PhotoSection Component for car listing photo uploads
  * Created: 2025-07-19
+ * Updated: 2025-05-23 - Added better error handling and upload validation
  */
 import { useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,6 +47,9 @@ export const PhotoSection = ({
       // Clear previous error
       setError(prev => ({ ...prev, [photoId]: '' }));
       
+      // Log upload attempt for debugging
+      console.log(`Attempting to upload photo for field: ${photoId}`);
+      
       // Upload the file
       const url = await onFileSelect(file, photoId);
       
@@ -54,6 +58,7 @@ export const PhotoSection = ({
       
       // Notify parent of successful upload
       if (url && onPhotoUploaded) {
+        console.log(`Successfully uploaded photo for field: ${photoId}`);
         onPhotoUploaded(photoId);
       }
     } catch (err: any) {
@@ -128,24 +133,30 @@ export const PhotoSection = ({
                     </div>
                   </div>
                 )}
+                
+                {!uploadedPhotos[photo.id] && !activeUploads[photo.id] && (
+                  <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                    <input 
+                      type="file" 
+                      id={`photo-upload-${photo.id}`} 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => handleFileChange(e, photo.id)}
+                    />
+                    <label 
+                      htmlFor={`photo-upload-${photo.id}`} 
+                      className="cursor-pointer bg-white py-1 px-3 rounded-md shadow text-sm font-medium"
+                    >
+                      Upload
+                    </label>
+                  </div>
+                )}
               </div>
               
-              <div className="text-center">
-                <input
-                  type="file"
-                  id={`upload-${photo.id}`}
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleFileChange(e, photo.id)}
-                  disabled={activeUploads[photo.id]}
-                />
-                <label
-                  htmlFor={`upload-${photo.id}`}
-                  className={`block text-xs ${uploadedPhotos[photo.id] ? 'text-green-600' : 'text-primary'} cursor-pointer hover:underline`}
-                >
-                  {uploadedPhotos[photo.id] ? 'Replace' : 'Upload'}
-                </label>
-              </div>
+              <p className="text-xs text-center">
+                {photo.title}
+                {photo.required && <span className="text-rose-500 ml-1">*</span>}
+              </p>
             </div>
           ))}
         </div>

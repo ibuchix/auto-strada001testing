@@ -1,8 +1,10 @@
+
 /**
  * Photo Field Processor Utility
  * Created: 2025-05-19
  * Updated: 2025-05-20 - Added more robust consolidation and validation logic
  * Updated: 2025-05-20 - Integrated with standardized photo field mapping
+ * Updated: 2025-05-23 - Enhanced validation with detailed debugging and error messages
  * 
  * Transforms individual photo fields into the required_photos JSONB structure 
  * expected by the database schema.
@@ -49,15 +51,35 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
     }
   });
   
+  // Add any fields from vehiclePhotos object if it exists
+  if (formData.vehiclePhotos && typeof formData.vehiclePhotos === 'object') {
+    Object.entries(formData.vehiclePhotos).forEach(([key, value]) => {
+      if (value && typeof value === 'string') {
+        const standardKey = standardizePhotoCategory(key);
+        requiredPhotos[standardKey] = value;
+      }
+    });
+  }
+  
   // Add the consolidated required_photos field to the updated form data
   updatedFormData.required_photos = requiredPhotos;
   
-  // Log the consolidation results for debugging
+  // Log the consolidation results with detailed information for debugging
   console.log("Photo field consolidation:", {
-    originalKeys: Object.keys(formData).filter(k => Object.keys(PHOTO_FIELD_MAP).includes(k) || Object.values(PHOTO_FIELD_MAP).includes(k)),
+    originalKeys: Object.keys(formData).filter(k => 
+      Object.keys(PHOTO_FIELD_MAP).includes(k) || 
+      Object.values(PHOTO_FIELD_MAP).includes(k)
+    ),
     consolidatedKeys: Object.keys(requiredPhotos),
     requiredFields: REQUIRED_PHOTO_FIELDS,
-    hasAllRequired: REQUIRED_PHOTO_FIELDS.every(field => !!requiredPhotos[field])
+    hasAllRequired: REQUIRED_PHOTO_FIELDS.every(field => !!requiredPhotos[field]),
+    detailedMapping: REQUIRED_PHOTO_FIELDS.map(field => ({
+      field,
+      present: !!requiredPhotos[field],
+      source: Object.entries(PHOTO_FIELD_MAP)
+        .filter(([_, value]) => value === field)
+        .map(([key]) => key)
+    }))
   });
   
   return { 
@@ -71,18 +93,29 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
  * @returns Empty array if valid, otherwise array of missing field names
  */
 export const validateRequiredPhotos = (formData: CarListingFormData): string[] => {
-  // Check if form data already has consolidated required_photos
-  if (formData.required_photos) {
-    const missingFields = REQUIRED_PHOTO_FIELDS.filter(
-      field => !formData.required_photos[field]
-    );
-    return missingFields;
-  }
+  // First consolidate the photo fields to ensure we're working with standardized data
+  const { requiredPhotos } = consolidatePhotoFields(formData);
   
-  // Otherwise check individual fields
+  // Check which required fields are missing
   const missingFields = REQUIRED_PHOTO_FIELDS.filter(
-    field => !formData[field]
+    field => !requiredPhotos[field]
   );
+  
+  // Log detailed validation results
+  console.log("Photo validation results:", {
+    requiredFields: REQUIRED_PHOTO_FIELDS,
+    presentFields: Object.keys(requiredPhotos),
+    missingFields,
+    formDataFields: Object.keys(formData).filter(k => 
+      k.includes('photo') || 
+      k.includes('interior') || 
+      k.includes('exterior') || 
+      k === 'dashboard' || 
+      k === 'odometer'
+    ),
+    hasRequiredPhotosObject: !!formData.required_photos,
+    vehiclePhotosPresent: !!formData.vehiclePhotos
+  });
   
   return missingFields;
 };
