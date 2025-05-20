@@ -9,11 +9,13 @@
  * Updated: 2025-05-21 - Fixed temporary file tracking and association
  * Updated: 2025-05-24 - Enhanced immediate upload flow with better error handling
  * Updated: 2025-05-26 - Improved temp file tracking in localStorage with proper consistency checks
+ * Updated: 2025-05-20 - Updated to use the dedicated category column in car_file_uploads
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from "uuid";
 import { compressImage } from "@/components/forms/car-listing/photo-upload/utils/imageCompression";
+import { standardizePhotoCategory } from "@/utils/photoMapping";
 
 // Define types for temporary file tracking
 interface TempFileMetadata {
@@ -46,13 +48,16 @@ export const uploadImagesForCar = async (
 ): Promise<string[]> => {
   if (!files || files.length === 0) return [];
   
-  console.log(`Starting direct upload of ${files.length} files for car ${carId} (category: ${category})`);
+  // Standardize the category to ensure consistent field naming
+  const standardCategory = standardizePhotoCategory(category);
+  
+  console.log(`Starting direct upload of ${files.length} files for car ${carId} (category: ${standardCategory})`);
   
   const uploadPromises = files.map(async (file) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;
     // Standardized path structure for all car images
-    const filePath = `cars/${userId}/${carId}/${category}/${fileName}`;
+    const filePath = `cars/${userId}/${carId}/${standardCategory}/${fileName}`;
     
     console.log(`Uploading file to path: ${filePath}`);
     
@@ -66,7 +71,7 @@ export const uploadImagesForCar = async (
         });
       
       if (error) {
-        console.error(`Error uploading ${category} image:`, error);
+        console.error(`Error uploading ${standardCategory} image:`, error);
         throw new Error(`Failed to upload image: ${error.message}`);
       }
       
@@ -78,7 +83,7 @@ export const uploadImagesForCar = async (
           file_path: filePath,
           file_type: file.type,
           upload_status: 'completed',
-          category: category,
+          category: standardCategory, // Use the dedicated category column
           image_metadata: {
             size: file.size,
             name: file.name,
@@ -92,7 +97,7 @@ export const uploadImagesForCar = async (
       }
       
       // Update the appropriate field in cars table based on category
-      await updateCarRecordWithImage(carId, filePath, category);
+      await updateCarRecordWithImage(carId, filePath, standardCategory);
       
       return filePath;
     } catch (error) {
@@ -192,6 +197,9 @@ export const directUploadPhoto = async (
       throw new Error('No file provided');
     }
 
+    // Standardize the category to ensure consistent field naming
+    const standardCategory = standardizePhotoCategory(category);
+
     // Compress the image if it's large (over 5MB)
     let fileToUpload = file;
     if (file.size > 5 * 1024 * 1024) {
@@ -210,12 +218,12 @@ export const directUploadPhoto = async (
     // Generate a consistent temporary ID for this session if working with a draft
     const uploadId = carId === "temp" ? getSessionTempId() : carId;
     
-    console.log(`Directly uploading file ${file.name} (${file.size} bytes) for ${carId === "temp" ? "temporary" : "existing"} car (${uploadId}), category: ${category}`);
+    console.log(`Directly uploading file ${file.name} (${file.size} bytes) for ${carId === "temp" ? "temporary" : "existing"} car (${uploadId}), category: ${standardCategory}`);
     
     // Create unique file path using consistent structure
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${uuidv4()}.${fileExt}`;
-    const filePath = `cars/${userId}/${uploadId}/${category}/${fileName}`;
+    const filePath = `cars/${userId}/${uploadId}/${standardCategory}/${fileName}`;
     
     // Upload to storage directly with better error handling and retry capability
     try {
@@ -274,7 +282,7 @@ export const directUploadPhoto = async (
             file_path: filePath,
             file_type: file.type,
             upload_status: 'completed',
-            category: category,
+            category: standardCategory, // Use the dedicated category column
             image_metadata: {
               size: fileToUpload.size,
               name: file.name
@@ -282,7 +290,7 @@ export const directUploadPhoto = async (
           });
           
         // Update car record
-        await updateCarRecordWithImage(carId, filePath, category);
+        await updateCarRecordWithImage(carId, filePath, standardCategory);
       } catch (dbError) {
         console.warn('Warning: Could not record file in database:', dbError);
         // Continue anyway as the file is uploaded
@@ -297,7 +305,7 @@ export const directUploadPhoto = async (
         const newUpload: TempFileMetadata = {
           filePath,
           publicUrl,
-          category,
+          category: standardCategory, // Store standardized category
           uploadId,
           timestamp: new Date().toISOString()
         };
@@ -366,9 +374,12 @@ export const associateTempUploadsWithCar = async (carId: string): Promise<number
       
       for (const upload of tempUploads) {
         try {
-          console.log(`Processing upload association for ${upload.filePath} in category ${upload.category}`);
+          // Ensure we're using standardized category
+          const standardCategory = standardizePhotoCategory(upload.category);
           
-          // Record in database
+          console.log(`Processing upload association for ${upload.filePath} in category ${standardCategory}`);
+          
+          // Record in database using the dedicated category column
           const { error: dbError } = await supabase
             .from('car_file_uploads')
             .insert({
@@ -376,7 +387,7 @@ export const associateTempUploadsWithCar = async (carId: string): Promise<number
               file_path: upload.filePath,
               file_type: 'image/jpeg', // Default if not available
               upload_status: 'completed',
-              category: upload.category,
+              category: standardCategory, // Use dedicated category column
               image_metadata: {
                 url: upload.publicUrl
               }
@@ -388,7 +399,7 @@ export const associateTempUploadsWithCar = async (carId: string): Promise<number
           }
           
           // Update car record
-          await updateCarRecordWithImage(carId, upload.filePath, upload.category);
+          await updateCarRecordWithImage(carId, upload.filePath, standardCategory);
           associatedCount++;
           successfullyAssociated.push(upload.filePath);
         } catch (error) {

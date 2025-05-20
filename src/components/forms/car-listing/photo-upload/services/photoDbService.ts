@@ -5,6 +5,7 @@
  * Updated: 2025-05-20 - Fixed updateCarRecordWithImage to properly handle required_photos
  * Updated: 2025-05-27 - Fixed TypeScript error by selecting both required_photos and additional_photos
  * Updated: 2025-05-20 - Enhanced with standardized photo category naming
+ * Updated: 2025-05-20 - Updated to use the dedicated category column
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -30,7 +31,12 @@ export const savePhotoToDb = async (filePath: string, carId: string, category: s
         file_path: filePath,
         file_type: getFileTypeFromPath(filePath),
         upload_status: 'completed',
-        category: standardCategory // Use standardized category
+        category: standardCategory, // Use the new dedicated column
+        image_metadata: {
+          size: filePath.length,
+          name: filePath.split('/').pop(),
+          type: getFileTypeFromPath(filePath)
+        }
       });
     
     if (error) {

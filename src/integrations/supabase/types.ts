@@ -418,6 +418,7 @@ export type Database = {
       car_file_uploads: {
         Row: {
           car_id: string | null
+          category: string | null
           created_at: string | null
           file_path: string
           file_type: string
@@ -428,6 +429,7 @@ export type Database = {
         }
         Insert: {
           car_id?: string | null
+          category?: string | null
           created_at?: string | null
           file_path: string
           file_type: string
@@ -438,6 +440,7 @@ export type Database = {
         }
         Update: {
           car_id?: string | null
+          category?: string | null
           created_at?: string | null
           file_path?: string
           file_type?: string
