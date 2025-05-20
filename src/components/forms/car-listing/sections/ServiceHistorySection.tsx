@@ -3,6 +3,7 @@
  * Service History Section
  * Created: 2025-06-07
  * Contains fields for vehicle service history
+ * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
  */
 
 import { useFormData } from "../context/FormDataContext";
@@ -22,13 +23,13 @@ export const ServiceHistorySection = () => {
     return <div>Loading form...</div>;
   }
   
-  const hasServiceHistory = form.watch("hasServiceHistory");
+  const has_service_history = form.watch("has_service_history");
   
   return (
     <div className="space-y-6">
       <FormField
         control={form.control}
-        name="hasServiceHistory"
+        name="has_service_history"
         render={({ field }) => (
           <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
             <FormControl>
@@ -50,11 +51,11 @@ export const ServiceHistorySection = () => {
         )}
       />
       
-      {hasServiceHistory && (
+      {has_service_history && (
         <>
           <FormField
             control={form.control}
-            name="serviceHistoryType"
+            name="service_history_type"
             render={({ field }) => (
               <FormItem className="space-y-3">
                 <FormLabel>What type of service history do you have?</FormLabel>

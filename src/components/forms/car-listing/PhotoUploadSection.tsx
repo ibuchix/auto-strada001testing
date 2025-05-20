@@ -1,296 +1,181 @@
 
 /**
- * Component for uploading photos to a car listing
  * Changes made:
- * - 2025-04-05: Refactored into smaller components for better maintainability
- * - 2025-04-05: Extracted AlertMessage component, usePhotoUploadSection hook
- * - 2025-04-05: Enhanced structure and separation of concerns
- * - 2025-05-02: Updated to use temporary storage instead of uploading to database
- * - 2025-05-02: Photos will be stored in memory until form submission
- * - 2025-05-03: Fixed missing X import from lucide-react
- * - 2025-06-18: Fixed type errors with temporary file storage
- * - 2025-06-20: Fixed type compatibility issues between TempStoredFile and TemporaryFile
- * - 2025-07-25: Fixed type errors with form field setting
- * - 2025-05-03: Updated adapter function to properly map TemporaryFile to required PhotoUploaderProps shape
- * - 2025-05-08: Fixed adapter function return type for uploadFiles to ensure type compatibility
- * - 2025-08-28: Fixed type compatibility with PhotoUploaderProps
- * - 2025-05-21: Fixed imports for setPhotoField and updateVehiclePhotos
- * - 2025-05-20: Added odometer photo uploader to match required fields in photoMapping.ts
+ * - 2025-05-20 - Updated field names to use snake_case to match database schema
  */
-import React from 'react';
-import { useFormData } from './context/FormDataContext';
-import { FormSection } from './FormSection';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Info, X } from 'lucide-react';
-import { useTemporaryFileUpload } from '@/hooks/useTemporaryFileUpload';
-import { RequiredPhotosGrid } from './photo-upload/RequiredPhotosGrid';
-import { Button } from '@/components/ui/button';
-import { setPhotoField, updateVehiclePhotos, adaptTemporaryFileUploader } from './utilities/photoHelpers';
 
-interface PhotoUploadProps {
-  carId?: string;
-  onValidate?: () => Promise<boolean>;
+import { useState, useCallback } from "react";
+import { useFormData } from "./context/FormDataContext";
+import { Button } from "@/components/ui/button";
+import { Upload, X, Image } from "lucide-react";
+import { toast } from "sonner";
+
+interface PhotoUploadSectionProps {
+  title: string;
+  description?: string;
+  maxPhotos?: number;
+  fieldName: string;
 }
 
-export const PhotoUploadSection = ({ 
-  carId, 
-  onValidate 
-}: PhotoUploadProps) => {
+export const PhotoUploadSection = ({
+  title,
+  description,
+  maxPhotos = 10,
+  fieldName,
+}: PhotoUploadSectionProps) => {
   const { form } = useFormData();
-  const [validationError, setValidationError] = React.useState<string | null>(null);
-  const [validated, setValidated] = React.useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   
-  // Get photo upload state from the hook for each required photo
-  const frontView = useTemporaryFileUpload({
-    category: 'required_front_view',
-    allowMultiple: false
-  });
+  // Get current photos from form
+  const photosList = form.watch(fieldName) || [];
   
-  const rearView = useTemporaryFileUpload({
-    category: 'required_rear_view',
-    allowMultiple: false
-  });
+  // Handle file upload
+  const handleFileUpload = useCallback(
+    async (files: File[]) => {
+      if (!files || files.length === 0) return;
+      
+      // Check if adding these files would exceed the limit
+      if (photosList.length + files.length > maxPhotos) {
+        toast.error(`Maximum ${maxPhotos} photos allowed`);
+        return;
+      }
+      
+      setUploading(true);
+      
+      try {
+        // Create array of new photo URLs
+        const newPhotoUrls = await Promise.all(
+          Array.from(files).map((file) => {
+            return new Promise<string>((resolve) => {
+              // In a real app you'd upload to a server
+              // Here we just create object URLs as placeholders
+              const objectUrl = URL.createObjectURL(file);
+              resolve(objectUrl);
+            });
+          })
+        );
+        
+        // Update form with new photos
+        const updatedPhotos = [...photosList, ...newPhotoUrls];
+        form.setValue(fieldName, updatedPhotos, { shouldDirty: true });
+        
+        toast.success(`${files.length} photo${files.length > 1 ? 's' : ''} uploaded successfully`);
+      } catch (error) {
+        console.error("Error uploading photos:", error);
+        toast.error("Failed to upload photos. Please try again.");
+      } finally {
+        setUploading(false);
+      }
+    },
+    [form, fieldName, photosList, maxPhotos]
+  );
   
-  const driverSide = useTemporaryFileUpload({
-    category: 'required_driver_side',
-    allowMultiple: false
-  });
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFileUpload(Array.from(e.target.files));
+    }
+  };
   
-  const passengerSide = useTemporaryFileUpload({
-    category: 'required_passenger_side',
-    allowMultiple: false
-  });
+  // Remove a photo
+  const removePhoto = (index: number) => {
+    const updatedPhotos = [...photosList];
+    URL.revokeObjectURL(updatedPhotos[index]);
+    updatedPhotos.splice(index, 1);
+    form.setValue(fieldName, updatedPhotos, { shouldDirty: true });
+  };
   
-  const dashboard = useTemporaryFileUpload({
-    category: 'required_dashboard',
-    allowMultiple: false
-  });
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
   
-  const interiorFront = useTemporaryFileUpload({
-    category: 'required_interior_front',
-    allowMultiple: false
-  });
+  const handleDragLeave = () => {
+    setDragOver(false);
+  };
   
-  const interiorRear = useTemporaryFileUpload({
-    category: 'required_interior_rear',
-    allowMultiple: false
-  });
-  
-  // Add odometer uploader to match required fields
-  const odometer = useTemporaryFileUpload({
-    category: 'required_odometer',
-    allowMultiple: false
-  });
-  
-  const additionalPhotos = useTemporaryFileUpload({
-    category: 'additional_photos',
-    allowMultiple: true,
-    maxFiles: 10
-  });
-  
-  // Check if all required photos are uploaded
-  const allRequiredUploaded = React.useMemo(() => {
-    return frontView.files.length > 0 &&
-      rearView.files.length > 0 &&
-      driverSide.files.length > 0 &&
-      passengerSide.files.length > 0 &&
-      dashboard.files.length > 0 &&
-      interiorFront.files.length > 0 &&
-      interiorRear.files.length > 0 &&
-      odometer.files.length > 0; // Added odometer to required check
-  }, [
-    frontView.files, 
-    rearView.files, 
-    driverSide.files, 
-    passengerSide.files, 
-    dashboard.files, 
-    interiorFront.files, 
-    interiorRear.files,
-    odometer.files // Added odometer to dependency array
-  ]);
-
-  // Validate photos section
-  React.useEffect(() => {
-    // Update form value using helper function for type safety
-    form.setValue('requiredPhotosComplete' as any, allRequiredUploaded, { shouldDirty: true });
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
     
-    // Collect all URLs for form submission
-    const photoArray = [
-      ...(frontView.files.length > 0 ? [frontView.files[0].preview || ''] : []),
-      ...(rearView.files.length > 0 ? [rearView.files[0].preview || ''] : []),
-      ...(driverSide.files.length > 0 ? [driverSide.files[0].preview || ''] : []),
-      ...(passengerSide.files.length > 0 ? [passengerSide.files[0].preview || ''] : []),
-      ...(dashboard.files.length > 0 ? [dashboard.files[0].preview || ''] : []),
-      ...(interiorFront.files.length > 0 ? [interiorFront.files[0].preview || ''] : []),
-      ...(interiorRear.files.length > 0 ? [interiorRear.files[0].preview || ''] : []),
-      ...(odometer.files.length > 0 ? [odometer.files[0].preview || ''] : []), // Added odometer to photo array
-      ...(additionalPhotos.files.map(f => f.preview || ''))
-    ];
-    
-    // Update form with photo array
-    form.setValue('uploadedPhotos', photoArray, { shouldDirty: true });
-    
-    // Update individual photo fields using helper function
-    if (frontView.files.length > 0) {
-      setPhotoField('frontView', frontView.files[0].preview || '', form.setValue);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileUpload(Array.from(e.dataTransfer.files));
     }
-    if (rearView.files.length > 0) {
-      setPhotoField('rearView', rearView.files[0].preview || '', form.setValue);
-    }
-    if (driverSide.files.length > 0) {
-      setPhotoField('driverSide', driverSide.files[0].preview || '', form.setValue);
-    }
-    if (passengerSide.files.length > 0) {
-      setPhotoField('passengerSide', passengerSide.files[0].preview || '', form.setValue);
-    }
-    if (dashboard.files.length > 0) {
-      setPhotoField('dashboard', dashboard.files[0].preview || '', form.setValue);
-    }
-    if (interiorFront.files.length > 0) {
-      setPhotoField('interiorFront', interiorFront.files[0].preview || '', form.setValue);
-    }
-    if (interiorRear.files.length > 0) {
-      setPhotoField('interiorRear', interiorRear.files[0].preview || '', form.setValue);
-    }
-    if (odometer.files.length > 0) {
-      setPhotoField('odometer', odometer.files[0].preview || '', form.setValue);
-    }
-    
-    // Update vehicle photos object
-    updateVehiclePhotos(form.setValue, form.getValues);
-    
-    if (allRequiredUploaded) {
-      setValidationError(null);
-      setValidated(true);
-    } else {
-      setValidated(false);
-    }
-  }, [
-    allRequiredUploaded, 
-    form, 
-    frontView.files, 
-    rearView.files, 
-    driverSide.files, 
-    passengerSide.files,
-    dashboard.files,
-    interiorFront.files,
-    interiorRear.files,
-    odometer.files, // Added odometer to dependency array
-    additionalPhotos.files
-  ]);
+  };
   
-  // Rest of component
   return (
-    <FormSection 
-      title="Vehicle Photos"
-      subtitle="Upload photos of your vehicle"
-    >
-      {/* Session timer - using optional chaining for safety */}
-      <Alert className="mb-4">
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          Session time remaining: {frontView?.remainingSessionTime || 30} minutes. Please complete the form within this time.
-        </AlertDescription>
-      </Alert>
-      
-      {/* Error Alert */}
-      {validationError && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{validationError}</AlertDescription>
-        </Alert>
-      )}
-      
-      {/* Required photos instruction */}
-      <Alert className="mb-6">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          Photos will be stored locally and uploaded when you submit the form. You must upload all 8 required photos to proceed.
-        </AlertDescription>
-      </Alert>
-
-      <div className="space-y-8 mb-8">
-        <RequiredPhotosGrid
-          frontView={adaptTemporaryFileUploader(frontView)}
-          rearView={adaptTemporaryFileUploader(rearView)}
-          driverSide={adaptTemporaryFileUploader(driverSide)}
-          passengerSide={adaptTemporaryFileUploader(passengerSide)}
-          dashboard={adaptTemporaryFileUploader(dashboard)}
-          interiorFront={adaptTemporaryFileUploader(interiorFront)}
-          interiorRear={adaptTemporaryFileUploader(interiorRear)}
-          odometer={adaptTemporaryFileUploader(odometer)} // Added odometer to grid props
-        />
+    <div className="space-y-4">
+      <div className="flex flex-col space-y-2">
+        <h3 className="text-lg font-medium">{title}</h3>
+        {description && <p className="text-sm text-muted-foreground">{description}</p>}
       </div>
       
-      {/* Additional photos section */}
-      <div className="border-t pt-6">
-        <h3 className="text-lg font-medium mb-3">Additional Photos (Optional)</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          You can upload up to 10 additional photos to showcase your vehicle.
-        </p>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium">Gallery</h4>
-            <input 
-              type="file" 
-              id="additional-photos-upload" 
-              multiple 
-              accept="image/*" 
-              className="hidden"
-              onChange={(e) => e.target.files && additionalPhotos.uploadFiles(e.target.files)}
-            />
-            <label htmlFor="additional-photos-upload">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={additionalPhotos.isUploading || additionalPhotos.files.length >= 10}
-                className="cursor-pointer"
-                asChild
-              >
-                <span>Add Photos</span>
-              </Button>
-            </label>
+      <div
+        className={`border-2 border-dashed rounded-lg p-6 ${
+          dragOver ? "border-primary bg-primary/5" : "border-gray-300"
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <div className="flex flex-col items-center justify-center text-center">
+          <div className="mb-4">
+            <Image className="w-12 h-12 text-gray-400" />
           </div>
-          
-          {additionalPhotos.isUploading && (
-            <div className="w-full">
-              <div className="h-2 bg-gray-200 rounded-full">
-                <div 
-                  className="h-2 bg-primary rounded-full transition-all duration-300"
-                  style={{ width: `${additionalPhotos.progress}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
-          
-          {additionalPhotos.files.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {additionalPhotos.files.map((file) => (
-                <div key={file.id} className="relative group">
-                  <div className="aspect-square rounded-md overflow-hidden border bg-gray-100">
-                    <img 
-                      src={file.preview || file.url} 
-                      alt="Additional photo" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => additionalPhotos.removeFile(file.id)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          <h4 className="mb-2 text-sm font-medium">Drag & drop photos here</h4>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Supported formats: JPEG, PNG, JPG
+          </p>
+          <input
+            id={`${fieldName}-upload`}
+            type="file"
+            multiple
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileInputChange}
+            disabled={uploading}
+          />
+          <label htmlFor={`${fieldName}-upload`}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={uploading}
+              className="cursor-pointer"
+              asChild
+            >
+              <span>
+                <Upload className="w-4 h-4 mr-2" />
+                {uploading ? "Uploading..." : "Select Files"}
+              </span>
+            </Button>
+          </label>
         </div>
       </div>
-    </FormSection>
+      
+      {photosList.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
+          {photosList.map((photo, index) => (
+            <div key={index} className="relative group aspect-square">
+              <img
+                src={photo}
+                alt={`Photo ${index + 1}`}
+                className="w-full h-full object-cover rounded-md border"
+              />
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="absolute top-2 right-2 w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={() => removePhoto(index)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };

@@ -7,14 +7,15 @@
  * Updated: 2025-05-04 - Ensured proper typing for enum values
  * Updated: 2025-05-06 - Fixed serviceHistoryType type to ensure it's properly typed
  * Updated: 2025-05-07 - Explicit typing for all enum values
+ * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
  */
 
 export const DEFAULT_VALUES = {
-  isSellingOnBehalf: false,
-  hasServiceHistory: false,
-  hasPrivatePlate: false,
-  hasOutstandingFinance: false,
-  isDamaged: false,
+  is_selling_on_behalf: false,
+  has_service_history: false,
+  has_private_plate: false,
+  has_outstanding_finance: false,
+  is_damaged: false,
   make: "",
   model: "",
   year: new Date().getFullYear(),
@@ -41,6 +42,6 @@ export const DEFAULT_VALUES = {
     laneDepartureWarning: false
   },
   seller_id: "",
-  serviceHistoryType: "none" as "none" | "partial" | "full",
-  fromValuation: false
+  service_history_type: "none" as "none" | "partial" | "full",
+  from_valuation: false
 };

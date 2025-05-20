@@ -3,6 +3,7 @@
  * Form Section Renderer Component
  * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
  * Updated: 2025-05-22 - Fixed prop passing to FormSection component
+ * Updated: 2025-05-23 - Added default activeSections to fix prop type error
  */
 
 import React from "react";
@@ -15,13 +16,18 @@ import { FormSectionHeader } from "../FormSectionHeader";
 import { CarListingFormData } from "@/types/forms";
 
 interface FormSectionRendererProps {
-  activeSections: string[];
-  step: number;
+  activeSections?: string[];
+  step?: number;
   carId?: string;
   sectionId?: string;
 }
 
-export const FormSectionRenderer = ({ activeSections, step, carId }: FormSectionRendererProps) => {
+export const FormSectionRenderer = ({ 
+  activeSections = [], 
+  step = 1, 
+  carId,
+  sectionId 
+}: FormSectionRendererProps) => {
   const form = useFormContext<CarListingFormData>();
   
   const isValuationDriven = React.useMemo(() => {
@@ -30,9 +36,12 @@ export const FormSectionRenderer = ({ activeSections, step, carId }: FormSection
     return !!formValues.from_valuation;
   }, [form]);
 
+  // If a specific sectionId is provided, only render that section
+  const sectionsToRender = sectionId ? [sectionId] : activeSections;
+
   return (
     <div className="space-y-8 mb-8">
-      {activeSections.map((sectionId, index) => {
+      {sectionsToRender.map((sectionId, index) => {
         // Get the section component
         const SectionComponent = FormSections[sectionId];
         
@@ -64,7 +73,7 @@ export const FormSectionRenderer = ({ activeSections, step, carId }: FormSection
               />
               <SectionComponent carId={carId} />
             </FormSection>
-            {index < activeSections.length - 1 && (
+            {index < sectionsToRender.length - 1 && (
               <Separator className="my-6" />
             )}
           </React.Fragment>

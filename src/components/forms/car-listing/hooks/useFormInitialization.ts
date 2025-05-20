@@ -1,78 +1,81 @@
+
 /**
- * Updated: 2025-07-27 - Fixed form defaults import
+ * Hook for initializing form data
+ * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
  */
 
-import { useEffect, useState } from 'react';
-import { UseFormReturn } from 'react-hook-form';
-import { CarListingFormData } from '@/types/forms';
-import { getFormDefaults } from './useFormHelpers';
+import { useEffect, useCallback, useState } from "react";
+import { useFormData } from "../context/FormDataContext";
+import { toast } from "sonner";
 
-export function useFormInitialization(form: UseFormReturn<CarListingFormData>, carData?: CarListingFormData) {
+interface UseFormInitializationProps {
+  fromValuation?: boolean;
+  draftId?: string;
+}
+
+export const useFormInitialization = ({
+  fromValuation = false,
+  draftId
+}: UseFormInitializationProps = {}) => {
+  const { form, isLoading } = useFormData();
   const [isInitialized, setIsInitialized] = useState(false);
   
-  useEffect(() => {
-    if (isInitialized) return;
-    
+  // Initialize the form with default values and/or load draft data
+  const initializeForm = useCallback(async () => {
     try {
-      // Get default values
-      const defaultValues = getFormDefaults();
-      
-      if (carData && Object.keys(carData).length > 0) {
-        // If we have car data, use it
-        form.reset({
-          ...defaultValues,
-          ...carData
-        });
-      } else {
-        // Otherwise, try to get data from localStorage (for valuation flow)
-        const valuationData = getValuationDataFromStorage();
+      if (fromValuation) {
+        const valuationDataStr = localStorage.getItem('valuationData');
         
-        if (valuationData) {
-          form.reset({
-            ...defaultValues,
-            ...valuationData,
-            fromValuation: true
-          });
+        if (valuationDataStr) {
+          const valuationData = JSON.parse(valuationDataStr);
+          
+          form.setValue('from_valuation', true);
+          form.setValue('valuation_data', valuationData);
+          
+          if (valuationData.make) form.setValue('make', valuationData.make);
+          if (valuationData.model) form.setValue('model', valuationData.model);
+          if (valuationData.year) form.setValue('year', Number(valuationData.year));
+          if (valuationData.mileage) form.setValue('mileage', Number(valuationData.mileage));
+          if (valuationData.vin) form.setValue('vin', valuationData.vin);
+          
+          // Set price from valuation
+          if (valuationData.valuation) {
+            form.setValue('price', Number(valuationData.valuation));
+          }
+          
+          // Set reserve price from valuation
+          if (valuationData.reservePrice) {
+            form.setValue('reserve_price', Number(valuationData.reservePrice));
+          }
+          
+          toast.success("Valuation data loaded successfully");
         } else {
-          // Just use defaults
-          form.reset(defaultValues);
+          console.warn("No valuation data found despite fromValuation flag");
         }
+      }
+      
+      // If we have a draft ID, load the draft data
+      if (draftId) {
+        // In a real app, you'd load draft data here
+        console.log("Loading draft data for ID:", draftId);
       }
       
       setIsInitialized(true);
     } catch (error) {
-      console.error('Error initializing form:', error);
-      
-      // Reset to defaults if there's an error
-      form.reset(getFormDefaults());
-      setIsInitialized(true);
+      console.error("Error initializing form:", error);
+      toast.error("Error initializing form");
     }
-  }, [form, carData, isInitialized]);
+  }, [form, fromValuation, draftId]);
   
-  return { isInitialized };
-}
-
-function getValuationDataFromStorage(): Partial<CarListingFormData> | null {
-  try {
-    const valuationDataString = localStorage.getItem('valuationData');
-    if (!valuationDataString) return null;
-    
-    const valuationData = JSON.parse(valuationDataString);
-    if (!valuationData || !valuationData.make || !valuationData.model) return null;
-    
-    return {
-      make: valuationData.make,
-      model: valuationData.model,
-      year: valuationData.year,
-      mileage: valuationData.mileage,
-      vin: valuationData.vin,
-      transmission: valuationData.transmission,
-      price: valuationData.price || valuationData.valuation,
-      reserve_price: valuationData.reservePrice,
-      valuation_data: valuationData
-    };
-  } catch (error) {
-    console.error('Error parsing valuation data:', error);
-    return null;
-  }
-}
+  // Run initialization on mount
+  useEffect(() => {
+    if (!isInitialized && !isLoading) {
+      initializeForm();
+    }
+  }, [isInitialized, isLoading, initializeForm]);
+  
+  return {
+    isInitialized,
+    initializeForm
+  };
+};
