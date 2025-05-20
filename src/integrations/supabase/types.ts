@@ -476,6 +476,7 @@ export type Database = {
           is_draft: boolean
           is_manually_controlled: boolean | null
           is_registered_in_poland: boolean | null
+          last_saved: string | null
           make: string | null
           mileage: number | null
           minimum_bid_increment: number | null
@@ -518,6 +519,7 @@ export type Database = {
           is_draft?: boolean
           is_manually_controlled?: boolean | null
           is_registered_in_poland?: boolean | null
+          last_saved?: string | null
           make?: string | null
           mileage?: number | null
           minimum_bid_increment?: number | null
@@ -560,6 +562,7 @@ export type Database = {
           is_draft?: boolean
           is_manually_controlled?: boolean | null
           is_registered_in_poland?: boolean | null
+          last_saved?: string | null
           make?: string | null
           mileage?: number | null
           minimum_bid_increment?: number | null
@@ -1569,6 +1572,7 @@ export type Database = {
           is_draft: boolean
           is_manually_controlled: boolean | null
           is_registered_in_poland: boolean | null
+          last_saved: string | null
           make: string | null
           mileage: number | null
           minimum_bid_increment: number | null
@@ -1614,6 +1618,7 @@ export type Database = {
           is_draft: boolean
           is_manually_controlled: boolean | null
           is_registered_in_poland: boolean | null
+          last_saved: string | null
           make: string | null
           mileage: number | null
           minimum_bid_increment: number | null
@@ -1857,6 +1862,7 @@ export type Database = {
           is_draft: boolean
           is_manually_controlled: boolean | null
           is_registered_in_poland: boolean | null
+          last_saved: string | null
           make: string | null
           mileage: number | null
           minimum_bid_increment: number | null
@@ -1902,6 +1908,7 @@ export type Database = {
           is_draft: boolean
           is_manually_controlled: boolean | null
           is_registered_in_poland: boolean | null
+          last_saved: string | null
           make: string | null
           mileage: number | null
           minimum_bid_increment: number | null

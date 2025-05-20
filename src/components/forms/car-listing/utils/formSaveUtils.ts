@@ -1,8 +1,8 @@
-
 /**
  * Form save utilities
  * Created: 2025-06-05
  * Updated: 2025-06-06: Added saveFormData function and improved error handling
+ * Updated: 2025-05-20: Updated to use last_saved field from database
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -61,15 +61,20 @@ export const saveFormData = async (
       throw new Error('User ID is required to save form data');
     }
 
+    // Set last_saved timestamp
+    const now = new Date();
+    
     // Prepare data for saving
     const saveData = {
       ...prepareFormDataForSave(formData),
       seller_id: userId,
       is_draft: true,
+      // Add last_saved timestamp
+      last_saved: now.toISOString(),
       // Add valuation data if available
       valuation_data: valuationData || formData.valuation_data || null,
       // Make sure to add current timestamp for updated_at
-      updated_at: new Date().toISOString()
+      updated_at: now.toISOString()
     };
 
     // Determine if we're creating or updating

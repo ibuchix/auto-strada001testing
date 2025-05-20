@@ -1,4 +1,3 @@
-
 /**
  * Form Submit Handler Component
  * Created: 2025-05-13
@@ -18,6 +17,7 @@
  * Updated: 2025-06-03 - Added improved throttling bypass for image association
  * Updated: 2025-05-20 - Added detailed form data validation before submission to catch errors early
  * Updated: 2025-05-20 - Updated photo validation to include all required fields including odometer
+ * Updated: 2025-05-20 - Added last_saved field to form submission for better tracking
  */
 
 import { useState, useEffect, useRef, useCallback, memo } from "react";
@@ -213,8 +213,15 @@ export const FormSubmitHandler = memo(({
       setIsVerifyingImages(false);
       setIsValidatingForm(false);
       
-      // Submit the form
-      const submittedCarId = await submitForm(form.getValues());
+      // Add last_saved timestamp to form data before submission
+      const formValues = form.getValues();
+      const formDataWithTimestamp = {
+        ...formValues,
+        last_saved: new Date().toISOString()
+      };
+      
+      // Submit the form with updated timestamp
+      const submittedCarId = await submitForm(formDataWithTimestamp);
       
       if (submittedCarId) {
         // Store car ID for image association process

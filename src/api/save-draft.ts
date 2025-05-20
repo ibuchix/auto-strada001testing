@@ -8,6 +8,7 @@
  * - 2025-06-06: Fixed saveFormData import by implementing local version
  * - 2025-06-16: Fixed TypeScript errors with form_metadata and valuation_data
  * - 2025-07-22: Fixed type error with valuation_data property
+ * - 2025-05-20: Updated to include last_saved field in database records
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -29,6 +30,11 @@ const saveFormData = async (
   carId?: string
 ) => {
   try {
+    // Set last_saved to current timestamp if not provided
+    if (!formData.last_saved) {
+      formData.last_saved = new Date().toISOString();
+    }
+    
     // Enhanced form data with metadata
     const enhancedData = {
       ...formData,
@@ -69,6 +75,7 @@ export async function saveDraft(request: SaveDraftRequest) {
     // Add metadata about form state
     const enhancedFormData = {
       ...formData,
+      last_saved: new Date().toISOString(),
       form_metadata: {
         ...(formData.form_metadata || {}),
         currentStep,
