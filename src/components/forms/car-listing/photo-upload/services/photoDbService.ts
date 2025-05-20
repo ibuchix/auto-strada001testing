@@ -2,6 +2,7 @@
 /**
  * Service for managing photo database operations
  * Created: 2025-05-19 - Added as part of upload refactoring
+ * Updated: 2025-05-20 - Fixed updateCarRecordWithImage to properly handle required_photos
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +31,9 @@ export const savePhotoToDb = async (filePath: string, carId: string, category: s
       console.error('Error saving photo to database:', error);
       throw error;
     }
+    
+    // Also update the car record with the image
+    await updateCarRecordWithImage(carId, filePath, category);
   } catch (error) {
     console.error('Exception saving photo to database:', error);
     throw error;
@@ -150,47 +154,65 @@ export const recoverPhotoRecords = async (carId: string): Promise<number> => {
  */
 const updateCarRecordWithImage = async (carId: string, filePath: string, category: string): Promise<void> => {
   try {
-    if (category.includes('required_') || category.includes('rim_')) {
+    // Get current car record
+    const { data: car, error: getError } = await supabase
+      .from('cars')
+      .select('required_photos')
+      .eq('id', carId)
+      .single();
+      
+    if (getError) {
+      console.error('Error getting car record:', getError);
+      return;
+    }
+    
+    // Handle all category types
+    if (category.includes('required_') || ['dashboard', 'exterior_front', 'exterior_rear', 'exterior_side', 'interior_front', 'interior_rear', 'odometer', 'trunk', 'engine'].includes(category)) {
       // Get current required_photos JSONB object
-      const { data: car, error: getError } = await supabase
+      const requiredPhotos = car?.required_photos || {};
+      
+      // Update the required_photos object with the new photo
+      // Map standard categories to their correct field names if needed
+      const fieldName = category.startsWith('required_') ? category.replace('required_', '') : category;
+      requiredPhotos[fieldName] = filePath;
+      
+      console.log(`Updating car ${carId} with ${fieldName} photo: ${filePath}`);
+      
+      // Update the car record with the modified JSONB
+      const { error: updateError } = await supabase
         .from('cars')
-        .select('required_photos')
-        .eq('id', carId)
-        .single();
+        .update({ required_photos: requiredPhotos })
+        .eq('id', carId);
         
-      if (!getError && car) {
-        // Update the required_photos object with the new photo
-        const requiredPhotos = car.required_photos || {};
-        requiredPhotos[category] = filePath;
-        
-        // Update the car record with the modified JSONB
-        await supabase
-          .from('cars')
-          .update({ required_photos: requiredPhotos })
-          .eq('id', carId);
+      if (updateError) {
+        console.error('Error updating car record with required photos:', updateError);
       }
     } else if (category.includes('additional')) {
       // Get current additional_photos array
-      const { data: car, error: getError } = await supabase
-        .from('cars')
-        .select('additional_photos')
-        .eq('id', carId)
-        .single();
-        
-      if (!getError && car) {
-        // Update the additional_photos array with the new photo
-        let additionalPhotos = car.additional_photos || [];
-        if (!Array.isArray(additionalPhotos)) {
-          additionalPhotos = [];
-        }
-        if (!additionalPhotos.includes(filePath)) {
-          additionalPhotos.push(filePath);
+      const additionalPhotos = car?.additional_photos || [];
+      
+      if (!Array.isArray(additionalPhotos)) {
+        // Update with a new array containing this photo
+        const { error: updateError } = await supabase
+          .from('cars')
+          .update({ additional_photos: [filePath] })
+          .eq('id', carId);
           
-          // Update the car record with the modified array
-          await supabase
-            .from('cars')
-            .update({ additional_photos: additionalPhotos })
-            .eq('id', carId);
+        if (updateError) {
+          console.error('Error updating car record with additional photos:', updateError);
+        }
+      } else if (!additionalPhotos.includes(filePath)) {
+        // Add to existing array
+        additionalPhotos.push(filePath);
+        
+        // Update the car record with the modified array
+        const { error: updateError } = await supabase
+          .from('cars')
+          .update({ additional_photos: additionalPhotos })
+          .eq('id', carId);
+          
+        if (updateError) {
+          console.error('Error updating car record with additional photos:', updateError);
         }
       }
     }

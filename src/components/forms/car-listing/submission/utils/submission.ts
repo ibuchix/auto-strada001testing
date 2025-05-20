@@ -12,6 +12,7 @@
  * - 2025-05-05: Fixed type issues and removed is_draft property
  * - 2025-05-06: Fixed Date to string conversion issue
  * - 2025-05-19: Updated to include required_photos in CarEntity
+ * - 2025-05-20: Improved consolidation of photo fields and removed references to non-existent fields
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -20,14 +21,39 @@ import { consolidatePhotoFields } from "./photoProcessor";
 
 export const prepareFormDataForSubmission = (data: CarListingFormData) => {
   // First consolidate photo fields to prevent schema errors
-  const { updatedFormData } = consolidatePhotoFields(data);
+  const { updatedFormData, requiredPhotos } = consolidatePhotoFields(data);
   
-  return {
-    ...updatedFormData,
-    // Ensure financeAmount is consistently a number or null
-    financeAmount: updatedFormData.financeAmount !== undefined && updatedFormData.financeAmount !== null ? 
-      Number(updatedFormData.financeAmount) : null,
-  };
+  // Create a clean copy of the data without any non-existent columns
+  const cleanData = { ...updatedFormData };
+  
+  // Double-check that the individual photo fields are removed
+  const photoFields = [
+    'dashboard', 'exterior_front', 'exterior_rear', 'exterior_side',
+    'interior_front', 'interior_rear', 'odometer', 'trunk', 'engine',
+    'damage_front', 'damage_rear', 'damage_side', 'wheel', 'roof'
+  ];
+  
+  // Remove all individual photo fields to avoid database column errors
+  photoFields.forEach(field => {
+    if (field in cleanData) {
+      delete cleanData[field];
+    }
+  });
+  
+  // Ensure financeAmount is consistently a number or null
+  cleanData.financeAmount = cleanData.financeAmount !== undefined && cleanData.financeAmount !== null ? 
+    Number(cleanData.financeAmount) : null;
+  
+  // Explicitly add the required_photos object
+  cleanData.required_photos = requiredPhotos;
+  
+  console.log("Prepared form data (after consolidation):", {
+    hasRequiredPhotos: !!cleanData.required_photos,
+    remainingPhotoFields: Object.keys(cleanData).filter(key => photoFields.includes(key)),
+    requiredPhotosKeys: cleanData.required_photos ? Object.keys(cleanData.required_photos) : []
+  });
+  
+  return cleanData;
 };
 
 export const prepareFormDataForApi = (data: CarListingFormData) => {
@@ -94,6 +120,19 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     // Add the consolidated required_photos field
     required_photos: requiredPhotos
   };
+  
+  // Remove any individual photo fields to prevent database column errors
+  const photoFields = [
+    'dashboard', 'exterior_front', 'exterior_rear', 'exterior_side',
+    'interior_front', 'interior_rear', 'odometer', 'trunk', 'engine',
+    'damage_front', 'damage_rear', 'damage_side', 'wheel', 'roof'
+  ];
+  
+  photoFields.forEach(field => {
+    if (field in entity) {
+      delete entity[field];
+    }
+  });
   
   return entity;
 };

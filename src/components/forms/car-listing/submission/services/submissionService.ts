@@ -3,6 +3,7 @@
  * Car Listing Submission Service
  * Created: 2025-05-19
  * Updated: 2025-05-19 - Fixed function signature to match usage in useCarForm.ts
+ * Updated: 2025-05-20 - Fixed photo field consolidation and removed non-existent column references
  * 
  * Handles the API calls for submitting car listing data.
  */
@@ -39,6 +40,16 @@ export const submitCarListing = async (
     
     // Prepare data for submission, consolidating photo fields
     const preparedData = prepareFormDataForSubmission(formData);
+    
+    // Log the prepared data structure to help with debugging
+    console.log("Prepared data structure:", {
+      hasRequiredPhotos: !!preparedData.required_photos,
+      photoFields: preparedData.required_photos ? Object.keys(preparedData.required_photos) : [],
+      individualPhotoFields: Object.keys(preparedData).filter(key => 
+        ['dashboard', 'exterior_front', 'exterior_rear', 'exterior_side', 
+         'interior_front', 'interior_rear', 'odometer', 'trunk', 'engine'].includes(key)
+      )
+    });
     
     // Add seller ID
     preparedData.seller_id = userId;

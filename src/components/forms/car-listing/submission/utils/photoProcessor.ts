@@ -1,6 +1,8 @@
+
 /**
  * Photo Field Processor Utility
  * Created: 2025-05-19
+ * Updated: 2025-05-20 - Added more robust consolidation and validation logic
  * 
  * Transforms individual photo fields into the required_photos JSONB structure 
  * expected by the database schema.
@@ -26,6 +28,16 @@ const PHOTO_FIELD_KEYS = [
   'roof'
 ];
 
+// Define which photo fields are mandatory
+const REQUIRED_PHOTO_FIELDS = [
+  'dashboard',
+  'exterior_front',
+  'exterior_rear',
+  'exterior_side',
+  'interior_front',
+  'odometer'
+];
+
 /**
  * Consolidates individual photo fields into a required_photos object
  * to match the database schema expectation
@@ -34,10 +46,19 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
   updatedFormData: CarListingFormData,
   requiredPhotos: Record<string, string>
 } => {
-  const requiredPhotos: Record<string, string> = {};
+  // Create a copy of the form data to avoid mutating the original
   const updatedFormData = { ...formData };
   
-  // Extract photo fields from formData
+  // Extract photo fields from formData into a new object
+  const requiredPhotos: Record<string, string> = {};
+  
+  // Start by checking if there's already a required_photos object
+  if (formData.required_photos) {
+    // Copy existing required_photos
+    Object.assign(requiredPhotos, formData.required_photos);
+  }
+  
+  // Then add or update with any individual fields
   PHOTO_FIELD_KEYS.forEach(key => {
     // Only process if the field exists in the form data
     if (key in formData) {
@@ -49,13 +70,20 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
       }
       
       // Remove the individual field from the updated form data
-      // to avoid the database column error
       delete updatedFormData[key];
     }
   });
   
   // Add the consolidated required_photos field to the updated form data
   updatedFormData.required_photos = requiredPhotos;
+  
+  // Log the consolidation results for debugging
+  console.log("Photo field consolidation:", {
+    originalKeys: Object.keys(formData).filter(k => PHOTO_FIELD_KEYS.includes(k)),
+    consolidatedKeys: Object.keys(requiredPhotos),
+    requiredFields: REQUIRED_PHOTO_FIELDS,
+    hasAllRequired: REQUIRED_PHOTO_FIELDS.every(field => !!requiredPhotos[field])
+  });
   
   return { 
     updatedFormData, 
@@ -68,16 +96,6 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
  * @returns Empty array if valid, otherwise array of missing field names
  */
 export const validateRequiredPhotos = (formData: CarListingFormData): string[] => {
-  // Define which photo fields are mandatory
-  const REQUIRED_PHOTO_FIELDS = [
-    'dashboard',
-    'exterior_front',
-    'exterior_rear',
-    'exterior_side',
-    'interior_front',
-    'odometer'
-  ];
-  
   // Check if form data already has consolidated required_photos
   if (formData.required_photos) {
     const missingFields = REQUIRED_PHOTO_FIELDS.filter(

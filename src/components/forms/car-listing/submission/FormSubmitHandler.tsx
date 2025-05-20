@@ -16,6 +16,7 @@
  * Updated: 2025-06-01 - Fixed TypeScript errors with toast usage
  * Updated: 2025-06-02 - Added image association with car records after successful submission
  * Updated: 2025-06-03 - Added improved throttling bypass for image association
+ * Updated: 2025-05-20 - Added detailed form data validation before submission to catch errors early
  */
 
 import { useState, useEffect, useRef, useCallback, memo } from "react";
@@ -25,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useImageAssociation } from "@/hooks/submission/useImageAssociation";
+import { validateRequiredPhotos } from "../submission/utils/photoProcessor";
 
 interface FormSubmitHandlerProps {
   onSubmitSuccess?: (carId: string) => void;
@@ -45,6 +47,7 @@ export const FormSubmitHandler = memo(({
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [isVerifyingImages, setIsVerifyingImages] = useState(false);
+  const [isValidatingForm, setIsValidatingForm] = useState(false);
   const tempSessionIdRef = useRef<string | null>(null);
   const submissionInProgressRef = useRef<boolean>(false);
   const submissionResultRef = useRef<string | null>(null);
@@ -58,6 +61,7 @@ export const FormSubmitHandler = memo(({
         setIsProcessingImages(false);
         setIsVerifyingImages(false);
         setIsCreatingReservation(false);
+        setIsValidatingForm(false);
       }, 500);
       
       return () => clearTimeout(timer);
@@ -104,7 +108,43 @@ export const FormSubmitHandler = memo(({
   }, []);
   
   // Check if we have valid userId before allowing submission
-  const isSubmitDisabled = !userId || isSubmitting || isCreatingReservation || isProcessingImages;
+  const isSubmitDisabled = !userId || isSubmitting || isCreatingReservation || isProcessingImages || isValidatingForm;
+  
+  // Run form validation and check for common issues before submission
+  const validateFormBeforeSubmission = useCallback(() => {
+    const formData = form.getValues();
+    
+    // Log the form data structure to help with debugging
+    console.log("[FormSubmitHandler] Form data structure:", {
+      photoFields: Object.keys(formData).filter(key => 
+        ['dashboard', 'exterior_front', 'exterior_rear', 'exterior_side', 
+         'interior_front', 'interior_rear', 'odometer', 'trunk', 'engine'].includes(key)
+      ),
+      hasRequiredPhotos: !!formData.required_photos,
+      requiredPhotosKeys: formData.required_photos ? Object.keys(formData.required_photos) : []
+    });
+    
+    // Validate required photo fields
+    const missingPhotoFields = validateRequiredPhotos(formData);
+    if (missingPhotoFields.length > 0) {
+      console.error("[FormSubmitHandler] Missing required photo fields:", missingPhotoFields);
+      toast.error(`Missing required photos: ${missingPhotoFields.join(', ')}`, {
+        description: "Please upload all required photos before submitting"
+      });
+      return false;
+    }
+    
+    // Check other required fields
+    const requiredFields = ['make', 'model', 'year', 'mileage', 'transmission'];
+    const missingRequiredFields = requiredFields.filter(field => !formData[field]);
+    if (missingRequiredFields.length > 0) {
+      console.error("[FormSubmitHandler] Missing required fields:", missingRequiredFields);
+      toast.error(`Missing required fields: ${missingRequiredFields.join(', ')}`);
+      return false;
+    }
+    
+    return true;
+  }, [form]);
   
   // Handle form submission with proper image handling
   const handleSubmit = useCallback(async () => {
@@ -140,6 +180,14 @@ export const FormSubmitHandler = memo(({
 
       submissionInProgressRef.current = true;
       
+      // Validate the form data before submission
+      setIsValidatingForm(true);
+      if (!validateFormBeforeSubmission()) {
+        submissionInProgressRef.current = false;
+        setIsValidatingForm(false);
+        return;
+      }
+      
       // Check if we have a temp session ID for images
       console.log(`[FormSubmitHandler] Temp session ID check: ${tempSessionIdRef.current || 'none'}`);
       
@@ -158,6 +206,7 @@ export const FormSubmitHandler = memo(({
       }
       
       setIsVerifyingImages(false);
+      setIsValidatingForm(false);
       
       // Submit the form
       const submittedCarId = await submitForm(form.getValues());
@@ -197,11 +246,13 @@ export const FormSubmitHandler = memo(({
     submitError, 
     onSubmitSuccess, 
     onSubmitError,
-    cooldownTimeRemaining
+    cooldownTimeRemaining,
+    validateFormBeforeSubmission
   ]);
   
   // Get loading or cooldown state text
   const getButtonText = () => {
+    if (isValidatingForm) return 'Validating Form...';
     if (isVerifyingImages) return 'Verifying Images...';
     if (isProcessingImages || isAssociating) return 'Processing Images...';
     if (isSubmitting) return 'Submitting...';
@@ -220,7 +271,7 @@ export const FormSubmitHandler = memo(({
         disabled={isSubmitDisabled || (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0)}
         className="min-w-[150px]"
       >
-        {(isSubmitting || isProcessingImages || isVerifyingImages || isAssociating || (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0)) ? (
+        {(isSubmitting || isProcessingImages || isVerifyingImages || isAssociating || isValidatingForm || (typeof cooldownTimeRemaining === 'number' && cooldownTimeRemaining > 0)) ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             {getButtonText()}
