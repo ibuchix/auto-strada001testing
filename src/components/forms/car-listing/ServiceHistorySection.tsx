@@ -14,6 +14,7 @@
  * - 2025-05-04: Fixed property access and alignment with useDocumentUpload hook
  * - 2025-05-04: Resolved property mismatches with useDocumentUpload hook
  * - 2025-05-24: Updated to use camelCase field names consistently
+ * - 2025-05-29: Fixed TypeScript errors with hook properties
  */
 
 import { ServiceHistoryFile } from "@/types/forms";
@@ -31,17 +32,13 @@ export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => 
   const { form } = useFormData();
   
   const serviceHistoryType = form.watch('serviceHistoryType');
-  const uploadedFiles = form.watch('serviceHistoryFiles') || [];
   
   const {
-    uploading,
-    error,
-    uploadProgress,
-    uploadSuccess,
-    selectedFiles,
-    handleFileUpload,
-    removeSelectedFile,
-    removeFile
+    serviceHistoryFiles,
+    isUploading,
+    handleFileChange,
+    uploadDocument,
+    removeDocument,
   } = useDocumentUpload();
 
   // Show the document upload section only if service history type is not "none"
@@ -50,25 +47,21 @@ export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => 
   return (
     <div className="space-y-6">
       <div className="space-y-6 p-6 bg-accent/30 rounded-lg">
-        <ServiceHistoryTypeSelector form={form} />
+        <ServiceHistoryTypeSelector />
 
         {showDocumentUpload && (
           <div className="space-y-4">
             <h3 className="text-base font-semibold">Service History Documents</h3>
             
             <DocumentUploader
-              onUpload={handleFileUpload}
-              isUploading={uploading}
-              uploadSuccess={uploadSuccess}
-              uploadProgress={uploadProgress}
+              onUpload={uploadDocument}
+              isUploading={isUploading}
               carId={carId}
             />
             
             <DocumentList
-              selectedFiles={selectedFiles}
-              uploadedFiles={uploadedFiles as ServiceHistoryFile[]}
-              onRemoveSelected={removeSelectedFile}
-              onRemoveUploaded={removeFile}
+              uploadedFiles={serviceHistoryFiles}
+              onRemoveUploaded={removeDocument}
             />
           </div>
         )}

@@ -5,6 +5,7 @@
  * Updated: 2025-05-19 - Added support for transforming photo uploads
  * Updated: 2025-05-20 - Fixed type conversion issues for numeric fields
  * Updated: 2025-05-28 - Updated to use camelCase field names consistently
+ * Updated: 2025-05-29 - Fixed TypeScript errors related to updatedAt field
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -36,8 +37,8 @@ export const prepareFormData = (formData: CarListingFormData): Record<string, an
   processedData.hasServiceHistory = !!processedData.hasServiceHistory;
   processedData.isRegisteredInPoland = !!processedData.isRegisteredInPoland;
   
-  // Add timestamps
-  processedData.updated_at = new Date().toISOString();
+  // Add timestamps in camelCase for frontend
+  processedData.updatedAt = new Date().toISOString();
   
   return processedData;
 };
@@ -53,6 +54,6 @@ export const transformUploadedFiles = (uploads: any[]): Record<string, any>[] =>
     url: upload.url || upload.location || '',
     type: upload.type || 'unknown',
     size: upload.size || 0,
-    uploaded_at: upload.uploadedAt || upload.uploaded_at || new Date().toISOString()
+    uploadedAt: upload.uploadedAt || upload.uploaded_at || new Date().toISOString()
   }));
 };

@@ -6,6 +6,7 @@
  * Updated: 2025-05-14 - Fixed issues with photo field consolidation
  * Updated: 2025-05-15 - Improved error messages and validation logic
  * Updated: 2025-05-28 - Updated to use camelCase field names consistently
+ * Updated: 2025-05-29 - Fixed imports and prop types
  */
 
 import React, { useState } from "react";
@@ -15,22 +16,30 @@ import { toast } from "sonner";
 import { CarListingFormData } from "@/types/forms";
 import { validateRequiredPhotos } from "./utils/photoProcessor";
 import { prepareFormDataForSubmission } from "./utils/submission";
-import { useRouter } from "react-router-dom";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { convertToBackendFields } from "@/utils/formFieldMapping";
 
-interface FormSubmitHandlerProps {
+export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
   showAlerts?: boolean;
+  userId?: string;
+  onSubmitSuccess?: (carId: string) => void;
+  onSubmitError?: (error: Error) => void;
+  carId?: string;
 }
 
 export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({ 
   onSuccess, 
-  showAlerts = true 
+  showAlerts = true,
+  userId,
+  onSubmitSuccess,
+  onSubmitError,
+  carId
 }) => {
   const { handleSubmit, formState } = useFormContext<CarListingFormData>();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const router = useRouter();
+  const navigate = useNavigate();
   
   const onSubmit = async (formData: CarListingFormData) => {
     try {
@@ -82,9 +91,12 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       // Call the success callback if provided
       if (onSuccess) {
         onSuccess(preparedData);
+      } else if (onSubmitSuccess) {
+        // Call the onSubmitSuccess callback with the car ID
+        onSubmitSuccess(carId || 'new-car-id');
       } else {
         // Default success behavior - redirect to seller dashboard
-        router.navigate("/seller/dashboard");
+        navigate("/seller/dashboard");
       }
       
       return true;
@@ -95,6 +107,11 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         toast.error("Submission Failed", {
           description: "There was an error submitting your car listing. Please try again.",
         });
+      }
+      
+      // Call the onSubmitError callback if provided
+      if (onSubmitError && error instanceof Error) {
+        onSubmitError(error);
       }
       
       return false;
@@ -112,7 +129,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     >
       {isSubmitting || formState.isSubmitting ? (
         <>
-          <LoadingSpinner className="mr-2 h-4 w-4" />
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Submitting...
         </>
       ) : (

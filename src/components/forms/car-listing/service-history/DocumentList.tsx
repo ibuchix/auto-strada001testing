@@ -1,84 +1,121 @@
 
 /**
  * Document List Component
- * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
+ * Created: 2025-05-29
  */
 
+import React from "react";
 import { ServiceHistoryFile } from "@/types/forms";
 import { Button } from "@/components/ui/button";
-import { X, FileText } from "lucide-react";
+import { FileIcon, Trash2 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 interface DocumentListProps {
-  selectedFiles: File[];
   uploadedFiles: ServiceHistoryFile[];
-  onRemoveSelected: (index: number) => void;
+  selectedFiles?: File[];
+  onRemoveSelected?: (index: number) => void;
   onRemoveUploaded: (id: string) => void;
 }
 
 export const DocumentList = ({
-  selectedFiles,
   uploadedFiles,
+  selectedFiles = [],
   onRemoveSelected,
-  onRemoveUploaded
+  onRemoveUploaded,
 }: DocumentListProps) => {
-  if (selectedFiles.length === 0 && uploadedFiles.length === 0) {
-    return (
-      <div className="text-center text-gray-500 py-4">
-        No files uploaded yet
-      </div>
-    );
+  // Helper function to format file size
+  const formatFileSize = (size: number) => {
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  // Helper function to get file icon based on type
+  const getFileTypeIcon = (type: string) => {
+    if (type.includes('pdf')) return <FileIcon className="h-4 w-4 text-red-500" />;
+    if (type.includes('image')) return <FileIcon className="h-4 w-4 text-blue-500" />;
+    return <FileIcon className="h-4 w-4 text-gray-500" />;
+  };
+
+  // Helper function to format upload time
+  const formatUploadTime = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch (e) {
+      return 'Unknown date';
+    }
+  };
+
+  if (uploadedFiles.length === 0 && selectedFiles.length === 0) {
+    return null;
   }
 
   return (
-    <div className="space-y-4">
+    <div className="mt-4">
+      <h4 className="text-sm font-medium mb-2">Uploaded Documents</h4>
+      
       {selectedFiles.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Selected Files</h4>
-          <div className="grid grid-cols-1 gap-2">
+        <div className="mb-4">
+          <h5 className="text-xs font-medium text-gray-500 mb-2">Pending Uploads</h5>
+          <ul className="space-y-2">
             {selectedFiles.map((file, index) => (
-              <div key={index} className="relative group">
-                <div className="flex items-center space-x-3 p-3 border rounded-md bg-gray-50">
-                  <FileText className="w-5 h-5 text-gray-500" />
-                  <div className="flex-1 text-sm font-medium truncate">{file.name}</div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              <li key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                <div className="flex items-center gap-2">
+                  <FileIcon className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                </div>
+                {onRemoveSelected && (
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm"
                     onClick={() => onRemoveSelected(index)}
                   >
-                    <X className="h-3 w-3" />
+                    <Trash2 className="h-4 w-4 text-gray-500" />
                   </Button>
-                </div>
-              </div>
+                )}
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
-
+      
       {uploadedFiles.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Uploaded Files</h4>
-          <div className="grid grid-cols-1 gap-2">
-            {uploadedFiles.map((file) => (
-              <div key={file.id} className="relative group">
-                <div className="flex items-center space-x-3 p-3 border rounded-md bg-gray-50">
-                  <FileText className="w-5 h-5 text-gray-500" />
-                  <div className="flex-1 text-sm font-medium truncate">{file.name}</div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => onRemoveUploaded(file.id)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
+        <ul className="space-y-2">
+          {uploadedFiles.map((file) => (
+            <li key={file.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+              <div className="flex items-center gap-2">
+                {getFileTypeIcon(file.type)}
+                <div>
+                  <span className="text-sm font-medium block truncate max-w-[200px]">
+                    {file.name}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {formatUploadTime(file.uploadedAt)}
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="flex items-center gap-2">
+                <a 
+                  href={file.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline"
+                >
+                  View
+                </a>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => onRemoveUploaded(file.id)}
+                >
+                  <Trash2 className="h-4 w-4 text-gray-500" />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

@@ -10,6 +10,7 @@
  * Updated: 2025-05-16 - Improved submission handling and edge function integration
  * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
  * Updated: 2025-05-24 - Updated to use camelCase field names consistently
+ * Updated: 2025-05-29 - Fixed FormSubmitHandler prop types
  * 
  * Main content component for the car listing form
  */
@@ -90,10 +91,10 @@ export const FormContent = ({ carId }: { carId?: string }) => {
       
       <FormSection title="Review & Submit">
         <FormSubmitHandler 
-          carId={carId} 
-          userId={session.user.id}
           onSubmitSuccess={handleSubmitSuccess}
           onSubmitError={handleSubmitError}
+          userId={session.user.id}
+          carId={carId}
         />
       </FormSection>
     </div>

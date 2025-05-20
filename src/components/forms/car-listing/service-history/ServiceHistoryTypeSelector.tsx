@@ -3,6 +3,7 @@
  * ServiceHistoryTypeSelector Component
  * Created: 2025-05-20
  * Updated: 2025-05-28 - Updated to use camelCase field names consistently
+ * Updated: 2025-05-29 - Fixed TypeScript errors with prop types
  */
 
 import React from "react";
@@ -12,8 +13,13 @@ import { Label } from "@/components/ui/label";
 import { FormControl, FormItem, FormLabel } from "@/components/ui/form";
 import { CarListingFormData } from "@/types/forms";
 
-export const ServiceHistoryTypeSelector = () => {
-  const { register, setValue } = useFormContext<CarListingFormData>();
+interface ServiceHistoryTypeSelectorProps {
+  form?: any; // Optional form prop for backward compatibility
+}
+
+export const ServiceHistoryTypeSelector: React.FC<ServiceHistoryTypeSelectorProps> = ({ form: formProp }) => {
+  const formContext = useFormContext<CarListingFormData>();
+  const { register, setValue } = formProp || formContext;
   
   const handleChange = (value: string) => {
     setValue("serviceHistoryType", value, { shouldDirty: true });

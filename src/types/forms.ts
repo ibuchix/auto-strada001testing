@@ -1,4 +1,3 @@
-
 /**
  * Type definitions for car listing form data
  * - Updated 2025-05-20: Added last_saved field to match database schema
@@ -7,6 +6,7 @@
  * - Updated 2025-05-23: Added warning_light fields and is_selling_on_behalf
  * - Updated 2025-05-24: Standardized to camelCase for frontend usage
  * - Updated 2025-05-27: Fixed missing RimPhotos interface export and field definitions
+ * - Updated 2025-05-29: Added serviceHistoryCount to fix TypeScript errors
  */
 export interface CarListingFormData {
   id?: string;
@@ -46,6 +46,7 @@ export interface CarListingFormData {
   serviceHistoryType?: string;
   seatMaterial?: string;
   lastSaved?: string;
+  serviceHistoryCount?: number;
   
   // Frontend photo field names in camelCase
   frontView?: string;
@@ -89,6 +90,7 @@ export interface CarListingFormData {
   // UI validation fields
   requiredPhotosComplete?: boolean;
   created_at?: string;
+  updatedAt?: string;
 }
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -174,4 +176,3 @@ export interface CarEntity {
   valuation_data?: any;
   reserve_price?: number;
 }
-

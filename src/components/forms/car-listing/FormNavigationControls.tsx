@@ -3,6 +3,7 @@
  * FormNavigationControls Component
  * Created: 2025-06-16
  * Updated: 2025-06-17 - Added FormSubmitHandler for last step
+ * Updated: 2025-05-29 - Fixed FormSubmitHandler prop types
  * 
  * Navigation controls for the multi-step form
  */
@@ -69,7 +70,7 @@ export const FormNavigationControls = ({
         </Button>
         
         {isLastStep ? (
-          <FormSubmitHandler carId={carId} />
+          <FormSubmitHandler />
         ) : (
           <Button
             type="button"
