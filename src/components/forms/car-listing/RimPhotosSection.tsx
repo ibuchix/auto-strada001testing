@@ -8,6 +8,7 @@
  * Updated: 2025-05-20 - Implemented proper state management and upload handling
  * Updated: 2025-05-21 - Fixed rim photo upload functionality and error handling
  * Updated: 2025-05-29 - Fixed form object passing to photo helper functions
+ * Updated: 2025-05-30 - Implemented improved error handling and type safety
  */
 
 import React, { useState, useEffect } from 'react';
@@ -66,6 +67,15 @@ export const RimPhotosSection = () => {
         // Handle file upload
         const handleFileUpload = async (file: File, position: string): Promise<string> => {
           try {
+            // Validate inputs
+            if (!file) {
+              throw new Error('No file provided for upload');
+            }
+            
+            if (!position) {
+              throw new Error('No position specified for upload');
+            }
+            
             // Mark upload as active
             setActiveUploads(prev => ({ ...prev, [position]: true }));
             

@@ -11,6 +11,7 @@
  * Updated: 2025-05-24 - Fixed uploadFiles return type to match PhotoUploaderProps interface
  * Updated: 2025-05-28 - Fixed TypeScript errors with field names
  * Updated: 2025-05-29 - Fixed getValues function issue in setRimPhotoField
+ * Updated: 2025-05-30 - Enhanced type safety, error handling, and created consistent API across helper functions
  */
 
 import { UseFormSetValue, UseFormGetValues, UseFormReturn } from "react-hook-form";
@@ -27,6 +28,15 @@ export const setRimPhotoField = (
   form: UseFormReturn<CarListingFormData>
 ): void => {
   try {
+    // Validate input parameters
+    if (!form) {
+      throw new Error('Form object is required for setRimPhotoField');
+    }
+    
+    if (!position) {
+      throw new Error('Position parameter is required for setRimPhotoField');
+    }
+    
     // Get existing rim photos or initialize empty object
     const currentRimPhotos = form.getValues('rimPhotos') || {};
     
@@ -57,11 +67,20 @@ export const setRimPhotoField = (
 export const setPhotoField = (
   fieldName: keyof CarListingFormData,
   value: string,
-  setValue: UseFormSetValue<CarListingFormData>
+  form: UseFormReturn<CarListingFormData>
 ): void => {
   try {
+    // Validate input parameters
+    if (!form) {
+      throw new Error('Form object is required for setPhotoField');
+    }
+    
+    if (!fieldName) {
+      throw new Error('Field name parameter is required for setPhotoField');
+    }
+    
     // Set the value for the specific field
-    setValue(fieldName, value, { shouldDirty: true });
+    form.setValue(fieldName, value, { shouldDirty: true });
     console.log(`Updated photo field: ${String(fieldName)}`);
   } catch (error) {
     console.error(`Error setting photo field ${String(fieldName)}:`, error);
@@ -73,10 +92,16 @@ export const setPhotoField = (
  * Updates the vehiclePhotos object in the form
  */
 export const updateVehiclePhotos = (
-  setValue: UseFormSetValue<CarListingFormData>,
-  getValues: UseFormGetValues<CarListingFormData>
+  form: UseFormReturn<CarListingFormData>
 ): void => {
   try {
+    // Validate input parameter
+    if (!form) {
+      throw new Error('Form object is required for updateVehiclePhotos');
+    }
+    
+    const getValues = form.getValues;
+    
     // Create a consolidated object with all photo URLs
     const vehiclePhotos = {
       frontView: getValues('frontView') || '',
@@ -89,30 +114,9 @@ export const updateVehiclePhotos = (
     };
     
     // Update the vehiclePhotos object in the form
-    setValue('vehiclePhotos', vehiclePhotos, { shouldDirty: true });
+    form.setValue('vehiclePhotos', vehiclePhotos, { shouldDirty: true });
   } catch (error) {
     console.error('Error updating vehicle photos:', error);
-  }
-};
-
-/**
- * Safely gets a value from the form
- */
-const getValue = <T>(
-  getValue: UseFormSetValue<CarListingFormData>,
-  field: keyof CarListingFormData
-): T | undefined => {
-  try {
-    // This is a workaround since UseFormSetValue doesn't have a getValues method
-    // In practice, you would use form.getValues() directly
-    const formAny = getValue as any;
-    if (formAny._formValues) {
-      return formAny._formValues[field] as T;
-    }
-    return undefined;
-  } catch (error) {
-    console.error(`Error getting value for ${String(field)}:`, error);
-    return undefined;
   }
 };
 

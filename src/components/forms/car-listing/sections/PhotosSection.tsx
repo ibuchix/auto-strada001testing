@@ -1,4 +1,3 @@
-
 /**
  * Photos Upload Section Component
  * Created: 2025-06-17
@@ -11,6 +10,7 @@
  * Updated: 2025-05-20 - Added odometer photo uploader to match required fields in photoMapping.ts
  * Updated: 2025-05-27 - Fixed field naming to use camelCase consistently
  * Updated: 2025-05-28 - Fixed field references for requiredPhotosComplete
+ * Updated: 2025-05-30 - Updated to use consistent API for photo helper functions
  */
 
 import { useState, useEffect } from "react";
@@ -20,12 +20,11 @@ import { AlertCircle, Check, Camera } from "lucide-react";
 import { useFormData } from "../context/FormDataContext";
 import { useTemporaryFileUpload } from "@/hooks/useTemporaryFileUpload";
 import { RequiredPhotosGrid } from "../photo-upload/RequiredPhotosGrid";
-import { adaptTemporaryFileUploader } from "../utilities/photoHelpers";
+import { adaptTemporaryFileUploader, updateVehiclePhotos } from "../utilities/photoHelpers";
 import { PhotoSection } from "../photo-upload/components/PhotoSection";
 import { RimPhotosSection } from "../RimPhotosSection";
 import { DamagePhotosSection } from "./DamagePhotosSection";
 import { SafeFormWrapper } from "../SafeFormWrapper";
-import { setFieldValue } from "@/utils/formHelpers";
 
 export const PhotosSection = ({ carId }: { carId?: string }) => {
   const [allPhotosUploaded, setAllPhotosUploaded] = useState(false);
@@ -139,7 +138,7 @@ export const PhotosSection = ({ carId }: { carId?: string }) => {
             setAllPhotosUploaded(requiredUploaded);
             
             // Update the requiredPhotosComplete field for form validation
-            setFieldValue(form, 'requiredPhotosComplete', requiredUploaded);
+            form.setValue('requiredPhotosComplete', requiredUploaded, { shouldDirty: true });
           } catch (error) {
             console.error("Error updating form with photos:", error);
             setUploadError("Failed to update form with photos");
