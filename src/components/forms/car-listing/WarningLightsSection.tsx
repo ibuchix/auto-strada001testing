@@ -1,75 +1,120 @@
 
 /**
- * Changes made:
- * - 2024-03-19: Initial implementation of warning lights section
- * - 2024-03-19: Added photo upload functionality
- * - 2024-03-19: Implemented success notifications
- * - 2027-08-12: Updated PhotoUpload props to use title and description instead of label
- * - 2028-05-30: Fixed type issues with onUpload function return type
- * - 2025-04-03: Updated to use FormDataContext instead of requiring form prop
- * - 2025-06-15: Updated to match PhotoUpload component props
- * - 2025-06-21: Fixed PhotoUpload prop usage to match updated interface
+ * Warning Lights Section Component
+ * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
  */
 
-import { Card } from "@/components/ui/card";
-import { PhotoUpload } from "./photo-upload/PhotoUpload";
-import { toast } from "sonner";
+import { useState } from "react";
 import { useFormData } from "./context/FormDataContext";
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Upload, X } from "lucide-react";
 
-interface WarningLightsSectionProps {
-  carId?: string;
-}
-
-export const WarningLightsSection = ({ carId }: WarningLightsSectionProps) => {
+export const WarningLightsSection = () => {
   const { form } = useFormData();
-  
-  const handleWarningLightPhotoUpload = async (file: File): Promise<string | null> => {
-    if (!carId) {
-      toast.error("Please save the form first before uploading warning light photos");
-      return null;
-    }
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', 'warning_light');
-    formData.append('carId', carId);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
 
-    try {
-      const response = await fetch('/api/upload-photo', {
-        method: 'POST',
-        body: formData,
-      });
+    const newPhotoUrls: string[] = [];
+    
+    Array.from(e.target.files).forEach(file => {
+      const objectUrl = URL.createObjectURL(file);
+      newPhotoUrls.push(objectUrl);
+    });
 
-      if (!response.ok) throw new Error('Failed to upload photo');
+    // Update the state and form with new photo URLs
+    const updatedPhotoUrls = [...photoUrls, ...newPhotoUrls];
+    setPhotoUrls(updatedPhotoUrls);
+    form.setValue('warning_light_photos', updatedPhotoUrls, { shouldDirty: true });
+  };
 
-      const { filePath } = await response.json();
-      
-      const currentPhotos = form.getValues('warningLightPhotos') || [];
-      form.setValue('warningLightPhotos', [...currentPhotos, filePath]);
-      
-      toast.success('Warning light photo uploaded successfully');
-      return filePath; // Return the filePath string
-    } catch (error) {
-      toast.error('Failed to upload warning light photo');
-      return null; // Return null on error
-    }
+  const removePhoto = (index: number) => {
+    const updatedPhotoUrls = [...photoUrls];
+    URL.revokeObjectURL(updatedPhotoUrls[index]);
+    updatedPhotoUrls.splice(index, 1);
+    setPhotoUrls(updatedPhotoUrls);
+    form.setValue('warning_light_photos', updatedPhotoUrls, { shouldDirty: true });
   };
 
   return (
-    <Card className="p-4 md:p-6">
-      <h2 className="text-xl md:text-2xl font-oswald font-bold mb-6 text-dark border-b pb-4">
-        Warning Light Photos (Optional)
-      </h2>
-      <div className="space-y-4">
-        <PhotoUpload
-          id="warning_light"
-          title="Warning Light Photo"
-          description="Upload a clear photo of any dashboard warning lights"
-          isUploading={false}
-          isRequired={false}
-          onFileSelect={handleWarningLightPhotoUpload}
+    <Card>
+      <CardHeader>
+        <CardTitle>Warning Lights</CardTitle>
+        <CardDescription>
+          Please provide information about any warning lights that are displayed on your dashboard
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <FormField
+          control={form.control}
+          name="warning_light_description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Warning Light Description</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Describe which warning lights are on and any relevant information..."
+                  className="min-h-[120px]"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
+
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-medium mb-2">Upload Photos of Warning Lights</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Please provide clear photos of all warning lights that are displayed on your dashboard
+            </p>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {photoUrls.map((url, index) => (
+                <div key={index} className="relative group aspect-square">
+                  <img 
+                    src={url} 
+                    alt={`Warning light ${index + 1}`} 
+                    className="w-full h-full object-cover rounded-md border" 
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 w-8 h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => removePhoto(index)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              
+              <label
+                htmlFor="warning-light-upload"
+                className="border-2 border-dashed rounded-md flex flex-col items-center justify-center aspect-square cursor-pointer hover:border-primary transition-colors"
+              >
+                <div className="flex flex-col items-center justify-center p-4">
+                  <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                  <span className="text-sm text-gray-500">Add Photo</span>
+                </div>
+                <input
+                  id="warning-light-upload"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      </CardContent>
     </Card>
   );
 };

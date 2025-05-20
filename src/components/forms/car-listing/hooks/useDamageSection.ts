@@ -3,6 +3,7 @@
  * Damage Section Hook
  * Created: 2025-07-22
  * Updated: 2025-07-25 - Fixed DamageType import and photo field usage
+ * Updated: 2025-05-20 - Updated property names to use snake_case to match database schema
  * 
  * Custom hook to handle damage section functionality
  */
@@ -30,23 +31,23 @@ export const useDamageSection = (form: UseFormReturn<CarListingFormData>) => {
     photo: null
   });
 
-  // Watch for changes to isDamaged field
+  // Watch for changes to is_damaged field
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === 'isDamaged' || name === undefined) {
-        setIsDamaged(!!value.isDamaged);
+      if (name === 'is_damaged' || name === undefined) {
+        setIsDamaged(!!value.is_damaged);
       }
     });
     
     // Initialize with current value
-    setIsDamaged(!!form.getValues('isDamaged'));
+    setIsDamaged(!!form.getValues('is_damaged'));
     
     return () => subscription.unsubscribe();
   }, [form]);
 
-  // Watch for changes to damageReports field
+  // Watch for changes to damage_reports field
   useEffect(() => {
-    const reports = form.getValues('damageReports') || [];
+    const reports = form.getValues('damage_reports') || [];
     setDamageReports(reports);
   }, [form]);
 
@@ -69,7 +70,7 @@ export const useDamageSection = (form: UseFormReturn<CarListingFormData>) => {
     };
 
     const updatedReports = [...damageReports, newReport];
-    form.setValue('damageReports', updatedReports, { shouldDirty: true, shouldTouch: true });
+    form.setValue('damage_reports', updatedReports, { shouldDirty: true, shouldTouch: true });
     setDamageReports(updatedReports);
 
     // Reset the new damage form
@@ -86,7 +87,7 @@ export const useDamageSection = (form: UseFormReturn<CarListingFormData>) => {
   const removeDamageReport = useCallback((index: number) => {
     const updatedReports = [...damageReports];
     updatedReports.splice(index, 1);
-    form.setValue('damageReports', updatedReports, { shouldDirty: true });
+    form.setValue('damage_reports', updatedReports, { shouldDirty: true });
     setDamageReports(updatedReports);
   }, [damageReports, form]);
 
@@ -99,7 +100,7 @@ export const useDamageSection = (form: UseFormReturn<CarListingFormData>) => {
         ...updatedReports[index],
         photo: fileUrl
       };
-      form.setValue('damageReports', updatedReports, { shouldDirty: true });
+      form.setValue('damage_reports', updatedReports, { shouldDirty: true });
       setDamageReports(updatedReports);
     } else {
       // Update the new damage form
@@ -113,7 +114,7 @@ export const useDamageSection = (form: UseFormReturn<CarListingFormData>) => {
   // Validate the damage section
   const validateDamageSection = useCallback((): boolean => {
     if (isDamaged && damageReports.length === 0) {
-      form.setError('damageReports', { 
+      form.setError('damage_reports', { 
         type: 'required', 
         message: 'Please add at least one damage report' 
       });

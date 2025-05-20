@@ -1,6 +1,7 @@
 /**
  * Hook for detecting changes in form data
  * Created: 2025-06-06 - Fixed type handling for blob objects
+ * Updated: 2025-05-20 - Updated property names to use snake_case to match database schema
  */
 
 import { useState, useCallback, useRef } from 'react';
@@ -24,9 +25,9 @@ export const useChangeDetection = (): UseChangeDetectionResult => {
       const sanitizedData = { ...data };
       
       // Remove fields that don't serialize well (like Files)
-      if (sanitizedData.serviceHistoryFiles) {
-        // For serviceHistoryFiles, only keep key properties
-        sanitizedData.serviceHistoryFiles = (sanitizedData.serviceHistoryFiles as any[])
+      if (sanitizedData.service_history_files) {
+        // For service_history_files, only keep key properties
+        sanitizedData.service_history_files = (sanitizedData.service_history_files as any[])
           .map(file => {
             // If it's a File/Blob object
             if (file instanceof Blob) {
@@ -48,8 +49,8 @@ export const useChangeDetection = (): UseChangeDetectionResult => {
       }
       
       // Skip large binary objects
-      if (sanitizedData.uploadedPhotos) {
-        sanitizedData.uploadedPhotos = (sanitizedData.uploadedPhotos as any[])
+      if (sanitizedData.uploaded_photos) {
+        sanitizedData.uploaded_photos = (sanitizedData.uploaded_photos as any[])
           .map(photo => typeof photo === 'string' ? photo : 'blob');
       }
       
