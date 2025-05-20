@@ -7,15 +7,26 @@
  * Updated: 2025-05-20 - Added debouncing and better error handling
  * Updated: 2025-06-02 - Fixed toast API usage to use Sonner format and improved error handling
  * Updated: 2025-06-03 - Added retry capability and bypass for throttling
+ * Updated: 2025-05-20 - Integrated with standardized photo field naming
  */
 
 import { useState, useRef, useCallback } from 'react';
 import { associateTempUploadsWithCar } from '@/services/supabase/uploadService';
 import { toast } from 'sonner';
+import { standardizePhotoCategory } from '@/utils/photoMapping';
 
 interface RetryConfig {
   maxRetries: number;
   delayMs: number;
+}
+
+// Define the TempFileMetadata interface with standardized category field
+interface TempFileMetadata {
+  filePath: string;
+  publicUrl: string;
+  category: string;  // Will be standardized during association
+  uploadId: string;
+  timestamp: string;
 }
 
 export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, delayMs: 1000 }) => {
@@ -40,9 +51,17 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
       }
       
       // Parse the temporary uploads
-      let tempUploads;
+      let tempUploads: TempFileMetadata[];
       try {
         tempUploads = JSON.parse(tempUploadsStr);
+        
+        // Standardize categories for all temp uploads
+        tempUploads = tempUploads.map(upload => ({
+          ...upload,
+          category: standardizePhotoCategory(upload.category)
+        }));
+        
+        console.log(`[ImageAssociation][${submissionId}] Standardized categories for ${tempUploads.length} uploads`);
       } catch (error) {
         console.error(`[ImageAssociation][${submissionId}] Error parsing temp uploads:`, error);
         toast("There was an issue with your uploaded images. They may need to be uploaded again.");

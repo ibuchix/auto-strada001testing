@@ -5,6 +5,7 @@
  * Updated: 2025-05-19 - Fixed function signature to match usage in useCarForm.ts
  * Updated: 2025-05-20 - Fixed photo field consolidation and removed non-existent column references
  * Updated: 2025-06-01 - Improved error handling for JSONB structure errors
+ * Updated: 2025-05-20 - Integrated with standardized photo field naming
  * 
  * Handles the API calls for submitting car listing data.
  */
@@ -13,6 +14,7 @@ import { CarListingFormData } from "@/types/forms";
 import { prepareFormDataForSubmission } from "../utils/submission";
 import { validateRequiredPhotos } from "../utils/photoProcessor";
 import { supabase } from "@/integrations/supabase/client";
+import { REQUIRED_PHOTO_FIELDS } from "@/utils/photoMapping";
 
 export class ValidationSubmissionError extends Error {
   details?: any;
@@ -39,20 +41,39 @@ export const submitCarListing = async (
     const missingPhotoFields = validateRequiredPhotos(formData);
     if (missingPhotoFields.length > 0) {
       console.error("Missing required photo fields:", missingPhotoFields);
-      throw new ValidationSubmissionError(`Missing required photos: ${missingPhotoFields.join(', ')}`);
+      throw new ValidationSubmissionError(`Missing required photos: ${missingPhotoFields.join(', ')}`, {
+        fields: missingPhotoFields,
+        requiredFields: REQUIRED_PHOTO_FIELDS
+      });
     }
     
     // Prepare data for submission, consolidating photo fields
     const preparedData = prepareFormDataForSubmission(formData);
     
     // Validate JSONB structure to catch potential errors early
-    if (preparedData.required_photos && 
-        typeof preparedData.required_photos !== 'object') {
-      console.error("Invalid required_photos structure:", preparedData.required_photos);
-      throw new ValidationSubmissionError("Invalid required_photos structure", {
-        field: "required_photos",
-        providedType: typeof preparedData.required_photos
-      });
+    if (preparedData.required_photos) {
+      if (typeof preparedData.required_photos !== 'object') {
+        console.error("Invalid required_photos structure:", preparedData.required_photos);
+        throw new ValidationSubmissionError("Invalid required_photos structure", {
+          field: "required_photos",
+          providedType: typeof preparedData.required_photos
+        });
+      }
+      
+      // Additional validation for required photos object structure
+      const photoObj = preparedData.required_photos;
+      if (photoObj && typeof photoObj === 'object') {
+        for (const key in photoObj) {
+          if (typeof photoObj[key] !== 'string') {
+            console.error(`Invalid value for photo field ${key}:`, photoObj[key]);
+            throw new ValidationSubmissionError(`Invalid value for photo field ${key}`, {
+              field: `required_photos.${key}`,
+              providedType: typeof photoObj[key],
+              expectedType: 'string'
+            });
+          }
+        }
+      }
     }
     
     // Log the prepared data structure to help with debugging

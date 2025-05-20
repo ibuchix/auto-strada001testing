@@ -1,4 +1,3 @@
-
 /**
  * Service for managing photo storage operations
  * Updated: 2025-05-18 - Added verification and recovery for database records
@@ -6,12 +5,14 @@
  * Updated: 2025-07-19 - Fixed supabase.sql usage with standard methods
  * Updated: 2025-05-23 - Added retry mechanism and enhanced error handling
  * Updated: 2025-05-19 - Removed API route dependency and implemented direct upload
+ * Updated: 2025-05-20 - Implemented standardized photo category naming
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { compressImage } from '../utils/imageCompression';
 import { savePhotoToDb, verifyPhotoDbRecord } from './photoDbService';
+import { standardizePhotoCategory } from '@/utils/photoMapping';
 
 // Constants
 const MAX_RETRIES = 2;
@@ -31,6 +32,10 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
   // Add detailed logging for debugging
   console.log(`Starting direct upload for file: ${file.name}, size: ${(file.size / 1024).toFixed(2)} KB, category: ${category}, carId: ${carId}`);
   
+  // Standardize the category name for consistent storage path
+  const standardCategory = standardizePhotoCategory(category);
+  console.log(`Using standardized category: ${standardCategory} (from ${category})`);
+  
   while (retryCount <= MAX_RETRIES) {
     try {
       if (retryCount > 0) {
@@ -40,7 +45,7 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       // Validate inputs
       if (!file) throw new Error('No file provided for upload');
       if (!carId) throw new Error('Car ID is required for photo upload');
-      if (!category) throw new Error('Category is required for photo upload');
+      if (!standardCategory) throw new Error('Category is required for photo upload');
       
       // Get user ID from auth session
       const { data: { session } } = await supabase.auth.getSession();
@@ -70,7 +75,7 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       // Create unique file path with standardized structure
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${uuidv4()}.${fileExt}`;
-      const filePath = `cars/${userId}/${carId}/${category}/${fileName}`;
+      const filePath = `cars/${userId}/${carId}/${standardCategory}/${fileName}`;
       
       console.log(`Direct upload to storage path: ${filePath}`);
       
@@ -108,8 +113,8 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       
       while (!dbRecordSaved && dbRetries < 3) {
         try {
-          // Save to database
-          await savePhotoToDb(filePath, carId, category);
+          // Save to database using standard category
+          await savePhotoToDb(filePath, carId, standardCategory);
           
           // Verify the database record was created
           dbRecordSaved = await verifyPhotoDbRecord(filePath, carId);
@@ -129,9 +134,6 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       if (!dbRecordSaved) {
         console.error(`Failed to save database record after ${dbRetries} attempts. Image uploaded but not tracked in database.`);
       }
-      
-      // Update the cars table if this is a required photo
-      await updateCarRecordWithImage(carId, filePath, category);
       
       return publicUrl;
     } catch (error: any) {

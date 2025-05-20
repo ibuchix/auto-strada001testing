@@ -1,42 +1,15 @@
-
 /**
  * Photo Field Processor Utility
  * Created: 2025-05-19
  * Updated: 2025-05-20 - Added more robust consolidation and validation logic
+ * Updated: 2025-05-20 - Integrated with standardized photo field mapping
  * 
  * Transforms individual photo fields into the required_photos JSONB structure 
  * expected by the database schema.
  */
 
 import { CarListingFormData } from "@/types/forms";
-
-// Known photo field names in the form that should be consolidated
-const PHOTO_FIELD_KEYS = [
-  'dashboard',
-  'exterior_front',
-  'exterior_rear',
-  'exterior_side',
-  'interior_front',
-  'interior_rear',
-  'odometer',
-  'trunk',
-  'engine',
-  'damage_front',
-  'damage_rear',
-  'damage_side',
-  'wheel',
-  'roof'
-];
-
-// Define which photo fields are mandatory
-const REQUIRED_PHOTO_FIELDS = [
-  'dashboard',
-  'exterior_front',
-  'exterior_rear',
-  'exterior_side',
-  'interior_front',
-  'odometer'
-];
+import { PHOTO_FIELD_MAP, REQUIRED_PHOTO_FIELDS, standardizePhotoCategory } from "@/utils/photoMapping";
 
 /**
  * Consolidates individual photo fields into a required_photos object
@@ -59,14 +32,16 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
   }
   
   // Then add or update with any individual fields
-  PHOTO_FIELD_KEYS.forEach(key => {
-    // Only process if the field exists in the form data
-    if (key in formData) {
+  // Process all known photo field keys, using standardized names
+  Object.keys(formData).forEach(key => {
+    // Only process if the key is a known photo field or matches PHOTO_FIELD_MAP
+    const standardKey = standardizePhotoCategory(key);
+    if (PHOTO_FIELD_MAP[key] || Object.values(PHOTO_FIELD_MAP).includes(key)) {
       const value = formData[key];
       
       // Only add non-empty values to the photos object
       if (value && typeof value === 'string') {
-        requiredPhotos[key] = value;
+        requiredPhotos[standardKey] = value;
       }
       
       // Remove the individual field from the updated form data
@@ -79,7 +54,7 @@ export const consolidatePhotoFields = (formData: CarListingFormData): {
   
   // Log the consolidation results for debugging
   console.log("Photo field consolidation:", {
-    originalKeys: Object.keys(formData).filter(k => PHOTO_FIELD_KEYS.includes(k)),
+    originalKeys: Object.keys(formData).filter(k => Object.keys(PHOTO_FIELD_MAP).includes(k) || Object.values(PHOTO_FIELD_MAP).includes(k)),
     consolidatedKeys: Object.keys(requiredPhotos),
     requiredFields: REQUIRED_PHOTO_FIELDS,
     hasAllRequired: REQUIRED_PHOTO_FIELDS.every(field => !!requiredPhotos[field])
