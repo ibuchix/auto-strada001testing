@@ -10,9 +10,10 @@
  * Updated: 2025-05-23 - Enhanced adapter function and added error recovery capabilities
  * Updated: 2025-05-24 - Fixed uploadFiles return type to match PhotoUploaderProps interface
  * Updated: 2025-05-28 - Fixed TypeScript errors with field names
+ * Updated: 2025-05-29 - Fixed getValues function issue in setRimPhotoField
  */
 
-import { UseFormSetValue, UseFormGetValues } from "react-hook-form";
+import { UseFormSetValue, UseFormGetValues, UseFormReturn } from "react-hook-form";
 import { CarListingFormData, RimPhotos } from '@/types/forms';
 import { TemporaryFile } from '@/hooks/useTemporaryFileUpload';
 import { watchField, setFieldValue, getFieldValue } from "@/utils/formHelpers";
@@ -23,11 +24,11 @@ import { watchField, setFieldValue, getFieldValue } from "@/utils/formHelpers";
 export const setRimPhotoField = (
   position: string, 
   value: string,
-  setValue: UseFormSetValue<CarListingFormData>
+  form: UseFormReturn<CarListingFormData>
 ): void => {
   try {
     // Get existing rim photos or initialize empty object
-    const currentRimPhotos = getFieldValue<RimPhotos | undefined>(setValue as any, 'rimPhotos') || {};
+    const currentRimPhotos = form.getValues('rimPhotos') || {};
     
     // Make sure currentRimPhotos is treated as a valid object before spreading
     const safeRimPhotos: Partial<RimPhotos> = typeof currentRimPhotos === 'object' && currentRimPhotos !== null 
@@ -41,7 +42,7 @@ export const setRimPhotoField = (
     };
     
     // Set the updated object back to the form
-    setFieldValue(setValue as any, 'rimPhotos', updatedRimPhotos, { shouldDirty: true });
+    form.setValue("rimPhotos", updatedRimPhotos, { shouldDirty: true });
     
     console.log(`Updated rim photo for position: ${position}`);
   } catch (error) {
