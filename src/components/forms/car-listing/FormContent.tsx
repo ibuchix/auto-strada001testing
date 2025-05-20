@@ -77,7 +77,7 @@ export const FormContent = ({ carId }: { carId?: string }) => {
       <VehicleDetailsSection />
       <VehicleStatusSection />
       
-      {/* Show Finance Details Section if hasOutstandingFinance is true */}
+      {/* Show Finance Details Section if has_outstanding_finance is true */}
       {hasOutstandingFinance && (
         <FinanceDetailsSection />
       )}

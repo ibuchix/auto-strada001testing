@@ -2,6 +2,7 @@
 /**
  * Form Section Renderer Component
  * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-22 - Fixed prop passing to FormSection component
  */
 
 import React from "react";
@@ -16,9 +17,11 @@ import { CarListingFormData } from "@/types/forms";
 interface FormSectionRendererProps {
   activeSections: string[];
   step: number;
+  carId?: string;
+  sectionId?: string;
 }
 
-export const FormSectionRenderer = ({ activeSections, step }: FormSectionRendererProps) => {
+export const FormSectionRenderer = ({ activeSections, step, carId }: FormSectionRendererProps) => {
   const form = useFormContext<CarListingFormData>();
   
   const isValuationDriven = React.useMemo(() => {
@@ -54,12 +57,12 @@ export const FormSectionRenderer = ({ activeSections, step }: FormSectionRendere
         
         return (
           <React.Fragment key={sectionId}>
-            <FormSection id={sectionId} step={step} section={index + 1}>
+            <FormSection id={sectionId} title={sectionMeta.title}>
               <FormSectionHeader
                 title={sectionMeta.title}
                 description={sectionMeta.description}
               />
-              <SectionComponent />
+              <SectionComponent carId={carId} />
             </FormSection>
             {index < activeSections.length - 1 && (
               <Separator className="my-6" />

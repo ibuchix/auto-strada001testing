@@ -4,6 +4,7 @@
  * Created: 2025-07-22
  * Updated: 2025-07-25 - Fixed DamageType import and photo field usage
  * Updated: 2025-05-20 - Updated property names to use snake_case to match database schema
+ * Updated: 2025-05-22 - Fixed property access and field names to use consistent snake_case
  * 
  * Custom hook to handle damage section functionality
  */

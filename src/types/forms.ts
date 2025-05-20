@@ -4,6 +4,7 @@
  * - Updated 2025-05-20: Added last_saved field to match database schema
  * - Updated 2025-05-21: Fixed field naming inconsistencies (camelCase to snake_case)
  * - Updated 2025-05-22: Added ServiceHistoryFile type and additional missing fields
+ * - Updated 2025-05-23: Added warning_light fields and is_selling_on_behalf
  */
 export interface CarListingFormData {
   id?: string;
@@ -56,10 +57,15 @@ export interface CarListingFormData {
   contact_email?: string;
   service_history_files?: ServiceHistoryFile[];
   
-  // Additional fields for compatibility with existing code
-  from_valuation?: boolean;
+  // New fields added for consistency with database schema
+  warning_light_photos?: string[];
+  warning_light_description?: string;
+  is_selling_on_behalf?: boolean;
   uploaded_photos?: string[];
   vehicle_photos?: Record<string, string>;
+  
+  // Field for compatibility with existing code
+  from_valuation?: boolean;
 }
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
