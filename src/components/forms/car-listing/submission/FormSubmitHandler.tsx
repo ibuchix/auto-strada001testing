@@ -13,6 +13,7 @@
  * Updated: 2025-06-24 - Improved photo field validation using standardizePhotoCategory
  * Updated: 2025-06-24 - Enhanced error messages with better field name formatting
  * Updated: 2025-06-25 - Added more detailed validation logs and improved error messaging
+ * Updated: 2025-05-20 - Fixed FormProvider context usage with better error handling
  */
 
 import React, { useState } from "react";
@@ -43,9 +44,10 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
   onSubmitError,
   carId
 }) => {
+  // Get form context from React Hook Form's useFormContext
   const formContext = useFormContext<CarListingFormData>();
   
-  // Add null check for formContext
+  // Add null check and better error handling for formContext
   if (!formContext) {
     console.error("FormSubmitHandler must be used within a FormProvider");
     return (

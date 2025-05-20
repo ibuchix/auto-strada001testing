@@ -3,9 +3,11 @@
  * Changes made:
  * - Updated imports to use special components for manual valuation
  * - Fixed component props to pass form to components that need it
+ * - Added FormProvider wrapper for components that expect React Hook Form context
  */
 
 import { Form } from "@/components/ui/form";
+import { FormProvider } from "react-hook-form";
 import { VehicleDetailsSection } from "./VehicleDetailsSection";
 import { ConditionSection } from "./ConditionSection";
 import { PhotoUploadSection } from "./PhotoUploadSection";
@@ -34,12 +36,12 @@ export const ManualValuationForm = () => {
               <VehicleDetailsSection form={form} />
               <VehicleStatusSection form={form} />
               <ConditionSection form={form} />
-              <FormDataProvider form={form}>
+              <FormProvider {...form}>
                 <FeaturesSection />
                 <ServiceHistorySection />
                 <AdditionalInfoSection />
                 <SellerNotesSection />
-              </FormDataProvider>
+              </FormProvider>
               <PhotoUploadSection 
                 form={form} 
                 onProgressUpdate={setUploadProgress}

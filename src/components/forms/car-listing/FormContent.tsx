@@ -1,4 +1,3 @@
-
 /**
  * Form Content
  * Updated: 2025-05-04 - Added FinanceDetailsSection to the form flow
@@ -13,6 +12,7 @@
  * Updated: 2025-05-29 - Fixed FormSubmitHandler prop types
  * Updated: 2025-06-07 - Enhanced session handling with safer access patterns
  * Updated: 2025-06-20 - Fixed destructuring issues and added additional safety checks
+ * Updated: 2025-05-20 - Fixed FormSubmitHandler context by adding FormContextBridge
  */
 
 import { VehicleDetailsSection } from "./sections/VehicleDetailsSection";
@@ -31,6 +31,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { FormContextBridge } from "./components/FormContextBridge";
 
 export const FormContent = ({ carId }: { carId?: string }) => {
   const auth = useAuth(); // Safely get auth context
@@ -134,12 +135,14 @@ export const FormContent = ({ carId }: { carId?: string }) => {
       <SellerDetailsSection />
       
       <FormSection title="Review & Submit">
-        <FormSubmitHandler 
-          onSubmitSuccess={handleSubmitSuccess}
-          onSubmitError={handleSubmitError}
-          userId={userId}
-          carId={carId}
-        />
+        <FormContextBridge>
+          <FormSubmitHandler 
+            onSubmitSuccess={handleSubmitSuccess}
+            onSubmitError={handleSubmitError}
+            userId={userId}
+            carId={carId}
+          />
+        </FormContextBridge>
       </FormSection>
     </div>
   );
