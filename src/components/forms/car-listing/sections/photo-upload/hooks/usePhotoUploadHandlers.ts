@@ -2,18 +2,42 @@
 /**
  * Hook for photo upload handlers
  * Created: 2025-05-20
+ * Updated: 2025-05-21 - Fixed type issue with PhotoUploadState
  */
 
 import React from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { CarListingFormData } from '@/types/forms';
 import { setPhotoField, updateVehiclePhotos } from '../../../utilities/photoHelpers';
-import { PhotoUploadState } from './usePhotoUploadState';
 
+// Import the proper types from usePhotoUploadState
 interface UsePhotoUploadHandlersProps {
   form: UseFormReturn<CarListingFormData>;
-  state: PhotoUploadState['state'];
-  uploaders: PhotoUploadState['uploaders'];
+  state: {
+    validationError: string | null;
+    setValidationError: React.Dispatch<React.SetStateAction<string | null>>;
+    validated: boolean;
+    setValidated: React.Dispatch<React.SetStateAction<boolean>>;
+    uploadedPhotos: string[];
+    setUploadedPhotos: React.Dispatch<React.SetStateAction<string[]>>;
+    selectedFiles: File[];
+    setSelectedFiles: React.Dispatch<React.SetStateAction<File[]>>;
+    uploadProgress: number;
+    setUploadProgress: React.Dispatch<React.SetStateAction<number>>;
+    isUploading: boolean;
+    setIsUploading: React.Dispatch<React.SetStateAction<boolean>>;
+    allRequiredUploaded: boolean;
+  };
+  uploaders: {
+    frontView: any;
+    rearView: any;
+    driverSide: any;
+    passengerSide: any;
+    dashboard: any;
+    interiorFront: any;
+    interiorRear: any;
+    additionalPhotos: any;
+  };
 }
 
 export const usePhotoUploadHandlers = ({ 

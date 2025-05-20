@@ -2,6 +2,7 @@
 /**
  * Hook for managing photo upload state
  * Created: 2025-05-20
+ * Updated: 2025-05-21 - Fixed return type structure to match expectations in usePhotoUploadHandlers
  */
 
 import React from 'react';
@@ -11,13 +12,21 @@ import { useTemporaryFileUpload } from '@/hooks/useTemporaryFileUpload';
 import { adaptTemporaryFileUploader } from '../../../utilities/photoHelpers';
 
 export interface PhotoUploadState {
-  validationError: string | null;
-  validated: boolean;
-  uploadedPhotos: string[];
-  selectedFiles: File[];
-  uploadProgress: number;
-  isUploading: boolean;
-  allRequiredUploaded: boolean;
+  state: {
+    validationError: string | null;
+    setValidationError: React.Dispatch<React.SetStateAction<string | null>>;
+    validated: boolean;
+    setValidated: React.Dispatch<React.SetStateAction<boolean>>;
+    uploadedPhotos: string[];
+    setUploadedPhotos: React.Dispatch<React.SetStateAction<string[]>>;
+    selectedFiles: File[];
+    setSelectedFiles: React.Dispatch<React.SetStateAction<File[]>>;
+    uploadProgress: number;
+    setUploadProgress: React.Dispatch<React.SetStateAction<number>>;
+    isUploading: boolean;
+    setIsUploading: React.Dispatch<React.SetStateAction<boolean>>;
+    allRequiredUploaded: boolean;
+  };
   uploaders: {
     frontView: ReturnType<typeof useTemporaryFileUpload>;
     rearView: ReturnType<typeof useTemporaryFileUpload>;
@@ -34,7 +43,7 @@ export interface UsePhotoUploadStateProps {
   form: UseFormReturn<CarListingFormData>;
 }
 
-export const usePhotoUploadState = ({ form }: UsePhotoUploadStateProps) => {
+export const usePhotoUploadState = ({ form }: UsePhotoUploadStateProps): PhotoUploadState => {
   const [validationError, setValidationError] = React.useState<string | null>(null);
   const [validated, setValidated] = React.useState(false);
   const [uploadedPhotos, setUploadedPhotos] = React.useState<string[]>([]);
