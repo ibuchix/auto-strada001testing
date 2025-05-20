@@ -2,6 +2,7 @@
 /**
  * DamageDetailsSection Component
  * Updated: 2025-05-04 - Fixed TypeScript error with DamageReport ID field
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  */
 
 import { useFormData } from "../context/FormDataContext";
@@ -14,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PlusCircle, Trash2 } from "lucide-react";
 import { DamageReport, DamageType } from "@/types/forms";
 import { v4 as uuidv4 } from "uuid";
+import { watchField, setFieldValue } from "@/utils/formHelpers";
 
 export const DamageDetailsSection = () => {
   const { form } = useFormData();
@@ -24,7 +26,7 @@ export const DamageDetailsSection = () => {
     severity: 'minor' as 'minor' | 'moderate' | 'severe'
   });
   
-  const damageReports = form.watch('damageReports') || [];
+  const damageReports = watchField<DamageReport[]>(form, "damageReports") || [];
   
   const addDamageReport = () => {
     const newReport: DamageReport = {
@@ -33,11 +35,11 @@ export const DamageDetailsSection = () => {
       description: newDamage.description,
       location: newDamage.location,
       severity: newDamage.severity,
-      photo: null
+      photo: undefined
     };
     
     const updatedReports = [...damageReports, newReport];
-    form.setValue('damageReports', updatedReports, { shouldDirty: true });
+    setFieldValue(form, "damageReports", updatedReports, { shouldDirty: true });
     
     // Reset the form
     setNewDamage({
@@ -50,7 +52,7 @@ export const DamageDetailsSection = () => {
   
   const removeDamageReport = (id: string) => {
     const updatedReports = damageReports.filter(report => report.id !== id);
-    form.setValue('damageReports', updatedReports, { shouldDirty: true });
+    setFieldValue(form, "damageReports", updatedReports, { shouldDirty: true });
   };
   
   return (

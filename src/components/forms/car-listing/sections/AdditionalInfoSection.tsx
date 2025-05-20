@@ -2,6 +2,7 @@
 /**
  * AdditionalInfoSection Component
  * Created: 2025-05-11
+ * Updated: 2025-05-24 - Fixed field names to use camelCase consistently
  * 
  * Creates a new component in the sections directory to ensure consistent import paths
  * and fix the "Right side of assignment cannot be destructured" error

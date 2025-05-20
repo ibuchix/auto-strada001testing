@@ -4,6 +4,7 @@
  * - 2025-04-05: Created to separate state management from the UI component
  * - 2025-04-05: Handles validation, saving, and error management
  * - 2025-05-23: Updated to use type-safe form helpers
+ * - 2025-05-24: Updated to use camelCase consistently
  */
 import { useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
@@ -27,12 +28,12 @@ export const usePhotoUploadSection = ({
   const [uploadError, setUploadError] = useState<PhotoUploadError | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [isPhotoSectionValid, setIsPhotoSectionValid] = useState(false);
-  const watchedPhotos = watchField<string[]>(form, 'uploaded_photos') || [];
+  const watchedPhotos = watchField<string[]>(form, 'uploadedPhotos') || [];
 
   // Handle validation change
   const handleValidationChange = (isValid: boolean) => {
     setIsPhotoSectionValid(isValid);
-    setFieldValue(form, 'photo_validation_passed', isValid, { 
+    setFieldValue(form, 'photoValidationPassed', isValid, { 
       shouldValidate: true,
       shouldDirty: true 
     });
@@ -77,9 +78,9 @@ export const usePhotoUploadSection = ({
 
   // Handle removing a photo
   const handleRemovePhoto = (photoUrl: string) => {
-    const currentPhotos = getFieldValue<string[]>(form, 'uploaded_photos') || [];
+    const currentPhotos = getFieldValue<string[]>(form, 'uploadedPhotos') || [];
     const updatedPhotos = currentPhotos.filter(url => url !== photoUrl);
-    setFieldValue(form, 'uploaded_photos', updatedPhotos, {
+    setFieldValue(form, 'uploadedPhotos', updatedPhotos, {
       shouldValidate: true,
       shouldDirty: true
     });

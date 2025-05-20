@@ -2,6 +2,7 @@
 /**
  * FeaturesSection Component
  * Updated: 2025-05-04 - Fixed TypeScript error with proper initialization of CarFeatures
+ * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  */
 
 import { useFormData } from "../context/FormDataContext";
@@ -15,9 +16,9 @@ export const FeaturesSection = () => {
   
   // Ensure features object is initialized properly
   useEffect(() => {
-    const currentFeatures = form.watch('features');
+    const currentFeatures = form.watch('features') as Record<string, boolean> | undefined;
     if (!currentFeatures || typeof currentFeatures !== 'object') {
-      const defaultFeatures: CarFeatures = {
+      const defaultFeatures: Record<string, boolean> = {
         airConditioning: false,
         bluetooth: false,
         cruiseControl: false,

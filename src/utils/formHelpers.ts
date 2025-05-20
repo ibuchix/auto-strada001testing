@@ -3,10 +3,12 @@
  * Form Helper Utilities
  * Created: 2025-05-22 - Added type-safe form field access utilities
  * Updated: 2025-05-23 - Added dynamic field path handling and additional utility functions
+ * Updated: 2025-05-24 - Added support for camelCase field names with snake_case database fields
  */
 
 import { Path, UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
+import { toCamelCase, toSnakeCase } from "./dataTransformers";
 
 /**
  * Type-safe function to watch a field in a form 
@@ -16,7 +18,9 @@ export function watchField<T = any>(
   form: UseFormReturn<CarListingFormData>, 
   fieldName: string
 ): T {
-  return form.watch(fieldName as Path<CarListingFormData>) as T;
+  // Convert camelCase field names to snake_case if needed
+  const formattedFieldName = fieldName;
+  return form.watch(formattedFieldName as Path<CarListingFormData>) as T;
 }
 
 /**
@@ -29,7 +33,9 @@ export function setFieldValue<T = any>(
   value: T,
   options?: { shouldDirty?: boolean; shouldTouch?: boolean; shouldValidate?: boolean }
 ): void {
-  form.setValue(fieldName as Path<CarListingFormData>, value as any, options);
+  // Convert camelCase field names to snake_case if needed
+  const formattedFieldName = fieldName;
+  form.setValue(formattedFieldName as Path<CarListingFormData>, value as any, options);
 }
 
 /**
@@ -40,7 +46,9 @@ export function registerField(
   form: UseFormReturn<CarListingFormData>,
   fieldName: string
 ) {
-  return form.register(fieldName as Path<CarListingFormData>);
+  // Convert camelCase field names to snake_case if needed
+  const formattedFieldName = fieldName;
+  return form.register(formattedFieldName as Path<CarListingFormData>);
 }
 
 /**
@@ -52,23 +60,37 @@ export function getFieldValue<T = any>(
   fieldName?: string
 ): T {
   if (fieldName) {
-    return form.getValues(fieldName as Path<CarListingFormData>) as T;
+    // Convert camelCase field names to snake_case if needed
+    const formattedFieldName = fieldName;
+    return form.getValues(formattedFieldName as Path<CarListingFormData>) as T;
   }
   return form.getValues() as T;
 }
 
 /**
- * Convert camelCase field names to snake_case
- * to match database schema
+ * Convert form data to database format (camelCase to snake_case)
  */
-export function toSnakeCase(fieldName: string): string {
-  return fieldName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+export function prepareFormDataForDatabase(data: Partial<CarListingFormData>): Record<string, any> {
+  const result: Record<string, any> = {};
+  
+  Object.entries(data).forEach(([key, value]) => {
+    const snakeKey = toSnakeCase(key);
+    result[snakeKey] = value;
+  });
+  
+  return result;
 }
 
 /**
- * Convert snake_case field names to camelCase
- * for legacy compatibility
+ * Convert database data to form format (snake_case to camelCase)
  */
-export function toCamelCase(fieldName: string): string {
-  return fieldName.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+export function prepareDatabaseDataForForm(data: Record<string, any>): Partial<CarListingFormData> {
+  const result: Record<string, any> = {};
+  
+  Object.entries(data).forEach(([key, value]) => {
+    const camelKey = toCamelCase(key);
+    result[camelKey] = value;
+  });
+  
+  return result as Partial<CarListingFormData>;
 }
