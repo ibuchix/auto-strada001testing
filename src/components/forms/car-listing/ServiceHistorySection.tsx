@@ -13,9 +13,10 @@
  * - 2025-05-03: Fixed TypeScript errors related to useDocumentUpload hook properties
  * - 2025-05-04: Fixed property access and alignment with useDocumentUpload hook
  * - 2025-05-04: Resolved property mismatches with useDocumentUpload hook
+ * - 2025-05-22: Updated field names to use snake_case to match database schema
  */
 
-import { CarListingFormData, ServiceHistoryFile } from "@/types/forms";
+import { ServiceHistoryFile } from "@/types/forms";
 import { ServiceHistoryTypeSelector } from "./service-history/ServiceHistoryTypeSelector";
 import { DocumentUploader } from "./service-history/DocumentUploader";
 import { DocumentList } from "./service-history/DocumentList";
@@ -29,8 +30,8 @@ interface ServiceHistorySectionProps {
 export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => {
   const { form } = useFormData();
   
-  const serviceHistoryType = form.watch('serviceHistoryType');
-  const uploadedFiles = form.watch('serviceHistoryFiles') || [];
+  const serviceHistoryType = form.watch('service_history_type');
+  const uploadedFiles = form.watch('service_history_files') || [];
   
   const {
     uploading,
@@ -65,7 +66,7 @@ export const ServiceHistorySection = ({ carId }: ServiceHistorySectionProps) => 
             
             <DocumentList
               selectedFiles={selectedFiles}
-              uploadedFiles={uploadedFiles}
+              uploadedFiles={uploadedFiles as ServiceHistoryFile[]}
               onRemoveSelected={removeSelectedFile}
               onRemoveUploaded={removeFile}
             />

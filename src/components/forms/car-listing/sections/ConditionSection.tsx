@@ -3,6 +3,7 @@
  * ConditionSection Component
  * Created: 2025-06-20 - Added initial implementation
  * Updated: 2025-05-21 - Updated field names to use snake_case to match database schema
+ * Updated: 2025-05-22 - Fixed remaining field names to use snake_case
  * 
  * Allows the user to select the vehicle's condition and service history
  */
@@ -28,7 +29,7 @@ export const ConditionSection = () => {
     
     if (!checked) {
       form.setValue('service_history_type', 'none', { shouldValidate: true });
-      form.setValue('serviceHistoryFiles', [], { shouldValidate: true });
+      form.setValue('service_history_files', [], { shouldValidate: true });
     }
   };
 

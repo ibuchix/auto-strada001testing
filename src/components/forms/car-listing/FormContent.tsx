@@ -8,6 +8,7 @@
  * Updated: 2025-05-13 - Added null check for session to avoid destructuring error
  * Updated: 2025-05-15 - Updated VehicleDetailsSection import path
  * Updated: 2025-05-16 - Improved submission handling and edge function integration
+ * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
  * 
  * Main content component for the car listing form
  */
@@ -30,14 +31,14 @@ import { toast } from "sonner";
 export const FormContent = ({ carId }: { carId?: string }) => {
   const { session, isLoading } = useAuth();
   const { form } = useFormData();
-  const hasOutstandingFinance = form.watch("hasOutstandingFinance");
-  const isDamaged = form.watch("isDamaged");
+  const hasOutstandingFinance = form.watch("has_outstanding_finance");
+  const isDamaged = form.watch("is_damaged");
   
   // Set form metadata for valuation tracking
   useEffect(() => {
     const hasValuationData = !!localStorage.getItem('valuationData');
     if (hasValuationData) {
-      form.setValue('fromValuation', true);
+      form.setValue('from_valuation', true);
     }
   }, [form]);
   

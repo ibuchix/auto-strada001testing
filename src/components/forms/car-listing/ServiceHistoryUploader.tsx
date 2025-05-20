@@ -5,6 +5,7 @@
  * Updated: 2025-06-20 - Removed invalid allowedTypes property and fixed type compatibility
  * Updated: 2025-06-21 - Fixed type compatibility with TemporaryFileUpload options
  * Updated: 2025-07-24 - Fixed ServiceHistoryFile type compatibility
+ * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
  */
 
 import { useEffect, useState } from "react";
@@ -38,7 +39,7 @@ export const ServiceHistoryUploader = () => {
       uploadDate: new Date().toISOString() // Include both for compatibility
     }));
     
-    form.setValue("serviceHistoryFiles", serviceHistoryFiles, { shouldDirty: true });
+    form.setValue("service_history_files", serviceHistoryFiles, { shouldDirty: true });
   }, [fileUploader.files, form]);
   
   return (

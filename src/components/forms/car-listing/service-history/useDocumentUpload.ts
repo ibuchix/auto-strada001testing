@@ -6,6 +6,7 @@
  * Updated: 2025-05-04 - Fixed hook return type to include all necessary properties
  * Updated: 2025-05-04 - Fixed removeUploadedFile and other missing properties
  * Updated: 2025-05-23 - Fixed finalization of uploads and proper database recording
+ * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -26,12 +27,12 @@ export function useDocumentUpload() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   
   // Get current files from form
-  const serviceHistoryFiles = watch('serviceHistoryFiles') || [];
+  const serviceHistoryFiles = watch('service_history_files') || [];
   
   // Sync files with form data
   useEffect(() => {
     if (serviceHistoryFiles && serviceHistoryFiles.length > 0) {
-      setFiles(serviceHistoryFiles);
+      setFiles(serviceHistoryFiles as ServiceHistoryFile[]);
     }
   }, [serviceHistoryFiles]);
   
@@ -75,7 +76,7 @@ export function useDocumentUpload() {
       setFiles(updatedFiles);
       
       // Update form data
-      setValue('serviceHistoryFiles', updatedFiles, { shouldDirty: true });
+      setValue('service_history_files', updatedFiles, { shouldDirty: true });
       
       toast.success('File uploaded successfully');
       return newFile;
@@ -107,7 +108,7 @@ export function useDocumentUpload() {
     setFiles(updatedFiles);
     
     // Update form data
-    setValue('serviceHistoryFiles', updatedFiles, { shouldDirty: true });
+    setValue('service_history_files', updatedFiles, { shouldDirty: true });
     
     toast.success('File removed');
   }, [files, setValue]);
@@ -131,7 +132,7 @@ export function useDocumentUpload() {
     setFiles(updatedFiles);
     
     // Update form data
-    setValue('serviceHistoryFiles', updatedFiles, { shouldDirty: true });
+    setValue('service_history_files', updatedFiles, { shouldDirty: true });
   }, [files, setValue]);
 
   /**

@@ -3,6 +3,7 @@
  * Type definitions for car listing form data
  * - Updated 2025-05-20: Added last_saved field to match database schema
  * - Updated 2025-05-21: Fixed field naming inconsistencies (camelCase to snake_case)
+ * - Updated 2025-05-22: Added ServiceHistoryFile type and additional missing fields
  */
 export interface CarListingFormData {
   id?: string;
@@ -43,7 +44,7 @@ export interface CarListingFormData {
   seat_material?: string;
   last_saved?: string;
   
-  // Additional fields that may be needed by the form but not in the database schema
+  // Additional fields for form usage
   damage_photos?: string[];
   damage_reports?: DamageReport[];
   finance_provider?: string;
@@ -53,6 +54,12 @@ export interface CarListingFormData {
   has_warning_lights?: boolean;
   condition_rating?: number;
   contact_email?: string;
+  service_history_files?: ServiceHistoryFile[];
+  
+  // Additional fields for compatibility with existing code
+  from_valuation?: boolean;
+  uploaded_photos?: string[];
+  vehicle_photos?: Record<string, string>;
 }
 
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
@@ -83,4 +90,13 @@ export interface DamageReport {
   location?: string;
   photo?: string;
   type: DamageType;
+}
+
+export interface ServiceHistoryFile {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  uploadedAt: string;
+  uploadDate?: string; // Alternative property for compatibility
 }

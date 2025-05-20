@@ -1,98 +1,85 @@
 
 /**
- * Component for displaying uploaded service history documents
- * - 2025-11-05: Updated to handle both string and object types for files
+ * Document List Component
+ * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
  */
-import { File as FileIcon, X } from "lucide-react";
-import { ImagePreview } from "../photo-upload/ImagePreview";
+
 import { ServiceHistoryFile } from "@/types/forms";
+import { Button } from "@/components/ui/button";
+import { X, FileText } from "lucide-react";
 
 interface DocumentListProps {
   selectedFiles: File[];
-  uploadedFiles: (string | ServiceHistoryFile)[];
+  uploadedFiles: ServiceHistoryFile[];
   onRemoveSelected: (index: number) => void;
-  onRemoveUploaded: (fileId: string) => void;
+  onRemoveUploaded: (id: string) => void;
 }
 
-export const DocumentList = ({ 
-  selectedFiles, 
-  uploadedFiles, 
-  onRemoveSelected, 
-  onRemoveUploaded 
+export const DocumentList = ({
+  selectedFiles,
+  uploadedFiles,
+  onRemoveSelected,
+  onRemoveUploaded
 }: DocumentListProps) => {
-  
   if (selectedFiles.length === 0 && uploadedFiles.length === 0) {
-    return null;
+    return (
+      <div className="text-center text-gray-500 py-4">
+        No files uploaded yet
+      </div>
+    );
   }
-  
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {selectedFiles.length > 0 && (
-        <div>
-          <h4 className="text-sm font-medium mb-2">Selected Files</h4>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Selected Files</h4>
+          <div className="grid grid-cols-1 gap-2">
             {selectedFiles.map((file, index) => (
-              <div key={index} className="relative border rounded-md overflow-hidden p-4">
-                <div className="flex items-center">
-                  <FileIcon className="h-6 w-6 text-gray-400 mr-2" />
-                  <div className="text-sm truncate">{file.name}</div>
+              <div key={index} className="relative group">
+                <div className="flex items-center space-x-3 p-3 border rounded-md bg-gray-50">
+                  <FileText className="w-5 h-5 text-gray-500" />
+                  <div className="flex-1 text-sm font-medium truncate">{file.name}</div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => onRemoveSelected(index)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onRemoveSelected(index)}
-                  className="absolute top-2 right-2 bg-white/80 rounded-full p-1 hover:bg-white"
-                >
-                  <X className="h-4 w-4 text-gray-700" />
-                </button>
               </div>
             ))}
           </div>
         </div>
       )}
-      
+
       {uploadedFiles.length > 0 && (
-        <div>
-          <h4 className="text-sm font-medium mb-2">Uploaded Documents</h4>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {uploadedFiles.map((file, index) => {
-              // Handle both string and object types
-              const fileUrl = typeof file === 'string' ? file : file.url;
-              const fileName = typeof file === 'string' ? `Document ${index + 1}` : file.name;
-              const fileId = typeof file === 'string' ? file : file.id;
-              
-              return (
-                <div key={index} className="relative">
-                  {fileUrl.toLowerCase().endsWith('.pdf') ? (
-                    <div className="border rounded-md overflow-hidden p-4">
-                      <div className="flex items-center">
-                        <FileIcon className="h-6 w-6 text-gray-400 mr-2" />
-                        <div className="text-sm truncate">{fileName}</div>
-                      </div>
-                      <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline mt-2 block">
-                        View PDF
-                      </a>
-                    </div>
-                  ) : (
-                    <ImagePreview 
-                      file={new File([], fileName)}
-                      onRemove={() => onRemoveUploaded(fileId)}
-                      imageUrl={fileUrl}
-                    />
-                  )}
-                  <button
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Uploaded Files</h4>
+          <div className="grid grid-cols-1 gap-2">
+            {uploadedFiles.map((file) => (
+              <div key={file.id} className="relative group">
+                <div className="flex items-center space-x-3 p-3 border rounded-md bg-gray-50">
+                  <FileText className="w-5 h-5 text-gray-500" />
+                  <div className="flex-1 text-sm font-medium truncate">{file.name}</div>
+                  <Button
                     type="button"
-                    onClick={() => onRemoveUploaded(fileId)}
-                    className="absolute top-2 right-2 bg-white/80 rounded-full p-1 hover:bg-white"
+                    variant="ghost"
+                    size="icon"
+                    className="w-6 h-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => onRemoveUploaded(file.id)}
                   >
-                    <X className="h-4 w-4 text-gray-700" />
-                  </button>
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}
     </div>
   );
 };
-
