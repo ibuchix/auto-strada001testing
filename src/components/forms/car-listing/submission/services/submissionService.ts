@@ -4,6 +4,7 @@
  * Created: 2025-05-19
  * Updated: 2025-05-19 - Fixed function signature to match usage in useCarForm.ts
  * Updated: 2025-05-20 - Fixed photo field consolidation and removed non-existent column references
+ * Updated: 2025-06-01 - Improved error handling for JSONB structure errors
  * 
  * Handles the API calls for submitting car listing data.
  */
@@ -14,9 +15,12 @@ import { validateRequiredPhotos } from "../utils/photoProcessor";
 import { supabase } from "@/integrations/supabase/client";
 
 export class ValidationSubmissionError extends Error {
-  constructor(message: string) {
+  details?: any;
+  
+  constructor(message: string, details?: any) {
     super(message);
     this.name = "ValidationSubmissionError";
+    this.details = details;
   }
 }
 
@@ -40,6 +44,16 @@ export const submitCarListing = async (
     
     // Prepare data for submission, consolidating photo fields
     const preparedData = prepareFormDataForSubmission(formData);
+    
+    // Validate JSONB structure to catch potential errors early
+    if (preparedData.required_photos && 
+        typeof preparedData.required_photos !== 'object') {
+      console.error("Invalid required_photos structure:", preparedData.required_photos);
+      throw new ValidationSubmissionError("Invalid required_photos structure", {
+        field: "required_photos",
+        providedType: typeof preparedData.required_photos
+      });
+    }
     
     // Log the prepared data structure to help with debugging
     console.log("Prepared data structure:", {
@@ -71,7 +85,25 @@ export const submitCarListing = async (
     
     if (error) {
       console.error("Error submitting car listing:", error);
+      
+      // Check for specific error messages related to JSONB structure
+      if (error.message.includes('JSON') || error.message.includes('jsonb')) {
+        throw new ValidationSubmissionError(`JSON structure error: ${error.message}`, {
+          field: "required_photos",
+          technicalDetails: error
+        });
+      }
+      
       throw new ValidationSubmissionError(`Failed to submit car listing: ${error.message}`);
+    }
+    
+    // Check for validation errors in the response
+    if (data && !data.success && data.validation_errors) {
+      console.error("Validation errors from server:", data.validation_errors);
+      throw new ValidationSubmissionError(
+        `Validation failed: ${data.message || 'Please check form data'}`,
+        data.validation_errors
+      );
     }
     
     // Check for car_id in response
@@ -79,6 +111,7 @@ export const submitCarListing = async (
       throw new ValidationSubmissionError("No car ID returned from submission");
     }
     
+    console.log("Car listing submitted successfully with ID:", data.car_id);
     return { id: data.car_id };
   } catch (error) {
     if (error instanceof ValidationSubmissionError) {
