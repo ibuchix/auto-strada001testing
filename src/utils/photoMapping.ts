@@ -1,4 +1,3 @@
-
 /**
  * Photo Field Mapping Utility
  * Created: 2025-05-20
@@ -6,6 +5,7 @@
  * Updated: 2025-05-20 - Added odometer to required fields and ensured consistent mapping
  * Updated: 2025-05-27 - Updated to handle camelCase to snake_case conversion consistently
  * Updated: 2025-05-20 - Ensured compatibility with process-image edge function mapping
+ * Updated: 2025-05-30 - Fixed duplicate property names in PHOTO_FIELD_MAP
  * 
  * Provides consistent mapping between client-side field names and server-side storage paths
  * to ensure photos are properly associated with car listings.
@@ -34,17 +34,14 @@ export const PHOTO_FIELD_MAP: Record<string, string> = {
   'wheel': 'wheel',
   'roof': 'roof',
   
-  // Keep existing mappings for backward compatibility
+  // Keep existing mappings for backward compatibility - with snake_case keys
   'exterior_front': 'exterior_front',
   'exterior_rear': 'exterior_rear',
   'exterior_side': 'exterior_side',
   'passenger_side': 'passenger_side',
   'interior_front': 'interior_front',
-  'interior_rear': 'interior_rear',
-  'dashboard': 'dashboard',
-  'odometer': 'odometer',
-  'trunk': 'trunk',
-  'engine': 'engine',
+  'interior_rear': 'interior_rear'
+  // Removed duplicates: dashboard, odometer, trunk, engine
 };
 
 // Required photo fields that must be present (using backend/database field names)
