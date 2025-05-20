@@ -19,6 +19,7 @@
  * - 2024-11-11: Improved mobile layout by reducing excessive spacing
  * - 2024-11-21: Added RLS error handling with helpful user guidance
  * - 2025-06-12: Fixed TypeScript error with DashboardHeader props
+ * - 2025-06-22: Improved RLS error handling using security definer RPC functions
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -36,7 +37,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { AuthErrorHandler } from "@/components/error-handling/AuthErrorHandler";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { sellerProfileService } from "@/services/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { RegistrationStatusCheck } from "@/components/auth/recovery/RegistrationStatusCheck";
 
 const SellerDashboard = () => {
@@ -73,8 +74,22 @@ const SellerDashboard = () => {
     if (!session) return;
     
     try {
-      // Try to register as seller (fixes common RLS issues)
-      await sellerProfileService.registerSeller(session.user.id);
+      // Try the RPC function that bypasses RLS and doesn't need parameters
+      const { data, error } = await supabase.rpc('ensure_seller_registration');
+      
+      if (error) {
+        console.error("Failed to recover from RLS error using ensure_seller_registration:", error);
+        
+        // Fallback to register_seller RPC
+        const { error: registerError } = await supabase.rpc('register_seller', {
+          p_user_id: session.user.id
+        });
+        
+        if (registerError) {
+          console.error("Failed to recover using register_seller RPC:", registerError);
+          throw registerError;
+        }
+      }
       
       // Refresh seller status in context
       await refreshSellerStatus();

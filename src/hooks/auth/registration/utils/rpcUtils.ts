@@ -15,6 +15,20 @@ export const tryRpcRegistration = async (
 ): Promise<AuthRegisterResult> => {
   try {
     console.log("Trying to register via RPC function");
+    
+    // First try ensure_seller_registration with user_id parameter
+    const { error: ensureError } = await supabaseClient.rpc('ensure_seller_registration', {
+      p_user_id: userId
+    });
+    
+    if (!ensureError) {
+      console.log("RPC ensure_seller_registration succeeded");
+      return { success: true };
+    } else {
+      console.warn("RPC ensure_seller_registration failed, trying register_seller:", ensureError);
+    }
+    
+    // Fall back to register_seller
     const { error: rpcError } = await supabaseClient.rpc('register_seller', {
       p_user_id: userId
     });

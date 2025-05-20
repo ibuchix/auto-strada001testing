@@ -5,6 +5,7 @@
  * - 2025-05-08: Added support for automatic seller registration repair
  * - 2025-05-08: Added error handling for permission denied errors
  * - 2025-05-08: Improved recovery UX with clearer messaging
+ * - 2025-06-22: Updated to use RPC functions for registration recovery
  */
 
 import { useEffect, useState } from "react";
@@ -12,6 +13,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, CheckCircle, Loader2, Info } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const RegistrationStatusCheck = () => {
   const { session, isSeller, refreshSellerStatus, isLoading } = useAuth();
@@ -53,6 +55,23 @@ export const RegistrationStatusCheck = () => {
     setIsVerifying(true);
     setHasPermissionError(false);
     try {
+      // Try the no-argument RPC function first (uses auth.uid() internally)
+      const { error: rpcError } = await supabase.rpc('ensure_seller_registration');
+      
+      if (rpcError) {
+        console.error("Failed to use ensure_seller_registration:", rpcError);
+        
+        // Try the RPC function with explicit user ID
+        const { error: registerError } = await supabase.rpc('register_seller', {
+          p_user_id: session.user.id
+        });
+        
+        if (registerError) {
+          console.error("Failed to register using register_seller RPC:", registerError);
+          throw registerError;
+        }
+      }
+      
       await refreshSellerStatus();
     } catch (error) {
       console.error("Error during retry verification:", error);
