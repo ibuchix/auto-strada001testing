@@ -2,6 +2,7 @@
 /**
  * Utility functions for handling form saving
  * Created: 2025-05-30
+ * Updated: 2025-05-31 - Fixed TypeScript errors with field naming
  */
 
 import { CarListingFormData } from "@/types/forms";

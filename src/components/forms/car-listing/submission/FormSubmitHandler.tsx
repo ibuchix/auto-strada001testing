@@ -8,6 +8,7 @@
  * Updated: 2025-05-28 - Updated to use camelCase field names consistently
  * Updated: 2025-05-29 - Fixed imports and prop types
  * Updated: 2025-05-30 - Fixed import for router and loading spinner
+ * Updated: 2025-05-31 - Fixed imports and resolved build errors
  */
 
 import React, { useState } from "react";
@@ -15,7 +16,7 @@ import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { CarListingFormData } from "@/types/forms";
-import { validateRequiredPhotos } from "./utils/photoProcessor";
+import { validateRequiredPhotos } from "./utils/photoValidator";
 import { prepareFormDataForSubmission } from "./utils/submission";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -52,11 +53,10 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       if (missingPhotoFields.length > 0) {
         // Format field names for user-friendly display
         const formattedFields = missingPhotoFields.map(field => {
-          // Convert snake_case to display format (e.g., "exterior_front" -> "Exterior Front")
+          // Convert camelCase to display format (e.g., "exteriorFront" -> "Exterior Front")
           return field
-            .split('_')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase());
         });
         
         const errorMessage = `Missing required photos: ${formattedFields.join(', ')}`;

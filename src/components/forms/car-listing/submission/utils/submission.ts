@@ -12,16 +12,28 @@
  * - 2025-05-05: Fixed type issues and removed is_draft property 
  * - 2025-05-06: Fixed Date to string conversion issue
  * - 2025-05-30: Fixed instanceof Date check with proper type handling
+ * - 2025-05-31: Fixed Date check for better type safety
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
-import { toStringValue, toNumberValue } from "@/utils/typeConversion";
+
+// Helper functions for type conversion
+const toStringValue = (value: any): string => {
+  if (value === undefined || value === null) return '';
+  return String(value);
+};
+
+const toNumberValue = (value: any): number => {
+  if (value === undefined || value === null) return 0;
+  const num = Number(value);
+  return isNaN(num) ? 0 : num;
+};
 
 export const prepareFormDataForSubmission = (data: CarListingFormData) => {
   return {
     ...data,
     // Use toStringValue to ensure proper type conversion
-    financeAmount: toStringValue(data.financeAmount),
+    financeAmount: toNumberValue(data.financeAmount),
   };
 };
 
@@ -29,7 +41,7 @@ export const prepareFormDataForApi = (data: CarListingFormData) => {
   return {
     ...data,
     // Use toStringValue to ensure proper type conversion
-    financeAmount: toStringValue(data.financeAmount),
+    financeAmount: toNumberValue(data.financeAmount),
   };
 };
 
@@ -61,7 +73,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   // Convert Date to string if needed
   const createdAt = typeof formData.created_at === 'string' 
     ? formData.created_at 
-    : (formData.created_at && typeof formData.created_at.toISOString === 'function')
+    : (formData.created_at && typeof formData.created_at === 'object' && 'toISOString' in formData.created_at)
       ? formData.created_at.toISOString() 
       : new Date().toISOString();
   
@@ -71,7 +83,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   if (formData.transmission === "automatic" || 
       formData.transmission === "semi-automatic" || 
       formData.transmission === "manual") {
-    transmission = formData.transmission;
+    transmission = formData.transmission as "manual" | "automatic" | "semi-automatic";
   }
   
   // Ensure all required fields are present with default values if needed

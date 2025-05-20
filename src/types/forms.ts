@@ -1,3 +1,4 @@
+
 /**
  * Type definitions for car listing form data
  * - Updated 2025-05-20: Added last_saved field to match database schema
@@ -7,6 +8,7 @@
  * - Updated 2025-05-24: Standardized to camelCase for frontend usage
  * - Updated 2025-05-27: Fixed missing RimPhotos interface export and field definitions
  * - Updated 2025-05-29: Added serviceHistoryCount to fix TypeScript errors
+ * - Updated 2025-05-30: Fixed numberOfKeys type to be number | string for compatibility
  */
 export interface CarListingFormData {
   id?: string;
@@ -30,7 +32,7 @@ export interface CarListingFormData {
   isRegisteredInPoland?: boolean;
   valuationData?: Record<string, any>;
   hasPrivatePlate?: boolean;
-  numberOfKeys?: number;
+  numberOfKeys?: number | string; // Updated to accept both number and string
   hasServiceHistory?: boolean;
   title?: string;
   transmission?: string;
@@ -89,7 +91,7 @@ export interface CarListingFormData {
   
   // UI validation fields
   requiredPhotosComplete?: boolean;
-  created_at?: string;
+  created_at?: string | Date;
   updatedAt?: string;
 }
 
@@ -160,7 +162,7 @@ export interface CarEntity {
   service_history_type: 'none' | 'partial' | 'full';
   seller_notes?: string;
   seat_material?: string;
-  number_of_keys: number;
+  number_of_keys: number | string; // Updated to match form field type
   status: string;
   auction_status?: string;
   is_draft: boolean;

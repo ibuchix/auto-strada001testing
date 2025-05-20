@@ -4,6 +4,7 @@
  * Created: 2025-04-17
  * Updated: 2025-05-10 - Fixed TypeScript errors with title property
  * Updated: 2025-05-30 - Fixed camelCase/snake_case field name issues
+ * Updated: 2025-05-31 - Fixed TypeScript errors with field property types
  */
 
 import { CarListingFormData } from '@/types/forms';
@@ -39,7 +40,9 @@ export const prepareSubmission = (formData: CarListingFormData) => {
   formattedData.updatedAt = new Date().toISOString();
   
   // Remove any transient properties not needed in database
-  delete formattedData.formMetadata;
+  if (formattedData.formMetadata) {
+    delete formattedData.formMetadata;
+  }
   
   return formattedData;
 };

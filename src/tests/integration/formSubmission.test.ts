@@ -7,6 +7,7 @@
  * - 2025-05-10: Fixed CarFeatures type to match interface requirements 
  * - 2025-05-10: Changed financeAmount to number type instead of string
  * - 2025-05-12: Updated features object to include all required properties
+ * - 2025-05-31: Fixed numberOfKeys type to be number instead of string
  */
 
 import { describe, it, expect } from 'vitest';
@@ -52,7 +53,7 @@ describe('Form Submission', () => {
       financeAmount: 0,
       serviceHistoryType: "none",
       sellerNotes: "",
-      numberOfKeys: "2"
+      numberOfKeys: 2 // Changed from string to number
     };
     
     // Test implementation goes here

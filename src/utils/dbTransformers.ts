@@ -5,6 +5,7 @@
  * 
  * Created: 2025-05-24
  * Updated: 2025-05-30 - Fixed TypeScript errors with direction type
+ * Updated: 2025-05-31 - Added proper type handling for transform functions
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -39,12 +40,12 @@ export type TransformDirection = 'toDatabase' | 'toFrontend';
  */
 export function createDatabaseBoundary<T, R = Record<string, any>>(
   direction: TransformDirection
-) {
+): (data: T) => R {
   return (data: T): R => {
     if (direction === 'toDatabase') {
-      return transformObjectToSnakeCase(data) as R;
+      return transformObjectToSnakeCase(data) as unknown as R;
     } else {
-      return transformObjectToCamelCase(data) as R;
+      return transformObjectToCamelCase(data) as unknown as R;
     }
   };
 }
@@ -60,8 +61,8 @@ export function withDbTransformation<T, R>(
   const transform = createDatabaseBoundary<T, R>(direction);
   
   return async (data: T): Promise<T> => {
-    const transformedData = transform(data as any) as R;
+    const transformedData = transform(data) as R;
     const result = await operation(transformedData);
-    return direction === 'toDatabase' ? result : transform(result as any) as T;
+    return direction === 'toDatabase' ? result : (transform(result as any) as unknown as T);
   };
 }
