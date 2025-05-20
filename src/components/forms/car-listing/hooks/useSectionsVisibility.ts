@@ -1,104 +1,87 @@
 
 /**
- * Changes made:
- * - 2028-06-02: Created hook to manage form sections visibility
- * - 2028-06-10: Enhanced with dynamic section visibility based on form state
- * - 2025-04-03: Updated to support consolidated 3-step form structure
- * - 2025-05-20: Updated field names to use snake_case to match database schema
- * - 2025-05-24: Updated to use camelCase field names consistently for frontend
- * - 2025-05-25: Fixed field naming consistency throughout the hook
+ * Hook to manage visibility of form sections
+ * Created: 2025-07-23
+ * Updated: 2025-05-26 - Fixed field names to use camelCase consistently
  */
 
-import { useEffect, useState } from "react";
-import { UseFormReturn, useWatch } from "react-hook-form";
-import { CarListingFormData } from "@/types/forms";
-import { formSteps } from "../constants/formSteps";
+import { useEffect, useState } from 'react';
+import { useFormContext, useWatch } from 'react-hook-form';
+import { CarListingFormData } from '@/types/forms';
 
-/**
- * Hook to determine which sections of the car listing form should be visible
- * based on form state and car existence
- */
-export const useSectionsVisibility = (
-  form: UseFormReturn<CarListingFormData>,
-  carId?: string
-) => {
-  const [visibleSections, setVisibleSections] = useState<string[]>([]);
-  
-  // Watch relevant form fields that affect section visibility
+export function useSectionsVisibility() {
+  const { control } = useFormContext<CarListingFormData>();
+  const [visibleSections, setVisibleSections] = useState<string[]>([
+    'basicInfo',
+    'vehicleDetails',
+    'pricing',
+    'vehicleStatus',
+    'features',
+    'additionalInfo',
+    'photos'
+  ]);
+
+  // Watch form fields that might trigger section visibility changes
   const isDamaged = useWatch({
-    control: form.control,
-    name: "isDamaged",
+    control,
+    name: 'isDamaged',
     defaultValue: false
   });
-  
+
   const hasOutstandingFinance = useWatch({
-    control: form.control,
-    name: "hasOutstandingFinance",
+    control,
+    name: 'hasOutstandingFinance',
     defaultValue: false
   });
-  
-  const hasWarningLights = useWatch({
-    control: form.control,
-    name: "hasWarningLights",
+
+  const hasServiceHistory = useWatch({
+    control,
+    name: 'hasServiceHistory',
     defaultValue: false
   });
-  
-  const isRegisteredInPoland = useWatch({
-    control: form.control,
-    name: "isRegisteredInPoland",
-    defaultValue: true
-  });
-  
+
+  // Update visible sections based on form values
   useEffect(() => {
-    // Extract all section IDs from form steps
-    const allSections = formSteps.flatMap(step => step.sections);
-    
-    // All base sections are always visible in the 3-step structure
-    const baseSections = [
-      'vehicle-details',
-      'personal-details',
-      'photos',
-      'vehicle-status',
+    const sections = [
+      'basicInfo',
+      'vehicleDetails',
+      'pricing',
+      'vehicleStatus',
       'features',
-      'service-history',
-      'additional-info',
-      'seller-notes'
+      'additionalInfo',
+      'photos'
     ];
-    
-    // Conditionally visible sections
-    const conditionalSections = [];
-    
-    // Only show damage section if the vehicle is damaged
+
+    // Show damage section when car is damaged
     if (isDamaged) {
-      conditionalSections.push('damage');
+      sections.push('damage');
     }
-    
-    // Only show warning lights section if there are warning lights
-    if (hasWarningLights) {
-      conditionalSections.push('warning-lights');
-    }
-    
-    // Only show finance details if there's finance on the vehicle
+
+    // Show finance details when outstanding finance exists
     if (hasOutstandingFinance) {
-      conditionalSections.push('finance-details');
+      sections.push('financeDetails');
     }
-    
-    // Only require rim photos if registered in Poland
-    if (isRegisteredInPoland) {
-      conditionalSections.push('rims');
+
+    // Show service history section when it exists
+    if (hasServiceHistory) {
+      sections.push('serviceHistory');
     }
-    
-    // Combine all visible sections
-    setVisibleSections([...baseSections, ...conditionalSections]);
-  }, [isDamaged, hasOutstandingFinance, hasWarningLights, isRegisteredInPoland, carId]);
-  
-  // Compute the total number of steps (always 3 in this consolidated structure)
-  const activeSteps = formSteps.filter(step => {
-    return step.sections.some(section => visibleSections.includes(section.name));
-  });
-  
-  return { 
-    visibleSections,
-    totalRequiredSteps: activeSteps.length
+
+    setVisibleSections(sections);
+  }, [isDamaged, hasOutstandingFinance, hasServiceHistory]);
+
+  // Helper to check if a section should be visible
+  const isSectionVisible = (sectionName: string) => {
+    // For section objects that have a name property
+    if (typeof sectionName === 'object' && sectionName !== null && 'name' in sectionName) {
+      return visibleSections.includes(sectionName.name as string);
+    }
+    // For direct string names
+    return visibleSections.includes(sectionName);
   };
-};
+
+  return {
+    visibleSections,
+    isSectionVisible
+  };
+}

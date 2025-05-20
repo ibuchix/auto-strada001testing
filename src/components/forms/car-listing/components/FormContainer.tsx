@@ -3,6 +3,7 @@
  * FormContainer Component
  * Updated: 2025-05-24 - Fixed FormSectionRenderer props and structure
  * Updated: 2025-05-25 - Fixed TypeScript errors with section types
+ * Updated: 2025-05-26 - Fixed name property issue with sections
  */
 
 import React from "react";
@@ -27,7 +28,7 @@ export const FormContainer = ({
   
   // Filter out sections that should be active based on their name property
   const visibleSections = currentStepData.sections.filter(section => 
-    activeSections.includes(section.name)
+    typeof section === 'object' && 'name' in section && activeSections.includes(section.name)
   );
   
   return (

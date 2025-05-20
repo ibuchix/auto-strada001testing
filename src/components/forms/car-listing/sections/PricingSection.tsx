@@ -4,6 +4,7 @@
  * Created: 2025-07-18
  * Updated: 2025-07-26 - Added readonly mode for valuation-based prices
  * Updated: 2025-08-01 - Enhanced read-only state for valuation prices and improved UI feedback
+ * Updated: 2025-05-26 - Fixed field names to use camelCase for frontend consistency
  */
 
 import { useFormContext, useWatch } from 'react-hook-form';
@@ -21,7 +22,7 @@ export const PricingSection = () => {
   const [reservePrice, setReservePrice] = useState<number | undefined>(undefined);
   
   // Check if this form is coming from valuation
-  const fromValuation = watch('fromValuation') || Boolean(watch('valuation_data'));
+  const fromValuation = watch('fromValuation') || Boolean(watch('valuationData'));
   
   // Calculate reserve price based on listed price
   useEffect(() => {
@@ -54,17 +55,17 @@ export const PricingSection = () => {
     // Calculate reserve price
     const calculatedReservePrice = Math.round(priceNum - (priceNum * percentageY));
     setReservePrice(calculatedReservePrice);
-    setValue('reserve_price', calculatedReservePrice);
+    setValue('reservePrice', calculatedReservePrice);
     
   }, [price, setValue]);
   
   // Log valuation data for debugging
   useEffect(() => {
     if (fromValuation) {
-      const valuationData = watch('valuation_data');
+      const valuationData = watch('valuationData');
       console.log('PricingSection - fromValuation is true with data:', { 
         price: watch('price'), 
-        reservePrice: watch('reserve_price'),
+        reservePrice: watch('reservePrice'),
         valuationData
       });
     }
@@ -119,7 +120,7 @@ export const PricingSection = () => {
       
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="reserve_price" className="flex items-center gap-2">
+          <Label htmlFor="reservePrice" className="flex items-center gap-2">
             Reserve Price (PLN)
             {fromValuation && <LockIcon className="h-4 w-4 text-gray-500" />}
           </Label>
@@ -130,15 +131,15 @@ export const PricingSection = () => {
           )}
         </div>
         <Input
-          id="reserve_price"
-          {...register('reserve_price', { valueAsNumber: true })}
+          id="reservePrice"
+          {...register('reservePrice', { valueAsNumber: true })}
           type="number"
           value={reservePrice || ''}
           onChange={(e) => {
             if (fromValuation) return; // Don't allow changes when from valuation
             const value = e.target.value ? Number(e.target.value) : undefined;
             setReservePrice(value);
-            setValue('reserve_price', value);
+            setValue('reservePrice', value);
           }}
           placeholder="Minimum acceptable price"
           readOnly={fromValuation}

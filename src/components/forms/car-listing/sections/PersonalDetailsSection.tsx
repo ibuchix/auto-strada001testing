@@ -3,6 +3,7 @@
  * PersonalDetailsSection component
  * Created: 2025-07-18
  * Updated: 2025-05-05 - Fixed type incompatibility with address field
+ * Updated: 2025-05-26 - Fixed field names to use camelCase for frontend
  */
 
 import React from 'react';
@@ -19,14 +20,14 @@ export const PersonalDetailsSection = () => {
     <div className="grid gap-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="seller_name">Name</Label>
+          <Label htmlFor="sellerName">Name</Label>
           <Input 
-            id="seller_name"
-            {...register('seller_name')}
+            id="sellerName"
+            {...register('sellerName')}
             placeholder="Your full name" 
           />
-          {errors.seller_name && (
-            <p className="text-red-500 text-sm">{errors.seller_name.message}</p>
+          {errors.sellerName && (
+            <p className="text-red-500 text-sm">{errors.sellerName.message}</p>
           )}
         </div>
         <div className="space-y-2">

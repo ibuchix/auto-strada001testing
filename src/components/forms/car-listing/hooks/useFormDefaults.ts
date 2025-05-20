@@ -12,6 +12,7 @@
  * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
  * Updated: 2025-05-24 - Updated to consistently use camelCase field names for frontend
  * Updated: 2025-05-25 - Fixed field naming consistency to avoid TypeScript errors
+ * Updated: 2025-05-26 - Fixed the DEFAULT_VALUES object to consistently use camelCase
  * Handles default values and loading valuation data
  */
 
@@ -73,7 +74,7 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
              valuationData.serviceHistoryType === "partial") ? 
               valuationData.serviceHistoryType as "full" | "partial" : "none";
 
-          // Convert snake_case fields to camelCase
+          // Handle snake_case to camelCase conversion for specific fields
           const serviceHistoryTypeValue: "full" | "partial" | "none" = 
             (valuationData.service_history_type === "full" || 
              valuationData.service_history_type === "partial") ? 

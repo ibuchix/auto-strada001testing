@@ -5,6 +5,7 @@
  * Updated: 2025-05-20 - Updated field names to use snake_case to match database schema
  * Updated: 2025-05-24 - Updated to use camelCase field names consistently
  * Updated: 2025-05-25 - Fixed field name consistency issues
+ * Updated: 2025-05-26 - Fixed hook to properly use camelCase field names
  */
 
 import { useCallback, useState } from "react";

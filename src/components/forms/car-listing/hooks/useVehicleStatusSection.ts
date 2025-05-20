@@ -4,6 +4,7 @@
  * Updated: 2025-05-20 - Fixed TypeScript errors by updating field names to snake_case
  * Updated: 2025-05-24 - Fixed camelCase field names to be consistent with form types
  * Updated: 2025-05-25 - Resolved field naming consistency issues
+ * Updated: 2025-05-26 - Fixed hook to correctly use camelCase field names
  */
 
 import { useCallback, useState } from "react";
