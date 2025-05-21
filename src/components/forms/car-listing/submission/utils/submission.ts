@@ -15,6 +15,7 @@
  * - 2025-06-07: Enhanced transmission validation to ensure valid type
  * - 2025-07-25: Fixed database errors by filtering photo fields that should be in required_photos
  * - 2025-05-21: Added field name conversion from camelCase to snake_case to fix database schema compatibility
+ * - 2025-05-21: Added exclusion of frontend-only fields like fromValuation
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -75,6 +76,14 @@ const PHOTO_FIELD_KEYS = [
   ...Object.keys(PHOTO_FIELD_MAP)
 ];
 
+// List of frontend-only fields that shouldn't be sent to the database
+const FRONTEND_ONLY_FIELDS = [
+  'fromValuation',
+  'photoValidationPassed',
+  'uploadInProgress',
+  'uploadSuccess'
+];
+
 /**
  * Transforms form data into a database entity by removing transient properties
  * and adding required database fields
@@ -115,6 +124,13 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   
   // Remove photo fields from top level object as they should be in required_photos
   PHOTO_FIELD_KEYS.forEach(key => {
+    if (key in cleanedData) {
+      delete (cleanedData as any)[key];
+    }
+  });
+  
+  // Remove frontend-only fields from the data being sent to the database
+  FRONTEND_ONLY_FIELDS.forEach(key => {
     if (key in cleanedData) {
       delete (cleanedData as any)[key];
     }
