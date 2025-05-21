@@ -7,6 +7,7 @@
  * Updated: 2025-05-19 - Implemented immediate uploads to Supabase storage
  * Updated: 2025-05-26 - Enhanced uploadFiles to process files sequentially for better reliability
  * Updated: 2025-05-22 - Fixed return type handling for directUploadPhoto
+ * Updated: 2025-05-21 - Fixed bucket name mismatch and improved error handling
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -65,10 +66,38 @@ export const useTemporaryFileUpload = ({
     return URL.createObjectURL(file);
   }, []);
   
+  // Validate file before upload
+  const validateFile = useCallback((file: File): string | null => {
+    // Check if it's an image file
+    if (!file.type.startsWith('image/')) {
+      return `File "${file.name}" is not an image. Only image files are allowed.`;
+    }
+    
+    // Check file size (10MB max)
+    const maxSizeMB = 10;
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      return `File "${file.name}" is too large (${(file.size / (1024 * 1024)).toFixed(2)}MB). Maximum size is ${maxSizeMB}MB.`;
+    }
+    
+    return null;
+  }, []);
+
   // Upload a single file - now uploads immediately to Supabase
   const uploadFile = useCallback(async (file: File): Promise<TemporaryFile | null> => {
     if (!file) {
       setError("No file provided");
+      return null;
+    }
+    
+    // Validate file before proceeding
+    const validationError = validateFile(file);
+    if (validationError) {
+      setError(validationError);
+      toast({
+        variant: "destructive",
+        description: validationError
+      });
       return null;
     }
     
@@ -116,6 +145,7 @@ export const useTemporaryFileUpload = ({
       console.log(`[useTemporaryFileUpload] Starting immediate upload for ${file.name} (${file.size} bytes) in category ${category}`);
       
       // Start real upload to Supabase - now returns a string URL
+      // Using "temp" as the path parameter which will be transformed in directUploadPhoto
       const publicUrl = await directUploadPhoto(file, "temp", category);
       
       if (!publicUrl) {
@@ -169,18 +199,19 @@ export const useTemporaryFileUpload = ({
       // Mark as failed in the global manager
       registerFailure(uploadId);
       
-      setError(error instanceof Error ? error.message : "Upload failed");
+      const errorMessage = error instanceof Error ? error.message : "Upload failed";
+      setError(errorMessage);
       
       toast({
         variant: "destructive",
-        description: `Failed to upload ${file.name}: ${error instanceof Error ? error.message : "Unknown error"}`
+        description: `Failed to upload ${file.name}: ${errorMessage}`
       });
       
       return null;
     } finally {
       setIsUploading(false);
     }
-  }, [files, allowMultiple, category, createPreview, onUploadComplete, registerUpload, registerCompletion, registerFailure]);
+  }, [files, allowMultiple, category, createPreview, onUploadComplete, registerUpload, registerCompletion, registerFailure, validateFile]);
   
   // Upload multiple files - enhanced to process files sequentially for better reliability
   const uploadFiles = useCallback(async (fileList: FileList | File[]) => {
@@ -268,7 +299,6 @@ export const useTemporaryFileUpload = ({
   }, [files]);
   
   // Finalize uploads (called when form is submitted)
-  // Now enhanced to better handle already-uploaded files
   const finalizeUploads = useCallback(async (carId: string): Promise<string[]> => {
     if (!carId || files.length === 0) return [];
     
