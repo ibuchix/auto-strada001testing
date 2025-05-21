@@ -19,6 +19,7 @@
  * - 2025-05-22: Added finance-related fields to frontend-only fields list
  * - 2025-05-23: Added isSellingOnBehalf to frontend-only fields list to fix database schema error
  * - 2025-05-24: Added comprehensive list of frontend-only fields to prevent database schema errors
+ * - 2025-05-28: Added 'name' to frontend-only fields list and mapped name to sellerName if not set
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -107,7 +108,8 @@ const FRONTEND_ONLY_FIELDS = [
   'formMetadata',            // Form metadata for UI frontend field
   'step',                    // Form step tracking frontend field
   'tempFiles',               // Temporary file storage frontend field
-  'lastSaved'                // Last saved timestamp frontend field
+  'lastSaved',               // Last saved timestamp frontend field
+  'name'                     // Form field 'name' not in database schema
 ];
 
 /**
@@ -147,6 +149,11 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   
   // Create a clean copy of form data without photo fields that belong in required_photos
   const cleanedData = { ...formData };
+  
+  // If name is provided but sellerName is not, map name to sellerName
+  if (cleanedData.name && !cleanedData.sellerName) {
+    cleanedData.sellerName = cleanedData.name;
+  }
   
   // Remove photo fields from top level object as they should be in required_photos
   PHOTO_FIELD_KEYS.forEach(key => {
