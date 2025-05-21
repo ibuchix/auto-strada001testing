@@ -7,6 +7,7 @@
  * - 2025-05-20: Updated to use direct uploads for immediate processing
  * - 2025-05-23: Updated to use type-safe form helpers
  * - 2025-05-25: Fixed field name typing issues by using string cast
+ * - 2025-05-22: Updated to handle string return from directUploadPhoto
  */
 import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
@@ -68,7 +69,7 @@ export const usePhotoUploadHandler = (
       for (const [index, file] of validFiles.entries()) {
         setCurrentUpload(`Uploading ${index + 1}/${validFiles.length}: ${file.name}`);
         
-        // Use direct upload approach
+        // Use direct upload approach and get the string URL back
         const publicUrl = await directUploadPhoto(
           file, 
           carId || "temp", 

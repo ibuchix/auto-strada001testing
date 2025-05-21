@@ -1,8 +1,8 @@
-
 /**
  * Hook for managing required photo uploads
  * Created: 2024-09-26
  * Updated: 2025-05-20 - Enhanced with direct upload capabilities
+ * Updated: 2025-05-22 - Fixed publicUrl handling for directUploadPhoto
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -74,7 +74,7 @@ export const useRequiredPhotosUpload = ({ onValidationChange, carId = 'temp' }: 
       
       setActiveUpload(photoId);
       
-      // Direct upload using the service
+      // Direct upload using the service - now returns a string URL
       const publicUrl = await directUploadPhoto(file, carId, `required_${photoId}`);
       
       if (publicUrl) {

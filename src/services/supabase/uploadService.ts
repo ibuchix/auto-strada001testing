@@ -3,6 +3,7 @@
  * Upload Service for Car Listings
  * Created: 2025-05-20
  * Updated: 2025-05-21 - Added direct image association using RLS policies
+ * Updated: 2025-05-22 - Fixed TypeScript return type for directUploadPhoto
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -71,13 +72,13 @@ export const associateTempUploadsWithCar = async (carId: string): Promise<number
  * @param file The file to upload
  * @param path The storage path
  * @param category The photo category
- * @returns A promise that resolves to the upload result
+ * @returns A promise that resolves to the public URL of the uploaded file
  */
 export const directUploadPhoto = async (
   file: File,
   path: string,
   category: string
-) => {
+): Promise<string> => {
   try {
     const { data, error } = await supabase.storage
       .from('car-photos')
@@ -109,7 +110,8 @@ export const directUploadPhoto = async (
     uploads.push(uploadInfo);
     localStorage.setItem('temp_car_uploads', JSON.stringify(uploads));
     
-    return { path, publicUrl };
+    // Return just the public URL string, not an object
+    return publicUrl;
   } catch (error) {
     console.error('Error uploading photo:', error);
     throw error;

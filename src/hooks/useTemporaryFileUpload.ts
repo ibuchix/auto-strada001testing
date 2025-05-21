@@ -1,4 +1,3 @@
-
 /**
  * Hook for temporary file upload management
  * Created: 2025-07-18
@@ -7,6 +6,7 @@
  * Updated: 2025-05-19 - Integrated with global upload manager for better tracking
  * Updated: 2025-05-19 - Implemented immediate uploads to Supabase storage
  * Updated: 2025-05-26 - Enhanced uploadFiles to process files sequentially for better reliability
+ * Updated: 2025-05-22 - Fixed return type handling for directUploadPhoto
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -115,7 +115,7 @@ export const useTemporaryFileUpload = ({
       // Log the upload attempt
       console.log(`[useTemporaryFileUpload] Starting immediate upload for ${file.name} (${file.size} bytes) in category ${category}`);
       
-      // Start real upload to Supabase
+      // Start real upload to Supabase - now returns a string URL
       const publicUrl = await directUploadPhoto(file, "temp", category);
       
       if (!publicUrl) {

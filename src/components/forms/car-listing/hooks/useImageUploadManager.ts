@@ -1,4 +1,3 @@
-
 /**
  * Image Upload Manager Hook
  * Created: 2025-05-24
@@ -6,6 +5,7 @@
  * Updated: 2025-05-24 - Modified to work with immediate uploads
  * Updated: 2025-05-25 - Added missing imports and interface definition for TempFileMetadata
  * Updated: 2025-05-26 - Improved error handling and tracking for pending files
+ * Updated: 2025-05-22 - Fixed return type handling for directUploadPhoto
  * 
  * Manages image uploads for car listings, including:
  * - Auto-save pausing during uploads
@@ -124,7 +124,7 @@ export const useImageUploadManager = ({
     try {
       console.log(`[ImageUploadManager] Attempting direct storage upload for ${file.name} (${file.size} bytes)`);
       
-      // Use the directUploadPhoto from uploadService directly
+      // Use the directUploadPhoto from uploadService directly - now returns a string URL
       const publicUrl = await directUploadPhoto(file, targetCarId, category);
       
       if (!publicUrl) {
