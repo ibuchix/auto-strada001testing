@@ -8,6 +8,7 @@
  * - 2025-05-01: Fixed React.StrictMode implementation for consistent rendering
  * - 2025-05-08: Added SessionContextProvider for Supabase authentication
  * - 2025-05-08: Removed duplicate BrowserRouter to fix router nesting error
+ * - 2025-06-21: Simplified provider hierarchy to prevent React hooks errors
  */
 
 import React from 'react';
@@ -39,13 +40,11 @@ if (!rootElement) {
   
   root.render(
     <React.StrictMode>
-      <ThemeProvider defaultTheme="light" storageKey="autostrada-theme">
-        <SessionContextProvider supabaseClient={supabase}>
-          <QueryClientProvider client={queryClient}>
-            <App />
-          </QueryClientProvider>
-        </SessionContextProvider>
-      </ThemeProvider>
+      <SessionContextProvider supabaseClient={supabase}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </SessionContextProvider>
     </React.StrictMode>
   );
 }

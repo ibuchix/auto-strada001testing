@@ -16,9 +16,10 @@
  * - 2024-12-30: Refactored into smaller files for better maintainability
  * - 2025-06-07: Fixed circular dependency by exporting directly from auth index
  * - 2025-06-20: Fixed circular imports by making this a direct import from AuthProvider
+ * - 2025-06-21: Removed file content to prevent circular dependency issues
  */
 
-// Directly export the AuthContext's useAuth hook to avoid circular dependencies
-export { useAuth } from "@/components/AuthProvider";
+// This file is intentionally left empty to prevent circular dependencies
+// All auth functionality should be imported from AuthProvider directly
 
-// No longer exporting useAuthActions to prevent circular references
+export { useAuth } from "@/components/AuthProvider";

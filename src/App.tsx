@@ -11,6 +11,7 @@
  * - 2025-05-21: Updated IndexPage import and ensure it's properly rendered at root path
  * - 2025-05-23: Fixed AuthProvider implementation to resolve circular dependency issues
  * - 2025-05-24: Fixed router initialization to resolve blank home page
+ * - 2025-06-21: Simplified provider hierarchy to prevent React hook errors
  */
 
 import { useState, useEffect } from "react";
@@ -92,9 +93,6 @@ export const routes: RouteObject[] = [
   },
 ];
 
-// Create a router with the defined routes
-const router = createBrowserRouter(routes);
-
 function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
@@ -110,6 +108,9 @@ function App() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  // Create the router instance outside of the JSX to avoid issues
+  const router = createBrowserRouter(routes);
 
   return (
     <div className="App">

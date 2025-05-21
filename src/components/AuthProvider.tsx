@@ -5,9 +5,10 @@
  * Updated: 2025-05-08 - Added isSeller and refreshSellerStatus to AuthContextType interface
  * Updated: 2025-05-23 - Fixed circular dependency issue with useSellerSession
  * Updated: 2025-06-20 - Enhanced error handling and fixed circular dependencies
+ * Updated: 2025-06-21 - Fixed Hook invocation issue by ensuring all hooks are called unconditionally
  */
 
-import { createContext, useContext, ReactNode, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useSellerRoleCheck } from "@/hooks/seller/useSellerRoleCheck";
@@ -23,9 +24,10 @@ interface AuthContextType {
 }
 
 // Create context with undefined as initial value
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  // Initialize state hooks at the component level - never conditionally
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
