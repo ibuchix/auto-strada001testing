@@ -14,10 +14,12 @@
  * - 2025-06-01: Fixed transmission type to be one of the allowed values
  * - 2025-06-07: Enhanced transmission validation to ensure valid type
  * - 2025-07-25: Fixed database errors by filtering photo fields that should be in required_photos
+ * - 2025-05-21: Added field name conversion from camelCase to snake_case to fix database schema compatibility
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
 import { PHOTO_FIELD_MAP } from "@/utils/photoMapping";
+import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
 
 // Helper function to ensure transmission is a valid value
 const validateTransmission = (value: unknown): "manual" | "automatic" | "semi-automatic" => {
@@ -118,8 +120,8 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     }
   });
   
-  // Ensure all required fields are present with default values if needed
-  const entity: Partial<CarEntity> = {
+  // Prepare base entity with all fields properly typed
+  const baseEntity: Partial<CarEntity> = {
     ...cleanedData,
     id: formData.id || '',
     created_at: createdAt,
@@ -138,12 +140,15 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     features: carFeatures
   };
   
+  // Convert all camelCase field names to snake_case for database compatibility
+  const entity = transformObjectToSnakeCase(baseEntity) as Partial<CarEntity>;
+  
   // Log the cleaned entity for debugging
   console.log("Prepared entity for database submission:", {
     ...entity,
     // Limit display of photo data for cleaner logs
-    requiredPhotos: entity.required_photos ? 
-      `[${Object.keys(entity.required_photos).length} photos]` : 'none'
+    required_photos: entity.required_photos ? 
+      `[${Object.keys(entity.required_photos || {}).length} photos]` : 'none'
   });
   
   return entity;
