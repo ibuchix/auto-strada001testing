@@ -1,3 +1,4 @@
+
 /**
  * Upload Service for supabase storage
  * Created: 2025-07-10
@@ -10,6 +11,7 @@
  * Updated: 2025-05-24 - Enhanced immediate upload flow with better error handling
  * Updated: 2025-05-26 - Improved temp file tracking in localStorage with proper consistency checks
  * Updated: 2025-05-20 - Updated to use the dedicated category column in car_file_uploads
+ * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -122,7 +124,10 @@ export const uploadImagesForCar = async (
  */
 const updateCarRecordWithImage = async (carId: string, filePath: string, category: string): Promise<void> => {
   try {
-    if (category.includes('rim_') || category.startsWith('required_')) {
+    // Standardize the category for consistent handling
+    const standardCategory = standardizePhotoCategory(category);
+    
+    if (standardCategory.includes('rim_') || standardCategory.startsWith('required_')) {
       // Get current required_photos JSONB object
       const { data: car, error: getError } = await supabase
         .from('cars')
@@ -133,7 +138,7 @@ const updateCarRecordWithImage = async (carId: string, filePath: string, categor
       if (!getError && car) {
         // Update the required_photos object with the new photo
         const requiredPhotos = car.required_photos || {};
-        requiredPhotos[category] = filePath;
+        requiredPhotos[standardCategory] = filePath;
         
         // Update the car record with the modified JSONB
         await supabase
@@ -141,7 +146,7 @@ const updateCarRecordWithImage = async (carId: string, filePath: string, categor
           .update({ required_photos: requiredPhotos })
           .eq('id', carId);
       }
-    } else if (category === 'additional_photos') {
+    } else if (standardCategory === 'additional_photos') {
       try {
         // Get current additional_photos array
         const { data: car, error: getError } = await supabase
@@ -389,13 +394,14 @@ export const associateTempUploadsWithCar = async (carId: string): Promise<number
               upload_status: 'completed',
               category: standardCategory, // Use dedicated category column
               image_metadata: {
-                url: upload.publicUrl
+                url: upload.publicUrl,
+                timestamp: new Date().toISOString()
               }
             });
             
           if (dbError) {
             console.warn(`Database error associating file ${upload.filePath}:`, dbError);
-            continue;
+            // Still try to update the car record even if the database insert failed
           }
           
           // Update car record

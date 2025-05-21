@@ -5,6 +5,7 @@
  * Updated: 2025-05-30 - Added error handling for last_saved field and improved error logging
  * Updated: 2025-06-04 - Enhanced error handling with retry mechanism and direct database fallback
  * Updated: 2025-06-10 - Fixed UUID handling issues and improved error logging for debugging
+ * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -56,7 +57,7 @@ export const submitCarListing = async (
           seller_id: userId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          is_draft: false,
+          is_draft: true, // Start as draft by default
           status: 'available'
         })
         .select('id')
@@ -119,7 +120,9 @@ export const createCarUsingRPC = async (formData: CarListingFormData, userId: st
         console.error(`[CreateCar][${traceId}] Permission denied. Verify RLS policies.`);
       }
       
-      throw error;
+      // Fall back to standard method if RPC fails
+      console.log(`[CreateCar][${traceId}] Falling back to standard submission method`);
+      return submitCarListing(formData, userId);
     }
     
     if (!data || !data.car_id) {

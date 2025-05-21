@@ -11,6 +11,7 @@
  * Updated: 2025-05-20 - Fixed image association with real car IDs and improved error handling
  * Updated: 2025-05-31 - Integrated with database security definer functions for reliable image association
  * Updated: 2025-06-10 - Fixed UUID handling and improved direct database error handling
+ * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -84,7 +85,6 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
         return 0;
       }
       
-      // Add a small delay to ensure database consistency
       console.log(`[ImageAssociation][${submissionId}] Found ${tempUploads.length} temp uploads in localStorage, associating with car ${carId}`);
       
       // Get current car data to update
@@ -107,7 +107,29 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
       let successCount = 0;
       for (const upload of tempUploads) {
         try {
-          // Update photo data based on category
+          // 1. First insert into car_file_uploads table directly
+          // This should work with our new RLS policies where the user owns the car
+          const { error: fileUploadError } = await supabase
+            .from('car_file_uploads')
+            .insert({
+              car_id: carId,
+              file_path: upload.filePath,
+              file_type: 'image/jpeg', // Default assumption
+              category: upload.category,
+              upload_status: 'completed',
+              image_metadata: {
+                uploadId: upload.uploadId,
+                publicUrl: upload.publicUrl,
+                timestamp: upload.timestamp
+              }
+            });
+            
+          if (fileUploadError) {
+            console.error(`[ImageAssociation][${submissionId}] Error inserting file upload record:`, fileUploadError);
+            // Continue with photo updates anyway
+          }
+
+          // 2. Update photo data based on category
           if (upload.category === 'additional_photos' || upload.category.includes('additional')) {
             // Add to additional photos array
             if (Array.isArray(additionalPhotos)) {
