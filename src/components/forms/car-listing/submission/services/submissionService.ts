@@ -2,8 +2,7 @@
 /**
  * Car Listing Submission Service
  * Created: 2025-05-20
- * 
- * Service for handling car listing submissions
+ * Updated: 2025-05-30 - Added error handling for last_saved field and improved error logging
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -24,7 +23,7 @@ export const submitCarListing = async (
       hasUserId: !!userId
     });
     
-    // Prepare data for submission
+    // Prepare data for submission - this filters out frontend-only fields
     const preparedData = prepareSubmission(formData);
     
     // If editing (id exists), update the existing record

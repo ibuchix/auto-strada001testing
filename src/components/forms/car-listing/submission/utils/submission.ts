@@ -20,6 +20,7 @@
  * - 2025-05-23: Added isSellingOnBehalf to frontend-only fields list to fix database schema error
  * - 2025-05-24: Added comprehensive list of frontend-only fields to prevent database schema errors
  * - 2025-05-28: Added 'name' to frontend-only fields list and mapped name to sellerName if not set
+ * - 2025-05-30: Added both 'last_saved' and 'lastSaved' to frontend-only fields list to fix submission error
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -108,7 +109,8 @@ const FRONTEND_ONLY_FIELDS = [
   'formMetadata',            // Form metadata for UI frontend field
   'step',                    // Form step tracking frontend field
   'tempFiles',               // Temporary file storage frontend field
-  'lastSaved',               // Last saved timestamp frontend field
+  'lastSaved',               // Last saved timestamp frontend field (camelCase)
+  'last_saved',              // Last saved timestamp frontend field (snake_case)
   'name'                     // Form field 'name' not in database schema
 ];
 
