@@ -7,6 +7,7 @@
  * Updated: 2025-06-10 - Fixed UUID handling issues and improved error logging for debugging
  * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
  * Updated: 2025-06-21 - Removed RPC dependency and simplified submission with direct inserts
+ * Updated: 2025-05-21 - Updated to work with enhanced RLS policy framework
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -14,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { prepareSubmission } from "../utils/submission";
 
 /**
- * Submit a car listing to the database
+ * Submit a car listing to the database using direct insert with RLS
  */
 export const submitCarListing = async (
   formData: CarListingFormData,
@@ -80,7 +81,7 @@ export const submitCarListing = async (
 
 /**
  * Create car listing using direct database insert
- * This eliminates the circular dependency on RPC functions
+ * Uses the improved RLS policies for secure car creation
  */
 export const createCarListing = async (formData: CarListingFormData, userId: string): Promise<{ id: string }> => {
   try {
@@ -103,7 +104,7 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
       userId: userId
     });
     
-    // Insert directly to cars table - this uses our RLS policies
+    // Insert directly to cars table - this uses our improved RLS policies
     const { data, error } = await supabase
       .from('cars')
       .insert({

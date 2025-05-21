@@ -13,11 +13,11 @@
  * Updated: 2025-06-10 - Fixed UUID handling and improved direct database error handling
  * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
  * Updated: 2025-06-21 - Completely refactored to use direct DB inserts with new RLS policies
+ * Updated: 2025-05-21 - Updated to work with enhanced RLS policy framework
  */
 
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { standardizePhotoCategory } from '@/utils/photoMapping';
 import { associateTempUploadsWithCar } from '@/services/supabase/uploadService';
 
 interface RetryConfig {
@@ -46,7 +46,7 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
         return 0;
       }
       
-      // Use the new direct DB insert approach for association
+      // Use the direct DB insert approach for association with enhanced RLS policies
       let successCount = 0;
       let retryCount = 0;
       
