@@ -16,6 +16,7 @@
  * - 2025-07-25: Fixed database errors by filtering photo fields that should be in required_photos
  * - 2025-05-21: Added field name conversion from camelCase to snake_case to fix database schema compatibility
  * - 2025-05-21: Added exclusion of frontend-only fields like fromValuation
+ * - 2025-05-22: Added finance-related fields to frontend-only fields list
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -81,7 +82,11 @@ const FRONTEND_ONLY_FIELDS = [
   'fromValuation',
   'photoValidationPassed',
   'uploadInProgress',
-  'uploadSuccess'
+  'uploadSuccess',
+  'hasOutstandingFinance', // Added - frontend field only
+  'financeProvider',       // Added - frontend field only
+  'financeEndDate',        // Added - frontend field only
+  'financeDocument'        // Added - frontend field only
 ];
 
 /**
