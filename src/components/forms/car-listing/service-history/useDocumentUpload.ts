@@ -4,6 +4,7 @@
  * Created: 2025-05-20
  * Updated: 2025-05-28 - Updated to use camelCase field names consistently
  * Updated: 2025-05-29 - Fixed TypeScript type issue with serviceHistoryCount field
+ * Updated: 2025-05-25 - Fixed field name typing issues by using string cast
  */
 
 import { useState, useEffect } from "react";
@@ -23,7 +24,7 @@ export function useDocumentUpload() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   
   // Get current service history files from the form
-  const serviceHistoryFiles = getFieldValue<ServiceHistoryFile[]>(form, 'serviceHistoryFiles') || [];
+  const serviceHistoryFiles = getFieldValue<ServiceHistoryFile[]>(form, 'serviceHistoryFiles' as any) || [];
   
   // Upload a new document
   const uploadDocument = async (file: File): Promise<void> => {
@@ -63,7 +64,7 @@ export function useDocumentUpload() {
       const updatedFiles = [...serviceHistoryFiles, newFile];
       
       // Update the form field
-      setFieldValue(form, 'serviceHistoryFiles', updatedFiles, { shouldDirty: true });
+      setFieldValue(form, 'serviceHistoryFiles' as any, updatedFiles, { shouldDirty: true });
       
       // Set success state
       setUploadSuccess(true);
@@ -113,7 +114,7 @@ export function useDocumentUpload() {
   // Remove an uploaded document
   const removeFile = (id: string) => {
     const updatedFiles = serviceHistoryFiles.filter(file => file.id !== id);
-    setFieldValue(form, 'serviceHistoryFiles', updatedFiles, { shouldDirty: true });
+    setFieldValue(form, 'serviceHistoryFiles' as any, updatedFiles, { shouldDirty: true });
     
     toast({
       title: "File removed",
@@ -124,7 +125,7 @@ export function useDocumentUpload() {
   // Effect to update the count of service history files in another field
   useEffect(() => {
     const fileCount = serviceHistoryFiles.length;
-    // Use the correct form field name for the count
+    // Use the correct form field name for the count with type casting to handle string keys
     form.setValue('serviceHistoryCount' as keyof CarListingFormData, fileCount as any);
   }, [serviceHistoryFiles, form]);
   

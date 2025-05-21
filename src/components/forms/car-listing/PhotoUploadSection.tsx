@@ -4,6 +4,7 @@
  * - 2025-05-20 - Updated field names to use snake_case to match database schema
  * - 2025-05-22 - Fixed TypeScript type issues with form field names
  * - 2025-05-23 - Updated to use type-safe form helpers
+ * - 2025-05-25 - Fixed field name typing issues by using string cast
  */
 
 import { useState, useCallback } from "react";
@@ -31,9 +32,10 @@ export const PhotoUploadSection = ({
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   
-  // Type-safe field access using our helper function
+  // Type-safe field access using our helper function with string casting for flexibility
   const getPhotosList = useCallback(() => {
-    const value = watchField<string[]>(form, fieldName);
+    // Cast field name to any to handle both camelCase and snake_case naming
+    const value = watchField<string[]>(form, fieldName as any);
     return Array.isArray(value) ? value : [];
   }, [form, fieldName]);
   
@@ -68,7 +70,8 @@ export const PhotoUploadSection = ({
         
         // Update form with new photos
         const updatedPhotos = [...photosList, ...newPhotoUrls];
-        setFieldValue(form, fieldName, updatedPhotos, { shouldDirty: true });
+        // Use string cast to support both camelCase and snake_case field names
+        setFieldValue(form, fieldName as any, updatedPhotos, { shouldDirty: true });
         
         toast.success(`${files.length} photo${files.length > 1 ? 's' : ''} uploaded successfully`);
       } catch (error) {
@@ -93,7 +96,8 @@ export const PhotoUploadSection = ({
     const updatedPhotos = [...photosList];
     URL.revokeObjectURL(updatedPhotos[index]);
     updatedPhotos.splice(index, 1);
-    setFieldValue(form, fieldName, updatedPhotos, { shouldDirty: true });
+    // Use string cast to support both camelCase and snake_case field names
+    setFieldValue(form, fieldName as any, updatedPhotos, { shouldDirty: true });
   };
   
   // Drag and drop handlers

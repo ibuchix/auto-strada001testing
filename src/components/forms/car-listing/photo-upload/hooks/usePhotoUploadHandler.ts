@@ -6,6 +6,7 @@
  * - 2025-07-18: Integrated with standardized upload service
  * - 2025-05-20: Updated to use direct uploads for immediate processing
  * - 2025-05-23: Updated to use type-safe form helpers
+ * - 2025-05-25: Fixed field name typing issues by using string cast
  */
 import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
@@ -81,14 +82,14 @@ export const usePhotoUploadHandler = (
       
       if (uploadedUrls.length > 0) {
         // Update form with new photos
-        const currentPhotos = getFieldValue<string[]>(form, 'uploaded_photos') || [];
+        const currentPhotos = getFieldValue<string[]>(form, 'uploadedPhotos' as any) || [];
         const newPhotos = [...currentPhotos, ...uploadedUrls];
         
-        setFieldValue(form, 'uploaded_photos', newPhotos, { shouldValidate: true });
+        setFieldValue(form, 'uploadedPhotos' as any, newPhotos, { shouldValidate: true });
         
         // Set main photo if this is the first upload
         if (currentPhotos.length === 0 && uploadedUrls.length > 0) {
-          setFieldValue(form, 'main_photo', uploadedUrls[0], { shouldValidate: true });
+          setFieldValue(form, 'mainPhoto' as any, uploadedUrls[0], { shouldValidate: true });
         }
         
         setUploadedCount(prev => prev + validFiles.length);

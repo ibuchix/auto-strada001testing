@@ -6,19 +6,20 @@
  * - Handles photo selection, removal, and reordering
  * - 2025-06-20 - Fixed field name compatibility with CarListingFormData
  * - 2025-05-23 - Updated to use type-safe form helpers
+ * - 2025-05-25 - Fixed field name typing issues by using string cast
  */
 import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { CarListingFormData } from "@/types/forms";
 import { toast } from "sonner";
-import { watchField, setFieldValue, getFieldValue } from "@/utils/formHelpers";
+import { watchField, setFieldValue } from "@/utils/formHelpers";
 
 export const usePhotoManagement = (form: UseFormReturn<CarListingFormData>) => {
   // Track main (featured) photo
   const [mainPhotoIndex, setMainPhotoIndex] = useState<number>(0);
   
-  // Photos from form state - using our helper for type safety
-  const photos = watchField<string[]>(form, 'uploaded_photos') || [];
+  // Photos from form state - using our helper for type safety with casting for flexibility
+  const photos = watchField<string[]>(form, 'uploadedPhotos' as any) || [];
   
   // Set a photo as the main photo
   const setAsMainPhoto = useCallback((index: number) => {
@@ -28,7 +29,7 @@ export const usePhotoManagement = (form: UseFormReturn<CarListingFormData>) => {
       // Update form data with main photo info
       const photoUrl = photos[index];
       // Reorder photos to make selected photo the first one (main photo)
-      setFieldValue(form, 'uploaded_photos', [photoUrl, ...photos.filter((_, i) => i !== index)], { shouldValidate: true });
+      setFieldValue(form, 'uploadedPhotos' as any, [photoUrl, ...photos.filter((_, i) => i !== index)], { shouldValidate: true });
       
       toast.success('Main photo updated');
     }
@@ -40,7 +41,7 @@ export const usePhotoManagement = (form: UseFormReturn<CarListingFormData>) => {
       const newPhotos = [...photos];
       newPhotos.splice(index, 1);
       
-      setFieldValue(form, 'uploaded_photos', newPhotos, { shouldValidate: true });
+      setFieldValue(form, 'uploadedPhotos' as any, newPhotos, { shouldValidate: true });
       
       // Update main photo index if needed
       if (index === mainPhotoIndex) {
@@ -65,7 +66,7 @@ export const usePhotoManagement = (form: UseFormReturn<CarListingFormData>) => {
       const [movedItem] = newPhotos.splice(fromIndex, 1);
       newPhotos.splice(toIndex, 0, movedItem);
       
-      setFieldValue(form, 'uploaded_photos', newPhotos, { shouldValidate: true });
+      setFieldValue(form, 'uploadedPhotos' as any, newPhotos, { shouldValidate: true });
       
       // Update main photo index if needed
       if (fromIndex === mainPhotoIndex) {

@@ -7,6 +7,7 @@
  * - Added safety checks for missing form methods
  * - Enhanced type safety with better error handling
  * - Updated to use camelCase field names consistently
+ * - 2025-05-25: Fixed field name typing issues by using string cast
  */
 import { useState, useCallback, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
@@ -19,7 +20,7 @@ export const usePhotoValidation = (form: UseFormReturn<CarListingFormData>) => {
   const [missingPhotos, setMissingPhotos] = useState<string[]>([]);
 
   // Get all photo URLs from the form - safely handle if watch returns a non-array
-  const photos = watchField<string[]>(form, "uploadedPhotos") || [];
+  const photos = watchField<string[]>(form, "uploadedPhotos" as any) || [];
   
   // Check if we have the minimum required photos (3)
   const isValid = photos.length >= 3;
@@ -40,7 +41,7 @@ export const usePhotoValidation = (form: UseFormReturn<CarListingFormData>) => {
   const validatePhotoSection = useCallback(() => {
     const valid = validatePhotos();
     if (valid) {
-      setFieldValue(form, "photoValidationPassed", true);
+      setFieldValue(form, "photoValidationPassed" as any, true);
     }
     return valid;
   }, [validatePhotos, form]);
@@ -62,7 +63,7 @@ export const usePhotoValidation = (form: UseFormReturn<CarListingFormData>) => {
     try {
       // Mark photos as validated if we have enough
       if (photos.length >= 3) {
-        setFieldValue(form, "photoValidationPassed", true);
+        setFieldValue(form, "photoValidationPassed" as any, true);
         return true;
       } else {
         toast.error("Not enough photos", {

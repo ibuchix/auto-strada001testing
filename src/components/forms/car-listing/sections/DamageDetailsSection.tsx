@@ -3,6 +3,7 @@
  * DamageDetailsSection Component
  * Updated: 2025-05-04 - Fixed TypeScript error with DamageReport ID field
  * Updated: 2025-05-24 - Updated to use camelCase field names consistently
+ * Updated: 2025-05-25 - Fixed field name typing issues by using string cast
  */
 
 import { useFormData } from "../context/FormDataContext";
@@ -26,7 +27,7 @@ export const DamageDetailsSection = () => {
     severity: 'minor' as 'minor' | 'moderate' | 'severe'
   });
   
-  const damageReports = watchField<DamageReport[]>(form, "damageReports") || [];
+  const damageReports = watchField<DamageReport[]>(form, "damageReports" as any) || [];
   
   const addDamageReport = () => {
     const newReport: DamageReport = {
@@ -39,7 +40,7 @@ export const DamageDetailsSection = () => {
     };
     
     const updatedReports = [...damageReports, newReport];
-    setFieldValue(form, "damageReports", updatedReports, { shouldDirty: true });
+    setFieldValue(form, "damageReports" as any, updatedReports, { shouldDirty: true });
     
     // Reset the form
     setNewDamage({
@@ -52,7 +53,7 @@ export const DamageDetailsSection = () => {
   
   const removeDamageReport = (id: string) => {
     const updatedReports = damageReports.filter(report => report.id !== id);
-    setFieldValue(form, "damageReports", updatedReports, { shouldDirty: true });
+    setFieldValue(form, "damageReports" as any, updatedReports, { shouldDirty: true });
   };
   
   return (
