@@ -10,7 +10,7 @@
  * Updated: 2025-05-30 - Fixed import for router and loading spinner
  * Updated: 2025-05-31 - Fixed imports and resolved build errors
  * Updated: 2025-06-20 - Fixed destructuring syntax error and added null checks
- * Updated: 2025-06-24 - Improved photo field validation using standardizePhotoCategory
+ * Updated: 2025-06-24 - Fixed photo field validation using standardizePhotoCategory
  * Updated: 2025-06-24 - Enhanced error messages with better field name formatting
  * Updated: 2025-06-25 - Added more detailed validation logs and improved error messaging
  * Updated: 2025-05-20 - Fixed FormProvider context usage with better error handling
@@ -18,6 +18,7 @@
  * Updated: 2025-05-20 - Fixed car submission to use actual database and proper image association
  * Updated: 2025-05-24 - Added additional error handling and better logging
  * Updated: 2025-05-30 - Fixed submission by using createCarUsingRPC to bypass RLS restrictions
+ * Updated: 2025-06-04 - Improved error handling for image association and added direct database fallback
  */
 
 import React, { useState } from "react";
@@ -34,6 +35,7 @@ import { useImageAssociation } from "@/hooks/submission/useImageAssociation";
 import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/components/AuthProvider";
 import { createCarUsingRPC } from "./services/submissionService";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -71,7 +73,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
   const navigate = useNavigate();
   
   // Use the image association hook
-  const { associateImages, isAssociating } = useImageAssociation();
+  const { associateImages, isAssociating } = useImageAssociation({ maxRetries: 3, delayMs: 2000 });
   
   // Get auth context
   const auth = useAuth();
@@ -85,7 +87,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       const submissionId = uuidv4().slice(0, 8);
       console.log(`[FormSubmission][${submissionId}] Starting form submission...`);
       
-      console.log("Starting form submission validation...");
+      console.log("Starting form validation...");
       console.log("Form data for validation:", {
         photoValidationPassed: formData.photoValidationPassed,
         hasRequiredPhotos: !!formData.requiredPhotos,
@@ -144,22 +146,48 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       // Log the final data being submitted
       console.log(`[FormSubmission][${submissionId}] Submitting car listing:`, preparedData);
       
-      // Submit the data to the database - CHANGED: Now using createCarUsingRPC which bypasses RLS
+      // Try different submission methods in case one fails
       let result;
       try {
-        // Use createCarUsingRPC instead of submitCarListing to bypass RLS restrictions
+        // First try using createCarUsingRPC
+        console.log(`[FormSubmission][${submissionId}] Trying submission with createCarUsingRPC...`);
         result = await createCarUsingRPC(preparedData, currentUserId);
-        console.log(`[FormSubmission][${submissionId}] Form submitted successfully, car ID: ${result.id}`);
-      } catch (error) {
-        console.error(`[FormSubmission][${submissionId}] Error submitting to database:`, error);
-        toast.error("Submission Failed", {
-          description: "There was an error saving your listing to the database. Please try again.",
-        });
-        if (onSubmitError && error instanceof Error) {
-          onSubmitError(error);
+        console.log(`[FormSubmission][${submissionId}] Form submitted successfully via RPC, car ID: ${result.id}`);
+      } catch (rpcError) {
+        console.error(`[FormSubmission][${submissionId}] RPC submission failed:`, rpcError);
+        
+        // Fallback to direct database insertion as a last resort
+        try {
+          console.log(`[FormSubmission][${submissionId}] Trying direct database insertion...`);
+          
+          // Add the seller_id to the prepared data
+          const dataWithSellerId = {
+            ...preparedData,
+            seller_id: currentUserId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            is_draft: false,
+            status: 'available'
+          };
+          
+          // Insert directly into the cars table
+          const { data, error } = await supabase
+            .from('cars')
+            .insert(dataWithSellerId)
+            .select('id')
+            .single();
+            
+          if (error) {
+            console.error(`[FormSubmission][${submissionId}] Direct insertion failed:`, error);
+            throw error;
+          }
+          
+          result = { id: data.id };
+          console.log(`[FormSubmission][${submissionId}] Form submitted successfully via direct insertion, car ID: ${result.id}`);
+        } catch (dbError) {
+          console.error(`[FormSubmission][${submissionId}] All submission methods failed:`, dbError);
+          throw dbError;
         }
-        setIsSubmitting(false);
-        return false;
       }
       
       const newCarId = result.id;
@@ -173,8 +201,8 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       } catch (imageError) {
         console.error(`[FormSubmission][${submissionId}] Error associating images:`, imageError);
         // Don't fail the submission if image association fails
-        toast.error("Warning: Some images may not have been properly associated with your listing", {
-          description: "Your listing has been submitted, but there was an issue with the images."
+        toast.warning("Some images may not have been properly associated with your listing", {
+          description: "Your listing has been submitted, but there was an issue with the images. You can add them later."
         });
       } finally {
         setIsAssociatingImages(false);

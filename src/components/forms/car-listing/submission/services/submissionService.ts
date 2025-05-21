@@ -1,13 +1,12 @@
-
 /**
  * Car Listing Submission Service
  * Created: 2025-05-20
  * Updated: 2025-05-30 - Added error handling for last_saved field and improved error logging
+ * Updated: 2025-06-04 - Enhanced error handling with retry mechanism and direct database fallback
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/components/AuthProvider";
 import { prepareSubmission } from "../utils/submission";
 
 /**
@@ -54,7 +53,9 @@ export const submitCarListing = async (
           ...preparedData,
           seller_id: userId,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          is_draft: false,
+          status: 'available'
         })
         .select('id')
         .single();
@@ -74,30 +75,52 @@ export const submitCarListing = async (
 };
 
 /**
- * Fallback function for creating car listings when RPC is not available
+ * Create car listing using RPC function to bypass RLS restrictions
  */
 export const createCarUsingRPC = async (formData: CarListingFormData, userId: string): Promise<{ id: string }> => {
   try {
+    console.log("Creating car using RPC function...");
     const preparedData = prepareSubmission(formData);
     
-    // Use create_car_listing RPC function if available
-    const { data, error } = await supabase
-      .rpc('create_car_listing', {
-        p_car_data: preparedData,
-        p_user_id: userId
-      });
-      
-    if (error) {
-      console.error("Error using create_car_listing RPC:", error);
-      // Fallback to regular insert
-      return submitCarListing(formData, userId);
+    // Try to use create_car_listing RPC function with retry mechanism
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`RPC attempt ${attempt}/3: Calling create_car_listing...`);
+        
+        const { data, error } = await supabase
+          .rpc('create_car_listing', {
+            p_car_data: preparedData,
+            p_user_id: userId
+          });
+          
+        if (error) {
+          console.error(`RPC attempt ${attempt}/3 failed:`, error);
+          
+          // If this is not the last attempt, wait before retrying
+          if (attempt < 3) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            continue;
+          }
+          
+          throw error;
+        }
+        
+        console.log("Successfully created car using RPC:", data);
+        return { id: data.car_id };
+      } catch (retryError) {
+        if (attempt === 3) throw retryError;
+        // Otherwise continue to next attempt
+      }
     }
     
-    console.log("Successfully created car using RPC:", data);
-    return { id: data.car_id };
+    // This should never be reached due to the throw in the loop, but TypeScript needs it
+    throw new Error("Failed to create car listing after all retry attempts");
+    
   } catch (error) {
     console.error("Error in createCarUsingRPC:", error);
-    // Fallback to regular insert
+    
+    // Fallback to standard method if RPC fails
+    console.log("Falling back to standard submission method");
     return submitCarListing(formData, userId);
   }
 };

@@ -10,6 +10,7 @@
  * Updated: 2025-05-20 - Integrated with standardized photo field naming
  * Updated: 2025-05-20 - Fixed image association with real car IDs and improved error handling
  * Updated: 2025-05-31 - Integrated with database security definer functions for reliable image association
+ * Updated: 2025-06-04 - Improved error handling for RPC function availability and added direct database fallback
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -130,54 +131,35 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
           console.log(`[ImageAssociation][${submissionId}] Retrying in ${retryConfig.delayMs}ms...`);
           await sleep(retryConfig.delayMs);
           
-          // Try using the security definer function with RPC
+          // Try using the security definer function with proper parameters
           try {
-            console.log(`[ImageAssociation][${submissionId}] Attempting emergency association via RPC...`);
+            console.log(`[ImageAssociation][${submissionId}] Attempting RPC association...`);
             
-            // First set the temp uploads data for the session
-            const { error: setDataError } = await supabase.rpc(
-              'set_temp_uploads_data',
-              { p_uploads: tempUploads }
-            );
-            
-            if (setDataError) {
-              console.error(`[ImageAssociation][${submissionId}] Error setting temp uploads data:`, setDataError);
-              throw setDataError;
-            }
-            
-            // Then call the association function
+            // Try to directly use associate_uploads_with_car with the correct parameters
             const { data, error } = await supabase.rpc(
-              'associate_temp_uploads_with_car',
-              { p_car_id: carId }
+              'associate_uploads_with_car', 
+              { 
+                p_car_id: carId, 
+                p_uploads: tempUploads 
+              }
             );
             
             if (error) {
               console.error(`[ImageAssociation][${submissionId}] RPC association error:`, error);
               
-              // Try one more approach - passing uploads directly in one call
-              const { data: directData, error: directError } = await supabase.rpc(
-                'associate_uploads_with_car',
-                { 
-                  p_car_id: carId,
-                  p_uploads: tempUploads
-                }
-              );
+              // If that fails, try direct database access as a fallback
+              console.log(`[ImageAssociation][${submissionId}] Falling back to direct database approach`);
               
-              if (directError) {
-                console.error(`[ImageAssociation][${submissionId}] Direct RPC association also failed:`, directError);
-                throw directError;
-              }
-              
-              associatedCount = directData || 0;
-              console.log(`[ImageAssociation][${submissionId}] Direct RPC association successful, associated ${associatedCount} files`);
+              associatedCount = await directDatabaseAssociation(tempUploads, carId, submissionId);
             } else {
               associatedCount = data || 0;
               console.log(`[ImageAssociation][${submissionId}] RPC association successful, associated ${associatedCount} files`);
             }
           } catch (rpcError) {
             console.error(`[ImageAssociation][${submissionId}] All RPC association methods failed:`, rpcError);
-            // Just log this error, we've tried our best
-            associatedCount = 0;
+            
+            // Final fallback to direct database approach
+            associatedCount = await directDatabaseAssociation(tempUploads, carId, submissionId);
           }
         } else {
           // Max retries reached
@@ -215,6 +197,66 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
       return 0;
     } finally {
       setIsAssociating(false);
+    }
+  };
+  
+  // New direct database association method as final fallback
+  const directDatabaseAssociation = async (uploads: TempFileMetadata[], carId: string, submissionId: string): Promise<number> => {
+    console.log(`[ImageAssociation][${submissionId}] Attempting direct database association as fallback`);
+    let successCount = 0;
+    
+    try {
+      // Get current car data to update
+      const { data: car, error: getError } = await supabase
+        .from('cars')
+        .select('required_photos, additional_photos')
+        .eq('id', carId)
+        .single();
+      
+      if (getError) {
+        console.error(`[ImageAssociation][${submissionId}] Error getting car data:`, getError);
+        return 0;
+      }
+      
+      // Initialize photo containers
+      const requiredPhotos = car?.required_photos || {};
+      const additionalPhotos = car?.additional_photos || [];
+      
+      // Process each upload
+      for (const upload of uploads) {
+        // Update photo data based on category
+        if (upload.category === 'additional_photos' || upload.category.includes('additional')) {
+          // Add to additional photos array
+          if (Array.isArray(additionalPhotos)) {
+            additionalPhotos.push(upload.filePath);
+          }
+        } else {
+          // Add to required photos object
+          requiredPhotos[upload.category] = upload.filePath;
+        }
+        successCount++;
+      }
+      
+      // Update the car record with new photo data
+      const { error: updateError } = await supabase
+        .from('cars')
+        .update({
+          required_photos: requiredPhotos,
+          additional_photos: additionalPhotos
+        })
+        .eq('id', carId);
+      
+      if (updateError) {
+        console.error(`[ImageAssociation][${submissionId}] Error updating car photos:`, updateError);
+        return 0;
+      }
+      
+      console.log(`[ImageAssociation][${submissionId}] Direct database association successful: ${successCount} photos`);
+      return successCount;
+      
+    } catch (error) {
+      console.error(`[ImageAssociation][${submissionId}] Direct database association failed:`, error);
+      return 0;
     }
   };
   
