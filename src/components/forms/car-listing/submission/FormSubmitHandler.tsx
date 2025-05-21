@@ -1,3 +1,4 @@
+
 /**
  * Form Submit Handler Component
  * Created: 2025-05-12
@@ -21,6 +22,7 @@
  * Updated: 2025-06-21 - Removed RPC dependency and used direct database inserts with RLS
  * Updated: 2025-05-21 - Enhanced with ownership validation and tracking
  * Updated: 2025-05-21 - Fixed TypeScript property names and added missing import
+ * Updated: 2025-05-22 - Updated to use security definer function for reliable car creation
  */
 
 import React, { useState } from "react";
@@ -155,10 +157,10 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         hasSellerIdField: !!preparedData.sellerId
       });
       
-      // Submit the listing using the direct database method
+      // Submit the listing using the security definer function via RPC
       let result;
       try {
-        console.log(`[FormSubmission][${submissionId}] Trying submission with createCarListing...`);
+        console.log(`[FormSubmission][${submissionId}] Submitting with createCarListing RPC...`);
         result = await createCarListing(preparedData, currentUserId);
         console.log(`[FormSubmission][${submissionId}] Form submitted successfully, car ID: ${result.id}`);
       } catch (submissionError) {

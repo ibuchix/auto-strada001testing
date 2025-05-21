@@ -8,6 +8,7 @@
  * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
  * Updated: 2025-06-21 - Removed RPC dependency and simplified submission with direct inserts
  * Updated: 2025-05-21 - Updated to work with enhanced RLS policy framework
+ * Updated: 2025-05-22 - Refactored to use create_car_listing RPC function to bypass RLS restrictions
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -80,14 +81,14 @@ export const submitCarListing = async (
 };
 
 /**
- * Create car listing using direct database insert
- * Uses the improved RLS policies for secure car creation
+ * Create car listing using the security definer function
+ * This approach bypasses RLS policies and ensures proper permission handling
  */
 export const createCarListing = async (formData: CarListingFormData, userId: string): Promise<{ id: string }> => {
   try {
     // Generate a trace ID for tracking this operation through logs
     const traceId = Math.random().toString(36).substring(2, 10);
-    console.log(`[CreateCar][${traceId}] Creating car using direct database insert...`);
+    console.log(`[CreateCar][${traceId}] Creating car using security definer function...`);
     
     // Prepare data ensuring proper type handling
     const preparedData = prepareSubmission(formData);
@@ -98,48 +99,39 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
       throw new Error("Invalid user ID format");
     }
     
-    // Log the exact data being used for insert
-    console.log(`[CreateCar][${traceId}] Inserting car data:`, {
+    // Log the exact data being used for RPC call
+    console.log(`[CreateCar][${traceId}] Calling create_car_listing RPC:`, {
       dataKeys: Object.keys(preparedData),
       userId: userId
     });
     
-    // Insert directly to cars table - this uses our improved RLS policies
-    const { data, error } = await supabase
-      .from('cars')
-      .insert({
-        ...preparedData,
-        seller_id: userId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        is_draft: true,
-        status: 'available'
-      })
-      .select('id')
-      .single();
+    // Call the security definer function via RPC
+    const { data, error } = await supabase.rpc('create_car_listing', {
+      p_car_data: preparedData,
+      p_user_id: userId
+    });
     
     if (error) {
-      console.error(`[CreateCar][${traceId}] Insert error:`, error);
-      
-      // Fall back to standard method if direct insert fails
-      console.log(`[CreateCar][${traceId}] Falling back to standard submission method`);
-      return submitCarListing(formData, userId);
+      console.error(`[CreateCar][${traceId}] RPC error:`, error);
+      throw error;
     }
     
-    if (!data || !data.id) {
-      console.error(`[CreateCar][${traceId}] Missing id in response:`, data);
+    if (!data || !data.success) {
+      console.error(`[CreateCar][${traceId}] RPC returned unsuccessful result:`, data);
+      throw new Error("Failed to create car listing: " + (data?.error || "Unknown error"));
+    }
+    
+    if (!data.car_id) {
+      console.error(`[CreateCar][${traceId}] Missing car_id in RPC response:`, data);
       throw new Error("Missing car ID in response");
     }
     
     console.log(`[CreateCar][${traceId}] Successfully created car:`, data);
-    return { id: data.id };
+    return { id: data.car_id };
     
   } catch (error) {
     console.error("Error in createCarListing:", error);
-    
-    // Fall back to standard method if there's any error
-    console.log("Falling back to standard submission method");
-    return submitCarListing(formData, userId);
+    throw error;
   }
 };
 
