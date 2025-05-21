@@ -1654,6 +1654,14 @@ export type Database = {
         Args: { p_listing_id: string; p_admin_id: string; p_notes?: string }
         Returns: Json
       }
+      associate_temp_uploads_with_car: {
+        Args: { p_car_id: string }
+        Returns: number
+      }
+      associate_uploads_with_car: {
+        Args: { p_car_id: string; p_uploads: Json }
+        Returns: number
+      }
       authenticate_dealer: {
         Args: { p_email: string; p_password: string }
         Returns: Json
@@ -2055,6 +2063,10 @@ export type Database = {
           p_notes?: string
         }
         Returns: Json
+      }
+      set_temp_uploads_data: {
+        Args: { p_uploads: Json }
+        Returns: boolean
       }
       start_scheduled_auctions: {
         Args: Record<PropertyKey, never>

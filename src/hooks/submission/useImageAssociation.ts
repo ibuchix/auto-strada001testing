@@ -9,6 +9,7 @@
  * Updated: 2025-06-03 - Added retry capability and bypass for throttling
  * Updated: 2025-05-20 - Integrated with standardized photo field naming
  * Updated: 2025-05-20 - Fixed image association with real car IDs and improved error handling
+ * Updated: 2025-05-31 - Integrated with database security definer functions for reliable image association
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -82,8 +83,9 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
       let associatedCount = 0;
       let currentRetry = retryAttemptsRef.current[carId] || 0;
       
-      // Create database entries for car_file_uploads
+      // First try the direct approach
       try {
+        // Create database entries for car_file_uploads
         for (const upload of tempUploads) {
           console.log(`[ImageAssociation][${submissionId}] Associating upload: category=${upload.category}, path=${upload.filePath}`);
           
@@ -113,7 +115,7 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
           await updateCarPhotoRecord(carId, upload.category, upload.filePath);
         }
         
-        console.log(`[ImageAssociation][${submissionId}] Successfully processed ${associatedCount} uploads`);
+        console.log(`[ImageAssociation][${submissionId}] Successfully processed ${associatedCount} uploads using direct method`);
       } catch (error) {
         // Handle errors during association
         console.error(`[ImageAssociation][${submissionId}] Error during association:`, error);
@@ -122,33 +124,65 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
         currentRetry++;
         retryAttemptsRef.current[carId] = currentRetry;
         
+        // If direct approach failed, use the security definer function
         if (currentRetry <= retryConfig.maxRetries) {
           // Wait before retrying
           console.log(`[ImageAssociation][${submissionId}] Retrying in ${retryConfig.delayMs}ms...`);
           await sleep(retryConfig.delayMs);
           
-          // Try one more time with direct SQL using RPC if available
+          // Try using the security definer function with RPC
           try {
             console.log(`[ImageAssociation][${submissionId}] Attempting emergency association via RPC...`);
+            
+            // First set the temp uploads data for the session
+            const { error: setDataError } = await supabase.rpc(
+              'set_temp_uploads_data',
+              { p_uploads: tempUploads }
+            );
+            
+            if (setDataError) {
+              console.error(`[ImageAssociation][${submissionId}] Error setting temp uploads data:`, setDataError);
+              throw setDataError;
+            }
+            
+            // Then call the association function
             const { data, error } = await supabase.rpc(
               'associate_temp_uploads_with_car',
               { p_car_id: carId }
             );
             
-            if (!error && data > 0) {
-              console.log(`[ImageAssociation][${submissionId}] RPC association successful, associated ${data} files`);
-              associatedCount = data;
-            } else if (error) {
+            if (error) {
               console.error(`[ImageAssociation][${submissionId}] RPC association error:`, error);
-              throw error;
+              
+              // Try one more approach - passing uploads directly in one call
+              const { data: directData, error: directError } = await supabase.rpc(
+                'associate_uploads_with_car',
+                { 
+                  p_car_id: carId,
+                  p_uploads: tempUploads
+                }
+              );
+              
+              if (directError) {
+                console.error(`[ImageAssociation][${submissionId}] Direct RPC association also failed:`, directError);
+                throw directError;
+              }
+              
+              associatedCount = directData || 0;
+              console.log(`[ImageAssociation][${submissionId}] Direct RPC association successful, associated ${associatedCount} files`);
+            } else {
+              associatedCount = data || 0;
+              console.log(`[ImageAssociation][${submissionId}] RPC association successful, associated ${associatedCount} files`);
             }
           } catch (rpcError) {
-            console.error(`[ImageAssociation][${submissionId}] RPC association failed:`, rpcError);
+            console.error(`[ImageAssociation][${submissionId}] All RPC association methods failed:`, rpcError);
             // Just log this error, we've tried our best
+            associatedCount = 0;
           }
         } else {
           // Max retries reached
           console.error(`[ImageAssociation][${submissionId}] Max retries (${retryConfig.maxRetries}) reached`);
+          associatedCount = 0;
         }
       }
       
