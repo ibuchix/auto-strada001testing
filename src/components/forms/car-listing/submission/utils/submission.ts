@@ -18,6 +18,7 @@
  * - 2025-05-21: Added exclusion of frontend-only fields like fromValuation
  * - 2025-05-22: Added finance-related fields to frontend-only fields list
  * - 2025-05-23: Added isSellingOnBehalf to frontend-only fields list to fix database schema error
+ * - 2025-05-24: Added comprehensive list of frontend-only fields to prevent database schema errors
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -84,11 +85,29 @@ const FRONTEND_ONLY_FIELDS = [
   'photoValidationPassed',
   'uploadInProgress',
   'uploadSuccess',
-  'hasOutstandingFinance', // Added - frontend field only
-  'financeProvider',       // Added - frontend field only
-  'financeEndDate',        // Added - frontend field only
-  'financeDocument',       // Added - frontend field only
-  'isSellingOnBehalf'      // Added - frontend field only
+  'hasOutstandingFinance',   // Finance-related frontend field
+  'financeProvider',         // Finance-related frontend field
+  'financeEndDate',          // Finance-related frontend field
+  'financeDocument',         // Finance-related frontend field
+  'isSellingOnBehalf',       // Seller relationship frontend field
+  'hasWarningLights',        // Warning lights frontend field
+  'warningLightPhotos',      // Warning lights photos frontend field
+  'warningLightDescription', // Warning lights description frontend field
+  'contactEmail',            // Contact information frontend field
+  'conditionRating',         // Vehicle condition frontend field
+  'damagePhotos',            // Damage photos array frontend field
+  'damageReports',           // Damage reports array frontend field
+  'uploadedPhotos',          // Temporary photo tracking frontend field
+  'vehiclePhotos',           // Vehicle photos object frontend field
+  'mainPhoto',               // Main photo selection frontend field
+  'requiredPhotosComplete',  // Photo upload tracking frontend field
+  'serviceHistoryCount',     // Service history count frontend field
+  'rimPhotos',               // Rim photos storage frontend field
+  'formProgress',            // Form progress tracking frontend field
+  'formMetadata',            // Form metadata for UI frontend field
+  'step',                    // Form step tracking frontend field
+  'tempFiles',               // Temporary file storage frontend field
+  'lastSaved'                // Last saved timestamp frontend field
 ];
 
 /**
@@ -176,3 +195,4 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   
   return entity;
 };
+

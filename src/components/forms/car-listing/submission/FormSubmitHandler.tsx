@@ -16,6 +16,7 @@
  * Updated: 2025-05-20 - Fixed FormProvider context usage with better error handling
  * Updated: 2025-05-20 - Added image association functionality after form submission
  * Updated: 2025-05-20 - Fixed car submission to use actual database and proper image association
+ * Updated: 2025-05-24 - Added additional error handling and better logging
  */
 
 import React, { useState } from "react";
