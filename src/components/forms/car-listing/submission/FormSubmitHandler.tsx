@@ -1,4 +1,3 @@
-
 /**
  * Form Submit Handler Component
  * Created: 2025-05-12
@@ -21,6 +20,7 @@
  * Updated: 2025-06-10 - Fixed UUID handling issues and improved error handling
  * Updated: 2025-06-21 - Removed RPC dependency and used direct database inserts with RLS
  * Updated: 2025-05-21 - Enhanced with ownership validation and tracking
+ * Updated: 2025-05-21 - Fixed TypeScript property names and added missing import
  */
 
 import React, { useState } from "react";
@@ -37,6 +37,7 @@ import { useImageAssociation } from "@/hooks/submission/useImageAssociation";
 import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/components/AuthProvider";
 import { createCarListing } from "./services/submissionService";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -144,14 +145,14 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      // Ensure seller_id is explicitly set for ownership tracking
-      preparedData.seller_id = currentUserId;
+      // Ensure sellerId is explicitly set for ownership tracking
+      preparedData.sellerId = currentUserId;
       
       // Log the final data being submitted
       console.log(`[FormSubmission][${submissionId}] Submitting car listing:`, {
         dataKeys: Object.keys(preparedData),
         userId: currentUserId,
-        hasSellerIdField: !!preparedData.seller_id
+        hasSellerIdField: !!preparedData.sellerId
       });
       
       // Submit the listing using the direct database method

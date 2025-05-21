@@ -2,6 +2,7 @@
 /**
  * Car History Timeline Component
  * Created: 2025-05-21
+ * Updated: 2025-05-21 - Fixed incorrect FileHistory icon import
  * 
  * Displays a timeline of car ownership and status changes
  */
@@ -19,7 +20,7 @@ import {
   TimelineSeparator 
 } from '@/components/ui/timeline';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Clock, AlertCircle, FileHistory, User, CheckCircle2, Tag } from 'lucide-react';
+import { Clock, AlertCircle, FileText, User, CheckCircle2, Tag } from 'lucide-react';
 
 interface CarHistoryTimelineProps {
   carId: string;
@@ -60,7 +61,7 @@ export function CarHistoryTimeline({ carId }: CarHistoryTimelineProps) {
   if (!history || history.length === 0) {
     return (
       <Alert>
-        <FileHistory className="h-4 w-4" />
+        <FileText className="h-4 w-4" />
         <AlertTitle>No History</AlertTitle>
         <AlertDescription>
           No history records found for this listing.
