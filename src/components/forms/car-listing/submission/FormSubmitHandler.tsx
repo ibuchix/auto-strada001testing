@@ -20,6 +20,7 @@
  * Updated: 2025-05-30 - Fixed submission by using createCarUsingRPC to bypass RLS restrictions
  * Updated: 2025-06-10 - Fixed UUID handling issues and improved error handling
  * Updated: 2025-06-21 - Removed RPC dependency and used direct database inserts with RLS
+ * Updated: 2025-05-21 - Enhanced with ownership validation and tracking
  */
 
 import React, { useState } from "react";
@@ -143,10 +144,14 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
+      // Ensure seller_id is explicitly set for ownership tracking
+      preparedData.seller_id = currentUserId;
+      
       // Log the final data being submitted
       console.log(`[FormSubmission][${submissionId}] Submitting car listing:`, {
         dataKeys: Object.keys(preparedData),
-        userId: currentUserId
+        userId: currentUserId,
+        hasSellerIdField: !!preparedData.seller_id
       });
       
       // Submit the listing using the direct database method
@@ -176,6 +181,19 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         });
       } finally {
         setIsAssociatingImages(false);
+      }
+      
+      // Record initial history by doing a status update - this will trigger our new history tracking
+      try {
+        // Use the transition_car_status RPC function to ensure ownership validation
+        await supabase.rpc('transition_car_status', {
+          p_car_id: newCarId,
+          p_new_status: 'draft',
+          p_is_draft: true
+        });
+      } catch (historyError) {
+        console.error(`[FormSubmission][${submissionId}] Error recording initial history:`, historyError);
+        // Non-critical error, don't fail the submission
       }
       
       // Show success toast

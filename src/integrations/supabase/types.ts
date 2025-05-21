@@ -599,6 +599,53 @@ export type Database = {
           },
         ]
       }
+      cars_history: {
+        Row: {
+          car_id: string
+          change_type: string
+          changed_at: string
+          changed_by: string | null
+          id: string
+          is_draft: boolean | null
+          metadata: Json | null
+          previous_status: string | null
+          seller_id: string
+          status: string | null
+        }
+        Insert: {
+          car_id: string
+          change_type: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          is_draft?: boolean | null
+          metadata?: Json | null
+          previous_status?: string | null
+          seller_id: string
+          status?: string | null
+        }
+        Update: {
+          car_id?: string
+          change_type?: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          is_draft?: boolean | null
+          metadata?: Json | null
+          previous_status?: string | null
+          seller_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cars_history_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       damage_reports: {
         Row: {
           car_id: string | null
@@ -1833,6 +1880,17 @@ export type Database = {
         Args: { p_car_id: string; p_user_id: string }
         Returns: Json
       }
+      get_car_ownership_history: {
+        Args: { p_car_id: string }
+        Returns: {
+          change_time: string
+          change_type: string
+          previous_status: string
+          new_status: string
+          is_draft: boolean
+          changed_by: string
+        }[]
+      }
       get_dealer_bid_exposure: {
         Args: { p_dealer_id: string }
         Returns: Json
@@ -2042,6 +2100,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      publish_car_listing: {
+        Args: { p_car_id: string }
+        Returns: Json
+      }
       register_seller: {
         Args: { p_user_id: string }
         Returns: boolean
@@ -2076,6 +2138,10 @@ export type Database = {
         Args: { p_vin: string; p_mileage: number; p_valuation_data: Json }
         Returns: undefined
       }
+      transition_car_status: {
+        Args: { p_car_id: string; p_new_status: string; p_is_draft?: boolean }
+        Returns: Json
+      }
       update_auction_status: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -2099,6 +2165,10 @@ export type Database = {
       verify_password: {
         Args: { uuid: string; plain_text: string }
         Returns: boolean
+      }
+      withdraw_car_listing: {
+        Args: { p_car_id: string }
+        Returns: Json
       }
     }
     Enums: {
