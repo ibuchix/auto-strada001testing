@@ -22,6 +22,7 @@
  * - 2025-05-28: Added 'name' to frontend-only fields list and mapped name to sellerName if not set
  * - 2025-05-30: Added both 'last_saved' and 'lastSaved' to frontend-only fields list to fix submission error
  * - 2025-05-31: Fixed UUID handling by completely removing id field for new car listings instead of passing empty string
+ * - 2025-06-01: Added explicit is_draft field to prevent not-null constraint violation
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -181,6 +182,8 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     created_at: createdAt,
     updated_at: new Date().toISOString(),
     status: 'draft',
+    // Explicitly set is_draft to true to prevent not-null constraint violation
+    is_draft: true,
     // Ensure required fields have values
     make: formData.make || '',
     model: formData.model || '',
@@ -209,4 +212,3 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   
   return entity;
 };
-

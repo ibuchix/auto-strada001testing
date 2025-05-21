@@ -1,4 +1,3 @@
-
 /**
  * Car Listing Submission Service
  * Created: 2025-05-20
@@ -10,6 +9,7 @@
  * Updated: 2025-05-21 - Updated to work with enhanced RLS policy framework
  * Updated: 2025-05-22 - Refactored to use create_car_listing RPC function to bypass RLS restrictions
  * Updated: 2025-05-31 - Fixed UUID handling in prepareSubmission function for new car listings
+ * Updated: 2025-06-01 - Fixed is_draft handling to prevent not-null constraint violation
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -39,7 +39,9 @@ export const submitCarListing = async (
         .update({
           ...preparedData,
           updated_at: new Date().toISOString(),
-          seller_id: userId || preparedData.seller_id
+          seller_id: userId || preparedData.seller_id,
+          // Ensure is_draft is explicitly defined for update
+          is_draft: preparedData.is_draft === undefined ? true : preparedData.is_draft
         })
         .eq('id', preparedData.id)
         .select('id')
@@ -61,7 +63,7 @@ export const submitCarListing = async (
           seller_id: userId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          is_draft: true, // Start as draft by default
+          is_draft: true, // Always start as draft by default for new listings
           status: 'available'
         })
         .select('id')
