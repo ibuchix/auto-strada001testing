@@ -18,7 +18,7 @@
  * Updated: 2025-05-20 - Fixed car submission to use actual database and proper image association
  * Updated: 2025-05-24 - Added additional error handling and better logging
  * Updated: 2025-05-30 - Fixed submission by using createCarUsingRPC to bypass RLS restrictions
- * Updated: 2025-06-04 - Improved error handling for image association and added direct database fallback
+ * Updated: 2025-06-10 - Fixed UUID handling issues and improved error handling
  */
 
 import React, { useState } from "react";
@@ -35,7 +35,6 @@ import { useImageAssociation } from "@/hooks/submission/useImageAssociation";
 import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/components/AuthProvider";
 import { createCarUsingRPC } from "./services/submissionService";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -144,50 +143,20 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       }
       
       // Log the final data being submitted
-      console.log(`[FormSubmission][${submissionId}] Submitting car listing:`, preparedData);
+      console.log(`[FormSubmission][${submissionId}] Submitting car listing:`, {
+        dataKeys: Object.keys(preparedData),
+        userId: currentUserId
+      });
       
-      // Try different submission methods in case one fails
+      // Try submission method with proper error handling
       let result;
       try {
-        // First try using createCarUsingRPC
         console.log(`[FormSubmission][${submissionId}] Trying submission with createCarUsingRPC...`);
         result = await createCarUsingRPC(preparedData, currentUserId);
         console.log(`[FormSubmission][${submissionId}] Form submitted successfully via RPC, car ID: ${result.id}`);
-      } catch (rpcError) {
-        console.error(`[FormSubmission][${submissionId}] RPC submission failed:`, rpcError);
-        
-        // Fallback to direct database insertion as a last resort
-        try {
-          console.log(`[FormSubmission][${submissionId}] Trying direct database insertion...`);
-          
-          // Add the seller_id to the prepared data
-          const dataWithSellerId = {
-            ...preparedData,
-            seller_id: currentUserId,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            is_draft: false,
-            status: 'available'
-          };
-          
-          // Insert directly into the cars table
-          const { data, error } = await supabase
-            .from('cars')
-            .insert(dataWithSellerId)
-            .select('id')
-            .single();
-            
-          if (error) {
-            console.error(`[FormSubmission][${submissionId}] Direct insertion failed:`, error);
-            throw error;
-          }
-          
-          result = { id: data.id };
-          console.log(`[FormSubmission][${submissionId}] Form submitted successfully via direct insertion, car ID: ${result.id}`);
-        } catch (dbError) {
-          console.error(`[FormSubmission][${submissionId}] All submission methods failed:`, dbError);
-          throw dbError;
-        }
+      } catch (submissionError) {
+        console.error(`[FormSubmission][${submissionId}] Submission failed:`, submissionError);
+        throw submissionError;
       }
       
       const newCarId = result.id;
