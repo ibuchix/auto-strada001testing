@@ -21,6 +21,7 @@
  * - 2025-05-24: Added comprehensive list of frontend-only fields to prevent database schema errors
  * - 2025-05-28: Added 'name' to frontend-only fields list and mapped name to sellerName if not set
  * - 2025-05-30: Added both 'last_saved' and 'lastSaved' to frontend-only fields list to fix submission error
+ * - 2025-05-31: Fixed UUID handling by completely removing id field for new car listings instead of passing empty string
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -174,7 +175,9 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   // Prepare base entity with all fields properly typed
   const baseEntity: Partial<CarEntity> = {
     ...cleanedData,
-    id: formData.id || '',
+    // Only include id if it's a valid non-empty value (for editing existing records)
+    // If it's falsy (empty string, null, undefined), omit it so PostgreSQL can auto-generate one
+    ...(formData.id ? { id: formData.id } : {}),
     created_at: createdAt,
     updated_at: new Date().toISOString(),
     status: 'draft',
@@ -199,7 +202,9 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     ...entity,
     // Limit display of photo data for cleaner logs
     required_photos: entity.required_photos ? 
-      `[${Object.keys(entity.required_photos || {}).length} photos]` : 'none'
+      `[${Object.keys(entity.required_photos || {}).length} photos]` : 'none',
+    // Show whether we're including an ID (new vs. edit)
+    has_id: !!formData.id
   });
   
   return entity;

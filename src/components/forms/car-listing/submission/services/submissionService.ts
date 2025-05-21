@@ -9,6 +9,7 @@
  * Updated: 2025-06-21 - Removed RPC dependency and simplified submission with direct inserts
  * Updated: 2025-05-21 - Updated to work with enhanced RLS policy framework
  * Updated: 2025-05-22 - Refactored to use create_car_listing RPC function to bypass RLS restrictions
+ * Updated: 2025-05-31 - Fixed UUID handling in prepareSubmission function for new car listings
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -90,7 +91,7 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
     const traceId = Math.random().toString(36).substring(2, 10);
     console.log(`[CreateCar][${traceId}] Creating car using security definer function...`);
     
-    // Prepare data ensuring proper type handling
+    // Prepare data ensuring proper type handling and UUID management
     const preparedData = prepareSubmission(formData);
     
     // Ensure userId is a valid UUID
@@ -102,6 +103,7 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
     // Log the exact data being used for RPC call
     console.log(`[CreateCar][${traceId}] Calling create_car_listing RPC:`, {
       dataKeys: Object.keys(preparedData),
+      hasId: !!preparedData.id,
       userId: userId
     });
     
@@ -113,7 +115,7 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
     
     if (error) {
       console.error(`[CreateCar][${traceId}] RPC error:`, error);
-      throw error;
+      throw new Error(`Failed to create car listing: ${error.message}`);
     }
     
     if (!data || !data.success) {
