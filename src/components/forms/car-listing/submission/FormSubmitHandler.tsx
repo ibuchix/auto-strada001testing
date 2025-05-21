@@ -19,6 +19,7 @@
  * Updated: 2025-05-24 - Added additional error handling and better logging
  * Updated: 2025-05-30 - Fixed submission by using createCarUsingRPC to bypass RLS restrictions
  * Updated: 2025-06-10 - Fixed UUID handling issues and improved error handling
+ * Updated: 2025-06-21 - Removed RPC dependency and used direct database inserts with RLS
  */
 
 import React, { useState } from "react";
@@ -34,7 +35,7 @@ import { standardizePhotoCategory, PHOTO_FIELD_MAP } from "@/utils/photoMapping"
 import { useImageAssociation } from "@/hooks/submission/useImageAssociation";
 import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/components/AuthProvider";
-import { createCarUsingRPC } from "./services/submissionService";
+import { createCarListing } from "./services/submissionService";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -148,12 +149,12 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         userId: currentUserId
       });
       
-      // Try submission method with proper error handling
+      // Submit the listing using the direct database method
       let result;
       try {
-        console.log(`[FormSubmission][${submissionId}] Trying submission with createCarUsingRPC...`);
-        result = await createCarUsingRPC(preparedData, currentUserId);
-        console.log(`[FormSubmission][${submissionId}] Form submitted successfully via RPC, car ID: ${result.id}`);
+        console.log(`[FormSubmission][${submissionId}] Trying submission with createCarListing...`);
+        result = await createCarListing(preparedData, currentUserId);
+        console.log(`[FormSubmission][${submissionId}] Form submitted successfully, car ID: ${result.id}`);
       } catch (submissionError) {
         console.error(`[FormSubmission][${submissionId}] Submission failed:`, submissionError);
         throw submissionError;

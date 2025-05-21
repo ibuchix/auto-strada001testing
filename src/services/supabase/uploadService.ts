@@ -12,6 +12,7 @@
  * Updated: 2025-05-26 - Improved temp file tracking in localStorage with proper consistency checks
  * Updated: 2025-05-20 - Updated to use the dedicated category column in car_file_uploads
  * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
+ * Updated: 2025-06-21 - Modified to use direct DB inserts instead of RPC functions
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,9 @@ interface TempFileMetadata {
   category: string; 
   uploadId: string;
   timestamp: string;
+  fileType?: string;
+  fileSize?: number;
+  originalName?: string;
 }
 
 // Consistent temp ID for a session
@@ -260,196 +264,204 @@ export const directUploadPhoto = async (
           });
           
         if (retryError) {
-          console.error('Error with retry upload:', retryError);
+          console.error('Retry upload also failed:', retryError);
           throw retryError;
         }
       } else {
-        // For other errors, just throw
         throw uploadError;
       }
     }
     
-    console.log(`Direct upload successful: ${filePath}`);
-    
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
+    // Get the public URL
+    const { data: urlData } = supabase.storage
       .from('car-images')
       .getPublicUrl(filePath);
     
-    // Only attempt to update database records for non-temp uploads
+    const publicUrl = urlData.publicUrl;
+    
+    // Only save to car_file_uploads if this is an actual car ID, not a temp one
     if (carId !== "temp") {
-      // Record in database
       try {
-        await supabase
+        // When we have an actual carId, directly insert a record into car_file_uploads
+        // This will use the RLS policies we set up
+        const { error: dbError } = await supabase
           .from('car_file_uploads')
           .insert({
             car_id: carId,
             file_path: filePath,
             file_type: file.type,
+            category: standardCategory,
             upload_status: 'completed',
-            category: standardCategory, // Use the dedicated category column
             image_metadata: {
-              size: fileToUpload.size,
-              name: file.name
+              size: file.size,
+              name: file.name,
+              type: file.type,
+              originalName: file.name
             }
           });
           
-        // Update car record
-        await updateCarRecordWithImage(carId, filePath, standardCategory);
+        if (dbError) {
+          console.error('Error recording file upload to database:', dbError);
+        }
       } catch (dbError) {
-        console.warn('Warning: Could not record file in database:', dbError);
-        // Continue anyway as the file is uploaded
+        console.error('Exception recording file upload to database:', dbError);
       }
     } else {
       // For temporary uploads, store metadata in localStorage for later association
-      try {
-        const tempUploadsKey = 'tempFileUploads';
-        const tempUploadsStr = localStorage.getItem(tempUploadsKey);
-        const tempUploads: TempFileMetadata[] = tempUploadsStr ? JSON.parse(tempUploadsStr) : [];
-        
-        const newUpload: TempFileMetadata = {
-          filePath,
-          publicUrl,
-          category: standardCategory, // Store standardized category
-          uploadId,
-          timestamp: new Date().toISOString()
-        };
-        
-        // Check if we already have this file path stored to avoid duplicates
-        const existingIndex = tempUploads.findIndex(tu => tu.filePath === filePath);
-        if (existingIndex >= 0) {
-          tempUploads[existingIndex] = newUpload;
-        } else {
-          tempUploads.push(newUpload);
-        }
-        
-        localStorage.setItem(tempUploadsKey, JSON.stringify(tempUploads));
-        console.log(`Stored temp upload metadata (${tempUploads.length} total) for future association: ${filePath}`);
-      } catch (e) {
-        console.warn('Could not store temp upload metadata:', e);
-      }
+      storeTempFileMetadata({
+        filePath,
+        publicUrl,
+        category: standardCategory,
+        uploadId: uuidv4(),
+        timestamp: new Date().toISOString(),
+        fileType: file.type,
+        fileSize: file.size,
+        originalName: file.name
+      });
     }
     
-    return publicUrl;
+    console.log(`Successfully uploaded file to ${filePath}. Public URL: ${publicUrl}`);
+    return filePath;
+    
   } catch (error) {
-    console.error('Direct upload failed:', error);
+    console.error('Error in directUploadPhoto:', error);
     return null;
   }
 };
 
 /**
- * Associates temporary uploads with a car ID after the car is created
+ * Store temporary file metadata in localStorage
+ */
+export const storeTempFileMetadata = (metadata: TempFileMetadata): void => {
+  try {
+    const existingDataStr = localStorage.getItem('tempFileUploads');
+    let existingData: TempFileMetadata[] = [];
+    
+    if (existingDataStr) {
+      try {
+        existingData = JSON.parse(existingDataStr);
+        // Validate it's actually an array
+        if (!Array.isArray(existingData)) {
+          console.error('Invalid tempFileUploads format in localStorage, resetting');
+          existingData = [];
+        }
+      } catch (e) {
+        console.error('Error parsing tempFileUploads:', e);
+        existingData = [];
+      }
+    }
+    
+    // Add new metadata
+    existingData.push(metadata);
+    
+    // Store back to localStorage
+    localStorage.setItem('tempFileUploads', JSON.stringify(existingData));
+    
+    console.log(`[storeTempFileMetadata] Stored metadata for file ${metadata.filePath}, total: ${existingData.length}`);
+  } catch (error) {
+    console.error('Error storing temp file metadata:', error);
+  }
+};
+
+/**
+ * Associate temporary uploads with a car
+ * This uses the direct insertion method with RLS policies
  */
 export const associateTempUploadsWithCar = async (carId: string): Promise<number> => {
   try {
     if (!carId) {
-      console.error('Cannot associate uploads: No car ID provided');
-      return 0;
+      throw new Error('No car ID provided');
     }
-
-    // Get user ID from session
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData.session?.user?.id;
     
-    if (!userId) {
-      console.error('Cannot associate uploads: No user ID available');
-      return 0;
-    }
-
-    // Retrieve temp uploads from localStorage
+    console.log(`[associateTempUploadsWithCar] Starting association for car ${carId}`);
+    
+    // Get temporary uploads from localStorage
     const tempUploadsStr = localStorage.getItem('tempFileUploads');
     if (!tempUploadsStr) {
-      console.log('No temporary uploads found to associate');
+      console.log(`[associateTempUploadsWithCar] No temp uploads found`);
       return 0;
     }
     
-    // Get the temp session ID
-    const tempSessionId = localStorage.getItem('tempSessionId');
-    if (!tempSessionId) {
-      console.log('No temp session ID found, cannot associate uploads');
-      return 0;
-    }
-    
-    console.log(`Associating temp uploads for session ${tempSessionId} with car ID ${carId}`);
-    
+    // Parse temporary uploads
+    let tempUploads: TempFileMetadata[];
     try {
-      const tempUploads: TempFileMetadata[] = JSON.parse(tempUploadsStr);
-      let associatedCount = 0;
-      const successfullyAssociated: string[] = [];
-      
-      for (const upload of tempUploads) {
-        try {
-          // Ensure we're using standardized category
-          const standardCategory = standardizePhotoCategory(upload.category);
-          
-          console.log(`Processing upload association for ${upload.filePath} in category ${standardCategory}`);
-          
-          // Record in database using the dedicated category column
-          const { error: dbError } = await supabase
-            .from('car_file_uploads')
-            .insert({
-              car_id: carId,
-              file_path: upload.filePath,
-              file_type: 'image/jpeg', // Default if not available
-              upload_status: 'completed',
-              category: standardCategory, // Use dedicated category column
-              image_metadata: {
-                url: upload.publicUrl,
-                timestamp: new Date().toISOString()
-              }
-            });
-            
-          if (dbError) {
-            console.warn(`Database error associating file ${upload.filePath}:`, dbError);
-            // Still try to update the car record even if the database insert failed
-          }
-          
-          // Update car record
-          await updateCarRecordWithImage(carId, upload.filePath, standardCategory);
-          associatedCount++;
-          successfullyAssociated.push(upload.filePath);
-        } catch (error) {
-          console.error(`Error associating upload ${upload.filePath} with car ${carId}:`, error);
-        }
+      tempUploads = JSON.parse(tempUploadsStr);
+      if (!Array.isArray(tempUploads)) {
+        throw new Error('Invalid tempFileUploads format');
       }
-      
-      // Only remove successfully associated uploads from localStorage
-      if (successfullyAssociated.length > 0) {
-        try {
-          const remaining = tempUploads.filter(
-            upload => !successfullyAssociated.includes(upload.filePath)
-          );
-          
-          if (remaining.length > 0) {
-            // Some files weren't associated, keep them in localStorage
-            localStorage.setItem('tempFileUploads', JSON.stringify(remaining));
-            console.log(`Kept ${remaining.length} unassociated files in localStorage`);
-          } else {
-            // All files were associated, clear localStorage
-            localStorage.removeItem('tempFileUploads');
-            localStorage.removeItem('tempSessionId');
-            console.log(`Cleared temporary storage after associating all ${associatedCount} uploads`);
-          }
-        } catch (e) {
-          console.warn('Error updating localStorage after association:', e);
-        }
-      }
-      
-      console.log(`Associated ${associatedCount} temporary uploads with car ${carId}`);
-      return associatedCount;
-    } catch (parseError) {
-      console.error('Error parsing temporary uploads from localStorage:', parseError);
+    } catch (e) {
+      console.error(`[associateTempUploadsWithCar] Error parsing temp uploads:`, e);
       return 0;
     }
+    
+    if (tempUploads.length === 0) {
+      console.log(`[associateTempUploadsWithCar] Temp uploads array is empty`);
+      return 0;
+    }
+    
+    console.log(`[associateTempUploadsWithCar] Found ${tempUploads.length} temp uploads to associate`);
+    
+    // This will track successful records
+    const insertedRecords: any[] = [];
+    
+    // Process each upload with direct database insert
+    for (const upload of tempUploads) {
+      try {
+        // Prepare the data for insertion
+        const fileUpload = {
+          car_id: carId,
+          file_path: upload.filePath,
+          file_type: upload.fileType || 'image/jpeg',
+          category: standardizePhotoCategory(upload.category),
+          upload_status: 'completed',
+          image_metadata: {
+            publicUrl: upload.publicUrl,
+            originalName: upload.originalName || 'image.jpg',
+            size: upload.fileSize,
+            uploadId: upload.uploadId,
+            timestamp: upload.timestamp
+          }
+        };
+        
+        // Insert directly to car_file_uploads - uses our RLS policies
+        const { data, error } = await supabase
+          .from('car_file_uploads')
+          .insert(fileUpload)
+          .select();
+        
+        if (error) {
+          console.error(`[associateTempUploadsWithCar] Error inserting file upload record:`, error);
+          continue;
+        }
+        
+        insertedRecords.push(data[0]);
+        
+        // Also update the car's photo fields to ensure UI consistency
+        await updateCarRecordWithImage(carId, upload.filePath, upload.category);
+        
+      } catch (err) {
+        console.error(`[associateTempUploadsWithCar] Error processing upload:`, err);
+      }
+    }
+    
+    // Clear the temp uploads from localStorage after successful association
+    if (insertedRecords.length > 0) {
+      localStorage.removeItem('tempFileUploads');
+      console.log(`[associateTempUploadsWithCar] Successfully associated ${insertedRecords.length} images with car ${carId}`);
+    }
+    
+    return insertedRecords.length;
+    
   } catch (error) {
-    console.error('Error associating temporary uploads:', error);
+    console.error('[associateTempUploadsWithCar] Association error:', error);
     return 0;
   }
 };
 
 export default {
+  directUploadPhoto,
   uploadImagesForCar,
   getPublicUrl,
-  directUploadPhoto,
-  associateTempUploadsWithCar
+  associateTempUploadsWithCar,
+  storeTempFileMetadata
 };

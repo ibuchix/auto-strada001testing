@@ -1,205 +1,87 @@
 
 /**
- * Global Temporary File Upload Manager
+ * Temporary File Upload Manager Hook
  * Created: 2025-05-19
- * 
- * This hook provides a global upload manager that can be used to track and manage
- * temporary file uploads across the application. It registers with a global object
- * that other components can access.
+ * Updated: 2025-05-24 - Added better tracking and management of temporary files
+ * Updated: 2025-06-21 - Enhanced to work with direct database inserts for associating files
  */
 
-import { useEffect, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { useState, useRef, useCallback } from 'react';
 
-// Define the interface for the global file upload manager
-interface TempFileUploadManager {
-  registerUpload: (id: string, file: File) => void;
-  registerCompletion: (id: string) => void;
-  registerFailure: (id: string) => void;
-  pendingFileCount: () => number;
-  pendingFiles: () => Record<string, File>;
-  clearAll: () => void;
-  stats: () => {
-    pending: number;
-    completed: number;
-    failed: number;
-    total: number;
-  };
+interface UploadRegistration {
+  id: string;
+  file: File;
+  startTime: number; 
 }
 
-// Create the global upload manager
-const createUploadManager = (): TempFileUploadManager => {
-  // Track uploads by ID
-  const pendingUploads = new Map<string, File>();
-  const completedUploads = new Set<string>();
-  const failedUploads = new Set<string>();
+export const useTempFileUploadManager = () => {
+  const pendingUploadsRef = useRef<Record<string, UploadRegistration>>({});
+  const [pendingCount, setPendingCount] = useState<number>(0);
   
   // Register a new upload
-  const registerUpload = (id: string, file: File) => {
-    console.log(`[TempFileUploadManager] Registering upload: ${id}, file: ${file.name}`);
-    pendingUploads.set(id, file);
-  };
-  
-  // Mark an upload as completed
-  const registerCompletion = (id: string) => {
-    if (pendingUploads.has(id)) {
-      console.log(`[TempFileUploadManager] Marked complete: ${id}`);
-      pendingUploads.delete(id);
-      completedUploads.add(id);
-    }
-  };
-  
-  // Mark an upload as failed
-  const registerFailure = (id: string) => {
-    if (pendingUploads.has(id)) {
-      console.log(`[TempFileUploadManager] Marked failed: ${id}`);
-      const filename = pendingUploads.get(id)?.name || 'unknown';
-      pendingUploads.delete(id);
-      failedUploads.add(id);
-    }
-  };
-  
-  // Get the number of pending uploads
-  const pendingFileCount = () => {
-    return pendingUploads.size;
-  };
-  
-  // Get the currently pending files
-  const pendingFiles = () => {
-    const files: Record<string, File> = {};
-    pendingUploads.forEach((file, id) => {
-      files[id] = file;
-    });
-    return files;
-  };
-  
-  // Clear all uploads
-  const clearAll = () => {
-    console.log(`[TempFileUploadManager] Clearing all uploads`);
-    pendingUploads.clear();
-    completedUploads.clear();
-    failedUploads.clear();
-  };
-  
-  // Get statistics
-  const stats = () => {
-    return {
-      pending: pendingUploads.size,
-      completed: completedUploads.size,
-      failed: failedUploads.size,
-      total: pendingUploads.size + completedUploads.size + failedUploads.size
-    };
-  };
-  
-  return {
-    registerUpload,
-    registerCompletion,
-    registerFailure,
-    pendingFileCount,
-    pendingFiles,
-    clearAll,
-    stats
-  };
-};
-
-/**
- * Hook to create and register a file upload manager globally
- */
-export const useTempFileUploadManager = () => {
-  const idRef = useRef<string>(uuidv4());
-  
-  // Initialize on first render
-  useEffect(() => {
-    // Initialize global manager if it doesn't exist
-    if (typeof window !== 'undefined') {
-      if (!(window as any).__tempFileUploadManager) {
-        console.log('[TempFileUploadManager] Initializing global upload manager');
-        (window as any).__tempFileUploadManager = createUploadManager();
-      }
-    }
+  const registerUpload = useCallback((file: File): string => {
+    const id = `upload_${Math.random().toString(36).substring(2, 10)}`;
     
-    // Clean up on unmount
-    return () => {
-      // Optional: Clean up any resources if component unmounts
+    pendingUploadsRef.current[id] = {
+      id,
+      file,
+      startTime: Date.now()
     };
+    
+    setPendingCount(current => current + 1);
+    
+    console.log(`[TempFileUploadManager] Registered upload ${id} for ${file.name}, total pending: ${Object.keys(pendingUploadsRef.current).length}`);
+    
+    return id;
   }, []);
   
-  // Get the global manager
-  const getManager = (): TempFileUploadManager | null => {
-    if (typeof window !== 'undefined') {
-      return (window as any).__tempFileUploadManager || null;
-    }
-    return null;
-  };
-  
-  // Register a file upload
-  const registerUpload = (file: File): string => {
-    const uploadId = `${idRef.current}-${uuidv4()}`;
-    const manager = getManager();
-    
-    if (manager) {
-      manager.registerUpload(uploadId, file);
-    } else {
-      console.error('[TempFileUploadManager] Manager not available');
-    }
-    
-    return uploadId;
-  };
-  
   // Mark an upload as complete
-  const registerCompletion = (uploadId: string) => {
-    const manager = getManager();
-    
-    if (manager) {
-      manager.registerCompletion(uploadId);
+  const registerCompletion = useCallback((id: string) => {
+    if (pendingUploadsRef.current[id]) {
+      const elapsedMs = Date.now() - pendingUploadsRef.current[id].startTime;
+      console.log(`[TempFileUploadManager] Upload ${id} complete in ${elapsedMs}ms`);
+      
+      delete pendingUploadsRef.current[id];
+      setPendingCount(current => Math.max(0, current - 1));
     }
-  };
+  }, []);
   
   // Mark an upload as failed
-  const registerFailure = (uploadId: string) => {
-    const manager = getManager();
-    
-    if (manager) {
-      manager.registerFailure(uploadId);
+  const registerFailure = useCallback((id: string) => {
+    if (pendingUploadsRef.current[id]) {
+      const elapsedMs = Date.now() - pendingUploadsRef.current[id].startTime;
+      console.warn(`[TempFileUploadManager] Upload ${id} failed after ${elapsedMs}ms`);
+      
+      delete pendingUploadsRef.current[id];
+      setPendingCount(current => Math.max(0, current - 1));
     }
-  };
+  }, []);
   
-  // Get pending file count
-  const getPendingCount = (): number => {
-    const manager = getManager();
-    return manager ? manager.pendingFileCount() : 0;
-  };
+  // Get the number of pending uploads
+  const getPendingCount = useCallback(() => {
+    return Object.keys(pendingUploadsRef.current).length;
+  }, []);
   
-  // Verify all uploads are complete
-  const verifyAllUploadsComplete = (): boolean => {
-    const manager = getManager();
-    return manager ? manager.pendingFileCount() === 0 : true;
-  };
+  // Check if there are any uploads in progress
+  const hasUploadsInProgress = useCallback(() => {
+    return getPendingCount() > 0;
+  }, [getPendingCount]);
   
-  // Clear all uploads
-  const clearAllUploads = () => {
-    const manager = getManager();
-    if (manager) {
-      manager.clearAll();
-    }
-  };
-  
-  // Get upload stats
-  const getStats = () => {
-    const manager = getManager();
-    return manager ? manager.stats() : { pending: 0, completed: 0, failed: 0, total: 0 };
-  };
+  // Reset the manager (useful for cleanup)
+  const resetManager = useCallback(() => {
+    pendingUploadsRef.current = {};
+    setPendingCount(0);
+  }, []);
   
   return {
     registerUpload,
     registerCompletion,
     registerFailure,
     getPendingCount,
-    verifyAllUploadsComplete,
-    clearAllUploads,
-    getStats
+    hasUploadsInProgress,
+    resetManager,
+    pendingCount
   };
 };
 
-// Export the hook
 export default useTempFileUploadManager;

@@ -6,6 +6,7 @@
  * Updated: 2025-06-04 - Enhanced error handling with retry mechanism and direct database fallback
  * Updated: 2025-06-10 - Fixed UUID handling issues and improved error logging for debugging
  * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
+ * Updated: 2025-06-21 - Removed RPC dependency and simplified submission with direct inserts
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -78,13 +79,14 @@ export const submitCarListing = async (
 };
 
 /**
- * Create car listing using RPC function to bypass RLS restrictions
+ * Create car listing using direct database insert
+ * This eliminates the circular dependency on RPC functions
  */
-export const createCarUsingRPC = async (formData: CarListingFormData, userId: string): Promise<{ id: string }> => {
+export const createCarListing = async (formData: CarListingFormData, userId: string): Promise<{ id: string }> => {
   try {
     // Generate a trace ID for tracking this operation through logs
     const traceId = Math.random().toString(36).substring(2, 10);
-    console.log(`[CreateCar][${traceId}] Creating car using RPC function...`);
+    console.log(`[CreateCar][${traceId}] Creating car using direct database insert...`);
     
     // Prepare data ensuring proper type handling
     const preparedData = prepareSubmission(formData);
@@ -95,48 +97,46 @@ export const createCarUsingRPC = async (formData: CarListingFormData, userId: st
       throw new Error("Invalid user ID format");
     }
     
-    // Log the exact data being sent to detect any issues
-    console.log(`[CreateCar][${traceId}] Sending data to create_car_listing:`, {
+    // Log the exact data being used for insert
+    console.log(`[CreateCar][${traceId}] Inserting car data:`, {
       dataKeys: Object.keys(preparedData),
       userId: userId
     });
     
-    // Call the create_car_listing function with explicit parameter naming
+    // Insert directly to cars table - this uses our RLS policies
     const { data, error } = await supabase
-      .rpc('create_car_listing', {
-        p_car_data: preparedData,
-        p_user_id: userId
-      });
+      .from('cars')
+      .insert({
+        ...preparedData,
+        seller_id: userId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_draft: true,
+        status: 'available'
+      })
+      .select('id')
+      .single();
     
     if (error) {
-      console.error(`[CreateCar][${traceId}] RPC error:`, error);
+      console.error(`[CreateCar][${traceId}] Insert error:`, error);
       
-      // Handle known error types with informative messages
-      if (error.code === 'PGRST202') {
-        console.error(`[CreateCar][${traceId}] Function not found in schema cache. Check if the function exists and parameters match.`);
-      } else if (error.code === '22P02') {
-        console.error(`[CreateCar][${traceId}] Invalid UUID format. Check parameter types.`);
-      } else if (error.code === '42501') {
-        console.error(`[CreateCar][${traceId}] Permission denied. Verify RLS policies.`);
-      }
-      
-      // Fall back to standard method if RPC fails
+      // Fall back to standard method if direct insert fails
       console.log(`[CreateCar][${traceId}] Falling back to standard submission method`);
       return submitCarListing(formData, userId);
     }
     
-    if (!data || !data.car_id) {
-      console.error(`[CreateCar][${traceId}] Missing car_id in response:`, data);
+    if (!data || !data.id) {
+      console.error(`[CreateCar][${traceId}] Missing id in response:`, data);
       throw new Error("Missing car ID in response");
     }
     
-    console.log(`[CreateCar][${traceId}] Successfully created car using RPC:`, data);
-    return { id: data.car_id };
+    console.log(`[CreateCar][${traceId}] Successfully created car:`, data);
+    return { id: data.id };
     
   } catch (error) {
-    console.error("Error in createCarUsingRPC:", error);
+    console.error("Error in createCarListing:", error);
     
-    // Fall back to standard method if RPC fails
+    // Fall back to standard method if there's any error
     console.log("Falling back to standard submission method");
     return submitCarListing(formData, userId);
   }
@@ -144,5 +144,5 @@ export const createCarUsingRPC = async (formData: CarListingFormData, userId: st
 
 export default {
   submitCarListing,
-  createCarUsingRPC
+  createCarListing
 };
