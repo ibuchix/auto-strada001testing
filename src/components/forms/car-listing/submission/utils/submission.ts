@@ -17,6 +17,7 @@
  * - 2025-05-21: Added field name conversion from camelCase to snake_case to fix database schema compatibility
  * - 2025-05-21: Added exclusion of frontend-only fields like fromValuation
  * - 2025-05-22: Added finance-related fields to frontend-only fields list
+ * - 2025-05-23: Added isSellingOnBehalf to frontend-only fields list to fix database schema error
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -86,7 +87,8 @@ const FRONTEND_ONLY_FIELDS = [
   'hasOutstandingFinance', // Added - frontend field only
   'financeProvider',       // Added - frontend field only
   'financeEndDate',        // Added - frontend field only
-  'financeDocument'        // Added - frontend field only
+  'financeDocument',       // Added - frontend field only
+  'isSellingOnBehalf'      // Added - frontend field only
 ];
 
 /**
