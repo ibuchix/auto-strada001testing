@@ -107,10 +107,10 @@ export const ListingCard = ({
       console.log(`Auth status confirmed for user: ${sessionData.session.user.id}`);
       
       // Calculate reserve price if missing
-      let finalReservePrice = reserve_price;
-      if (!finalReservePrice && valuationData?.basePrice) {
-        finalReservePrice = calculateReservePrice(valuationData.basePrice);
-        console.log(`Calculated reserve price on activation: ${finalReservePrice}`);
+      let localReservePrice = reserve_price;
+      if (!localReservePrice && valuationData?.basePrice) {
+        localReservePrice = calculateReservePrice(valuationData.basePrice);
+        console.log(`Calculated reserve price on activation: ${localReservePrice}`);
       }
       
       // Use the transition_car_status function instead of activate_listing for more reliable updates
@@ -156,7 +156,7 @@ export const ListingCard = ({
           { 
             p_listing_id: id,
             p_user_id: authSession.session.user.id,
-            p_reserve_price: finalReservePrice
+            p_reserve_price: localReservePrice
           }
         );
 
