@@ -7,10 +7,12 @@
  * Updated: 2025-05-21 - Fixed bucket name mismatch and improved path structure
  * Updated: 2025-05-23 - Added better error handling for Bucket not found errors
  * Updated: 2025-05-24 - Fixed TypeScript error with StorageError status property
+ * Updated: 2025-05-25 - Integrated with centralized storage config
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { STORAGE_BUCKET, STORAGE_PATHS } from "@/config/storage";
 
 /**
  * Associate temporary uploads with a car record using the improved RLS policies
@@ -90,9 +92,9 @@ export const directUploadPhoto = async (
       throw new Error(`Invalid file type: ${file.type}. Please upload an image file.`);
     }
     
-    // Check if user is authenticated
+    // Check authentication status
     const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
+    if (!sessionData?.session) {
       throw new Error('User authentication required for file uploads');
     }
     
@@ -101,17 +103,16 @@ export const directUploadPhoto = async (
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${uniqueId}.${fileExt}`;
     
-    // Use a proper path structure that matches the server-side code
-    // IMPORTANT: Use 'car-images' bucket and ensure the path starts with 'cars/'
+    // Use proper path structure and bucket name from config
     const filePath = path === "temp" 
-      ? `cars/temp/${category}/${fileName}` 
-      : `cars/${path}/${category}/${fileName}`;
+      ? `${STORAGE_PATHS.TEMP}${category}/${fileName}` 
+      : `${STORAGE_PATHS.CARS}${path}/${category}/${fileName}`;
     
-    console.log(`[UploadService] Uploading to path: ${filePath}, bucket: car-images`);
+    console.log(`[UploadService] Uploading to path: ${filePath}, bucket: ${STORAGE_BUCKET}`);
     
-    // Upload to 'car-images' bucket
+    // Upload to the bucket from config
     const { data, error } = await supabase.storage
-      .from('car-images')
+      .from(STORAGE_BUCKET)
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false
@@ -122,7 +123,7 @@ export const directUploadPhoto = async (
       
       // More specific error messages based on error message content instead of status code
       if (error.message?.includes('bucket') || error.message?.includes('404')) {
-        throw new Error(`Storage bucket error: ${error.message || 'Bucket not found'}. Ensure the car-images bucket exists and you have permission to access it.`);
+        throw new Error(`Storage bucket error: ${error.message || 'Bucket not found'}. Ensure the ${STORAGE_BUCKET} bucket exists and you have permission to access it.`);
       } else if (error.message?.includes('Permission denied') || error.message?.includes('403')) {
         throw new Error('You do not have permission to upload files. Please sign in again or contact support.');
       } else {
@@ -132,7 +133,7 @@ export const directUploadPhoto = async (
     
     // Get the public URL for the uploaded file
     const { data: publicUrlData } = supabase.storage
-      .from('car-images')
+      .from(STORAGE_BUCKET)
       .getPublicUrl(filePath);
     
     const publicUrl = publicUrlData?.publicUrl || '';

@@ -1,3 +1,4 @@
+
 /**
  * Service for managing photo storage operations
  * Updated: 2025-05-18 - Added verification and recovery for database records
@@ -8,6 +9,7 @@
  * Updated: 2025-05-20 - Implemented standardized photo category naming
  * Updated: 2025-05-23 - Improved auth session validation and bucket error handling
  * Updated: 2025-05-24 - Fixed TypeScript error with StorageError status property
+ * Updated: 2025-05-25 - Integrated with centralized storage configuration
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -15,11 +17,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { compressImage } from '../utils/imageCompression';
 import { savePhotoToDb, verifyPhotoDbRecord } from './photoDbService';
 import { standardizePhotoCategory } from '@/utils/photoMapping';
+import { STORAGE_BUCKET, STORAGE_PATHS } from "@/config/storage";
 
 // Constants
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
-const STORAGE_BUCKET = 'car-images';
 
 /**
  * Uploads a photo to Supabase Storage and saves info to the database
@@ -79,10 +81,10 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${uuidv4()}.${fileExt}`;
       
-      // IMPORTANT: Always use 'cars/' prefix in the path
+      // IMPORTANT: Always use 'cars/' prefix in the path and use centralized config
       const filePath = carId === "temp" 
-        ? `cars/temp/${standardCategory}/${fileName}` 
-        : `cars/${carId}/${standardCategory}/${fileName}`;
+        ? `${STORAGE_PATHS.TEMP}${standardCategory}/${fileName}` 
+        : `${STORAGE_PATHS.CARS}${carId}/${standardCategory}/${fileName}`;
       
       console.log(`Direct upload to storage path: ${filePath}, bucket: ${STORAGE_BUCKET}`);
       

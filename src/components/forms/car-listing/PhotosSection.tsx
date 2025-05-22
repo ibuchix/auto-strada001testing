@@ -3,6 +3,7 @@
  * PhotosSection Component
  * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
  * Updated: 2025-05-24 - Updated to use camelCase field names consistently
+ * Updated: 2025-05-25 - Fixed storage bucket reference and integrated central storage config
  */
 import { useState, useEffect } from "react";
 import { useFormData } from "./context/FormDataContext";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, X, AlertCircle, Check } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { STORAGE_BUCKET } from "@/config/storage";
 
 // Create minimal implementation since useImageUpload doesn't exist
 interface ImageUploadHook {
@@ -62,6 +64,10 @@ const useImageUpload = (options: { category: string; maxFiles: number }): ImageU
       }
       
       setSelectedImages(newSelectedImages);
+      
+      // Log the bucket name we're using to help debug
+      console.log(`[PhotosSection] Using storage bucket: ${STORAGE_BUCKET}`);
+      
       return urls;
     } catch (error) {
       setIsUploading(false);
@@ -99,6 +105,9 @@ interface PhotosSectionProps {
 export const PhotosSection = ({ carId }: PhotosSectionProps) => {
   const { form } = useFormData();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // Use the storage bucket name from centralized config
+  const storageBucket = STORAGE_BUCKET;
   
   const { 
     uploadImages, 

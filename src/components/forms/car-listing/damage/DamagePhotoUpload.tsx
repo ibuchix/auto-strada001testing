@@ -6,6 +6,7 @@
  * - 2024-03-19: Implemented error notifications
  * - 2025-05-24: Improved bucket error handling and authentication validation
  * - 2025-05-24: Fixed TypeScript error with StorageError status property
+ * - 2025-05-25: Integrated with centralized storage configuration
  */
 
 import { useState } from "react";
@@ -14,6 +15,7 @@ import { FormLabel } from "@/components/ui/form";
 import { DamageType } from "../types/damages";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { STORAGE_BUCKET, STORAGE_PATHS } from "@/config/storage";
 
 interface DamagePhotoUploadProps {
   damageType: DamageType;
@@ -44,11 +46,13 @@ export const DamagePhotoUpload = ({ damageType, carId, onPhotoUploaded }: Damage
       const uniqueId = crypto.randomUUID();
       const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `${uniqueId}.${fileExt}`;
-      const filePath = `cars/${carId}/damage_photos/${damageType}/${fileName}`;
       
-      // Upload to the car-images bucket
+      // Use the storage config for proper path structure
+      const filePath = `${STORAGE_PATHS.CARS}${carId}/damage_photos/${damageType}/${fileName}`;
+      
+      // Upload to the configured bucket
       const { data, error } = await supabase.storage
-        .from('car-images')
+        .from(STORAGE_BUCKET)
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true
@@ -57,7 +61,7 @@ export const DamagePhotoUpload = ({ damageType, carId, onPhotoUploaded }: Damage
       if (error) {
         // Handle specific error types - using message content instead of status code
         if (error.message?.includes('bucket') || error.message?.includes('404')) {
-          throw new Error(`Storage bucket error: ${error.message || 'Bucket not found'}. Please ensure the car-images bucket exists.`);
+          throw new Error(`Storage bucket error: ${error.message || 'Bucket not found'}. Please ensure the ${STORAGE_BUCKET} bucket exists.`);
         } else if (error.message?.includes('Permission denied') || error.message?.includes('403')) {
           throw new Error('You do not have permission to upload files. Please sign in again.');
         } else {
@@ -67,7 +71,7 @@ export const DamagePhotoUpload = ({ damageType, carId, onPhotoUploaded }: Damage
       
       // Get public URL
       const { data: urlData } = supabase.storage
-        .from('car-images')
+        .from(STORAGE_BUCKET)
         .getPublicUrl(filePath);
       
       const publicUrl = urlData?.publicUrl || '';
