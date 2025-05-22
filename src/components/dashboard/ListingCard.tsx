@@ -12,6 +12,7 @@
  * - 2025-05-08: Improved navigation to car details page
  * - 2025-05-19: Fixed reserve price calculation to prioritize database field over calculated value
  * - 2025-06-03: Enhanced activation functionality with better error handling and feedback
+ * - 2025-06-22: Fixed TypeScript errors with sessionData and finalReservePrice variables
  */
 
 import { Card } from "@/components/ui/card";
@@ -144,11 +145,17 @@ export const ListingCard = ({
       // Try a fallback approach using the original activate_listing method
       try {
         console.log('Attempting fallback activation method...');
+        const { data: authSession } = await supabase.auth.getSession();
+        
+        if (!authSession?.session) {
+          throw new Error("Authentication session required");
+        }
+        
         const { data, error } = await supabase.rpc(
           'activate_listing',
           { 
             p_listing_id: id,
-            p_user_id: sessionData.session.user.id,
+            p_user_id: authSession.session.user.id,
             p_reserve_price: finalReservePrice
           }
         );
