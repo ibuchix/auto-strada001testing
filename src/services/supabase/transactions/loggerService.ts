@@ -4,6 +4,7 @@
  * Created: 2025-04-20 - Handle logging transaction events
  * Updated: 2025-05-24 - Fixed action type casting for audit logs
  * Updated: 2025-05-25 - Fixed type issues with Supabase insertions and added logTransaction method
+ * Updated: 2025-05-26 - Fixed database insertion type safety issues
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -81,9 +82,9 @@ export class TransactionLogger {
     userId?: string
   ) {
     try {
-      // Ensure we have the required properties directly in the object
-      const logEntry = {
-        action: action,
+      // Create a properly typed object to insert directly
+      const insertData = {
+        action,
         entity_type: entityType,
         entity_id: entityId,
         user_id: userId,
@@ -91,7 +92,9 @@ export class TransactionLogger {
       };
       
       // Insert with proper conversion for Supabase
-      await supabase.from('audit_logs').insert(toSupabaseObject(logEntry));
+      await supabase
+        .from('audit_logs')
+        .insert(insertData);
       
       return true;
     } catch (error) {
@@ -110,8 +113,8 @@ export class TransactionLogger {
     details?: Record<string, any>
   ) {
     try {
-      // Ensure we have the required properties directly in the object
-      const logEntry = {
+      // Create a properly typed object to insert directly
+      const insertData = {
         log_type: 'error',
         message: errorMessage,
         details: {
@@ -122,7 +125,9 @@ export class TransactionLogger {
       };
       
       // Insert with proper conversion for Supabase
-      await supabase.from('system_logs').insert(toSupabaseObject(logEntry));
+      await supabase
+        .from('system_logs')
+        .insert(insertData);
       
       return true;
     } catch (error) {
