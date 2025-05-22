@@ -17,6 +17,7 @@
  * - 2025-06-07: Fixed circular dependency by exporting directly from auth index
  * - 2025-06-20: Fixed circular imports by making this a direct import from AuthProvider
  * - 2025-06-21: Removed file content to prevent circular dependency issues
+ * - 2025-06-22: Simplified import to directly use the AuthProvider
  */
 
 // This file is intentionally left empty to prevent circular dependencies

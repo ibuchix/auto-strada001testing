@@ -9,6 +9,8 @@
  * - 2025-05-08: Added SessionContextProvider for Supabase authentication
  * - 2025-05-08: Removed duplicate BrowserRouter to fix router nesting error
  * - 2025-06-21: Simplified provider hierarchy to prevent React hooks errors
+ * - 2025-06-22: Added AuthProvider to fix useAuth context error
+ * - 2025-06-22: Added BrowserRouter to correctly configure routing
  */
 
 import React from 'react';
@@ -16,7 +18,9 @@ import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './components/ui/theme-provider';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
+import { BrowserRouter } from 'react-router-dom';
 import { supabase } from './integrations/supabase/client';
+import { AuthProvider } from './components/AuthProvider';
 import App from './App';
 import './index.css';
 
@@ -41,9 +45,13 @@ if (!rootElement) {
   root.render(
     <React.StrictMode>
       <SessionContextProvider supabaseClient={supabase}>
-        <QueryClientProvider client={queryClient}>
-          <App />
-        </QueryClientProvider>
+        <AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </QueryClientProvider>
+        </AuthProvider>
       </SessionContextProvider>
     </React.StrictMode>
   );
