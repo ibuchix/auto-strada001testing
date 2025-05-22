@@ -14,17 +14,15 @@
  * - 2025-06-03: Enhanced activation functionality with better error handling and feedback
  * - 2025-06-22: Fixed TypeScript errors with sessionData and finalReservePrice variables
  * - 2025-06-27: Removed all fallback logic and database reserve_price usage to ensure consistency in pricing
+ * - 2025-05-22: Refactored into smaller components with dedicated hooks
  */
 
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { useState, useEffect } from "react";
-import { formatPrice, calculateReservePrice } from "@/utils/valuation/reservePriceCalculator";
-import { useCarStatusTransitions } from "@/hooks/useCarStatusTransitions";
+import { useReservePrice } from "@/hooks/useReservePrice";
+import { useListingActivation } from "@/hooks/useListingActivation";
+import { ListingCardPrice } from "./ListingCardPrice";
+import { ListingCardActions } from "./ListingCardActions";
 
 interface ListingCardProps {
   id: string;
@@ -34,7 +32,7 @@ interface ListingCardProps {
   isDraft: boolean;
   onStatusChange?: () => void;
   valuationData?: any;
-  reserve_price?: number; // Database reserve_price field (no longer used)
+  reserve_price?: number; // Kept in interface for backward compatibility but not used
 }
 
 export const ListingCard = ({ 
@@ -44,139 +42,24 @@ export const ListingCard = ({
   status, 
   isDraft, 
   onStatusChange,
-  valuationData,
-  reserve_price // Kept in interface for backward compatibility but not used
+  valuationData
 }: ListingCardProps) => {
   const navigate = useNavigate();
-  const [isActivating, setIsActivating] = useState(false);
-  const [displayPrice, setDisplayPrice] = useState<number | null>(null);
-  const { transitionStatus } = useCarStatusTransitions({
-    onTransitionSuccess: () => {
-      if (onStatusChange) onStatusChange();
-    }
+  
+  // Use our custom hooks
+  const { reservePrice, isCalculating } = useReservePrice({ 
+    valuationData 
   });
   
-  // Calculate reserve price using ONLY our pricing logic, no fallbacks to database value
-  useEffect(() => {
-    const calculateDisplayPrice = async () => {
-      try {
-        if (valuationData && valuationData.basePrice) {
-          const calculatedReserve = calculateReservePrice(valuationData.basePrice);
-          console.log(`Calculated reserve price for card ${id}: ${calculatedReserve} from base ${valuationData.basePrice}`);
-          setDisplayPrice(calculatedReserve);
-        } else {
-          console.log(`No valuation data available for card ${id}, cannot calculate reserve price`);
-          setDisplayPrice(null);
-        }
-      } catch (error) {
-        console.error("Error in calculateDisplayPrice:", error);
-        setDisplayPrice(null); // Don't show any price if we can't calculate it properly
-      }
-    };
-    
-    calculateDisplayPrice();
-  }, [id, valuationData]);
+  const { isActivating, activateListing } = useListingActivation({
+    onActivationSuccess: onStatusChange
+  });
 
-  const activateListing = async () => {
-    if (isActivating) return;
-    
-    setIsActivating(true);
-    try {
-      console.log('Activating listing with ID:', id);
-      
-      // Get current user session to confirm auth status
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
-        throw new Error("You must be logged in to activate a listing");
-      }
-      
-      console.log(`Auth status confirmed for user: ${sessionData.session.user.id}`);
-      
-      // Calculate reserve price using ONLY our pricing logic
-      let calculatedReservePrice: number | null = null;
-      if (valuationData?.basePrice) {
-        calculatedReservePrice = calculateReservePrice(valuationData.basePrice);
-        console.log(`Calculated reserve price on activation: ${calculatedReservePrice}`);
-      } else {
-        throw new Error("Cannot activate listing without valuation data");
-      }
-      
-      // Use the transition_car_status function instead of activate_listing for more reliable updates
-      const result = await transitionStatus(
-        id,
-        'available',  // Set status to available
-        false         // Set isDraft to false
-      );
-      
-      if (!result) {
-        throw new Error("Failed to activate listing through transition");
-      }
-      
-      toast.success('Listing activated successfully', {
-        description: 'Your listing is now live and visible to dealers'
-      });
-      
-      // Force refresh the listings
-      if (onStatusChange) onStatusChange();
-    } catch (error: any) {
-      console.error('Error activating listing:', error);
-      
-      // Show more detailed error message based on error type
-      if (error.code === '42501') {
-        toast.error("Permission denied. You may not have access to activate this listing.");
-      } else if (error.code && error.code.startsWith('2')) {
-        toast.error(`Database error: ${error.message}`);
-      } else {
-        toast.error(error.message || "Failed to activate listing");
-      }
-      
-      // Try a fallback approach using the original activate_listing method
-      try {
-        console.log('Attempting fallback activation method...');
-        const { data: authSession } = await supabase.auth.getSession();
-        
-        if (!authSession?.session) {
-          throw new Error("Authentication session required");
-        }
-        
-        // Calculate reserve price again to ensure it's in scope for this method
-        let calculatedReservePrice: number | null = null;
-        if (valuationData?.basePrice) {
-          calculatedReservePrice = calculateReservePrice(valuationData.basePrice);
-          console.log(`Recalculated reserve price for fallback activation: ${calculatedReservePrice}`);
-        } else {
-          throw new Error("Cannot activate listing without valuation data");
-        }
-        
-        const { data, error } = await supabase.rpc(
-          'activate_listing',
-          { 
-            p_listing_id: id,
-            p_user_id: authSession.session.user.id,
-            p_reserve_price: calculatedReservePrice
-          }
-        );
-
-        if (error) {
-          console.error('Fallback activation failed:', error);
-          toast.error(`Activation failed: ${error.message}`);
-        } else {
-          console.log('Fallback activation succeeded:', data);
-          toast.success('Listing activated successfully');
-          if (onStatusChange) onStatusChange();
-        }
-      } catch (fallbackError) {
-        console.error('Fallback activation error:', fallbackError);
-      }
-    } finally {
-      setIsActivating(false);
-      // Force refresh to ensure UI is updated
-      if (onStatusChange) onStatusChange();
-    }
+  const handleActivate = () => {
+    activateListing(id, valuationData);
   };
 
   const viewDetails = () => {
-    // Navigate to car details page
     navigate(`/dashboard/car/${id}`);
   };
 
@@ -188,32 +71,18 @@ export const ListingCard = ({
           <p className="text-subtitle text-sm">
             Status: <span className="capitalize">{isDraft ? 'Draft' : status}</span>
           </p>
-          <p className="text-primary font-semibold mt-1">
-            {displayPrice !== null ? formatPrice(displayPrice, 'PLN') : 'Calculating...'}
-          </p>
+          <ListingCardPrice 
+            price={reservePrice} 
+            isCalculating={isCalculating} 
+          />
         </div>
-        <div className="flex gap-2">
-          {isDraft && (
-            <Button 
-              variant="default"
-              size="sm"
-              onClick={activateListing}
-              disabled={isActivating || displayPrice === null}
-              className="bg-[#21CA6F] hover:bg-[#21CA6F]/90"
-            >
-              {isActivating ? 'Activating...' : 'Activate Listing'}
-            </Button>
-          )}
-          <Button 
-            variant="outline"
-            size="sm"
-            onClick={viewDetails}
-            className="flex items-center gap-2"
-          >
-            {isDraft ? 'See Details' : 'View Listing'}
-            <ExternalLink className="h-4 w-4" />
-          </Button>
-        </div>
+        <ListingCardActions 
+          isDraft={isDraft}
+          isActivating={isActivating}
+          canActivate={reservePrice !== null}
+          onActivate={handleActivate}
+          onViewDetails={viewDetails}
+        />
       </div>
     </Card>
   );
