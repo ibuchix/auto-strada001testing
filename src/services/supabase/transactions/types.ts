@@ -4,10 +4,11 @@
  * Created: 2025-07-22
  * Updated: 2025-05-11 - Added missing TransactionType enum values
  * Updated: 2025-05-11 - Fixed AuditLogAction enum values to match database types
- * Updated: 2025-05-26 - Aligned AuditLogAction enum exactly with database schema
+ * Updated: 2025-05-26 - Aligned AuditLogAction exactly with database schema
  * Updated: 2025-05-26 - Ensured AuditLogAction is a string union type matching database
  * Updated: 2025-05-27 - Updated AuditLogAction to include all valid database action types
  * Updated: 2025-05-29 - Fixed AuditLogAction to exactly match database audit_log_type enum
+ * Updated: 2025-05-30 - Removed "bid_process" which is not in the database schema
  */
 
 export enum TransactionType {
@@ -74,7 +75,6 @@ export type AuditLogAction =
   | 'auction_closed'
   | 'auto_proxy_bid'
   | 'start_auction'
-  | 'bid_process'
   | 'payment_process'
   | 'system_repair'
   | 'system_alert'

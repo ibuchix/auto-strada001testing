@@ -9,6 +9,7 @@
  * Updated: 2025-05-27 - Fixed action type mapping and casting for database compatibility
  * Updated: 2025-05-28 - Resolved type compatibility issues with the database schema
  * Updated: 2025-05-29 - Updated mapTransactionTypeToAction to map to database-compatible types
+ * Updated: 2025-05-30 - Fixed type issues with action mapping by using type assertions
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -86,10 +87,11 @@ export class TransactionLogger {
       const action = this.ensureValidAction(actionType);
       
       // Insert with explicit type for database compatibility
+      // Using explicit casting to the valid literals
       await supabase
         .from('audit_logs')
         .insert({
-          action, // TypeScript should infer this is now a valid database action type
+          action: action as AuditLogAction,
           entity_type: entityType,
           entity_id: entityId,
           user_id: userId,
@@ -112,7 +114,7 @@ export class TransactionLogger {
       'login', 'logout', 'create', 'update', 'delete',
       'verify', 'reject', 'approve', 'suspend', 'reinstate',
       'process_auctions', 'auction_closed', 'auto_proxy_bid',
-      'start_auction', 'bid_process', 'payment_process',
+      'start_auction', 'payment_process',
       'system_repair', 'system_alert', 'system_health_check',
       'auction_recovery'
     ];
