@@ -5,6 +5,7 @@
  * Updated: 2025-05-21 - Added direct image association using RLS policies
  * Updated: 2025-05-22 - Fixed TypeScript return type for directUploadPhoto
  * Updated: 2025-05-21 - Fixed bucket name mismatch and improved path structure
+ * Updated: 2025-05-23 - Added better error handling for Bucket not found errors
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -88,20 +89,26 @@ export const directUploadPhoto = async (
       throw new Error(`Invalid file type: ${file.type}. Please upload an image file.`);
     }
     
+    // Check if user is authenticated
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      throw new Error('User authentication required for file uploads');
+    }
+    
     // Create unique file path with better structure
     const uniqueId = crypto.randomUUID();
-    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${uniqueId}.${fileExt}`;
     
     // Use a proper path structure that matches the server-side code
-    // IMPORTANT: Changed 'car-photos' to 'car-images' to match the edge function
+    // IMPORTANT: Use 'car-images' bucket and ensure the path starts with 'cars/'
     const filePath = path === "temp" 
       ? `cars/temp/${category}/${fileName}` 
       : `cars/${path}/${category}/${fileName}`;
     
     console.log(`[UploadService] Uploading to path: ${filePath}, bucket: car-images`);
     
-    // Changed bucket name from 'car-photos' to 'car-images' to match the server-side code
+    // Upload to 'car-images' bucket
     const { data, error } = await supabase.storage
       .from('car-images')
       .upload(filePath, file, {
@@ -113,16 +120,16 @@ export const directUploadPhoto = async (
       console.error('[UploadService] Error uploading file:', error);
       
       // More specific error messages based on error type
-      if (error.message?.includes('No such bucket')) {
-        throw new Error('Storage configuration error. Please contact support.');
-      } else if (error.message?.includes('Permission denied')) {
-        throw new Error('You do not have permission to upload files. Please sign in again.');
+      if (error.message?.includes('bucket') || error.status === 404) {
+        throw new Error(`Storage bucket error: ${error.message || 'Bucket not found'}. Ensure the car-images bucket exists and you have permission to access it.`);
+      } else if (error.message?.includes('Permission denied') || error.status === 403) {
+        throw new Error('You do not have permission to upload files. Please sign in again or contact support.');
       } else {
-        throw new Error(`Upload failed: ${error.message}`);
+        throw new Error(`Upload failed: ${error.message || 'Unknown error'}`);
       }
     }
     
-    // Get the public URL for the uploaded file from the corrected bucket
+    // Get the public URL for the uploaded file
     const { data: publicUrlData } = supabase.storage
       .from('car-images')
       .getPublicUrl(filePath);
@@ -145,10 +152,12 @@ export const directUploadPhoto = async (
     uploads.push(uploadInfo);
     localStorage.setItem('temp_car_uploads', JSON.stringify(uploads));
     
-    // Return just the public URL string, not an object
+    // Return just the public URL string
     return publicUrl;
-  } catch (error) {
-    console.error('[UploadService] Error uploading photo:', error);
+  } catch (error: any) {
+    const errorMessage = error.message || 'Failed to upload photo. Please try again.';
+    console.error('[UploadService] Error uploading photo:', errorMessage, error);
+    
     // Re-throw the error for the caller to handle
     throw error;
   }

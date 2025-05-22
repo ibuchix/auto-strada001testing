@@ -1,3 +1,4 @@
+
 /**
  * Service for managing photo storage operations
  * Updated: 2025-05-18 - Added verification and recovery for database records
@@ -6,9 +7,10 @@
  * Updated: 2025-05-23 - Added retry mechanism and enhanced error handling
  * Updated: 2025-05-19 - Removed API route dependency and implemented direct upload
  * Updated: 2025-05-20 - Implemented standardized photo category naming
+ * Updated: 2025-05-23 - Improved auth session validation and bucket error handling
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { compressImage } from '../utils/imageCompression';
 import { savePhotoToDb, verifyPhotoDbRecord } from './photoDbService';
@@ -17,6 +19,7 @@ import { standardizePhotoCategory } from '@/utils/photoMapping';
 // Constants
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
+const STORAGE_BUCKET = 'car-images';
 
 /**
  * Uploads a photo to Supabase Storage and saves info to the database
@@ -47,7 +50,7 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       if (!carId) throw new Error('Car ID is required for photo upload');
       if (!standardCategory) throw new Error('Category is required for photo upload');
       
-      // Get user ID from auth session
+      // Get user ID from auth session - validate authentication
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
       
@@ -72,16 +75,20 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
         }
       }
 
-      // Create unique file path with standardized structure
+      // Create unique file path with better structure
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `${uuidv4()}.${fileExt}`;
-      const filePath = `cars/${userId}/${carId}/${standardCategory}/${fileName}`;
       
-      console.log(`Direct upload to storage path: ${filePath}`);
+      // IMPORTANT: Always use 'cars/' prefix in the path
+      const filePath = carId === "temp" 
+        ? `cars/temp/${standardCategory}/${fileName}` 
+        : `cars/${carId}/${standardCategory}/${fileName}`;
+      
+      console.log(`Direct upload to storage path: ${filePath}, bucket: ${STORAGE_BUCKET}`);
       
       // Direct upload to storage - no API route involved
       const { data, error } = await supabase.storage
-        .from('car-images')
+        .from(STORAGE_BUCKET)
         .upload(filePath, fileToUpload, {
           cacheControl: '3600',
           upsert: true
@@ -91,10 +98,10 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
         console.error('Error with direct upload:', error);
         
         // Check for specific storage errors
-        if (error.message?.includes('unauthorized')) {
+        if (error.message?.includes('bucket') || error.status === 404) {
+          throw new Error(`Storage bucket error: ${error.message || 'Bucket not found'}. Please ensure the '${STORAGE_BUCKET}' bucket exists and you have permission to access it.`);
+        } else if (error.message?.includes('Permission denied') || error.status === 403) {
           throw new Error('You do not have permission to upload files. Please sign in again.');
-        } else if (error.message?.includes('storage quota')) {
-          throw new Error('Storage quota exceeded. Please contact support.');
         } else {
           throw new Error(`Upload failed: ${error.message || 'Unknown storage error'}`);
         }
@@ -102,7 +109,7 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
 
       // Construct the public URL for the uploaded file
       const { data: { publicUrl } } = supabase.storage
-        .from('car-images')
+        .from(STORAGE_BUCKET)
         .getPublicUrl(filePath);
       
       console.log(`File uploaded successfully. Public URL: ${publicUrl}`);

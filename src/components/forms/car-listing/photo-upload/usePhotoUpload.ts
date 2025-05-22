@@ -11,6 +11,7 @@
  * - 2028-06-10: Removed diagnostic logging functionality
  * - 2025-05-23: Added database record verification and upload recovery
  * - 2025-05-19: Implemented direct upload without API routes
+ * - 2025-05-24: Added authentication verification before upload
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -57,6 +58,23 @@ export const usePhotoUpload = ({
     });
   };
   
+  // Check authentication status
+  const verifyAuthentication = async (): Promise<boolean> => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        toast.error('Authentication required', {
+          description: 'Please sign in to upload files'
+        });
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Auth check error:', error);
+      return false;
+    }
+  };
+  
   // Check for orphaned uploads on component mount
   useEffect(() => {
     if (carId && automaticRecovery && !recoveryAttemptedRef.current) {
@@ -100,6 +118,16 @@ export const usePhotoUpload = ({
       return null;
     }
     
+    // Verify authentication before continuing
+    const isAuthenticated = await verifyAuthentication();
+    if (!isAuthenticated) {
+      logEvent('uploadFile-error', {
+        message: 'User not authenticated',
+        uploadCategory
+      });
+      return null;
+    }
+    
     if (!carId) {
       logEvent('uploadFile-error', {
         message: 'No carId provided for upload',
@@ -130,17 +158,19 @@ export const usePhotoUpload = ({
     try {
       // Simulate progress updates (actual progress comes from the server)
       let progress = 0;
-      const progressInterval = setInterval(() => {
-        progress = Math.min(progress + 5, 90);
+      const interval = setInterval(() => {
+        progress += 10;
+        if (progress > 90) clearInterval(interval);
+        
         setUploadProgress(progress);
         if (onProgressUpdate) onProgressUpdate(progress);
-      }, 200);
+      }, 300);
       
-      // Direct upload without using API route
+      // Direct upload
       const result = await uploadPhoto(file, carId, uploadCategory);
       
       // Clear interval and set to 100%
-      clearInterval(progressInterval);
+      clearInterval(interval);
       setUploadProgress(100);
       if (onProgressUpdate) onProgressUpdate(100);
       
