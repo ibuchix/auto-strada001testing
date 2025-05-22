@@ -7,13 +7,14 @@
  * Updated: 2025-05-06 - Refactored to use separate vinStatusChecker
  * Updated: 2025-05-17 - Added auth token passing to edge function for better permission handling
  * Updated: 2025-05-18 - Improved error handling with better diagnostics and error recovery
+ * Updated: 2025-05-24 - Fixed import path for recoverVinReservation function
  * Updated: 2025-07-22 - Added schema error detection and handling with user-friendly messages
  */
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { verifyVinReservation, cleanupVinReservation } from "./vinReservationService/vinStatusChecker";
-import { recoverVinReservation } from "./reservationRecoveryService";
+import { recoverVinReservation, createVinReservation } from "./reservationRecoveryService";
 
 export const createCarListing = async (
   valuationData: any,
@@ -173,4 +174,3 @@ export const createCarListing = async (
     throw error;
   }
 };
-

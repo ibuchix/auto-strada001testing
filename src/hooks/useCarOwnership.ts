@@ -2,6 +2,7 @@
 /**
  * Hook for managing car ownership operations
  * Created: 2025-05-21
+ * Updated: 2025-05-24 - Fixed import path
  */
 
 import { useState, useCallback } from 'react';

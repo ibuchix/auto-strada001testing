@@ -7,9 +7,21 @@
  * Updated: 2025-06-12 - Updated error handling and comments for better clarity
  * Updated: 2025-06-13 - Enhanced error handling for missing RPC function and removed fallback mechanism
  * Updated: 2025-06-14 - Simplified code, removed fallback to direct table access for clarity
+ * Updated: 2025-05-24 - Fixed type safety for RPC responses
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { safeJsonCast } from "@/utils/supabaseTypeUtils";
+
+interface CheckVinReservationResponse {
+  exists: boolean;
+  message?: string;
+  reservation?: {
+    id: string;
+    vin: string;
+    expires_at: string;
+  };
+}
 
 /**
  * Verify that a VIN reservation is valid
@@ -56,13 +68,19 @@ export async function verifyVinReservation(
         return { isValid: false, error: `Reservation verification failed: ${error.message}` };
       }
       
-      if (!data || !data.exists) {
+      // Properly type cast the response
+      const typedResponse = safeJsonCast<CheckVinReservationResponse>(data);
+      
+      if (!typedResponse || !typedResponse.exists) {
         console.log('RPC check returned no reservation or expired reservation:', data);
-        return { isValid: false, error: data?.message || "Reservation not found or expired" };
+        return { 
+          isValid: false, 
+          error: typedResponse?.message || "Reservation not found or expired" 
+        };
       }
       
       // Check reservation details from the RPC response
-      const reservationDetails = data.reservation;
+      const reservationDetails = typedResponse.reservation;
       
       if (reservationDetails && reservationDetails.vin !== vin) {
         return { isValid: false, error: "Reservation VIN mismatch" };

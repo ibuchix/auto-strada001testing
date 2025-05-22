@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { safeJsonCast } from '@/utils/supabaseTypeUtils';
 
 interface CarListing {
   id: string;
@@ -44,8 +46,8 @@ const CarDetails = () => {
         return;
       }
     
-      // Use type casting with unknown as intermediate for safety
-      setCarListing(data as unknown as CarListing);
+      // Safe type casting with proper conversion
+      setCarListing(safeJsonCast<CarListing>(data));
     } catch (error) {
       console.error("Exception fetching car details:", error);
       toast.error("An unexpected error occurred");

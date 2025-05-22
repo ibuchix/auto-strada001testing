@@ -2,6 +2,7 @@
 /**
  * Hook for fetching car history
  * Created: 2025-05-21
+ * Updated: 2025-05-24 - Fixed import path
  */
 
 import { useQuery } from '@tanstack/react-query';

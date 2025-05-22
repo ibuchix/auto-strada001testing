@@ -1,73 +1,92 @@
 
 /**
- * Changes made:
- * - 2024-10-28: Created separate logger service for transactions
- * - 2025-06-22: Fixed missing entityType property in TransactionDetails
- * - 2025-07-02: Ensured proper entityType handling
- * - 2025-05-11: Fixed AuditLogAction type compatibility
+ * Transaction Logger Service
+ * Created: 2025-04-20 - Handle logging transaction events
+ * Updated: 2025-05-24 - Fixed action type casting for audit logs
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { TransactionDetails, AuditLogAction } from "./types";
-import { BaseService } from "../baseService";
+import { supabase } from '@/integrations/supabase/client';
+import { toSupabaseObject } from '@/utils/supabaseTypeUtils';
 
-export class TransactionLogger extends BaseService {
+// Define the allowed action types as a string union type
+type AuditLogAction = 
+  | 'login' 
+  | 'logout' 
+  | 'create' 
+  | 'update' 
+  | 'delete' 
+  | 'suspend' 
+  | 'reinstate' 
+  | 'verify' 
+  | 'reject' 
+  | 'approve' 
+  | 'process_auctions' 
+  | 'auction_closed' 
+  | 'auto_proxy_bid' 
+  | 'start_auction' 
+  | 'admin_action' 
+  | 'bid_process' 
+  | 'payment_process' 
+  | 'system_repair' 
+  | 'system_alert';
+
+export class TransactionLogger {
   /**
-   * Log transaction to Supabase for auditing and troubleshooting
+   * Log a transaction event to the audit logs
    */
-  public async logTransaction(details: TransactionDetails): Promise<void> {
+  async logEvent(
+    action: AuditLogAction,
+    entityType: string,
+    entityId: string,
+    details?: Record<string, any>,
+    userId?: string
+  ) {
     try {
-      // Format dates as ISO strings for JSON compatibility
-      const formattedDetails = {
-        transaction_id: details.id,
-        status: details.status,
-        start_time: new Date(details.startTime).toISOString(),
-        end_time: details.endTime ? new Date(details.endTime).toISOString() : null,
-        metadata: details.metadata || {},
-        error: details.errorDetails || null
-      };
-
-      // Map operation string to valid audit_log_type enum value
-      const actionType = this.mapOperationToAuditLogType(details.operation || '');
-
-      await this.supabase.from('audit_logs').insert({
-        action: actionType,
-        entity_type: details.entityType || String(details.type),
-        entity_id: details.entityId,
-        details: formattedDetails,
-        user_id: details.userId
-      });
+      // Convert action to string explicitly to avoid type issues
+      const actionString = action as string;
+      
+      // Create log entry with proper type conversion
+      await supabase.from('audit_logs').insert(toSupabaseObject({
+        action: actionString,
+        entity_type: entityType,
+        entity_id: entityId,
+        user_id: userId,
+        details: details || {}
+      }));
+      
+      return true;
     } catch (error) {
-      // Just log to console if we can't log to db - don't throw
-      console.error('Failed to log transaction to audit_logs:', error);
+      console.error('Failed to log transaction event:', error);
+      return false;
     }
   }
   
   /**
-   * Map operation string to valid audit_log_type enum value
-   * This ensures compatibility with the database enum type
+   * Log a system error
    */
-  private mapOperationToAuditLogType(operation: string): AuditLogAction {
-    // Map our operation to one of the valid enum values
-    // Default to "create" if no match is found
-    const operationMap: Record<string, AuditLogAction> = {
-      'create': AuditLogAction.CREATE,
-      'update': AuditLogAction.UPDATE,
-      'delete': AuditLogAction.DELETE,
-      'login': AuditLogAction.LOGIN,
-      'logout': AuditLogAction.LOGOUT,
-      'upload': AuditLogAction.UPLOAD,
-      'auction': AuditLogAction.AUCTION_CLOSED,
-      'payment': AuditLogAction.UPDATE,
-      'authentication': AuditLogAction.LOGIN,
-      'download': AuditLogAction.DOWNLOAD,
-      'read': AuditLogAction.READ
-    };
-    
-    // Return the mapped value or default to CREATE
-    return operationMap[operation.toLowerCase()] || AuditLogAction.CREATE;
+  async logError(
+    errorMessage: string,
+    entityType: string,
+    entityId: string,
+    details?: Record<string, any>
+  ) {
+    try {
+      await supabase.from('system_logs').insert(toSupabaseObject({
+        log_type: 'error',
+        message: errorMessage,
+        details: {
+          entity_type: entityType,
+          entity_id: entityId,
+          ...details
+        }
+      }));
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to log system error:', error);
+      return false;
+    }
   }
 }
 
-// Export a singleton instance
 export const transactionLogger = new TransactionLogger();

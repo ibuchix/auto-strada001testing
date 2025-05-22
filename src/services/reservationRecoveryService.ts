@@ -2,6 +2,7 @@
 /**
  * Reservation Recovery Service
  * Updated: 2025-05-23 - Fixed TypeScript compatibility with Supabase Json types
+ * Updated: 2025-05-24 - Added recoverVinReservation function
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -132,5 +133,67 @@ export async function checkVinReservation(vin: string): Promise<ReservationRespo
       success: false,
       error: error.message || 'Unknown error'
     };
+  }
+}
+
+/**
+ * Recover an existing VIN reservation or create a new one if none exists
+ */
+export async function recoverVinReservation(vin: string, userId: string, valuationData?: any): Promise<string | null> {
+  try {
+    console.log('Attempting to recover VIN reservation:', { vin, userId });
+    
+    // First check if a reservation already exists
+    const { data: existingReservation, error: checkError } = await supabase
+      .from('vin_reservations')
+      .select('id, status, expires_at')
+      .eq('vin', vin)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error('Error checking existing reservation:', checkError);
+      return null;
+    }
+    
+    // If active reservation exists and isn't expired, return its ID
+    if (existingReservation && 
+        existingReservation.status === 'active' && 
+        new Date(existingReservation.expires_at) > new Date()) {
+      console.log('Existing active reservation found:', existingReservation.id);
+      return existingReservation.id;
+    }
+    
+    // Create a new reservation
+    const { data, error } = await supabase.rpc('create_vin_reservation', {
+      p_vin: vin,
+      p_user_id: userId,
+      p_valuation_data: valuationData || null,
+      p_duration_minutes: 30
+    });
+    
+    if (error) {
+      console.error('RPC error creating VIN reservation:', error);
+      return null;
+    }
+    
+    const response = safeJsonCast<ReservationResponse>(data);
+    
+    if (response.success && response.reservationId) {
+      console.log('New reservation created:', response.reservationId);
+      // Store in localStorage for easier access
+      localStorage.setItem('vinReservationId', response.reservationId);
+      localStorage.setItem('tempReservedVin', vin);
+      localStorage.setItem('tempReservationCreatedAt', new Date().toISOString());
+      
+      return response.reservationId;
+    } else {
+      console.error('Failed to create new reservation:', response.error);
+      return null;
+    }
+  } catch (error: any) {
+    console.error('Exception in recoverVinReservation:', error);
+    return null;
   }
 }

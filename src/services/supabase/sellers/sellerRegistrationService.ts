@@ -5,11 +5,13 @@
  * - Updated to support automatic verification
  * - 2025-06-21: Ensured consistent field naming (verification_status and is_verified) across all methods
  * - 2025-06-22: Updated to prioritize RPC functions over direct table operations to avoid permission issues
+ * - 2025-05-24: Fixed type safety for RPC responses
  */
 
 import { BaseService } from "../baseService";
 import { sellerVerificationService } from "./sellerVerificationService";
 import { SellerRegistrationResult } from "./types";
+import { safeJsonCast } from "@/utils/supabaseTypeUtils";
 
 /**
  * Service for seller registration functionality
@@ -50,7 +52,10 @@ export class SellerRegistrationService extends BaseService {
           { p_user_id: userId }
         );
         
-        if (!rpcError && rpcResult?.success) {
+        // Safe type casting for RPC response
+        const typedResult = safeJsonCast<{success: boolean}>(rpcResult);
+        
+        if (!rpcError && typedResult?.success) {
           console.log("SellerRegistrationService: Successfully registered via ensure_seller_registration RPC function");
           return true;
         }
@@ -69,7 +74,10 @@ export class SellerRegistrationService extends BaseService {
           p_user_id: userId
         });
         
-        if (!error && data) {
+        // Safe type casting
+        const typedResult = safeJsonCast<boolean>(data);
+        
+        if (!error && typedResult) {
           console.log("SellerRegistrationService: Successfully registered via register_seller RPC function");
           
           // Verify the registration was successful by checking for profile and seller records
@@ -93,7 +101,10 @@ export class SellerRegistrationService extends BaseService {
           { p_user_id: userId }
         );
         
-        if (!createError && createResult?.success) {
+        // Safe type casting
+        const typedResult = safeJsonCast<{success: boolean}>(createResult);
+        
+        if (!createError && typedResult?.success) {
           console.log("SellerRegistrationService: Successfully registered via create_seller_if_not_exists RPC function");
           return true;
         }

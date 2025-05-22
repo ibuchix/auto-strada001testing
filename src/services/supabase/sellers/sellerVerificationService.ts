@@ -5,10 +5,12 @@
  * - Updated to reflect automatic verification of sellers
  * - 2025-05-07: Enhanced error handling for RLS-related permission issues
  * - 2025-05-07: Added fallback mechanisms when profile or seller data cannot be accessed
+ * - 2025-05-24: Fixed type safety for RPC responses
  */
 
 import { BaseService } from "../baseService";
 import { profileService } from "../profiles/profileService";
+import { safeJsonCast } from "@/utils/supabaseTypeUtils";
 
 /**
  * Service for verifying seller registration
@@ -50,11 +52,14 @@ export class SellerVerificationService extends BaseService {
           // If permission denied, try to get status via RPC if available
           if (sellerError.code === '42501') {
             try {
-              const { data: sellerExists } = await this.supabase.rpc('check_seller_exists', {
+              const { data } = await this.supabase.rpc('check_seller_exists', {
                 p_user_id: userId
               });
               
-              if (sellerExists?.exists) {
+              // Safe type casting
+              const typedResult = safeJsonCast<{exists: boolean}>(data);
+              
+              if (typedResult?.exists) {
                 console.log("SellerVerificationService: Verified seller exists via RPC");
               }
             } catch (rpcError) {

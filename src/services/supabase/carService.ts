@@ -2,6 +2,7 @@
 /**
  * Car Service
  * Updated: 2025-05-23 - Fixed TypeScript compatibility with Supabase Json types
+ * Updated: 2025-05-24 - Added singleton export
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -101,3 +102,25 @@ export async function fetchCarDetails(carId: string) {
     return { error };
   }
 }
+
+// CarService class implementation for singleton usage
+class CarService {
+  async fetchById(carId: string) {
+    return fetchCarById(carId);
+  }
+  
+  async update(carId: string, updateData: Record<string, any>) {
+    return updateCar(carId, updateData);
+  }
+  
+  async fetchOwnershipHistory(carId: string) {
+    return fetchCarOwnershipHistory(carId);
+  }
+  
+  async fetchDetails(carId: string) {
+    return fetchCarDetails(carId);
+  }
+}
+
+// Export singleton instance
+export const carService = new CarService();

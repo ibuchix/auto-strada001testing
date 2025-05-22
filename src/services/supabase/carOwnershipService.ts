@@ -2,6 +2,7 @@
 /**
  * Car Ownership Service
  * Updated: 2025-05-23 - Fixed TypeScript compatibility with Supabase Json types
+ * Updated: 2025-05-24 - Added getCarOwnershipHistory function
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +16,18 @@ interface CarOwnershipResponse {
   message?: string;
   car_id?: string;
   error_code?: string;
+}
+
+/**
+ * History entry interface
+ */
+export interface HistoryEntry {
+  change_time: string;
+  change_type: string;
+  previous_status: string | null;
+  new_status: string | null;
+  is_draft: boolean;
+  changed_by: string | null;
 }
 
 /**
@@ -167,5 +180,26 @@ export async function activateListing(
       success: false,
       message: error.message || 'Unknown error'
     };
+  }
+}
+
+/**
+ * Get car ownership history
+ */
+export async function getCarOwnershipHistory(carId: string): Promise<HistoryEntry[]> {
+  try {
+    const { data, error } = await supabase.rpc('get_car_ownership_history', {
+      p_car_id: carId
+    });
+    
+    if (error) {
+      console.error('Error fetching car ownership history:', error);
+      return [];
+    }
+    
+    return safeJsonCast<HistoryEntry[]>(data) || [];
+  } catch (error) {
+    console.error('Exception fetching car ownership history:', error);
+    return [];
   }
 }

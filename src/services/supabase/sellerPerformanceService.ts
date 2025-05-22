@@ -4,10 +4,12 @@
  * - 2025-05-20: Created service to handle seller performance metrics retrieval
  * - 2025-05-20: Implemented secure RPC function calls to bypass RLS restrictions
  * - 2025-05-21: Fixed TypeScript errors with proper interface handling
+ * - 2025-05-24: Fixed type casting for RPC response
  */
 
 import { BaseService } from "./baseService";
 import { SellerPerformanceMetrics } from "@/hooks/useSellerPerformance";
+import { safeJsonCast } from "@/utils/supabaseTypeUtils";
 
 export class SellerPerformanceService extends BaseService {
   /**
@@ -32,8 +34,11 @@ export class SellerPerformanceService extends BaseService {
         return null;
       }
       
+      // Use proper type casting for the RPC response
+      const typedData = safeJsonCast<SellerPerformanceMetrics>(data);
+      
       console.log('Successfully retrieved performance metrics');
-      return data as SellerPerformanceMetrics;
+      return typedData;
     } catch (error: any) {
       this.handleError(error, "Failed to fetch seller performance metrics");
       return null;
