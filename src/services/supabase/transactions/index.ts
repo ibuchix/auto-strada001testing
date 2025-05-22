@@ -1,21 +1,16 @@
+
 /**
  * Supabase transaction service index
  * Created: 2025-07-18
+ * Updated: 2025-05-25 - Fixed exports and ensured correct implementations
  */
 
-import { TransactionStatus, TransactionType } from '@/components/forms/car-listing/types';
+// Re-export transaction types
+export { TransactionStatus, TransactionType } from './types';
+export type { TransactionOptions, TransactionDetails } from './types';
 
-export {
-  TransactionStatus,
-  TransactionType
-};
+// Export transaction service singleton
+export { transactionService } from './transactionService';
 
-export type { TransactionOptions } from '@/components/forms/car-listing/types';
-
-// Export transaction service singleton (placeholder)
-export const transactionService = {
-  createTransaction: async () => {},
-  updateTransaction: async () => {},
-  queryTransaction: async () => {},
-  deleteTransaction: async () => {}
-};
+// Export logger service
+export { transactionLogger } from './loggerService';

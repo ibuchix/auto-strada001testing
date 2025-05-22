@@ -1,10 +1,10 @@
-
 /**
  * Changes made:
  * - 2024-10-28: Refactored transaction service for better separation of concerns
  * - Moved logging logic to a separate service
  * - Improved error handling and transaction management
  * - 2025-05-11: Fixed timestamp type compatibility using numeric timestamps
+ * - 2025-05-25: Fixed reference to logTransaction method
  */
 
 import { toast } from "sonner";
