@@ -3,6 +3,7 @@
  * Form storage hook for saving form data
  * Created: 2025-07-12
  * Updated: 2025-07-23 - Added support for draft loading and error handling
+ * Updated: 2025-05-22 - Fixed TypeScript compatibility with Supabase Json types
  */
 
 import { useState, useCallback } from 'react';
@@ -10,6 +11,7 @@ import { CarListingFormData } from '@/types/forms';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AppError, DatabaseError } from '@/errors/AppError';
+import { toSupabaseObject, ensureDateString } from '@/utils/supabaseTypeUtils';
 
 export const useFormStorage = () => {
   const [isSaving, setIsSaving] = useState(false);
@@ -39,13 +41,17 @@ export const useFormStorage = () => {
       
       // If we have a car ID, try to save to the database
       if (formData.id) {
+        // Convert form data to Supabase-compatible format
+        const supabaseData = toSupabaseObject({
+          ...formData,
+          updated_at: new Date().toISOString(),
+          created_at: ensureDateString(formData.created_at),
+          is_draft: true
+        });
+        
         const { error } = await supabase
           .from('cars')
-          .update({
-            ...formData,
-            updated_at: new Date().toISOString(),
-            is_draft: true
-          })
+          .update(supabaseData)
           .eq('id', formData.id);
         
         if (error) {
@@ -102,7 +108,7 @@ export const useFormStorage = () => {
       // Save to local storage as backup
       localStorage.setItem('car_form_data', JSON.stringify(data));
       
-      return data as CarListingFormData;
+      return data as unknown as CarListingFormData;
     } catch (error) {
       console.error("Error loading form data:", error);
       setLoadError(error instanceof Error ? error : new Error(String(error)));

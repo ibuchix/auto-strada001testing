@@ -23,11 +23,14 @@
  * - 2025-05-30: Added both 'last_saved' and 'lastSaved' to frontend-only fields list to fix submission error
  * - 2025-05-31: Fixed UUID handling by completely removing id field for new car listings instead of passing empty string
  * - 2025-06-01: Added explicit is_draft field to prevent not-null constraint violation
+ * - 2025-05-23: Fixed TypeScript compatibility with Supabase Json types
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
 import { PHOTO_FIELD_MAP } from "@/utils/photoMapping";
 import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
+import { toSupabaseObject } from "@/utils/supabaseTypeUtils";
+import { Json } from "@/integrations/supabase/types";
 
 // Helper function to ensure transmission is a valid value
 const validateTransmission = (value: unknown): "manual" | "automatic" | "semi-automatic" => {

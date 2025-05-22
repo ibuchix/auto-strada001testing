@@ -1,85 +1,32 @@
 
 /**
  * Car Ownership Service
- * Created: 2025-05-21
- * 
- * This service provides functions to manage car ownership and status transitions
- * with proper ownership validation and history tracking.
+ * Updated: 2025-05-23 - Fixed TypeScript compatibility with Supabase Json types
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
+import { safeJsonCast } from '@/utils/supabaseTypeUtils';
 
 /**
- * Publishes a car listing, transitioning it from draft to active status
- * Ensures the user has proper ownership before making the change
+ * Response interface for car ownership operations
  */
-export const publishCarListing = async (carId: string): Promise<{ success: boolean; message: string }> => {
-  try {
-    const { data, error } = await supabase.rpc('publish_car_listing', {
-      p_car_id: carId
-    });
-    
-    if (error) {
-      console.error("Error publishing car listing:", error);
-      throw error;
-    }
-    
-    return {
-      success: data.success as boolean,
-      message: data.message as string
-    };
-  } catch (error: any) {
-    toast.error("Failed to publish listing", {
-      description: error.message || "Unexpected error occurred"
-    });
-    
-    return {
-      success: false,
-      message: error.message || "Failed to publish listing"
-    };
-  }
-};
-
-/**
- * Withdraws a car listing while ensuring proper ownership
- */
-export const withdrawCarListing = async (carId: string): Promise<{ success: boolean; message: string }> => {
-  try {
-    const { data, error } = await supabase.rpc('withdraw_car_listing', {
-      p_car_id: carId
-    });
-    
-    if (error) {
-      console.error("Error withdrawing car listing:", error);
-      throw error;
-    }
-    
-    return {
-      success: data.success as boolean,
-      message: data.message as string
-    };
-  } catch (error: any) {
-    toast.error("Failed to withdraw listing", {
-      description: error.message || "Unexpected error occurred"
-    });
-    
-    return {
-      success: false,
-      message: error.message || "Failed to withdraw listing"
-    };
-  }
-};
+interface CarOwnershipResponse {
+  success: boolean;
+  message?: string;
+  car_id?: string;
+  error_code?: string;
+}
 
 /**
  * Transition a car listing to a different status
  */
-export const transitionCarStatus = async (
+export async function transitionCarStatus(
   carId: string, 
   newStatus: string, 
-  isDraft?: boolean
-): Promise<{ success: boolean; message: string }> => {
+  isDraft: boolean = false
+): Promise<CarOwnershipResponse> {
   try {
+    // Call the RPC function
     const { data, error } = await supabase.rpc('transition_car_status', {
       p_car_id: carId,
       p_new_status: newStatus,
@@ -87,52 +34,138 @@ export const transitionCarStatus = async (
     });
     
     if (error) {
-      console.error("Error transitioning car status:", error);
-      throw error;
+      console.error('RPC error transitioning car status:', error);
+      return {
+        success: false,
+        message: error.message
+      };
     }
     
-    return {
-      success: data.success as boolean,
-      message: data.message as string
-    };
-  } catch (error: any) {
-    toast.error("Failed to change listing status", {
-      description: error.message || "Unexpected error occurred"
-    });
+    // Convert the response with type safety
+    const typedResponse = safeJsonCast<CarOwnershipResponse>(data);
     
+    if (typedResponse.success) {
+      console.log(`Car status transitioned successfully to ${newStatus}`);
+      return typedResponse;
+    } else {
+      console.error('Failed to transition car status:', typedResponse.message);
+      return typedResponse;
+    }
+  } catch (error: any) {
+    console.error('Exception transitioning car status:', error);
     return {
       success: false,
-      message: error.message || "Failed to change listing status"
+      message: error.message || 'Unknown error'
     };
   }
-};
-
-interface OwnershipHistoryEntry {
-  change_time: string;
-  change_type: string;
-  previous_status: string | null;
-  new_status: string | null;
-  is_draft: boolean;
-  changed_by: string | null;
 }
 
 /**
- * Get the ownership and status history for a car listing
+ * Publish a car listing
  */
-export const getCarOwnershipHistory = async (carId: string): Promise<OwnershipHistoryEntry[]> => {
+export async function publishCarListing(carId: string): Promise<CarOwnershipResponse> {
   try {
-    const { data, error } = await supabase.rpc('get_car_ownership_history', {
+    // Call the RPC function
+    const { data, error } = await supabase.rpc('publish_car_listing', {
       p_car_id: carId
     });
     
     if (error) {
-      console.error("Error getting car ownership history:", error);
-      throw error;
+      console.error('RPC error publishing car listing:', error);
+      return {
+        success: false,
+        message: error.message
+      };
     }
     
-    return data as OwnershipHistoryEntry[] || [];
+    // Convert the response with type safety
+    const typedResponse = safeJsonCast<CarOwnershipResponse>(data);
+    
+    if (typedResponse.success) {
+      console.log('Car listing published successfully');
+      return typedResponse;
+    } else {
+      console.error('Failed to publish car listing:', typedResponse.message);
+      return typedResponse;
+    }
   } catch (error: any) {
-    console.error("Failed to fetch listing history:", error);
-    return [];
+    console.error('Exception publishing car listing:', error);
+    return {
+      success: false,
+      message: error.message || 'Unknown error'
+    };
   }
-};
+}
+
+/**
+ * Withdraw a car listing
+ */
+export async function withdrawCarListing(carId: string): Promise<CarOwnershipResponse> {
+  try {
+    // Call the RPC function
+    const { data, error } = await supabase.rpc('withdraw_car_listing', {
+      p_car_id: carId
+    });
+    
+    if (error) {
+      console.error('RPC error withdrawing car listing:', error);
+      return {
+        success: false,
+        message: error.message
+      };
+    }
+    
+    // Convert the response with type safety
+    const typedResponse = safeJsonCast<CarOwnershipResponse>(data);
+    
+    if (typedResponse.success) {
+      console.log('Car listing withdrawn successfully');
+      return typedResponse;
+    } else {
+      console.error('Failed to withdraw car listing:', typedResponse.message);
+      return typedResponse;
+    }
+  } catch (error: any) {
+    console.error('Exception withdrawing car listing:', error);
+    return {
+      success: false,
+      message: error.message || 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Activate a car listing (set it to available)
+ */
+export async function activateListing(
+  carId: string, 
+  reservePrice?: number
+): Promise<CarOwnershipResponse> {
+  try {
+    // Call the RPC function
+    const { data, error } = await supabase.rpc('activate_listing', {
+      p_listing_id: carId,
+      p_user_id: (await supabase.auth.getUser()).data.user?.id,
+      p_reserve_price: reservePrice || null
+    });
+    
+    if (error) {
+      console.error('RPC error activating listing:', error);
+      return {
+        success: false,
+        message: error.message
+      };
+    }
+    
+    // Convert the response with type safety
+    const typedResponse = safeJsonCast<CarOwnershipResponse>(data);
+    
+    return typedResponse;
+  } catch (error: any) {
+    console.error('Exception activating listing:', error);
+    return {
+      success: false,
+      message: error.message || 'Unknown error'
+    };
+  }
+}

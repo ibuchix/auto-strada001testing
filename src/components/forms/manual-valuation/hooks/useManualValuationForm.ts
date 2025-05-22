@@ -9,6 +9,7 @@
  * - Updated: 2025-05-05 - Fixed TypeScript errors with conditionRating and other fields
  * - Updated: 2025-05-06 - Improved type safety for serviceHistoryType and fixed type errors
  * - Updated: 2025-05-30 - Fixed type errors with numberOfKeys and field name references
+ * - Updated: 2025-05-23 - Fixed TypeScript compatibility with Supabase Json types
  */
 
 import { useForm } from "react-hook-form";
@@ -17,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CarListingFormData } from "@/types/forms";
+import { toSupabaseObject } from "@/utils/supabaseTypeUtils";
 
 export const useManualValuationForm = () => {
   const navigate = useNavigate();
@@ -107,40 +109,43 @@ export const useManualValuationForm = () => {
           ? data.transmission
           : "manual";
       
-      // Insert into manual_valuations table - targeting the correct table now
+      // Convert data to Supabase compatible format
+      const supabaseData = toSupabaseObject({
+        user_id: user.id,
+        name: data.sellerName,
+        make: data.make,
+        model: data.model,
+        year: safeParseInt(data.year) || new Date().getFullYear(),
+        transmission: transmission,
+        mileage: safeParseInt(data.mileage) || 0,
+        features: data.features,
+        is_damaged: data.isDamaged,
+        is_registered_in_poland: data.isRegisteredInPoland,
+        seat_material: data.seatMaterial,
+        number_of_keys: safeParseInt(data.numberOfKeys) || 1,
+        is_selling_on_behalf: data.isSellingOnBehalf,
+        has_private_plate: data.hasPrivatePlate,
+        finance_amount: safeParseFloat(data.financeAmount),
+        service_history_type: serviceHistoryType,
+        seller_notes: data.sellerNotes,
+        condition_rating: data.conditionRating || 3,
+        address: data.address,
+        mobile_number: data.mobileNumber,
+        vin: data.vin,
+        registration_number: data.registrationNumber,
+        accident_history: data.accidentHistory || '',
+        contact_email: data.contactEmail || '',
+        previous_owners: safeParseInt(data.previousOwners) || null,
+        engine_capacity: safeParseFloat(data.engineCapacity) || null,
+        notes: data.notes || '',
+        uploaded_photos: data.uploadedPhotos,
+        status: 'pending'
+      });
+
+      // Insert into manual_valuations table
       const { error, data: valuationData } = await supabase
         .from("manual_valuations")
-        .insert({
-          user_id: user.id,
-          name: data.sellerName,
-          make: data.make,
-          model: data.model,
-          year: safeParseInt(data.year) || new Date().getFullYear(),
-          transmission: transmission,
-          mileage: safeParseInt(data.mileage) || 0,
-          features: data.features,
-          is_damaged: data.isDamaged,
-          is_registered_in_poland: data.isRegisteredInPoland,
-          seat_material: data.seatMaterial,
-          number_of_keys: safeParseInt(data.numberOfKeys) || 1,
-          is_selling_on_behalf: data.isSellingOnBehalf,
-          has_private_plate: data.hasPrivatePlate,
-          finance_amount: safeParseFloat(data.financeAmount),
-          service_history_type: serviceHistoryType,
-          seller_notes: data.sellerNotes,
-          condition_rating: data.conditionRating || 3,
-          address: data.address,
-          mobile_number: data.mobileNumber,
-          vin: data.vin,
-          registration_number: data.registrationNumber,
-          accident_history: data.accidentHistory || '',
-          contact_email: data.contactEmail || '',
-          previous_owners: safeParseInt(data.previousOwners) || null,
-          engine_capacity: safeParseFloat(data.engineCapacity) || null,
-          notes: data.notes || '',
-          uploaded_photos: data.uploadedPhotos,
-          status: 'pending'
-        })
+        .insert(supabaseData)
         .select()
         .single();
 

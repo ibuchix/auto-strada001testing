@@ -1,3 +1,4 @@
+
 /**
  * Car Listing Submission Service
  * Created: 2025-05-20
@@ -10,11 +11,13 @@
  * Updated: 2025-05-22 - Refactored to use create_car_listing RPC function to bypass RLS restrictions
  * Updated: 2025-05-31 - Fixed UUID handling in prepareSubmission function for new car listings
  * Updated: 2025-06-01 - Fixed is_draft handling to prevent not-null constraint violation
+ * Updated: 2025-05-22 - Fixed TypeScript compatibility with Supabase Json types
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { prepareSubmission } from "../utils/submission";
+import { toSupabaseObject, safeJsonCast } from "@/utils/supabaseTypeUtils";
 
 /**
  * Submit a car listing to the database using direct insert with RLS
@@ -34,15 +37,18 @@ export const submitCarListing = async (
     
     // If editing (id exists), update the existing record
     if (preparedData.id) {
+      // Convert prepared data to Supabase-compatible format
+      const supabaseData = toSupabaseObject({
+        ...preparedData,
+        updated_at: new Date().toISOString(),
+        seller_id: userId || preparedData.seller_id,
+        // Ensure is_draft is explicitly defined for update
+        is_draft: preparedData.is_draft === undefined ? true : preparedData.is_draft
+      });
+      
       const { data, error } = await supabase
         .from('cars')
-        .update({
-          ...preparedData,
-          updated_at: new Date().toISOString(),
-          seller_id: userId || preparedData.seller_id,
-          // Ensure is_draft is explicitly defined for update
-          is_draft: preparedData.is_draft === undefined ? true : preparedData.is_draft
-        })
+        .update(supabaseData)
         .eq('id', preparedData.id)
         .select('id')
         .single();
@@ -55,17 +61,19 @@ export const submitCarListing = async (
       console.log("Successfully updated car:", data);
       return { id: data.id };
     } else {
-      // Creating a new listing
+      // Convert prepared data to Supabase-compatible format
+      const supabaseData = toSupabaseObject({
+        ...preparedData,
+        seller_id: userId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        is_draft: true, // Always start as draft by default for new listings
+        status: 'available'
+      });
+      
       const { data, error } = await supabase
         .from('cars')
-        .insert({
-          ...preparedData,
-          seller_id: userId,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          is_draft: true, // Always start as draft by default for new listings
-          status: 'available'
-        })
+        .insert(supabaseData)
         .select('id')
         .single();
       
@@ -110,8 +118,8 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
     });
     
     // Call the security definer function via RPC
-    const { data, error } = await supabase.rpc('create_car_listing', {
-      p_car_data: preparedData,
+    const { data: rpcResponse, error } = await supabase.rpc('create_car_listing', {
+      p_car_data: toSupabaseObject(preparedData),
       p_user_id: userId
     });
     
@@ -120,18 +128,21 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
       throw new Error(`Failed to create car listing: ${error.message}`);
     }
     
-    if (!data || !data.success) {
-      console.error(`[CreateCar][${traceId}] RPC returned unsuccessful result:`, data);
-      throw new Error("Failed to create car listing: " + (data?.error || "Unknown error"));
+    // Type-safely cast the RPC response
+    const typedResponse = safeJsonCast<{success: boolean, car_id?: string, error?: string}>(rpcResponse);
+    
+    if (!typedResponse || !typedResponse.success) {
+      console.error(`[CreateCar][${traceId}] RPC returned unsuccessful result:`, typedResponse);
+      throw new Error("Failed to create car listing: " + (typedResponse?.error || "Unknown error"));
     }
     
-    if (!data.car_id) {
-      console.error(`[CreateCar][${traceId}] Missing car_id in RPC response:`, data);
+    if (!typedResponse.car_id) {
+      console.error(`[CreateCar][${traceId}] Missing car_id in RPC response:`, typedResponse);
       throw new Error("Missing car ID in response");
     }
     
-    console.log(`[CreateCar][${traceId}] Successfully created car:`, data);
-    return { id: data.car_id };
+    console.log(`[CreateCar][${traceId}] Successfully created car:`, typedResponse);
+    return { id: typedResponse.car_id };
     
   } catch (error) {
     console.error("Error in createCarListing:", error);

@@ -1,84 +1,103 @@
 
 /**
- * Car Service for handling car listing operations
- * Created: 2025-07-10
- * Updated: 2025-07-12 - Fixed exports and added required functions
- * Updated: 2025-05-20 - Fixed table name from car_listings to cars
+ * Car Service
+ * Updated: 2025-05-23 - Fixed TypeScript compatibility with Supabase Json types
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { CarListingFormData } from "@/types/forms";
+import { supabase } from '@/integrations/supabase/client';
+import { toSupabaseObject, safeJsonCast } from '@/utils/supabaseTypeUtils';
 
 /**
- * Saves a new car listing to the database
+ * Fetches a car by ID
  */
-export const saveCarListing = async (
-  carData: CarListingFormData,
-  userId: string
-): Promise<{ id: string }> => {
-  const { data, error } = await supabase
-    .from('cars') // Fixed: Using correct table name 'cars' instead of 'car_listings'
-    .insert({
-      ...transformCarDataForStorage(carData),
-      seller_id: userId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      status: 'pending'
-    })
-    .select('id')
-    .single();
-
-  if (error) {
-    console.error("Error saving car listing:", error);
-    throw new Error(`Failed to save car listing: ${error.message}`);
+export async function fetchCarById(carId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('cars')
+      .select('*')
+      .eq('id', carId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching car:', error);
+      return { error };
+    }
+    
+    return { data };
+  } catch (error) {
+    console.error('Exception fetching car:', error);
+    return { error };
   }
-
-  return { id: data.id };
-};
+}
 
 /**
- * Updates an existing car listing in the database
+ * Updates a car record
  */
-export const updateCarListing = async (
-  id: string,
-  carData: Partial<CarListingFormData>
-): Promise<{ id: string }> => {
-  const { data, error } = await supabase
-    .from('cars') // Fixed: Using correct table name 'cars' instead of 'car_listings'
-    .update({
-      ...transformCarDataForStorage(carData),
+export async function updateCar(carId: string, updateData: Record<string, any>) {
+  try {
+    // Convert to database compatible format
+    const supabaseData = toSupabaseObject({
+      ...updateData,
       updated_at: new Date().toISOString()
-    })
-    .eq('id', id)
-    .select('id')
-    .single();
-
-  if (error) {
-    console.error("Error updating car listing:", error);
-    throw new Error(`Failed to update car listing: ${error.message}`);
+    });
+    
+    const { data, error } = await supabase
+      .from('cars')
+      .update(supabaseData)
+      .eq('id', carId)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error updating car:', error);
+      return { error };
+    }
+    
+    return { data };
+  } catch (error) {
+    console.error('Exception updating car:', error);
+    return { error };
   }
-
-  return { id: data.id };
-};
+}
 
 /**
- * Helper function to transform car data for storage
+ * Fetches car ownership history
  */
-const transformCarDataForStorage = (carData: Partial<CarListingFormData>) => {
-  // Perform any transformations needed before saving to the database
-  const { id, ...dataWithoutId } = carData;
-  
-  return {
-    ...dataWithoutId,
-    // Add any transformations here
-  };
-};
+export async function fetchCarOwnershipHistory(carId: string) {
+  try {
+    const { data, error } = await supabase.rpc('get_car_ownership_history', {
+      p_car_id: carId
+    });
+    
+    if (error) {
+      console.error('Error fetching car ownership history:', error);
+      return { error };
+    }
+    
+    return { data: safeJsonCast(data) };
+  } catch (error) {
+    console.error('Exception fetching car ownership history:', error);
+    return { error };
+  }
+}
 
-// Create a service object for exports
-const carService = {
-  saveCarListing,
-  updateCarListing
-};
-
-export { carService };
-export default carService;
+/**
+ * Fetches car details
+ */
+export async function fetchCarDetails(carId: string) {
+  try {
+    const { data, error } = await supabase.rpc('fetch_car_details', {
+      p_car_id: carId
+    });
+    
+    if (error) {
+      console.error('Error fetching car details:', error);
+      return { error };
+    }
+    
+    return { data: safeJsonCast(data) };
+  } catch (error) {
+    console.error('Exception fetching car details:', error);
+    return { error };
+  }
+}

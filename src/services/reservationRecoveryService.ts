@@ -1,152 +1,136 @@
 
 /**
  * Reservation Recovery Service
- * Created: 2025-05-17 - To help handle VIN reservation issues and recover from errors
- * Updated: 2025-05-18 - Fixed permission issue by using RPC functions
- * 
- * This service handles creation, verification, and recovery of VIN reservations
- * to prevent issues with car listing creation.
+ * Updated: 2025-05-23 - Fixed TypeScript compatibility with Supabase Json types
  */
 
-import { v4 as uuidv4 } from 'uuid';
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
+import { safeJsonCast } from '@/utils/supabaseTypeUtils';
 
 /**
- * Creates a temporary VIN reservation ID in localStorage
- * Used as a fallback when database reservation fails
- * 
- * @param vin The VIN to reserve
- * @returns The temporary reservation ID
+ * Interface for reservation data
  */
-const createTemporaryReservation = (vin: string): string => {
-  // Generate a temporary ID with a UUID for uniqueness
-  const tempReservationId = `temp_${uuidv4()}`;
-  
-  // Store in localStorage
-  localStorage.setItem('vinReservationId', tempReservationId);
-  localStorage.setItem('tempReservedVin', vin);
-  localStorage.setItem('tempReservationCreatedAt', new Date().toISOString());
-  
-  console.log(`Created temporary VIN reservation: ${tempReservationId} for VIN: ${vin}`);
-  
-  return tempReservationId;
-};
+interface ReservationData {
+  id: string;
+  vin: string;
+  valuation_data?: any;
+  expires_at?: string;
+  status?: string;
+  user_id?: string;
+}
 
 /**
- * Creates a database VIN reservation using RPC function
- * 
- * @param vin The VIN to reserve
- * @param userId The user ID
- * @param valuationData Optional valuation data to associate
- * @returns The reservation ID or null if failed
+ * Interface for reservation response
  */
-const createDatabaseReservation = async (
-  vin: string,
-  userId: string,
-  valuationData?: any
-): Promise<string | null> => {
+interface ReservationResponse {
+  success: boolean;
+  reservationId?: string;
+  expiresAt?: string;
+  isNew?: boolean;
+  error?: string;
+}
+
+/**
+ * Creates a VIN reservation for the current user
+ */
+export async function createVinReservation(vin: string, valuationData?: any): Promise<ReservationResponse> {
   try {
-    console.log('Creating database VIN reservation for:', vin);
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
     
-    const { data, error } = await supabase.rpc(
-      'create_vin_reservation',
-      {
-        p_vin: vin,
-        p_user_id: userId,
-        p_valuation_data: valuationData || null,
-        p_duration_minutes: 60 // 1 hour reservation
-      }
-    );
+    if (!user) {
+      console.error('Cannot create reservation: No authenticated user');
+      return { 
+        success: false, 
+        error: 'Authentication required'
+      };
+    }
+    
+    // Call the RPC function
+    const { data, error } = await supabase.rpc('create_vin_reservation', {
+      p_vin: vin,
+      p_user_id: user.id,
+      p_valuation_data: valuationData || null,
+      p_duration_minutes: 30
+    });
     
     if (error) {
-      console.error('Error creating VIN reservation:', error);
-      return null;
+      console.error('RPC error creating VIN reservation:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
     
-    if (!data?.success) {
-      console.error('VIN reservation failed:', data);
-      return null;
+    // Convert response with type safety
+    const typedResponse = safeJsonCast<ReservationResponse>(data);
+    
+    if (typedResponse.success) {
+      console.log('Reservation created/updated successfully:', typedResponse.reservationId);
+      return typedResponse;
+    } else {
+      console.error('Failed to create/update reservation:', typedResponse.error);
+      return typedResponse;
     }
-    
-    // Store in localStorage
-    localStorage.setItem('vinReservationId', data.reservationId);
-    
-    console.log(`Created database VIN reservation: ${data.reservationId}`);
-    
-    return data.reservationId;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Exception creating VIN reservation:', error);
-    return null;
+    return {
+      success: false,
+      error: error.message || 'Unknown error'
+    };
   }
-};
+}
 
 /**
- * Checks if a VIN is available for reservation using RPC function
- * 
- * @param vin The VIN to check
- * @param userId The user ID
- * @returns True if available, false otherwise
+ * Checks if a reservation exists for the current user and VIN
  */
-const checkVinAvailability = async (vin: string, userId: string): Promise<boolean> => {
+export async function checkVinReservation(vin: string): Promise<ReservationResponse> {
   try {
-    const { data, error } = await supabase.rpc(
-      'is_vin_available_for_user',
-      {
-        p_vin: vin,
-        p_user_id: userId
-      }
-    );
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (error) {
-      console.error('Error checking VIN availability:', error);
-      return true; // Default to true on error
+    if (!user) {
+      console.error('Cannot check reservation: No authenticated user');
+      return { 
+        success: false, 
+        error: 'Authentication required'
+      };
     }
     
-    return data === true;
-  } catch (error) {
-    console.error('Exception checking VIN availability:', error);
-    return true; // Default to true on error
+    // Call the RPC function
+    const { data, error } = await supabase.rpc('check_vin_reservation', {
+      p_vin: vin,
+      p_user_id: user.id
+    });
+    
+    if (error) {
+      console.error('RPC error checking VIN reservation:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+    
+    // Convert the response with type safety
+    const typedResponse = safeJsonCast<{exists: boolean, reservation?: {id: string, vin: string, expires_at: string}, message?: string}>(data);
+    
+    if (typedResponse.exists && typedResponse.reservation) {
+      return {
+        success: true,
+        reservationId: typedResponse.reservation.id,
+        expiresAt: typedResponse.reservation.expires_at
+      };
+    } else {
+      return {
+        success: false,
+        error: typedResponse.message || 'No reservation found'
+      };
+    }
+  } catch (error: any) {
+    console.error('Exception checking VIN reservation:', error);
+    return {
+      success: false,
+      error: error.message || 'Unknown error'
+    };
   }
-};
-
-/**
- * Recovers or creates a VIN reservation
- * Uses multiple strategies to ensure a reservation exists
- * 
- * @param vin The VIN to reserve
- * @param userId The user ID
- * @param valuationData Optional valuation data
- * @returns The reservation ID or null if all attempts fail
- */
-export const recoverVinReservation = async (
-  vin: string,
-  userId: string,
-  valuationData?: any
-): Promise<string | null> => {
-  // Check if we already have a reservation
-  const existingReservationId = localStorage.getItem('vinReservationId');
-  const existingVin = localStorage.getItem('tempReservedVin');
-  
-  if (existingReservationId && existingVin === vin) {
-    console.log(`Using existing VIN reservation: ${existingReservationId}`);
-    return existingReservationId;
-  }
-  
-  // Check if VIN is available for this user
-  const isAvailable = await checkVinAvailability(vin, userId);
-  
-  if (!isAvailable) {
-    console.error('VIN is not available for reservation by this user');
-    return null;
-  }
-  
-  // Try to create a database reservation first
-  const dbReservationId = await createDatabaseReservation(vin, userId, valuationData);
-  
-  if (dbReservationId) {
-    return dbReservationId;
-  }
-  
-  // Fall back to a temporary reservation
-  return createTemporaryReservation(vin);
-};
+}
