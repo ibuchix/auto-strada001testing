@@ -13,6 +13,7 @@
  * - 2024-12-31: Fixed SellerProfile type import from types.ts
  * - 2024-10-15: Updated imports for refactored base and valuation services
  * - 2025-05-24: Fixed missing carService export
+ * - 2025-05-30: Fixed circular dependency issues in exports
  */
 
 // Export services from auth module

@@ -18,9 +18,8 @@
  * - 2025-06-20: Fixed circular imports by making this a direct import from AuthProvider
  * - 2025-06-21: Removed file content to prevent circular dependency issues
  * - 2025-06-22: Simplified import to directly use the AuthProvider
+ * - 2025-05-30: Fixed module loading error by using direct import from AuthProvider
  */
 
-// This file is intentionally left empty to prevent circular dependencies
-// All auth functionality should be imported from AuthProvider directly
-
+// This file directly re-exports from AuthProvider to prevent circular dependencies
 export { useAuth } from "@/components/AuthProvider";

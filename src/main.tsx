@@ -11,6 +11,7 @@
  * - 2025-06-21: Simplified provider hierarchy to prevent React hooks errors
  * - 2025-06-22: Added AuthProvider to fix useAuth context error
  * - 2025-06-22: Added BrowserRouter to correctly configure routing
+ * - 2025-05-30: Fixed provider nesting order to resolve module loading errors
  */
 
 import React from 'react';

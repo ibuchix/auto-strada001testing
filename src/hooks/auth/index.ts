@@ -5,6 +5,7 @@
  * Updated: 2025-06-21 - Added registration exports for backward compatibility
  * Updated: 2025-06-22 - Removed indirect useAuth import to prevent circular dependencies
  * Updated: 2025-06-22 - Exported useAuth from AuthProvider for simpler imports
+ * Updated: 2025-05-30 - Fully removed useAuth.ts imports to resolve module loading errors
  */
 
 export * from "./registration";

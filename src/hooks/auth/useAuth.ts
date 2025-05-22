@@ -5,7 +5,8 @@
  * - 2024-12-30: Now serves as the main entry point that composes various auth hooks
  * - 2025-06-20: Renamed to avoid circular dependencies, no longer exported directly
  * - 2025-06-21: Removed file content to prevent circular dependency issues
+ * - 2025-05-30: Fixed module import issues by properly exporting from AuthProvider
  */
 
-// This file is intentionally left empty to prevent circular dependencies
-// All auth functionality is now directly provided by AuthProvider.tsx
+// Direct re-export from AuthProvider to avoid circular dependencies
+export { useAuth } from "@/components/AuthProvider";
