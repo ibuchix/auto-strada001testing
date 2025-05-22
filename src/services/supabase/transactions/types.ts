@@ -5,6 +5,7 @@
  * Updated: 2025-05-11 - Added missing TransactionType enum values
  * Updated: 2025-05-11 - Fixed AuditLogAction enum values to match database types
  * Updated: 2025-05-26 - Aligned AuditLogAction enum exactly with database schema
+ * Updated: 2025-05-26 - Ensured AuditLogAction is a string union type matching database
  */
 
 export enum TransactionType {
@@ -55,38 +56,27 @@ export interface TransactionDetails {
   metadata?: Record<string, any>;
 }
 
-export enum AuditLogAction {
-  // User actions
-  LOGIN = 'login',
-  LOGOUT = 'logout',
-  
-  // CRUD operations
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  READ = 'read',
-  
-  // Administrative actions
-  VERIFY = 'verify',
-  REJECT = 'reject',
-  APPROVE = 'approve',
-  SUSPEND = 'suspend',
-  REINSTATE = 'reinstate',
-  
-  // Auction operations
-  PROCESS_AUCTIONS = 'process_auctions',
-  AUCTION_CLOSED = 'auction_closed',
-  AUTO_PROXY_BID = 'auto_proxy_bid',
-  START_AUCTION = 'start_auction',
-  BID_PROCESS = 'bid_process',
-  
-  // File operations
-  UPLOAD = 'upload',
-  DOWNLOAD = 'download',
-  
-  // System operations
-  PAYMENT_PROCESS = 'payment_process',
-  SYSTEM_REPAIR = 'system_repair',
-  SYSTEM_ALERT = 'system_alert',
-  SYSTEM_HEALTH_CHECK = 'system_health_check'
-}
+// Define as string literal union type instead of enum to match database exactly
+export type AuditLogAction = 
+  | 'login'
+  | 'logout'
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'read'
+  | 'verify'
+  | 'reject'
+  | 'approve'
+  | 'suspend'
+  | 'reinstate'
+  | 'process_auctions'
+  | 'auction_closed'
+  | 'auto_proxy_bid'
+  | 'start_auction'
+  | 'bid_process'
+  | 'upload'
+  | 'download'
+  | 'payment_process'
+  | 'system_repair'
+  | 'system_alert'
+  | 'system_health_check';

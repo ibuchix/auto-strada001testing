@@ -6,32 +6,11 @@
  * Updated: 2025-05-25 - Fixed type issues with Supabase insertions and added logTransaction method
  * Updated: 2025-05-26 - Fixed database insertion type safety issues
  * Updated: 2025-05-26 - Aligned AuditLogAction type with database schema
+ * Updated: 2025-05-27 - Fixed action type mapping and casting for database compatibility
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { TransactionDetails } from './types';
-
-// Define the allowed action types to match exactly with what the database expects
-type AuditLogAction = 
-  | 'login' 
-  | 'logout' 
-  | 'create' 
-  | 'update' 
-  | 'delete' 
-  | 'suspend' 
-  | 'reinstate' 
-  | 'verify' 
-  | 'reject' 
-  | 'approve' 
-  | 'process_auctions' 
-  | 'auction_closed' 
-  | 'auto_proxy_bid' 
-  | 'start_auction' 
-  | 'payment_process' 
-  | 'bid_process' 
-  | 'system_repair' 
-  | 'system_alert' 
-  | 'system_health_check';
+import { AuditLogAction, TransactionDetails } from './types';
 
 export class TransactionLogger {
   /**
@@ -83,8 +62,8 @@ export class TransactionLogger {
       case 'authentication': return 'login';
       case 'auction': return 'process_auctions';
       case 'payment': return 'payment_process';
-      case 'upload': return 'create';
-      case 'query': return 'system_health_check';
+      case 'upload': return 'upload';
+      case 'query': return 'read';
       default: return 'system_alert';
     }
   }
@@ -128,16 +107,18 @@ export class TransactionLogger {
    * Ensure the action is a valid AuditLogAction supported by the database
    */
   private ensureValidAction(action: string): AuditLogAction {
+    // Define all valid actions that match our AuditLogAction type
     const validActions: AuditLogAction[] = [
-      'login', 'logout', 'create', 'update', 'delete',
-      'suspend', 'reinstate', 'verify', 'reject', 'approve',
+      'login', 'logout', 'create', 'update', 'delete', 'read',
+      'verify', 'reject', 'approve', 'suspend', 'reinstate',
       'process_auctions', 'auction_closed', 'auto_proxy_bid',
-      'start_auction', 'payment_process', 'bid_process',
-      'system_repair', 'system_alert', 'system_health_check'
+      'start_auction', 'bid_process', 'upload', 'download',
+      'payment_process', 'system_repair', 'system_alert', 'system_health_check'
     ];
     
     const normalizedAction = action.toLowerCase();
     
+    // Check if the action is valid
     if (validActions.includes(normalizedAction as AuditLogAction)) {
       return normalizedAction as AuditLogAction;
     }
