@@ -5,6 +5,7 @@
  * - 2024-03-19: Added file type validation and upload handling
  * - 2024-03-19: Implemented error notifications
  * - 2025-05-24: Improved bucket error handling and authentication validation
+ * - 2025-05-24: Fixed TypeScript error with StorageError status property
  */
 
 import { useState } from "react";
@@ -54,10 +55,10 @@ export const DamagePhotoUpload = ({ damageType, carId, onPhotoUploaded }: Damage
         });
       
       if (error) {
-        // Handle specific error types
-        if (error.message?.includes('bucket') || error.status === 404) {
+        // Handle specific error types - using message content instead of status code
+        if (error.message?.includes('bucket') || error.message?.includes('404')) {
           throw new Error(`Storage bucket error: ${error.message || 'Bucket not found'}. Please ensure the car-images bucket exists.`);
-        } else if (error.message?.includes('Permission denied') || error.status === 403) {
+        } else if (error.message?.includes('Permission denied') || error.message?.includes('403')) {
           throw new Error('You do not have permission to upload files. Please sign in again.');
         } else {
           throw new Error(`Upload failed: ${error.message || 'Unknown storage error'}`);

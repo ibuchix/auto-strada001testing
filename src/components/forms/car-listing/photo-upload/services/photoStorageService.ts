@@ -1,4 +1,3 @@
-
 /**
  * Service for managing photo storage operations
  * Updated: 2025-05-18 - Added verification and recovery for database records
@@ -8,6 +7,7 @@
  * Updated: 2025-05-19 - Removed API route dependency and implemented direct upload
  * Updated: 2025-05-20 - Implemented standardized photo category naming
  * Updated: 2025-05-23 - Improved auth session validation and bucket error handling
+ * Updated: 2025-05-24 - Fixed TypeScript error with StorageError status property
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -97,10 +97,10 @@ export const uploadPhoto = async (file: File, carId: string, category: string): 
       if (error) {
         console.error('Error with direct upload:', error);
         
-        // Check for specific storage errors
-        if (error.message?.includes('bucket') || error.status === 404) {
+        // Check for specific storage errors using message content instead of status code
+        if (error.message?.includes('bucket') || error.message?.includes('404')) {
           throw new Error(`Storage bucket error: ${error.message || 'Bucket not found'}. Please ensure the '${STORAGE_BUCKET}' bucket exists and you have permission to access it.`);
-        } else if (error.message?.includes('Permission denied') || error.status === 403) {
+        } else if (error.message?.includes('Permission denied') || error.message?.includes('403')) {
           throw new Error('You do not have permission to upload files. Please sign in again.');
         } else {
           throw new Error(`Upload failed: ${error.message || 'Unknown storage error'}`);

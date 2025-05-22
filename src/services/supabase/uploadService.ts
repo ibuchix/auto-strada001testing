@@ -6,6 +6,7 @@
  * Updated: 2025-05-22 - Fixed TypeScript return type for directUploadPhoto
  * Updated: 2025-05-21 - Fixed bucket name mismatch and improved path structure
  * Updated: 2025-05-23 - Added better error handling for Bucket not found errors
+ * Updated: 2025-05-24 - Fixed TypeScript error with StorageError status property
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -119,10 +120,10 @@ export const directUploadPhoto = async (
     if (error) {
       console.error('[UploadService] Error uploading file:', error);
       
-      // More specific error messages based on error type
-      if (error.message?.includes('bucket') || error.status === 404) {
+      // More specific error messages based on error message content instead of status code
+      if (error.message?.includes('bucket') || error.message?.includes('404')) {
         throw new Error(`Storage bucket error: ${error.message || 'Bucket not found'}. Ensure the car-images bucket exists and you have permission to access it.`);
-      } else if (error.message?.includes('Permission denied') || error.status === 403) {
+      } else if (error.message?.includes('Permission denied') || error.message?.includes('403')) {
         throw new Error('You do not have permission to upload files. Please sign in again or contact support.');
       } else {
         throw new Error(`Upload failed: ${error.message || 'Unknown error'}`);
