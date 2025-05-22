@@ -7,7 +7,7 @@
  * Updated: 2025-05-26 - Aligned AuditLogAction enum exactly with database schema
  * Updated: 2025-05-26 - Ensured AuditLogAction is a string union type matching database
  * Updated: 2025-05-27 - Updated AuditLogAction to include all valid database action types
- * Updated: 2025-05-28 - Added missing 'upload' and 'download' actions to AuditLogAction type
+ * Updated: 2025-05-29 - Fixed AuditLogAction to exactly match database audit_log_type enum
  */
 
 export enum TransactionType {
@@ -58,14 +58,13 @@ export interface TransactionDetails {
   metadata?: Record<string, any>;
 }
 
-// Define as string literal union type exactly matching the database schema
+// Define as string literal union type exactly matching the database schema for audit_log_type
 export type AuditLogAction = 
   | 'login'
   | 'logout'
   | 'create'
   | 'update'
   | 'delete'
-  | 'read'
   | 'verify'
   | 'reject'
   | 'approve'
@@ -76,9 +75,8 @@ export type AuditLogAction =
   | 'auto_proxy_bid'
   | 'start_auction'
   | 'bid_process'
-  | 'upload'
-  | 'download'
   | 'payment_process'
   | 'system_repair'
   | 'system_alert'
-  | 'system_health_check';
+  | 'system_health_check'
+  | 'auction_recovery';
