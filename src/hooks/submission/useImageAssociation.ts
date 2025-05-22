@@ -13,12 +13,12 @@
  * Updated: 2025-06-10 - Fixed UUID handling and improved direct database error handling
  * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
  * Updated: 2025-06-21 - Completely refactored to use direct DB inserts with new RLS policies
- * Updated: 2025-05-21 - Updated to work with enhanced RLS policy framework
+ * Updated: 2025-06-01 - Enhanced image association with better direct association and temp uploads handling
  */
 
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { associateTempUploadsWithCar } from '@/services/supabase/uploadService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RetryConfig {
   maxRetries: number;
@@ -31,6 +31,51 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
   
   // Sleep helper function for retry delays
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  
+  // Set temporary uploads data for association
+  const setTempUploads = async (uploads: any[]): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('handle-seller-operations', {
+        body: {
+          operation: 'set_temp_uploads',
+          uploads: uploads
+        }
+      });
+      
+      if (error) {
+        console.error('Error setting temp uploads:', error);
+        return false;
+      }
+      
+      return true;
+    } catch (err) {
+      console.error('Exception setting temp uploads:', err);
+      return false;
+    }
+  };
+  
+  // Directly associate uploads with a car
+  const directAssociate = async (carId: string, uploads: any[]): Promise<number> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('handle-seller-operations', {
+        body: {
+          operation: 'associate_uploads',
+          carId,
+          uploads
+        }
+      });
+      
+      if (error) {
+        console.error('Error in direct association:', error);
+        return 0;
+      }
+      
+      return data?.count || 0;
+    } catch (err) {
+      console.error('Exception in direct association:', err);
+      return 0;
+    }
+  };
   
   const associateImages = async (carId: string, submissionId: string): Promise<number> => {
     // Set associating state
@@ -52,8 +97,30 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
       
       while (retryCount <= retryConfig.maxRetries) {
         try {
-          // Use our associateTempUploadsWithCar function from uploadService.ts
-          successCount = await associateTempUploadsWithCar(carId);
+          // First try to associate via RPC function for best reliability
+          const { data, error } = await supabase.rpc('associate_temp_uploads_with_car', {
+            p_car_id: carId
+          });
+          
+          if (!error) {
+            successCount = data || 0;
+          } else {
+            // Fallback to edge function if RPC fails
+            console.log(`[ImageAssociation][${submissionId}] RPC failed, trying edge function:`, error);
+            
+            const { data: fnData, error: fnError } = await supabase.functions.invoke('handle-seller-operations', {
+              body: {
+                operation: 'associate_images',
+                carId
+              }
+            });
+            
+            if (!fnError && fnData?.success) {
+              successCount = fnData.count || 0;
+            } else {
+              throw new Error(fnError?.message || 'Association failed');
+            }
+          }
           
           if (successCount > 0) break; // Exit retry loop if successful
           
@@ -116,6 +183,8 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
   
   return {
     associateImages,
+    setTempUploads,
+    directAssociate,
     isAssociating,
     resetRetryState
   };

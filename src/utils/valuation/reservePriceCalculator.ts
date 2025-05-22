@@ -1,81 +1,63 @@
 
 /**
- * Changes made:
- * - 2025-05-08: Created utility for consistent reserve price calculation
- * - 2025-05-08: Added formatPrice utility function
- * - 2025-05-08: Added log statements for debugging
- * - 2025-05-19: Fixed calculation to handle zero/null inputs gracefully
+ * Reserve Price Calculator Utility
+ * Created: 2025-05-01
+ * Updated: 2025-06-01 - Added proper Polish Zloty formatting and fixed null handling
  */
 
 /**
- * Calculate reserve price based on the base price and percentage brackets
- * Base price is calculated as (price_min + price_med) / 2
+ * Calculate the reserve price based on the base price tiers
  * 
- * @param basePrice - The base price value
- * @returns calculated reserve price
+ * @param basePrice The base price to calculate from
+ * @returns The calculated reserve price
  */
 export function calculateReservePrice(basePrice: number): number {
-  // Handle invalid inputs
-  if (!basePrice || isNaN(basePrice) || basePrice <= 0) {
-    console.warn(`Invalid base price provided: ${basePrice}`);
-    return 0;
-  }
+  // Input validation
+  if (!basePrice || basePrice <= 0) return 0;
   
-  console.log(`Calculating reserve price for base price: ${basePrice}`);
+  // Determine percentage based on price tier
+  let percentage = 0.25; // Default percentage
   
-  // Define percentage brackets
-  const brackets = [
-    { max: 15000, percentage: 0.65 },
-    { max: 20000, percentage: 0.46 },
-    { max: 30000, percentage: 0.37 },
-    { max: 50000, percentage: 0.27 },
-    { max: 60000, percentage: 0.27 },
-    { max: 70000, percentage: 0.22 },
-    { max: 80000, percentage: 0.23 },
-    { max: 100000, percentage: 0.24 },
-    { max: 130000, percentage: 0.20 },
-    { max: 160000, percentage: 0.185 },
-    { max: 200000, percentage: 0.22 },
-    { max: 250000, percentage: 0.17 },
-    { max: 300000, percentage: 0.18 },
-    { max: 400000, percentage: 0.18 },
-    { max: 500000, percentage: 0.16 },
-    { max: Infinity, percentage: 0.145 }
-  ];
+  if (basePrice <= 15000) percentage = 0.65;
+  else if (basePrice <= 20000) percentage = 0.46;
+  else if (basePrice <= 30000) percentage = 0.37;
+  else if (basePrice <= 50000) percentage = 0.27;
+  else if (basePrice <= 60000) percentage = 0.27;
+  else if (basePrice <= 70000) percentage = 0.22;
+  else if (basePrice <= 80000) percentage = 0.23;
+  else if (basePrice <= 100000) percentage = 0.24;
+  else if (basePrice <= 130000) percentage = 0.20;
+  else if (basePrice <= 160000) percentage = 0.185;
+  else if (basePrice <= 200000) percentage = 0.22;
+  else if (basePrice <= 250000) percentage = 0.17;
+  else if (basePrice <= 300000) percentage = 0.18;
+  else if (basePrice <= 400000) percentage = 0.18;
+  else if (basePrice <= 500000) percentage = 0.16;
+  else percentage = 0.145;
   
-  // Find the applicable percentage
-  const bracket = brackets.find(b => basePrice <= b.max);
-  const percentage = bracket ? bracket.percentage : brackets[brackets.length - 1].percentage;
+  // Calculate the reserve price: basePrice - (basePrice * percentage)
+  const reservePrice = basePrice - (basePrice * percentage);
   
-  console.log(`Using percentage ${percentage * 100}% for price bracket`);
-  
-  // Calculate reserve price: BasePrice - (BasePrice * Percentage)
-  const reservePrice = Math.round(basePrice - (basePrice * percentage));
-  console.log(`Calculated reserve price: ${reservePrice}`);
-  
-  return reservePrice;
+  // Round to nearest whole number
+  return Math.round(reservePrice);
 }
 
 /**
- * Format price for display with currency
+ * Format price value for display with Polish formatting
  * 
- * @param price - The price to format
- * @param currency - The currency code (default: PLN)
- * @returns Formatted price string
+ * @param price The price to format
+ * @param currency The currency code (default: PLN)
  */
-export function formatPrice(price: number, currency: string = 'PLN'): string {
-  // Handle invalid inputs
-  if (!price || isNaN(price)) {
-    return currency === 'PLN' ? '0 PLN' : '$0';
-  }
+export function formatPrice(price: number | null | undefined, currency: string = 'PLN'): string {
+  // Handle null, undefined, or invalid values
+  if (price === null || price === undefined || isNaN(price)) return 'N/A';
+  if (price === 0) return '0 PLN';
   
-  // Format the price with thousand separators
-  const formattedPrice = new Intl.NumberFormat('pl-PL', {
+  // Format with Polish locale for consistent display
+  return new Intl.NumberFormat('pl-PL', {
     style: 'currency',
-    currency: currency,
+    currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(price);
-  
-  return formattedPrice;
 }

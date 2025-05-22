@@ -5,16 +5,18 @@
  * Updated: 2025-07-26 - Added readonly mode for valuation-based prices
  * Updated: 2025-08-01 - Enhanced read-only state for valuation prices and improved UI feedback
  * Updated: 2025-05-26 - Fixed field names to use camelCase for frontend consistency
+ * Updated: 2025-06-01 - Fixed valuation data handling and ensure prices are properly formatted in PLN
  */
 
-import { useFormContext, useWatch } from 'react-hook-form';
+import { useFormContext, useWatch, useEffect } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { InfoIcon, LockIcon } from 'lucide-react';
 import { CarListingFormData } from '@/types/forms';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { formatCurrency } from '@/utils/formatters';
 
 export const PricingSection = () => {
   const { register, setValue, watch, getValues } = useFormContext<CarListingFormData>();
@@ -23,6 +25,27 @@ export const PricingSection = () => {
   
   // Check if this form is coming from valuation
   const fromValuation = watch('fromValuation') || Boolean(watch('valuationData'));
+  
+  // Load valuation data if available
+  useEffect(() => {
+    const valuationData = watch('valuationData');
+    
+    if (fromValuation && valuationData) {
+      console.log('PricingSection - Loading valuation data:', valuationData);
+      
+      // Set price from valuation data
+      if (valuationData.basePrice || valuationData.averagePrice) {
+        const valuationPrice = valuationData.basePrice || valuationData.averagePrice;
+        setValue('price', valuationPrice, { shouldDirty: true });
+      }
+      
+      // Set reserve price from valuation data
+      if (valuationData.reservePrice) {
+        setValue('reservePrice', valuationData.reservePrice, { shouldDirty: true });
+        setReservePrice(valuationData.reservePrice);
+      }
+    }
+  }, [fromValuation, setValue, watch]);
   
   // Calculate reserve price based on listed price
   useEffect(() => {
@@ -54,10 +77,14 @@ export const PricingSection = () => {
     
     // Calculate reserve price
     const calculatedReservePrice = Math.round(priceNum - (priceNum * percentageY));
-    setReservePrice(calculatedReservePrice);
-    setValue('reservePrice', calculatedReservePrice);
     
-  }, [price, setValue]);
+    // Only set if not from valuation (valuation takes precedence)
+    if (!fromValuation) {
+      setReservePrice(calculatedReservePrice);
+      setValue('reservePrice', calculatedReservePrice, { shouldDirty: true });
+    }
+    
+  }, [price, setValue, fromValuation]);
   
   // Log valuation data for debugging
   useEffect(() => {
@@ -66,7 +93,8 @@ export const PricingSection = () => {
       console.log('PricingSection - fromValuation is true with data:', { 
         price: watch('price'), 
         reservePrice: watch('reservePrice'),
-        valuationData
+        valuationData,
+        formattedPrice: formatCurrency(watch('price'))
       });
     }
   }, [fromValuation, watch]);
