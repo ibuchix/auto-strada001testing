@@ -5,13 +5,13 @@
  * Updated: 2025-05-24 - Fixed action type casting for audit logs
  * Updated: 2025-05-25 - Fixed type issues with Supabase insertions and added logTransaction method
  * Updated: 2025-05-26 - Fixed database insertion type safety issues
+ * Updated: 2025-05-26 - Aligned AuditLogAction type with database schema
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { toSupabaseObject } from '@/utils/supabaseTypeUtils';
 import { TransactionDetails } from './types';
 
-// Define the allowed action types as a string union type
+// Define the allowed action types to match exactly with what the database expects
 type AuditLogAction = 
   | 'login' 
   | 'logout' 
@@ -27,11 +27,11 @@ type AuditLogAction =
   | 'auction_closed' 
   | 'auto_proxy_bid' 
   | 'start_auction' 
-  | 'admin_action' 
-  | 'bid_process' 
   | 'payment_process' 
+  | 'bid_process' 
   | 'system_repair' 
-  | 'system_alert';
+  | 'system_alert' 
+  | 'system_health_check';
 
 export class TransactionLogger {
   /**
@@ -41,7 +41,7 @@ export class TransactionLogger {
     try {
       // Create a formatted log entry for the transaction
       const logEntry = {
-        action: transaction.type.toLowerCase() as AuditLogAction,
+        action: this.mapTransactionTypeToAction(transaction.type),
         entity_type: transaction.entityType || 'transaction',
         entity_id: transaction.entityId || transaction.id,
         user_id: transaction.userId,
@@ -72,16 +72,37 @@ export class TransactionLogger {
   }
 
   /**
+   * Map transaction type to a valid audit log action
+   * This ensures type safety when sending actions to the database
+   */
+  private mapTransactionTypeToAction(transactionType: string): AuditLogAction {
+    switch (transactionType.toLowerCase()) {
+      case 'create': return 'create';
+      case 'update': return 'update';
+      case 'delete': return 'delete';
+      case 'authentication': return 'login';
+      case 'auction': return 'process_auctions';
+      case 'payment': return 'payment_process';
+      case 'upload': return 'create';
+      case 'query': return 'system_health_check';
+      default: return 'system_alert';
+    }
+  }
+
+  /**
    * Log a transaction event to the audit logs
    */
   async logEvent(
-    action: AuditLogAction,
+    actionType: string,
     entityType: string,
     entityId: string,
     details?: Record<string, any>,
     userId?: string
   ) {
     try {
+      // Map the action string to a valid AuditLogAction type
+      const action = this.ensureValidAction(actionType);
+      
       // Create a properly typed object to insert directly
       const insertData = {
         action,
@@ -101,6 +122,28 @@ export class TransactionLogger {
       console.error('Failed to log transaction event:', error);
       return false;
     }
+  }
+  
+  /**
+   * Ensure the action is a valid AuditLogAction supported by the database
+   */
+  private ensureValidAction(action: string): AuditLogAction {
+    const validActions: AuditLogAction[] = [
+      'login', 'logout', 'create', 'update', 'delete',
+      'suspend', 'reinstate', 'verify', 'reject', 'approve',
+      'process_auctions', 'auction_closed', 'auto_proxy_bid',
+      'start_auction', 'payment_process', 'bid_process',
+      'system_repair', 'system_alert', 'system_health_check'
+    ];
+    
+    const normalizedAction = action.toLowerCase();
+    
+    if (validActions.includes(normalizedAction as AuditLogAction)) {
+      return normalizedAction as AuditLogAction;
+    }
+    
+    // Default to system_alert for unknown actions
+    return 'system_alert';
   }
   
   /**

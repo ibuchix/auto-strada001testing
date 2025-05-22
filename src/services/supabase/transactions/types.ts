@@ -4,6 +4,7 @@
  * Created: 2025-07-22
  * Updated: 2025-05-11 - Added missing TransactionType enum values
  * Updated: 2025-05-11 - Fixed AuditLogAction enum values to match database types
+ * Updated: 2025-05-26 - Aligned AuditLogAction enum exactly with database schema
  */
 
 export enum TransactionType {
@@ -55,13 +56,37 @@ export interface TransactionDetails {
 }
 
 export enum AuditLogAction {
+  // User actions
+  LOGIN = 'login',
+  LOGOUT = 'logout',
+  
+  // CRUD operations
   CREATE = 'create',
   UPDATE = 'update',
   DELETE = 'delete',
   READ = 'read',
+  
+  // Administrative actions
+  VERIFY = 'verify',
+  REJECT = 'reject',
+  APPROVE = 'approve',
+  SUSPEND = 'suspend',
+  REINSTATE = 'reinstate',
+  
+  // Auction operations
+  PROCESS_AUCTIONS = 'process_auctions',
+  AUCTION_CLOSED = 'auction_closed',
+  AUTO_PROXY_BID = 'auto_proxy_bid',
+  START_AUCTION = 'start_auction',
+  BID_PROCESS = 'bid_process',
+  
+  // File operations
   UPLOAD = 'upload',
   DOWNLOAD = 'download',
-  LOGIN = 'login',
-  LOGOUT = 'logout',
-  AUCTION_CLOSED = 'auction_closed'
+  
+  // System operations
+  PAYMENT_PROCESS = 'payment_process',
+  SYSTEM_REPAIR = 'system_repair',
+  SYSTEM_ALERT = 'system_alert',
+  SYSTEM_HEALTH_CHECK = 'system_health_check'
 }
