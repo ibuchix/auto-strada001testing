@@ -14,6 +14,7 @@
  * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
  * Updated: 2025-06-21 - Completely refactored to use direct DB inserts with new RLS policies
  * Updated: 2025-06-01 - Enhanced image association with better direct association and temp uploads handling
+ * Updated: 2025-06-03 - Improved reliability of image association for draft listings
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -35,6 +36,8 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
   // Set temporary uploads data for association
   const setTempUploads = async (uploads: any[]): Promise<boolean> => {
     try {
+      console.log('[ImageAssociation] Setting temp uploads:', { count: uploads.length });
+      
       const { data, error } = await supabase.functions.invoke('handle-seller-operations', {
         body: {
           operation: 'set_temp_uploads',
@@ -47,6 +50,15 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
         return false;
       }
       
+      console.log('[ImageAssociation] Temp uploads set successfully');
+      
+      // Also try to set in local storage as backup mechanism
+      try {
+        localStorage.setItem('tempUploads', JSON.stringify(uploads));
+      } catch (e) {
+        console.warn('Failed to set backup temp uploads in localStorage:', e);
+      }
+      
       return true;
     } catch (err) {
       console.error('Exception setting temp uploads:', err);
@@ -57,6 +69,8 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
   // Directly associate uploads with a car
   const directAssociate = async (carId: string, uploads: any[]): Promise<number> => {
     try {
+      console.log(`[ImageAssociation] Direct association with car ${carId}, ${uploads.length} uploads`);
+      
       const { data, error } = await supabase.functions.invoke('handle-seller-operations', {
         body: {
           operation: 'associate_uploads',
@@ -91,6 +105,18 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
         return 0;
       }
       
+      // Try first to use any locally stored uploads as fallback
+      let fallbackUploads: any[] = [];
+      try {
+        const localUploads = localStorage.getItem('tempUploads');
+        if (localUploads) {
+          fallbackUploads = JSON.parse(localUploads);
+          console.log(`[ImageAssociation][${submissionId}] Found ${fallbackUploads.length} fallback uploads in localStorage`);
+        }
+      } catch (e) {
+        console.warn(`[ImageAssociation][${submissionId}] Error parsing local uploads:`, e);
+      }
+      
       // Use the direct DB insert approach for association with enhanced RLS policies
       let successCount = 0;
       let retryCount = 0;
@@ -104,6 +130,7 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
           
           if (!error) {
             successCount = data || 0;
+            console.log(`[ImageAssociation][${submissionId}] RPC association successful: ${successCount} images`);
           } else {
             // Fallback to edge function if RPC fails
             console.log(`[ImageAssociation][${submissionId}] RPC failed, trying edge function:`, error);
@@ -117,7 +144,18 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
             
             if (!fnError && fnData?.success) {
               successCount = fnData.count || 0;
+              console.log(`[ImageAssociation][${submissionId}] Edge function association successful: ${successCount} images`);
             } else {
+              // If that fails too and we have fallback uploads, try direct association
+              if (fallbackUploads.length > 0) {
+                console.log(`[ImageAssociation][${submissionId}] Using fallback uploads: ${fallbackUploads.length}`);
+                successCount = await directAssociate(carId, fallbackUploads);
+                if (successCount > 0) {
+                  console.log(`[ImageAssociation][${submissionId}] Fallback association successful: ${successCount} images`);
+                  break;
+                }
+              }
+              
               throw new Error(fnError?.message || 'Association failed');
             }
           }
@@ -125,9 +163,17 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
           if (successCount > 0) break; // Exit retry loop if successful
           
           // If no success but no error thrown, we might just not have any temp uploads
-          // Still exit the loop to avoid unnecessary retries
-          if (retryCount === 0) break;
+          // Try using fallback uploads
+          if (fallbackUploads.length > 0) {
+            console.log(`[ImageAssociation][${submissionId}] No success with standard methods, trying fallback uploads`);
+            successCount = await directAssociate(carId, fallbackUploads);
+            if (successCount > 0) {
+              console.log(`[ImageAssociation][${submissionId}] Fallback association successful: ${successCount} images`);
+              break;
+            }
+          }
           
+          // If still no success, increment retry
           retryCount++;
           
           // Wait before retrying
@@ -148,9 +194,24 @@ export const useImageAssociation = (retryConfig: RetryConfig = { maxRetries: 3, 
             await sleep(delayMs);
           } else {
             // Last retry failed
-            throw err; // Re-throw to be caught by outer catch
+            // If we have fallback uploads, try one last time with direct association
+            if (fallbackUploads.length > 0 && successCount === 0) {
+              console.log(`[ImageAssociation][${submissionId}] Last resort: Using fallback uploads directly`);
+              successCount = await directAssociate(carId, fallbackUploads);
+            }
+            
+            if (successCount === 0) {
+              throw err; // Re-throw to be caught by outer catch
+            }
           }
         }
+      }
+      
+      // Try to clean up localStorage
+      try {
+        localStorage.removeItem('tempUploads');
+      } catch (e) {
+        // Ignore localStorage errors
       }
       
       if (successCount > 0) {

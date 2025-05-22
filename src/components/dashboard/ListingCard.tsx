@@ -11,6 +11,7 @@
  * - 2025-05-08: Added better error handling and detailed logging for activation issues
  * - 2025-05-08: Improved navigation to car details page
  * - 2025-05-19: Fixed reserve price calculation to prioritize database field over calculated value
+ * - 2025-06-03: Enhanced activation functionality with better error handling and feedback
  */
 
 import { Card } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { formatPrice, calculateReservePrice } from "@/utils/valuation/reservePriceCalculator";
+import { useCarStatusTransitions } from "@/hooks/useCarStatusTransitions";
 
 interface ListingCardProps {
   id: string;
@@ -46,6 +48,11 @@ export const ListingCard = ({
   const navigate = useNavigate();
   const [isActivating, setIsActivating] = useState(false);
   const [displayPrice, setDisplayPrice] = useState<number | null>(null);
+  const { transitionStatus } = useCarStatusTransitions({
+    onTransitionSuccess: () => {
+      if (onStatusChange) onStatusChange();
+    }
+  });
   
   // Determine which price to display with proper fallback logic
   useEffect(() => {
@@ -105,59 +112,20 @@ export const ListingCard = ({
         console.log(`Calculated reserve price on activation: ${finalReservePrice}`);
       }
       
-      // Use the activate_listing function to activate the listing
-      const { data, error } = await supabase.rpc(
-        'activate_listing',
-        { 
-          p_listing_id: id,
-          p_user_id: sessionData.session.user.id,
-          p_reserve_price: finalReservePrice
-        }
+      // Use the transition_car_status function instead of activate_listing for more reliable updates
+      const result = await transitionStatus(
+        id,
+        'available',  // Set status to available
+        false         // Set isDraft to false
       );
-
-      if (error) {
-        console.error('Error activating listing:', error);
-        
-        // If we got a permission error, try to repair the seller registration
-        if (error.code === '42501' || error.message.includes('permission denied')) {
-          console.log('Permission error detected, attempting seller registration repair');
-          
-          // Try to ensure proper seller registration
-          const { data: repairData, error: repairError } = await supabase.rpc(
-            'ensure_seller_registration'
-          );
-          
-          if (!repairError && repairData?.success) {
-            console.log('Successfully repaired seller registration:', repairData);
-            
-            // Try activation again
-            const { data: retryData, error: retryError } = await supabase.rpc(
-              'activate_listing',
-              { 
-                p_listing_id: id,
-                p_user_id: sessionData.session.user.id,
-                p_reserve_price: finalReservePrice
-              }
-            );
-            
-            if (retryError) {
-              throw retryError;
-            }
-            
-            toast.success('Listing activated successfully');
-            if (onStatusChange) onStatusChange();
-            return;
-          } else {
-            console.error('Failed to repair seller registration:', repairError || 'Unknown error');
-            throw new Error('Failed to repair your seller profile. Please contact support.');
-          }
-        }
-        
-        throw error;
+      
+      if (!result) {
+        throw new Error("Failed to activate listing through transition");
       }
       
-      console.log('Listing activation successful:', data);
-      toast.success('Listing activated successfully');
+      toast.success('Listing activated successfully', {
+        description: 'Your listing is now live and visible to dealers'
+      });
       
       // Force refresh the listings
       if (onStatusChange) onStatusChange();
@@ -173,10 +141,33 @@ export const ListingCard = ({
         toast.error(error.message || "Failed to activate listing");
       }
       
-      // Only manually refresh if there was an error
-      if (onStatusChange) onStatusChange();
+      // Try a fallback approach using the original activate_listing method
+      try {
+        console.log('Attempting fallback activation method...');
+        const { data, error } = await supabase.rpc(
+          'activate_listing',
+          { 
+            p_listing_id: id,
+            p_user_id: sessionData.session.user.id,
+            p_reserve_price: finalReservePrice
+          }
+        );
+
+        if (error) {
+          console.error('Fallback activation failed:', error);
+          toast.error(`Activation failed: ${error.message}`);
+        } else {
+          console.log('Fallback activation succeeded:', data);
+          toast.success('Listing activated successfully');
+          if (onStatusChange) onStatusChange();
+        }
+      } catch (fallbackError) {
+        console.error('Fallback activation error:', fallbackError);
+      }
     } finally {
       setIsActivating(false);
+      // Force refresh to ensure UI is updated
+      if (onStatusChange) onStatusChange();
     }
   };
 

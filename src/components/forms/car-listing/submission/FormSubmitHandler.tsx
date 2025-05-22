@@ -25,6 +25,7 @@
  * Updated: 2025-05-22 - Updated to use security definer function for reliable car creation
  * Updated: 2025-06-01 - Fixed price handling from valuation data and improved image association
  * Updated: 2025-06-02 - Fixed property name from is_draft to isDraft
+ * Updated: 2025-06-03 - Enhanced image association and fixed draft status handling
  */
 
 import React, { useState } from "react";
@@ -50,6 +51,7 @@ export interface FormSubmitHandlerProps {
   onSubmitSuccess?: (carId: string) => void;
   onSubmitError?: (error: Error) => void;
   carId?: string;
+  isDraft?: boolean; // Add optional parameter for controlling draft status
 }
 
 export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({ 
@@ -58,7 +60,8 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
   userId,
   onSubmitSuccess,
   onSubmitError,
-  carId
+  carId,
+  isDraft = true // Default to draft mode
 }) => {
   // Get form context from React Hook Form's useFormContext
   const formContext = useFormContext<CarListingFormData>();
@@ -79,7 +82,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
   const navigate = useNavigate();
   
   // Use the image association hook
-  const { associateImages, isAssociating } = useImageAssociation({ maxRetries: 3, delayMs: 2000 });
+  const { associateImages, isAssociating, setTempUploads } = useImageAssociation({ maxRetries: 3, delayMs: 2000 });
   
   // Get auth context
   const auth = useAuth();
@@ -174,8 +177,8 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       // Ensure sellerId is explicitly set for ownership tracking
       preparedData.sellerId = currentUserId;
       
-      // Ensure isDraft is explicitly set to prevent not-null constraint violation
-      preparedData.isDraft = true;
+      // Ensure isDraft is explicitly set according to props or default
+      preparedData.isDraft = isDraft;
       
       // Log the final data being submitted
       console.log(`[FormSubmission][${submissionId}] Submitting car listing:`, {
@@ -183,8 +186,26 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         userId: currentUserId,
         hasSellerIdField: !!preparedData.sellerId,
         price: preparedData.price,
-        reservePrice: preparedData.reservePrice
+        reservePrice: preparedData.reservePrice,
+        isDraft: preparedData.isDraft // Log draft status for clarity
       });
+      
+      // Pre-save the uploaded photos for better association
+      // This step is critical for ensuring the images are properly associated
+      if (formData.uploadedPhotos && formData.uploadedPhotos.length > 0) {
+        // Prepare temp uploads data format for association
+        const tempUploadsData = formData.uploadedPhotos.map((url, index) => ({
+          filePath: url,
+          category: index === 0 ? 'main_photo' : 'additional_photos',
+          publicUrl: url
+        }));
+        
+        console.log(`[FormSubmission][${submissionId}] Setting temp uploads data:`, 
+          { count: tempUploadsData.length });
+        
+        // Set temp uploads data before creating the car listing
+        await setTempUploads(tempUploadsData);
+      }
       
       // Submit the listing using the security definer function via RPC
       let result;
@@ -204,26 +225,17 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       try {
         console.log(`[FormSubmission][${submissionId}] Associating images with car ID: ${newCarId}`);
         
-        // Set temporary uploads data in app state
-        if (formData.uploadedPhotos && formData.uploadedPhotos.length > 0) {
-          // Prepare temp uploads data format for association
-          const tempUploadsData = formData.uploadedPhotos.map((url, index) => ({
-            filePath: url,
-            category: index === 0 ? 'main_photo' : 'additional_photos',
-            publicUrl: url
-          }));
-          
-          console.log(`[FormSubmission][${submissionId}] Setting temp uploads data:`, 
-            { count: tempUploadsData.length });
-          
-          // Try direct setting of temp uploads data through the Supabase function
-          await supabase.functions.invoke('handle-seller-operations', {
-            body: {
-              operation: 'set_temp_uploads',
-              uploads: tempUploadsData
-            }
-          });
-        }
+        // Try direct setting of temp uploads data through the Supabase function
+        await supabase.functions.invoke('handle-seller-operations', {
+          body: {
+            operation: 'set_temp_uploads',
+            uploads: formData.uploadedPhotos?.map((url, index) => ({
+              filePath: url,
+              category: index === 0 ? 'main_photo' : 'additional_photos',
+              publicUrl: url
+            })) || []
+          }
+        });
         
         const associatedCount = await associateImages(newCarId, submissionId);
         console.log(`[FormSubmission][${submissionId}] Successfully associated ${associatedCount} images`);
@@ -243,7 +255,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         await supabase.rpc('transition_car_status', {
           p_car_id: newCarId,
           p_new_status: 'draft',
-          p_is_draft: true
+          p_is_draft: preparedData.isDraft
         });
       } catch (historyError) {
         console.error(`[FormSubmission][${submissionId}] Error recording initial history:`, historyError);
