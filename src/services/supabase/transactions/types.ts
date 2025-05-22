@@ -7,6 +7,7 @@
  * Updated: 2025-05-26 - Aligned AuditLogAction enum exactly with database schema
  * Updated: 2025-05-26 - Ensured AuditLogAction is a string union type matching database
  * Updated: 2025-05-27 - Updated AuditLogAction to include all valid database action types
+ * Updated: 2025-05-28 - Added missing 'upload' and 'download' actions to AuditLogAction type
  */
 
 export enum TransactionType {

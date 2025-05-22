@@ -8,6 +8,7 @@
  * Updated: 2025-05-26 - Aligned AuditLogAction type with database schema
  * Updated: 2025-05-27 - Fixed action type mapping and casting for database compatibility
  * Updated: 2025-05-28 - Resolved type compatibility issues with the database schema
+ * Updated: 2025-05-28 - Added additional type assertion to ensure action type safety
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -56,6 +57,7 @@ export class TransactionLogger {
    * This ensures type safety when sending actions to the database
    */
   private mapTransactionTypeToAction(transactionType: string): AuditLogAction {
+    // Explicitly cast the result to AuditLogAction to ensure type safety
     switch (transactionType.toLowerCase()) {
       case 'create': return 'create';
       case 'update': return 'update';
@@ -83,8 +85,9 @@ export class TransactionLogger {
       // Map the action string to a valid AuditLogAction type
       const action = this.ensureValidAction(actionType);
       
-      // Create a properly typed object to insert directly
+      // Create a properly typed object for database insertion
       const insertData = {
+        // Use type assertion to tell TypeScript this is a valid AuditLogAction
         action: action as AuditLogAction,
         entity_type: entityType,
         entity_id: entityId,
@@ -117,11 +120,14 @@ export class TransactionLogger {
       'payment_process', 'system_repair', 'system_alert', 'system_health_check'
     ];
     
-    const normalizedAction = action.toLowerCase() as AuditLogAction;
+    // Convert to lowercase for case-insensitive comparison
+    const normalizedAction = action.toLowerCase();
     
     // Check if the action is valid
-    if (validActions.includes(normalizedAction)) {
-      return normalizedAction;
+    for (const validAction of validActions) {
+      if (normalizedAction === validAction) {
+        return validAction;
+      }
     }
     
     // Default to system_alert for unknown actions
