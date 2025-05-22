@@ -3,6 +3,7 @@
  * Edge function for seller operations
  * Updated: 2025-04-19 - Switched to use shared utilities from central repository
  * Updated: 2025-07-08 - Fixed modular imports from utils directory
+ * Updated: 2025-05-30 - Fixed handleGetValuation import to resolve module error
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -47,6 +48,7 @@ Deno.serve(async (req) => {
 
     switch (data.operation) {
       case 'get_valuation':
+      case 'validate_vin':
         return await handleGetValuation(supabase, data, requestId);
       case 'create_listing':
         return await handleCreateListingRequest(supabase, data, requestId);

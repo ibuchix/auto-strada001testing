@@ -1,171 +1,122 @@
 
 /**
- * Transaction Logger Service
- * Created: 2025-04-20 - Handle logging transaction events
- * Updated: 2025-05-24 - Fixed action type casting for audit logs
- * Updated: 2025-05-25 - Fixed type issues with Supabase insertions and added logTransaction method
- * Updated: 2025-05-26 - Fixed database insertion type safety issues
- * Updated: 2025-05-26 - Aligned AuditLogAction type with database schema
- * Updated: 2025-05-27 - Fixed action type mapping and casting for database compatibility
- * Updated: 2025-05-28 - Resolved type compatibility issues with the database schema
- * Updated: 2025-05-29 - Updated mapTransactionTypeToAction to map to database-compatible types
- * Updated: 2025-05-30 - Fixed type issues with action mapping by using type assertions
- * Updated: 2025-05-30 - Removed mapping to non-existing database types like 'payment_process'
- * Updated: 2025-05-30 - Removed invalid action types not present in the database schema
+ * Transaction logging service
+ * Created: 2025-07-22
+ * Updated: 2025-05-30 - Fixed action validation for logging to database
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { AuditLogAction, TransactionDetails } from './types';
+import { TransactionType, TransactionDetails, AuditLogAction } from './types';
 
-export class TransactionLogger {
-  /**
-   * Log a transaction to audit_logs
-   */
-  async logTransaction(transaction: TransactionDetails): Promise<boolean> {
-    try {
-      // Create a formatted log entry for the transaction
-      const logEntry = {
-        action: this.mapTransactionTypeToAction(transaction.type),
-        entity_type: transaction.entityType || 'transaction',
-        entity_id: transaction.entityId || transaction.id,
-        user_id: transaction.userId,
-        details: {
-          operation: transaction.operation,
-          status: transaction.status,
-          duration: transaction.endTime 
-            ? (transaction.endTime - transaction.startTime) 
-            : undefined,
-          error: transaction.errorDetails,
-          ...transaction.metadata
-        }
-      };
-      
-      await this.logEvent(
-        logEntry.action,
-        logEntry.entity_type,
-        logEntry.entity_id || 'unknown',
-        logEntry.details,
-        logEntry.user_id
-      );
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to log transaction:', error);
-      return false;
+/**
+ * Maps transaction types to audit log actions
+ */
+const mapTransactionTypeToAction = (type: TransactionType, operation?: string): AuditLogAction => {
+  // Direct mappings from transaction type to action
+  const directMappings: Record<TransactionType, AuditLogAction> = {
+    CREATE: 'create',
+    UPDATE: 'update',
+    DELETE: 'delete',
+    AUTHENTICATION: 'login', // Default, can be overridden by operation
+    QUERY: 'system_health_check', // Default for queries
+    UPLOAD: 'create', // Default for uploads
+    AUCTION: 'auction_closed', // Default for auction operations
+    PAYMENT: 'system_alert' // Default for payment operations
+  };
+
+  // Special case for authentication based on operation
+  if (type === TransactionType.AUTHENTICATION) {
+    if (operation === 'logout') {
+      return 'logout';
     }
+    return 'login';
   }
 
-  /**
-   * Map transaction type to a valid audit log action
-   * This ensures type safety when sending actions to the database
-   */
-  private mapTransactionTypeToAction(transactionType: string): AuditLogAction {
-    // Map each transaction type to a valid database audit_log_type
-    switch (transactionType.toLowerCase()) {
-      case 'create': return 'create';
-      case 'update': return 'update';
-      case 'delete': return 'delete';
-      case 'authentication': return 'login';
-      case 'auction': return 'process_auctions';
-      case 'payment': return 'system_alert'; // Changed from payment_process to a valid type
-      case 'upload': return 'create'; // Map upload to a valid database type
-      case 'query': return 'system_health_check'; // Map query to a valid database type
-      default: return 'system_alert';
+  // Special case for auction operations
+  if (type === TransactionType.AUCTION) {
+    if (operation === 'start') {
+      return 'start_auction';
+    } else if (operation === 'recovery') {
+      return 'auction_recovery';
+    } else if (operation === 'proxy_bid') {
+      return 'auto_proxy_bid';
     }
+    return 'auction_closed';
   }
 
-  /**
-   * Log a transaction event to the audit logs
-   */
-  async logEvent(
-    actionType: string,
-    entityType: string,
-    entityId: string,
-    details?: Record<string, any>,
-    userId?: string
-  ) {
-    try {
-      // Convert the actionType to a valid AuditLogAction
-      const action = this.ensureValidAction(actionType);
-      
-      // Insert with explicit type as a valid literal string type
-      // Using explicit casting with 'as const' to ensure type safety
-      await supabase
-        .from('audit_logs')
-        .insert({
-          action: action as AuditLogAction,
-          entity_type: entityType,
-          entity_id: entityId,
-          user_id: userId,
-          details: details || {}
-        });
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to log transaction event:', error);
-      return false;
-    }
+  // Use the direct mapping or default to 'system_alert' for any unknown types
+  return directMappings[type] || 'system_alert';
+};
+
+/**
+ * Ensures the action is valid according to the database schema
+ */
+const ensureValidAction = (action: string): AuditLogAction => {
+  // List of valid actions from the database schema
+  const validActions: AuditLogAction[] = [
+    'login',
+    'logout',
+    'create',
+    'update',
+    'delete',
+    'verify',
+    'reject',
+    'approve',
+    'suspend',
+    'reinstate',
+    'process_auctions',
+    'auction_closed',
+    'auto_proxy_bid',
+    'start_auction',
+    'system_alert',
+    'system_health_check',
+    'auction_recovery'
+  ];
+
+  // Check if the action is valid
+  if (validActions.includes(action as AuditLogAction)) {
+    return action as AuditLogAction;
   }
-  
-  /**
-   * Ensure the action is a valid AuditLogAction supported by the database
-   */
-  private ensureValidAction(action: string): AuditLogAction {
-    // Define all valid actions that match our AuditLogAction type
-    const validActions: AuditLogAction[] = [
-      'login', 'logout', 'create', 'update', 'delete',
-      'verify', 'reject', 'approve', 'suspend', 'reinstate',
-      'process_auctions', 'auction_closed', 'auto_proxy_bid',
-      'start_auction', 'system_alert', 'system_health_check',
-      'auction_recovery'
-    ];
+
+  // Default to system_alert for invalid actions
+  console.warn(`Invalid audit log action: ${action}. Using system_alert instead.`);
+  return 'system_alert';
+};
+
+/**
+ * Logs a transaction to the database
+ */
+export const logTransactionToDatabase = async (
+  transaction: TransactionDetails
+): Promise<void> => {
+  try {
+    // Map transaction type to audit log action
+    const mappedAction = mapTransactionTypeToAction(transaction.type, transaction.operation);
     
-    // Convert to lowercase for case-insensitive comparison
-    const normalizedAction = action.toLowerCase();
-    
-    // Check if the action is valid
-    for (const validAction of validActions) {
-      if (normalizedAction === validAction) {
-        return validAction;
+    // Ensure the action is valid
+    const validAction = ensureValidAction(mappedAction);
+
+    // Prepare the audit log entry
+    const { error } = await supabase.from('audit_logs').insert({
+      action: validAction,
+      entity_type: transaction.entityType || 'transaction',
+      entity_id: transaction.entityId || null,
+      user_id: transaction.userId || null,
+      details: {
+        transaction_id: transaction.id,
+        operation: transaction.operation,
+        duration_ms: transaction.duration,
+        status: transaction.status,
+        metadata: transaction.metadata,
+        error: transaction.error ? String(transaction.error) : undefined,
+        error_details: transaction.errorDetails
       }
-    }
-    
-    // Default to system_alert for unknown actions
-    return 'system_alert';
-  }
-  
-  /**
-   * Log a system error
-   */
-  async logError(
-    errorMessage: string,
-    entityType: string,
-    entityId: string,
-    details?: Record<string, any>
-  ) {
-    try {
-      // Create a properly typed object to insert directly
-      const insertData = {
-        log_type: 'error',
-        message: errorMessage,
-        details: {
-          entity_type: entityType,
-          entity_id: entityId,
-          ...details
-        }
-      };
-      
-      // Insert with proper conversion for Supabase
-      await supabase
-        .from('system_logs')
-        .insert(insertData);
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to log system error:', error);
-      return false;
-    }
-  }
-}
+    });
 
-export const transactionLogger = new TransactionLogger();
+    if (error) {
+      console.error('Error logging transaction to database:', error);
+    }
+  } catch (err) {
+    console.error('Exception logging transaction to database:', err);
+  }
+};

@@ -1,245 +1,154 @@
 
 /**
- * Valuation handler for seller operations
- * Updated: 2025-04-21 - Fixed import paths to use local utils instead of shared
- * Updated: 2025-04-24 - Removed all caching code to ensure direct API calls
- * Updated: 2025-04-24 - Fixed remaining cache references in log operations
+ * Valuation handler for handle-seller-operations
+ * Created: 2025-04-19
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { ValuationRequest } from '../schema-validation.ts';
 import { checkExistingEntities, validateVinInput } from '../services/validation-service.ts';
 import { fetchVehicleValuation } from '../valuation-service.ts';
-import { logOperation, createPerformanceTracker } from '../utils/logging.ts';
+import { logOperation } from '../utils/logging.ts';
+import { formatResponse } from '../shared.ts';
 
-export async function handleValuationRequest(
+export async function handleGetValuation(
   supabase: SupabaseClient,
   data: ValuationRequest,
   requestId: string
-): Promise<{
-  success: boolean;
-  data?: Record<string, any>;
-  error?: string;
-  errorCode?: string;
-}> {
-  // Create performance tracker for monitoring execution times
-  const perfTracker = createPerformanceTracker(requestId, 'valuation_request');
-  
+): Promise<Response> {
   try {
     const { vin, mileage, gearbox, userId } = data;
     
-    // Log operation start with detailed context
-    logOperation('valuation_request_start', { 
-      requestId, 
-      vin, 
-      mileage, 
-      gearbox, 
-      userId,
-      timestamp: new Date().toISOString()
-    });
+    // Log operation start
+    logOperation('valuation_request_start', { requestId, vin, mileage, gearbox, userId });
     
     // Validate inputs
     validateVinInput(vin, mileage, userId);
-    perfTracker.checkpoint('input_validation');
     
     // Check for existing data
-    const existingCheckStartTime = performance.now();
     const existingCheck = await checkExistingEntities(supabase, vin, userId, mileage, requestId);
-    perfTracker.checkpoint('existing_check');
-    
-    logOperation('existing_entities_check', { 
-      requestId, 
-      vin,
-      isExistingReservation: existingCheck.isExistingReservation,
-      isExistingVehicle: existingCheck.isExistingVehicle,
-      executionTimeMs: (performance.now() - existingCheckStartTime).toFixed(2),
-      timestamp: new Date().toISOString()
-    });
     
     if (existingCheck.isExistingReservation) {
-      // This is not a cache - it's a valid business record
-      logOperation('found_existing_reservation', { 
-        requestId, 
-        vin,
-        timestamp: new Date().toISOString(),
-        dataFields: existingCheck.data ? Object.keys(existingCheck.data) : []
-      });
-      
-      // Ensure data has consistent property names
-      if (existingCheck.data) {
-        // Make sure both valuation and reservePrice exist (for backwards compatibility)
-        if (existingCheck.data.valuation !== undefined && existingCheck.data.reservePrice === undefined) {
-          existingCheck.data.reservePrice = existingCheck.data.valuation;
-        } else if (existingCheck.data.reservePrice !== undefined && existingCheck.data.valuation === undefined) {
-          existingCheck.data.valuation = existingCheck.data.reservePrice;
-        }
-      }
-      
-      perfTracker.complete('success', { 
-        source: 'existing_reservation', 
-        vin, 
-        mileage 
-      });
-      
-      return {
-        success: true,
-        data: existingCheck.data
-      };
+      logOperation('using_existing_reservation', { requestId, vin });
+      return formatResponse.success(existingCheck.data);
     }
     
     if (existingCheck.isExistingVehicle) {
-      logOperation('vehicle_already_exists', { 
-        requestId, 
-        vin,
-        timestamp: new Date().toISOString()
-      });
-      
-      perfTracker.complete('failure', { 
-        reason: 'vehicle_already_exists', 
-        vin 
-      });
-      
-      return {
-        success: false,
-        data: existingCheck.data,
-        error: 'This vehicle has already been listed',
-        errorCode: 'VEHICLE_ALREADY_EXISTS'
-      };
+      logOperation('vehicle_already_exists', { requestId, vin });
+      return formatResponse.error(
+        'This vehicle has already been listed',
+        400,
+        'VEHICLE_ALREADY_EXISTS'
+      );
     }
     
-    // Log external API request start
-    logOperation('direct_api_valuation_start', { 
-      requestId, 
-      vin,
-      mileage,
-      gearbox,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Time the external API call - always call external API, no caching
-    const apiStartTime = performance.now();
+    // Fetch valuation from external service
     const valuationResult = await fetchVehicleValuation(vin, mileage, gearbox, requestId);
-    const apiCallDuration = performance.now() - apiStartTime;
-    
-    perfTracker.checkpoint('external_api_call');
-    
-    // Log external API result
-    logOperation('external_valuation_result', { 
-      requestId, 
-      vin,
-      success: valuationResult.success,
-      error: valuationResult.error || null,
-      durationMs: apiCallDuration.toFixed(2),
-      timestamp: new Date().toISOString()
-    });
     
     if (!valuationResult.success) {
-      perfTracker.complete('failure', { 
-        reason: valuationResult.errorCode || 'valuation_error', 
-        error: valuationResult.error 
-      });
-      
-      return {
-        success: false,
-        error: valuationResult.error || 'Failed to get valuation',
-        errorCode: valuationResult.errorCode || 'VALUATION_ERROR'
-      };
+      return formatResponse.error(
+        valuationResult.error || 'Failed to get valuation',
+        400,
+        valuationResult.errorCode || 'VALUATION_ERROR'
+      );
     }
     
-    // Ensure consistent property names in API response
-    if (valuationResult.data) {
-      // Make sure both valuation and reservePrice exist
-      if (valuationResult.data.valuation !== undefined && valuationResult.data.reservePrice === undefined) {
-        valuationResult.data.reservePrice = valuationResult.data.valuation;
-      } else if (valuationResult.data.reservePrice !== undefined && valuationResult.data.valuation === undefined) {
-        valuationResult.data.valuation = valuationResult.data.reservePrice;
+    // Ensure critical fields exist and are standardized
+    const processedData = {
+      ...valuationResult.data,
+      make: valuationResult.data.make || '',
+      model: valuationResult.data.model || '',
+      year: valuationResult.data.year || valuationResult.data.productionYear,
+      transmission: gearbox || valuationResult.data.transmission || 'manual',
+      mileage: mileage,
+      vin: vin,
+      // Ensure consistent naming for price fields
+      valuation: valuationResult.data.reservePrice || valuationResult.data.valuation,
+      reservePrice: valuationResult.data.reservePrice || valuationResult.data.valuation,
+      averagePrice: valuationResult.data.basePrice || valuationResult.data.averagePrice
+    };
+    
+    // Log the processed data structure
+    logOperation('processed_valuation_data', { 
+      requestId, 
+      vin,
+      dataFields: Object.keys(processedData),
+      hasMake: !!processedData.make,
+      hasModel: !!processedData.model,
+      hasYear: !!processedData.year
+    });
+    
+    // Store in cache
+    try {
+      const { error: cacheError } = await supabase
+        .from('vin_valuation_cache')
+        .upsert({
+          vin,
+          mileage,
+          valuation_data: processedData
+        });
+      
+      if (cacheError) {
+        logOperation('cache_store_error', { 
+          requestId, 
+          vin, 
+          error: cacheError.message 
+        }, 'warn');
       }
+    } catch (cacheError) {
+      logOperation('cache_store_exception', { 
+        requestId, 
+        vin, 
+        error: cacheError.message 
+      }, 'warn');
     }
     
     // Store in VIN reservations if not already present
     try {
-      // Log reservation attempt
-      logOperation('creating_vin_reservation', { 
-        requestId, 
-        vin,
-        userId,
-        timestamp: new Date().toISOString()
-      }, 'debug');
-      
-      // Store reservation
-      supabase
+      const { error: reservationError } = await supabase
         .from('vin_reservations')
         .insert({
           vin,
           user_id: userId,
-          valuation_data: valuationResult.data,
+          valuation_data: processedData,
           // Will expire after 24 hours (handled by default value in table)
         })
         .onConflict('vin')
-        .ignore()
-        .then(result => {
-          if (result.error) {
-            logOperation('reservation_store_error', { 
-              requestId, 
-              vin, 
-              error: result.error.message,
-              timestamp: new Date().toISOString()
-            }, 'warn');
-          }
-        })
-        .catch(error => {
-          logOperation('reservation_store_exception', { 
-            requestId, 
-            vin, 
-            error: error.message,
-            timestamp: new Date().toISOString()
-          }, 'warn');
-        });
+        .ignore();
+      
+      if (reservationError) {
+        logOperation('reservation_store_error', { 
+          requestId, 
+          vin, 
+          error: reservationError.message 
+        }, 'warn');
+      }
     } catch (reservationError) {
-      // Just log, don't affect main flow
       logOperation('reservation_store_exception', { 
         requestId, 
         vin, 
-        error: reservationError.message,
-        timestamp: new Date().toISOString()
+        error: reservationError.message 
       }, 'warn');
     }
-    
-    perfTracker.complete('success', { 
-      source: 'external_api',
-      vin,
-      hasData: !!valuationResult.data,
-      dataFields: valuationResult.data ? Object.keys(valuationResult.data) : []
-    });
     
     logOperation('valuation_request_complete', { 
       requestId, 
       vin,
-      success: true,
-      timestamp: new Date().toISOString()
+      success: true
     });
     
-    return {
-      success: true,
-      data: valuationResult.data
-    };
+    return formatResponse.success(processedData);
   } catch (error) {
-    perfTracker.complete('error', { 
-      errorType: error.constructor?.name,
-      errorMessage: error.message
-    });
-    
     logOperation('valuation_request_error', { 
       requestId, 
       error: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
+      stack: error.stack
     }, 'error');
     
-    return {
-      success: false,
-      error: error.message || 'An error occurred during valuation',
-      errorCode: error.code || 'VALUATION_PROCESSING_ERROR'
-    };
+    return formatResponse.error(
+      error.message || 'An error occurred during valuation',
+      400,
+      error.code || 'VALUATION_PROCESSING_ERROR'
+    );
   }
 }
