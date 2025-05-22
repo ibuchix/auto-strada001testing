@@ -10,6 +10,7 @@
  * Updated: 2025-05-28 - Resolved type compatibility issues with the database schema
  * Updated: 2025-05-29 - Updated mapTransactionTypeToAction to map to database-compatible types
  * Updated: 2025-05-30 - Fixed type issues with action mapping by using type assertions
+ * Updated: 2025-05-30 - Removed mapping to non-existing database types like 'payment_process'
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -65,7 +66,7 @@ export class TransactionLogger {
       case 'delete': return 'delete';
       case 'authentication': return 'login';
       case 'auction': return 'process_auctions';
-      case 'payment': return 'payment_process';
+      case 'payment': return 'system_alert'; // Changed from payment_process to a valid type
       case 'upload': return 'create'; // Map upload to a valid database type
       case 'query': return 'system_health_check'; // Map query to a valid database type
       default: return 'system_alert';
@@ -86,8 +87,8 @@ export class TransactionLogger {
       // Convert the actionType to a valid AuditLogAction
       const action = this.ensureValidAction(actionType);
       
-      // Insert with explicit type for database compatibility
-      // Using explicit casting to the valid literals
+      // Insert with explicit type as a valid literal string type
+      // Using explicit casting with 'as const' to ensure type safety
       await supabase
         .from('audit_logs')
         .insert({
@@ -114,8 +115,7 @@ export class TransactionLogger {
       'login', 'logout', 'create', 'update', 'delete',
       'verify', 'reject', 'approve', 'suspend', 'reinstate',
       'process_auctions', 'auction_closed', 'auto_proxy_bid',
-      'start_auction', 'payment_process',
-      'system_repair', 'system_alert', 'system_health_check',
+      'start_auction', 'system_repair', 'system_alert', 'system_health_check',
       'auction_recovery'
     ];
     

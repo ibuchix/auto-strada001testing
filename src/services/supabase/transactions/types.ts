@@ -9,6 +9,7 @@
  * Updated: 2025-05-27 - Updated AuditLogAction to include all valid database action types
  * Updated: 2025-05-29 - Fixed AuditLogAction to exactly match database audit_log_type enum
  * Updated: 2025-05-30 - Removed "bid_process" which is not in the database schema
+ * Updated: 2025-05-30 - Removed "payment_process" which is not in the database schema
  */
 
 export enum TransactionType {
@@ -75,7 +76,6 @@ export type AuditLogAction =
   | 'auction_closed'
   | 'auto_proxy_bid'
   | 'start_auction'
-  | 'payment_process'
   | 'system_repair'
   | 'system_alert'
   | 'system_health_check'
