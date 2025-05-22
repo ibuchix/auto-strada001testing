@@ -7,6 +7,7 @@
  * Updated: 2025-05-26 - Fixed database insertion type safety issues
  * Updated: 2025-05-26 - Aligned AuditLogAction type with database schema
  * Updated: 2025-05-27 - Fixed action type mapping and casting for database compatibility
+ * Updated: 2025-05-28 - Resolved type compatibility issues with the database schema
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -84,14 +85,14 @@ export class TransactionLogger {
       
       // Create a properly typed object to insert directly
       const insertData = {
-        action,
+        action: action as AuditLogAction,
         entity_type: entityType,
         entity_id: entityId,
         user_id: userId,
         details: details || {}
       };
       
-      // Insert with proper conversion for Supabase
+      // Insert with proper typing for Supabase
       await supabase
         .from('audit_logs')
         .insert(insertData);
@@ -116,11 +117,11 @@ export class TransactionLogger {
       'payment_process', 'system_repair', 'system_alert', 'system_health_check'
     ];
     
-    const normalizedAction = action.toLowerCase();
+    const normalizedAction = action.toLowerCase() as AuditLogAction;
     
     // Check if the action is valid
-    if (validActions.includes(normalizedAction as AuditLogAction)) {
-      return normalizedAction as AuditLogAction;
+    if (validActions.includes(normalizedAction)) {
+      return normalizedAction;
     }
     
     // Default to system_alert for unknown actions

@@ -6,6 +6,7 @@
  * Updated: 2025-05-11 - Fixed AuditLogAction enum values to match database types
  * Updated: 2025-05-26 - Aligned AuditLogAction enum exactly with database schema
  * Updated: 2025-05-26 - Ensured AuditLogAction is a string union type matching database
+ * Updated: 2025-05-27 - Updated AuditLogAction to include all valid database action types
  */
 
 export enum TransactionType {
@@ -56,7 +57,7 @@ export interface TransactionDetails {
   metadata?: Record<string, any>;
 }
 
-// Define as string literal union type instead of enum to match database exactly
+// Define as string literal union type exactly matching the database schema
 export type AuditLogAction = 
   | 'login'
   | 'logout'

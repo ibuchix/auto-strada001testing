@@ -4,6 +4,7 @@
  * Created: 2025-07-18
  * Updated: 2025-05-25 - Fixed exports and ensured correct implementations
  * Updated: 2025-05-27 - Updated exports to include AuditLogAction type
+ * Updated: 2025-05-28 - Ensured all exports are properly typed
  */
 
 // Re-export transaction types
