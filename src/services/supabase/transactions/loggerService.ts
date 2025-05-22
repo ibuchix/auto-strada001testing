@@ -11,6 +11,7 @@
  * Updated: 2025-05-29 - Updated mapTransactionTypeToAction to map to database-compatible types
  * Updated: 2025-05-30 - Fixed type issues with action mapping by using type assertions
  * Updated: 2025-05-30 - Removed mapping to non-existing database types like 'payment_process'
+ * Updated: 2025-05-30 - Removed invalid action types not present in the database schema
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -115,7 +116,7 @@ export class TransactionLogger {
       'login', 'logout', 'create', 'update', 'delete',
       'verify', 'reject', 'approve', 'suspend', 'reinstate',
       'process_auctions', 'auction_closed', 'auto_proxy_bid',
-      'start_auction', 'system_repair', 'system_alert', 'system_health_check',
+      'start_auction', 'system_alert', 'system_health_check',
       'auction_recovery'
     ];
     
