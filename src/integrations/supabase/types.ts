@@ -1896,8 +1896,11 @@ export type Database = {
         Returns: Json
       }
       get_dealer_by_user_id: {
-        Args: { p_user_id: string }
-        Returns: Json
+        Args: { p_user_id: string } | { user_id: number }
+        Returns: {
+          dealer_id: number
+          dealer_name: string
+        }[]
       }
       get_profile: {
         Args: { p_user_id: string }
