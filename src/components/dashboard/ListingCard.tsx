@@ -13,6 +13,7 @@
  * - 2025-05-19: Fixed reserve price calculation to prioritize database field over calculated value
  * - 2025-06-03: Enhanced activation functionality with better error handling and feedback
  * - 2025-06-22: Fixed TypeScript errors with sessionData and finalReservePrice variables
+ * - 2025-06-27: Removed all fallback logic and database reserve_price usage to ensure consistency in pricing
  */
 
 import { Card } from "@/components/ui/card";
@@ -33,7 +34,7 @@ interface ListingCardProps {
   isDraft: boolean;
   onStatusChange?: () => void;
   valuationData?: any;
-  reserve_price?: number; // Database reserve_price field
+  reserve_price?: number; // Database reserve_price field (no longer used)
 }
 
 export const ListingCard = ({ 
@@ -44,7 +45,7 @@ export const ListingCard = ({
   isDraft, 
   onStatusChange,
   valuationData,
-  reserve_price
+  reserve_price // Kept in interface for backward compatibility but not used
 }: ListingCardProps) => {
   const navigate = useNavigate();
   const [isActivating, setIsActivating] = useState(false);
@@ -55,41 +56,26 @@ export const ListingCard = ({
     }
   });
   
-  // Determine which price to display with proper fallback logic
+  // Calculate reserve price using ONLY our pricing logic, no fallbacks to database value
   useEffect(() => {
     const calculateDisplayPrice = async () => {
       try {
-        // First priority: Use database reserve_price if available
-        if (reserve_price) {
-          console.log(`Using database reserve_price for card ${id}: ${reserve_price}`);
-          setDisplayPrice(reserve_price);
-          return;
-        }
-        
-        // Second priority: Calculate from valuation data if available
         if (valuationData && valuationData.basePrice) {
-          try {
-            const basePrice = valuationData.basePrice;
-            const calculatedReserve = calculateReservePrice(basePrice);
-            console.log(`Calculated reserve price for card ${id}: ${calculatedReserve} from base ${basePrice}`);
-            setDisplayPrice(calculatedReserve);
-            return;
-          } catch (error) {
-            console.error("Error calculating reserve price:", error);
-          }
+          const calculatedReserve = calculateReservePrice(valuationData.basePrice);
+          console.log(`Calculated reserve price for card ${id}: ${calculatedReserve} from base ${valuationData.basePrice}`);
+          setDisplayPrice(calculatedReserve);
+        } else {
+          console.log(`No valuation data available for card ${id}, cannot calculate reserve price`);
+          setDisplayPrice(null);
         }
-        
-        // Last priority: Use original price as fallback
-        console.log(`No reserve price data available for card ${id}, using fallback price: ${price}`);
-        setDisplayPrice(price);
       } catch (error) {
         console.error("Error in calculateDisplayPrice:", error);
-        setDisplayPrice(price); // Fallback in case of any errors
+        setDisplayPrice(null); // Don't show any price if we can't calculate it properly
       }
     };
     
     calculateDisplayPrice();
-  }, [id, price, reserve_price, valuationData]);
+  }, [id, valuationData]);
 
   const activateListing = async () => {
     if (isActivating) return;
@@ -106,11 +92,13 @@ export const ListingCard = ({
       
       console.log(`Auth status confirmed for user: ${sessionData.session.user.id}`);
       
-      // Calculate reserve price if missing
-      let localReservePrice = reserve_price;
-      if (!localReservePrice && valuationData?.basePrice) {
-        localReservePrice = calculateReservePrice(valuationData.basePrice);
-        console.log(`Calculated reserve price on activation: ${localReservePrice}`);
+      // Calculate reserve price using ONLY our pricing logic
+      let calculatedReservePrice: number | null = null;
+      if (valuationData?.basePrice) {
+        calculatedReservePrice = calculateReservePrice(valuationData.basePrice);
+        console.log(`Calculated reserve price on activation: ${calculatedReservePrice}`);
+      } else {
+        throw new Error("Cannot activate listing without valuation data");
       }
       
       // Use the transition_car_status function instead of activate_listing for more reliable updates
@@ -151,12 +139,21 @@ export const ListingCard = ({
           throw new Error("Authentication session required");
         }
         
+        // Calculate reserve price again to ensure it's in scope for this method
+        let calculatedReservePrice: number | null = null;
+        if (valuationData?.basePrice) {
+          calculatedReservePrice = calculateReservePrice(valuationData.basePrice);
+          console.log(`Recalculated reserve price for fallback activation: ${calculatedReservePrice}`);
+        } else {
+          throw new Error("Cannot activate listing without valuation data");
+        }
+        
         const { data, error } = await supabase.rpc(
           'activate_listing',
           { 
             p_listing_id: id,
             p_user_id: authSession.session.user.id,
-            p_reserve_price: localReservePrice
+            p_reserve_price: calculatedReservePrice
           }
         );
 
@@ -201,7 +198,7 @@ export const ListingCard = ({
               variant="default"
               size="sm"
               onClick={activateListing}
-              disabled={isActivating}
+              disabled={isActivating || displayPrice === null}
               className="bg-[#21CA6F] hover:bg-[#21CA6F]/90"
             >
               {isActivating ? 'Activating...' : 'Activate Listing'}
