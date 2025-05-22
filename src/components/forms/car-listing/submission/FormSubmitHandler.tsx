@@ -24,6 +24,7 @@
  * Updated: 2025-05-21 - Fixed TypeScript property names and added missing import
  * Updated: 2025-05-22 - Updated to use security definer function for reliable car creation
  * Updated: 2025-06-01 - Fixed price handling from valuation data and improved image association
+ * Updated: 2025-06-02 - Fixed property name from is_draft to isDraft
  */
 
 import React, { useState } from "react";
@@ -173,8 +174,8 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       // Ensure sellerId is explicitly set for ownership tracking
       preparedData.sellerId = currentUserId;
       
-      // Ensure is_draft is explicitly set to prevent not-null constraint violation
-      preparedData.is_draft = true;
+      // Ensure isDraft is explicitly set to prevent not-null constraint violation
+      preparedData.isDraft = true;
       
       // Log the final data being submitted
       console.log(`[FormSubmission][${submissionId}] Submitting car listing:`, {

@@ -6,15 +6,16 @@
  * Updated: 2025-08-01 - Enhanced read-only state for valuation prices and improved UI feedback
  * Updated: 2025-05-26 - Fixed field names to use camelCase for frontend consistency
  * Updated: 2025-06-01 - Fixed valuation data handling and ensure prices are properly formatted in PLN
+ * Updated: 2025-06-02 - Fixed useEffect import and improved price display
  */
 
-import { useFormContext, useWatch, useEffect } from 'react-hook-form';
+import { useFormContext, useWatch } from 'react-hook-form';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { InfoIcon, LockIcon } from 'lucide-react';
 import { CarListingFormData } from '@/types/forms';
-import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/utils/formatters';
 
