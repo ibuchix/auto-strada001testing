@@ -7,6 +7,7 @@
  * Updated: 2025-05-28 - Ensured all exports are properly typed
  * Updated: 2025-05-29 - Updated AuditLogAction export to match database-compatible type
  * Updated: 2025-05-30 - Fixed export of AuditLogAction to ensure type safety
+ * Updated: 2025-05-31 - Added proper export for transactionLogger
  */
 
 // Re-export transaction types

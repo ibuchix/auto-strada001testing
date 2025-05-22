@@ -5,6 +5,7 @@
  * - Improved error handling and transaction management
  * - 2025-05-11: Fixed timestamp type compatibility using numeric timestamps
  * - 2025-05-25: Fixed reference to logTransaction method
+ * - 2025-05-31: Fixed import of transactionLogger
  */
 
 import { toast } from "sonner";

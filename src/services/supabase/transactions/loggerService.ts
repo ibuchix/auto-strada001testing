@@ -3,6 +3,7 @@
  * Transaction logging service
  * Created: 2025-07-22
  * Updated: 2025-05-30 - Fixed action validation for logging to database
+ * Updated: 2025-05-31 - Fixed exports and type mappings
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -14,14 +15,14 @@ import { TransactionType, TransactionDetails, AuditLogAction } from './types';
 const mapTransactionTypeToAction = (type: TransactionType, operation?: string): AuditLogAction => {
   // Direct mappings from transaction type to action
   const directMappings: Record<TransactionType, AuditLogAction> = {
-    CREATE: 'create',
-    UPDATE: 'update',
-    DELETE: 'delete',
-    AUTHENTICATION: 'login', // Default, can be overridden by operation
-    QUERY: 'system_health_check', // Default for queries
-    UPLOAD: 'create', // Default for uploads
-    AUCTION: 'auction_closed', // Default for auction operations
-    PAYMENT: 'system_alert' // Default for payment operations
+    'create': 'create',
+    'update': 'update',
+    'delete': 'delete',
+    'authentication': 'login', // Default, can be overridden by operation
+    'query': 'system_health_check', // Default for queries
+    'upload': 'create', // Default for uploads
+    'auction': 'auction_closed', // Default for auction operations
+    'payment': 'system_alert' // Default for payment operations
   };
 
   // Special case for authentication based on operation
@@ -120,3 +121,16 @@ export const logTransactionToDatabase = async (
     console.error('Exception logging transaction to database:', err);
   }
 };
+
+// Create a logger service instance for export
+class TransactionLogger {
+  /**
+   * Log a transaction to the database
+   */
+  async logTransaction(transaction: TransactionDetails): Promise<void> {
+    return logTransactionToDatabase(transaction);
+  }
+}
+
+// Export a singleton instance
+export const transactionLogger = new TransactionLogger();
