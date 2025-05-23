@@ -16,6 +16,7 @@
  * - 2025-06-27: Removed all fallback logic and database reserve_price usage to ensure consistency in pricing
  * - 2025-05-22: Refactored into smaller components with dedicated hooks
  * - 2025-06-01: Improved error handling for missing reserve price data, removed fallbacks
+ * - 2025-06-23: Added reserve_price to interface to fix TypeScript errors
  */
 
 import { Card } from "@/components/ui/card";
@@ -33,6 +34,7 @@ interface ListingCardProps {
   isDraft: boolean;
   onStatusChange?: () => void;
   valuationData?: any;
+  reserve_price?: number; // Added reserve_price prop to fix TypeScript error
 }
 
 export const ListingCard = ({ 
@@ -42,7 +44,8 @@ export const ListingCard = ({
   status, 
   isDraft, 
   onStatusChange,
-  valuationData
+  valuationData,
+  reserve_price // Include in destructuring, though we're not using it directly
 }: ListingCardProps) => {
   const navigate = useNavigate();
   
