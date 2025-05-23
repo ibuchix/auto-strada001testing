@@ -1,18 +1,8 @@
 
 /**
  * Changes made:
- * - 2025-08-19: Updated to use toStringValue utility function
- * - Fixed type conversion issues
- * - 2025-08-20: Fixed type compatibility with string | number fields
- * - 2025-08-25: Added prepareSubmission function to transform form data to database entity
- * - 2025-12-03: Fixed type issues with required fields in CarEntity
- * - 2025-12-05: Enhanced prepareSubmission to properly handle CarFeatures
- * - 2025-06-21: Fixed references to CarFeatures interface and created_at handling
- * - 2025-07-22: Fixed incomplete implementation
- * - 2025-05-05: Fixed type issues and removed is_draft property 
- * - 2025-05-06: Fixed Date to string conversion issue
- * - 2025-06-01: Fixed transmission type to be one of the allowed values
- * - 2025-06-07: Enhanced transmission validation to ensure valid type
+ * - 2025-05-23: Removed is_draft system, all listings are immediately available
+ * - Simplified submission to always create available listings
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -41,7 +31,6 @@ const toNumberValue = (value: any): number => {
 export const prepareFormDataForSubmission = (data: CarListingFormData) => {
   return {
     ...data,
-    // Use toStringValue to ensure proper type conversion
     financeAmount: toNumberValue(data.financeAmount),
   };
 };
@@ -49,17 +38,13 @@ export const prepareFormDataForSubmission = (data: CarListingFormData) => {
 export const prepareFormDataForApi = (data: CarListingFormData) => {
   return {
     ...data,
-    // Use toStringValue to ensure proper type conversion
     financeAmount: toNumberValue(data.financeAmount),
   };
 };
 
 /**
  * Transforms form data into a database entity by removing transient properties
- * and adding required database fields
- * 
- * @param formData The form data to transform
- * @returns A CarEntity object ready for database submission
+ * and adding required database fields - all listings are immediately available
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
   // Ensure features property has all required fields
@@ -95,7 +80,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     id: formData.id || '',
     created_at: createdAt,
     updated_at: new Date().toISOString(),
-    status: 'draft',
+    status: 'available', // Always immediately available
     // Ensure required fields have values
     make: formData.make || '',
     model: formData.model || '',

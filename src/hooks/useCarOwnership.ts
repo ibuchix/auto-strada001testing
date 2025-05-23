@@ -2,7 +2,7 @@
 /**
  * Hook for managing car ownership operations
  * Created: 2025-05-21
- * Updated: 2025-05-24 - Fixed import path
+ * Updated: 2025-05-23 - Removed is_draft system, simplified operations
  */
 
 import { useState, useCallback } from 'react';
@@ -98,7 +98,7 @@ export const useCarOwnership = ({ onSuccess, onError }: UseCarOwnershipProps = {
     }
   }, [session, refreshQueries, onSuccess, onError]);
   
-  const changeStatus = useCallback(async (carId: string, newStatus: string, isDraft?: boolean) => {
+  const changeStatus = useCallback(async (carId: string, newStatus: string) => {
     if (!session?.user) {
       toast.error("Authentication required", { 
         description: "You must be logged in to change listing status" 
@@ -108,7 +108,7 @@ export const useCarOwnership = ({ onSuccess, onError }: UseCarOwnershipProps = {
     
     setIsProcessing(true);
     try {
-      const result = await transitionCarStatus(carId, newStatus, isDraft);
+      const result = await transitionCarStatus(carId, newStatus);
       
       if (result.success) {
         toast.success(`Listing status changed to ${newStatus}`);

@@ -2,25 +2,16 @@
 /**
  * Car Listing Submission Service
  * Created: 2025-05-20
- * Updated: 2025-05-30 - Added error handling for last_saved field and improved error logging
- * Updated: 2025-06-04 - Enhanced error handling with retry mechanism and direct database fallback
- * Updated: 2025-06-10 - Fixed UUID handling issues and improved error logging for debugging
- * Updated: 2025-06-15 - Updated to work with improved RLS policies for image association
- * Updated: 2025-06-21 - Removed RPC dependency and simplified submission with direct inserts
- * Updated: 2025-05-21 - Updated to work with enhanced RLS policy framework
- * Updated: 2025-05-22 - Refactored to use create_car_listing RPC function to bypass RLS restrictions
- * Updated: 2025-05-31 - Fixed UUID handling in prepareSubmission function for new car listings
- * Updated: 2025-06-01 - Fixed is_draft handling to prevent not-null constraint violation
- * Updated: 2025-05-22 - Fixed TypeScript compatibility with Supabase Json types
+ * Updated: 2025-05-23 - Removed is_draft system, all listings are immediately available
  */
 
 import { CarListingFormData } from "@/types/forms";
 import { supabase } from "@/integrations/supabase/client";
 import { prepareSubmission } from "../utils/submission";
-import { toSupabaseObject, safeJsonCast } from "@/utils/supabaseTypeUtils";
+import { toSupabaseObject } from "@/utils/supabaseTypeUtils";
 
 /**
- * Submit a car listing to the database using direct insert with RLS
+ * Submit a car listing to the database - always immediately available
  */
 export const submitCarListing = async (
   formData: CarListingFormData,
@@ -42,8 +33,7 @@ export const submitCarListing = async (
         ...preparedData,
         updated_at: new Date().toISOString(),
         seller_id: userId || preparedData.seller_id,
-        // Ensure is_draft is explicitly defined for update
-        is_draft: preparedData.is_draft === undefined ? true : preparedData.is_draft
+        status: 'available' // Always set to available
       });
       
       const { data, error } = await supabase
@@ -67,8 +57,7 @@ export const submitCarListing = async (
         seller_id: userId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        is_draft: true, // Always start as draft by default for new listings
-        status: 'available'
+        status: 'available' // Always immediately available
       });
       
       const { data, error } = await supabase
@@ -93,15 +82,14 @@ export const submitCarListing = async (
 
 /**
  * Create car listing using the security definer function
- * This approach bypasses RLS policies and ensures proper permission handling
  */
 export const createCarListing = async (formData: CarListingFormData, userId: string): Promise<{ id: string }> => {
   try {
     // Generate a trace ID for tracking this operation through logs
     const traceId = Math.random().toString(36).substring(2, 10);
-    console.log(`[CreateCar][${traceId}] Creating car using security definer function...`);
+    console.log(`[CreateCar][${traceId}] Creating car listing - immediately available...`);
     
-    // Prepare data ensuring proper type handling and UUID management
+    // Prepare data ensuring proper type handling
     const preparedData = prepareSubmission(formData);
     
     // Ensure userId is a valid UUID
@@ -129,7 +117,7 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
     }
     
     // Type-safely cast the RPC response
-    const typedResponse = safeJsonCast<{success: boolean, car_id?: string, error?: string}>(rpcResponse);
+    const typedResponse = rpcResponse as {success: boolean, car_id?: string, error?: string};
     
     if (!typedResponse || !typedResponse.success) {
       console.error(`[CreateCar][${traceId}] RPC returned unsuccessful result:`, typedResponse);

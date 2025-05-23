@@ -1,11 +1,8 @@
 
 /**
  * Changes made:
- * - 2024-09-05: Created ListingsSection component from SellerDashboard refactoring
- * - 2024-10-19: Updated "Create New Listing" button to navigate to homepage for VIN check
- * - 2025-05-08: Added valuation_data prop to ListingCard
- * - 2025-05-08: Added reserve_price prop to ListingCard
- * - 2025-05-08: Improved logging and error handling in listing activation flow
+ * - 2025-05-23: Removed is_draft filtering, all listings are immediately available
+ * - Simplified listing display without draft/active separation
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,8 +39,7 @@ export const ListingsSection = ({
                 id={listing.id}
                 title={`${listing.year} ${listing.make} ${listing.model}`}
                 price={listing.price}
-                status={listing.status || ''}
-                isDraft={listing.is_draft}
+                status={listing.status || 'available'}
                 onStatusChange={onStatusChange}
                 valuationData={listing.valuation_data}
                 reserve_price={listing.reserve_price}

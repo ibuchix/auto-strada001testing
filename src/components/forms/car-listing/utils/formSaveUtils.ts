@@ -2,10 +2,7 @@
 /**
  * Form save utilities
  * Created: 2025-06-05
- * Updated: 2025-06-06: Added saveFormData function and improved error handling
- * Updated: 2025-05-20: Updated to use lastSaved field from database
- * Updated: 2025-06-01: Fixed camelCase/snake_case conversion for valuationData
- * Updated: 2025-06-07: Updated to use camelCase in form data and snake_case in database
+ * Updated: 2025-05-23: Removed is_draft system, all saves create immediately available listings
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -50,8 +47,7 @@ export const prepareFormDataForSave = (data: CarListingFormData): Partial<CarLis
 };
 
 /**
- * Saves form data to the database
- * Returns a promise that resolves to an object with success flag, car ID, and error if any
+ * Saves form data to the database - all listings are immediately available
  */
 export const saveFormData = async (
   formData: CarListingFormData, 
@@ -78,7 +74,7 @@ export const saveFormData = async (
     const saveData = {
       ...dbData,
       seller_id: userId,
-      is_draft: true,
+      status: 'available', // Always immediately available
       // Add last_saved timestamp
       last_saved: now.toISOString(),
       // Add valuation data if available - already in snake_case format
@@ -86,9 +82,6 @@ export const saveFormData = async (
       // Make sure to add current timestamp for updated_at
       updated_at: now.toISOString()
     };
-
-    // Determine if we're creating or updating
-    const isNew = !carId;
 
     // Save to database
     const { data, error } = await supabase

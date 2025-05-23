@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -9,9 +10,8 @@ export const useCarQueries = () => {
   const fetchCars = async () => {
     try {
       const { data, error } = await supabase
-        .from('cars')  // Changed from car_listings to cars
+        .from('cars')
         .select('*')
-        .eq('is_draft', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -41,9 +41,8 @@ export const useCarQueries = () => {
   const updateQuery = async (filters: any) => {
     try {
       let query = supabase
-        .from('cars')  // Changed from car_listings to cars
-        .select('*')
-        .eq('is_draft', false);
+        .from('cars')
+        .select('*');
 
       if (filters.make && filters.make !== 'all') {
         query = query.eq('make', filters.make);

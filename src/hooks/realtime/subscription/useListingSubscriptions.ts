@@ -1,14 +1,8 @@
 
 /**
  * Changes made:
- * - 2024-12-11: Created dedicated hook for listing-related subscriptions
- * - 2025-05-08: Enhanced toast notifications for listing activation
- * - 2025-05-08: Added debug logging for realtime subscription events
- * - 2025-05-08: Improved error handling and activation state tracking
- * - 2025-05-08: Enhanced toast messaging for draft status changes
- * - 2025-05-08: Added more detailed logs for subscription events
- * - 2025-06-15: Simplified filter expressions for better compatibility
- * - 2025-06-15: Added retry mechanism for channel connections
+ * - 2025-05-23: Removed is_draft system, simplified realtime notifications
+ * - All listings are immediately available, removed activation tracking
  */
 
 import { useEffect } from 'react';
@@ -27,7 +21,6 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
     
     console.log('Setting up realtime listing subscriptions for user:', userId);
     
-    // Simplify filter expressions - avoid complex "in.(SELECT...)" syntax
     // Subscribe to listing changes (status updates, approvals, etc.)
     const listingsChannel = setupChannel(
       'seller-listings-changes',
@@ -42,46 +35,14 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
         
         // Determine what changed and show appropriate notification
         if (payload.eventType === 'INSERT') {
-          toast.success('New listing created');
+          toast.success('New listing created and is now live');
         } else if (payload.eventType === 'UPDATE') {
           // Check what specific status changed
           const oldRecord = payload.old as any;
           const newRecord = payload.new as any;
           
-          // Log full details for debugging
-          console.log('Listing update details:', {
-            old: oldRecord,
-            new: newRecord,
-            is_draft_changed: oldRecord.is_draft !== newRecord.is_draft,
-            old_is_draft: oldRecord.is_draft,
-            new_is_draft: newRecord.is_draft,
-            old_status: oldRecord.status,
-            new_status: newRecord.status,
-            id: newRecord.id,
-            make: newRecord.make,
-            model: newRecord.model,
-            reserve_price: newRecord.reserve_price
-          });
-          
-          // Handle is_draft status change (activation/deactivation)
-          if (oldRecord.is_draft !== newRecord.is_draft) {
-            if (oldRecord.is_draft && !newRecord.is_draft) {
-              toast.success('Listing activated successfully', {
-                description: `Your ${newRecord.make} ${newRecord.model} is now live on the marketplace.`,
-                duration: 5000
-              });
-              
-              // Add an info toast about next steps
-              setTimeout(() => {
-                toast.info('Dealers can now view and bid on your listing');
-              }, 1000);
-            } else if (!oldRecord.is_draft && newRecord.is_draft) {
-              toast.info('Listing moved to drafts');
-            }
-          } 
           // Handle listing status changes
-          else if (oldRecord.status !== newRecord.status) {
-            // Handle listing approval status changes
+          if (oldRecord.status !== newRecord.status) {
             if (newRecord.status === 'approved') {
               toast.success('Your listing has been approved');
             } else if (newRecord.status === 'rejected') {
@@ -114,11 +75,11 @@ export const useListingSubscriptions = (userId: string | undefined, isActive: bo
       }
     );
     
-    // Use a simpler filter for listing verifications
+    // Subscribe to listing verification changes
     const listingVerificationChannel = setupChannel(
       'listing-verification-changes',
       'listing_verifications',
-      `car_id=eq.${userId}`, // This won't work exactly but avoids complex in.() syntax
+      `car_id=eq.${userId}`,
       '*',
       (payload) => {
         console.log('Real-time listing verification update received:', payload);
