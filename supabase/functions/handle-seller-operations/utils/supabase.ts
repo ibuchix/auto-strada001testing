@@ -1,11 +1,11 @@
 
 /**
  * Supabase client creation utility
- * Created: 2025-06-01
+ * Updated: 2025-06-01 - Fixed import path to use local database types
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { Database } from '../../_shared/database.types.ts';
+import { Database } from './database.types.ts';
 
 /**
  * Create a Supabase client with proper typing
