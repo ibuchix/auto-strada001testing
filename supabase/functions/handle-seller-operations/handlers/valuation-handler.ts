@@ -2,6 +2,7 @@
 /**
  * Valuation handler for handle-seller-operations
  * Created: 2025-04-19
+ * Updated: 2025-06-01 - Improved error handling for missing pricing data
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
@@ -10,6 +11,7 @@ import { checkExistingEntities, validateVinInput } from '../services/validation-
 import { fetchVehicleValuation } from '../valuation-service.ts';
 import { logOperation } from '../utils/logging.ts';
 import { formatResponse } from '../shared.ts';
+import { OperationError } from '../error-handler.ts';
 
 export async function handleGetValuation(
   supabase: SupabaseClient,
@@ -53,102 +55,46 @@ export async function handleGetValuation(
       );
     }
     
-    // Ensure critical fields exist and are standardized
-    const processedData = {
-      ...valuationResult.data,
-      make: valuationResult.data.make || '',
-      model: valuationResult.data.model || '',
-      year: valuationResult.data.year || valuationResult.data.productionYear,
-      transmission: gearbox || valuationResult.data.transmission || 'manual',
-      mileage: mileage,
-      vin: vin,
-      // Ensure consistent naming for price fields
-      valuation: valuationResult.data.reservePrice || valuationResult.data.valuation,
-      reservePrice: valuationResult.data.reservePrice || valuationResult.data.valuation,
-      averagePrice: valuationResult.data.basePrice || valuationResult.data.averagePrice
-    };
-    
-    // Log the processed data structure
-    logOperation('processed_valuation_data', { 
-      requestId, 
-      vin,
-      dataFields: Object.keys(processedData),
-      hasMake: !!processedData.make,
-      hasModel: !!processedData.model,
-      hasYear: !!processedData.year
-    });
-    
-    // Store in cache
-    try {
-      const { error: cacheError } = await supabase
-        .from('vin_valuation_cache')
-        .upsert({
-          vin,
-          mileage,
-          valuation_data: processedData
-        });
-      
-      if (cacheError) {
-        logOperation('cache_store_error', { 
-          requestId, 
-          vin, 
-          error: cacheError.message 
-        }, 'warn');
-      }
-    } catch (cacheError) {
-      logOperation('cache_store_exception', { 
+    // Ensure we have the necessary pricing data
+    const data = valuationResult.data;
+    if (!data.price_min || !data.price_med || !data.basePrice || !data.reservePrice) {
+      logOperation('invalid_pricing_data', { 
         requestId, 
-        vin, 
-        error: cacheError.message 
-      }, 'warn');
+        vin,
+        data
+      }, 'error');
+      
+      throw new OperationError(
+        'Missing required pricing data from valuation service',
+        'PRICING_DATA_MISSING'
+      );
     }
     
-    // Store in VIN reservations if not already present
-    try {
-      const { error: reservationError } = await supabase
-        .from('vin_reservations')
-        .insert({
-          vin,
-          user_id: userId,
-          valuation_data: processedData,
-          // Will expire after 24 hours (handled by default value in table)
-        })
-        .onConflict('vin')
-        .ignore();
-      
-      if (reservationError) {
-        logOperation('reservation_store_error', { 
-          requestId, 
-          vin, 
-          error: reservationError.message 
-        }, 'warn');
-      }
-    } catch (reservationError) {
-      logOperation('reservation_store_exception', { 
-        requestId, 
-        vin, 
-        error: reservationError.message 
-      }, 'warn');
-    }
-    
-    logOperation('valuation_request_complete', { 
+    // Log the reserve price calculation
+    logOperation('reserve_price_calculation', { 
       requestId, 
       vin,
-      success: true
+      basePrice: data.basePrice,
+      reservePrice: data.reservePrice,
+      price_min: data.price_min,
+      price_med: data.price_med
     });
     
-    return formatResponse.success(processedData);
+    return formatResponse.success(data);
   } catch (error) {
-    logOperation('valuation_request_error', { 
+    // Log error details
+    logOperation('valuation_handler_error', { 
       requestId, 
       error: error.message,
+      code: error.code || 'UNKNOWN_ERROR',
       stack: error.stack
     }, 'error');
     
+    // Return error response
     return formatResponse.error(
-      error.message || 'An error occurred during valuation',
+      error.message || 'Error processing valuation request',
       400,
-      error.code || 'VALUATION_PROCESSING_ERROR'
+      error.code || 'PROCESSING_ERROR'
     );
   }
 }

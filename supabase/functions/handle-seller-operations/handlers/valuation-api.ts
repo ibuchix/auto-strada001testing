@@ -7,11 +7,13 @@
  * - 2025-04-22: Fixed API response handling to preserve nested functionResponse
  * - 2025-04-26: Enhanced extraction of pricing data from functionResponse.valuation.calcValuation
  * - 2025-04-29: Added DEBUG logging to trace full API response preservation
+ * - 2025-06-01: Improved error handling for missing pricing data and removed fallbacks
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { logOperation } from "../../_shared/index.ts";
 import { generateChecksum } from "../checksum.ts";
+import { OperationError } from "../error-handler.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -95,39 +97,14 @@ export async function getValuationFromAPI(
       calcValuationKeys: Object.keys(functionResponse.valuation?.calcValuation || {})
     });
     
-    // Log if we have the nested calcValuation for debugging
-    if (functionResponse.valuation?.calcValuation) {
-      const calcValuation = functionResponse.valuation.calcValuation;
-      logOperation('found_calc_valuation', {
-        requestId,
-        price_min: calcValuation.price_min,
-        price_med: calcValuation.price_med,
-        price: calcValuation.price
-      });
-    } else {
-      logOperation('missing_calc_valuation', {
-        requestId,
-        functionResponseKeys: Object.keys(functionResponse),
-        hasValuation: !!functionResponse.valuation,
-        valuationKeys: functionResponse.valuation ? Object.keys(functionResponse.valuation) : []
-      }, 'warn');
-    }
-
-    // Extract user params
-    const userParams = functionResponse.userParams || {};
-    const calcValuation = functionResponse.valuation?.calcValuation || {};
-    
-    // Get consistent field values with fallbacks
-    const make = userParams.make || apiData.make || '';
-    const model = userParams.model || apiData.model || '';
-    const year = userParams.year || apiData.productionYear || apiData.year || 0;
-    
-    // Extract price data from calcValuation if available
+    // Extract pricing data from calcValuation if available
     let priceMin = 0;
     let priceMed = 0;
     let basePrice = 0;
-    
-    if (calcValuation.price_min !== undefined && calcValuation.price_med !== undefined) {
+
+    // Try to extract from nested functionResponse first
+    const calcValuation = functionResponse.valuation?.calcValuation;
+    if (calcValuation && calcValuation.price_min !== undefined && calcValuation.price_med !== undefined) {
       priceMin = Number(calcValuation.price_min);
       priceMed = Number(calcValuation.price_med);
       
@@ -140,37 +117,70 @@ export async function getValuationFromAPI(
         priceMed,
         basePrice
       });
-    } else {
-      // Fallback to other price fields
-      priceMin = apiData.price_min || 0;
-      priceMed = apiData.price_med || 0;
+    } else if (apiData.price_min !== undefined && apiData.price_med !== undefined) {
+      // Fallback to top-level properties
+      priceMin = Number(apiData.price_min);
+      priceMed = Number(apiData.price_med);
       
-      if (priceMin > 0 && priceMed > 0) {
-        basePrice = (priceMin + priceMed) / 2;
-        logOperation('using_root_prices', {
-          requestId,
-          priceMin,
-          priceMed,
-          basePrice
-        });
-      } else {
-        // Further fallbacks
-        basePrice = apiData.basePrice || apiData.valuation || apiData.price || 0;
-        logOperation('using_fallback_prices', {
-          requestId,
-          basePrice
-        });
-      }
+      basePrice = (priceMin + priceMed) / 2;
+      logOperation('using_root_prices', {
+        requestId,
+        priceMin,
+        priceMed,
+        basePrice
+      });
+    } else {
+      // No valid pricing data found - throw error
+      logOperation('missing_valid_pricing_data', {
+        requestId,
+        apiDataFields: Object.keys(apiData)
+      }, 'error');
+      
+      return {
+        success: false,
+        error: "Could not extract price_min and price_med from API response",
+        errorCode: "MISSING_PRICE_DATA"
+      };
+    }
+    
+    // Verify we have valid price data
+    if (priceMin <= 0 || priceMed <= 0 || basePrice <= 0) {
+      logOperation('invalid_price_values', {
+        requestId,
+        priceMin,
+        priceMed,
+        basePrice
+      }, 'error');
+      
+      return {
+        success: false,
+        error: "Invalid price values in API response",
+        errorCode: "INVALID_PRICE_DATA"
+      };
     }
     
     // Calculate reserve price
     const reservePrice = calculateReservePrice(basePrice);
     
+    if (reservePrice <= 0) {
+      logOperation('invalid_reserve_price', {
+        requestId,
+        basePrice,
+        reservePrice
+      }, 'error');
+      
+      return {
+        success: false,
+        error: "Failed to calculate a valid reserve price",
+        errorCode: "INVALID_RESERVE_PRICE"
+      };
+    }
+    
     // Store in cache table for future reference
     const { error: cacheError } = await storeInCache(vin, mileage, {
-      make,
-      model,
-      year,
+      make: apiData.make,
+      model: apiData.model,
+      year: apiData.year || apiData.productionYear,
       price_min: priceMin,
       price_med: priceMed,
       basePrice,
@@ -183,6 +193,14 @@ export async function getValuationFromAPI(
         error: cacheError.message 
       }, 'warn');
     }
+    
+    // Extract user params
+    const userParams = functionResponse.userParams || {};
+    
+    // Get consistent field values with fallbacks
+    const make = userParams.make || apiData.make || '';
+    const model = userParams.model || apiData.model || '';
+    const year = userParams.year || apiData.productionYear || apiData.year || 0;
     
     // CRITICAL: Log the final data structure being returned
     const returnData = {
@@ -243,9 +261,13 @@ async function storeInCache(vin: string, mileage: number, valuationData: any) {
 }
 
 /**
- * Calculate reserve price based on base price
+ * Calculate reserve price based on base price using the specified pricing tiers
  */
 export function calculateReservePrice(basePrice: number): number {
+  if (!basePrice || basePrice <= 0) {
+    throw new OperationError("Invalid base price for reserve price calculation", "INVALID_BASE_PRICE");
+  }
+  
   // Determine the percentage based on price tier
   let percentage = 0;
   

@@ -3,6 +3,7 @@
  * Reserve Price Calculator Utility
  * Created: 2025-05-01
  * Updated: 2025-06-01 - Added proper Polish Zloty formatting and fixed null handling
+ * Updated: 2025-06-01 - Removed fallback logic for invalid inputs
  */
 
 /**
@@ -13,10 +14,12 @@
  */
 export function calculateReservePrice(basePrice: number): number {
   // Input validation
-  if (!basePrice || basePrice <= 0) return 0;
+  if (!basePrice || basePrice <= 0) {
+    throw new Error("Invalid base price provided");
+  }
   
   // Determine percentage based on price tier
-  let percentage = 0.25; // Default percentage
+  let percentage = 0;
   
   if (basePrice <= 15000) percentage = 0.65;
   else if (basePrice <= 20000) percentage = 0.46;
@@ -50,8 +53,9 @@ export function calculateReservePrice(basePrice: number): number {
  */
 export function formatPrice(price: number | null | undefined, currency: string = 'PLN'): string {
   // Handle null, undefined, or invalid values
-  if (price === null || price === undefined || isNaN(price)) return 'N/A';
-  if (price === 0) return '0 PLN';
+  if (price === null || price === undefined || isNaN(price)) {
+    return 'N/A';
+  }
   
   // Format with Polish locale for consistent display
   return new Intl.NumberFormat('pl-PL', {

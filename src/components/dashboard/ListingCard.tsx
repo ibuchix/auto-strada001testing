@@ -15,6 +15,7 @@
  * - 2025-06-22: Fixed TypeScript errors with sessionData and finalReservePrice variables
  * - 2025-06-27: Removed all fallback logic and database reserve_price usage to ensure consistency in pricing
  * - 2025-05-22: Refactored into smaller components with dedicated hooks
+ * - 2025-06-01: Improved error handling for missing reserve price data, removed fallbacks
  */
 
 import { Card } from "@/components/ui/card";
@@ -32,7 +33,6 @@ interface ListingCardProps {
   isDraft: boolean;
   onStatusChange?: () => void;
   valuationData?: any;
-  reserve_price?: number; // Kept in interface for backward compatibility but not used
 }
 
 export const ListingCard = ({ 
@@ -47,7 +47,7 @@ export const ListingCard = ({
   const navigate = useNavigate();
   
   // Use our custom hooks
-  const { reservePrice, isCalculating } = useReservePrice({ 
+  const { reservePrice, isCalculating, error } = useReservePrice({ 
     valuationData 
   });
   
@@ -79,7 +79,7 @@ export const ListingCard = ({
         <ListingCardActions 
           isDraft={isDraft}
           isActivating={isActivating}
-          canActivate={reservePrice !== null}
+          canActivate={reservePrice !== null && !error}
           onActivate={handleActivate}
           onViewDetails={viewDetails}
         />

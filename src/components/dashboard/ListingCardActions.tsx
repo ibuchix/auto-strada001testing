@@ -2,11 +2,12 @@
 /**
  * Listing Card Actions Component
  * Created: 2025-05-22
- * Purpose: Display action buttons for listing cards
+ * Purpose: Display action buttons for listing card
+ * Updated: 2025-06-01 - Added improved error handling for activation
  */
 
 import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface ListingCardActionsProps {
   isDraft: boolean;
@@ -24,26 +25,30 @@ export const ListingCardActions = ({
   onViewDetails
 }: ListingCardActionsProps) => {
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-col gap-2">
       {isDraft && (
-        <Button 
+        <Button
           variant="default"
           size="sm"
           onClick={onActivate}
           disabled={isActivating || !canActivate}
-          className="bg-[#21CA6F] hover:bg-[#21CA6F]/90"
         >
-          {isActivating ? 'Activating...' : 'Activate Listing'}
+          {isActivating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Activating
+            </>
+          ) : (
+            'Activate'
+          )}
         </Button>
       )}
-      <Button 
+      <Button
         variant="outline"
         size="sm"
         onClick={onViewDetails}
-        className="flex items-center gap-2"
       >
-        {isDraft ? 'See Details' : 'View Listing'}
-        <ExternalLink className="h-4 w-4" />
+        See Details
       </Button>
     </div>
   );
