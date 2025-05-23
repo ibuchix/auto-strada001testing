@@ -1,55 +1,73 @@
 
 /**
  * Validation utilities for handle-seller-operations
- * Created: 2025-04-19 - Extracted from validation-utils.ts
+ * Created: 2025-06-01
  */
 
-import { logOperation } from './logging.ts';
+import { logOperation } from "../utils/logging.ts";
+import { formatErrorResponse } from "https://raw.githubusercontent.com/ibuchix/auto-strada001testing/main/supabase/shared-utils/mod.ts";
+import { z } from "https://esm.sh/zod@3.22.2";
 
-export class ValidationError extends Error {
-  code: string;
-  
-  constructor(message: string, code: string = 'VALIDATION_ERROR') {
-    super(message);
-    this.name = 'ValidationError';
-    this.code = code;
-  }
-}
-
-export function validateVinFormat(vin: string): boolean {
-  return typeof vin === 'string' && vin.length >= 11 && vin.length <= 17;
-}
-
-export async function handleRequestValidation(req: Request, schema: any): Promise<[any, Response | null]> {
+/**
+ * Handle request validation with consistent error handling
+ */
+export async function handleRequestValidation<T>(
+  req: Request, 
+  schema: z.ZodSchema
+): Promise<[T | null, Response | null]> {
   try {
-    if (req.method !== 'POST') {
-      return [null, new Response(
-        JSON.stringify({ success: false, error: 'Method not allowed' }),
-        { status: 405, headers: { 'Content-Type': 'application/json' } }
-      )];
-    }
+    // Parse the JSON body
+    const body = await req.json();
     
-    const data = await req.json();
+    logOperation('request_validation_start', { 
+      operation: body?.operation,
+      bodyFields: Object.keys(body || {}) 
+    });
     
-    // Simple validation - would be replaced with actual schema validation
-    if (!data || !data.operation) {
-      return [null, new Response(
-        JSON.stringify({ success: false, error: 'Invalid request format' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      )];
-    }
+    // Parse with schema
+    const parsedData = schema.parse(body);
     
-    return [data, null];
+    logOperation('request_validation_success', { 
+      operation: parsedData.operation 
+    });
+    
+    return [parsedData as T, null];
   } catch (error) {
-    logOperation('request_validation_error', { error: error.message }, 'error');
-    return [null, new Response(
-      JSON.stringify({ success: false, error: 'Invalid JSON payload' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
-    )];
+    // Handle Zod validation errors
+    if (error instanceof z.ZodError) {
+      const errorMessage = error.errors.map(e => 
+        `${e.path.join('.')}: ${e.message}`
+      ).join(', ');
+      
+      logOperation('request_validation_error', { 
+        error: errorMessage,
+        zodErrors: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message
+        }))
+      }, 'error');
+      
+      return [
+        null, 
+        formatErrorResponse({
+          message: `Validation failed: ${errorMessage}`,
+          name: 'ValidationError'
+        }, 400, 'VALIDATION_ERROR')
+      ];
+    }
+    
+    // Handle other errors during validation
+    logOperation('request_validation_exception', { 
+      error: error.message || 'Unknown validation error',
+      stack: error.stack
+    }, 'error');
+    
+    return [
+      null, 
+      formatErrorResponse({
+        message: `Request validation failed: ${error.message || 'Unknown error'}`,
+        name: 'ValidationError'
+      }, 400, 'VALIDATION_ERROR')
+    ];
   }
-}
-
-export function checkRateLimit(key: string, limit: number = 5, window: number = 60000): boolean {
-  // Rate limiting implementation (placeholder)
-  return false;
 }

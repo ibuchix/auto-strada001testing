@@ -1,4 +1,11 @@
 
+/**
+ * Schema validation for handle-seller-operations edge function
+ * Created: 2025-04-19
+ * Updated: 2025-05-23 - Added more operation types
+ * Updated: 2025-06-01 - Added set_temp_uploads and associate_images operations
+ */
+
 import { z } from 'https://esm.sh/zod@3.22.2';
 import { TransmissionType } from './types.ts';
 
@@ -38,27 +45,64 @@ export const valuationRequestSchema = z.object({
   userId: z.string().uuid("Invalid user ID format")
 });
 
-// Derived type from the schema
+// Schema for image association request
+export const imageAssociationSchema = z.object({
+  operation: z.literal('associate_images'),
+  carId: z.string().uuid("Invalid car ID format")
+});
+
+// Schema for temp uploads request
+export const tempUploadsSchema = z.object({
+  operation: z.literal('set_temp_uploads'),
+  uploads: z.array(z.record(z.any()))
+});
+
+// Schema for direct upload association request
+export const directAssociateSchema = z.object({
+  operation: z.literal('associate_uploads'),
+  carId: z.string().uuid("Invalid car ID format"),
+  uploads: z.array(z.record(z.any()))
+});
+
+// Schema for VIN reservation request
+export const vinReservationSchema = z.object({
+  operation: z.literal('reserve_vin'),
+  vin: z.string()
+    .min(11, "VIN must be at least 11 characters")
+    .max(17, "VIN must be at most 17 characters"),
+  userId: z.string().uuid("Invalid user ID format")
+});
+
+// Schema for proxy bids request
+export const proxyBidsSchema = z.object({
+  operation: z.literal('process_proxy_bids'),
+  carId: z.string().uuid("Invalid car ID format")
+});
+
+// Schema for create listing request
+export const createListingSchema = z.object({
+  operation: z.literal('create_listing'),
+  // Add detailed validation as needed
+  userId: z.string().uuid("Invalid user ID format"),
+  data: z.record(z.any()).optional()
+});
+
+// Combined schema using discriminated union
+export const requestSchema = z.discriminatedUnion("operation", [
+  valuationRequestSchema,
+  imageAssociationSchema,
+  tempUploadsSchema,
+  directAssociateSchema,
+  vinReservationSchema,
+  proxyBidsSchema,
+  createListingSchema
+]);
+
+// Derived types from the schemas
 export type ValuationRequest = z.infer<typeof valuationRequestSchema>;
-
-// Schema for car operations
-export const carOperationSchema = z.object({
-  operation: z.enum(["get_valuation", "submit_listing", "get_proxy_bids"]),
-  carId: z.string().uuid().optional(),
-  userId: z.string().uuid(),
-  data: z.record(z.unknown()).optional()
-});
-
-// Type for car operations
-export type CarOperation = z.infer<typeof carOperationSchema>;
-
-// Schema for the response
-export const carResponseSchema = z.object({
-  success: z.boolean(),
-  data: z.unknown().optional(),
-  error: z.string().optional(),
-  errorCode: z.string().optional()
-});
-
-// Type for the response
-export type CarResponse = z.infer<typeof carResponseSchema>;
+export type ImageAssociationRequest = z.infer<typeof imageAssociationSchema>;
+export type TempUploadsRequest = z.infer<typeof tempUploadsSchema>;
+export type DirectAssociateRequest = z.infer<typeof directAssociateSchema>;
+export type VinReservationRequest = z.infer<typeof vinReservationSchema>;
+export type ProxyBidsRequest = z.infer<typeof proxyBidsSchema>;
+export type CreateListingRequest = z.infer<typeof createListingSchema>;
