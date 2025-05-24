@@ -9,6 +9,7 @@
  * - 2025-06-22: Completely removed StorageDiagnostic from homepage
  * - 2025-06-22: Added dedicated diagnostics page only in development
  * - 2025-06-22: Added routes for all existing pages in the codebase
+ * - 2025-05-24: Added car details route for seller dashboard
  */
 
 import { useEffect } from 'react';
@@ -33,6 +34,7 @@ const TermsPage = lazy(() => import('./pages/Terms'));
 const AuthPage = lazy(() => import('./pages/Auth'));
 const SellMyCarPage = lazy(() => import('./pages/SellMyCar'));
 const SellerDashboardPage = lazy(() => import('./pages/SellerDashboard'));
+const CarDetailsPage = lazy(() => import('./pages/CarDetails'));
 
 // Only import the diagnostic page in development mode
 const DiagnosticsPage = import.meta.env.DEV 
@@ -118,6 +120,11 @@ function App() {
         <Route path="/dashboard/seller" element={
           <Suspense fallback={<div>Loading...</div>}>
             <SellerDashboardPage />
+          </Suspense>
+        } />
+        <Route path="/dashboard/car/:carId" element={
+          <Suspense fallback={<div>Loading...</div>}>
+            <CarDetailsPage />
           </Suspense>
         } />
         

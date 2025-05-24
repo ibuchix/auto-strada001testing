@@ -1,11 +1,23 @@
 
+/**
+ * Changes made:
+ * - 2025-05-24: Updated for seller-friendly view - removed images and edit functionality
+ * - 2025-05-24: Added proper layout with navigation back to dashboard
+ * - 2025-05-24: Integrated with CarDetailsSection component for better presentation
+ * - 2025-05-24: Added reserve price display using useReservePrice hook
+ */
+
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, Car } from 'lucide-react';
 import { safeJsonCast } from '@/utils/supabaseTypeUtils';
+import { CarDetailsSection } from '@/components/car-details/CarDetailsSection';
+import { useReservePrice } from '@/hooks/useReservePrice';
+import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 
 interface CarListing {
   id: string;
@@ -18,8 +30,16 @@ interface CarListing {
   transmission: string;
   features: Record<string, boolean>;
   description?: string;
-  images?: string[];
   seller_id?: string;
+  status: string;
+  is_draft: boolean;
+  created_at: string;
+  updated_at: string;
+  seller_name?: string;
+  mobile_number?: string;
+  vin?: string;
+  valuation_data?: any;
+  reserve_price?: number;
 }
 
 const CarDetails = () => {
@@ -27,6 +47,11 @@ const CarDetails = () => {
   const [carListing, setCarListing] = useState<CarListing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Use our reserve price hook
+  const { reservePrice, isCalculating } = useReservePrice({ 
+    valuationData: carListing?.valuation_data 
+  });
 
   const fetchCarDetails = async () => {
     if (!carId) return;
@@ -62,54 +87,150 @@ const CarDetails = () => {
   }, [carId]);
 
   if (loading) {
-    return <div>Loading car details...</div>;
+    return <LoadingIndicator message="Loading car details..." />;
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return (
+      <div className="container mx-auto p-4">
+        <div className="flex items-center mb-6">
+          <Link to="/dashboard/seller">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+          </Link>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <Car className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-dark mb-2">Error Loading Details</h3>
+              <p className="text-subtitle">{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (!carListing) {
-    return <div>Car not found.</div>;
+    return (
+      <div className="container mx-auto p-4">
+        <div className="flex items-center mb-6">
+          <Link to="/dashboard/seller">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+          </Link>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <Car className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-dark mb-2">Car Not Found</h3>
+              <p className="text-subtitle">The requested car listing could not be found.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">{carListing.title}</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          {carListing.images && carListing.images.length > 0 ? (
-            <img src={carListing.images[0]} alt={carListing.title} className="w-full h-auto rounded-md" />
-          ) : (
-            <div className="bg-gray-200 aspect-w-16 aspect-h-9 rounded-md"></div>
-          )}
-        </div>
-        <div>
-          <p><strong>Price:</strong> ${carListing.price}</p>
-          <p><strong>Make:</strong> {carListing.make}</p>
-          <p><strong>Model:</strong> {carListing.model}</p>
-          <p><strong>Year:</strong> {carListing.year}</p>
-          <p><strong>Mileage:</strong> {carListing.mileage} miles</p>
-          <p><strong>Transmission:</strong> {carListing.transmission}</p>
-          {carListing.description && (
-            <>
-              <h2 className="text-xl font-semibold mt-4">Description</h2>
-              <p>{carListing.description}</p>
-            </>
-          )}
-          <h2 className="text-xl font-semibold mt-4">Features</h2>
-          <ul>
-            {Object.entries(carListing.features).map(([feature, value]) => (
-              <li key={feature}>
-                {feature}: {value ? 'Yes' : 'No'}
-              </li>
-            ))}
-          </ul>
-          <Link to={`/edit-car/${carListing.id}`}>
-            <Button>Edit Car</Button>
-          </Link>
-        </div>
+    <div className="container mx-auto p-4 space-y-6">
+      {/* Header with back navigation */}
+      <div className="flex items-center justify-between">
+        <Link to="/dashboard/seller">
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
+        </Link>
       </div>
+
+      {/* Car Title and Basic Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-dark">
+            {carListing.year} {carListing.make} {carListing.model}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <h3 className="text-sm font-medium text-subtitle mb-1">Listed Price</h3>
+              <p className="text-2xl font-bold text-primary">
+                {carListing.price.toLocaleString()} PLN
+              </p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-subtitle mb-1">Reserve Price</h3>
+              <p className="text-2xl font-bold text-dark">
+                {isCalculating ? (
+                  <span className="text-sm">Calculating...</span>
+                ) : reservePrice ? (
+                  `${reservePrice.toLocaleString()} PLN`
+                ) : (
+                  <span className="text-sm text-subtitle">Not set</span>
+                )}
+              </p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-subtitle mb-1">Status</h3>
+              <p className="text-lg font-semibold capitalize text-dark">
+                {carListing.status}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <h4 className="text-sm font-medium text-subtitle">Mileage</h4>
+              <p className="font-medium">{carListing.mileage?.toLocaleString()} km</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-subtitle">Transmission</h4>
+              <p className="font-medium capitalize">{carListing.transmission}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-subtitle">VIN</h4>
+              <p className="font-medium font-mono text-sm">{carListing.vin || 'Not specified'}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-subtitle">Listed</h4>
+              <p className="font-medium">
+                {new Date(carListing.created_at).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Detailed Information */}
+      <CarDetailsSection car={carListing} />
+
+      {/* Features Section */}
+      {carListing.features && Object.keys(carListing.features).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Features</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {Object.entries(carListing.features).map(([feature, enabled]) => (
+                <div key={feature} className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                  <span className={`text-sm ${enabled ? 'text-dark' : 'text-subtitle'}`}>
+                    {feature.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
