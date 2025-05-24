@@ -5,6 +5,7 @@
  * Updated: 2025-06-24 - Fixed validation to handle both camelCase and snake_case field names
  * Updated: 2025-06-24 - Integrated with standardizePhotoCategory from photoMapping.ts
  * Updated: 2025-06-25 - Enhanced validation with more detailed debugging and improved field checking
+ * Updated: 2025-05-24 - Fixed import of PHOTO_FIELD_MAP from photoMapping.ts
  */
 
 import { CarListingFormData } from "@/types/forms";

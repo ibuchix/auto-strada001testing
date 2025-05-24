@@ -26,6 +26,7 @@
  * Updated: 2025-06-01 - Fixed price handling from valuation data and improved image association
  * Updated: 2025-06-02 - Fixed property name from is_draft to isDraft
  * Updated: 2025-06-03 - Enhanced image association and fixed draft status handling
+ * Updated: 2025-05-24 - Fixed import of PHOTO_FIELD_MAP from photoMapping.ts
  */
 
 import React, { useState } from "react";

@@ -2,6 +2,7 @@
 /**
  * Photo Category Mapping Utilities
  * Updated: 2025-05-24 - Added comprehensive validation and sanitization
+ * Updated: 2025-05-24 - Added PHOTO_FIELD_MAP for camelCase to snake_case conversion
  */
 
 // Define valid photo categories
@@ -31,6 +32,47 @@ export const REQUIRED_PHOTO_FIELDS = [
   'interior_front',
   'dashboard'
 ] as const;
+
+// Photo field mapping from camelCase to snake_case
+export const PHOTO_FIELD_MAP: Record<string, string> = {
+  // Exterior photos
+  'frontView': 'exterior_front',
+  'rearView': 'exterior_rear',
+  'driverSide': 'exterior_left',
+  'passengerSide': 'exterior_right',
+  'exteriorFront': 'exterior_front',
+  'exteriorRear': 'exterior_rear',
+  'exteriorLeft': 'exterior_left',
+  'exteriorRight': 'exterior_right',
+  
+  // Interior photos
+  'interiorFront': 'interior_front',
+  'interiorRear': 'interior_rear',
+  'dashboard': 'dashboard',
+  
+  // Engine
+  'engine': 'engine_bay',
+  'engineBay': 'engine_bay',
+  
+  // Trunk/boot
+  'trunk': 'additional_photos',
+  'boot': 'additional_photos',
+  
+  // Wheels/rims
+  'rimFrontLeft': 'rim_front_left',
+  'rimFrontRight': 'rim_front_right',
+  'rimRearLeft': 'rim_rear_left',
+  'rimRearRight': 'rim_rear_right',
+  'wheelFrontLeft': 'rim_front_left',
+  'wheelFrontRight': 'rim_front_right',
+  'wheelRearLeft': 'rim_rear_left',
+  'wheelRearRight': 'rim_rear_right',
+  
+  // Additional/misc
+  'additionalPhotos': 'additional_photos',
+  'mainPhoto': 'exterior_front',
+  'odometer': 'dashboard'
+};
 
 /**
  * Sanitizes and validates a photo category name

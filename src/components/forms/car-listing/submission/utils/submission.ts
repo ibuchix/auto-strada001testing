@@ -24,6 +24,7 @@
  * - 2025-05-31: Fixed UUID handling by completely removing id field for new car listings instead of passing empty string
  * - 2025-06-01: Added explicit is_draft field to prevent not-null constraint violation
  * - 2025-05-23: Fixed TypeScript compatibility with Supabase Json types
+ * - 2025-05-24: Fixed import of PHOTO_FIELD_MAP from photoMapping.ts
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";

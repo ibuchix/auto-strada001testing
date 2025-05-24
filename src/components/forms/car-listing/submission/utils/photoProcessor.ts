@@ -9,6 +9,7 @@
  * Updated: 2025-05-27 - Updated to handle camelCase to snake_case conversion consistently
  * Updated: 2025-06-24 - Fixed consolidation logic to properly handle both naming conventions
  * Updated: 2025-06-25 - Enhanced photo field processing with better debugging and checks
+ * Updated: 2025-05-24 - Fixed import of PHOTO_FIELD_MAP from photoMapping.ts
  */
 
 import { CarListingFormData } from "@/types/forms";
