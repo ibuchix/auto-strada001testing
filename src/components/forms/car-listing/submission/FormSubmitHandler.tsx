@@ -4,6 +4,7 @@
  * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All submissions are immediate
  * Updated: 2025-05-24 - SIMPLIFIED image handling with direct storage in required_photos
  * Updated: 2025-05-24 - ENHANCED valuation data preservation to fix reserve price display
+ * Updated: 2025-05-24 - Fixed naming convention consistency for reserve price display
  */
 
 import React, { useState } from "react";
@@ -66,6 +67,8 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       console.log(`[FormSubmission][${submissionId}] Valuation data tracking:`, {
         formData_reservePrice: formData.reservePrice,
         valuationData_reservePrice: formData.valuationData?.reservePrice,
+        valuationData_reserve_price: formData.valuationData?.reserve_price,
+        valuationData_valuation: formData.valuationData?.valuation,
         valuationData_exists: !!formData.valuationData,
         valuationData_keys: formData.valuationData ? Object.keys(formData.valuationData) : [],
         fromValuation: formData.fromValuation
@@ -129,15 +132,28 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
                                  preparedData.price;
           }
           
-          // CRITICAL: Set reserve price
+          // CRITICAL: Set reserve price - handle multiple naming conventions
+          let reservePrice = null;
           if (valuationData.reservePrice) {
-            preparedData.reservePrice = valuationData.reservePrice;
+            reservePrice = valuationData.reservePrice;
+          } else if (valuationData.reserve_price) {
+            reservePrice = valuationData.reserve_price;
+          } else if (valuationData.valuation) {
+            reservePrice = valuationData.valuation;
+          }
+          
+          if (reservePrice) {
+            preparedData.reservePrice = reservePrice;
             console.log(`[FormSubmission][${submissionId}] Set reserve price from valuation:`, preparedData.reservePrice);
           }
           
-          // CRITICAL: Preserve complete valuation data object
-          preparedData.valuationData = valuationData;
-          console.log(`[FormSubmission][${submissionId}] Preserved complete valuation data`);
+          // CRITICAL: Preserve complete valuation data object with camelCase structure
+          preparedData.valuationData = {
+            ...valuationData,
+            // Ensure reservePrice is in camelCase for consistency
+            reservePrice: reservePrice || valuationData.reservePrice
+          };
+          console.log(`[FormSubmission][${submissionId}] Preserved complete valuation data with camelCase structure`);
         }
       }
       
@@ -146,7 +162,8 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         price: preparedData.price,
         reservePrice: preparedData.reservePrice,
         hasValuationData: !!preparedData.valuationData,
-        valuationDataKeys: preparedData.valuationData ? Object.keys(preparedData.valuationData) : []
+        valuationDataKeys: preparedData.valuationData ? Object.keys(preparedData.valuationData) : [],
+        valuationDataReservePrice: preparedData.valuationData?.reservePrice
       });
       
       const currentUserId = userId || session?.user?.id;
@@ -168,7 +185,8 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         price: preparedData.price,
         reservePrice: preparedData.reservePrice,
         hasRequiredPhotos: !!preparedData.requiredPhotos,
-        hasValuationData: !!preparedData.valuationData
+        hasValuationData: !!preparedData.valuationData,
+        valuationDataStructure: preparedData.valuationData ? Object.keys(preparedData.valuationData) : 'none'
       });
       
       // Submit directly - NO DRAFT STATUS

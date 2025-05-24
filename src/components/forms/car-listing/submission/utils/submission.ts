@@ -4,6 +4,7 @@
  * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All submissions are immediately available
  * Updated: 2025-05-24 - ENHANCED valuation data preservation to fix reserve price display issues
  * Updated: 2025-05-24 - Ensured both reserve_price and valuation_data are properly stored
+ * Updated: 2025-05-24 - Fixed naming convention consistency for valuation data
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -95,6 +96,28 @@ const FRONTEND_ONLY_FIELDS = [
 ];
 
 /**
+ * Preserve valuation data in original camelCase format for consistency
+ */
+const preserveValuationData = (valuationData: any) => {
+  if (!valuationData) return null;
+  
+  // Ensure the valuation data maintains camelCase structure
+  const preservedData = {
+    ...valuationData,
+    // Ensure reservePrice is present in camelCase
+    reservePrice: valuationData.reservePrice || valuationData.reserve_price || valuationData.valuation
+  };
+  
+  console.log('Preserving valuation data with camelCase structure:', {
+    original: valuationData,
+    preserved: preservedData,
+    hasReservePrice: !!preservedData.reservePrice
+  });
+  
+  return preservedData;
+};
+
+/**
  * Transforms form data into database entity - ALWAYS immediately available
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
@@ -147,6 +170,23 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     }
   });
   
+  // CRITICAL: Preserve valuation data with proper structure
+  const preservedValuationData = preserveValuationData(formData.valuationData);
+  
+  // Extract reserve price for the database column
+  const extractedReservePrice = formData.reservePrice || 
+                               formData.valuationData?.reservePrice || 
+                               formData.valuationData?.reserve_price || 
+                               formData.valuationData?.valuation || 
+                               null;
+  
+  console.log('Preparing submission with valuation data:', {
+    originalReservePrice: formData.reservePrice,
+    extractedReservePrice,
+    preservedValuationData,
+    hasValuationData: !!preservedValuationData
+  });
+  
   // Prepare entity - ALWAYS available, NEVER draft
   const baseEntity: Partial<CarEntity> = {
     ...cleanedData,
@@ -165,15 +205,20 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     vin: formData.vin || '',
     transmission: transmissionValue,
     features: carFeatures,
-    // CRITICAL: Include both reserve_price and valuation_data for proper display
-    reserve_price: formData.reservePrice || formData.valuationData?.reservePrice || null,
-    valuation_data: formData.valuationData || null // Preserve complete valuation data
+    // CRITICAL: Store both reserve_price column and complete valuation_data
+    reserve_price: extractedReservePrice,
+    valuation_data: preservedValuationData // Keep in camelCase for consistency
   };
   
-  // Convert to snake_case for database
+  // Convert to snake_case for database (but preserve valuation_data structure)
   const entity = transformObjectToSnakeCase(baseEntity) as Partial<CarEntity>;
   
-  console.log("Prepared entity (IMMEDIATE AVAILABLE):", {
+  // Restore the camelCase valuation_data after transformation
+  if (preservedValuationData) {
+    entity.valuation_data = preservedValuationData;
+  }
+  
+  console.log("Prepared entity with preserved valuation data:", {
     ...entity,
     required_photos: entity.required_photos ? 
       `[${Object.keys(entity.required_photos || {}).length} photos]` : 'none',
@@ -181,7 +226,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     status: entity.status,
     is_draft: entity.is_draft,
     reserve_price: entity.reserve_price,
-    has_valuation_data: !!entity.valuation_data // Log valuation data presence
+    valuation_data_structure: entity.valuation_data ? Object.keys(entity.valuation_data) : 'none'
   });
   
   return entity;

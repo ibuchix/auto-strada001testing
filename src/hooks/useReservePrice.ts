@@ -4,6 +4,7 @@
  * Created: 2025-05-22
  * Purpose: Calculate and manage reserve prices consistently across the application
  * Updated: 2025-06-01 - Removed fallback logic and added error handling for missing reserve price
+ * Updated: 2025-05-24 - Fixed naming convention handling for both camelCase and snake_case
  */
 
 import { useState, useEffect } from 'react';
@@ -22,11 +23,12 @@ export const useReservePrice = ({
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Get reserve price directly from valuation data - no recalculations
+  // Get reserve price from valuation data - handle both naming conventions
   useEffect(() => {
     setIsCalculating(true);
     try {
       if (!valuationData) {
+        console.log('useReservePrice: No valuation data provided');
         setReservePrice(null);
         setError('No valuation data available');
         
@@ -36,11 +38,39 @@ export const useReservePrice = ({
         return;
       }
       
-      // Get reserve price directly from valuation data
-      const storedReservePrice = valuationData.reservePrice;
+      console.log('useReservePrice: Processing valuation data:', {
+        hasReservePrice: !!valuationData.reservePrice,
+        hasReserve_price: !!valuationData.reserve_price,
+        hasValuation: !!valuationData.valuation,
+        valuationDataKeys: Object.keys(valuationData)
+      });
+      
+      // Check for reserve price in multiple possible formats
+      let storedReservePrice = null;
+      
+      // Try camelCase first (preferred for new listings)
+      if (valuationData.reservePrice && valuationData.reservePrice > 0) {
+        storedReservePrice = valuationData.reservePrice;
+        console.log('useReservePrice: Found reservePrice (camelCase):', storedReservePrice);
+      }
+      // Try snake_case (for older listings)
+      else if (valuationData.reserve_price && valuationData.reserve_price > 0) {
+        storedReservePrice = valuationData.reserve_price;
+        console.log('useReservePrice: Found reserve_price (snake_case):', storedReservePrice);
+      }
+      // Try legacy valuation field
+      else if (valuationData.valuation && valuationData.valuation > 0) {
+        storedReservePrice = valuationData.valuation;
+        console.log('useReservePrice: Found valuation (legacy):', storedReservePrice);
+      }
       
       if (!storedReservePrice || storedReservePrice <= 0) {
-        console.error('Missing reserve price in valuation data:', valuationData);
+        console.error('useReservePrice: Missing or invalid reserve price in valuation data:', {
+          reservePrice: valuationData.reservePrice,
+          reserve_price: valuationData.reserve_price,
+          valuation: valuationData.valuation,
+          fullData: valuationData
+        });
         setReservePrice(null);
         setError('Missing reserve price data');
         
@@ -56,7 +86,7 @@ export const useReservePrice = ({
         return;
       }
       
-      console.log('Using stored reserve price:', storedReservePrice);
+      console.log('useReservePrice: Successfully using reserve price:', storedReservePrice);
       setReservePrice(storedReservePrice);
       setError(null);
       
@@ -64,7 +94,7 @@ export const useReservePrice = ({
         onCalculationComplete(storedReservePrice);
       }
     } catch (error) {
-      console.error("Error retrieving reserve price:", error);
+      console.error("useReservePrice: Error retrieving reserve price:", error);
       setReservePrice(null);
       setError('Error retrieving reserve price');
       
