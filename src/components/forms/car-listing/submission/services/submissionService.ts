@@ -2,7 +2,7 @@
 /**
  * Car Listing Submission Service
  * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All listings are immediately available
- * Updated: 2025-05-24 - Simplified to always create available listings
+ * Updated: 2025-05-24 - Enhanced valuation data preservation for proper reserve price display
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -20,7 +20,8 @@ export const submitCarListing = async (
   try {
     console.log("Submitting IMMEDIATE car listing:", { 
       formData: { ...formData, id: formData.id || 'new' },
-      hasUserId: !!userId
+      hasUserId: !!userId,
+      hasValuationData: !!formData.valuationData
     });
     
     // Prepare data for submission
@@ -98,7 +99,9 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
     console.log(`[CreateCar][${traceId}] Calling create_car_listing RPC:`, {
       dataKeys: Object.keys(preparedData),
       hasId: !!preparedData.id,
-      userId: userId
+      userId: userId,
+      hasValuationData: !!preparedData.valuation_data,
+      reservePrice: preparedData.reserve_price
     });
     
     // Call the security definer function

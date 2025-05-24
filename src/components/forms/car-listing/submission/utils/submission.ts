@@ -2,8 +2,8 @@
 /**
  * Form submission utility functions  
  * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All submissions are immediately available
- * Updated: 2025-05-24 - Simplified with direct photo storage
- * Updated: 2025-05-24 - FIXED: Added reservePrice to baseEntity to prevent data loss
+ * Updated: 2025-05-24 - ENHANCED valuation data preservation to fix reserve price display issues
+ * Updated: 2025-05-24 - Ensured both reserve_price and valuation_data are properly stored
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -165,8 +165,9 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     vin: formData.vin || '',
     transmission: transmissionValue,
     features: carFeatures,
-    // CRITICAL FIX: Include reservePrice in the entity
-    reserve_price: formData.reservePrice || formData.valuationData?.reservePrice || null
+    // CRITICAL: Include both reserve_price and valuation_data for proper display
+    reserve_price: formData.reservePrice || formData.valuationData?.reservePrice || null,
+    valuation_data: formData.valuationData || null // Preserve complete valuation data
   };
   
   // Convert to snake_case for database
@@ -179,7 +180,8 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     has_id: !!formData.id,
     status: entity.status,
     is_draft: entity.is_draft,
-    reserve_price: entity.reserve_price // Log the reserve price
+    reserve_price: entity.reserve_price,
+    has_valuation_data: !!entity.valuation_data // Log valuation data presence
   });
   
   return entity;

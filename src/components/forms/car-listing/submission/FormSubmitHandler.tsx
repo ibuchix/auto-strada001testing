@@ -3,7 +3,7 @@
  * Form Submit Handler Component
  * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All submissions are immediate
  * Updated: 2025-05-24 - SIMPLIFIED image handling with direct storage in required_photos
- * Updated: 2025-05-24 - ADDED enhanced logging for reserve price tracking
+ * Updated: 2025-05-24 - ENHANCED valuation data preservation to fix reserve price display
  */
 
 import React, { useState } from "react";
@@ -62,11 +62,12 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       const submissionId = uuidv4().slice(0, 8);
       console.log(`[FormSubmission][${submissionId}] Starting IMMEDIATE listing submission...`);
       
-      // ENHANCED LOGGING: Track reserve price through the entire process
-      console.log(`[FormSubmission][${submissionId}] Reserve price tracking:`, {
+      // ENHANCED LOGGING: Track valuation data through the entire process
+      console.log(`[FormSubmission][${submissionId}] Valuation data tracking:`, {
         formData_reservePrice: formData.reservePrice,
         valuationData_reservePrice: formData.valuationData?.reservePrice,
         valuationData_exists: !!formData.valuationData,
+        valuationData_keys: formData.valuationData ? Object.keys(formData.valuationData) : [],
         fromValuation: formData.fromValuation
       });
       
@@ -102,26 +103,50 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       // Prepare form data - NO DRAFT LOGIC
       const preparedData = prepareFormDataForSubmission(formData);
 
-      // Set pricing from valuation data if available
-      if (formData.fromValuation && formData.valuationData) {
-        console.log(`[FormSubmission][${submissionId}] Using valuation pricing`);
+      // CRITICAL: Preserve complete valuation data for reserve price calculation and display
+      if (formData.fromValuation || formData.valuationData) {
+        console.log(`[FormSubmission][${submissionId}] Processing valuation data`);
         
-        if (formData.valuationData.basePrice || formData.valuationData.averagePrice) {
-          preparedData.price = formData.valuationData.basePrice || 
-                               formData.valuationData.averagePrice || 
-                               preparedData.price;
+        // Get valuation data from form or localStorage if not present
+        let valuationData = formData.valuationData;
+        if (!valuationData) {
+          try {
+            const storedValuation = localStorage.getItem('valuationData');
+            if (storedValuation) {
+              valuationData = JSON.parse(storedValuation);
+              console.log(`[FormSubmission][${submissionId}] Retrieved valuation from localStorage`);
+            }
+          } catch (error) {
+            console.error(`[FormSubmission][${submissionId}] Error parsing stored valuation:`, error);
+          }
         }
         
-        if (formData.valuationData.reservePrice) {
-          preparedData.reservePrice = formData.valuationData.reservePrice;
-          console.log(`[FormSubmission][${submissionId}] Set reserve price from valuation:`, preparedData.reservePrice);
+        if (valuationData) {
+          // Set pricing from valuation data
+          if (valuationData.basePrice || valuationData.averagePrice) {
+            preparedData.price = valuationData.basePrice || 
+                                 valuationData.averagePrice || 
+                                 preparedData.price;
+          }
+          
+          // CRITICAL: Set reserve price
+          if (valuationData.reservePrice) {
+            preparedData.reservePrice = valuationData.reservePrice;
+            console.log(`[FormSubmission][${submissionId}] Set reserve price from valuation:`, preparedData.reservePrice);
+          }
+          
+          // CRITICAL: Preserve complete valuation data object
+          preparedData.valuationData = valuationData;
+          console.log(`[FormSubmission][${submissionId}] Preserved complete valuation data`);
         }
       }
       
-      // ENHANCED LOGGING: Track prepared data reserve price
-      console.log(`[FormSubmission][${submissionId}] Prepared data reserve price:`, {
-        preparedData_reservePrice: preparedData.reservePrice,
-        price: preparedData.price
+      // ENHANCED LOGGING: Track final prepared data
+      console.log(`[FormSubmission][${submissionId}] Final prepared data:`, {
+        price: preparedData.price,
+        reservePrice: preparedData.reservePrice,
+        hasValuationData: !!preparedData.valuationData,
+        valuationDataKeys: preparedData.valuationData ? Object.keys(preparedData.valuationData) : []
       });
       
       const currentUserId = userId || session?.user?.id;
@@ -142,7 +167,8 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         userId: currentUserId,
         price: preparedData.price,
         reservePrice: preparedData.reservePrice,
-        hasRequiredPhotos: !!preparedData.requiredPhotos
+        hasRequiredPhotos: !!preparedData.requiredPhotos,
+        hasValuationData: !!preparedData.valuationData
       });
       
       // Submit directly - NO DRAFT STATUS
