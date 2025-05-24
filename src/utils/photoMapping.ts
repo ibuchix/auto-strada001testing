@@ -3,6 +3,7 @@
  * Photo Category Mapping Utilities
  * Updated: 2025-05-24 - Added comprehensive validation and sanitization
  * Updated: 2025-05-24 - Added PHOTO_FIELD_MAP for camelCase to snake_case conversion
+ * Updated: 2025-05-24 - Fixed standardizePhotoCategory to check PHOTO_FIELD_MAP before sanitization
  */
 
 // Define valid photo categories
@@ -98,6 +99,7 @@ export const sanitizePhotoCategory = (category: string): string => {
 
 /**
  * Standardizes photo category names to match database schema
+ * NOW CHECKS PHOTO_FIELD_MAP BEFORE SANITIZATION
  */
 export const standardizePhotoCategory = (category: string): string => {
   if (!category) {
@@ -110,10 +112,23 @@ export const standardizePhotoCategory = (category: string): string => {
     type: typeof category 
   });
   
-  // First sanitize the input
+  // FIRST: Check direct mapping in PHOTO_FIELD_MAP (preserves camelCase)
+  if (PHOTO_FIELD_MAP[category]) {
+    const mapped = PHOTO_FIELD_MAP[category];
+    console.log(`[PhotoMapping] Direct mapping found: "${category}" -> "${mapped}"`);
+    return mapped;
+  }
+  
+  // SECOND: Check if it's already a valid category
+  if (VALID_PHOTO_CATEGORIES.includes(category as ValidPhotoCategory)) {
+    console.log(`[PhotoMapping] Category "${category}" is already valid`);
+    return category;
+  }
+  
+  // THIRD: Now sanitize and check other mappings
   const sanitized = sanitizePhotoCategory(category);
   
-  // Common mapping patterns
+  // Common mapping patterns for sanitized input
   const categoryMappings: Record<string, string> = {
     // Exterior photos
     'front': 'exterior_front',
@@ -149,16 +164,16 @@ export const standardizePhotoCategory = (category: string): string => {
     'other': 'additional_photos'
   };
   
-  // Check direct mapping first
+  // Check direct mapping after sanitization
   if (categoryMappings[sanitized]) {
     const mapped = categoryMappings[sanitized];
-    console.log(`[PhotoMapping] Mapped "${sanitized}" to "${mapped}"`);
+    console.log(`[PhotoMapping] Sanitized mapping: "${sanitized}" -> "${mapped}"`);
     return mapped;
   }
   
-  // Check if it's already a valid category
+  // Check if sanitized version is already valid
   if (VALID_PHOTO_CATEGORIES.includes(sanitized as ValidPhotoCategory)) {
-    console.log(`[PhotoMapping] Category "${sanitized}" is already valid`);
+    console.log(`[PhotoMapping] Sanitized category "${sanitized}" is valid`);
     return sanitized;
   }
   
@@ -170,7 +185,7 @@ export const standardizePhotoCategory = (category: string): string => {
     }
   }
   
-  // Fallback to additional_photos
+  // FOURTH: Fallback to additional_photos
   console.warn(`[PhotoMapping] No mapping found for "${category}", using fallback "additional_photos"`);
   return 'additional_photos';
 };

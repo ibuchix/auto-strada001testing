@@ -1,8 +1,7 @@
 
 /**
- * Changes made:
- * - 2025-05-23: Removed is_draft system, all listings are immediately available
- * - Simplified submission to always create available listings
+ * Form submission utility functions
+ * Updated: 2025-05-24 - COMPLETELY REMOVED DRAFT LOGIC - All submissions are immediately available
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -12,7 +11,6 @@ const validateTransmission = (value: unknown): "manual" | "automatic" | "semi-au
   if (value === "automatic" || value === "semi-automatic" || value === "manual") {
     return value;
   }
-  // Default to manual if invalid value provided
   return "manual";
 };
 
@@ -43,8 +41,7 @@ export const prepareFormDataForApi = (data: CarListingFormData) => {
 };
 
 /**
- * Transforms form data into a database entity by removing transient properties
- * and adding required database fields - all listings are immediately available
+ * Transforms form data into a database entity - ALWAYS immediately available
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
   // Ensure features property has all required fields
@@ -74,13 +71,14 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   // Ensure transmission is one of the allowed types
   const transmissionValue = validateTransmission(formData.transmission);
   
-  // Ensure all required fields are present with default values if needed
+  // Ensure all required fields are present with default values if needed - ALWAYS AVAILABLE
   const entity: Partial<CarEntity> = {
     ...formData,
     id: formData.id || '',
     created_at: createdAt,
     updated_at: new Date().toISOString(),
-    status: 'available', // Always immediately available
+    status: 'available', // ALWAYS available
+    is_draft: false, // NEVER draft
     // Ensure required fields have values
     make: formData.make || '',
     model: formData.model || '',

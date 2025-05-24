@@ -2,7 +2,7 @@
 /**
  * Car Listing Submission Service
  * Created: 2025-05-20
- * Updated: 2025-05-23 - Removed is_draft system, all listings are immediately available
+ * Updated: 2025-05-24 - COMPLETELY REMOVED DRAFT LOGIC - All listings are immediately available
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -11,7 +11,7 @@ import { prepareSubmission } from "../utils/submission";
 import { toSupabaseObject } from "@/utils/supabaseTypeUtils";
 
 /**
- * Submit a car listing to the database - always immediately available
+ * Submit a car listing to the database - ALWAYS immediately available
  */
 export const submitCarListing = async (
   formData: CarListingFormData,
@@ -28,12 +28,12 @@ export const submitCarListing = async (
     
     // If editing (id exists), update the existing record
     if (preparedData.id) {
-      // Convert prepared data to Supabase-compatible format
       const supabaseData = toSupabaseObject({
         ...preparedData,
         updated_at: new Date().toISOString(),
         seller_id: userId || preparedData.seller_id,
-        status: 'available' // Always set to available
+        status: 'available', // ALWAYS available
+        is_draft: false // NEVER draft
       });
       
       const { data, error } = await supabase
@@ -51,13 +51,13 @@ export const submitCarListing = async (
       console.log("Successfully updated car:", data);
       return { id: data.id };
     } else {
-      // Convert prepared data to Supabase-compatible format
       const supabaseData = toSupabaseObject({
         ...preparedData,
         seller_id: userId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        status: 'available' // Always immediately available
+        status: 'available', // ALWAYS available
+        is_draft: false // NEVER draft
       });
       
       const { data, error } = await supabase
@@ -85,20 +85,16 @@ export const submitCarListing = async (
  */
 export const createCarListing = async (formData: CarListingFormData, userId: string): Promise<{ id: string }> => {
   try {
-    // Generate a trace ID for tracking this operation through logs
     const traceId = Math.random().toString(36).substring(2, 10);
-    console.log(`[CreateCar][${traceId}] Creating car listing - immediately available...`);
+    console.log(`[CreateCar][${traceId}] Creating immediate listing...`);
     
-    // Prepare data ensuring proper type handling
     const preparedData = prepareSubmission(formData);
     
-    // Ensure userId is a valid UUID
     if (!userId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
       console.error(`[CreateCar][${traceId}] Invalid userId format:`, userId);
       throw new Error("Invalid user ID format");
     }
     
-    // Log the exact data being used for RPC call
     console.log(`[CreateCar][${traceId}] Calling create_car_listing RPC:`, {
       dataKeys: Object.keys(preparedData),
       hasId: !!preparedData.id,
@@ -116,7 +112,6 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
       throw new Error(`Failed to create car listing: ${error.message}`);
     }
     
-    // Type-safely cast the RPC response
     const typedResponse = rpcResponse as {success: boolean, car_id?: string, error?: string};
     
     if (!typedResponse || !typedResponse.success) {

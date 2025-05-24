@@ -2,7 +2,7 @@
 /**
  * Form save utilities
  * Created: 2025-06-05
- * Updated: 2025-05-23: Removed is_draft system, all saves create immediately available listings
+ * Updated: 2025-05-24: COMPLETELY REMOVED DRAFT LOGIC - All saves create immediately available listings
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -14,10 +14,8 @@ import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
  */
 export const clearSaveCache = (userId: string, carId?: string) => {
   try {
-    // Clear localStorage cache keys related to this form
     const keyPrefix = `form_save_${userId}_${carId || 'new'}`;
     
-    // Find and remove all keys with this prefix
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith(keyPrefix)) {
         localStorage.removeItem(key);
@@ -36,7 +34,6 @@ export const clearSaveCache = (userId: string, carId?: string) => {
  * Prepares form data for saving by cleaning up unnecessary fields
  */
 export const prepareFormDataForSave = (data: CarListingFormData): Partial<CarListingFormData> => {
-  // Create a copy to avoid mutating the original
   const formData = { ...data };
   
   // Remove any client-side only fields that shouldn't be saved
@@ -47,7 +44,7 @@ export const prepareFormDataForSave = (data: CarListingFormData): Partial<CarLis
 };
 
 /**
- * Saves form data to the database - all listings are immediately available
+ * Saves form data to the database - ALWAYS immediately available
  */
 export const saveFormData = async (
   formData: CarListingFormData, 
@@ -56,30 +53,25 @@ export const saveFormData = async (
   carId?: string
 ): Promise<{ success: boolean; carId?: string; error?: any }> => {
   try {
-    // Ensure we have a valid user ID
     if (!userId) {
       throw new Error('User ID is required to save form data');
     }
 
-    // Set last_saved timestamp
     const now = new Date();
     
-    // Prepare data for saving
     const formDataForSave = prepareFormDataForSave(formData);
     
     // Convert camelCase form data to snake_case for the database
     const dbData = transformObjectToSnakeCase(formDataForSave);
     
-    // Add additional fields needed for the database in snake_case format
+    // Add additional fields needed for the database - ALWAYS AVAILABLE
     const saveData = {
       ...dbData,
       seller_id: userId,
-      status: 'available', // Always immediately available
-      // Add last_saved timestamp
+      status: 'available', // ALWAYS available
+      is_draft: false, // NEVER draft
       last_saved: now.toISOString(),
-      // Add valuation data if available - already in snake_case format
       valuation_data: valuationData || formData.valuationData || null,
-      // Make sure to add current timestamp for updated_at
       updated_at: now.toISOString()
     };
 
@@ -93,7 +85,6 @@ export const saveFormData = async (
       .select('id')
       .single();
 
-    // Handle error
     if (error) {
       console.error('Error saving form data:', error);
       return { 
@@ -102,7 +93,6 @@ export const saveFormData = async (
       };
     }
 
-    // Return success with car ID
     return { 
       success: true, 
       carId: data?.id
