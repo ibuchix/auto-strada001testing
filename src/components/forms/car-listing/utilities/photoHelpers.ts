@@ -4,13 +4,13 @@
  * Created: 2025-06-24
  * Updated: 2025-06-25 - Added setPhotoField and setRimPhotoField functions
  * Updated: 2025-06-26 - Fixed TypeScript type errors with dynamic field names
- * Updated: 2025-05-24 - Added comprehensive validation and error handling
+ * Updated: 2025-05-24 - Fixed import error - using standardizePhotoCategory instead of sanitizePhotoCategory
  * 
  * Contains helper functions for handling photo uploads and field naming
  * to ensure consistent handling between camelCase and snake_case fields.
  */
 
-import { standardizePhotoCategory, sanitizePhotoCategory } from "@/utils/photoMapping";
+import { standardizePhotoCategory } from "@/utils/photoMapping";
 import { CarListingFormData } from "@/types/forms";
 import { UseFormReturn, Path } from "react-hook-form";
 import { setFieldValue } from "@/utils/formHelpers";
@@ -42,8 +42,8 @@ export const setPhotoField = (
     fieldNameType: typeof fieldName 
   });
   
-  // Validate and sanitize the field name
-  const sanitizedFieldName = sanitizePhotoCategory(fieldName);
+  // Validate and sanitize the field name using standardizePhotoCategory
+  const sanitizedFieldName = standardizePhotoCategory(fieldName);
   
   try {
     // Set the direct field using type assertion for dynamic field name
@@ -92,8 +92,8 @@ export const setRimPhotoField = (
     positionType: typeof position 
   });
   
-  // Validate and sanitize the position
-  const sanitizedPosition = sanitizePhotoCategory(position);
+  // Validate and sanitize the position using standardizePhotoCategory
+  const sanitizedPosition = standardizePhotoCategory(position);
   
   try {
     // Get existing rim photos or initialize an empty object
@@ -142,8 +142,8 @@ export const updateVehiclePhotos = (
     // Update each photo field
     Object.entries(photoUpdates).forEach(([fieldName, value]) => {
       if (value) {
-        // Sanitize the field name
-        const sanitizedFieldName = sanitizePhotoCategory(fieldName);
+        // Sanitize the field name using standardizePhotoCategory
+        const sanitizedFieldName = standardizePhotoCategory(fieldName);
         
         // Update camelCase fields in vehiclePhotos
         updatedVehiclePhotos[sanitizedFieldName] = value;
