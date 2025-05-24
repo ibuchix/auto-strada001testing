@@ -1,10 +1,8 @@
 
 /**
  * Form Submit Handler Component
- * Created: 2025-05-12
- * Updated: 2025-05-24 - COMPLETELY REMOVED DRAFT LOGIC - All submissions are immediate and available
- * Updated: 2025-05-24 - Simplified image upload to direct storage in required_photos field
- * Updated: 2025-05-24 - Fixed photo field mapping and validation
+ * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All submissions are immediate
+ * Updated: 2025-05-24 - SIMPLIFIED image handling with direct storage in required_photos
  */
 
 import React, { useState } from "react";
@@ -61,17 +59,9 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       setIsSubmitting(true);
       
       const submissionId = uuidv4().slice(0, 8);
-      console.log(`[FormSubmission][${submissionId}] Starting immediate listing submission...`);
+      console.log(`[FormSubmission][${submissionId}] Starting IMMEDIATE listing submission...`);
       
-      console.log("Starting form validation...");
-      console.log("Form data for validation:", {
-        hasRequiredPhotos: !!formData.requiredPhotos,
-        requiredPhotosKeys: formData.requiredPhotos ? Object.keys(formData.requiredPhotos) : [],
-        hasVehiclePhotos: !!formData.vehiclePhotos,
-        vehiclePhotoKeys: formData.vehiclePhotos ? Object.keys(formData.vehiclePhotos) : []
-      });
-      
-      // Validate that all required photos have been uploaded
+      // Validate required photos
       const missingPhotoFields = validateRequiredPhotos(formData);
       
       if (missingPhotoFields.length > 0) {
@@ -100,15 +90,12 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      // Prepare form data for submission - NO DRAFT LOGIC
+      // Prepare form data - NO DRAFT LOGIC
       const preparedData = prepareFormDataForSubmission(formData);
 
-      // Set price and reservePrice from valuation data if available
+      // Set pricing from valuation data if available
       if (formData.fromValuation && formData.valuationData) {
-        console.log(`[FormSubmission][${submissionId}] Using valuation data for prices:`, {
-          valuationBasePrice: formData.valuationData.basePrice || formData.valuationData.averagePrice,
-          valuationReservePrice: formData.valuationData.reservePrice
-        });
+        console.log(`[FormSubmission][${submissionId}] Using valuation pricing`);
         
         if (formData.valuationData.basePrice || formData.valuationData.averagePrice) {
           preparedData.price = formData.valuationData.basePrice || 
@@ -131,45 +118,44 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      // Ensure sellerId is set for ownership tracking
+      // Set seller ID for ownership
       preparedData.sellerId = currentUserId;
       
-      // REMOVED: All isDraft logic - submissions are immediately available
-      
-      console.log(`[FormSubmission][${submissionId}] Submitting immediate listing:`, {
+      console.log(`[FormSubmission][${submissionId}] Submitting IMMEDIATE listing:`, {
         dataKeys: Object.keys(preparedData),
         userId: currentUserId,
         price: preparedData.price,
-        reservePrice: preparedData.reservePrice
+        reservePrice: preparedData.reservePrice,
+        hasRequiredPhotos: !!preparedData.requiredPhotos
       });
       
-      // Submit the listing directly - NO DRAFT STATUS
+      // Submit directly - NO DRAFT STATUS
       let result;
       try {
-        console.log(`[FormSubmission][${submissionId}] Creating immediate listing...`);
+        console.log(`[FormSubmission][${submissionId}] Creating IMMEDIATE available listing...`);
         result = await createCarListing(preparedData, currentUserId);
-        console.log(`[FormSubmission][${submissionId}] Listing created successfully, car ID: ${result.id}`);
+        console.log(`[FormSubmission][${submissionId}] ✓ Listing created successfully, car ID: ${result.id}`);
       } catch (submissionError) {
-        console.error(`[FormSubmission][${submissionId}] Submission failed:`, submissionError);
+        console.error(`[FormSubmission][${submissionId}] ✗ Submission failed:`, submissionError);
         throw submissionError;
       }
       
       const newCarId = result.id;
       
-      // Show success toast
+      // Success notification
       if (showAlerts) {
         toast.success("Listing Submitted Successfully", {
           description: "Your car listing is now available to dealers.",
         });
       }
       
-      // Call the success callback if provided
+      // Handle success callbacks
       if (onSuccess) {
         onSuccess(preparedData);
       } else if (onSubmitSuccess) {
         onSubmitSuccess(newCarId);
       } else {
-        // Default success behavior - redirect to seller dashboard
+        // Default: redirect to seller dashboard
         navigate("/dashboard/seller");
       }
       

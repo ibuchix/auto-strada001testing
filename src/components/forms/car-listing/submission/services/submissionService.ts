@@ -1,8 +1,8 @@
 
 /**
  * Car Listing Submission Service
- * Created: 2025-05-20
- * Updated: 2025-05-24 - COMPLETELY REMOVED DRAFT LOGIC - All listings are immediately available
+ * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All listings are immediately available
+ * Updated: 2025-05-24 - Simplified to always create available listings
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -11,22 +11,22 @@ import { prepareSubmission } from "../utils/submission";
 import { toSupabaseObject } from "@/utils/supabaseTypeUtils";
 
 /**
- * Submit a car listing to the database - ALWAYS immediately available
+ * Submit a car listing - ALWAYS immediately available
  */
 export const submitCarListing = async (
   formData: CarListingFormData,
   userId?: string
 ): Promise<{ id: string }> => {
   try {
-    console.log("Submitting car listing to database:", { 
+    console.log("Submitting IMMEDIATE car listing:", { 
       formData: { ...formData, id: formData.id || 'new' },
       hasUserId: !!userId
     });
     
-    // Prepare data for submission - this filters out frontend-only fields
+    // Prepare data for submission
     const preparedData = prepareSubmission(formData);
     
-    // If editing (id exists), update the existing record
+    // Update existing or create new
     if (preparedData.id) {
       const supabaseData = toSupabaseObject({
         ...preparedData,
@@ -44,11 +44,11 @@ export const submitCarListing = async (
         .single();
       
       if (error) {
-        console.error("Error updating car in database:", error);
+        console.error("Error updating car:", error);
         throw error;
       }
       
-      console.log("Successfully updated car:", data);
+      console.log("✓ Successfully updated car:", data);
       return { id: data.id };
     } else {
       const supabaseData = toSupabaseObject({
@@ -67,11 +67,11 @@ export const submitCarListing = async (
         .single();
       
       if (error) {
-        console.error("Error inserting car in database:", error);
+        console.error("Error creating car:", error);
         throw error;
       }
       
-      console.log("Successfully created new car:", data);
+      console.log("✓ Successfully created car:", data);
       return { id: data.id };
     }
   } catch (error) {
@@ -81,17 +81,17 @@ export const submitCarListing = async (
 };
 
 /**
- * Create car listing using the security definer function
+ * Create car listing using security definer function - ALWAYS available
  */
 export const createCarListing = async (formData: CarListingFormData, userId: string): Promise<{ id: string }> => {
   try {
     const traceId = Math.random().toString(36).substring(2, 10);
-    console.log(`[CreateCar][${traceId}] Creating immediate listing...`);
+    console.log(`[CreateCar][${traceId}] Creating IMMEDIATE available listing...`);
     
     const preparedData = prepareSubmission(formData);
     
     if (!userId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
-      console.error(`[CreateCar][${traceId}] Invalid userId format:`, userId);
+      console.error(`[CreateCar][${traceId}] Invalid userId:`, userId);
       throw new Error("Invalid user ID format");
     }
     
@@ -101,7 +101,7 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
       userId: userId
     });
     
-    // Call the security definer function via RPC
+    // Call the security definer function
     const { data: rpcResponse, error } = await supabase.rpc('create_car_listing', {
       p_car_data: toSupabaseObject(preparedData),
       p_user_id: userId
@@ -115,16 +115,16 @@ export const createCarListing = async (formData: CarListingFormData, userId: str
     const typedResponse = rpcResponse as {success: boolean, car_id?: string, error?: string};
     
     if (!typedResponse || !typedResponse.success) {
-      console.error(`[CreateCar][${traceId}] RPC returned unsuccessful result:`, typedResponse);
+      console.error(`[CreateCar][${traceId}] RPC failed:`, typedResponse);
       throw new Error("Failed to create car listing: " + (typedResponse?.error || "Unknown error"));
     }
     
     if (!typedResponse.car_id) {
-      console.error(`[CreateCar][${traceId}] Missing car_id in RPC response:`, typedResponse);
+      console.error(`[CreateCar][${traceId}] Missing car_id:`, typedResponse);
       throw new Error("Missing car ID in response");
     }
     
-    console.log(`[CreateCar][${traceId}] Successfully created car:`, typedResponse);
+    console.log(`[CreateCar][${traceId}] ✓ Successfully created car:`, typedResponse);
     return { id: typedResponse.car_id };
     
   } catch (error) {

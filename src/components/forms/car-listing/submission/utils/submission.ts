@@ -1,14 +1,13 @@
 
 /**
  * Form submission utility functions  
- * Updated: 2025-05-24 - COMPLETELY REMOVED DRAFT LOGIC - All submissions are immediately available
- * Updated: 2025-05-24 - Simplified photo processing with direct storage
+ * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All submissions are immediately available
+ * Updated: 2025-05-24 - Simplified with direct photo storage
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
 import { PHOTO_FIELD_MAP } from "@/utils/photoMapping";
 import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
-import { toSupabaseObject } from "@/utils/supabaseTypeUtils";
 
 // Helper function to ensure transmission is a valid value
 const validateTransmission = (value: unknown): "manual" | "automatic" | "semi-automatic" => {
@@ -44,7 +43,7 @@ export const prepareFormDataForApi = (data: CarListingFormData) => {
   };
 };
 
-// List of photo field names that should not be included in the top-level database object
+// Photo field keys that should not be in top-level database object
 const PHOTO_FIELD_KEYS = [
   'frontView',
   'rearView', 
@@ -61,7 +60,7 @@ const PHOTO_FIELD_KEYS = [
   ...Object.keys(PHOTO_FIELD_MAP)
 ];
 
-// List of frontend-only fields that shouldn't be sent to the database
+// Frontend-only fields that shouldn't be sent to database
 const FRONTEND_ONLY_FIELDS = [
   'fromValuation',
   'photoValidationPassed',
@@ -95,10 +94,10 @@ const FRONTEND_ONLY_FIELDS = [
 ];
 
 /**
- * Transforms form data into a database entity - ALWAYS immediately available
+ * Transforms form data into database entity - ALWAYS immediately available
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
-  // Ensure features property has all required fields
+  // Ensure features property exists
   const carFeatures: CarFeatures = {
     airConditioning: formData.features?.airConditioning || false,
     bluetooth: formData.features?.bluetooth || false,
@@ -115,65 +114,62 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     alloyWheels: formData.features?.alloyWheels || false,
   };
   
-  // Convert Date to string if needed
+  // Handle date conversion
   const createdAt = typeof formData.created_at === 'string' 
     ? formData.created_at 
     : formData.created_at instanceof Date 
       ? formData.created_at.toISOString() 
       : new Date().toISOString();
   
-  // Ensure transmission is one of the allowed types
+  // Validate transmission
   const transmissionValue = validateTransmission(formData.transmission);
   
-  // Create a clean copy of form data without photo fields that belong in required_photos
+  // Clean form data
   const cleanedData = { ...formData };
   
-  // If name is provided but sellerName is not, map name to sellerName
+  // Map name to sellerName if needed
   if (cleanedData.name && !cleanedData.sellerName) {
     cleanedData.sellerName = cleanedData.name;
   }
   
-  // Remove photo fields from top level object as they should be in required_photos
+  // Remove photo fields that belong in required_photos
   PHOTO_FIELD_KEYS.forEach(key => {
     if (key in cleanedData) {
       delete (cleanedData as any)[key];
     }
   });
   
-  // Remove frontend-only fields from the data being sent to the database
+  // Remove frontend-only fields
   FRONTEND_ONLY_FIELDS.forEach(key => {
     if (key in cleanedData) {
       delete (cleanedData as any)[key];
     }
   });
   
-  // Prepare base entity with all fields properly typed - ALWAYS AVAILABLE
+  // Prepare entity - ALWAYS available, NEVER draft
   const baseEntity: Partial<CarEntity> = {
     ...cleanedData,
-    // Only include id if it's a valid non-empty value (for editing existing records)
+    // Only include id if valid (for editing)
     ...(formData.id ? { id: formData.id } : {}),
     created_at: createdAt,
     updated_at: new Date().toISOString(),
     status: 'available', // ALWAYS available
     is_draft: false, // NEVER draft
-    // Ensure required fields have values
+    // Ensure required fields
     make: formData.make || '',
     model: formData.model || '',
     year: formData.year || 0,
     price: formData.price || 0,
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
-    // Use validated transmission type
     transmission: transmissionValue,
-    // Use properly typed features
     features: carFeatures
   };
   
-  // Convert all camelCase field names to snake_case for database compatibility
+  // Convert to snake_case for database
   const entity = transformObjectToSnakeCase(baseEntity) as Partial<CarEntity>;
   
-  // Log the cleaned entity for debugging
-  console.log("Prepared entity for database submission:", {
+  console.log("Prepared entity (IMMEDIATE AVAILABLE):", {
     ...entity,
     required_photos: entity.required_photos ? 
       `[${Object.keys(entity.required_photos || {}).length} photos]` : 'none',

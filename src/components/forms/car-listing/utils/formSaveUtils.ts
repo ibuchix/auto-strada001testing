@@ -1,8 +1,7 @@
 
 /**
  * Form save utilities
- * Created: 2025-06-05
- * Updated: 2025-05-24: COMPLETELY REMOVED DRAFT LOGIC - All saves create immediately available listings
+ * Updated: 2025-05-24: COMPLETELY REMOVED ALL DRAFT LOGIC - All saves create immediately available listings
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -10,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
 
 /**
- * Clears the form save cache for a specific user and car
+ * Clears the form save cache
  */
 export const clearSaveCache = (userId: string, carId?: string) => {
   try {
@@ -31,12 +30,12 @@ export const clearSaveCache = (userId: string, carId?: string) => {
 };
 
 /**
- * Prepares form data for saving by cleaning up unnecessary fields
+ * Prepares form data for saving
  */
 export const prepareFormDataForSave = (data: CarListingFormData): Partial<CarListingFormData> => {
   const formData = { ...data };
   
-  // Remove any client-side only fields that shouldn't be saved
+  // Remove client-side only fields
   delete (formData as any).tempData;
   delete (formData as any).validationErrors;
   
@@ -44,7 +43,7 @@ export const prepareFormDataForSave = (data: CarListingFormData): Partial<CarLis
 };
 
 /**
- * Saves form data to the database - ALWAYS immediately available
+ * Saves form data - ALWAYS immediately available
  */
 export const saveFormData = async (
   formData: CarListingFormData, 
@@ -58,13 +57,12 @@ export const saveFormData = async (
     }
 
     const now = new Date();
-    
     const formDataForSave = prepareFormDataForSave(formData);
     
-    // Convert camelCase form data to snake_case for the database
+    // Convert to snake_case for database
     const dbData = transformObjectToSnakeCase(formDataForSave);
     
-    // Add additional fields needed for the database - ALWAYS AVAILABLE
+    // Add required fields - ALWAYS available
     const saveData = {
       ...dbData,
       seller_id: userId,

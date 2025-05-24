@@ -1,9 +1,8 @@
 
 /**
  * Photo Category Mapping Utilities
- * Updated: 2025-05-24 - Added comprehensive validation and sanitization
- * Updated: 2025-05-24 - Added PHOTO_FIELD_MAP for camelCase to snake_case conversion
- * Updated: 2025-05-24 - Fixed standardizePhotoCategory to check PHOTO_FIELD_MAP before sanitization
+ * Updated: 2025-05-24 - FIXED standardizePhotoCategory to check PHOTO_FIELD_MAP FIRST
+ * Updated: 2025-05-24 - Simplified logic to prioritize direct mapping
  */
 
 // Define valid photo categories
@@ -34,7 +33,7 @@ export const REQUIRED_PHOTO_FIELDS = [
   'dashboard'
 ] as const;
 
-// Photo field mapping from camelCase to snake_case
+// Photo field mapping from camelCase to snake_case - THIS IS THE AUTHORITATIVE SOURCE
 export const PHOTO_FIELD_MAP: Record<string, string> = {
   // Exterior photos
   'frontView': 'exterior_front',
@@ -76,15 +75,31 @@ export const PHOTO_FIELD_MAP: Record<string, string> = {
 };
 
 /**
- * Sanitizes and validates a photo category name
+ * Standardizes photo category names to match database schema
+ * PRIORITY: PHOTO_FIELD_MAP first, then validation, then sanitization
  */
-export const sanitizePhotoCategory = (category: string): string => {
-  if (!category || typeof category !== 'string') {
-    console.warn('[PhotoMapping] Invalid category input:', category);
+export const standardizePhotoCategory = (category: string): string => {
+  if (!category) {
+    console.warn('[PhotoMapping] Empty category provided, using fallback');
     return 'additional_photos';
   }
   
-  // Convert to lowercase and replace spaces/special chars with underscores
+  console.log(`[PhotoMapping] Processing category: "${category}"`);
+  
+  // STEP 1: Check direct mapping in PHOTO_FIELD_MAP first (highest priority)
+  if (PHOTO_FIELD_MAP[category]) {
+    const mapped = PHOTO_FIELD_MAP[category];
+    console.log(`[PhotoMapping] ✓ Direct mapping: "${category}" -> "${mapped}"`);
+    return mapped;
+  }
+  
+  // STEP 2: Check if it's already a valid category
+  if (VALID_PHOTO_CATEGORIES.includes(category as ValidPhotoCategory)) {
+    console.log(`[PhotoMapping] ✓ Already valid: "${category}"`);
+    return category;
+  }
+  
+  // STEP 3: Sanitize and try common patterns
   const sanitized = category
     .toLowerCase()
     .trim()
@@ -93,100 +108,40 @@ export const sanitizePhotoCategory = (category: string): string => {
     .replace(/_{2,}/g, '_')
     .replace(/^_+|_+$/g, '');
   
-  console.log(`[PhotoMapping] Sanitized category "${category}" to "${sanitized}"`);
-  return sanitized || 'additional_photos';
-};
-
-/**
- * Standardizes photo category names to match database schema
- * NOW CHECKS PHOTO_FIELD_MAP BEFORE SANITIZATION
- */
-export const standardizePhotoCategory = (category: string): string => {
-  if (!category) {
-    console.warn('[PhotoMapping] Empty category provided, using fallback');
-    return 'additional_photos';
-  }
-  
-  console.log(`[PhotoMapping] Standardizing category:`, { 
-    input: category, 
-    type: typeof category 
-  });
-  
-  // FIRST: Check direct mapping in PHOTO_FIELD_MAP (preserves camelCase)
-  if (PHOTO_FIELD_MAP[category]) {
-    const mapped = PHOTO_FIELD_MAP[category];
-    console.log(`[PhotoMapping] Direct mapping found: "${category}" -> "${mapped}"`);
+  // Check if sanitized version is in the map
+  if (PHOTO_FIELD_MAP[sanitized]) {
+    const mapped = PHOTO_FIELD_MAP[sanitized];
+    console.log(`[PhotoMapping] ✓ Sanitized mapping: "${sanitized}" -> "${mapped}"`);
     return mapped;
   }
   
-  // SECOND: Check if it's already a valid category
-  if (VALID_PHOTO_CATEGORIES.includes(category as ValidPhotoCategory)) {
-    console.log(`[PhotoMapping] Category "${category}" is already valid`);
-    return category;
+  // Check if sanitized version is valid
+  if (VALID_PHOTO_CATEGORIES.includes(sanitized as ValidPhotoCategory)) {
+    console.log(`[PhotoMapping] ✓ Sanitized valid: "${sanitized}"`);
+    return sanitized;
   }
   
-  // THIRD: Now sanitize and check other mappings
-  const sanitized = sanitizePhotoCategory(category);
-  
-  // Common mapping patterns for sanitized input
-  const categoryMappings: Record<string, string> = {
-    // Exterior photos
+  // STEP 4: Pattern matching for common cases
+  const patterns: Record<string, string> = {
     'front': 'exterior_front',
     'rear': 'exterior_rear', 
     'left': 'exterior_left',
     'right': 'exterior_right',
-    'exterior': 'exterior_front',
-    
-    // Interior photos
     'interior': 'interior_front',
-    'inside': 'interior_front',
     'dashboard': 'dashboard',
-    'dash': 'dashboard',
-    
-    // Engine
     'engine': 'engine_bay',
-    'engine_bay': 'engine_bay',
-    'hood': 'engine_bay',
-    
-    // Rims
-    'rim_fl': 'rim_front_left',
-    'rim_fr': 'rim_front_right',
-    'rim_rl': 'rim_rear_left', 
-    'rim_rr': 'rim_rear_right',
-    'wheel_front_left': 'rim_front_left',
-    'wheel_front_right': 'rim_front_right',
-    'wheel_rear_left': 'rim_rear_left',
-    'wheel_rear_right': 'rim_rear_right',
-    
-    // Additional/misc
-    'additional': 'additional_photos',
-    'misc': 'additional_photos',
-    'other': 'additional_photos'
+    'additional': 'additional_photos'
   };
   
-  // Check direct mapping after sanitization
-  if (categoryMappings[sanitized]) {
-    const mapped = categoryMappings[sanitized];
-    console.log(`[PhotoMapping] Sanitized mapping: "${sanitized}" -> "${mapped}"`);
-    return mapped;
-  }
-  
-  // Check if sanitized version is already valid
-  if (VALID_PHOTO_CATEGORIES.includes(sanitized as ValidPhotoCategory)) {
-    console.log(`[PhotoMapping] Sanitized category "${sanitized}" is valid`);
-    return sanitized;
-  }
-  
-  // Try partial matching for complex category names
-  for (const [key, value] of Object.entries(categoryMappings)) {
-    if (sanitized.includes(key)) {
-      console.log(`[PhotoMapping] Partial match: "${sanitized}" contains "${key}", mapped to "${value}"`);
-      return value;
+  for (const [pattern, target] of Object.entries(patterns)) {
+    if (sanitized.includes(pattern)) {
+      console.log(`[PhotoMapping] ✓ Pattern match: "${sanitized}" contains "${pattern}" -> "${target}"`);
+      return target;
     }
   }
   
-  // FOURTH: Fallback to additional_photos
-  console.warn(`[PhotoMapping] No mapping found for "${category}", using fallback "additional_photos"`);
+  // STEP 5: Fallback
+  console.warn(`[PhotoMapping] ⚠ No mapping found for "${category}", using fallback "additional_photos"`);
   return 'additional_photos';
 };
 
