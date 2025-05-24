@@ -3,6 +3,7 @@
  * Form Submit Handler Component
  * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All submissions are immediate
  * Updated: 2025-05-24 - SIMPLIFIED image handling with direct storage in required_photos
+ * Updated: 2025-05-24 - ADDED enhanced logging for reserve price tracking
  */
 
 import React, { useState } from "react";
@@ -61,6 +62,14 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       const submissionId = uuidv4().slice(0, 8);
       console.log(`[FormSubmission][${submissionId}] Starting IMMEDIATE listing submission...`);
       
+      // ENHANCED LOGGING: Track reserve price through the entire process
+      console.log(`[FormSubmission][${submissionId}] Reserve price tracking:`, {
+        formData_reservePrice: formData.reservePrice,
+        valuationData_reservePrice: formData.valuationData?.reservePrice,
+        valuationData_exists: !!formData.valuationData,
+        fromValuation: formData.fromValuation
+      });
+      
       // Validate required photos
       const missingPhotoFields = validateRequiredPhotos(formData);
       
@@ -105,8 +114,15 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         
         if (formData.valuationData.reservePrice) {
           preparedData.reservePrice = formData.valuationData.reservePrice;
+          console.log(`[FormSubmission][${submissionId}] Set reserve price from valuation:`, preparedData.reservePrice);
         }
       }
+      
+      // ENHANCED LOGGING: Track prepared data reserve price
+      console.log(`[FormSubmission][${submissionId}] Prepared data reserve price:`, {
+        preparedData_reservePrice: preparedData.reservePrice,
+        price: preparedData.price
+      });
       
       const currentUserId = userId || session?.user?.id;
       
