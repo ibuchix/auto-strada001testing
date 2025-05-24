@@ -5,6 +5,7 @@
  * Updated: 2025-05-24 - SIMPLIFIED image handling with direct storage in required_photos
  * Updated: 2025-05-24 - ENHANCED valuation data preservation to fix reserve price display
  * Updated: 2025-05-24 - Fixed naming convention consistency for reserve price display
+ * Updated: 2025-05-24 - Fixed price setting to use reserve price as listed price for valuation-based listings
  */
 
 import React, { useState } from "react";
@@ -106,7 +107,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       // Prepare form data - NO DRAFT LOGIC
       const preparedData = prepareFormDataForSubmission(formData);
 
-      // CRITICAL: Preserve complete valuation data for reserve price calculation and display
+      // CRITICAL: Process valuation data and set pricing correctly
       if (formData.fromValuation || formData.valuationData) {
         console.log(`[FormSubmission][${submissionId}] Processing valuation data`);
         
@@ -125,14 +126,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         }
         
         if (valuationData) {
-          // Set pricing from valuation data
-          if (valuationData.basePrice || valuationData.averagePrice) {
-            preparedData.price = valuationData.basePrice || 
-                                 valuationData.averagePrice || 
-                                 preparedData.price;
-          }
-          
-          // CRITICAL: Set reserve price - handle multiple naming conventions
+          // CRITICAL: Get reserve price - handle multiple naming conventions
           let reservePrice = null;
           if (valuationData.reservePrice) {
             reservePrice = valuationData.reservePrice;
@@ -142,9 +136,14 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
             reservePrice = valuationData.valuation;
           }
           
-          if (reservePrice) {
+          if (reservePrice && reservePrice > 0) {
+            // CRITICAL: Set BOTH price and reserve price to the same value
+            preparedData.price = reservePrice;
             preparedData.reservePrice = reservePrice;
-            console.log(`[FormSubmission][${submissionId}] Set reserve price from valuation:`, preparedData.reservePrice);
+            console.log(`[FormSubmission][${submissionId}] Set both price and reserve price from valuation:`, {
+              price: preparedData.price,
+              reservePrice: preparedData.reservePrice
+            });
           }
           
           // CRITICAL: Preserve complete valuation data object with camelCase structure
@@ -155,6 +154,24 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
           };
           console.log(`[FormSubmission][${submissionId}] Preserved complete valuation data with camelCase structure`);
         }
+      }
+      
+      // Validate that price is set and greater than 0
+      if (!preparedData.price || preparedData.price <= 0) {
+        const errorMessage = "Price must be greater than 0. Please ensure valuation data is properly loaded.";
+        console.error(`[FormSubmission][${submissionId}] ${errorMessage}`, {
+          price: preparedData.price,
+          hasValuationData: !!preparedData.valuationData
+        });
+        
+        if (showAlerts) {
+          toast.error("Invalid Price", {
+            description: errorMessage,
+          });
+        }
+        
+        setIsSubmitting(false);
+        return false;
       }
       
       // ENHANCED LOGGING: Track final prepared data

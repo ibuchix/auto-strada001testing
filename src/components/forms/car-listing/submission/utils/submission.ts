@@ -5,6 +5,7 @@
  * Updated: 2025-05-24 - ENHANCED valuation data preservation to fix reserve price display issues
  * Updated: 2025-05-24 - Ensured both reserve_price and valuation_data are properly stored
  * Updated: 2025-05-24 - Fixed naming convention consistency for valuation data
+ * Updated: 2025-05-24 - Fixed price setting to ensure listed price equals reserve price for valuation-based listings
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -180,8 +181,27 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
                                formData.valuationData?.valuation || 
                                null;
   
+  // CRITICAL: Ensure price is set correctly - both price and reserve_price should be the same
+  let finalPrice = formData.price;
+  
+  // If price is not set or is 0, and we have a reserve price from valuation, use that
+  if ((!finalPrice || finalPrice <= 0) && extractedReservePrice && extractedReservePrice > 0) {
+    finalPrice = extractedReservePrice;
+    console.log('Setting price from reserve price for valuation-based listing:', {
+      originalPrice: formData.price,
+      extractedReservePrice,
+      finalPrice
+    });
+  }
+  
+  // Validate that we have a valid price
+  if (!finalPrice || finalPrice <= 0) {
+    throw new Error('Price must be greater than 0. Cannot create listing without valid price.');
+  }
+  
   console.log('Preparing submission with valuation data:', {
-    originalReservePrice: formData.reservePrice,
+    originalPrice: formData.price,
+    finalPrice,
     extractedReservePrice,
     preservedValuationData,
     hasValuationData: !!preservedValuationData
@@ -200,13 +220,13 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     make: formData.make || '',
     model: formData.model || '',
     year: formData.year || 0,
-    price: formData.price || 0,
+    price: finalPrice, // Ensure price is properly set
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
     transmission: transmissionValue,
     features: carFeatures,
     // CRITICAL: Store both reserve_price column and complete valuation_data
-    reserve_price: extractedReservePrice,
+    reserve_price: extractedReservePrice || finalPrice, // Ensure reserve price is set
     valuation_data: preservedValuationData // Keep in camelCase for consistency
   };
   
@@ -225,6 +245,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     has_id: !!formData.id,
     status: entity.status,
     is_draft: entity.is_draft,
+    price: entity.price,
     reserve_price: entity.reserve_price,
     valuation_data_structure: entity.valuation_data ? Object.keys(entity.valuation_data) : 'none'
   });
