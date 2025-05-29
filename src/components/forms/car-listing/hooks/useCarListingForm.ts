@@ -13,6 +13,7 @@
  * - 2025-05-06: Fixed transmission type compatibility issue
  * - 2025-05-08: Fixed import for getFormDefaults/getInitialFormValues
  * - 2025-05-24: Updated to use camelCase field names consistently
+ * - 2025-05-29: REMOVED price field references - using only reservePrice
  */
 
 import { useForm, UseFormReturn } from "react-hook-form";
@@ -159,11 +160,7 @@ const applyValuationData = (
   form.setValue('mileage', safeParseNumber(valuationData.mileage, 0));
   form.setValue('vin', valuationData.vin || '');
   
-  // Set prices
-  if (valuationData.price) {
-    form.setValue('price', safeParseNumber(valuationData.price, 0));
-  }
-  
+  // Set reserve price (single price field)
   if (valuationData.reservePrice) {
     form.setValue('reservePrice', safeParseNumber(valuationData.reservePrice, 0));
   }

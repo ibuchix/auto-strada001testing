@@ -1,4 +1,3 @@
-
 /**
  * This is a mock test file for integration testing form submission
  * Updated: 2025-06-07 - Fixed property naming to use sellerName instead of name
@@ -7,27 +6,36 @@
 import { CarListingFormData } from '@/types/forms';
 
 describe('Form Submission', () => {
-  it('should validate form data correctly', () => {
-    const mockFormData: Partial<CarListingFormData> = {
-      make: 'Toyota',
-      model: 'Corolla',
-      year: 2020,
-      price: 15000,
-      mileage: 25000,
-      transmission: 'manual',
-      sellerName: 'John Doe', // Using sellerName instead of name
-      isRegisteredInPoland: true,
-      hasPrivatePlate: false,
-      numberOfKeys: 2,
-      vin: 'ABC123456789',
+  const mockFormData: Partial<CarListingFormData> = {
+    make: 'Toyota',
+    model: 'Camry',
+    year: 2020,
+    reservePrice: 25000,
+    mileage: 50000,
+    vin: 'JTDKARFP8J3050123'
+  };
+
+  it('should submit form data successfully', async () => {
+    // Mock validation function
+    const isValid = (data: Partial<CarListingFormData>) => {
+      return !!(data.make && data.model && data.year && data.reservePrice);
+    };
+
+    expect(isValid(mockFormData)).toBe(true);
+  });
+
+  it('should validate required fields', () => {
+    const incompleteData: Partial<CarListingFormData> = {
+      make: 'Toyota'
+      // Missing other required fields including reservePrice
     };
 
     // Mock validation function
     const isValid = (data: Partial<CarListingFormData>) => {
-      return !!(data.make && data.model && data.year && data.price);
+      return !!(data.make && data.model && data.year && data.reservePrice);
     };
 
-    expect(isValid(mockFormData)).toBe(true);
+    expect(isValid(incompleteData)).toBe(false);
   });
 
   it('should handle valuation data correctly', () => {
@@ -35,7 +43,7 @@ describe('Form Submission', () => {
       make: 'BMW',
       model: '3 Series',
       year: 2019,
-      price: 25000,
+      reservePrice: 25000,
       mileage: 30000,
       valuationData: {
         basePrice: 26000,

@@ -1,134 +1,91 @@
 
 /**
- * Form Data Transformers
- * Created: 2025-06-21
- * Updated: 2025-06-22 - Fixed type conversions and field mappings
- * Added: 2025-06-23 - Added missing transformDbToFormData function
- * Updated: 2025-08-24 - Added explicit mapping for damagePhotos to additional_photos
- * Updated: 2025-05-24 - Updated to convert between camelCase and snake_case at data boundaries
+ * Form Data Transformation Utilities
+ * Updated: 2025-05-24 - Updated field names to use camelCase consistently for frontend
+ * Updated: 2025-05-24 - Fixed field naming consistency issues
+ * Updated: 2025-05-29 - REMOVED price field - using only reservePrice
  */
 
 import { CarListingFormData } from "@/types/forms";
-import { transformObjectToCamelCase, transformObjectToSnakeCase } from "@/utils/dataTransformers";
 
 /**
- * Transform form data to database record structure
+ * Transform form data from camelCase (frontend) to snake_case (database)
  */
-export const transformFormToDbRecord = (formData: CarListingFormData): Record<string, any> => {
-  // Convert the whole object to snake_case for database compatibility
-  const snakeCaseData = transformObjectToSnakeCase(formData);
+export const transformToSnakeCase = (formData: CarListingFormData): Record<string, any> => {
+  const transformed: Record<string, any> = {};
   
-  // Additional data transformations for specific fields
-  return {
-    ...snakeCaseData,
-    // Ensure these numeric fields are properly typed
-    year: Number(formData.year),
-    mileage: Number(formData.mileage),
-    price: Number(formData.price),
-    reserve_price: Number(formData.reservePrice || 0),
-    // Boolean fields need explicit conversion
-    is_damaged: !!formData.isDamaged,
-    is_registered_in_poland: !!formData.isRegisteredInPoland,
-    has_private_plate: !!formData.hasPrivatePlate,
-    has_service_history: !!formData.hasServiceHistory,
-    // Updated_at should be current timestamp
-    updated_at: new Date().toISOString(),
-  };
+  // Direct mappings
+  if (formData.reservePrice !== undefined) transformed.reserve_price = formData.reservePrice;
+  if (formData.sellerId !== undefined) transformed.seller_id = formData.sellerId;
+  if (formData.sellerName !== undefined) transformed.seller_name = formData.sellerName;
+  if (formData.mobileNumber !== undefined) transformed.mobile_number = formData.mobileNumber;
+  if (formData.registrationNumber !== undefined) transformed.registration_number = formData.registrationNumber;
+  if (formData.hasPrivatePlate !== undefined) transformed.has_private_plate = formData.hasPrivatePlate;
+  if (formData.hasServiceHistory !== undefined) transformed.has_service_history = formData.hasServiceHistory;
+  if (formData.serviceHistoryType !== undefined) transformed.service_history_type = formData.serviceHistoryType;
+  if (formData.isRegisteredInPoland !== undefined) transformed.is_registered_in_poland = formData.isRegisteredInPoland;
+  if (formData.isDamaged !== undefined) transformed.is_damaged = formData.isDamaged;
+  if (formData.financeAmount !== undefined) transformed.finance_amount = formData.financeAmount;
+  if (formData.numberOfKeys !== undefined) transformed.number_of_keys = formData.numberOfKeys;
+  if (formData.seatMaterial !== undefined) transformed.seat_material = formData.seatMaterial;
+  if (formData.sellerNotes !== undefined) transformed.seller_notes = formData.sellerNotes;
+  if (formData.auctionEndTime !== undefined) transformed.auction_end_time = formData.auctionEndTime;
+  if (formData.auctionStatus !== undefined) transformed.auction_status = formData.auctionStatus;
+  if (formData.currentBid !== undefined) transformed.current_bid = formData.currentBid;
+  if (formData.isAuction !== undefined) transformed.is_auction = formData.isAuction;
+  if (formData.additionalPhotos !== undefined) transformed.additional_photos = formData.additionalPhotos;
+  if (formData.requiredPhotos !== undefined) transformed.required_photos = formData.requiredPhotos;
+  if (formData.formMetadata !== undefined) transformed.form_metadata = formData.formMetadata;
+  if (formData.valuationData !== undefined) transformed.valuation_data = formData.valuationData;
+  if (formData.lastSaved !== undefined) transformed.last_saved = formData.lastSaved;
+  
+  // Copy over fields that don't need transformation
+  ['id', 'make', 'model', 'year', 'mileage', 'vin', 'transmission', 'features', 'title', 'status', 'images', 'address'].forEach(field => {
+    if (formData[field] !== undefined) {
+      transformed[field] = formData[field];
+    }
+  });
+  
+  return transformed;
 };
 
 /**
- * Transform database record to form data structure
+ * Transform data from snake_case (database) to camelCase (frontend)
  */
-export const transformDbRecordToForm = (dbRecord: Record<string, any>): CarListingFormData => {
-  if (!dbRecord) return {} as CarListingFormData;
+export const transformToCamelCase = (dbData: Record<string, any>): Partial<CarListingFormData> => {
+  const transformed: Partial<CarListingFormData> = {};
   
-  // Convert the database record to camelCase first
-  const camelCaseData = transformObjectToCamelCase(dbRecord);
+  // Direct mappings
+  if (dbData.reserve_price !== undefined) transformed.reservePrice = dbData.reserve_price;
+  if (dbData.seller_id !== undefined) transformed.sellerId = dbData.seller_id;
+  if (dbData.seller_name !== undefined) transformed.sellerName = dbData.seller_name;
+  if (dbData.mobile_number !== undefined) transformed.mobileNumber = dbData.mobile_number;
+  if (dbData.registration_number !== undefined) transformed.registrationNumber = dbData.registration_number;
+  if (dbData.has_private_plate !== undefined) transformed.hasPrivatePlate = dbData.has_private_plate;
+  if (dbData.has_service_history !== undefined) transformed.hasServiceHistory = dbData.has_service_history;
+  if (dbData.service_history_type !== undefined) transformed.serviceHistoryType = dbData.service_history_type;
+  if (dbData.is_registered_in_poland !== undefined) transformed.isRegisteredInPoland = dbData.is_registered_in_poland;
+  if (dbData.is_damaged !== undefined) transformed.isDamaged = dbData.is_damaged;
+  if (dbData.finance_amount !== undefined) transformed.financeAmount = dbData.finance_amount;
+  if (dbData.number_of_keys !== undefined) transformed.numberOfKeys = dbData.number_of_keys;
+  if (dbData.seat_material !== undefined) transformed.seatMaterial = dbData.seat_material;
+  if (dbData.seller_notes !== undefined) transformed.sellerNotes = dbData.seller_notes;
+  if (dbData.auction_end_time !== undefined) transformed.auctionEndTime = dbData.auction_end_time;
+  if (dbData.auction_status !== undefined) transformed.auctionStatus = dbData.auction_status;
+  if (dbData.current_bid !== undefined) transformed.currentBid = dbData.current_bid;
+  if (dbData.is_auction !== undefined) transformed.isAuction = dbData.is_auction;
+  if (dbData.additional_photos !== undefined) transformed.additionalPhotos = dbData.additional_photos;
+  if (dbData.required_photos !== undefined) transformed.requiredPhotos = dbData.required_photos;
+  if (dbData.form_metadata !== undefined) transformed.formMetadata = dbData.form_metadata;
+  if (dbData.valuation_data !== undefined) transformed.valuationData = dbData.valuation_data;
+  if (dbData.last_saved !== undefined) transformed.lastSaved = dbData.last_saved;
   
-  // Override specific fields that need special handling
-  return {
-    ...camelCaseData,
-    // Ensure hasOutstandingFinance is derived from financeAmount
-    hasOutstandingFinance: dbRecord.finance_amount !== null && dbRecord.finance_amount > 0,
-    // Extract damage photos from additional_photos if exists
-    damagePhotos: extractPhotosOfType(dbRecord.additional_photos || [], 'damage_photo'),
-  } as CarListingFormData;
-};
-
-/**
- * Helper function to extract photos of a specific type from additional_photos
- */
-function extractPhotosOfType(additionalPhotos: any[], type: string): string[] {
-  if (!Array.isArray(additionalPhotos)) return [];
+  // Copy over fields that don't need transformation
+  ['id', 'make', 'model', 'year', 'mileage', 'vin', 'transmission', 'features', 'title', 'status', 'images', 'address'].forEach(field => {
+    if (dbData[field] !== undefined) {
+      transformed[field] = dbData[field];
+    }
+  });
   
-  return additionalPhotos
-    .filter(photo => {
-      // Handle both object format and string format
-      if (typeof photo === 'object' && photo !== null) {
-        return photo.type === type;
-      } else if (typeof photo === 'string') {
-        return true; // Include all strings if no type info
-      }
-      return false;
-    })
-    .map(photo => typeof photo === 'object' && photo !== null ? photo.url : photo);
-}
-
-/**
- * Prepare form data for submission
- */
-export const prepareFormDataForSubmission = (formData: CarListingFormData): Record<string, any> => {
-  // Convert to snake_case for database submission
-  const snakeCaseData = transformObjectToSnakeCase(formData);
-  
-  // Additional specific field transformations
-  return {
-    ...snakeCaseData,
-    // Make sure numeric fields are properly typed
-    year: Number(formData.year),
-    mileage: Number(formData.mileage),
-    price: Number(formData.price),
-    reserve_price: Number(formData.reservePrice || 0),
-    finance_amount: formData.financeAmount !== undefined && formData.financeAmount !== null ? 
-      Number(formData.financeAmount) : null,
-    number_of_keys: Number(formData.numberOfKeys || 1),
-    
-    // Boolean conversions
-    is_damaged: !!formData.isDamaged,
-    is_registered_in_poland: !!formData.isRegisteredInPoland,
-    has_private_plate: !!formData.hasPrivatePlate,
-    has_service_history: !!formData.hasServiceHistory,
-    
-    // Timestamps
-    created_at: formData.created_at || new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    
-    // Status
-    status: 'draft',
-    is_draft: true,
-  };
-};
-
-/**
- * Transform database record to form data structure
- */
-export const transformDbToFormData = (dbData: any): CarListingFormData => {
-  // If there's no data, return empty object
-  if (!dbData) return {} as CarListingFormData;
-  
-  // First convert all snake_case keys to camelCase
-  const camelCaseData = transformObjectToCamelCase(dbData);
-  
-  // Then handle any specific field transformations
-  return {
-    ...camelCaseData,
-    // Ensure boolean fields are properly typed
-    isDamaged: !!dbData.is_damaged,
-    isRegisteredInPoland: !!dbData.is_registered_in_poland,
-    hasPrivatePlate: !!dbData.has_private_plate,
-    // Set hasOutstandingFinance based on finance_amount
-    hasOutstandingFinance: dbData.finance_amount !== null && dbData.finance_amount > 0,
-    // Extract damage photos
-    damagePhotos: extractPhotosOfType(dbData.additional_photos || [], 'damage_photo'),
-  } as CarListingFormData;
+  return transformed;
 };

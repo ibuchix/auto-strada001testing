@@ -6,7 +6,7 @@
  * - Current: Updated to use dedicated proxy bid processing service
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useToast } from './use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
@@ -21,13 +21,38 @@ interface BidResponse {
   minimum_bid?: number;
 }
 
-export const useBidding = () => {
+export const useBidding = (carId: string) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { session } = useAuth();
 
-  const placeBid = async (carId: string, amount: number, isProxyBid: boolean = false, maxProxyAmount?: number) => {
+  const [currentBid, setCurrentBid] = useState<number>(0);
+  const [reservePrice, setReservePrice] = useState<number>(0);
+  const [minimumIncrement, setMinimumIncrement] = useState<number>(100);
+
+  const fetchCarData = useCallback(async () => {
+    if (!carId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('cars')
+        .select('current_bid, reserve_price, minimum_bid_increment')
+        .eq('id', carId)
+        .single();
+
+      if (error) throw error;
+
+      setCurrentBid(data.current_bid || 0);
+      setReservePrice(data.reserve_price || 0);
+      setMinimumIncrement(data.minimum_bid_increment || 100);
+    } catch (error) {
+      console.error('Error fetching car data:', error);
+      toast.error('Failed to load car data');
+    }
+  }, [carId]);
+
+  const placeBid = async (amount: number, isProxyBid: boolean = false, maxProxyAmount?: number) => {
     if (!session?.user) {
       setError('You must be logged in to place a bid');
       toast({
@@ -122,14 +147,14 @@ export const useBidding = () => {
     }
   };
 
-  const placeProxyBid = async (carId: string, maxAmount: number) => {
+  const placeProxyBid = async (maxAmount: number) => {
     // For a proxy bid, we set the initial bid to the minimum required
     // but we also set the maximum amount the dealer is willing to pay
     
     // First, get the current bid to determine the minimum next bid
     const { data: car } = await supabase
       .from('cars')
-      .select('current_bid, price, minimum_bid_increment')
+      .select('current_bid, reserve_price, minimum_bid_increment')
       .eq('id', carId)
       .single();
     
@@ -144,7 +169,7 @@ export const useBidding = () => {
     }
     
     // Calculate the minimum bid amount
-    const currentBid = car.current_bid || car.price;
+    const currentBid = car.current_bid || car.reserve_price;
     const minBidIncrement = car.minimum_bid_increment || 100;
     const minBidAmount = currentBid + minBidIncrement;
     
@@ -160,13 +185,16 @@ export const useBidding = () => {
     }
     
     // Place the proxy bid with the initial amount and maximum amount
-    return placeBid(carId, minBidAmount, true, maxAmount);
+    return placeBid(minBidAmount, true, maxAmount);
   };
 
   return {
     placeBid,
     placeProxyBid,
     isLoading,
-    error
+    error,
+    currentBid,
+    reservePrice,
+    minimumIncrement
   };
 };

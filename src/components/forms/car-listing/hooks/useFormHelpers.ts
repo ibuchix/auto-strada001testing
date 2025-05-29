@@ -1,8 +1,10 @@
+
 /**
  * Form Helper Hooks
  * Updated: 2025-05-24 - Updated field names to use camelCase consistently for frontend
  * Updated: 2025-05-25 - Fixed field naming consistency issues
  * Updated: 2025-05-26 - Fixed DEFAULT_VALUES object for consistent camelCase usage
+ * Updated: 2025-05-29 - REMOVED price field - using only reservePrice
  */
 
 import { DEFAULT_VALUES } from "../constants/defaultValues";
@@ -35,7 +37,7 @@ export const getFormDefaults = (): Partial<CarListingFormData> => {
     year: new Date().getFullYear(),
     mileage: 0,
     vin: "",
-    price: 0,
+    reservePrice: 0,
     transmission: "manual" as "manual" | "automatic" | "semi-automatic",
     features: {
       airConditioning: false,

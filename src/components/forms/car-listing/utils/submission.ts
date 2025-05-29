@@ -2,6 +2,7 @@
 /**
  * Form submission utility functions
  * Updated: 2025-05-24 - COMPLETELY REMOVED DRAFT LOGIC - All submissions are immediately available
+ * Updated: 2025-05-29 - REMOVED price field - using only reservePrice
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -83,7 +84,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     make: formData.make || '',
     model: formData.model || '',
     year: formData.year || 0,
-    price: formData.price || 0,
+    reserve_price: formData.reservePrice || 0,
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
     // Use validated transmission type

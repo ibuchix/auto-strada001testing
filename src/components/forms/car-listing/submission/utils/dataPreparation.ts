@@ -6,6 +6,7 @@
  * Updated: 2025-05-20 - Fixed type conversion issues for numeric fields
  * Updated: 2025-05-28 - Updated to use camelCase field names consistently
  * Updated: 2025-05-29 - Fixed TypeScript errors related to updatedAt field
+ * Updated: 2025-05-29 - REMOVED price field - using only reservePrice
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -21,7 +22,6 @@ export const prepareFormData = (formData: CarListingFormData): Record<string, an
   // Convert string numbers to actual numbers
   if (processedData.year) processedData.year = Number(processedData.year);
   if (processedData.mileage) processedData.mileage = Number(processedData.mileage);
-  if (processedData.price) processedData.price = Number(processedData.price);
   if (processedData.reservePrice) processedData.reservePrice = Number(processedData.reservePrice);
   if (processedData.financeAmount) processedData.financeAmount = Number(processedData.financeAmount);
   

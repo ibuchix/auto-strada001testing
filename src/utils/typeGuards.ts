@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - Added missing CarFeatures properties (bluetooth, sunroof, alloyWheels)
@@ -6,6 +5,7 @@
  * - Added additional utility functions for type checking
  * - 2025-05-10: Updated getDefaultCarFeatures to include all required properties
  * - 2025-05-10: Fixed instanceof check in isCarEntity function
+ * - Updated: 2025-05-29 - Updated type guards to use reservePrice instead of removed price field
  */
 
 import { CarFeatures, CarEntity, CarListingFormData } from "@/types/forms";
@@ -63,7 +63,7 @@ export const isCarEntity = (data: unknown): data is CarEntity => {
     typeof car.make === 'string' &&
     typeof car.model === 'string' &&
     typeof car.year === 'number' &&
-    typeof car.price === 'number' &&
+    typeof car.reserve_price === 'number' &&
     typeof car.mileage === 'number' &&
     typeof car.vin === 'string'
   );
@@ -92,9 +92,29 @@ export const isSubmittableCarForm = (formData: unknown): formData is CarListingF
     typeof form.make === 'string' && form.make.trim() !== '' &&
     typeof form.model === 'string' && form.model.trim() !== '' &&
     typeof form.year === 'number' && form.year >= 1886 &&
-    typeof form.price === 'number' && form.price > 0 &&
+    typeof form.reservePrice === 'number' && form.reservePrice >= 0 &&
     typeof form.mileage === 'number' && form.mileage >= 0 &&
     typeof form.vin === 'string' && form.vin.trim().length === 17 &&
     Array.isArray(form.uploadedPhotos) && form.uploadedPhotos.length >= 1
+  );
+};
+
+export const isValidCarEntity = (data: any): data is Partial<CarEntity> => {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    (data.reserve_price === undefined || typeof data.reserve_price === 'number') &&
+    (data.make === undefined || typeof data.make === 'string') &&
+    (data.model === undefined || typeof data.model === 'string')
+  );
+};
+
+export const isValidCarListingFormData = (data: any): data is Partial<CarListingFormData> => {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    (data.reservePrice === undefined || (typeof data.reservePrice === 'number' && data.reservePrice >= 0)) &&
+    (data.make === undefined || typeof data.make === 'string') &&
+    (data.model === undefined || typeof data.model === 'string')
   );
 };

@@ -7,6 +7,7 @@
  * - Added transmission validation
  * - Updated price validation minimum value to 100
  * - Integrated with carSchema from utils/validation/carSchema
+ * - 2025-05-29: Updated to use reservePrice instead of removed price field
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -41,7 +42,7 @@ export const validateCarForm = (formData: CarListingFormData): boolean => {
   return (
     validateVIN(formData.vin) &&
     formData.uploadedPhotos.length >= 1 &&
-    formData.price >= 100 &&
+    formData.reservePrice >= 100 &&
     formData.year >= 1886 &&
     formData.year <= (new Date().getFullYear() + 1) &&
     formData.mileage >= 0 &&
@@ -64,7 +65,7 @@ export const getCarFormValidationErrors = (formData: CarListingFormData): string
       make: formData.make,
       model: formData.model,
       year: formData.year,
-      price: formData.price,
+      reservePrice: formData.reservePrice,
       mileage: formData.mileage,
       vin: formData.vin
     });
@@ -94,13 +95,13 @@ export const getCarFormValidationErrors = (formData: CarListingFormData): string
 };
 
 /**
- * Calculates the reserve price based on the car's price (PriceX).
- * Uses the calculation formula: PriceX - (PriceX * PercentageY)
+ * Calculates the reserve price based on the car's reserve price (reservePrice).
+ * Uses the calculation formula: reservePrice - (reservePrice * PercentageY)
  * 
- * @param price - The car's price (PriceX)
+ * @param reservePrice - The car's reserve price
  * @returns The calculated reserve price
  */
-export const calculateReservePrice = (price: number): number => {
+export const calculateReservePrice = (reservePrice: number): number => {
   // Define the percentage tiers
   const percentageTiers = [
     { min: 0, max: 15000, percentage: 0.65 },
@@ -122,12 +123,12 @@ export const calculateReservePrice = (price: number): number => {
   ];
   
   // Find the applicable percentage tier
-  const tier = percentageTiers.find(tier => price >= tier.min && price <= tier.max);
+  const tier = percentageTiers.find(tier => reservePrice >= tier.min && reservePrice <= tier.max);
   const percentage = tier ? tier.percentage : 0.145; // Default to 14.5% if no tier found
   
-  // Calculate reserve price: PriceX - (PriceX * PercentageY)
-  const reservePrice = price - (price * percentage);
+  // Calculate reserve price: reservePrice - (reservePrice * PercentageY)
+  const calculatedReservePrice = reservePrice - (reservePrice * percentage);
   
   // Round to nearest whole number
-  return Math.round(reservePrice);
+  return Math.round(calculatedReservePrice);
 };

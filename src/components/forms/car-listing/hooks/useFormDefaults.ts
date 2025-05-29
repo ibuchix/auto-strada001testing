@@ -13,6 +13,7 @@
  * Updated: 2025-05-24 - Updated to consistently use camelCase field names for frontend
  * Updated: 2025-05-25 - Fixed field naming consistency to avoid TypeScript errors
  * Updated: 2025-05-26 - Fixed the DEFAULT_VALUES object to consistently use camelCase
+ * Updated: 2025-05-29 - REMOVED price field - using only reservePrice
  * Handles default values and loading valuation data
  */
 
@@ -80,8 +81,7 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
              valuationData.service_history_type === "partial") ? 
               valuationData.service_history_type as "full" | "partial" : "none";
 
-          // Determine price from valuation - use strict priority order
-          const valuationPrice = valuationData.valuation || valuationData.averagePrice || valuationData.reservePrice || 0;
+          // Determine reserve price from valuation - use strict priority order
           const reservePriceValue = valuationData.reservePrice || valuationData.valuation || 0;
 
           // Set default values based on valuation data
@@ -94,15 +94,13 @@ export function useFormDefaults(fromValuation: boolean = false): Partial<CarList
             year: valuationData.year || new Date().getFullYear(),
             mileage: valuationData.mileage || 0,
             vin: valuationData.vin || '',
-            price: valuationPrice,
             reservePrice: reservePriceValue,
             // Ensure proper typing for enum values
             transmission: transmissionValue,
             serviceHistoryType: serviceHistoryTypeValue || serviceHistoryValue
           };
 
-          console.log("Setting form defaults with prices:", {
-            price: valuationPrice,
+          console.log("Setting form defaults with reserve price:", {
             reservePrice: reservePriceValue
           });
 
