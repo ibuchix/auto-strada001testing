@@ -13,8 +13,8 @@
  * Updated: 2025-05-15 - Added financeAmount to CarEntity interface
  * Updated: 2025-05-27 - Updated field names to use consistent camelCase in frontend
  * Updated: 2025-06-01 - Added name property for test compatibility
+ * Updated: 2025-05-29 - REMOVED price field - using only reservePrice (single pricing model)
  */
-
 export type DamageType = 'scratch' | 'dent' | 'paint' | 'glass' | 'mechanical' | 'structural' | 'other';
 
 export interface CarFeatures {
@@ -133,8 +133,7 @@ export interface CarListingFormData {
   mileage?: number;
   vin?: string;
   transmission?: "manual" | "automatic" | "semi-automatic";
-  price?: number;
-  reservePrice?: number;
+  reservePrice?: number; // Single price field - the reserve price from valuation
   
   // Additional info
   features?: CarFeatures;
@@ -236,6 +235,7 @@ export interface CarListingFormData {
 
 /**
  * Car Entity represents the database schema for car records
+ * Updated: Removed price field - using only reserve_price (single pricing model)
  */
 export interface CarEntity {
   id: string;
@@ -244,7 +244,7 @@ export interface CarEntity {
   make: string;
   model: string;
   year: number;
-  price: number;
+  reserve_price: number; // Single price field - NOT NULL in database
   mileage: number;
   transmission: 'manual' | 'automatic' | 'semi-automatic';
   features: CarFeatures;
@@ -255,7 +255,7 @@ export interface CarEntity {
   service_history_type: 'none' | 'partial' | 'full';
   seller_notes?: string;
   seat_material?: string;
-  number_of_keys: number | string; // Updated to match form field type
+  number_of_keys: number | string;
   status: string;
   auction_status?: string;
   is_draft: boolean;
@@ -269,7 +269,6 @@ export interface CarEntity {
   required_photos?: Record<string, string>;
   form_metadata?: any;
   valuation_data?: any;
-  reserve_price?: number;
 }
 
 // Add AuctionStatus export for submission.ts

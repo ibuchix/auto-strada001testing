@@ -7,6 +7,7 @@
  * Updated: 2025-05-26 - Fixed field names to use camelCase for frontend consistency
  * Updated: 2025-06-01 - Fixed valuation data handling and ensure prices are properly formatted in PLN
  * Updated: 2025-06-02 - Fixed useEffect import and improved price display
+ * Updated: 2025-05-29 - SIMPLIFIED to single reserve price field - removed price/reserve_price confusion
  */
 
 import { useFormContext, useWatch } from 'react-hook-form';
@@ -21,8 +22,7 @@ import { formatCurrency } from '@/utils/formatters';
 
 export const PricingSection = () => {
   const { register, setValue, watch, getValues } = useFormContext<CarListingFormData>();
-  const price = watch('price');
-  const [reservePrice, setReservePrice] = useState<number | undefined>(undefined);
+  const reservePrice = watch('reservePrice');
   
   // Check if this form is coming from valuation
   const fromValuation = watch('fromValuation') || Boolean(watch('valuationData'));
@@ -34,29 +34,26 @@ export const PricingSection = () => {
     if (fromValuation && valuationData) {
       console.log('PricingSection - Loading valuation data:', valuationData);
       
-      // Set price from valuation data
-      if (valuationData.basePrice || valuationData.averagePrice) {
-        const valuationPrice = valuationData.basePrice || valuationData.averagePrice;
-        setValue('price', valuationPrice, { shouldDirty: true });
-      }
-      
-      // Set reserve price from valuation data
+      // Set reserve price from valuation data (single price source)
       if (valuationData.reservePrice) {
         setValue('reservePrice', valuationData.reservePrice, { shouldDirty: true });
-        setReservePrice(valuationData.reservePrice);
+      } else if (valuationData.basePrice || valuationData.averagePrice) {
+        const valuationPrice = valuationData.basePrice || valuationData.averagePrice;
+        setValue('reservePrice', valuationPrice, { shouldDirty: true });
       }
     }
   }, [fromValuation, setValue, watch]);
   
-  // Calculate reserve price based on listed price
+  // Calculate reserve price based on user input (if not from valuation)
   useEffect(() => {
-    if (!price) return;
+    if (fromValuation || !reservePrice) return;
     
     // Convert to number for calculation
-    const priceNum = Number(price);
+    const priceNum = Number(reservePrice);
     if (isNaN(priceNum) || priceNum <= 0) return;
     
-    // Determine percentage based on price range
+    // If user manually entered a price, apply our reserve price calculation
+    // to suggest the calculated reserve price
     let percentageY;
     
     if (priceNum <= 15000) percentageY = 0.65;
@@ -76,26 +73,25 @@ export const PricingSection = () => {
     else if (priceNum <= 500000) percentageY = 0.16;
     else percentageY = 0.145;
     
-    // Calculate reserve price
+    // Calculate suggested reserve price
     const calculatedReservePrice = Math.round(priceNum - (priceNum * percentageY));
     
-    // Only set if not from valuation (valuation takes precedence)
-    if (!fromValuation) {
-      setReservePrice(calculatedReservePrice);
-      setValue('reservePrice', calculatedReservePrice, { shouldDirty: true });
-    }
+    console.log('PricingSection - Calculated reserve price suggestion:', {
+      inputPrice: priceNum,
+      calculatedReservePrice,
+      percentage: percentageY
+    });
     
-  }, [price, setValue, fromValuation]);
+  }, [reservePrice, fromValuation]);
   
   // Log valuation data for debugging
   useEffect(() => {
     if (fromValuation) {
       const valuationData = watch('valuationData');
       console.log('PricingSection - fromValuation is true with data:', { 
-        price: watch('price'), 
-        reservePrice: watch('reservePrice'),
+        reservePrice: watch('reservePrice'), 
         valuationData,
-        formattedPrice: formatCurrency(watch('price'))
+        formattedPrice: formatCurrency(watch('reservePrice'))
       });
     }
   }, [fromValuation, watch]);
@@ -108,44 +104,15 @@ export const PricingSection = () => {
             <InfoIcon className="h-5 w-5 text-blue-600 mt-0.5" />
             <div className="space-y-1">
               <AlertDescription className="font-medium text-blue-800">
-                These prices are set based on your vehicle valuation and cannot be modified
+                This price is set based on your vehicle valuation and cannot be modified
               </AlertDescription>
               <p className="text-sm text-blue-700">
-                The starting price and reserve price have been calculated from your vehicle's valuation data.
+                The reserve price has been calculated from your vehicle's valuation data.
               </p>
             </div>
           </div>
         </Alert>
       )}
-      
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="price" className="flex items-center gap-2">
-            Starting Price (PLN)
-            {fromValuation && <LockIcon className="h-4 w-4 text-gray-500" />}
-          </Label>
-          {fromValuation && (
-            <Badge variant="outline" className="bg-gray-100 text-gray-600">
-              Valuation-based
-            </Badge>
-          )}
-        </div>
-        <Input
-          id="price"
-          {...register('price', { valueAsNumber: true })}
-          type="number"
-          placeholder="e.g. 50000"
-          required
-          readOnly={fromValuation}
-          disabled={fromValuation}
-          className={fromValuation ? "bg-gray-50 border-gray-300 cursor-not-allowed text-gray-700 font-medium" : ""}
-        />
-        {fromValuation && (
-          <p className="text-xs text-gray-500 mt-1">
-            This starting price has been set based on your vehicle's valuation and cannot be changed.
-          </p>
-        )}
-      </div>
       
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -155,7 +122,7 @@ export const PricingSection = () => {
           </Label>
           {fromValuation && (
             <Badge variant="outline" className="bg-gray-100 text-gray-600">
-              Auto-calculated
+              Valuation-based
             </Badge>
           )}
         </div>
@@ -163,22 +130,16 @@ export const PricingSection = () => {
           id="reservePrice"
           {...register('reservePrice', { valueAsNumber: true })}
           type="number"
-          value={reservePrice || ''}
-          onChange={(e) => {
-            if (fromValuation) return; // Don't allow changes when from valuation
-            const value = e.target.value ? Number(e.target.value) : undefined;
-            setReservePrice(value);
-            setValue('reservePrice', value);
-          }}
-          placeholder="Minimum acceptable price"
+          placeholder="e.g. 45000"
+          required
           readOnly={fromValuation}
           disabled={fromValuation}
           className={fromValuation ? "bg-gray-50 border-gray-300 cursor-not-allowed text-gray-700 font-medium" : ""}
         />
         <p className="text-xs text-gray-500 mt-1">
           {fromValuation 
-            ? "This reserve price is calculated from your valuation and cannot be changed. It represents the minimum price your vehicle will sell for."
-            : "Recommended reserve price based on our calculations"
+            ? "This reserve price is calculated from your valuation and represents the minimum price your vehicle will sell for."
+            : "This is the minimum price you're willing to accept. Enter your desired reserve price."
           }
         </p>
       </div>

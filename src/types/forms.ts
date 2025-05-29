@@ -10,20 +10,20 @@
  * - Updated 2025-05-29: Added serviceHistoryCount to fix TypeScript errors
  * - Updated 2025-05-30: Fixed numberOfKeys type to be number | string for compatibility
  * - Updated 2025-06-01: Added name property for test compatibility
+ * - Updated 2025-05-29: REMOVED price field - using only reservePrice (single pricing model)
  */
 export interface CarListingFormData {
   id?: string;
   make?: string;
   model?: string;
   year?: number;
-  price?: number;
+  reservePrice?: number; // Single price field - the reserve price from valuation
   mileage?: number;
   features?: Record<string, boolean>;
   requiredPhotos?: Record<string, string>;
   isDraft?: boolean;
   isAuction?: boolean;
   auctionEndTime?: string;
-  reservePrice?: number;
   sellerId?: string;
   additionalPhotos?: string[];
   currentBid?: number;
@@ -33,7 +33,7 @@ export interface CarListingFormData {
   isRegisteredInPoland?: boolean;
   valuationData?: Record<string, any>;
   hasPrivatePlate?: boolean;
-  numberOfKeys?: number | string; // Updated to accept both number and string
+  numberOfKeys?: number | string;
   hasServiceHistory?: boolean;
   title?: string;
   transmission?: string;
@@ -46,7 +46,7 @@ export interface CarListingFormData {
   registrationNumber?: string;
   address?: string;
   sellerName?: string;
-  name?: string; // Added for test compatibility
+  name?: string;
   serviceHistoryType?: string;
   seatMaterial?: string;
   lastSaved?: string;
@@ -145,6 +145,7 @@ export interface RimPhotos {
 
 /**
  * Car Entity represents the database schema for car records
+ * Updated: Removed price field - using only reserve_price (single pricing model)
  */
 export interface CarEntity {
   id: string;
@@ -153,7 +154,7 @@ export interface CarEntity {
   make: string;
   model: string;
   year: number;
-  price: number;
+  reserve_price: number; // Single price field - NOT NULL in database
   mileage: number;
   transmission: 'manual' | 'automatic' | 'semi-automatic';
   features: CarFeatures;
@@ -164,7 +165,7 @@ export interface CarEntity {
   service_history_type: 'none' | 'partial' | 'full';
   seller_notes?: string;
   seat_material?: string;
-  number_of_keys: number | string; // Updated to match form field type
+  number_of_keys: number | string;
   status: string;
   auction_status?: string;
   is_draft: boolean;
@@ -178,5 +179,4 @@ export interface CarEntity {
   required_photos?: Record<string, string>;
   form_metadata?: any;
   valuation_data?: any;
-  reserve_price?: number;
 }

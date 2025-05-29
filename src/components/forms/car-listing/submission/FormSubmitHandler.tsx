@@ -6,6 +6,7 @@
  * Updated: 2025-05-24 - ENHANCED valuation data preservation to fix reserve price display
  * Updated: 2025-05-24 - Fixed naming convention consistency for reserve price display
  * Updated: 2025-05-24 - Fixed price setting to use reserve price as listed price for valuation-based listings
+ * Updated: 2025-05-29 - SIMPLIFIED to single reserve_price field - removed price/reserve_price confusion
  */
 
 import React, { useState } from "react";
@@ -107,7 +108,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       // Prepare form data - NO DRAFT LOGIC
       const preparedData = prepareFormDataForSubmission(formData);
 
-      // CRITICAL: Process valuation data and set pricing correctly
+      // CRITICAL: Process valuation data and set reserve price correctly
       if (formData.fromValuation || formData.valuationData) {
         console.log(`[FormSubmission][${submissionId}] Processing valuation data`);
         
@@ -137,11 +138,9 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
           }
           
           if (reservePrice && reservePrice > 0) {
-            // CRITICAL: Set BOTH price and reserve price to the same value
-            preparedData.price = reservePrice;
+            // CRITICAL: Set the single reserve price field
             preparedData.reservePrice = reservePrice;
-            console.log(`[FormSubmission][${submissionId}] Set both price and reserve price from valuation:`, {
-              price: preparedData.price,
+            console.log(`[FormSubmission][${submissionId}] Set reserve price from valuation:`, {
               reservePrice: preparedData.reservePrice
             });
           }
@@ -156,16 +155,16 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         }
       }
       
-      // Validate that price is set and greater than 0
-      if (!preparedData.price || preparedData.price <= 0) {
-        const errorMessage = "Price must be greater than 0. Please ensure valuation data is properly loaded.";
+      // Validate that reserve price is set and greater than 0
+      if (!preparedData.reservePrice || preparedData.reservePrice <= 0) {
+        const errorMessage = "Reserve price must be greater than 0. Please ensure valuation data is properly loaded.";
         console.error(`[FormSubmission][${submissionId}] ${errorMessage}`, {
-          price: preparedData.price,
+          reservePrice: preparedData.reservePrice,
           hasValuationData: !!preparedData.valuationData
         });
         
         if (showAlerts) {
-          toast.error("Invalid Price", {
+          toast.error("Invalid Reserve Price", {
             description: errorMessage,
           });
         }
@@ -176,7 +175,6 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       
       // ENHANCED LOGGING: Track final prepared data
       console.log(`[FormSubmission][${submissionId}] Final prepared data:`, {
-        price: preparedData.price,
         reservePrice: preparedData.reservePrice,
         hasValuationData: !!preparedData.valuationData,
         valuationDataKeys: preparedData.valuationData ? Object.keys(preparedData.valuationData) : [],
@@ -199,7 +197,6 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       console.log(`[FormSubmission][${submissionId}] Submitting IMMEDIATE listing:`, {
         dataKeys: Object.keys(preparedData),
         userId: currentUserId,
-        price: preparedData.price,
         reservePrice: preparedData.reservePrice,
         hasRequiredPhotos: !!preparedData.requiredPhotos,
         hasValuationData: !!preparedData.valuationData,

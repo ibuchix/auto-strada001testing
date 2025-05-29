@@ -5,6 +5,7 @@
  * - 2025-05-24: Added proper layout with navigation back to dashboard
  * - 2025-05-24: Integrated with CarDetailsSection component for better presentation
  * - 2025-05-24: Added reserve price display using useReservePrice hook
+ * - 2025-05-29: SIMPLIFIED to single reserve_price field - removed price/reserve_price confusion
  */
 
 import React, { useState, useEffect } from 'react';
@@ -16,13 +17,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Car } from 'lucide-react';
 import { safeJsonCast } from '@/utils/supabaseTypeUtils';
 import { CarDetailsSection } from '@/components/car-details/CarDetailsSection';
-import { useReservePrice } from '@/hooks/useReservePrice';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 
 interface CarListing {
   id: string;
   title: string;
-  price: number;
+  reserve_price: number; // Single price field
   make: string;
   model: string;
   year: number;
@@ -39,7 +39,6 @@ interface CarListing {
   mobile_number?: string;
   vin?: string;
   valuation_data?: any;
-  reserve_price?: number;
 }
 
 const CarDetails = () => {
@@ -47,11 +46,6 @@ const CarDetails = () => {
   const [carListing, setCarListing] = useState<CarListing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Use our reserve price hook
-  const { reservePrice, isCalculating } = useReservePrice({ 
-    valuationData: carListing?.valuation_data 
-  });
 
   const fetchCarDetails = async () => {
     if (!carId) return;
@@ -158,23 +152,14 @@ const CarDetails = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <h3 className="text-sm font-medium text-subtitle mb-1">Listed Price</h3>
-              <p className="text-2xl font-bold text-primary">
-                {carListing.price.toLocaleString()} PLN
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h3 className="text-sm font-medium text-subtitle mb-1">Reserve Price</h3>
-              <p className="text-2xl font-bold text-dark">
-                {isCalculating ? (
-                  <span className="text-sm">Calculating...</span>
-                ) : reservePrice ? (
-                  `${reservePrice.toLocaleString()} PLN`
-                ) : (
-                  <span className="text-sm text-subtitle">Not set</span>
-                )}
+              <p className="text-2xl font-bold text-primary">
+                {carListing.reserve_price.toLocaleString()} PLN
+              </p>
+              <p className="text-xs text-subtitle mt-1">
+                Minimum acceptable price for this vehicle
               </p>
             </div>
             <div>

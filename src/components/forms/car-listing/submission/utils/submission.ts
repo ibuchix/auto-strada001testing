@@ -6,6 +6,7 @@
  * Updated: 2025-05-24 - Ensured both reserve_price and valuation_data are properly stored
  * Updated: 2025-05-24 - Fixed naming convention consistency for valuation data
  * Updated: 2025-05-24 - Fixed price setting to ensure listed price equals reserve price for valuation-based listings
+ * Updated: 2025-05-29 - SIMPLIFIED to single reserve_price field - removed price column confusion
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -120,6 +121,7 @@ const preserveValuationData = (valuationData: any) => {
 
 /**
  * Transforms form data into database entity - ALWAYS immediately available
+ * Updated: Using single reserve_price field (no more price column confusion)
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
   // Ensure features property exists
@@ -174,34 +176,19 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   // CRITICAL: Preserve valuation data with proper structure
   const preservedValuationData = preserveValuationData(formData.valuationData);
   
-  // Extract reserve price for the database column
+  // Extract reserve price - single source of truth
   const extractedReservePrice = formData.reservePrice || 
                                formData.valuationData?.reservePrice || 
                                formData.valuationData?.reserve_price || 
                                formData.valuationData?.valuation || 
                                null;
   
-  // CRITICAL: Ensure price is set correctly - both price and reserve_price should be the same
-  let finalPrice = formData.price;
-  
-  // If price is not set or is 0, and we have a reserve price from valuation, use that
-  if ((!finalPrice || finalPrice <= 0) && extractedReservePrice && extractedReservePrice > 0) {
-    finalPrice = extractedReservePrice;
-    console.log('Setting price from reserve price for valuation-based listing:', {
-      originalPrice: formData.price,
-      extractedReservePrice,
-      finalPrice
-    });
+  // Validate that we have a valid reserve price
+  if (!extractedReservePrice || extractedReservePrice <= 0) {
+    throw new Error('Reserve price must be greater than 0. Cannot create listing without valid reserve price.');
   }
   
-  // Validate that we have a valid price
-  if (!finalPrice || finalPrice <= 0) {
-    throw new Error('Price must be greater than 0. Cannot create listing without valid price.');
-  }
-  
-  console.log('Preparing submission with valuation data:', {
-    originalPrice: formData.price,
-    finalPrice,
+  console.log('Preparing submission with single reserve price:', {
     extractedReservePrice,
     preservedValuationData,
     hasValuationData: !!preservedValuationData
@@ -220,13 +207,12 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     make: formData.make || '',
     model: formData.model || '',
     year: formData.year || 0,
-    price: finalPrice, // Ensure price is properly set
+    reserve_price: extractedReservePrice, // Single price field
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
     transmission: transmissionValue,
     features: carFeatures,
-    // CRITICAL: Store both reserve_price column and complete valuation_data
-    reserve_price: extractedReservePrice || finalPrice, // Ensure reserve price is set
+    // CRITICAL: Store complete valuation_data
     valuation_data: preservedValuationData // Keep in camelCase for consistency
   };
   
@@ -238,14 +224,13 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     entity.valuation_data = preservedValuationData;
   }
   
-  console.log("Prepared entity with preserved valuation data:", {
+  console.log("Prepared entity with single reserve price:", {
     ...entity,
     required_photos: entity.required_photos ? 
       `[${Object.keys(entity.required_photos || {}).length} photos]` : 'none',
     has_id: !!formData.id,
     status: entity.status,
     is_draft: entity.is_draft,
-    price: entity.price,
     reserve_price: entity.reserve_price,
     valuation_data_structure: entity.valuation_data ? Object.keys(entity.valuation_data) : 'none'
   });

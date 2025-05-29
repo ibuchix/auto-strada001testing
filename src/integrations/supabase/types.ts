@@ -476,7 +476,6 @@ export type Database = {
           images: string[] | null
           is_auction: boolean | null
           is_damaged: boolean | null
-          is_draft: boolean
           is_manually_controlled: boolean | null
           is_registered_in_poland: boolean | null
           last_saved: string | null
@@ -486,10 +485,9 @@ export type Database = {
           mobile_number: string | null
           model: string | null
           number_of_keys: number | null
-          price: number
           registration_number: string | null
           required_photos: Json | null
-          reserve_price: number | null
+          reserve_price: number
           seat_material: string | null
           seller_id: string | null
           seller_name: string | null
@@ -519,7 +517,6 @@ export type Database = {
           images?: string[] | null
           is_auction?: boolean | null
           is_damaged?: boolean | null
-          is_draft?: boolean
           is_manually_controlled?: boolean | null
           is_registered_in_poland?: boolean | null
           last_saved?: string | null
@@ -529,10 +526,9 @@ export type Database = {
           mobile_number?: string | null
           model?: string | null
           number_of_keys?: number | null
-          price?: number
           registration_number?: string | null
           required_photos?: Json | null
-          reserve_price?: number | null
+          reserve_price?: number
           seat_material?: string | null
           seller_id?: string | null
           seller_name?: string | null
@@ -562,7 +558,6 @@ export type Database = {
           images?: string[] | null
           is_auction?: boolean | null
           is_damaged?: boolean | null
-          is_draft?: boolean
           is_manually_controlled?: boolean | null
           is_registered_in_poland?: boolean | null
           last_saved?: string | null
@@ -572,10 +567,9 @@ export type Database = {
           mobile_number?: string | null
           model?: string | null
           number_of_keys?: number | null
-          price?: number
           registration_number?: string | null
           required_photos?: Json | null
-          reserve_price?: number | null
+          reserve_price?: number
           seat_material?: string | null
           seller_id?: string | null
           seller_name?: string | null
@@ -606,7 +600,6 @@ export type Database = {
           changed_at: string
           changed_by: string | null
           id: string
-          is_draft: boolean | null
           metadata: Json | null
           previous_status: string | null
           seller_id: string
@@ -618,7 +611,6 @@ export type Database = {
           changed_at?: string
           changed_by?: string | null
           id?: string
-          is_draft?: boolean | null
           metadata?: Json | null
           previous_status?: string | null
           seller_id: string
@@ -630,7 +622,6 @@ export type Database = {
           changed_at?: string
           changed_by?: string | null
           id?: string
-          is_draft?: boolean | null
           metadata?: Json | null
           previous_status?: string | null
           seller_id?: string
@@ -1619,7 +1610,6 @@ export type Database = {
           images: string[] | null
           is_auction: boolean | null
           is_damaged: boolean | null
-          is_draft: boolean
           is_manually_controlled: boolean | null
           is_registered_in_poland: boolean | null
           last_saved: string | null
@@ -1629,10 +1619,9 @@ export type Database = {
           mobile_number: string | null
           model: string | null
           number_of_keys: number | null
-          price: number
           registration_number: string | null
           required_photos: Json | null
-          reserve_price: number | null
+          reserve_price: number
           seat_material: string | null
           seller_id: string | null
           seller_name: string | null
@@ -1645,6 +1634,23 @@ export type Database = {
           valuation_data: Json | null
           vin: string | null
           year: number | null
+        }[]
+      }
+      admin_get_all_dealers: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          user_id: string
+          supervisor_name: string
+          dealership_name: string
+          tax_id: string
+          business_registry_number: string
+          address: string
+          license_number: string
+          verification_status: string
+          is_verified: boolean
+          created_at: string
+          updated_at: string
         }[]
       }
       admin_get_auction_listings: {
@@ -1665,7 +1671,6 @@ export type Database = {
           images: string[] | null
           is_auction: boolean | null
           is_damaged: boolean | null
-          is_draft: boolean
           is_manually_controlled: boolean | null
           is_registered_in_poland: boolean | null
           last_saved: string | null
@@ -1675,10 +1680,9 @@ export type Database = {
           mobile_number: string | null
           model: string | null
           number_of_keys: number | null
-          price: number
           registration_number: string | null
           required_photos: Json | null
-          reserve_price: number | null
+          reserve_price: number
           seat_material: string | null
           seller_id: string | null
           seller_name: string | null
@@ -1760,6 +1764,10 @@ export type Database = {
       complete_scheduled_auctions: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      create_admin_user: {
+        Args: { p_user_id: string; p_full_name?: string }
+        Returns: boolean
       }
       create_car_listing: {
         Args: { p_car_data: Json; p_user_id?: string }
@@ -1931,7 +1939,6 @@ export type Database = {
           images: string[] | null
           is_auction: boolean | null
           is_damaged: boolean | null
-          is_draft: boolean
           is_manually_controlled: boolean | null
           is_registered_in_poland: boolean | null
           last_saved: string | null
@@ -1941,10 +1948,9 @@ export type Database = {
           mobile_number: string | null
           model: string | null
           number_of_keys: number | null
-          price: number
           registration_number: string | null
           required_photos: Json | null
-          reserve_price: number | null
+          reserve_price: number
           seat_material: string | null
           seller_id: string | null
           seller_name: string | null
@@ -1977,7 +1983,6 @@ export type Database = {
           images: string[] | null
           is_auction: boolean | null
           is_damaged: boolean | null
-          is_draft: boolean
           is_manually_controlled: boolean | null
           is_registered_in_poland: boolean | null
           last_saved: string | null
@@ -1987,10 +1992,9 @@ export type Database = {
           mobile_number: string | null
           model: string | null
           number_of_keys: number | null
-          price: number
           registration_number: string | null
           required_photos: Json | null
-          reserve_price: number | null
+          reserve_price: number
           seat_material: string | null
           seller_id: string | null
           seller_name: string | null
@@ -2045,6 +2049,10 @@ export type Database = {
         Returns: Json
       }
       is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_current_user_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
