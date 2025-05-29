@@ -1,11 +1,13 @@
+
 /**
  * Updated: 2025-05-29 - Removed price field references and is_draft field to match simplified schema
+ * Updated: 2025-05-29 - Fixed import path and interface to match expected return properties
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSupabaseClient, useSession } from '@supabase/auth-helpers-react';
 import { toast } from 'sonner';
-import { Json } from '@/types/supabase';
+import { Json } from '@/integrations/supabase/types';
 
 interface DbCarListing {
   id: string;
@@ -39,24 +41,33 @@ interface DbCarListing {
   vin: string;
 }
 
-export const useSellerListings = () => {
+export const useSellerListings = (session: any) => {
   const [listings, setListings] = useState<DbCarListing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isRlsError, setIsRlsError] = useState(false);
   const supabase = useSupabaseClient();
-  const session = useSession();
 
   const fetchListings = useCallback(async () => {
     if (!session?.user?.id) return;
 
     try {
       setLoading(true);
+      setError(null);
+      setIsRlsError(false);
+
       const { data, error } = await supabase
         .from('cars')
         .select('*')
         .eq('seller_id', session.user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('RLS') || error.code === 'PGRST301') {
+          setIsRlsError(true);
+        }
+        throw error;
+      }
 
       // Transform data to match expected interface
       const transformedData = data.map(item => ({
@@ -65,21 +76,36 @@ export const useSellerListings = () => {
       })) as DbCarListing[];
 
       setListings(transformedData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching listings:', error);
+      setError(error.message || 'Failed to load listings');
       toast.error('Failed to load listings');
     } finally {
       setLoading(false);
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id, supabase]);
+
+  const forceRefresh = useCallback(() => {
+    fetchListings();
+  }, [fetchListings]);
 
   useEffect(() => {
     fetchListings();
   }, [fetchListings]);
 
+  // Separate listings into active and draft (though we don't have drafts anymore)
+  const activeListings = listings.filter(listing => listing.status === 'available');
+  const draftListings: DbCarListing[] = []; // No more drafts
+
   return {
     listings,
+    activeListings,
+    draftListings,
     loading,
+    isLoading: loading,
+    error,
+    isRlsError,
     fetchListings,
+    forceRefresh,
   };
 };

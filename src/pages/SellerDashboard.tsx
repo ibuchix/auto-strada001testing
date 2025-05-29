@@ -20,6 +20,7 @@
  * - 2024-11-21: Added RLS error handling with helpful user guidance
  * - 2025-06-12: Fixed TypeScript error with DashboardHeader props
  * - 2025-06-22: Improved RLS error handling using security definer RPC functions
+ * - 2025-05-29: Updated destructuring to match new useSellerListings return properties
  */
 
 import { useAuth } from "@/components/AuthProvider";

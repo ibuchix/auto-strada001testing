@@ -1,13 +1,15 @@
+
 /**
  * Changes made:
  * - 2024-06-17: Fixed TypeScript type errors for Supabase RPC response data
  * - 2024-06-17: Added proper type assertions and interfaces for bid responses
  * - 2024-06-18: Fixed type conversion error with safer type assertion
  * - Current: Updated to use dedicated proxy bid processing service
+ * - 2025-05-29: Fixed toast usage to use sonner library correctly
  */
 
 import { useState, useCallback } from 'react';
-import { useToast } from './use-toast';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/AuthProvider';
 import { processCarProxyBids } from '@/services/proxyBidService';
@@ -24,7 +26,6 @@ interface BidResponse {
 export const useBidding = (carId: string) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
   const { session } = useAuth();
 
   const [currentBid, setCurrentBid] = useState<number>(0);
@@ -55,11 +56,7 @@ export const useBidding = (carId: string) => {
   const placeBid = async (amount: number, isProxyBid: boolean = false, maxProxyAmount?: number) => {
     if (!session?.user) {
       setError('You must be logged in to place a bid');
-      toast({
-        title: 'Authentication Error',
-        description: 'You must be logged in to place a bid',
-        variant: 'destructive',
-      });
+      toast.error('You must be logged in to place a bid');
       return { success: false };
     }
 
@@ -96,12 +93,10 @@ export const useBidding = (carId: string) => {
 
       // Handle successful bid
       if (bidResponse.success) {
-        toast({
-          title: isProxyBid ? 'Proxy Bid Placed' : 'Bid Placed',
+        toast.success(isProxyBid ? 'Proxy Bid Placed' : 'Bid Placed', {
           description: isProxyBid 
             ? `Your proxy bid has been set with a maximum of ${maxProxyAmount}`
-            : `Your bid of ${amount} has been accepted`,
-          variant: 'default',
+            : `Your bid of ${amount} has been accepted`
         });
         
         // If it's a proxy bid, trigger the dedicated function to execute it
@@ -128,16 +123,12 @@ export const useBidding = (carId: string) => {
         const match = err.message.match(/minimum bid is (\d+)/i);
         const minimumBid = match ? parseInt(match[1]) : null;
         
-        toast({
-          title: 'Bid Too Low',
-          description: `Your bid was below the minimum required. ${minimumBid ? `Minimum bid is ${minimumBid}.` : ''}`,
-          variant: 'destructive',
+        toast.error('Bid Too Low', {
+          description: `Your bid was below the minimum required. ${minimumBid ? `Minimum bid is ${minimumBid}.` : ''}`
         });
       } else {
-        toast({
-          title: 'Bid Failed',
-          description: err.message,
-          variant: 'destructive',
+        toast.error('Bid Failed', {
+          description: err.message
         });
       }
       
@@ -160,11 +151,7 @@ export const useBidding = (carId: string) => {
     
     if (!car) {
       setError('Could not retrieve car information');
-      toast({
-        title: 'Error',
-        description: 'Could not retrieve car information',
-        variant: 'destructive',
-      });
+      toast.error('Could not retrieve car information');
       return { success: false };
     }
     
@@ -176,10 +163,8 @@ export const useBidding = (carId: string) => {
     // Ensure the maximum amount is at least the minimum bid
     if (maxAmount < minBidAmount) {
       setError(`Your maximum bid must be at least ${minBidAmount}`);
-      toast({
-        title: 'Bid Too Low',
-        description: `Your maximum bid must be at least ${minBidAmount}`,
-        variant: 'destructive',
+      toast.error('Bid Too Low', {
+        description: `Your maximum bid must be at least ${minBidAmount}`
       });
       return { success: false };
     }
