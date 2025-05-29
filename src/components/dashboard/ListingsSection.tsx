@@ -3,6 +3,7 @@
  * Changes made:
  * - 2025-05-23: Removed is_draft filtering, all listings are immediately available
  * - Simplified listing display without draft/active separation
+ * - 2025-05-29: Updated to use reserve_price instead of price field
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,11 +39,10 @@ export const ListingsSection = ({
                 key={listing.id}
                 id={listing.id}
                 title={`${listing.year} ${listing.make} ${listing.model}`}
-                price={listing.price}
+                reserve_price={listing.reserve_price} // Updated to use reserve_price
                 status={listing.status || 'available'}
                 onStatusChange={onStatusChange}
                 valuationData={listing.valuation_data}
-                reserve_price={listing.reserve_price}
               />
             ))}
           </div>

@@ -4,6 +4,7 @@
  * - 2025-05-23 - Removed is_draft system, all listings are immediately available
  * - Removed activation functionality and draft status handling
  * - Simplified to show only listing details and navigation
+ * - 2025-05-29 - Updated to use reserve_price instead of price field
  */
 
 import { Card } from "@/components/ui/card";
@@ -15,21 +16,19 @@ import { Button } from "@/components/ui/button";
 interface ListingCardProps {
   id: string;
   title: string;
-  price: number;
+  reserve_price: number; // Changed from price to reserve_price
   status: string;
   onStatusChange?: () => void;
   valuationData?: any;
-  reserve_price?: number;
 }
 
 export const ListingCard = ({ 
   id, 
   title, 
-  price, 
+  reserve_price, // Changed from price to reserve_price
   status, 
   onStatusChange,
-  valuationData,
-  reserve_price
+  valuationData
 }: ListingCardProps) => {
   const navigate = useNavigate();
   
@@ -51,7 +50,7 @@ export const ListingCard = ({
             Status: <span className="capitalize">{status}</span>
           </p>
           <ListingCardPrice 
-            price={reservePrice} 
+            price={reservePrice || reserve_price} 
             isCalculating={isCalculating} 
           />
         </div>
