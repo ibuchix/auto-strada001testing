@@ -21,7 +21,7 @@
  * - 2025-06-22: Improved RLS error handling using security definer RPC functions
  * - 2025-05-29: Updated destructuring to match new useSellerListings return properties
  * - 2025-05-29: REMOVED price and is_draft fields, added data transformation for compatibility
- * - 2025-05-29: Fixed Json to CarFeatures type conversion in transformation
+ * - 2025-05-29: Fixed Json to CarFeatures type conversion using safe casting through unknown
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -67,12 +67,12 @@ const SellerDashboard = () => {
     isLoading: isMetricsLoading
   } = useSellerPerformance(session);
 
-  // Transform DbCarListing to CarListing format with proper type conversion
+  // Transform DbCarListing to CarListing format with safe type conversion
   const transformedListings: CarListing[] = listings.map(listing => ({
     ...listing,
     reserve_price: listing.reserve_price || 0,
     description: listing.seller_notes || `${listing.year} ${listing.make} ${listing.model}` || '',
-    features: listing.features as CarFeatures | null, // Proper type casting
+    features: (listing.features as unknown) as CarFeatures | null, // Safe type casting through unknown
   }));
 
   // All listings are active now (no more drafts)
