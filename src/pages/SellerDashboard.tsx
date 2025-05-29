@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-03-26: Fixed TypeScript errors
@@ -22,6 +21,7 @@
  * - 2025-06-22: Improved RLS error handling using security definer RPC functions
  * - 2025-05-29: Updated destructuring to match new useSellerListings return properties
  * - 2025-05-29: REMOVED price and is_draft fields, added data transformation for compatibility
+ * - 2025-05-29: Fixed Json to CarFeatures type conversion in transformation
  */
 
 import { useAuth } from "@/components/AuthProvider";
@@ -42,6 +42,7 @@ import { AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { RegistrationStatusCheck } from "@/components/auth/recovery/RegistrationStatusCheck";
 import { CarListing } from "@/types/dashboard";
+import { CarFeatures } from "@/types/forms";
 
 const SellerDashboard = () => {
   const { session, refreshSellerStatus } = useAuth();
@@ -66,11 +67,12 @@ const SellerDashboard = () => {
     isLoading: isMetricsLoading
   } = useSellerPerformance(session);
 
-  // Transform DbCarListing to CarListing format
+  // Transform DbCarListing to CarListing format with proper type conversion
   const transformedListings: CarListing[] = listings.map(listing => ({
     ...listing,
     reserve_price: listing.reserve_price || 0,
-    description: listing.seller_notes || `${listing.year} ${listing.make} ${listing.model}` || '', // Provide default description
+    description: listing.seller_notes || `${listing.year} ${listing.make} ${listing.model}` || '',
+    features: listing.features as CarFeatures | null, // Proper type casting
   }));
 
   // All listings are active now (no more drafts)
