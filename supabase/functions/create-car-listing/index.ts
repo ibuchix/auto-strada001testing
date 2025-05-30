@@ -1,16 +1,20 @@
 
 /**
  * Enhanced create-car-listing edge function
- * Updated: 2025-05-30 - Added comprehensive image upload handling with multipart form data
+ * Updated: 2025-05-30 - Fixed deployment issues and improved multipart handling
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-import { corsHeaders } from "./utils/cors.ts";
-import { logOperation } from "./utils/logging.ts";
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 interface ImageUploadResult {
   success: boolean;
@@ -25,7 +29,7 @@ serve(async (req) => {
   }
 
   const requestId = crypto.randomUUID();
-  logOperation('enhanced_request_start', { requestId }, 'info');
+  console.log(`[${requestId}] Request started`, { method: req.method });
 
   try {
     // Create Supabase admin client
@@ -37,10 +41,11 @@ serve(async (req) => {
     let additionalPhotos: File[] = [];
     
     const contentType = req.headers.get('content-type') || '';
+    console.log(`[${requestId}] Content-Type:`, contentType);
     
     if (contentType.includes('multipart/form-data')) {
       // Handle multipart form data with images
-      logOperation('parsing_multipart_data', { requestId }, 'info');
+      console.log(`[${requestId}] Parsing multipart form data`);
       
       const formData = await req.formData();
       
@@ -91,13 +96,12 @@ serve(async (req) => {
       }
     }
     
-    logOperation('data_extracted', {
-      requestId,
+    console.log(`[${requestId}] Data extracted:`, {
       userId,
       requiredPhotosCount: Object.keys(requiredPhotos).length,
       additionalPhotosCount: additionalPhotos.length,
       hasCarData: !!carData
-    }, 'info');
+    });
     
     // Validate required fields
     if (!carData.make || !carData.model || !carData.year) {
@@ -110,7 +114,7 @@ serve(async (req) => {
     
     // Generate car ID for image uploads
     const carId = crypto.randomUUID();
-    logOperation('car_id_generated', { requestId, carId }, 'info');
+    console.log(`[${requestId}] Generated car ID:`, carId);
     
     // Upload required photos to storage
     const uploadedRequiredPhotos: Record<string, string> = {};
@@ -119,11 +123,7 @@ serve(async (req) => {
       if (result.success && result.url) {
         uploadedRequiredPhotos[photoType] = result.url;
       } else {
-        logOperation('required_photo_upload_failed', {
-          requestId,
-          photoType,
-          error: result.error
-        }, 'warn');
+        console.warn(`[${requestId}] Required photo upload failed:`, photoType, result.error);
       }
     }
     
@@ -135,19 +135,14 @@ serve(async (req) => {
       if (result.success && result.url) {
         uploadedAdditionalPhotos.push(result.url);
       } else {
-        logOperation('additional_photo_upload_failed', {
-          requestId,
-          index: i,
-          error: result.error
-        }, 'warn');
+        console.warn(`[${requestId}] Additional photo upload failed:`, i, result.error);
       }
     }
     
-    logOperation('images_uploaded', {
-      requestId,
+    console.log(`[${requestId}] Images uploaded:`, {
       requiredPhotosUploaded: Object.keys(uploadedRequiredPhotos).length,
       additionalPhotosUploaded: uploadedAdditionalPhotos.length
-    }, 'info');
+    });
     
     // Prepare car data for database insertion
     const carRecord = {
@@ -179,7 +174,7 @@ serve(async (req) => {
     };
     
     // Insert car record into database
-    logOperation('inserting_car_record', { requestId, carId }, 'info');
+    console.log(`[${requestId}] Inserting car record`);
     
     const { data: insertedCar, error: insertError } = await supabase
       .from('cars')
@@ -194,21 +189,11 @@ serve(async (req) => {
         ...uploadedAdditionalPhotos
       ]);
       
-      logOperation('car_insertion_failed', {
-        requestId,
-        carId,
-        error: insertError.message
-      }, 'error');
-      
+      console.error(`[${requestId}] Car insertion failed:`, insertError.message);
       throw new Error(`Failed to create car listing: ${insertError.message}`);
     }
     
-    logOperation('car_listing_created_successfully', {
-      requestId,
-      carId: insertedCar.id,
-      requiredPhotos: Object.keys(uploadedRequiredPhotos).length,
-      additionalPhotos: uploadedAdditionalPhotos.length
-    }, 'info');
+    console.log(`[${requestId}] Car listing created successfully:`, insertedCar.id);
     
     return new Response(
       JSON.stringify({
@@ -225,11 +210,7 @@ serve(async (req) => {
     );
     
   } catch (error) {
-    logOperation('request_error', {
-      requestId,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    }, 'error');
+    console.error(`[${requestId}] Error:`, error instanceof Error ? error.message : 'Unknown error');
     
     return new Response(
       JSON.stringify({

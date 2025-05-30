@@ -1,7 +1,7 @@
 
 /**
  * Direct Submission Service - Updated to use enhanced edge function
- * Updated: 2025-05-30 - Modified to use create-car-listing edge function with multipart form data
+ * Updated: 2025-05-30 - Fixed TypeScript errors and improved multipart form data handling
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -67,19 +67,19 @@ export const createCarListingDirect = async (
     multipartData.append('carData', JSON.stringify(carData));
     multipartData.append('userId', userId);
     
-    // Add required photos
+    // Add required photos - check if they are File objects
     if (formData.requiredPhotos) {
       for (const [photoType, fileOrUrl] of Object.entries(formData.requiredPhotos)) {
-        if (fileOrUrl instanceof File) {
+        if (fileOrUrl && typeof fileOrUrl === 'object' && fileOrUrl instanceof File) {
           multipartData.append(`required_${photoType}`, fileOrUrl);
         }
       }
     }
     
-    // Add additional photos
+    // Add additional photos - check if they are File objects
     if (formData.additionalPhotos) {
       formData.additionalPhotos.forEach((photoItem, index) => {
-        if (photoItem instanceof File) {
+        if (photoItem && typeof photoItem === 'object' && photoItem instanceof File) {
           multipartData.append(`additional_${index}`, photoItem);
         }
       });
