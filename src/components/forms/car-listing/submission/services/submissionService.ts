@@ -2,6 +2,7 @@
 /**
  * Car Listing Submission Service
  * Updated: 2025-05-30 - Integrated proper image upload handling through Supabase Storage
+ * Updated: 2025-05-30 - Fixed property name from valuationData to valuation_data for database compatibility
  */
 
 import { CarListingFormData, CarEntity } from "@/types/forms";
@@ -63,7 +64,7 @@ export const createCarListing = async (
     // Step 3: Submit to database using edge function
     const { data, error } = await supabase.functions.invoke('create-car-listing', {
       body: {
-        valuationData: submissionData.valuationData,
+        valuationData: submissionData.valuation_data, // Use snake_case property name
         userId: userId,
         vin: submissionData.vin,
         mileage: submissionData.mileage,

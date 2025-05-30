@@ -13,13 +13,14 @@
  * Updated: 2025-06-07 - Added null check for userId and improved error handling
  * Updated: 2025-06-20 - Fixed destructuring error by ensuring safe initialization
  * Updated: 2025-06-20 - Fixed FormSubmissionContext initialization with proper defaults
+ * Updated: 2025-05-30 - Fixed import to use createCarListing instead of submitCarListing
  */
 
 import { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 import { CarListingFormData } from '@/types/forms';
 import { useFormSubmission as useFormSubmissionHook } from '@/hooks/useFormSubmission';
 import { toast } from 'sonner';
-import { submitCarListing } from './services/submissionService';
+import { createCarListing } from './services/submissionService';
 
 interface FormSubmissionContextType {
   submissionState: {
@@ -154,11 +155,11 @@ export const FormSubmissionProvider = ({
       const result = await baseSubmitForm(data, async (formData: CarListingFormData) => {
         // This is the actual submission function that will be called by baseSubmitForm
         console.log('[FormSubmissionProvider] Submitting car listing data');
-        const response = await submitCarListing(formData, userId);
+        const response = await createCarListing(formData, userId);
         
-        if (!response?.id) {
-          console.error('[FormSubmissionProvider] No ID returned from submission service');
-          throw new Error('Failed to create listing: No ID returned from server');
+        if (!response?.success || !response?.id) {
+          console.error('[FormSubmissionProvider] Submission failed:', response?.error);
+          throw new Error(response?.error || 'Failed to create listing: No ID returned from server');
         }
         
         return response.id;
