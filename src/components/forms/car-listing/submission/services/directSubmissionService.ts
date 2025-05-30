@@ -2,6 +2,7 @@
 /**
  * Direct Submission Service - Simple approach
  * Created: 2025-05-30 - Phase 5: Direct image upload and database submission
+ * Updated: 2025-05-30 - Fixed TypeScript errors for proper database insertion
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -142,11 +143,11 @@ export const createCarListingDirect = async (
       console.log(`[DirectSubmission][${submissionId}] Additional photos uploaded:`, additionalPhotosUrls.length);
     }
     
-    // Prepare car data with proper field mapping
+    // Prepare car data with proper field mapping and type conversion
     const carData = {
       id: carId,
       seller_id: userId,
-      seller_name: formData.sellerName || formData.name || '', // Proper field mapping
+      seller_name: formData.sellerName || formData.name || '',
       address: formData.address || '',
       mobile_number: formData.mobileNumber || '',
       make: formData.make || '',
@@ -156,7 +157,7 @@ export const createCarListingDirect = async (
       vin: formData.vin || '',
       transmission: formData.transmission || 'manual',
       reserve_price: formData.reservePrice || 0,
-      features: formData.features || {}, // Preserve features structure
+      features: formData.features || {},
       is_damaged: formData.isDamaged || false,
       is_registered_in_poland: formData.isRegisteredInPoland || false,
       has_private_plate: formData.hasPrivatePlate || false,
@@ -164,7 +165,9 @@ export const createCarListingDirect = async (
       service_history_type: formData.serviceHistoryType || 'none',
       seller_notes: formData.sellerNotes || '',
       seat_material: formData.seatMaterial || 'cloth',
-      number_of_keys: formData.numberOfKeys || 1,
+      number_of_keys: typeof formData.numberOfKeys === 'string' ? 
+        parseInt(formData.numberOfKeys) || 1 : 
+        formData.numberOfKeys || 1, // Ensure it's always a number
       required_photos: requiredPhotosUrls,
       additional_photos: additionalPhotosUrls,
       valuation_data: formData.valuationData || null,
@@ -178,7 +181,9 @@ export const createCarListingDirect = async (
       features: Object.keys(carData.features).length,
       required_photos: Object.keys(carData.required_photos).length,
       additional_photos: carData.additional_photos.length,
-      reserve_price: carData.reserve_price
+      reserve_price: carData.reserve_price,
+      number_of_keys: carData.number_of_keys,
+      number_of_keys_type: typeof carData.number_of_keys
     });
     
     // Insert car record directly into database
@@ -194,21 +199,6 @@ export const createCarListingDirect = async (
     }
     
     console.log(`[DirectSubmission][${submissionId}] Car created successfully:`, data.id);
-    
-    // Update cars_needing_images table
-    const hasRequiredImages = Object.keys(requiredPhotosUrls).length >= 7; // All 7 required photos
-    
-    await supabase
-      .from('cars_needing_images')
-      .upsert({
-        car_id: carId,
-        needs_required_images: !hasRequiredImages,
-        needs_rim_images: true, // Always true initially
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-    
-    console.log(`[DirectSubmission][${submissionId}] Updated cars_needing_images table`);
     
     return {
       success: true,
