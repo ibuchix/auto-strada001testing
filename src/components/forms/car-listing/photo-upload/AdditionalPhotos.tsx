@@ -1,137 +1,113 @@
 
 /**
- * Changes made:
- * - 2024-03-19: Initial implementation of additional photos component
- * - 2024-03-19: Added file type validation and limits
- * - 2024-08-09: Enhanced UI and added drag-and-drop functionality
- * - 2025-05-07: Added diagnosticId for debugging
+ * Additional Photos Component
+ * Updated: 2025-05-30 - Phase 5: Simplified for direct submission
  */
 
-import { useDropzone } from 'react-dropzone';
-import { Button } from "@/components/ui/button";
-import { UploadCloud, X } from "lucide-react";
-import { useState } from 'react';
-import { toast } from 'sonner';
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Upload, X, ImageIcon } from 'lucide-react';
+import { usePhotoUploadState } from './hooks/usePhotoUploadState';
+import { usePhotoUploadHandlers } from './hooks/usePhotoUploadHandlers';
+import { useFormContext } from 'react-hook-form';
+import { CarListingFormData } from '@/types/forms';
 
 interface AdditionalPhotosProps {
-  isUploading: boolean;
-  onFilesSelect: (files: File[]) => void;
-  diagnosticId?: string; // Added diagnosticId
+  isUploading?: boolean;
+  onFilesSelect?: (files: File[] | FileList) => void;
 }
 
-export const AdditionalPhotos = ({ isUploading, onFilesSelect, diagnosticId }: AdditionalPhotosProps) => {
-  const [previewFiles, setPreviewFiles] = useState<{file: File, preview: string}[]>([]);
+export const AdditionalPhotos: React.FC<AdditionalPhotosProps> = ({
+  isUploading = false
+}) => {
+  const form = useFormContext<CarListingFormData>();
+  const uploadState = usePhotoUploadState({ form });
+  const handlers = usePhotoUploadHandlers({ form, uploadState });
   
-  // Log diagnostic information if applicable
-  const logDiagnostic = (event: string, data: any = {}) => {
-    if (diagnosticId) {
-      console.log(`[${diagnosticId}] [AdditionalPhotos] ${event}:`, {
-        ...data,
-        timestamp: new Date().toISOString()
-      });
+  const { files } = uploadState;
+  const additionalPhotos = files.additionalPhotos;
+  
+  const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = event.target.files;
+    if (selectedFiles && selectedFiles.length > 0) {
+      handlers.handleMultiplePhotoUpload(selectedFiles);
     }
+    // Reset input
+    event.target.value = '';
   };
   
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.webp']
-    },
-    maxFiles: 5,
-    maxSize: 10 * 1024 * 1024, // 10MB max
-    disabled: isUploading,
-    onDrop: (acceptedFiles, rejectedFiles) => {
-      if (rejectedFiles.length > 0) {
-        const reasons = rejectedFiles.map(r => r.errors[0].message).join(', ');
-        toast(reasons, {
-          description: "Some files were rejected",
-          position: "bottom-center"
-        });
-        logDiagnostic('Files rejected', { 
-          rejectedCount: rejectedFiles.length,
-          reasons
-        });
-      }
-      
-      if (acceptedFiles.length > 0) {
-        logDiagnostic('Files accepted', { count: acceptedFiles.length });
-        
-        // Create previews
-        const newPreviews = acceptedFiles.map(file => ({
-          file,
-          preview: URL.createObjectURL(file)
-        }));
-        setPreviewFiles(prev => [...prev, ...newPreviews]);
-        
-        // Pass to parent handler
-        onFilesSelect(acceptedFiles);
-      }
-    }
-  });
-  
-  const removeFile = (index: number) => {
-    logDiagnostic('File removed', { index });
-    const newFiles = [...previewFiles];
-    URL.revokeObjectURL(newFiles[index].preview); // Clean up preview URL
-    newFiles.splice(index, 1);
-    setPreviewFiles(newFiles);
+  const handleRemovePhoto = (index: number) => {
+    handlers.removePhoto('setAdditionalPhotos', index);
   };
-
+  
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium mb-2">Additional Photos (Optional)</h3>
-      <p className="text-sm text-subtitle mb-4">
-        Upload up to 5 additional photos showing any features or special aspects of your vehicle
-      </p>
-      
-      <div
-        {...getRootProps()}
-        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-          ${isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary/50'}`}
-      >
-        <input {...getInputProps()} />
-        <UploadCloud className="mx-auto h-10 w-10 text-gray-400" />
-        <p className="mt-2 text-sm text-gray-600">
-          {isDragActive ? 'Drop files here' : 'Drag & drop files here, or click to select'}
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ImageIcon className="h-5 w-5" />
+          Additional Photos ({additionalPhotos.length}/10)
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Upload up to 10 additional photos to showcase your vehicle's unique features, 
+          condition details, or special equipment.
         </p>
-        <p className="text-xs text-gray-500 mt-1">
-          Supports: JPG, PNG, WebP (Max 10MB each)
-        </p>
-        <Button 
-          type="button"
-          variant="outline"
-          className="mt-4"
-          disabled={isUploading}
-        >
-          Select Files
-        </Button>
-      </div>
-
-      {previewFiles.length > 0 && (
-        <div className="mt-4">
-          <h4 className="text-sm font-medium mb-2">Selected Files</h4>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {previewFiles.map((file, index) => (
-              <div key={index} className="relative border rounded-md overflow-hidden">
-                <img 
-                  src={file.preview} 
-                  alt={`Preview ${index}`}
-                  className="w-full h-32 object-cover"
+        
+        {/* Upload Area */}
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+          <label className="cursor-pointer block">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFileInput}
+              disabled={isUploading || additionalPhotos.length >= 10}
+            />
+            <div className="text-center">
+              <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+              <p className="text-sm text-gray-600">
+                Click to upload additional photos
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                JPEG, PNG up to 10MB each
+              </p>
+            </div>
+          </label>
+        </div>
+        
+        {/* Uploaded Photos Grid */}
+        {additionalPhotos.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {additionalPhotos.map((photo, index) => (
+              <div key={index} className="relative">
+                <img
+                  src={photo.preview}
+                  alt={`Additional photo ${index + 1}`}
+                  className="w-full h-24 object-cover rounded border"
                 />
-                <button
+                <Button
                   type="button"
-                  onClick={() => removeFile(index)}
-                  className="absolute top-1 right-1 bg-white/80 rounded-full p-1 hover:bg-white"
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-1 right-1 h-6 w-6 p-0"
+                  onClick={() => handleRemovePhoto(index)}
                 >
-                  <X className="h-4 w-4 text-gray-700" />
-                </button>
-                <div className="text-xs truncate p-2 bg-gray-50 border-t">
-                  {file.file.name}
-                </div>
+                  <X className="h-3 w-3" />
+                </Button>
               </div>
             ))}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+        
+        {additionalPhotos.length >= 10 && (
+          <p className="text-sm text-amber-600">
+            Maximum of 10 additional photos reached.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 };

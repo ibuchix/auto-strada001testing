@@ -1,7 +1,7 @@
 
 /**
  * Form Submit Handler Component
- * Updated: 2025-05-30 - Integrated proper image upload handling through Supabase Storage
+ * Updated: 2025-05-30 - Phase 5: Simplified to use direct submission approach
  */
 
 import React, { useState } from "react";
@@ -9,14 +9,10 @@ import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { CarListingFormData } from "@/types/forms";
-import { validateRequiredPhotos } from "./utils/photoValidator";
-import { prepareFormDataForSubmission } from "./utils/submission";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { standardizePhotoCategory, PHOTO_FIELD_MAP } from "@/utils/photoMapping";
-import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/components/AuthProvider";
-import { createCarListing } from "./services/submissionService";
+import { createCarListingDirect } from "./services/directSubmissionService";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -46,7 +42,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     );
   }
   
-  const { handleSubmit, formState } = formContext;
+  const { handleSubmit, formState, getValues } = formContext;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   
@@ -57,30 +53,23 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     try {
       setIsSubmitting(true);
       
-      const submissionId = uuidv4().slice(0, 8);
-      console.log(`[FormSubmission][${submissionId}] Starting listing submission with image upload...`);
+      console.log('Form submission started with data:', {
+        hasRequiredPhotos: !!formData.requiredPhotos,
+        requiredPhotosCount: formData.requiredPhotos ? Object.keys(formData.requiredPhotos).length : 0,
+        hasAdditionalPhotos: !!formData.additionalPhotos,
+        additionalPhotosCount: formData.additionalPhotos ? formData.additionalPhotos.length : 0,
+        sellerName: formData.sellerName || formData.name,
+        features: formData.features,
+        reservePrice: formData.reservePrice
+      });
       
-      // Validate required photos (files or URLs)
-      const missingPhotoFields = validateRequiredPhotos(formData);
-      
-      if (missingPhotoFields.length > 0) {
-        const formattedFields = missingPhotoFields.map(field => {
-          const camelKey = Object.entries(PHOTO_FIELD_MAP).find(([_, v]) => v === field)?.[0];
-          const displayName = camelKey || field;
-          
-          return displayName
-            .replace(/_/g, ' ')
-            .replace(/([A-Z])/g, ' $1')
-            .replace(/^./, str => str.toUpperCase())
-            .replace(/\s(.)/g, (_, c) => ' ' + c.toUpperCase())
-            .trim();
-        });
-        
-        const errorMessage = `Missing required photos: ${formattedFields.join(', ')}`;
+      // Validate required data
+      if (!formData.make || !formData.model || !formData.year) {
+        const errorMessage = "Please fill in all required vehicle details (make, model, year)";
         console.error("Validation failed:", errorMessage);
         
         if (showAlerts) {
-          toast.error("Missing Required Photos", {
+          toast.error("Missing Required Information", {
             description: errorMessage,
           });
         }
@@ -89,44 +78,10 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      // Prepare form data
-      const preparedData = prepareFormDataForSubmission(formData);
-
-      // Process valuation data and set reserve price
-      if (formData.fromValuation || formData.valuationData) {
-        console.log(`[FormSubmission][${submissionId}] Processing valuation data`);
-        
-        let valuationData = formData.valuationData;
-        if (!valuationData) {
-          try {
-            const storedValuation = localStorage.getItem('valuationData');
-            if (storedValuation) {
-              valuationData = JSON.parse(storedValuation);
-            }
-          } catch (error) {
-            console.error(`[FormSubmission][${submissionId}] Error parsing stored valuation:`, error);
-          }
-        }
-        
-        if (valuationData) {
-          let reservePrice = valuationData.reservePrice || valuationData.reserve_price || valuationData.valuation;
-          
-          if (reservePrice && reservePrice > 0) {
-            preparedData.reservePrice = reservePrice;
-            console.log(`[FormSubmission][${submissionId}] Set reserve price:`, reservePrice);
-          }
-          
-          preparedData.valuationData = {
-            ...valuationData,
-            reservePrice: reservePrice || valuationData.reservePrice
-          };
-        }
-      }
-      
       // Validate reserve price
-      if (!preparedData.reservePrice || preparedData.reservePrice <= 0) {
+      if (!formData.reservePrice || formData.reservePrice <= 0) {
         const errorMessage = "Reserve price must be greater than 0.";
-        console.error(`[FormSubmission][${submissionId}] ${errorMessage}`);
+        console.error("Validation failed:", errorMessage);
         
         if (showAlerts) {
           toast.error("Invalid Reserve Price", {
@@ -148,20 +103,17 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      // Set seller ID
-      preparedData.sellerId = currentUserId;
+      console.log('Starting direct submission with images...');
       
-      console.log(`[FormSubmission][${submissionId}] Submitting listing with image upload handling...`);
-      
-      // Submit using the new service with image upload handling
-      const result = await createCarListing(preparedData, currentUserId);
+      // Use the new direct submission service
+      const result = await createCarListingDirect(formData, currentUserId);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to create listing');
       }
       
-      const newCarId = result.id;
-      console.log(`[FormSubmission][${submissionId}] ✓ Listing created successfully with images:`, newCarId);
+      const newCarId = result.id!;
+      console.log('✓ Car listing created successfully with images:', newCarId);
       
       // Success notification
       if (showAlerts) {
@@ -172,7 +124,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       
       // Handle success callbacks
       if (onSuccess) {
-        onSuccess(preparedData);
+        onSuccess(formData);
       } else if (onSubmitSuccess) {
         onSubmitSuccess(newCarId);
       } else {
