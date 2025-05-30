@@ -1,18 +1,22 @@
 
-// create-car-listing/index.ts
 /**
- * Updated: 2025-05-29 - REMOVED price field references, using only reserve_price
+ * Enhanced create-car-listing edge function
+ * Updated: 2025-05-30 - Added comprehensive image upload handling with multipart form data
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { corsHeaders } from "./utils/cors.ts";
-import { createListing } from "./utils/listing.ts";
 import { logOperation } from "./utils/logging.ts";
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
+
+interface ImageUploadResult {
+  success: boolean;
+  url?: string;
+  error?: string;
+}
 
 serve(async (req) => {
   // Handle CORS
@@ -20,270 +24,284 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const requestId = crypto.randomUUID();
+  logOperation('enhanced_request_start', { requestId }, 'info');
+
   try {
-    const requestId = crypto.randomUUID();
-    logOperation('request_start', { requestId }, 'info');
+    // Create Supabase admin client
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
-    // Get the request body
-    const requestData = await req.json();
-    const { 
-      valuationData,
-      userId, 
-      vin, 
-      mileage, 
-      transmission,
-      reservationId
-    } = requestData;
+    let carData: any;
+    let userId: string;
+    let requiredPhotos: Record<string, File> = {};
+    let additionalPhotos: File[] = [];
+    
+    const contentType = req.headers.get('content-type') || '';
+    
+    if (contentType.includes('multipart/form-data')) {
+      // Handle multipart form data with images
+      logOperation('parsing_multipart_data', { requestId }, 'info');
+      
+      const formData = await req.formData();
+      
+      // Extract car data
+      const carDataStr = formData.get('carData') as string;
+      if (!carDataStr) {
+        throw new Error('Missing car data in form submission');
+      }
+      
+      carData = JSON.parse(carDataStr);
+      userId = formData.get('userId') as string || carData.userId;
+      
+      if (!userId) {
+        throw new Error('Missing user ID');
+      }
+      
+      // Extract required photos
+      const requiredPhotoTypes = [
+        'exterior_front', 'exterior_rear', 'exterior_left', 'exterior_right',
+        'interior_front', 'dashboard', 'rim_front_left', 'rim_front_right',
+        'rim_rear_left', 'rim_rear_right', 'engine_bay', 'interior_rear'
+      ];
+      
+      for (const photoType of requiredPhotoTypes) {
+        const file = formData.get(`required_${photoType}`) as File;
+        if (file && file.size > 0) {
+          requiredPhotos[photoType] = file;
+        }
+      }
+      
+      // Extract additional photos
+      let additionalIndex = 0;
+      while (true) {
+        const file = formData.get(`additional_${additionalIndex}`) as File;
+        if (!file || file.size === 0) break;
+        additionalPhotos.push(file);
+        additionalIndex++;
+      }
+      
+    } else {
+      // Handle JSON data (backward compatibility)
+      const requestData = await req.json();
+      carData = requestData.carData || requestData;
+      userId = requestData.userId || carData.userId;
+      
+      if (!userId) {
+        throw new Error('Missing user ID');
+      }
+    }
+    
+    logOperation('data_extracted', {
+      requestId,
+      userId,
+      requiredPhotosCount: Object.keys(requiredPhotos).length,
+      additionalPhotosCount: additionalPhotos.length,
+      hasCarData: !!carData
+    }, 'info');
     
     // Validate required fields
-    if (!userId || !vin || !valuationData) {
-      logOperation('validation_error', { 
-        requestId, 
-        error: 'Missing required fields'
-      }, 'error');
-      
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: 'Missing required fields'
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    if (!carData.make || !carData.model || !carData.year) {
+      throw new Error('Missing required vehicle details (make, model, year)');
     }
     
-    // Validate that valuation data contains a reserve price
-    if (!valuationData.reservePrice && !valuationData.valuation) {
-      logOperation('reserve_price_validation_error', {
-        requestId,
-        error: 'Missing reserve price in valuation data',
-        valuationKeys: Object.keys(valuationData)
-      }, 'error');
-      
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: 'Valuation data is missing required reserve price information'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    if (!carData.reservePrice || carData.reservePrice <= 0) {
+      throw new Error('Reserve price must be greater than 0');
     }
     
-    // Get the authorization header which includes the user's JWT
-    const authHeader = req.headers.get('Authorization');
+    // Generate car ID for image uploads
+    const carId = crypto.randomUUID();
+    logOperation('car_id_generated', { requestId, carId }, 'info');
     
-    // Create Supabase client with service role for admin operations
-    const adminServiceClient = createClient(
-      SUPABASE_URL,
-      SUPABASE_SERVICE_ROLE_KEY
-    );
-    
-    // Create a client with the user's JWT if available
-    const clientWithAuth = authHeader
-      ? createClient(
-          SUPABASE_URL,
-          SUPABASE_ANON_KEY,
-          { global: { headers: { Authorization: authHeader } } }
-        )
-      : adminServiceClient;
-    
-    // Extract basic car data from valuation - USING ONLY reserve_price
-    logOperation('reserve_price_data', {
-      requestId,
-      reservePrice: valuationData.reservePrice,
-      averagePrice: valuationData.averagePrice,
-      basePrice: valuationData.basePrice,
-      price_med: valuationData.price_med,
-      valuation: valuationData.valuation
-    });
-    
-    const extractedCarData = {
-      make: valuationData.make,
-      model: valuationData.model,
-      year: valuationData.year,
-      mileage: Number(mileage),
-      vin: vin,
-      // FIXED: Use reserve_price instead of price
-      reserve_price: valuationData.reservePrice || valuationData.valuation,
-      transmission: transmission,
-      status: 'available', // Always available now
-      valuation_data: valuationData
-    };
-    
-    // Validate that the reserve_price is actually set
-    if (!extractedCarData.reserve_price) {
-      logOperation('missing_reserve_price_error', {
-        requestId,
-        extractedCarData,
-        valuationDataKeys: Object.keys(valuationData)
-      }, 'error');
-      
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: 'Failed to determine reserve price from valuation data'
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-    
-    logOperation('processing_request', { 
-      requestId, 
-      userId,
-      vin, 
-      make: extractedCarData.make,
-      model: extractedCarData.model,
-      reserve_price: extractedCarData.reserve_price
-    });
-    
-    // First attempt using security definer function
-    try {
-      const { data: securityDefinerResult, error: securityDefinerError } = await clientWithAuth.rpc(
-        'create_car_listing',
-        {
-          p_car_data: extractedCarData,
-          p_user_id: userId
-        }
-      );
-      
-      if (!securityDefinerError && securityDefinerResult?.success) {
-        logOperation('security_definer_success', { 
-          requestId, 
-          userId,
-          carId: securityDefinerResult.car_id
-        });
-        
-        // Mark reservation as used if provided
-        if (reservationId) {
-          await adminServiceClient
-            .from('vin_reservations')
-            .update({
-              status: 'completed',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', reservationId);
-        }
-        
-        // Return the successful result
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            data: { id: securityDefinerResult.car_id, car_id: securityDefinerResult.car_id }
-          }),
-          { 
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
-      }
-      
-      // Log the error but continue to try alternative methods
-      if (securityDefinerError) {
-        logOperation('security_definer_error', {
+    // Upload required photos to storage
+    const uploadedRequiredPhotos: Record<string, string> = {};
+    for (const [photoType, file] of Object.entries(requiredPhotos)) {
+      const result = await uploadImageToStorage(supabase, file, carId, photoType);
+      if (result.success && result.url) {
+        uploadedRequiredPhotos[photoType] = result.url;
+      } else {
+        logOperation('required_photo_upload_failed', {
           requestId,
-          userId,
-          error: securityDefinerError.message,
-          details: securityDefinerError
+          photoType,
+          error: result.error
         }, 'warn');
       }
-    } catch (rpcError) {
-      logOperation('security_definer_exception', {
-        requestId,
-        userId,
-        error: (rpcError as Error).message,
-        stack: (rpcError as Error).stack
-      }, 'warn');
     }
     
-    // Fall back to our utility function
-    const result = await createListing(
-      adminServiceClient,
-      extractedCarData,
-      userId,
-      requestId
-    );
+    // Upload additional photos to storage
+    const uploadedAdditionalPhotos: string[] = [];
+    for (let i = 0; i < additionalPhotos.length; i++) {
+      const file = additionalPhotos[i];
+      const result = await uploadImageToStorage(supabase, file, carId, `additional_${i}`);
+      if (result.success && result.url) {
+        uploadedAdditionalPhotos.push(result.url);
+      } else {
+        logOperation('additional_photo_upload_failed', {
+          requestId,
+          index: i,
+          error: result.error
+        }, 'warn');
+      }
+    }
     
-    if (!result.success) {
-      logOperation('create_listing_failed', {
+    logOperation('images_uploaded', {
+      requestId,
+      requiredPhotosUploaded: Object.keys(uploadedRequiredPhotos).length,
+      additionalPhotosUploaded: uploadedAdditionalPhotos.length
+    }, 'info');
+    
+    // Prepare car data for database insertion
+    const carRecord = {
+      id: carId,
+      seller_id: userId,
+      seller_name: carData.sellerName || carData.name || '',
+      address: carData.address || '',
+      mobile_number: carData.mobileNumber || '',
+      make: carData.make,
+      model: carData.model,
+      year: carData.year,
+      mileage: carData.mileage || 0,
+      vin: carData.vin || '',
+      transmission: carData.transmission || 'manual',
+      reserve_price: carData.reservePrice,
+      features: carData.features || {},
+      is_damaged: carData.isDamaged || false,
+      is_registered_in_poland: carData.isRegisteredInPoland || false,
+      has_private_plate: carData.hasPrivatePlate || false,
+      finance_amount: carData.financeAmount || 0,
+      service_history_type: carData.serviceHistoryType || 'none',
+      seller_notes: carData.sellerNotes || '',
+      seat_material: carData.seatMaterial || 'cloth',
+      number_of_keys: carData.numberOfKeys || 1,
+      required_photos: uploadedRequiredPhotos,
+      additional_photos: uploadedAdditionalPhotos,
+      valuation_data: carData.valuationData || null,
+      status: 'available'
+    };
+    
+    // Insert car record into database
+    logOperation('inserting_car_record', { requestId, carId }, 'info');
+    
+    const { data: insertedCar, error: insertError } = await supabase
+      .from('cars')
+      .insert(carRecord)
+      .select()
+      .single();
+    
+    if (insertError) {
+      // Clean up uploaded images on database insertion failure
+      await cleanupUploadedImages(supabase, carId, [
+        ...Object.values(uploadedRequiredPhotos),
+        ...uploadedAdditionalPhotos
+      ]);
+      
+      logOperation('car_insertion_failed', {
         requestId,
-        userId,
-        error: result.error?.message,
-        errorDetails: result.error,
-        carData: extractedCarData
+        carId,
+        error: insertError.message
       }, 'error');
       
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: result.error?.message || 'Failed to create car listing',
-          details: result.details || {},
-          code: result.code || 'UNKNOWN_ERROR'
-        }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      throw new Error(`Failed to create car listing: ${insertError.message}`);
     }
     
-    // Mark reservation as used if provided
-    if (reservationId) {
-      await adminServiceClient
-        .from('vin_reservations')
-        .update({
-          status: 'completed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', reservationId);
-    }
-    
-    logOperation('request_success', {
+    logOperation('car_listing_created_successfully', {
       requestId,
-      userId,
-      carId: result.data?.car_id || result.data?.id
-    });
+      carId: insertedCar.id,
+      requiredPhotos: Object.keys(uploadedRequiredPhotos).length,
+      additionalPhotos: uploadedAdditionalPhotos.length
+    }, 'info');
     
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        data: result.data
+      JSON.stringify({
+        success: true,
+        data: {
+          id: insertedCar.id,
+          car_id: insertedCar.id
+        }
       }),
-      { 
+      {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
-  } catch (error) {
-    console.error('Unhandled error in edge function:', error);
     
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorName = error instanceof Error ? error.name : 'UnknownError';
-    const errorStack = error instanceof Error ? error.stack : undefined;
+  } catch (error) {
+    logOperation('request_error', {
+      requestId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    }, 'error');
     
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        message: 'Internal server error',
-        error: errorMessage,
-        errorType: errorName,
-        diagnostic: {
-          timestamp: new Date().toISOString(),
-          isError: error instanceof Error,
-          stack: errorStack
-        }
+      JSON.stringify({
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
 });
+
+/**
+ * Upload a single image to Supabase Storage
+ */
+async function uploadImageToStorage(
+  supabase: any,
+  file: File,
+  carId: string,
+  photoType: string
+): Promise<ImageUploadResult> {
+  try {
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileName = `${photoType}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+    const filePath = `cars/${carId}/${fileName}`;
+    
+    const { data, error } = await supabase.storage
+      .from('car-images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+    
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    
+    const { data: { publicUrl } } = supabase.storage
+      .from('car-images')
+      .getPublicUrl(filePath);
+    
+    return { success: true, url: publicUrl };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Upload failed'
+    };
+  }
+}
+
+/**
+ * Clean up uploaded images if car creation fails
+ */
+async function cleanupUploadedImages(
+  supabase: any,
+  carId: string,
+  imageUrls: string[]
+): Promise<void> {
+  try {
+    const filePaths = imageUrls.map(url => {
+      const path = url.split('/storage/v1/object/public/car-images/')[1];
+      return path;
+    }).filter(Boolean);
+    
+    if (filePaths.length > 0) {
+      await supabase.storage
+        .from('car-images')
+        .remove(filePaths);
+    }
+  } catch (error) {
+    console.error('Failed to cleanup uploaded images:', error);
+  }
+}

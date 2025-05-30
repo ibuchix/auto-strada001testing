@@ -1,7 +1,7 @@
 
 /**
  * Form Submit Handler Component
- * Updated: 2025-05-30 - Enhanced error handling and user feedback for direct INSERT approach
+ * Updated: 2025-05-30 - Simplified to use enhanced edge function approach
  */
 
 import React, { useState } from "react";
@@ -42,7 +42,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     );
   }
   
-  const { handleSubmit, formState, getValues } = formContext;
+  const { handleSubmit, formState } = formContext;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   
@@ -53,15 +53,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     try {
       setIsSubmitting(true);
       
-      console.log('Form submission started with data:', {
-        hasRequiredPhotos: !!formData.requiredPhotos,
-        requiredPhotosCount: formData.requiredPhotos ? Object.keys(formData.requiredPhotos).length : 0,
-        hasAdditionalPhotos: !!formData.additionalPhotos,
-        additionalPhotosCount: formData.additionalPhotos ? formData.additionalPhotos.length : 0,
-        sellerName: formData.sellerName || formData.name,
-        features: formData.features,
-        reservePrice: formData.reservePrice
-      });
+      console.log('Form submission started with enhanced edge function approach');
       
       // Validate required data
       if (!formData.make || !formData.model || !formData.year) {
@@ -103,9 +95,9 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      console.log('Starting improved direct submission with user:', currentUserId);
+      console.log('Starting enhanced edge function submission with user:', currentUserId);
       
-      // Use the improved direct submission service
+      // Use the enhanced edge function approach
       const result = await createCarListingDirect(formData, currentUserId);
       
       if (!result.success) {
@@ -113,7 +105,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       }
       
       const newCarId = result.id!;
-      console.log('✓ Car listing created successfully with improved method:', newCarId);
+      console.log('✓ Car listing created successfully with enhanced approach:', newCarId);
       
       // Success notification
       if (showAlerts) {
@@ -138,17 +130,9 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       if (showAlerts) {
-        if (errorMessage.includes('not a verified seller')) {
-          toast.error("Seller Verification Required", {
-            description: "Your seller account needs to be verified. Please contact support.",
-          });
-        } else if (errorMessage.includes('Authentication failed') || errorMessage.includes('Session')) {
+        if (errorMessage.includes('Authentication failed')) {
           toast.error("Authentication Failed", {
             description: "Please log out and log back in, then try again.",
-          });
-        } else if (errorMessage.includes('Direct INSERT failed')) {
-          toast.error("Database Permission Error", {
-            description: "There was a permission issue. Our team has been notified.",
           });
         } else {
           toast.error("Submission Failed", {
