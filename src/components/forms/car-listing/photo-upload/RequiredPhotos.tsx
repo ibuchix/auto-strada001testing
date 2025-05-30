@@ -1,7 +1,7 @@
 
 /**
  * Required Photos Component
- * Updated: 2025-05-30 - Phase 4: Updated to use new File object preservation
+ * Updated: 2025-05-30 - Phase 4: Fixed to work without external props
  */
 
 import React from 'react';

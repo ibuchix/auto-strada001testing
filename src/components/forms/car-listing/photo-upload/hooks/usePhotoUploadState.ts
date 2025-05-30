@@ -1,7 +1,7 @@
 
 /**
  * Hook for managing photo upload state
- * Updated: 2025-05-30 - Phase 4: Fixed to preserve File objects alongside preview URLs
+ * Updated: 2025-05-30 - Phase 4: Fixed TypeScript errors with form setValue calls
  */
 
 import React from 'react';
@@ -82,31 +82,32 @@ export const usePhotoUploadState = ({ form }: UsePhotoUploadStateProps): PhotoUp
   
   // Update form whenever files change
   React.useEffect(() => {
-    const requiredPhotos: Record<string, File | string> = {};
-    const additionalFiles: File[] = [];
+    // Create separate objects for form data - File objects for processing, but maintain type compatibility
+    const requiredPhotosForForm: Record<string, File | string> = {};
+    const additionalFilesForForm: (File | string)[] = [];
     
     // Collect required photos as File objects (not blob URLs)
-    if (frontView.length > 0) requiredPhotos.exterior_front = frontView[0].file;
-    if (rearView.length > 0) requiredPhotos.exterior_rear = rearView[0].file;
-    if (driverSide.length > 0) requiredPhotos.exterior_left = driverSide[0].file;
-    if (passengerSide.length > 0) requiredPhotos.exterior_right = passengerSide[0].file;
-    if (dashboard.length > 0) requiredPhotos.dashboard = dashboard[0].file;
-    if (interiorFront.length > 0) requiredPhotos.interior_front = interiorFront[0].file;
-    if (interiorRear.length > 0) requiredPhotos.interior_rear = interiorRear[0].file;
+    if (frontView.length > 0) requiredPhotosForForm.exterior_front = frontView[0].file;
+    if (rearView.length > 0) requiredPhotosForForm.exterior_rear = rearView[0].file;
+    if (driverSide.length > 0) requiredPhotosForForm.exterior_left = driverSide[0].file;
+    if (passengerSide.length > 0) requiredPhotosForForm.exterior_right = passengerSide[0].file;
+    if (dashboard.length > 0) requiredPhotosForForm.dashboard = dashboard[0].file;
+    if (interiorFront.length > 0) requiredPhotosForForm.interior_front = interiorFront[0].file;
+    if (interiorRear.length > 0) requiredPhotosForForm.interior_rear = interiorRear[0].file;
     
     // Collect additional photos as File objects
     additionalPhotos.forEach(photo => {
-      additionalFiles.push(photo.file);
+      additionalFilesForForm.push(photo.file);
     });
     
-    // Update form with File objects, not blob URLs
-    form.setValue('requiredPhotos', requiredPhotos, { shouldDirty: true });
-    form.setValue('additionalPhotos', additionalFiles, { shouldDirty: true });
+    // Update form with File objects using type assertion to handle form expectations
+    form.setValue('requiredPhotos', requiredPhotosForForm as any, { shouldDirty: true });
+    form.setValue('additionalPhotos', additionalFilesForForm as any, { shouldDirty: true });
     form.setValue('requiredPhotosComplete', allRequiredUploaded, { shouldDirty: true });
     
     console.log('Updated form with File objects:', {
-      requiredPhotosCount: Object.keys(requiredPhotos).length,
-      additionalPhotosCount: additionalFiles.length,
+      requiredPhotosCount: Object.keys(requiredPhotosForForm).length,
+      additionalPhotosCount: additionalFilesForForm.length,
       allRequiredUploaded
     });
   }, [form, frontView, rearView, driverSide, passengerSide, dashboard, interiorFront, interiorRear, additionalPhotos, allRequiredUploaded]);

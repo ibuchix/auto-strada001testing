@@ -5,6 +5,7 @@
  * - 2025-05-20: Added upload progress indicator and current file display
  * - 2025-05-23: Fixed type definitions to properly handle File vs FileList compatibility
  * - 2025-05-24: Refactored for improved type safety and better compatibility
+ * - 2025-05-30: Fixed RequiredPhotos component to work without external props
  */
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Camera } from "lucide-react";
@@ -39,11 +40,7 @@ export const VehiclePhotoSection = ({
         </AlertDescription>
       </Alert>
 
-      <RequiredPhotos
-        isUploading={isUploading}
-        onFileSelect={onFileSelect}
-        progress={progress}
-      />
+      <RequiredPhotos />
 
       {progress > 0 && progress < 100 && (
         <div className="space-y-2">
