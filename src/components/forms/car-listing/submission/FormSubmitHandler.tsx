@@ -1,12 +1,7 @@
 
 /**
  * Form Submit Handler Component
- * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All submissions are immediate
- * Updated: 2025-05-24 - SIMPLIFIED image handling with direct storage in required_photos
- * Updated: 2025-05-24 - ENHANCED valuation data preservation to fix reserve price display
- * Updated: 2025-05-24 - Fixed naming convention consistency for reserve price display
- * Updated: 2025-05-24 - Fixed price setting to use reserve price as listed price for valuation-based listings
- * Updated: 2025-05-29 - SIMPLIFIED to single reserve_price field - removed price/reserve_price confusion
+ * Updated: 2025-05-30 - Integrated proper image upload handling through Supabase Storage
  */
 
 import React, { useState } from "react";
@@ -51,7 +46,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     );
   }
   
-  const { handleSubmit, formState, getValues } = formContext;
+  const { handleSubmit, formState } = formContext;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   
@@ -63,20 +58,9 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       setIsSubmitting(true);
       
       const submissionId = uuidv4().slice(0, 8);
-      console.log(`[FormSubmission][${submissionId}] Starting IMMEDIATE listing submission...`);
+      console.log(`[FormSubmission][${submissionId}] Starting listing submission with image upload...`);
       
-      // ENHANCED LOGGING: Track valuation data through the entire process
-      console.log(`[FormSubmission][${submissionId}] Valuation data tracking:`, {
-        formData_reservePrice: formData.reservePrice,
-        valuationData_reservePrice: formData.valuationData?.reservePrice,
-        valuationData_reserve_price: formData.valuationData?.reserve_price,
-        valuationData_valuation: formData.valuationData?.valuation,
-        valuationData_exists: !!formData.valuationData,
-        valuationData_keys: formData.valuationData ? Object.keys(formData.valuationData) : [],
-        fromValuation: formData.fromValuation
-      });
-      
-      // Validate required photos
+      // Validate required photos (files or URLs)
       const missingPhotoFields = validateRequiredPhotos(formData);
       
       if (missingPhotoFields.length > 0) {
@@ -105,21 +89,19 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      // Prepare form data - NO DRAFT LOGIC
+      // Prepare form data
       const preparedData = prepareFormDataForSubmission(formData);
 
-      // CRITICAL: Process valuation data and set reserve price correctly
+      // Process valuation data and set reserve price
       if (formData.fromValuation || formData.valuationData) {
         console.log(`[FormSubmission][${submissionId}] Processing valuation data`);
         
-        // Get valuation data from form or localStorage if not present
         let valuationData = formData.valuationData;
         if (!valuationData) {
           try {
             const storedValuation = localStorage.getItem('valuationData');
             if (storedValuation) {
               valuationData = JSON.parse(storedValuation);
-              console.log(`[FormSubmission][${submissionId}] Retrieved valuation from localStorage`);
             }
           } catch (error) {
             console.error(`[FormSubmission][${submissionId}] Error parsing stored valuation:`, error);
@@ -127,41 +109,24 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         }
         
         if (valuationData) {
-          // CRITICAL: Get reserve price - handle multiple naming conventions
-          let reservePrice = null;
-          if (valuationData.reservePrice) {
-            reservePrice = valuationData.reservePrice;
-          } else if (valuationData.reserve_price) {
-            reservePrice = valuationData.reserve_price;
-          } else if (valuationData.valuation) {
-            reservePrice = valuationData.valuation;
-          }
+          let reservePrice = valuationData.reservePrice || valuationData.reserve_price || valuationData.valuation;
           
           if (reservePrice && reservePrice > 0) {
-            // CRITICAL: Set the single reserve price field
             preparedData.reservePrice = reservePrice;
-            console.log(`[FormSubmission][${submissionId}] Set reserve price from valuation:`, {
-              reservePrice: preparedData.reservePrice
-            });
+            console.log(`[FormSubmission][${submissionId}] Set reserve price:`, reservePrice);
           }
           
-          // CRITICAL: Preserve complete valuation data object with camelCase structure
           preparedData.valuationData = {
             ...valuationData,
-            // Ensure reservePrice is in camelCase for consistency
             reservePrice: reservePrice || valuationData.reservePrice
           };
-          console.log(`[FormSubmission][${submissionId}] Preserved complete valuation data with camelCase structure`);
         }
       }
       
-      // Validate that reserve price is set and greater than 0
+      // Validate reserve price
       if (!preparedData.reservePrice || preparedData.reservePrice <= 0) {
-        const errorMessage = "Reserve price must be greater than 0. Please ensure valuation data is properly loaded.";
-        console.error(`[FormSubmission][${submissionId}] ${errorMessage}`, {
-          reservePrice: preparedData.reservePrice,
-          hasValuationData: !!preparedData.valuationData
-        });
+        const errorMessage = "Reserve price must be greater than 0.";
+        console.error(`[FormSubmission][${submissionId}] ${errorMessage}`);
         
         if (showAlerts) {
           toast.error("Invalid Reserve Price", {
@@ -173,14 +138,6 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      // ENHANCED LOGGING: Track final prepared data
-      console.log(`[FormSubmission][${submissionId}] Final prepared data:`, {
-        reservePrice: preparedData.reservePrice,
-        hasValuationData: !!preparedData.valuationData,
-        valuationDataKeys: preparedData.valuationData ? Object.keys(preparedData.valuationData) : [],
-        valuationDataReservePrice: preparedData.valuationData?.reservePrice
-      });
-      
       const currentUserId = userId || session?.user?.id;
       
       if (!currentUserId) {
@@ -191,35 +148,25 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      // Set seller ID for ownership
+      // Set seller ID
       preparedData.sellerId = currentUserId;
       
-      console.log(`[FormSubmission][${submissionId}] Submitting IMMEDIATE listing:`, {
-        dataKeys: Object.keys(preparedData),
-        userId: currentUserId,
-        reservePrice: preparedData.reservePrice,
-        hasRequiredPhotos: !!preparedData.requiredPhotos,
-        hasValuationData: !!preparedData.valuationData,
-        valuationDataStructure: preparedData.valuationData ? Object.keys(preparedData.valuationData) : 'none'
-      });
+      console.log(`[FormSubmission][${submissionId}] Submitting listing with image upload handling...`);
       
-      // Submit directly - NO DRAFT STATUS
-      let result;
-      try {
-        console.log(`[FormSubmission][${submissionId}] Creating IMMEDIATE available listing...`);
-        result = await createCarListing(preparedData, currentUserId);
-        console.log(`[FormSubmission][${submissionId}] ✓ Listing created successfully, car ID: ${result.id}`);
-      } catch (submissionError) {
-        console.error(`[FormSubmission][${submissionId}] ✗ Submission failed:`, submissionError);
-        throw submissionError;
+      // Submit using the new service with image upload handling
+      const result = await createCarListing(preparedData, currentUserId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create listing');
       }
       
       const newCarId = result.id;
+      console.log(`[FormSubmission][${submissionId}] ✓ Listing created successfully with images:`, newCarId);
       
       // Success notification
       if (showAlerts) {
         toast.success("Listing Submitted Successfully", {
-          description: "Your car listing is now available to dealers.",
+          description: "Your car listing with images is now available to dealers.",
         });
       }
       
@@ -229,7 +176,6 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       } else if (onSubmitSuccess) {
         onSubmitSuccess(newCarId);
       } else {
-        // Default: redirect to seller dashboard
         navigate("/dashboard/seller");
       }
       
@@ -263,7 +209,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       {isSubmitting || formState.isSubmitting ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Submitting...
+          Uploading & Submitting...
         </>
       ) : (
         "Submit Listing"

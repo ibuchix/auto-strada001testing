@@ -1,142 +1,134 @@
 
 /**
  * Car Listing Submission Service
- * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All listings are immediately available
- * Updated: 2025-05-24 - Enhanced valuation data preservation for proper reserve price display
+ * Updated: 2025-05-30 - Integrated proper image upload handling through Supabase Storage
  */
 
-import { CarListingFormData } from "@/types/forms";
-import { supabase } from "@/integrations/supabase/client";
+import { CarListingFormData, CarEntity } from "@/types/forms";
 import { prepareSubmission } from "../utils/submission";
-import { toSupabaseObject } from "@/utils/supabaseTypeUtils";
+import { supabase } from "@/integrations/supabase/client";
+import { 
+  processRequiredPhotos, 
+  processAdditionalPhotos 
+} from "@/services/supabase/imageUploadService";
+
+export interface CreateListingResult {
+  success: boolean;
+  id?: string;
+  error?: string;
+  data?: any;
+}
 
 /**
- * Submit a car listing - ALWAYS immediately available
+ * Create a car listing with proper image handling
  */
-export const submitCarListing = async (
+export const createCarListing = async (
   formData: CarListingFormData,
-  userId?: string
-): Promise<{ id: string }> => {
+  userId: string
+): Promise<CreateListingResult> => {
   try {
-    console.log("Submitting IMMEDIATE car listing:", { 
-      formData: { ...formData, id: formData.id || 'new' },
-      hasUserId: !!userId,
-      hasValuationData: !!formData.valuationData
-    });
+    console.log('Creating car listing with image upload handling...');
     
-    // Prepare data for submission
-    const preparedData = prepareSubmission(formData);
+    // Step 1: Process and upload images first
+    let processedRequiredPhotos: Record<string, string> = {};
+    let processedAdditionalPhotos: string[] = [];
     
-    // Update existing or create new
-    if (preparedData.id) {
-      const supabaseData = toSupabaseObject({
-        ...preparedData,
-        updated_at: new Date().toISOString(),
-        seller_id: userId || preparedData.seller_id,
-        status: 'available', // ALWAYS available
-        is_draft: false // NEVER draft
-      });
-      
-      const { data, error } = await supabase
-        .from('cars')
-        .update(supabaseData)
-        .eq('id', preparedData.id)
-        .select('id')
-        .single();
-      
-      if (error) {
-        console.error("Error updating car:", error);
-        throw error;
-      }
-      
-      console.log("✓ Successfully updated car:", data);
-      return { id: data.id };
-    } else {
-      const supabaseData = toSupabaseObject({
-        ...preparedData,
-        seller_id: userId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        status: 'available', // ALWAYS available
-        is_draft: false // NEVER draft
-      });
-      
-      const { data, error } = await supabase
-        .from('cars')
-        .insert(supabaseData)
-        .select('id')
-        .single();
-      
-      if (error) {
-        console.error("Error creating car:", error);
-        throw error;
-      }
-      
-      console.log("✓ Successfully created car:", data);
-      return { id: data.id };
-    }
-  } catch (error) {
-    console.error("Error in submitCarListing:", error);
-    throw error;
-  }
-};
-
-/**
- * Create car listing using security definer function - ALWAYS available
- */
-export const createCarListing = async (formData: CarListingFormData, userId: string): Promise<{ id: string }> => {
-  try {
-    const traceId = Math.random().toString(36).substring(2, 10);
-    console.log(`[CreateCar][${traceId}] Creating IMMEDIATE available listing...`);
-    
-    const preparedData = prepareSubmission(formData);
-    
-    if (!userId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
-      console.error(`[CreateCar][${traceId}] Invalid userId:`, userId);
-      throw new Error("Invalid user ID format");
+    if (formData.requiredPhotos) {
+      console.log('Processing required photos...');
+      processedRequiredPhotos = await processRequiredPhotos(
+        formData.requiredPhotos,
+        formData.id // Use existing car ID if updating
+      );
+      console.log('Required photos processed:', Object.keys(processedRequiredPhotos));
     }
     
-    console.log(`[CreateCar][${traceId}] Calling create_car_listing RPC:`, {
-      dataKeys: Object.keys(preparedData),
-      hasId: !!preparedData.id,
-      userId: userId,
-      hasValuationData: !!preparedData.valuation_data,
-      reservePrice: preparedData.reserve_price
+    if (formData.additionalPhotos && formData.additionalPhotos.length > 0) {
+      console.log('Processing additional photos...');
+      processedAdditionalPhotos = await processAdditionalPhotos(
+        formData.additionalPhotos,
+        formData.id // Use existing car ID if updating
+      );
+      console.log('Additional photos processed:', processedAdditionalPhotos.length);
+    }
+    
+    // Step 2: Prepare submission data with uploaded image URLs
+    const submissionData = prepareSubmission({
+      ...formData,
+      requiredPhotos: processedRequiredPhotos,
+      additionalPhotos: processedAdditionalPhotos
     });
     
-    // Call the security definer function
-    const { data: rpcResponse, error } = await supabase.rpc('create_car_listing', {
-      p_car_data: toSupabaseObject(preparedData),
-      p_user_id: userId
+    console.log('Submission data prepared with image URLs');
+    
+    // Step 3: Submit to database using edge function
+    const { data, error } = await supabase.functions.invoke('create-car-listing', {
+      body: {
+        valuationData: submissionData.valuationData,
+        userId: userId,
+        vin: submissionData.vin,
+        mileage: submissionData.mileage,
+        transmission: submissionData.transmission,
+        carData: submissionData
+      }
     });
     
     if (error) {
-      console.error(`[CreateCar][${traceId}] RPC error:`, error);
-      throw new Error(`Failed to create car listing: ${error.message}`);
+      console.error('Edge function error:', error);
+      throw new Error(error.message || 'Failed to create listing');
     }
     
-    const typedResponse = rpcResponse as {success: boolean, car_id?: string, error?: string};
-    
-    if (!typedResponse || !typedResponse.success) {
-      console.error(`[CreateCar][${traceId}] RPC failed:`, typedResponse);
-      throw new Error("Failed to create car listing: " + (typedResponse?.error || "Unknown error"));
+    if (!data?.success) {
+      console.error('Listing creation failed:', data);
+      throw new Error(data?.message || 'Failed to create listing');
     }
     
-    if (!typedResponse.car_id) {
-      console.error(`[CreateCar][${traceId}] Missing car_id:`, typedResponse);
-      throw new Error("Missing car ID in response");
+    const carId = data.data?.car_id || data.data?.id;
+    
+    // Step 4: If we have a new car ID and used temp images, re-upload with proper paths
+    if (carId && !formData.id) {
+      console.log('Re-uploading images with permanent car ID:', carId);
+      
+      // Re-process images with the new car ID for permanent storage
+      if (formData.requiredPhotos) {
+        const permanentRequiredPhotos = await processRequiredPhotos(
+          formData.requiredPhotos,
+          carId
+        );
+        
+        // Update the car record with permanent image URLs
+        await supabase
+          .from('cars')
+          .update({ required_photos: permanentRequiredPhotos })
+          .eq('id', carId);
+      }
+      
+      if (formData.additionalPhotos && formData.additionalPhotos.length > 0) {
+        const permanentAdditionalPhotos = await processAdditionalPhotos(
+          formData.additionalPhotos,
+          carId
+        );
+        
+        // Update the car record with permanent image URLs
+        await supabase
+          .from('cars')
+          .update({ additional_photos: permanentAdditionalPhotos })
+          .eq('id', carId);
+      }
     }
     
-    console.log(`[CreateCar][${traceId}] ✓ Successfully created car:`, typedResponse);
-    return { id: typedResponse.car_id };
+    console.log('Car listing created successfully:', carId);
+    
+    return {
+      success: true,
+      id: carId,
+      data: data.data
+    };
     
   } catch (error) {
-    console.error("Error in createCarListing:", error);
-    throw error;
+    console.error('Error creating car listing:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
-};
-
-export default {
-  submitCarListing,
-  createCarListing
 };
