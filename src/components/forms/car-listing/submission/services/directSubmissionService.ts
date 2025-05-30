@@ -1,8 +1,8 @@
 
 /**
- * Direct Submission Service - Simple approach
+ * Direct Submission Service - Prioritizing direct INSERT for verified sellers
  * Created: 2025-05-30 - Phase 5: Direct image upload and database submission
- * Updated: 2025-05-30 - Fixed authentication context and added security definer function fallback
+ * Updated: 2025-05-30 - Prioritized direct INSERT and improved authentication handling
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -73,7 +73,6 @@ const uploadRequiredPhotos = async (
         console.error(`Failed to upload required photo: ${photoType}`);
       }
     } else if (typeof fileOrUrl === 'string' && fileOrUrl.length > 0) {
-      // Already a URL
       uploadedPhotos[photoType] = fileOrUrl;
     }
   }
@@ -101,7 +100,6 @@ const uploadAdditionalPhotos = async (
         console.error(`Failed to upload additional photo ${i}`);
       }
     } else if (typeof photoItem === 'string' && photoItem.length > 0) {
-      // Already a URL
       uploadedUrls.push(photoItem);
     }
   }
@@ -110,49 +108,147 @@ const uploadAdditionalPhotos = async (
 };
 
 /**
- * Verify authentication and refresh session if needed
+ * Comprehensive authentication and seller verification
  */
-const ensureAuthentication = async (): Promise<boolean> => {
+const verifySellerAuthentication = async (userId: string): Promise<{ isValid: boolean; error?: string }> => {
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    // Step 1: Verify session is active and valid
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    if (error) {
-      console.error('Session error:', error);
-      return false;
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return { isValid: false, error: 'Session validation failed' };
     }
     
-    if (!session) {
-      console.error('No active session found');
-      return false;
+    if (!session || !session.user) {
+      return { isValid: false, error: 'No active session found' };
     }
     
-    // Check if session is about to expire (within 5 minutes)
-    const expiresAt = session.expires_at;
-    const now = Math.floor(Date.now() / 1000);
-    const timeUntilExpiry = expiresAt - now;
-    
-    if (timeUntilExpiry < 300) { // 5 minutes
-      console.log('Session expiring soon, refreshing...');
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-      
-      if (refreshError || !refreshedSession) {
-        console.error('Failed to refresh session:', refreshError);
-        return false;
-      }
-      
-      console.log('Session refreshed successfully');
+    if (session.user.id !== userId) {
+      return { isValid: false, error: 'User ID mismatch' };
     }
     
-    console.log('Authentication verified, user ID:', session.user.id);
-    return true;
+    // Step 2: Check seller status using the RPC function
+    const { data: isSellerData, error: isSellerError } = await supabase.rpc('is_verified_seller', {
+      p_user_id: userId
+    });
+    
+    if (isSellerError) {
+      console.error('Seller verification RPC error:', isSellerError);
+      return { isValid: false, error: 'Seller verification failed' };
+    }
+    
+    if (!isSellerData) {
+      return { isValid: false, error: 'User is not a verified seller' };
+    }
+    
+    // Step 3: Double-check with direct query to sellers table
+    const { data: sellerData, error: sellerError } = await supabase
+      .from('sellers')
+      .select('id, is_verified, verification_status')
+      .eq('user_id', userId)
+      .single();
+    
+    if (sellerError || !sellerData) {
+      console.error('Direct seller check failed:', sellerError);
+      return { isValid: false, error: 'Seller record not found' };
+    }
+    
+    if (!sellerData.is_verified || sellerData.verification_status !== 'verified') {
+      return { isValid: false, error: 'Seller is not verified' };
+    }
+    
+    console.log('✓ Authentication and seller verification successful:', {
+      userId,
+      sellerId: sellerData.id,
+      isVerified: sellerData.is_verified
+    });
+    
+    return { isValid: true };
+    
   } catch (error) {
-    console.error('Error verifying authentication:', error);
-    return false;
+    console.error('Error in seller authentication verification:', error);
+    return { isValid: false, error: 'Authentication verification failed' };
   }
 };
 
 /**
- * Create car listing with direct upload approach
+ * Direct INSERT approach for verified sellers
+ */
+const directInsertCar = async (carData: any, userId: string): Promise<{ success: boolean; id?: string; error?: string }> => {
+  try {
+    console.log('Attempting direct INSERT to cars table');
+    
+    const { data, error } = await supabase
+      .from('cars')
+      .insert({
+        ...carData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Direct INSERT error:', error);
+      return { 
+        success: false, 
+        error: `Direct INSERT failed: ${error.message}` 
+      };
+    }
+    
+    console.log('✓ Direct INSERT successful:', data.id);
+    return { 
+      success: true, 
+      id: data.id 
+    };
+    
+  } catch (error) {
+    console.error('Exception in direct INSERT:', error);
+    return { 
+      success: false, 
+      error: `Direct INSERT exception: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    };
+  }
+};
+
+/**
+ * Security definer function as fallback
+ */
+const securityDefinerInsert = async (carData: any, userId: string): Promise<{ success: boolean; id?: string; error?: string }> => {
+  try {
+    console.log('Attempting security definer function as fallback');
+    
+    const { data, error } = await supabase.rpc('create_car_listing', {
+      p_car_data: carData,
+      p_user_id: userId
+    });
+    
+    if (error) {
+      console.error('Security definer function error:', error);
+      return { 
+        success: false, 
+        error: `Security definer failed: ${error.message}` 
+      };
+    }
+    
+    console.log('✓ Security definer function successful');
+    return { 
+      success: true, 
+      id: carData.id 
+    };
+    
+  } catch (error) {
+    console.error('Exception in security definer function:', error);
+    return { 
+      success: false, 
+      error: `Security definer exception: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    };
+  }
+};
+
+/**
+ * Create car listing with improved direct approach
  */
 export const createCarListingDirect = async (
   formData: CarListingFormData,
@@ -160,19 +256,17 @@ export const createCarListingDirect = async (
 ): Promise<UploadResult> => {
   try {
     const submissionId = uuidv4().slice(0, 8);
-    console.log(`[DirectSubmission][${submissionId}] Starting direct submission for user: ${userId}`);
+    console.log(`[DirectSubmission][${submissionId}] Starting improved direct submission for user: ${userId}`);
     
-    // Verify authentication before proceeding
-    const isAuthenticated = await ensureAuthentication();
-    if (!isAuthenticated) {
-      throw new Error('Authentication failed. Please sign in again.');
+    // Step 1: Comprehensive authentication and seller verification
+    const authResult = await verifySellerAuthentication(userId);
+    if (!authResult.isValid) {
+      throw new Error(authResult.error || 'Authentication failed');
     }
     
-    // Generate car ID first
+    // Step 2: Generate car ID and upload images
     const carId = uuidv4();
-    
-    // Upload images first
-    console.log(`[DirectSubmission][${submissionId}] Uploading images for car ${carId}`);
+    console.log(`[DirectSubmission][${submissionId}] Generated car ID: ${carId}`);
     
     let requiredPhotosUrls: Record<string, string> = {};
     let additionalPhotosUrls: string[] = [];
@@ -191,7 +285,7 @@ export const createCarListingDirect = async (
       console.log(`[DirectSubmission][${submissionId}] Additional photos uploaded:`, additionalPhotosUrls.length);
     }
     
-    // Prepare car data for the security definer function
+    // Step 3: Prepare car data
     const carData = {
       id: carId,
       seller_id: userId,
@@ -222,49 +316,39 @@ export const createCarListingDirect = async (
       status: 'available'
     };
     
-    console.log(`[DirectSubmission][${submissionId}] Creating car record with security definer function`);
+    console.log(`[DirectSubmission][${submissionId}] Car data prepared, attempting direct INSERT`);
     
-    // Use the security definer function to bypass RLS issues
-    const { data, error } = await supabase.rpc('create_car_listing', {
-      p_car_data: carData,
-      p_user_id: userId
-    });
+    // Step 4: Try direct INSERT first (primary method)
+    const directResult = await directInsertCar(carData, userId);
     
-    if (error) {
-      console.error(`[DirectSubmission][${submissionId}] Security definer function error:`, error);
-      
-      // If the function fails, try direct insertion as fallback
-      console.log(`[DirectSubmission][${submissionId}] Falling back to direct insertion`);
-      
-      const { data: directData, error: directError } = await supabase
-        .from('cars')
-        .insert({
-          ...carData,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-      
-      if (directError) {
-        console.error(`[DirectSubmission][${submissionId}] Direct insertion also failed:`, directError);
-        throw new Error(`Both submission methods failed. Last error: ${directError.message}`);
-      }
-      
-      console.log(`[DirectSubmission][${submissionId}] Direct insertion successful:`, directData.id);
-    } else {
-      console.log(`[DirectSubmission][${submissionId}] Security definer function successful`);
+    if (directResult.success) {
+      console.log(`[DirectSubmission][${submissionId}] ✓ Direct INSERT successful`);
+      return {
+        success: true,
+        id: carId
+      };
     }
     
-    console.log(`[DirectSubmission][${submissionId}] Car created successfully:`, carId);
+    console.warn(`[DirectSubmission][${submissionId}] Direct INSERT failed, trying security definer fallback`);
+    console.warn(`[DirectSubmission][${submissionId}] Direct INSERT error:`, directResult.error);
     
-    return {
-      success: true,
-      id: carId
-    };
+    // Step 5: Fallback to security definer function
+    const fallbackResult = await securityDefinerInsert(carData, userId);
+    
+    if (fallbackResult.success) {
+      console.log(`[DirectSubmission][${submissionId}] ✓ Security definer fallback successful`);
+      return {
+        success: true,
+        id: carId
+      };
+    }
+    
+    // Both methods failed
+    console.error(`[DirectSubmission][${submissionId}] Both direct INSERT and security definer failed`);
+    throw new Error(`All submission methods failed. Direct: ${directResult.error}, Fallback: ${fallbackResult.error}`);
     
   } catch (error) {
-    console.error('Error in direct submission:', error);
+    console.error('Error in improved direct submission:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'

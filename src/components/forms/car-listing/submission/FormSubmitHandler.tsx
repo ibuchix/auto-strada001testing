@@ -1,7 +1,7 @@
 
 /**
  * Form Submit Handler Component
- * Updated: 2025-05-30 - Added authentication verification and improved error handling
+ * Updated: 2025-05-30 - Enhanced error handling and user feedback for direct INSERT approach
  */
 
 import React, { useState } from "react";
@@ -13,7 +13,6 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { createCarListingDirect } from "./services/directSubmissionService";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -104,21 +103,9 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      // Verify session is still valid
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      console.log('Starting improved direct submission with user:', currentUserId);
       
-      if (sessionError || !currentSession) {
-        console.error("Session validation failed:", sessionError);
-        toast.error("Session Expired", {
-          description: "Your session has expired. Please log in again.",
-        });
-        setIsSubmitting(false);
-        return false;
-      }
-      
-      console.log('Starting direct submission with images...');
-      
-      // Use the new direct submission service
+      // Use the improved direct submission service
       const result = await createCarListingDirect(formData, currentUserId);
       
       if (!result.success) {
@@ -126,12 +113,12 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       }
       
       const newCarId = result.id!;
-      console.log('✓ Car listing created successfully with images:', newCarId);
+      console.log('✓ Car listing created successfully with improved method:', newCarId);
       
       // Success notification
       if (showAlerts) {
         toast.success("Listing Submitted Successfully", {
-          description: "Your car listing with images is now available to dealers.",
+          description: "Your car listing has been created and is now available.",
         });
       }
       
@@ -151,13 +138,17 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       if (showAlerts) {
-        if (errorMessage.includes('permission denied')) {
-          toast.error("Permission Error", {
-            description: "You don't have permission to create listings. Please check your account status.",
+        if (errorMessage.includes('not a verified seller')) {
+          toast.error("Seller Verification Required", {
+            description: "Your seller account needs to be verified. Please contact support.",
           });
-        } else if (errorMessage.includes('Authentication failed')) {
+        } else if (errorMessage.includes('Authentication failed') || errorMessage.includes('Session')) {
           toast.error("Authentication Failed", {
-            description: "Please log in again to submit your listing.",
+            description: "Please log out and log back in, then try again.",
+          });
+        } else if (errorMessage.includes('Direct INSERT failed')) {
+          toast.error("Database Permission Error", {
+            description: "There was a permission issue. Our team has been notified.",
           });
         } else {
           toast.error("Submission Failed", {
