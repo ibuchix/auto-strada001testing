@@ -1,4 +1,5 @@
 
+
 /**
  * Form Data Transformation Utilities
  * Updated: 2025-05-29 - COMPLETELY REMOVED price field - using only reservePrice
@@ -140,10 +141,10 @@ export const transformToCamelCase = (dbData: Record<string, any>): Partial<CarLi
     'form_metadata': 'formMetadata'
   };
   
-  // Transform known fields
+  // Transform known fields - Fixed: use proper type assertion
   Object.entries(fieldMappings).forEach(([snakeKey, camelKey]) => {
     if (dbData[snakeKey] !== undefined) {
-      transformed[camelKey] = dbData[snakeKey];
+      (transformed as any)[camelKey] = dbData[snakeKey];
     }
   });
   
@@ -155,3 +156,4 @@ export const transformToCamelCase = (dbData: Record<string, any>): Partial<CarLi
   
   return transformed;
 };
+
