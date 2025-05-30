@@ -1,19 +1,7 @@
 
 /**
  * Form Content
- * Updated: 2025-05-04 - Added FinanceDetailsSection to the form flow
- * Updated: 2025-05-05 - Fixed import paths and updated AuthProvider usage
- * Updated: 2025-05-06 - Fixed useFormData hook usage with proper context
- * Updated: 2025-05-11 - Fixed session access to prevent destructuring error
- * Updated: 2025-05-13 - Added null check for session to avoid destructuring error
- * Updated: 2025-05-15 - Updated VehicleDetailsSection import path
- * Updated: 2025-05-16 - Improved submission handling and edge function integration
- * Updated: 2025-05-22 - Updated field names to use snake_case to match database schema
- * Updated: 2025-05-24 - Updated to use camelCase field names consistently
- * Updated: 2025-05-29 - Fixed FormSubmitHandler prop types
- * Updated: 2025-06-07 - Enhanced session handling with safer access patterns
- * Updated: 2025-06-20 - Fixed destructuring issues and added additional safety checks
- * Updated: 2025-05-20 - Fixed FormSubmitHandler context by adding FormContextBridge
+ * Updated: 2025-05-30 - Fixed valuation data loading to resolve reserve price validation error
  */
 
 import { VehicleDetailsSection } from "./sections/VehicleDetailsSection";
@@ -35,30 +23,60 @@ import { AlertCircle } from "lucide-react";
 import { FormContextBridge } from "./components/FormContextBridge";
 
 export const FormContent = ({ carId }: { carId?: string }) => {
-  const auth = useAuth(); // Safely get auth context
+  const auth = useAuth();
   const [authChecked, setAuthChecked] = useState(false);
+  const [valuationLoaded, setValuationLoaded] = useState(false);
   
-  // Use a safer pattern to access auth data with proper null checks
   const session = auth?.session;
   const isLoading = auth?.isLoading || false;
   
   const { form } = useFormData();
-  // Get form values safely with null check
   const hasOutstandingFinance = form?.watch("hasOutstandingFinance") || false;
   
-  // Set form metadata for valuation tracking
+  // Load valuation data from localStorage and populate form
   useEffect(() => {
-    if (form) { // Add null check
+    if (form && !valuationLoaded) {
       try {
-        const hasValuationData = !!localStorage.getItem('valuationData');
-        if (hasValuationData) {
+        const valuationDataStr = localStorage.getItem('valuationData');
+        if (valuationDataStr) {
+          const valuationData = JSON.parse(valuationDataStr);
+          console.log('FormContent: Loading valuation data into form:', {
+            make: valuationData.make,
+            model: valuationData.model,
+            reservePrice: valuationData.reservePrice,
+            valuation: valuationData.valuation
+          });
+          
+          // Set valuation data in form
+          form.setValue('valuationData', valuationData);
           form.setValue('fromValuation', true);
+          
+          // Set vehicle details
+          if (valuationData.make) form.setValue('make', valuationData.make);
+          if (valuationData.model) form.setValue('model', valuationData.model);
+          if (valuationData.year) form.setValue('year', parseInt(valuationData.year));
+          if (valuationData.mileage) form.setValue('mileage', parseInt(valuationData.mileage));
+          if (valuationData.vin) form.setValue('vin', valuationData.vin);
+          if (valuationData.transmission) form.setValue('transmission', valuationData.transmission);
+          
+          // CRITICAL: Set reserve price from valuation data
+          const reservePrice = valuationData.reservePrice || valuationData.valuation || 0;
+          if (reservePrice > 0) {
+            console.log('FormContent: Setting reserve price from valuation:', reservePrice);
+            form.setValue('reservePrice', reservePrice, { shouldDirty: true, shouldTouch: true });
+          }
+          
+          setValuationLoaded(true);
+        } else {
+          console.log('FormContent: No valuation data found in localStorage');
+          setValuationLoaded(true);
         }
       } catch (error) {
-        console.error("Error setting valuation flag:", error);
+        console.error("FormContent: Error loading valuation data:", error);
+        setValuationLoaded(true);
       }
     }
-  }, [form]);
+  }, [form, valuationLoaded]);
   
   // Set authChecked state after a delay
   useEffect(() => {
@@ -71,8 +89,8 @@ export const FormContent = ({ carId }: { carId?: string }) => {
   }, [isLoading]);
   
   // Handle loading state
-  if (isLoading || !authChecked) {
-    return <LoadingIndicator message="Loading your session..." />;
+  if (isLoading || !authChecked || !valuationLoaded) {
+    return <LoadingIndicator message="Loading your session and valuation data..." />;
   }
 
   // Ensure we have a valid session before continuing

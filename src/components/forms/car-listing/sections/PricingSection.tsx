@@ -1,13 +1,7 @@
 
 /**
  * PricingSection component
- * Created: 2025-07-18
- * Updated: 2025-07-26 - Added readonly mode for valuation-based prices
- * Updated: 2025-08-01 - Enhanced read-only state for valuation prices and improved UI feedback
- * Updated: 2025-05-26 - Fixed field names to use camelCase for frontend consistency
- * Updated: 2025-06-01 - Fixed valuation data handling and ensure prices are properly formatted in PLN
- * Updated: 2025-06-02 - Fixed useEffect import and improved price display
- * Updated: 2025-05-29 - SIMPLIFIED to single reserve price field - removed price/reserve_price confusion
+ * Updated: 2025-05-30 - Fixed valuation data loading and reserve price display
  */
 
 import { useFormContext, useWatch } from 'react-hook-form';
@@ -23,78 +17,57 @@ import { formatCurrency } from '@/utils/formatters';
 export const PricingSection = () => {
   const { register, setValue, watch, getValues } = useFormContext<CarListingFormData>();
   const reservePrice = watch('reservePrice');
+  const valuationData = watch('valuationData');
+  const fromValuation = watch('fromValuation') || Boolean(valuationData);
   
-  // Check if this form is coming from valuation
-  const fromValuation = watch('fromValuation') || Boolean(watch('valuationData'));
-  
-  // Load valuation data if available
+  // Debug current form values
   useEffect(() => {
-    const valuationData = watch('valuationData');
+    const currentReservePrice = watch('reservePrice');
+    const currentValuationData = watch('valuationData');
+    const currentFromValuation = watch('fromValuation');
     
-    if (fromValuation && valuationData) {
-      console.log('PricingSection - Loading valuation data:', valuationData);
+    console.log('PricingSection: Current form state:', {
+      reservePrice: currentReservePrice,
+      hasValuationData: !!currentValuationData,
+      fromValuation: currentFromValuation,
+      valuationReservePrice: currentValuationData?.reservePrice,
+      valuationPrice: currentValuationData?.valuation
+    });
+  }, [watch]);
+  
+  // Load reserve price from valuation data if available
+  useEffect(() => {
+    if (fromValuation && valuationData && (!reservePrice || reservePrice === 0)) {
+      const valuationReservePrice = valuationData.reservePrice || valuationData.valuation || 0;
       
-      // Set reserve price from valuation data (single price source)
-      if (valuationData.reservePrice) {
-        setValue('reservePrice', valuationData.reservePrice, { shouldDirty: true });
-      } else if (valuationData.basePrice || valuationData.averagePrice) {
-        const valuationPrice = valuationData.basePrice || valuationData.averagePrice;
-        setValue('reservePrice', valuationPrice, { shouldDirty: true });
+      if (valuationReservePrice > 0) {
+        console.log('PricingSection: Setting reserve price from valuation data:', valuationReservePrice);
+        setValue('reservePrice', valuationReservePrice, { shouldDirty: true, shouldTouch: true });
       }
     }
-  }, [fromValuation, setValue, watch]);
+  }, [fromValuation, valuationData, reservePrice, setValue]);
   
-  // Calculate reserve price based on user input (if not from valuation)
+  // Also try to load from localStorage as fallback
   useEffect(() => {
-    if (fromValuation || !reservePrice) return;
-    
-    // Convert to number for calculation
-    const priceNum = Number(reservePrice);
-    if (isNaN(priceNum) || priceNum <= 0) return;
-    
-    // If user manually entered a price, apply our reserve price calculation
-    // to suggest the calculated reserve price
-    let percentageY;
-    
-    if (priceNum <= 15000) percentageY = 0.65;
-    else if (priceNum <= 20000) percentageY = 0.46;
-    else if (priceNum <= 30000) percentageY = 0.37;
-    else if (priceNum <= 50000) percentageY = 0.27;
-    else if (priceNum <= 60000) percentageY = 0.27;
-    else if (priceNum <= 70000) percentageY = 0.22;
-    else if (priceNum <= 80000) percentageY = 0.23;
-    else if (priceNum <= 100000) percentageY = 0.24;
-    else if (priceNum <= 130000) percentageY = 0.20;
-    else if (priceNum <= 160000) percentageY = 0.185;
-    else if (priceNum <= 200000) percentageY = 0.22;
-    else if (priceNum <= 250000) percentageY = 0.17;
-    else if (priceNum <= 300000) percentageY = 0.18;
-    else if (priceNum <= 400000) percentageY = 0.18;
-    else if (priceNum <= 500000) percentageY = 0.16;
-    else percentageY = 0.145;
-    
-    // Calculate suggested reserve price
-    const calculatedReservePrice = Math.round(priceNum - (priceNum * percentageY));
-    
-    console.log('PricingSection - Calculated reserve price suggestion:', {
-      inputPrice: priceNum,
-      calculatedReservePrice,
-      percentage: percentageY
-    });
-    
-  }, [reservePrice, fromValuation]);
-  
-  // Log valuation data for debugging
-  useEffect(() => {
-    if (fromValuation) {
-      const valuationData = watch('valuationData');
-      console.log('PricingSection - fromValuation is true with data:', { 
-        reservePrice: watch('reservePrice'), 
-        valuationData,
-        formattedPrice: formatCurrency(watch('reservePrice'))
-      });
+    if (!fromValuation && (!reservePrice || reservePrice === 0)) {
+      try {
+        const storedValuationData = localStorage.getItem('valuationData');
+        if (storedValuationData) {
+          const parsedData = JSON.parse(storedValuationData);
+          const storedReservePrice = parsedData.reservePrice || parsedData.valuation || 0;
+          
+          if (storedReservePrice > 0) {
+            console.log('PricingSection: Loading reserve price from localStorage:', storedReservePrice);
+            setValue('reservePrice', storedReservePrice, { shouldDirty: true });
+            setValue('fromValuation', true);
+            setValue('valuationData', parsedData);
+          }
+        }
+      } catch (error) {
+        console.error('PricingSection: Error loading from localStorage:', error);
+      }
     }
-  }, [fromValuation, watch]);
+  }, [reservePrice, fromValuation, setValue]);
   
   return (
     <div className="grid gap-6">
@@ -142,6 +115,11 @@ export const PricingSection = () => {
             : "This is the minimum price you're willing to accept. Enter your desired reserve price."
           }
         </p>
+        {reservePrice > 0 && (
+          <p className="text-sm font-medium text-green-600">
+            Current reserve price: {formatCurrency(reservePrice)}
+          </p>
+        )}
       </div>
     </div>
   );
