@@ -1,106 +1,140 @@
 
 /**
  * Required Photos Component
- * Created: 2025-05-12
- * Updated: 2025-05-20 - Added support for all required photo fields including odometer
- * 
- * Displays required photos section with proper validation
+ * Updated: 2025-05-30 - Phase 4: Updated to use new File object preservation
  */
 
 import React from 'react';
-import { exteriorPhotos, interiorPhotos } from './data/requiredPhotoData';
-import { PhotoSection } from './components/PhotoSection';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Camera, Upload, X } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { usePhotoUploadState } from './hooks/usePhotoUploadState';
+import { usePhotoUploadHandlers } from './hooks/usePhotoUploadHandlers';
 import { useFormContext } from 'react-hook-form';
-import { Camera, Gauge } from 'lucide-react';
+import { CarListingFormData } from '@/types/forms';
 
-interface RequiredPhotosProps {
-  isUploading: boolean;
-  progress: number;
-  onFileSelect: (file: File, type: string) => Promise<string | null>;
-}
+const REQUIRED_PHOTOS = [
+  { key: 'frontView', label: 'Front View', description: 'Clear front view of the vehicle' },
+  { key: 'rearView', label: 'Rear View', description: 'Clear rear view of the vehicle' },
+  { key: 'driverSide', label: 'Driver Side', description: 'Left side of the vehicle' },
+  { key: 'passengerSide', label: 'Passenger Side', description: 'Right side of the vehicle' },
+  { key: 'dashboard', label: 'Dashboard', description: 'Interior dashboard view' },
+  { key: 'interiorFront', label: 'Interior Front', description: 'Front seats and interior' },
+  { key: 'interiorRear', label: 'Interior Rear', description: 'Rear seats and interior' },
+] as const;
 
-export const RequiredPhotos: React.FC<RequiredPhotosProps> = ({
-  isUploading,
-  progress,
-  onFileSelect
-}) => {
-  const [uploads, setUploads] = React.useState<Record<string, boolean>>({});
-  const [active, setActive] = React.useState<Record<string, boolean>>({});
-  const form = useFormContext();
-
-  // Track which photos have been uploaded
-  const handlePhotoUploaded = (type: string) => {
-    setUploads(prev => ({
-      ...prev,
-      [type]: true
-    }));
-    setActive(prev => ({
-      ...prev,
-      [type]: false
-    }));
+export const RequiredPhotos: React.FC = () => {
+  const form = useFormContext<CarListingFormData>();
+  const uploadState = usePhotoUploadState({ form });
+  const handlers = usePhotoUploadHandlers({ form, uploadState });
+  
+  const { state, files } = uploadState;
+  
+  const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>, photoKey: string) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const setterKey = `set${photoKey.charAt(0).toUpperCase() + photoKey.slice(1)}` as keyof typeof uploadState.setters;
+      handlers.handleSinglePhotoUpload(file, setterKey);
+    }
+    // Reset input
+    event.target.value = '';
   };
-
-  // Track active uploads
-  const handleUploadStart = (type: string) => {
-    setActive(prev => ({
-      ...prev,
-      [type]: true
-    }));
+  
+  const handleRemovePhoto = (photoKey: string) => {
+    const setterKey = `set${photoKey.charAt(0).toUpperCase() + photoKey.slice(1)}` as keyof typeof uploadState.setters;
+    handlers.removePhoto(setterKey);
   };
-
-  // Update uploads from form values when component mounts
-  React.useEffect(() => {
-    if (!form) return;
-    
-    // Get form values for vehicle photos
-    const formValues = form.getValues();
-    const newUploads: Record<string, boolean> = {};
-    
-    // Check for existing photo values and mark as uploaded
-    exteriorPhotos.forEach(photo => {
-      if (formValues[photo.id] || 
-          (formValues.vehiclePhotos && formValues.vehiclePhotos[photo.id])) {
-        newUploads[photo.id] = true;
-      }
-    });
-    
-    interiorPhotos.forEach(photo => {
-      if (formValues[photo.id] || 
-          (formValues.vehiclePhotos && formValues.vehiclePhotos[photo.id])) {
-        newUploads[photo.id] = true;
-      }
-    });
-    
-    setUploads(newUploads);
-  }, [form]);
-
+  
   return (
-    <div className="space-y-8">
-      <PhotoSection
-        title="Exterior Photos"
-        description="Upload clear photos of your vehicle's exterior from different angles"
-        icon={Camera}
-        photos={exteriorPhotos}
-        uploadedPhotos={uploads}
-        activeUploads={active}
-        progress={progress}
-        onFileSelect={onFileSelect}
-        onPhotoUploaded={handlePhotoUploaded}
-        onUploadRetry={() => {}}
-      />
-      
-      <PhotoSection
-        title="Interior & Dashboard"
-        description="Show the condition of your vehicle's interior, dashboard, and current odometer reading"
-        icon={Gauge}
-        photos={interiorPhotos}
-        uploadedPhotos={uploads}
-        activeUploads={active}
-        progress={progress}
-        onFileSelect={onFileSelect}
-        onPhotoUploaded={handlePhotoUploaded}
-        onUploadRetry={() => {}}
-      />
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Camera className="h-5 w-5" />
+          Required Photos ({Object.values(files).filter(photoArray => photoArray.length > 0).length}/{REQUIRED_PHOTOS.length})
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!state.allRequiredUploaded && (
+          <Alert>
+            <AlertDescription>
+              Please upload all {REQUIRED_PHOTOS.length} required photos to continue with your listing.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {REQUIRED_PHOTOS.map(({ key, label, description }) => {
+            const photoFiles = files[key as keyof typeof files] as any[];
+            const hasPhoto = photoFiles && photoFiles.length > 0;
+            const photoFile = hasPhoto ? photoFiles[0] : null;
+            
+            return (
+              <div key={key} className="border rounded-lg p-4 space-y-3">
+                <div>
+                  <h4 className="font-medium text-sm">{label}</h4>
+                  <p className="text-xs text-gray-500">{description}</p>
+                </div>
+                
+                {hasPhoto && photoFile ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <img
+                        src={photoFile.preview}
+                        alt={label}
+                        className="w-full h-24 object-cover rounded"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-1 right-1 h-6 w-6 p-0"
+                        onClick={() => handleRemovePhoto(key)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-green-600">✓ Photo uploaded</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="w-full h-24 border-2 border-dashed border-gray-300 rounded flex items-center justify-center">
+                      <Upload className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleFileInput(e, key)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        asChild
+                      >
+                        <span className="cursor-pointer">
+                          Upload {label}
+                        </span>
+                      </Button>
+                    </label>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        
+        {state.allRequiredUploaded && (
+          <Alert className="border-green-200 bg-green-50">
+            <AlertDescription className="text-green-800">
+              ✓ All required photos have been uploaded successfully!
+            </AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
   );
 };

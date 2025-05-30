@@ -1,7 +1,7 @@
 
 /**
  * Image Upload Service for Car Listings
- * Updated: 2025-05-30 - Phase 3: Added blob URL validation and enhanced error handling
+ * Updated: 2025-05-30 - Phase 4: Fixed to properly handle File objects from form
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +28,7 @@ export interface UploadProgress {
 }
 
 /**
- * Upload a single car image to Supabase Storage with validation
+ * Upload a single car image to Supabase Storage
  */
 export const uploadCarImageToStorage = async (
   file: File,
@@ -37,7 +37,7 @@ export const uploadCarImageToStorage = async (
   onProgress?: (progress: UploadProgress) => void
 ): Promise<ImageUploadResult> => {
   try {
-    console.log('Uploading image to storage:', { photoType, carId, fileSize: file.size });
+    console.log('Uploading image to storage:', { photoType, carId, fileSize: file.size, fileName: file.name });
     
     // Validate file
     if (!file || file.size === 0) {
@@ -52,11 +52,6 @@ export const uploadCarImageToStorage = async (
     // Check file type
     if (!file.type.startsWith('image/')) {
       return { success: false, error: 'File must be an image' };
-    }
-    
-    // Validate file name doesn't contain blob references
-    if (file.name.includes('blob') || file.name.includes('objectURL')) {
-      console.warn('File name contains blob reference, generating new name');
     }
     
     // Generate unique filename
@@ -131,7 +126,7 @@ export const uploadCarImageToStorage = async (
 };
 
 /**
- * Process required photos with validation and blob URL rejection
+ * Process required photos - now properly handles File objects
  */
 export const processRequiredPhotos = async (
   requiredPhotos: Record<string, File | string>,
@@ -140,8 +135,12 @@ export const processRequiredPhotos = async (
 ): Promise<Record<string, string>> => {
   const processedPhotos: Record<string, string> = {};
   
+  console.log('Processing required photos:', Object.keys(requiredPhotos));
+  
   for (const [photoType, fileOrUrl] of Object.entries(requiredPhotos)) {
     if (fileOrUrl instanceof File) {
+      console.log(`Uploading File for ${photoType}:`, fileOrUrl.name);
+      
       // Upload new file
       const result = await uploadCarImageToStorage(
         fileOrUrl, 
@@ -149,8 +148,10 @@ export const processRequiredPhotos = async (
         carId,
         onProgress ? (progress) => onProgress(photoType, progress) : undefined
       );
+      
       if (result.success && result.url) {
         processedPhotos[photoType] = result.url;
+        console.log(`Successfully uploaded ${photoType}:`, result.url);
       } else {
         console.error(`Failed to upload required photo ${photoType}:`, result.error);
         toast.error(`Failed to upload ${photoType}`, {
@@ -158,7 +159,7 @@ export const processRequiredPhotos = async (
         });
       }
     } else if (typeof fileOrUrl === 'string' && fileOrUrl.length > 0) {
-      // Validate existing URL and reject blob URLs
+      // Handle existing URL - reject blob URLs
       if (isBlobUrl(fileOrUrl) || isDataUrl(fileOrUrl)) {
         console.warn(`Rejecting blob/data URL for ${photoType}:`, fileOrUrl);
         toast.error(`Invalid image URL for ${photoType}`, {
@@ -176,11 +177,12 @@ export const processRequiredPhotos = async (
     }
   }
   
+  console.log('Processed required photos result:', Object.keys(processedPhotos));
   return processedPhotos;
 };
 
 /**
- * Process additional photos with validation and blob URL rejection
+ * Process additional photos - now properly handles File objects
  */
 export const processAdditionalPhotos = async (
   additionalPhotos: (File | string)[],
@@ -189,10 +191,14 @@ export const processAdditionalPhotos = async (
 ): Promise<string[]> => {
   const processedPhotos: string[] = [];
   
+  console.log('Processing additional photos:', additionalPhotos.length);
+  
   for (let i = 0; i < additionalPhotos.length; i++) {
     const photoItem = additionalPhotos[i];
     
     if (photoItem instanceof File) {
+      console.log(`Uploading additional File ${i}:`, photoItem.name);
+      
       // Upload new file
       const result = await uploadCarImageToStorage(
         photoItem,
@@ -200,8 +206,10 @@ export const processAdditionalPhotos = async (
         carId,
         onProgress ? (progress) => onProgress(i, progress) : undefined
       );
+      
       if (result.success && result.url) {
         processedPhotos.push(result.url);
+        console.log(`Successfully uploaded additional photo ${i}:`, result.url);
       } else {
         console.error(`Failed to upload additional photo ${i}:`, result.error);
         toast.error(`Failed to upload additional photo ${i + 1}`, {
@@ -209,7 +217,7 @@ export const processAdditionalPhotos = async (
         });
       }
     } else if (typeof photoItem === 'string' && photoItem.length > 0) {
-      // Validate existing URL and reject blob URLs
+      // Handle existing URL - reject blob URLs
       if (isBlobUrl(photoItem) || isDataUrl(photoItem)) {
         console.warn(`Rejecting blob/data URL for additional photo ${i}:`, photoItem);
         toast.error(`Invalid additional photo ${i + 1}`, {
@@ -227,37 +235,6 @@ export const processAdditionalPhotos = async (
     }
   }
   
+  console.log('Processed additional photos result:', processedPhotos.length);
   return processedPhotos;
-};
-
-/**
- * Upload multiple images with progress tracking
- */
-export const uploadMultipleCarImages = async (
-  uploads: PhotoUploadData[],
-  carId?: string,
-  onProgress?: (uploadIndex: number, progress: UploadProgress) => void
-): Promise<Record<string, string>> => {
-  const results: Record<string, string> = {};
-  
-  for (let i = 0; i < uploads.length; i++) {
-    const upload = uploads[i];
-    const result = await uploadCarImageToStorage(
-      upload.file,
-      upload.photoType,
-      carId,
-      onProgress ? (progress) => onProgress(i, progress) : undefined
-    );
-    
-    if (result.success && result.url) {
-      results[upload.photoType] = result.url;
-    } else {
-      console.error(`Failed to upload ${upload.photoType}:`, result.error);
-      toast.error(`Upload failed for ${upload.photoType}`, {
-        description: result.error
-      });
-    }
-  }
-  
-  return results;
 };

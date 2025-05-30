@@ -1,7 +1,7 @@
 
 /**
  * Form submission utility functions  
- * Updated: 2025-05-29 - COMPLETELY REMOVED price field - using only reserve_price
+ * Updated: 2025-05-30 - Phase 4: Fixed features data preservation and File object handling
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -90,7 +90,7 @@ const FRONTEND_ONLY_FIELDS = [
   'lastSaved',
   'last_saved',
   'name',
-  'price' // REMOVED: Explicitly exclude any price field
+  'price' // Explicitly exclude any price field
 ];
 
 /**
@@ -116,26 +116,71 @@ const preserveValuationData = (valuationData: any) => {
 };
 
 /**
- * Transforms form data into database entity - ALWAYS immediately available
- * Updated: Using ONLY reserve_price field (completely removed price column)
+ * Properly handle features data - ensure it's preserved correctly
+ */
+const processFeatures = (features: any): CarFeatures => {
+  // Default features structure
+  const defaultFeatures: CarFeatures = {
+    airConditioning: false,
+    bluetooth: false,
+    cruiseControl: false,
+    leatherSeats: false,
+    navigation: false,
+    parkingSensors: false,
+    sunroof: false,
+    satNav: false,
+    panoramicRoof: false,
+    reverseCamera: false,
+    heatedSeats: false,
+    upgradedSound: false,
+    alloyWheels: false,
+  };
+  
+  if (!features || typeof features !== 'object') {
+    console.warn('Features data is missing or invalid, using defaults');
+    return defaultFeatures;
+  }
+  
+  // Process each feature, ensuring boolean values
+  const processedFeatures: CarFeatures = {
+    airConditioning: Boolean(features.airConditioning),
+    bluetooth: Boolean(features.bluetooth),
+    cruiseControl: Boolean(features.cruiseControl),
+    leatherSeats: Boolean(features.leatherSeats),
+    navigation: Boolean(features.navigation),
+    parkingSensors: Boolean(features.parkingSensors),
+    sunroof: Boolean(features.sunroof),
+    satNav: Boolean(features.satNav),
+    panoramicRoof: Boolean(features.panoramicRoof),
+    reverseCamera: Boolean(features.reverseCamera),
+    heatedSeats: Boolean(features.heatedSeats),
+    upgradedSound: Boolean(features.upgradedSound),
+    alloyWheels: Boolean(features.alloyWheels),
+  };
+  
+  console.log('Processed features data:', {
+    original: features,
+    processed: processedFeatures,
+    trueFeatures: Object.entries(processedFeatures).filter(([, value]) => value).map(([key]) => key)
+  });
+  
+  return processedFeatures;
+};
+
+/**
+ * Transforms form data into database entity
+ * Updated: Phase 4 - Fixed features processing and File object handling
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
-  // Ensure features property exists
-  const carFeatures: CarFeatures = {
-    airConditioning: formData.features?.airConditioning || false,
-    bluetooth: formData.features?.bluetooth || false,
-    cruiseControl: formData.features?.cruiseControl || false,
-    leatherSeats: formData.features?.leatherSeats || false,
-    navigation: formData.features?.navigation || false,
-    parkingSensors: formData.features?.parkingSensors || false,
-    sunroof: formData.features?.sunroof || false,
-    satNav: formData.features?.satNav || false,
-    panoramicRoof: formData.features?.panoramicRoof || false,
-    reverseCamera: formData.features?.reverseCamera || false,
-    heatedSeats: formData.features?.heatedSeats || false,
-    upgradedSound: formData.features?.upgradedSound || false,
-    alloyWheels: formData.features?.alloyWheels || false,
-  };
+  console.log('Preparing submission with form data:', {
+    hasFeatures: !!formData.features,
+    featuresKeys: formData.features ? Object.keys(formData.features) : [],
+    hasRequiredPhotos: !!formData.requiredPhotos,
+    requiredPhotosTypes: formData.requiredPhotos ? Object.keys(formData.requiredPhotos) : []
+  });
+  
+  // Process features properly
+  const carFeatures = processFeatures(formData.features);
   
   // Handle date conversion
   const createdAt = typeof formData.created_at === 'string' 
@@ -169,10 +214,10 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     }
   });
   
-  // CRITICAL: Preserve valuation data with proper structure
+  // Preserve valuation data with proper structure
   const preservedValuationData = preserveValuationData(formData.valuationData);
   
-  // Extract reserve price - ONLY source of truth
+  // Extract reserve price
   const extractedReservePrice = formData.reservePrice || 
                                formData.valuationData?.reservePrice || 
                                formData.valuationData?.reserve_price || 
@@ -184,51 +229,53 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     throw new Error('Reserve price must be greater than 0. Cannot create listing without valid reserve price.');
   }
   
-  console.log('Preparing submission with ONLY reserve_price:', {
+  console.log('Preparing submission with features and reserve price:', {
     extractedReservePrice,
-    preservedValuationData,
-    hasValuationData: !!preservedValuationData
+    carFeatures,
+    preservedValuationData: !!preservedValuationData,
+    featuresCount: Object.values(carFeatures).filter(Boolean).length
   });
   
-  // Prepare entity - ALWAYS available, NEVER draft
+  // Prepare entity
   const baseEntity: Partial<CarEntity> = {
     ...cleanedData,
     // Only include id if valid (for editing)
     ...(formData.id ? { id: formData.id } : {}),
     created_at: createdAt,
     updated_at: new Date().toISOString(),
-    status: 'available', // ALWAYS available
+    status: 'available',
     // Ensure required fields
     make: formData.make || '',
     model: formData.model || '',
     year: formData.year || 0,
-    reserve_price: extractedReservePrice, // ONLY price field
+    reserve_price: extractedReservePrice,
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
     transmission: transmissionValue,
-    features: carFeatures,
-    // CRITICAL: Store complete valuation_data
-    valuation_data: preservedValuationData // Keep in camelCase for consistency
+    features: carFeatures, // Use processed features
+    valuation_data: preservedValuationData
   };
   
   // Convert to snake_case for database (but preserve valuation_data structure)
   const entity = transformObjectToSnakeCase(baseEntity) as Partial<CarEntity>;
   
-  // Restore the camelCase valuation_data after transformation
+  // Restore the camelCase valuation_data and ensure features are preserved
   if (preservedValuationData) {
     entity.valuation_data = preservedValuationData;
   }
   
-  console.log("Prepared entity with ONLY reserve_price:", {
+  // Ensure features are properly set
+  entity.features = carFeatures;
+  
+  console.log("Prepared entity with features:", {
     ...entity,
     required_photos: entity.required_photos ? 
       `[${Object.keys(entity.required_photos || {}).length} photos]` : 'none',
+    features_summary: Object.entries(entity.features || {}).filter(([, value]) => value).map(([key]) => key),
     has_id: !!formData.id,
     status: entity.status,
     reserve_price: entity.reserve_price,
-    valuation_data_structure: entity.valuation_data ? Object.keys(entity.valuation_data) : 'none',
-    // VERIFY: No price field exists
-    price_field_exists: 'price' in entity ? 'ERROR: price field still exists!' : 'OK: no price field'
+    valuation_data_structure: entity.valuation_data ? Object.keys(entity.valuation_data) : 'none'
   });
   
   return entity;
