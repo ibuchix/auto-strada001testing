@@ -1,7 +1,7 @@
 
 /**
  * Direct Submission Service - Updated to use enhanced edge function
- * Updated: 2025-05-30 - Fixed TypeScript errors and improved multipart form data handling
+ * Updated: 2025-05-30 - Fixed TypeScript errors and improved file type checking
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,13 @@ interface UploadResult {
   id?: string;
   error?: string;
 }
+
+/**
+ * Type guard to check if a value is a File object
+ */
+const isFile = (value: any): value is File => {
+  return value instanceof File && typeof value.name === 'string' && typeof value.size === 'number';
+};
 
 /**
  * Create car listing using enhanced edge function with image uploads
@@ -70,7 +77,7 @@ export const createCarListingDirect = async (
     // Add required photos - check if they are File objects
     if (formData.requiredPhotos) {
       for (const [photoType, fileOrUrl] of Object.entries(formData.requiredPhotos)) {
-        if (fileOrUrl && typeof fileOrUrl === 'object' && fileOrUrl instanceof File) {
+        if (fileOrUrl && isFile(fileOrUrl)) {
           multipartData.append(`required_${photoType}`, fileOrUrl);
         }
       }
@@ -79,7 +86,7 @@ export const createCarListingDirect = async (
     // Add additional photos - check if they are File objects
     if (formData.additionalPhotos) {
       formData.additionalPhotos.forEach((photoItem, index) => {
-        if (photoItem && typeof photoItem === 'object' && photoItem instanceof File) {
+        if (photoItem && isFile(photoItem)) {
           multipartData.append(`additional_${index}`, photoItem);
         }
       });
