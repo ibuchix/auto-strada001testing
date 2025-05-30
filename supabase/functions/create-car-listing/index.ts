@@ -1,7 +1,7 @@
 
 /**
  * Enhanced create-car-listing edge function
- * Updated: 2025-05-30 - Fixed RLS permission issues by using security definer function
+ * Updated: 2025-05-30 - Fixed car ID extraction from security definer function response
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -187,6 +187,11 @@ serve(async (req) => {
         p_user_id: userId
       });
     
+    console.log(`[${requestId}] Security definer function result:`, {
+      functionResult,
+      functionError: functionError?.message
+    });
+    
     if (functionError) {
       // Clean up uploaded images on function call failure
       await cleanupUploadedImages(supabase, carId, [
@@ -198,18 +203,40 @@ serve(async (req) => {
       throw new Error(`Failed to create car listing: ${functionError.message}`);
     }
     
-    if (!functionResult?.success) {
-      // Clean up uploaded images on function failure
+    // Extract car ID from the JSONB response
+    let createdCarId: string | null = null;
+    
+    if (functionResult && typeof functionResult === 'object') {
+      // The function returns a JSONB object, try to extract car_id
+      if (functionResult.success === true) {
+        createdCarId = functionResult.car_id || carId; // Fallback to generated ID
+      } else {
+        // Clean up uploaded images on function failure
+        await cleanupUploadedImages(supabase, carId, [
+          ...Object.values(uploadedRequiredPhotos),
+          ...uploadedAdditionalPhotos
+        ]);
+        
+        console.error(`[${requestId}] Function returned failure:`, functionResult);
+        throw new Error(`Failed to create car listing: ${functionResult.error || 'Unknown error'}`);
+      }
+    } else {
+      // Unexpected response format
+      console.error(`[${requestId}] Unexpected function response format:`, functionResult);
+      createdCarId = carId; // Use the generated ID as fallback
+    }
+    
+    if (!createdCarId) {
+      // Clean up uploaded images if no car ID
       await cleanupUploadedImages(supabase, carId, [
         ...Object.values(uploadedRequiredPhotos),
         ...uploadedAdditionalPhotos
       ]);
       
-      console.error(`[${requestId}] Function returned failure:`, functionResult);
-      throw new Error(`Failed to create car listing: ${functionResult?.error || 'Unknown error'}`);
+      console.error(`[${requestId}] No car ID returned from function:`, functionResult);
+      throw new Error('Failed to create car listing - no car ID returned');
     }
     
-    const createdCarId = functionResult.car_id;
     console.log(`[${requestId}] Car listing created successfully:`, createdCarId);
     
     return new Response(

@@ -1,7 +1,7 @@
 
 /**
- * Direct Submission Service - Updated to use enhanced edge function
- * Updated: 2025-05-30 - Improved error handling and debugging
+ * Direct Submission Service - Updated to handle car ID extraction properly
+ * Updated: 2025-05-30 - Fixed car ID extraction from edge function response
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -120,10 +120,19 @@ export const createCarListingDirect = async (
       throw new Error(data?.message || 'Failed to create listing - server returned an error');
     }
     
+    // Extract car ID with better error handling
     const carId = data.data?.car_id || data.data?.id;
+    
+    console.log(`[DirectSubmission][${submissionId}] Response data:`, {
+      success: data.success,
+      dataKeys: data.data ? Object.keys(data.data) : [],
+      carId,
+      fullResponse: data
+    });
+    
     if (!carId) {
-      console.error(`[DirectSubmission][${submissionId}] No car ID returned:`, data);
-      throw new Error('Listing created but no ID returned - please check your dashboard');
+      console.error(`[DirectSubmission][${submissionId}] No car ID in response:`, data);
+      throw new Error('Listing creation succeeded but no car ID was returned. Please check your dashboard to verify the listing was created.');
     }
     
     console.log(`[DirectSubmission][${submissionId}] ✓ Car listing created successfully:`, carId);
