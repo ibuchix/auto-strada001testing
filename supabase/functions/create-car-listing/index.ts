@@ -1,8 +1,7 @@
 
 // create-car-listing/index.ts
 /**
- * Updated: 2025-05-07 - Fixed pricing by using reservePrice from valuation data
- * This ensures the car listing uses the accurate reserve price calculated during valuation
+ * Updated: 2025-05-29 - REMOVED price field references, using only reserve_price
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -57,7 +56,7 @@ serve(async (req) => {
     
     // Validate that valuation data contains a reserve price
     if (!valuationData.reservePrice && !valuationData.valuation) {
-      logOperation('price_validation_error', {
+      logOperation('reserve_price_validation_error', {
         requestId,
         error: 'Missing reserve price in valuation data',
         valuationKeys: Object.keys(valuationData)
@@ -79,7 +78,6 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     
     // Create Supabase client with service role for admin operations
-    // This bypasses RLS policies
     const adminServiceClient = createClient(
       SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY
@@ -94,10 +92,8 @@ serve(async (req) => {
         )
       : adminServiceClient;
     
-    // Extract basic car data from valuation
-    // CRITICAL UPDATE: Use the reservePrice as the price field to ensure pricing accuracy
-    // Log price-related values for debugging
-    logOperation('price_data', {
+    // Extract basic car data from valuation - USING ONLY reserve_price
+    logOperation('reserve_price_data', {
       requestId,
       reservePrice: valuationData.reservePrice,
       averagePrice: valuationData.averagePrice,
@@ -112,16 +108,16 @@ serve(async (req) => {
       year: valuationData.year,
       mileage: Number(mileage),
       vin: vin,
-      // Use reservePrice as the primary price value
-      price: valuationData.reservePrice || valuationData.valuation,
+      // FIXED: Use reserve_price instead of price
+      reserve_price: valuationData.reservePrice || valuationData.valuation,
       transmission: transmission,
-      is_draft: true,
+      status: 'available', // Always available now
       valuation_data: valuationData
     };
     
-    // Validate that the price is actually set
-    if (!extractedCarData.price) {
-      logOperation('missing_price_error', {
+    // Validate that the reserve_price is actually set
+    if (!extractedCarData.reserve_price) {
+      logOperation('missing_reserve_price_error', {
         requestId,
         extractedCarData,
         valuationDataKeys: Object.keys(valuationData)
@@ -130,7 +126,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          message: 'Failed to determine price from valuation data'
+          message: 'Failed to determine reserve price from valuation data'
         }),
         {
           status: 400,
@@ -145,7 +141,7 @@ serve(async (req) => {
       vin, 
       make: extractedCarData.make,
       model: extractedCarData.model,
-      price: extractedCarData.price
+      reserve_price: extractedCarData.reserve_price
     });
     
     // First attempt using security definer function
@@ -207,9 +203,9 @@ serve(async (req) => {
       }, 'warn');
     }
     
-    // Fall back to our utility function which tries several approaches
+    // Fall back to our utility function
     const result = await createListing(
-      adminServiceClient,  // Use admin client to bypass RLS
+      adminServiceClient,
       extractedCarData,
       userId,
       requestId
@@ -268,7 +264,6 @@ serve(async (req) => {
   } catch (error) {
     console.error('Unhandled error in edge function:', error);
     
-    // Attempt to extract most useful error information
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorName = error instanceof Error ? error.name : 'UnknownError';
     const errorStack = error instanceof Error ? error.stack : undefined;
@@ -279,7 +274,6 @@ serve(async (req) => {
         message: 'Internal server error',
         error: errorMessage,
         errorType: errorName,
-        // Include diagnostic information
         diagnostic: {
           timestamp: new Date().toISOString(),
           isError: error instanceof Error,

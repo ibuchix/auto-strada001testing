@@ -1,12 +1,7 @@
 
 /**
  * Form submission utility functions  
- * Updated: 2025-05-24 - COMPLETELY REMOVED ALL DRAFT LOGIC - All submissions are immediately available
- * Updated: 2025-05-24 - ENHANCED valuation data preservation to fix reserve price display issues
- * Updated: 2025-05-24 - Ensured both reserve_price and valuation_data are properly stored
- * Updated: 2025-05-24 - Fixed naming convention consistency for valuation data
- * Updated: 2025-05-24 - Fixed price setting to ensure listed price equals reserve price for valuation-based listings
- * Updated: 2025-05-29 - SIMPLIFIED to single reserve_price field - removed price column confusion
+ * Updated: 2025-05-29 - COMPLETELY REMOVED price field - using only reserve_price
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -94,7 +89,8 @@ const FRONTEND_ONLY_FIELDS = [
   'tempFiles',
   'lastSaved',
   'last_saved',
-  'name'
+  'name',
+  'price' // REMOVED: Explicitly exclude any price field
 ];
 
 /**
@@ -121,7 +117,7 @@ const preserveValuationData = (valuationData: any) => {
 
 /**
  * Transforms form data into database entity - ALWAYS immediately available
- * Updated: Using single reserve_price field (no more price column confusion)
+ * Updated: Using ONLY reserve_price field (completely removed price column)
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
   // Ensure features property exists
@@ -166,7 +162,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     }
   });
   
-  // Remove frontend-only fields
+  // Remove frontend-only fields (including any price field)
   FRONTEND_ONLY_FIELDS.forEach(key => {
     if (key in cleanedData) {
       delete (cleanedData as any)[key];
@@ -176,7 +172,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   // CRITICAL: Preserve valuation data with proper structure
   const preservedValuationData = preserveValuationData(formData.valuationData);
   
-  // Extract reserve price - single source of truth
+  // Extract reserve price - ONLY source of truth
   const extractedReservePrice = formData.reservePrice || 
                                formData.valuationData?.reservePrice || 
                                formData.valuationData?.reserve_price || 
@@ -188,7 +184,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     throw new Error('Reserve price must be greater than 0. Cannot create listing without valid reserve price.');
   }
   
-  console.log('Preparing submission with single reserve price:', {
+  console.log('Preparing submission with ONLY reserve_price:', {
     extractedReservePrice,
     preservedValuationData,
     hasValuationData: !!preservedValuationData
@@ -202,12 +198,11 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     created_at: createdAt,
     updated_at: new Date().toISOString(),
     status: 'available', // ALWAYS available
-    is_draft: false, // NEVER draft
     // Ensure required fields
     make: formData.make || '',
     model: formData.model || '',
     year: formData.year || 0,
-    reserve_price: extractedReservePrice, // Single price field
+    reserve_price: extractedReservePrice, // ONLY price field
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
     transmission: transmissionValue,
@@ -224,15 +219,16 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     entity.valuation_data = preservedValuationData;
   }
   
-  console.log("Prepared entity with single reserve price:", {
+  console.log("Prepared entity with ONLY reserve_price:", {
     ...entity,
     required_photos: entity.required_photos ? 
       `[${Object.keys(entity.required_photos || {}).length} photos]` : 'none',
     has_id: !!formData.id,
     status: entity.status,
-    is_draft: entity.is_draft,
     reserve_price: entity.reserve_price,
-    valuation_data_structure: entity.valuation_data ? Object.keys(entity.valuation_data) : 'none'
+    valuation_data_structure: entity.valuation_data ? Object.keys(entity.valuation_data) : 'none',
+    // VERIFY: No price field exists
+    price_field_exists: 'price' in entity ? 'ERROR: price field still exists!' : 'OK: no price field'
   });
   
   return entity;
