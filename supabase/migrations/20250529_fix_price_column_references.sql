@@ -1,10 +1,10 @@
 
 /**
  * Fix create_car_listing function to remove price column references
- * Updated: 2025-05-29 - Removed all price column references, using only reserve_price
+ * Updated: 2025-05-30 - Replaced all price column references with reserve_price
  */
 
--- Update the create_car_listing function to remove price field references
+-- Update the create_car_listing function to use only reserve_price field
 CREATE OR REPLACE FUNCTION public.create_car_listing(
   p_car_data jsonb,
   p_user_id uuid DEFAULT auth.uid()
@@ -65,7 +65,7 @@ BEGIN
   IF (v_updated_data->>'id') IS NOT NULL THEN
     v_car_id := (v_updated_data->>'id')::uuid;
     
-    -- Update existing car - ALWAYS available, REMOVED price field
+    -- Update existing car - ALWAYS available, USING ONLY reserve_price
     UPDATE public.cars
     SET 
       seller_id = (v_updated_data->>'seller_id')::uuid,
@@ -99,7 +99,7 @@ BEGIN
     WHERE id = v_car_id
     RETURNING id INTO v_car_id;
   ELSE
-    -- Create new car - ALWAYS available, REMOVED price field
+    -- Create new car - ALWAYS available, USING ONLY reserve_price
     INSERT INTO public.cars (
       seller_id,
       seller_name,
