@@ -79,7 +79,7 @@ export const secureUploadPhoto = async (
           .from(STORAGE_BUCKET)
           .getPublicUrl(filePath);
         
-        // Log successful upload
+        // Log successful upload to system_logs
         await logSecurityEvent(userId, 'file_upload_success', {
           file_name: file.name,
           file_size: file.size,
@@ -223,7 +223,7 @@ export const secureDeletePhoto = async (filePath: string, carId: string): Promis
 };
 
 /**
- * Logs security events for audit purposes
+ * Logs security events for audit purposes using existing system_logs table
  */
 const logSecurityEvent = async (
   userId: string,
@@ -232,11 +232,11 @@ const logSecurityEvent = async (
   severity: 'low' | 'medium' | 'high' | 'critical' = 'low'
 ): Promise<void> => {
   try {
-    await supabase.rpc('log_security_event', {
-      p_user_id: userId,
-      p_event_type: eventType,
-      p_event_data: eventData,
-      p_severity: severity
+    await supabase.from('system_logs').insert({
+      log_type: eventType,
+      message: `Security event: ${eventType}`,
+      details: eventData,
+      error_message: severity === 'high' || severity === 'critical' ? 'Security alert' : null
     });
   } catch (error) {
     console.error('Failed to log security event:', error);

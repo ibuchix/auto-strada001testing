@@ -17,9 +17,10 @@ interface SecurityMetrics {
 
 interface SecurityEvent {
   id: string;
-  event_type: string;
-  event_data: any;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  log_type: string;
+  message: string;
+  error_message?: string | null;
+  details?: any;
   created_at: string;
 }
 
@@ -46,9 +47,9 @@ export const useSecurityMonitoring = () => {
     }
     
     try {
-      // Fetch security audit logs for the last 24 hours
+      // Fetch system logs for the last 24 hours (using existing system_logs table)
       const { data: events, error: eventsError } = await supabase
-        .from('security_audit_logs')
+        .from('system_logs')
         .select('*')
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
@@ -58,17 +59,22 @@ export const useSecurityMonitoring = () => {
         throw eventsError;
       }
       
-      // Process metrics
+      // Process metrics from system logs
       const failedLogins = events?.filter(e => 
-        e.event_type.includes('login_failed') || e.event_type.includes('auth_failed')
+        e.log_type && (
+          e.log_type.includes('login_failed') || 
+          e.log_type.includes('auth_failed') ||
+          e.error_message !== null
+        )
       ).length || 0;
       
       const suspiciousActivities = events?.filter(e => 
-        e.severity === 'high' || e.severity === 'critical'
+        e.error_message !== null || 
+        (e.log_type && e.log_type.includes('security'))
       ).length || 0;
       
       const rateLimitHits = events?.filter(e => 
-        e.event_type.includes('rate_limit')
+        e.log_type && e.log_type.includes('rate_limit')
       ).length || 0;
       
       setMetrics({
@@ -78,7 +84,17 @@ export const useSecurityMonitoring = () => {
         lastSecurityCheck: new Date()
       });
       
-      setRecentEvents(events || []);
+      // Transform system_logs to SecurityEvent format
+      const transformedEvents: SecurityEvent[] = events?.map(log => ({
+        id: log.id,
+        log_type: log.log_type || 'unknown',
+        message: log.message || 'No message',
+        error_message: log.error_message,
+        details: log.details,
+        created_at: log.created_at
+      })) || [];
+      
+      setRecentEvents(transformedEvents);
       setError(null);
       
     } catch (err) {
@@ -102,7 +118,7 @@ export const useSecurityMonitoring = () => {
     return () => clearInterval(interval);
   }, [session?.user?.id, isAdmin]);
   
-  // Real-time subscription for critical events
+  // Real-time subscription for system logs
   useEffect(() => {
     if (!session?.user?.id || !isAdmin) return;
     
@@ -113,12 +129,11 @@ export const useSecurityMonitoring = () => {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'security_audit_logs',
-          filter: 'severity=eq.critical'
+          table: 'system_logs',
+          filter: 'error_message=neq.null'
         },
         (payload) => {
-          console.warn('Critical security event detected:', payload.new);
-          // You could trigger notifications here
+          console.warn('Security event detected:', payload.new);
           fetchSecurityMetrics(); // Refresh metrics
         }
       )
