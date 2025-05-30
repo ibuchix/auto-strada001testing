@@ -1,7 +1,7 @@
 
 /**
  * Form Content
- * Updated: 2025-05-30 - Fixed valuation data loading to resolve reserve price validation error
+ * Updated: 2025-05-30 - Removed PricingSection as reserve price is now part of VehicleDetailsSection
  */
 
 import { VehicleDetailsSection } from "./sections/VehicleDetailsSection";

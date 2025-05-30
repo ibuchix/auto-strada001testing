@@ -1,12 +1,7 @@
 
 /**
  * Vehicle Details Section for Car Listing Form
- * Updated: 2025-05-05 - Removed redundant VIN lookup for users coming from valuation
- * Updated: 2025-05-05 - Added auto-population of fields from valuation data
- * Updated: 2025-05-06 - Fixed TypeScript errors related to error handling and form props
- * Updated: 2025-05-18 - Fixed type errors for form value assignments
- * Updated: 2025-05-19 - Fixed TypeScript errors related to toString calls and React error #310
- * Updated: 2025-05-20 - Enhanced VIN reservation with direct session access
+ * Updated: 2025-05-30 - Added reserve price field from valuation data, consolidated pricing into vehicle details
  */
 
 import { useState, useEffect } from "react";
@@ -16,12 +11,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useVinLookup } from "../hooks/vehicle-details/useVinLookup";
-import { Loader2 } from "lucide-react";
+import { Loader2, LockIcon } from "lucide-react";
 import { useVehicleDataManager } from "../hooks/vehicle-details/useVehicleDataManager";
 import { getStoredValidationData } from "@/services/supabase/valuation/vinValidationService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FieldError } from "@/components/errors/FieldError";
 import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/utils/formatters";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
 
 export const VehicleDetailsSection = () => {
   const { form } = useFormData();
@@ -39,6 +38,8 @@ export const VehicleDetailsSection = () => {
   const year = form.watch("year");
   const mileage = form.watch("mileage");
   const transmission = form.watch("transmission");
+  const reservePrice = form.watch("reservePrice");
+  const valuationData = form.watch("valuationData");
   const hasFormData = !!(make && model && year);
 
   // Check if user session is available
@@ -122,6 +123,14 @@ export const VehicleDetailsSection = () => {
           : "manual";
         
         form.setValue("transmission", validTransmission);
+      }
+      
+      // Set reserve price from valuation data
+      const reservePriceValue = storedData.reservePrice || storedData.valuation || 0;
+      if (reservePriceValue > 0) {
+        form.setValue("reservePrice", reservePriceValue);
+        form.setValue("fromValuation", true);
+        form.setValue("valuationData", storedData);
       }
       
       // Set a flag to indicate we've applied the data
@@ -270,6 +279,47 @@ export const VehicleDetailsSection = () => {
               <FieldError message={form.formState.errors.transmission?.message ? String(form.formState.errors.transmission?.message) : undefined} />
             </div>
           </div>
+
+          {/* Reserve Price Field - only show if from valuation */}
+          {fromValuation && reservePrice > 0 && (
+            <div className="space-y-4">
+              <Alert className="bg-blue-50 border-blue-200">
+                <div className="flex items-start gap-2">
+                  <InfoIcon className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div className="space-y-1">
+                    <AlertDescription className="font-medium text-blue-800">
+                      Reserve price is set based on your vehicle valuation
+                    </AlertDescription>
+                    <p className="text-sm text-blue-700">
+                      This price is calculated from your vehicle's valuation data and cannot be modified.
+                    </p>
+                  </div>
+                </div>
+              </Alert>
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="reservePrice" className="flex items-center gap-2">
+                    Reserve Price (PLN)
+                    <LockIcon className="h-4 w-4 text-gray-500" />
+                  </Label>
+                  <Badge variant="outline" className="bg-gray-100 text-gray-600">
+                    Valuation-based
+                  </Badge>
+                </div>
+                <Input
+                  id="reservePrice"
+                  value={formatCurrency(reservePrice)}
+                  readOnly
+                  disabled
+                  className="bg-gray-50 border-gray-300 cursor-not-allowed text-gray-700 font-medium"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  This reserve price represents the minimum price your vehicle will sell for, calculated from your valuation.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </FormSection>
