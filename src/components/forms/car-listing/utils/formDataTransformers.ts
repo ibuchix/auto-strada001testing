@@ -1,6 +1,8 @@
+
 /**
  * Form Data Transformation Utilities
  * Updated: 2025-05-29 - COMPLETELY REMOVED price field - using only reservePrice
+ * Updated: 2025-05-30 - Fixed TypeScript errors with field mappings and type assignments
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -48,8 +50,8 @@ export const transformToSnakeCase = (formData: CarListingFormData): Record<strin
     'seatMaterial': 'seat_material',
     'numberOfKeys': 'number_of_keys',
     
-    // Metadata
-    'createdAt': 'created_at',
+    // Metadata - Fixed: use created_at instead of createdAt
+    'created_at': 'created_at',
     'updatedAt': 'updated_at',
     'lastSaved': 'last_saved',
     
@@ -89,7 +91,7 @@ export const transformToSnakeCase = (formData: CarListingFormData): Record<strin
 export const transformToCamelCase = (dbData: Record<string, any>): Partial<CarListingFormData> => {
   const transformed: Partial<CarListingFormData> = {};
   
-  // Reverse field mappings
+  // Reverse field mappings - Fixed: use proper keyof CarListingFormData types
   const fieldMappings: Record<string, keyof CarListingFormData> = {
     // Basic car info
     'make': 'make',
@@ -125,8 +127,8 @@ export const transformToCamelCase = (dbData: Record<string, any>): Partial<CarLi
     'seat_material': 'seatMaterial',
     'number_of_keys': 'numberOfKeys',
     
-    // Metadata
-    'created_at': 'createdAt',
+    // Metadata - Fixed: map to created_at which exists in CarListingFormData
+    'created_at': 'created_at',
     'updated_at': 'updatedAt',
     'last_saved': 'lastSaved',
     
