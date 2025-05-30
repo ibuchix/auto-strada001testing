@@ -1,7 +1,7 @@
 
 /**
  * Enhanced create-car-listing edge function
- * Updated: 2025-05-30 - Fixed car ID extraction from security definer function response
+ * Updated: 2025-05-30 - Enhanced error handling and debugging for car listing creation
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -105,7 +105,8 @@ serve(async (req) => {
       userId,
       requiredPhotosCount: Object.keys(requiredPhotos).length,
       additionalPhotosCount: additionalPhotos.length,
-      hasCarData: !!carData
+      hasCarData: !!carData,
+      carDataKeys: Object.keys(carData || {})
     });
     
     // Validate required fields
@@ -178,6 +179,15 @@ serve(async (req) => {
       status: 'available'
     };
     
+    console.log(`[${requestId}] Prepared car record:`, {
+      id: carRecord.id,
+      make: carRecord.make,
+      model: carRecord.model,
+      year: carRecord.year,
+      reserve_price: carRecord.reserve_price,
+      seller_id: carRecord.seller_id
+    });
+    
     // Use security definer function to bypass RLS
     console.log(`[${requestId}] Calling security definer function`);
     
@@ -189,7 +199,8 @@ serve(async (req) => {
     
     console.log(`[${requestId}] Security definer function result:`, {
       functionResult,
-      functionError: functionError?.message
+      functionError: functionError?.message,
+      functionResultType: typeof functionResult
     });
     
     if (functionError) {
@@ -203,13 +214,23 @@ serve(async (req) => {
       throw new Error(`Failed to create car listing: ${functionError.message}`);
     }
     
-    // Extract car ID from the JSONB response
+    // Extract car ID from the JSONB response with comprehensive checking
     let createdCarId: string | null = null;
     
     if (functionResult && typeof functionResult === 'object') {
-      // The function returns a JSONB object, try to extract car_id
+      console.log(`[${requestId}] Function result object keys:`, Object.keys(functionResult));
+      
+      // Check if the function returned success
       if (functionResult.success === true) {
-        createdCarId = functionResult.car_id || carId; // Fallback to generated ID
+        createdCarId = functionResult.car_id;
+        
+        console.log(`[${requestId}] Extracted car_id from function result:`, createdCarId);
+        
+        // If still no car_id, fall back to the generated ID
+        if (!createdCarId) {
+          console.warn(`[${requestId}] No car_id in successful response, using generated ID as fallback`);
+          createdCarId = carId;
+        }
       } else {
         // Clean up uploaded images on function failure
         await cleanupUploadedImages(supabase, carId, [
@@ -218,12 +239,22 @@ serve(async (req) => {
         ]);
         
         console.error(`[${requestId}] Function returned failure:`, functionResult);
-        throw new Error(`Failed to create car listing: ${functionResult.error || 'Unknown error'}`);
+        throw new Error(`Failed to create car listing: ${functionResult.error || 'Unknown error from database function'}`);
       }
     } else {
       // Unexpected response format
-      console.error(`[${requestId}] Unexpected function response format:`, functionResult);
-      createdCarId = carId; // Use the generated ID as fallback
+      console.error(`[${requestId}] Unexpected function response format:`, {
+        result: functionResult,
+        type: typeof functionResult
+      });
+      
+      // Clean up uploaded images
+      await cleanupUploadedImages(supabase, carId, [
+        ...Object.values(uploadedRequiredPhotos),
+        ...uploadedAdditionalPhotos
+      ]);
+      
+      throw new Error('Unexpected response from database function');
     }
     
     if (!createdCarId) {
@@ -233,8 +264,8 @@ serve(async (req) => {
         ...uploadedAdditionalPhotos
       ]);
       
-      console.error(`[${requestId}] No car ID returned from function:`, functionResult);
-      throw new Error('Failed to create car listing - no car ID returned');
+      console.error(`[${requestId}] No car ID available after processing:`, functionResult);
+      throw new Error('Failed to create car listing - no car ID returned from database');
     }
     
     console.log(`[${requestId}] Car listing created successfully:`, createdCarId);
