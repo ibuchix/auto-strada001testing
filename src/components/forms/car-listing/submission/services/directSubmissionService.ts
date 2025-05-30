@@ -1,7 +1,7 @@
 
 /**
  * Direct Submission Service - Updated to use enhanced edge function
- * Updated: 2025-05-30 - Fixed TypeScript errors and improved file type checking
+ * Updated: 2025-05-30 - Improved error handling and debugging
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -100,16 +100,32 @@ export const createCarListingDirect = async (
     });
     
     if (error) {
-      console.error('Enhanced edge function error:', error);
-      throw new Error(error.message || 'Failed to create listing');
+      console.error(`[DirectSubmission][${submissionId}] Enhanced edge function error:`, error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to create listing';
+      if (error.message?.includes('permission denied')) {
+        errorMessage = 'Permission denied - please ensure you are logged in as a seller';
+      } else if (error.message?.includes('Invalid request body')) {
+        errorMessage = 'Invalid form data - please check all required fields';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
     }
     
     if (!data?.success) {
-      console.error('Listing creation failed:', data);
-      throw new Error(data?.message || 'Failed to create listing');
+      console.error(`[DirectSubmission][${submissionId}] Listing creation failed:`, data);
+      throw new Error(data?.message || 'Failed to create listing - server returned an error');
     }
     
     const carId = data.data?.car_id || data.data?.id;
+    if (!carId) {
+      console.error(`[DirectSubmission][${submissionId}] No car ID returned:`, data);
+      throw new Error('Listing created but no ID returned - please check your dashboard');
+    }
+    
     console.log(`[DirectSubmission][${submissionId}] ✓ Car listing created successfully:`, carId);
     
     return {

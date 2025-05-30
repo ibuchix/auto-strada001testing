@@ -1,7 +1,7 @@
 
 /**
  * Enhanced create-car-listing edge function
- * Updated: 2025-05-30 - Fixed deployment issues and improved multipart handling
+ * Updated: 2025-05-30 - Fixed RLS permission issues by using security definer function
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -33,7 +33,12 @@ serve(async (req) => {
 
   try {
     // Create Supabase admin client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
     
     let carData: any;
     let userId: string;
@@ -144,7 +149,7 @@ serve(async (req) => {
       additionalPhotosUploaded: uploadedAdditionalPhotos.length
     });
     
-    // Prepare car data for database insertion
+    // Prepare car data for security definer function
     const carRecord = {
       id: carId,
       seller_id: userId,
@@ -173,34 +178,46 @@ serve(async (req) => {
       status: 'available'
     };
     
-    // Insert car record into database
-    console.log(`[${requestId}] Inserting car record`);
+    // Use security definer function to bypass RLS
+    console.log(`[${requestId}] Calling security definer function`);
     
-    const { data: insertedCar, error: insertError } = await supabase
-      .from('cars')
-      .insert(carRecord)
-      .select()
-      .single();
+    const { data: functionResult, error: functionError } = await supabase
+      .rpc('create_car_listing', {
+        p_car_data: carRecord,
+        p_user_id: userId
+      });
     
-    if (insertError) {
-      // Clean up uploaded images on database insertion failure
+    if (functionError) {
+      // Clean up uploaded images on function call failure
       await cleanupUploadedImages(supabase, carId, [
         ...Object.values(uploadedRequiredPhotos),
         ...uploadedAdditionalPhotos
       ]);
       
-      console.error(`[${requestId}] Car insertion failed:`, insertError.message);
-      throw new Error(`Failed to create car listing: ${insertError.message}`);
+      console.error(`[${requestId}] Security definer function failed:`, functionError.message);
+      throw new Error(`Failed to create car listing: ${functionError.message}`);
     }
     
-    console.log(`[${requestId}] Car listing created successfully:`, insertedCar.id);
+    if (!functionResult?.success) {
+      // Clean up uploaded images on function failure
+      await cleanupUploadedImages(supabase, carId, [
+        ...Object.values(uploadedRequiredPhotos),
+        ...uploadedAdditionalPhotos
+      ]);
+      
+      console.error(`[${requestId}] Function returned failure:`, functionResult);
+      throw new Error(`Failed to create car listing: ${functionResult?.error || 'Unknown error'}`);
+    }
+    
+    const createdCarId = functionResult.car_id;
+    console.log(`[${requestId}] Car listing created successfully:`, createdCarId);
     
     return new Response(
       JSON.stringify({
         success: true,
         data: {
-          id: insertedCar.id,
-          car_id: insertedCar.id
+          id: createdCarId,
+          car_id: createdCarId
         }
       }),
       {
