@@ -1,7 +1,7 @@
 
 /**
  * Form Submit Handler Component
- * Updated: 2025-05-30 - Phase 5: Simplified to use direct submission approach
+ * Updated: 2025-05-30 - Added authentication verification and improved error handling
  */
 
 import React, { useState } from "react";
@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { createCarListingDirect } from "./services/directSubmissionService";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -103,6 +104,18 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
+      // Verify session is still valid
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !currentSession) {
+        console.error("Session validation failed:", sessionError);
+        toast.error("Session Expired", {
+          description: "Your session has expired. Please log in again.",
+        });
+        setIsSubmitting(false);
+        return false;
+      }
+      
       console.log('Starting direct submission with images...');
       
       // Use the new direct submission service
@@ -135,10 +148,22 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     } catch (error) {
       console.error("Error submitting car listing:", error);
       
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
       if (showAlerts) {
-        toast.error("Submission Failed", {
-          description: "There was an error submitting your car listing. Please try again.",
-        });
+        if (errorMessage.includes('permission denied')) {
+          toast.error("Permission Error", {
+            description: "You don't have permission to create listings. Please check your account status.",
+          });
+        } else if (errorMessage.includes('Authentication failed')) {
+          toast.error("Authentication Failed", {
+            description: "Please log in again to submit your listing.",
+          });
+        } else {
+          toast.error("Submission Failed", {
+            description: "There was an error submitting your car listing. Please try again.",
+          });
+        }
       }
       
       if (onSubmitError && error instanceof Error) {

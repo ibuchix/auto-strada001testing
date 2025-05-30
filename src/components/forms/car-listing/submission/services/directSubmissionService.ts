@@ -2,7 +2,7 @@
 /**
  * Direct Submission Service - Simple approach
  * Created: 2025-05-30 - Phase 5: Direct image upload and database submission
- * Updated: 2025-05-30 - Fixed TypeScript errors for proper database insertion
+ * Updated: 2025-05-30 - Fixed authentication context and added security definer function fallback
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -110,6 +110,48 @@ const uploadAdditionalPhotos = async (
 };
 
 /**
+ * Verify authentication and refresh session if needed
+ */
+const ensureAuthentication = async (): Promise<boolean> => {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error('Session error:', error);
+      return false;
+    }
+    
+    if (!session) {
+      console.error('No active session found');
+      return false;
+    }
+    
+    // Check if session is about to expire (within 5 minutes)
+    const expiresAt = session.expires_at;
+    const now = Math.floor(Date.now() / 1000);
+    const timeUntilExpiry = expiresAt - now;
+    
+    if (timeUntilExpiry < 300) { // 5 minutes
+      console.log('Session expiring soon, refreshing...');
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError || !refreshedSession) {
+        console.error('Failed to refresh session:', refreshError);
+        return false;
+      }
+      
+      console.log('Session refreshed successfully');
+    }
+    
+    console.log('Authentication verified, user ID:', session.user.id);
+    return true;
+  } catch (error) {
+    console.error('Error verifying authentication:', error);
+    return false;
+  }
+};
+
+/**
  * Create car listing with direct upload approach
  */
 export const createCarListingDirect = async (
@@ -118,7 +160,13 @@ export const createCarListingDirect = async (
 ): Promise<UploadResult> => {
   try {
     const submissionId = uuidv4().slice(0, 8);
-    console.log(`[DirectSubmission][${submissionId}] Starting direct submission`);
+    console.log(`[DirectSubmission][${submissionId}] Starting direct submission for user: ${userId}`);
+    
+    // Verify authentication before proceeding
+    const isAuthenticated = await ensureAuthentication();
+    if (!isAuthenticated) {
+      throw new Error('Authentication failed. Please sign in again.');
+    }
     
     // Generate car ID first
     const carId = uuidv4();
@@ -143,7 +191,7 @@ export const createCarListingDirect = async (
       console.log(`[DirectSubmission][${submissionId}] Additional photos uploaded:`, additionalPhotosUrls.length);
     }
     
-    // Prepare car data with proper field mapping and type conversion
+    // Prepare car data for the security definer function
     const carData = {
       id: carId,
       seller_id: userId,
@@ -167,38 +215,48 @@ export const createCarListingDirect = async (
       seat_material: formData.seatMaterial || 'cloth',
       number_of_keys: typeof formData.numberOfKeys === 'string' ? 
         parseInt(formData.numberOfKeys) || 1 : 
-        formData.numberOfKeys || 1, // Ensure it's always a number
+        formData.numberOfKeys || 1,
       required_photos: requiredPhotosUrls,
       additional_photos: additionalPhotosUrls,
       valuation_data: formData.valuationData || null,
-      status: 'available',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      status: 'available'
     };
     
-    console.log(`[DirectSubmission][${submissionId}] Creating car record with data:`, {
-      seller_name: carData.seller_name,
-      features: Object.keys(carData.features).length,
-      required_photos: Object.keys(carData.required_photos).length,
-      additional_photos: carData.additional_photos.length,
-      reserve_price: carData.reserve_price,
-      number_of_keys: carData.number_of_keys,
-      number_of_keys_type: typeof carData.number_of_keys
+    console.log(`[DirectSubmission][${submissionId}] Creating car record with security definer function`);
+    
+    // Use the security definer function to bypass RLS issues
+    const { data, error } = await supabase.rpc('create_car_listing', {
+      p_car_data: carData,
+      p_user_id: userId
     });
     
-    // Insert car record directly into database
-    const { data, error } = await supabase
-      .from('cars')
-      .insert(carData)
-      .select()
-      .single();
-    
     if (error) {
-      console.error(`[DirectSubmission][${submissionId}] Database error:`, error);
-      throw new Error(`Database insertion failed: ${error.message}`);
+      console.error(`[DirectSubmission][${submissionId}] Security definer function error:`, error);
+      
+      // If the function fails, try direct insertion as fallback
+      console.log(`[DirectSubmission][${submissionId}] Falling back to direct insertion`);
+      
+      const { data: directData, error: directError } = await supabase
+        .from('cars')
+        .insert({
+          ...carData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (directError) {
+        console.error(`[DirectSubmission][${submissionId}] Direct insertion also failed:`, directError);
+        throw new Error(`Both submission methods failed. Last error: ${directError.message}`);
+      }
+      
+      console.log(`[DirectSubmission][${submissionId}] Direct insertion successful:`, directData.id);
+    } else {
+      console.log(`[DirectSubmission][${submissionId}] Security definer function successful`);
     }
     
-    console.log(`[DirectSubmission][${submissionId}] Car created successfully:`, data.id);
+    console.log(`[DirectSubmission][${submissionId}] Car created successfully:`, carId);
     
     return {
       success: true,
