@@ -2,6 +2,7 @@
 /**
  * Security Validation Service
  * Created: 2025-05-30 - Comprehensive input validation and sanitization
+ * Updated: 2025-06-12 - Enhanced seller notes validation with 200 character limit
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -73,8 +74,8 @@ export const validateCarListingData = async (formData: any): Promise<ValidationR
     // Sanitize text fields
     if (formData.sellerNotes) {
       sanitizedData.sellerNotes = sanitizeTextInput(formData.sellerNotes);
-      if (sanitizedData.sellerNotes.length > 1000) {
-        errors.push("Seller notes cannot exceed 1000 characters");
+      if (sanitizedData.sellerNotes.length > 200) {
+        errors.push("Seller notes cannot exceed 200 characters");
       }
     }
 
