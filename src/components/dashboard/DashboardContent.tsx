@@ -1,29 +1,23 @@
 
 /**
  * Changes made:
- * - 2024-09-05: Created DashboardContent component from SellerDashboard refactoring
- * - 2024-09-08: Added AuctionResultsSection to display auction results
- * - 2024-09-10: Added PerformanceMetricsSection to display seller performance metrics
- * - 2024-09-22: Fixed import for AuctionResult interface
- * - 2024-09-23: Fixed array typing for empty arrays
- * - 2024-10-16: Updated to handle the new data format from useOptimizedQuery
+ * - 2025-06-12: Completely redesigned dashboard to focus on seller journey
+ * - Replaced generic stats with relevant listing status, live auctions, and bid results
+ * - Removed irrelevant performance metrics and activity sections
  */
 
-import { ListingsSection } from "./ListingsSection";
-import { DashboardStats } from "./DashboardStats";
-import { ActivitySection } from "./ActivitySection";
+import { ListingStatusSection } from "./ListingStatusSection";
+import { LiveAuctionsSection } from "./LiveAuctionsSection";
 import { AuctionResultsSection } from "./AuctionResultsSection";
-import { PerformanceMetricsSection } from "./PerformanceMetricsSection";
 import { CarListing } from "@/types/dashboard";
 import { AuctionResult } from "@/hooks/useAuctionResults";
-import { SellerPerformanceMetrics } from "@/hooks/useSellerPerformance";
 
 interface DashboardContentProps {
   activeListings: CarListing[];
   draftListings: CarListing[];
   auctionResults: AuctionResult[];
   isResultsLoading: boolean;
-  performanceMetrics: SellerPerformanceMetrics | null;
+  performanceMetrics: any;
   isMetricsLoading: boolean;
   onRefresh: () => void;
 }
@@ -33,56 +27,30 @@ export const DashboardContent = ({
   draftListings,
   auctionResults,
   isResultsLoading,
-  performanceMetrics,
-  isMetricsLoading,
   onRefresh
 }: DashboardContentProps) => {
+  // Combine all listings for status display
+  const allListings = [...activeListings, ...draftListings];
+  
   return (
-    <div className="space-y-8">
-      {/* Dashboard Stats Section */}
-      <DashboardStats activeListings={activeListings.length} />
-
-      {/* Performance Metrics Section */}
-      <PerformanceMetricsSection 
-        metrics={performanceMetrics} 
-        isLoading={isMetricsLoading} 
+    <div className="space-y-12">
+      {/* Listing Status Section - Top Priority */}
+      <ListingStatusSection 
+        listings={allListings}
+        isLoading={false}
       />
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Draft Listings Section */}
-        {draftListings.length > 0 && (
-          <div className="lg:col-span-2">
-            <ListingsSection 
-              listings={draftListings}
-              onStatusChange={onRefresh}
-              title="Draft Listings" 
-            />
-          </div>
-        )}
-        
-        {/* Active Listings Section */}
-        <div className={draftListings.length > 0 ? "lg:col-span-1" : "lg:col-span-2"}>
-          <ListingsSection 
-            listings={activeListings} 
-            onStatusChange={onRefresh}
-            title="Active Listings"
-          />
-        </div>
-        
-        {/* Activity Section */}
-        <div className="lg:col-span-1">
-          <ActivitySection />
-        </div>
-      </div>
+      {/* Live Auctions Section - Current Action */}
+      <LiveAuctionsSection 
+        listings={activeListings}
+        isLoading={false}
+      />
 
-      {/* Auction Results Section */}
-      <div className="mt-8">
-        <AuctionResultsSection 
-          results={auctionResults} 
-          isLoading={isResultsLoading} 
-        />
-      </div>
+      {/* Auction Results Section - Historical Data */}
+      <AuctionResultsSection 
+        results={auctionResults || []} 
+        isLoading={isResultsLoading} 
+      />
     </div>
   );
 };
