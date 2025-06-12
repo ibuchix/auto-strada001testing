@@ -1,12 +1,12 @@
-
 /**
  * Form Content
- * Updated: 2025-05-30 - Removed PricingSection as reserve price is now part of VehicleDetailsSection
+ * Updated: 2025-06-12 - Reorganized section order and added RimPhotosSection
  */
 
 import { VehicleDetailsSection } from "./sections/VehicleDetailsSection";
 import { VehicleStatusSection } from "./sections/VehicleStatusSection";
 import { PhotosSection } from "./sections/PhotosSection";
+import { RimPhotosSection } from "./sections/RimPhotosSection";
 import { SellerDetailsSection } from "./sections/SellerDetailsSection";
 import { AdditionalInfoSection } from "./sections/AdditionalInfoSection";
 import { FeaturesSection } from "./sections/FeaturesSection";
@@ -140,6 +140,7 @@ export const FormContent = ({ carId }: { carId?: string }) => {
   
   return (
     <div className="space-y-8">
+      {/* Basic Information */}
       <VehicleDetailsSection />
       <VehicleStatusSection />
       
@@ -148,9 +149,13 @@ export const FormContent = ({ carId }: { carId?: string }) => {
         <FinanceDetailsSection />
       )}
       
+      {/* Features and Photos - New Order */}
       <FeaturesSection />
-      <AdditionalInfoSection />
       <PhotosSection carId={carId} />
+      <RimPhotosSection />
+      <AdditionalInfoSection />
+      
+      {/* Seller Information */}
       <SellerDetailsSection />
       
       <FormSection title="Review & Submit">
