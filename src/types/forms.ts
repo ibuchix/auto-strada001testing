@@ -1,4 +1,3 @@
-
 /**
  * Type definitions for car listing form data
  * - Updated 2025-05-20: Added last_saved field to match database schema
@@ -11,6 +10,7 @@
  * - Updated 2025-05-30: Fixed numberOfKeys type to be number | string for compatibility
  * - Updated 2025-06-01: Added name property for test compatibility
  * - Updated 2025-05-29: REMOVED price field - using only reservePrice (single pricing model)
+ * - Updated 2025-06-13: Removed leatherSeats from CarFeatures (duplicate of seat material dropdown)
  */
 export interface CarListingFormData {
   id?: string;
@@ -103,7 +103,6 @@ export interface CarFeatures {
   airConditioning: boolean;
   bluetooth: boolean;
   cruiseControl: boolean;
-  leatherSeats: boolean;
   navigation: boolean;
   parkingSensors: boolean;
   sunroof: boolean;
