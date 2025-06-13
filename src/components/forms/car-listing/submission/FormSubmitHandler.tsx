@@ -1,7 +1,7 @@
 
 /**
  * Form Submit Handler Component
- * Updated: 2025-05-30 - Simplified to use enhanced edge function approach
+ * Updated: 2025-06-13 - Updated to use JSON-based submission service instead of multipart
  */
 
 import React, { useState } from "react";
@@ -12,7 +12,7 @@ import { CarListingFormData } from "@/types/forms";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { createCarListingDirect } from "./services/directSubmissionService";
+import { createCarListing } from "./services/submissionService";
 
 export interface FormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -53,7 +53,7 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
     try {
       setIsSubmitting(true);
       
-      console.log('Form submission started with enhanced edge function approach');
+      console.log('Form submission started with JSON-based approach');
       
       // Validate required data
       if (!formData.make || !formData.model || !formData.year) {
@@ -95,17 +95,17 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         return false;
       }
       
-      console.log('Starting enhanced edge function submission with user:', currentUserId);
+      console.log('Starting JSON-based submission with user:', currentUserId);
       
-      // Use the enhanced edge function approach
-      const result = await createCarListingDirect(formData, currentUserId);
+      // Use the JSON-based submission service
+      const result = await createCarListing(formData, currentUserId);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to create listing');
       }
       
       const newCarId = result.id!;
-      console.log('✓ Car listing created successfully with enhanced approach:', newCarId);
+      console.log('✓ Car listing created successfully with JSON approach:', newCarId);
       
       // Success notification
       if (showAlerts) {

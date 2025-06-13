@@ -1,6 +1,7 @@
 /**
  * Car Listing Submission Service - Updated to use selective transformation
  * Updated: 2025-06-13 - Implemented selective snake_case transformation to prevent JSON corruption
+ * Updated: 2025-06-13 - Fixed TypeScript error with serviceHistoryType validation
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -12,6 +13,14 @@ const validateTransmission = (value: unknown): "manual" | "automatic" | "semi-au
     return value;
   }
   return "manual";
+};
+
+// Helper function to ensure service history type is a valid value
+const validateServiceHistoryType = (value: unknown): "none" | "partial" | "full" => {
+  if (value === "partial" || value === "full" || value === "none") {
+    return value;
+  }
+  return "none";
 };
 
 // Helper functions for type conversion
@@ -227,6 +236,7 @@ export const prepareFormDataForApi = (data: CarListingFormData) => {
 /**
  * Transforms form data into database entity using selective transformation
  * Updated: 2025-06-13 - Uses selective transformation to prevent JSON corruption
+ * Updated: 2025-06-13 - Fixed TypeScript error with serviceHistoryType validation
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
   console.log('Preparing submission with selective transformation:', {
@@ -247,8 +257,9 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
       ? formData.created_at.toISOString() 
       : new Date().toISOString();
   
-  // Validate transmission
+  // Validate transmission and service history type
   const transmissionValue = validateTransmission(formData.transmission);
+  const serviceHistoryTypeValue = validateServiceHistoryType(formData.serviceHistoryType);
   
   // Clean form data
   const cleanedData = { ...formData };
@@ -291,7 +302,8 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     extractedReservePrice,
     carFeatures,
     preservedValuationData: !!preservedValuationData,
-    featuresCount: Object.values(carFeatures).filter(Boolean).length
+    featuresCount: Object.values(carFeatures).filter(Boolean).length,
+    serviceHistoryType: serviceHistoryTypeValue
   });
   
   // Prepare entity with mixed field names (database will handle both)
@@ -319,7 +331,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     is_registered_in_poland: formData.isRegisteredInPoland !== false,
     has_private_plate: formData.hasPrivatePlate || false,
     finance_amount: toNumberValue(formData.financeAmount),
-    service_history_type: formData.serviceHistoryType || 'none',
+    service_history_type: serviceHistoryTypeValue, // Use validated value
     seller_notes: formData.sellerNotes || '',
     seat_material: formData.seatMaterial || 'cloth',
     number_of_keys: formData.numberOfKeys || 1
@@ -345,7 +357,8 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     status: entity.status,
     reserve_price: entity.reserve_price,
     valuation_data_structure: entity.valuation_data ? Object.keys(entity.valuation_data) : 'none',
-    transformation_type: 'selective'
+    transformation_type: 'selective',
+    service_history_type: entity.service_history_type
   });
   
   return entity;
