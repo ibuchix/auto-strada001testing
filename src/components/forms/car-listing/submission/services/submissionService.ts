@@ -1,8 +1,7 @@
 
 /**
- * Car Listing Submission Service
- * Updated: 2025-05-30 - Integrated proper image upload handling through Supabase Storage
- * Updated: 2025-05-30 - Fixed property name from valuationData to valuation_data for database compatibility
+ * Car Listing Submission Service - Option 2 Implementation
+ * Updated: 2025-06-13 - Simplified to work with Edge Function that accepts JSON with image URLs
  */
 
 import { CarListingFormData, CarEntity } from "@/types/forms";
@@ -21,16 +20,17 @@ export interface CreateListingResult {
 }
 
 /**
- * Create a car listing with proper image handling
+ * Create a car listing with proper image handling - Option 2 Implementation
+ * Frontend uploads images, Edge Function accepts JSON with URLs
  */
 export const createCarListing = async (
   formData: CarListingFormData,
   userId: string
 ): Promise<CreateListingResult> => {
   try {
-    console.log('Creating car listing with image upload handling...');
+    console.log('Creating car listing - Option 2: Frontend uploads, Edge Function accepts URLs');
     
-    // Step 1: Process and upload images first
+    // Step 1: Process and upload images first (frontend handles this)
     let processedRequiredPhotos: Record<string, string> = {};
     let processedAdditionalPhotos: string[] = [];
     
@@ -59,17 +59,16 @@ export const createCarListing = async (
       additionalPhotos: processedAdditionalPhotos
     });
     
-    console.log('Submission data prepared with image URLs');
+    console.log('Submission data prepared with image URLs:', {
+      requiredPhotosCount: Object.keys(processedRequiredPhotos).length,
+      additionalPhotosCount: processedAdditionalPhotos.length
+    });
     
-    // Step 3: Submit to database using edge function
+    // Step 3: Submit to database using simplified edge function with JSON
     const { data, error } = await supabase.functions.invoke('create-car-listing', {
       body: {
-        valuationData: submissionData.valuation_data, // Use snake_case property name
-        userId: userId,
-        vin: submissionData.vin,
-        mileage: submissionData.mileage,
-        transmission: submissionData.transmission,
-        carData: submissionData
+        carData: submissionData,
+        userId: userId
       }
     });
     
@@ -84,38 +83,6 @@ export const createCarListing = async (
     }
     
     const carId = data.data?.car_id || data.data?.id;
-    
-    // Step 4: If we have a new car ID and used temp images, re-upload with proper paths
-    if (carId && !formData.id) {
-      console.log('Re-uploading images with permanent car ID:', carId);
-      
-      // Re-process images with the new car ID for permanent storage
-      if (formData.requiredPhotos) {
-        const permanentRequiredPhotos = await processRequiredPhotos(
-          formData.requiredPhotos,
-          carId
-        );
-        
-        // Update the car record with permanent image URLs
-        await supabase
-          .from('cars')
-          .update({ required_photos: permanentRequiredPhotos })
-          .eq('id', carId);
-      }
-      
-      if (formData.additionalPhotos && formData.additionalPhotos.length > 0) {
-        const permanentAdditionalPhotos = await processAdditionalPhotos(
-          formData.additionalPhotos,
-          carId
-        );
-        
-        // Update the car record with permanent image URLs
-        await supabase
-          .from('cars')
-          .update({ additional_photos: permanentAdditionalPhotos })
-          .eq('id', carId);
-      }
-    }
     
     console.log('Car listing created successfully:', carId);
     

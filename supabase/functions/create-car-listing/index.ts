@@ -1,6 +1,7 @@
+
 /**
- * Enhanced create-car-listing edge function
- * Updated: 2025-06-13 - Switched to simplified database function for guaranteed success
+ * Simplified create-car-listing edge function - Option 2 Implementation
+ * Updated: 2025-06-13 - Simplified to accept JSON with image URLs (no file uploads)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -14,12 +15,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-
-interface ImageUploadResult {
-  success: boolean;
-  url?: string;
-  error?: string;
-}
 
 serve(async (req) => {
   // Handle CORS
@@ -39,106 +34,32 @@ serve(async (req) => {
       }
     });
     
-    let carData: any;
-    let userId: string;
-    let requiredPhotos: Record<string, File> = {};
-    let additionalPhotos: File[] = [];
+    // Parse JSON request body
+    const requestData = await req.json();
+    console.log(`[${requestId}] JSON request received`);
     
-    const contentType = req.headers.get('content-type') || '';
-    console.log(`[${requestId}] Content-Type:`, contentType);
+    const carData = requestData.carData || requestData;
+    const userId = requestData.userId || carData.userId;
     
-    if (contentType.includes('multipart/form-data')) {
-      // Handle multipart form data with images
-      console.log(`[${requestId}] Parsing multipart form data`);
-      
-      const formData = await req.formData();
-      
-      // Extract car data
-      const carDataStr = formData.get('carData') as string;
-      if (!carDataStr) {
-        throw new Error('Missing car data in form submission');
-      }
-      
-      carData = JSON.parse(carDataStr);
-      userId = formData.get('userId') as string || carData.userId;
-      
-      if (!userId) {
-        throw new Error('Missing user ID');
-      }
-      
-      // Extract required photos
-      const requiredPhotoTypes = [
-        'exterior_front', 'exterior_rear', 'exterior_left', 'exterior_right',
-        'interior_front', 'dashboard', 'rim_front_left', 'rim_front_right',
-        'rim_rear_left', 'rim_rear_right', 'engine_bay', 'interior_rear'
-      ];
-      
-      for (const photoType of requiredPhotoTypes) {
-        const file = formData.get(`required_${photoType}`) as File;
-        if (file && file.size > 0) {
-          requiredPhotos[photoType] = file;
-        }
-      }
-      
-      // Extract additional photos
-      let additionalIndex = 0;
-      while (true) {
-        const file = formData.get(`additional_${additionalIndex}`) as File;
-        if (!file || file.size === 0) break;
-        additionalPhotos.push(file);
-        additionalIndex++;
-      }
-      
-    } else {
-      // Handle JSON data (backward compatibility)
-      const requestData = await req.json();
-      carData = requestData.carData || requestData;
-      userId = requestData.userId || carData.userId;
-      
-      if (!userId) {
-        throw new Error('Missing user ID');
-      }
+    if (!userId) {
+      throw new Error('Missing user ID');
+    }
+    
+    if (!carData) {
+      throw new Error('Missing car data');
     }
     
     console.log(`[${requestId}] Data extracted:`, {
       userId,
-      requiredPhotosCount: Object.keys(requiredPhotos).length,
-      additionalPhotosCount: additionalPhotos.length,
       hasCarData: !!carData,
+      requiredPhotoKeys: carData.requiredPhotos ? Object.keys(carData.requiredPhotos) : [],
+      additionalPhotosCount: carData.additionalPhotos ? carData.additionalPhotos.length : 0,
       carDataKeys: Object.keys(carData || {})
     });
     
-    // Generate car ID for image uploads (use provided ID if available)
+    // Generate car ID for database insertion (use provided ID if available)
     const carId = carData.id || crypto.randomUUID();
     console.log(`[${requestId}] Using car ID:`, carId);
-    
-    // Upload required photos to storage
-    const uploadedRequiredPhotos: Record<string, string> = {};
-    for (const [photoType, file] of Object.entries(requiredPhotos)) {
-      const result = await uploadImageToStorage(supabase, file, carId, photoType);
-      if (result.success && result.url) {
-        uploadedRequiredPhotos[photoType] = result.url;
-      } else {
-        console.warn(`[${requestId}] Required photo upload failed:`, photoType, result.error);
-      }
-    }
-    
-    // Upload additional photos to storage
-    const uploadedAdditionalPhotos: string[] = [];
-    for (let i = 0; i < additionalPhotos.length; i++) {
-      const file = additionalPhotos[i];
-      const result = await uploadImageToStorage(supabase, file, carId, `additional_${i}`);
-      if (result.success && result.url) {
-        uploadedAdditionalPhotos.push(result.url);
-      } else {
-        console.warn(`[${requestId}] Additional photo upload failed:`, i, result.error);
-      }
-    }
-    
-    console.log(`[${requestId}] Images uploaded:`, {
-      requiredPhotosUploaded: Object.keys(uploadedRequiredPhotos).length,
-      additionalPhotosUploaded: uploadedAdditionalPhotos.length
-    });
     
     // Prepare car data for simplified database function
     const carRecord = {
@@ -163,8 +84,8 @@ serve(async (req) => {
       seller_notes: carData.sellerNotes || '',
       seat_material: carData.seatMaterial || 'cloth',
       number_of_keys: carData.numberOfKeys || 1,
-      required_photos: uploadedRequiredPhotos,
-      additional_photos: uploadedAdditionalPhotos,
+      required_photos: carData.requiredPhotos || {},
+      additional_photos: carData.additionalPhotos || [],
       valuation_data: carData.valuationData || null,
       title: carData.title || `${carData.year || 'Unknown'} ${carData.make || 'Unknown'} ${carData.model || 'Unknown'}`
     };
@@ -175,10 +96,12 @@ serve(async (req) => {
       model: carRecord.model,
       year: carRecord.year,
       reserve_price: carRecord.reserve_price,
-      seller_id: carRecord.seller_id
+      seller_id: carRecord.seller_id,
+      requiredPhotosCount: Object.keys(carRecord.required_photos).length,
+      additionalPhotosCount: carRecord.additional_photos.length
     });
     
-    // Use the new simplified security definer function
+    // Use the simplified security definer function
     console.log(`[${requestId}] Calling simplified database function`);
     
     const { data: functionResult, error: functionError } = await supabase
@@ -193,24 +116,12 @@ serve(async (req) => {
     });
     
     if (functionError) {
-      // Clean up uploaded images on function call failure
-      await cleanupUploadedImages(supabase, carId, [
-        ...Object.values(uploadedRequiredPhotos),
-        ...uploadedAdditionalPhotos
-      ]);
-      
       console.error(`[${requestId}] Simplified function failed:`, functionError.message);
       throw new Error(`Failed to create car listing: ${functionError.message}`);
     }
     
     // Check function result
     if (!functionResult || functionResult.success !== true) {
-      // Clean up uploaded images on function failure
-      await cleanupUploadedImages(supabase, carId, [
-        ...Object.values(uploadedRequiredPhotos),
-        ...uploadedAdditionalPhotos
-      ]);
-      
       const errorMessage = functionResult?.error || 'Unknown error from database function';
       console.error(`[${requestId}] Function returned failure:`, errorMessage);
       throw new Error(`Failed to create car listing: ${errorMessage}`);
@@ -219,12 +130,6 @@ serve(async (req) => {
     const createdCarId = functionResult.car_id;
     
     if (!createdCarId) {
-      // Clean up uploaded images if no car ID
-      await cleanupUploadedImages(supabase, carId, [
-        ...Object.values(uploadedRequiredPhotos),
-        ...uploadedAdditionalPhotos
-      ]);
-      
       console.error(`[${requestId}] No car ID returned from function:`, functionResult);
       throw new Error('Failed to create car listing - no car ID returned from database');
     }
@@ -260,65 +165,3 @@ serve(async (req) => {
     );
   }
 });
-
-/**
- * Upload a single image to Supabase Storage
- */
-async function uploadImageToStorage(
-  supabase: any,
-  file: File,
-  carId: string,
-  photoType: string
-): Promise<ImageUploadResult> {
-  try {
-    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const fileName = `${photoType}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
-    const filePath = `cars/${carId}/${fileName}`;
-    
-    const { data, error } = await supabase.storage
-      .from('car-images')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true
-      });
-    
-    if (error) {
-      return { success: false, error: error.message };
-    }
-    
-    const { data: { publicUrl } } = supabase.storage
-      .from('car-images')
-      .getPublicUrl(filePath);
-    
-    return { success: true, url: publicUrl };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Upload failed'
-    };
-  }
-}
-
-/**
- * Clean up uploaded images if car creation fails
- */
-async function cleanupUploadedImages(
-  supabase: any,
-  carId: string,
-  imageUrls: string[]
-): Promise<void> {
-  try {
-    const filePaths = imageUrls.map(url => {
-      const path = url.split('/storage/v1/object/public/car-images/')[1];
-      return path;
-    }).filter(Boolean);
-    
-    if (filePaths.length > 0) {
-      await supabase.storage
-        .from('car-images')
-        .remove(filePaths);
-    }
-  } catch (error) {
-    console.error('Failed to cleanup uploaded images:', error);
-  }
-}
