@@ -3,6 +3,7 @@
  * Form submission utility functions
  * Updated: 2025-05-24 - COMPLETELY REMOVED DRAFT LOGIC - All submissions are immediately available
  * Updated: 2025-05-29 - REMOVED price field - using only reservePrice
+ * Updated: 2025-06-13 - Removed leatherSeats references to fix compilation errors
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -45,12 +46,11 @@ export const prepareFormDataForApi = (data: CarListingFormData) => {
  * Transforms form data into a database entity - ALWAYS immediately available
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
-  // Ensure features property has all required fields
+  // Ensure features property has all required fields - removed leatherSeats
   const carFeatures: CarFeatures = {
     airConditioning: formData.features?.airConditioning || false,
     bluetooth: formData.features?.bluetooth || false,
     cruiseControl: formData.features?.cruiseControl || false,
-    leatherSeats: formData.features?.leatherSeats || false,
     navigation: formData.features?.navigation || false,
     parkingSensors: formData.features?.parkingSensors || false,
     sunroof: formData.features?.sunroof || false,
