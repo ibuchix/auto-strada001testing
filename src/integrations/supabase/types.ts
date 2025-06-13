@@ -1930,6 +1930,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      create_simple_car_listing: {
+        Args: { p_car_data: Json; p_user_id?: string }
+        Returns: Json
+      }
       create_vin_reservation: {
         Args: {
           p_vin: string
