@@ -1,13 +1,10 @@
-
 /**
- * Form submission utility functions  
- * Updated: 2025-05-30 - Phase 4: Fixed features data preservation and File object handling
- * Updated: 2025-06-13 - Removed leatherSeats references to fix compilation errors
+ * Car Listing Submission Service - Updated to use selective transformation
+ * Updated: 2025-06-13 - Implemented selective snake_case transformation to prevent JSON corruption
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
 import { PHOTO_FIELD_MAP } from "@/utils/photoMapping";
-import { transformObjectToSnakeCase } from "@/utils/dataTransformers";
 
 // Helper function to ensure transmission is a valid value
 const validateTransmission = (value: unknown): "manual" | "automatic" | "semi-automatic" => {
@@ -29,18 +26,72 @@ const toNumberValue = (value: any): number => {
   return isNaN(num) ? 0 : num;
 };
 
-export const prepareFormDataForSubmission = (data: CarListingFormData) => {
-  return {
-    ...data,
-    financeAmount: toNumberValue(data.financeAmount),
-  };
+// Fields that should be protected from transformation (contain URLs, complex data, etc.)
+const PROTECTED_FIELDS = new Set([
+  'requiredPhotos',
+  'required_photos',
+  'additionalPhotos', 
+  'additional_photos',
+  'valuationData',
+  'valuation_data',
+  'features',
+  'formMetadata',
+  'form_metadata'
+]);
+
+// Simple field mappings for camelCase to snake_case (only for basic fields)
+const FIELD_MAPPINGS: Record<string, string> = {
+  'sellerName': 'seller_name',
+  'mobileNumber': 'mobile_number',
+  'reservePrice': 'reserve_price',
+  'isDamaged': 'is_damaged',
+  'isRegisteredInPoland': 'is_registered_in_poland',
+  'hasPrivatePlate': 'has_private_plate',
+  'financeAmount': 'finance_amount',
+  'serviceHistoryType': 'service_history_type',
+  'sellerNotes': 'seller_notes',
+  'seatMaterial': 'seat_material',
+  'numberOfKeys': 'number_of_keys',
+  'updatedAt': 'updated_at',
+  'createdAt': 'created_at'
 };
 
-export const prepareFormDataForApi = (data: CarListingFormData) => {
-  return {
-    ...data,
-    financeAmount: toNumberValue(data.financeAmount),
-  };
+/**
+ * Selective transformation - only transforms specific field names, protects complex data
+ */
+const selectiveTransform = (data: any): any => {
+  if (!data || typeof data !== 'object') {
+    return data;
+  }
+
+  // Handle arrays
+  if (Array.isArray(data)) {
+    return data.map(item => selectiveTransform(item));
+  }
+
+  const result: any = {};
+  
+  for (const [key, value] of Object.entries(data)) {
+    // Check if this field should be protected from transformation
+    if (PROTECTED_FIELDS.has(key)) {
+      // Keep protected fields as-is (no transformation)
+      result[key] = value;
+      continue;
+    }
+    
+    // Apply simple field mapping if it exists
+    const mappedKey = FIELD_MAPPINGS[key] || key;
+    
+    // For non-protected fields, we can safely transform nested objects
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      // Only transform if it's not a protected field
+      result[mappedKey] = selectiveTransform(value);
+    } else {
+      result[mappedKey] = value;
+    }
+  }
+  
+  return result;
 };
 
 // Photo field keys that should not be in top-level database object
@@ -95,32 +146,25 @@ const FRONTEND_ONLY_FIELDS = [
 ];
 
 /**
- * Preserve valuation data in original camelCase format for consistency
+ * Preserve valuation data in original format for consistency
  */
 const preserveValuationData = (valuationData: any) => {
   if (!valuationData) return null;
   
-  // Ensure the valuation data maintains camelCase structure
-  const preservedData = {
-    ...valuationData,
-    // Ensure reservePrice is present in camelCase
-    reservePrice: valuationData.reservePrice || valuationData.reserve_price || valuationData.valuation
-  };
-  
-  console.log('Preserving valuation data with camelCase structure:', {
-    original: valuationData,
-    preserved: preservedData,
-    hasReservePrice: !!preservedData.reservePrice
+  // Keep valuation data exactly as-is to prevent corruption
+  console.log('Preserving valuation data without transformation:', {
+    hasValuationData: !!valuationData,
+    keys: valuationData ? Object.keys(valuationData) : []
   });
   
-  return preservedData;
+  return valuationData;
 };
 
 /**
  * Properly handle features data - ensure it's preserved correctly
  */
 const processFeatures = (features: any): CarFeatures => {
-  // Default features structure - removed leatherSeats
+  // Default features structure
   const defaultFeatures: CarFeatures = {
     airConditioning: false,
     bluetooth: false,
@@ -141,7 +185,7 @@ const processFeatures = (features: any): CarFeatures => {
     return defaultFeatures;
   }
   
-  // Process each feature, ensuring boolean values - removed leatherSeats
+  // Process each feature, ensuring boolean values
   const processedFeatures: CarFeatures = {
     airConditioning: Boolean(features.airConditioning),
     bluetooth: Boolean(features.bluetooth),
@@ -166,16 +210,31 @@ const processFeatures = (features: any): CarFeatures => {
   return processedFeatures;
 };
 
+export const prepareFormDataForSubmission = (data: CarListingFormData) => {
+  return {
+    ...data,
+    financeAmount: toNumberValue(data.financeAmount),
+  };
+};
+
+export const prepareFormDataForApi = (data: CarListingFormData) => {
+  return {
+    ...data,
+    financeAmount: toNumberValue(data.financeAmount),
+  };
+};
+
 /**
- * Transforms form data into database entity
- * Updated: Phase 4 - Fixed features processing and File object handling
+ * Transforms form data into database entity using selective transformation
+ * Updated: 2025-06-13 - Uses selective transformation to prevent JSON corruption
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
-  console.log('Preparing submission with form data:', {
+  console.log('Preparing submission with selective transformation:', {
     hasFeatures: !!formData.features,
     featuresKeys: formData.features ? Object.keys(formData.features) : [],
     hasRequiredPhotos: !!formData.requiredPhotos,
-    requiredPhotosTypes: formData.requiredPhotos ? Object.keys(formData.requiredPhotos) : []
+    requiredPhotosTypes: formData.requiredPhotos ? Object.keys(formData.requiredPhotos) : [],
+    hasValuationData: !!formData.valuationData
   });
   
   // Process features properly
@@ -228,14 +287,14 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     throw new Error('Reserve price must be greater than 0. Cannot create listing without valid reserve price.');
   }
   
-  console.log('Preparing submission with features and reserve price:', {
+  console.log('Preparing submission with selective transformation:', {
     extractedReservePrice,
     carFeatures,
     preservedValuationData: !!preservedValuationData,
     featuresCount: Object.values(carFeatures).filter(Boolean).length
   });
   
-  // Prepare entity
+  // Prepare entity with mixed field names (database will handle both)
   const baseEntity: Partial<CarEntity> = {
     ...cleanedData,
     // Only include id if valid (for editing)
@@ -243,22 +302,33 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     created_at: createdAt,
     updated_at: new Date().toISOString(),
     status: 'available',
-    // Ensure required fields
+    // Ensure required fields with proper snake_case names for database
     make: formData.make || '',
     model: formData.model || '',
     year: formData.year || 0,
-    reserve_price: extractedReservePrice,
+    reserve_price: extractedReservePrice, // Use snake_case for database
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
     transmission: transmissionValue,
     features: carFeatures, // Use processed features
-    valuation_data: preservedValuationData
+    valuation_data: preservedValuationData, // Use snake_case for database
+    // Map key fields to snake_case for database
+    seller_name: formData.sellerName || formData.name || '',
+    mobile_number: formData.mobileNumber || '',
+    is_damaged: formData.isDamaged || false,
+    is_registered_in_poland: formData.isRegisteredInPoland !== false,
+    has_private_plate: formData.hasPrivatePlate || false,
+    finance_amount: toNumberValue(formData.financeAmount),
+    service_history_type: formData.serviceHistoryType || 'none',
+    seller_notes: formData.sellerNotes || '',
+    seat_material: formData.seatMaterial || 'cloth',
+    number_of_keys: formData.numberOfKeys || 1
   };
   
-  // Convert to snake_case for database (but preserve valuation_data structure)
-  const entity = transformObjectToSnakeCase(baseEntity) as Partial<CarEntity>;
+  // Use selective transformation instead of aggressive transformObjectToSnakeCase
+  const entity = selectiveTransform(baseEntity) as Partial<CarEntity>;
   
-  // Restore the camelCase valuation_data and ensure features are preserved
+  // Ensure critical fields are preserved exactly
   if (preservedValuationData) {
     entity.valuation_data = preservedValuationData;
   }
@@ -266,7 +336,7 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
   // Ensure features are properly set
   entity.features = carFeatures;
   
-  console.log("Prepared entity with features:", {
+  console.log("Prepared entity with selective transformation:", {
     ...entity,
     required_photos: entity.required_photos ? 
       `[${Object.keys(entity.required_photos || {}).length} photos]` : 'none',
@@ -274,7 +344,8 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     has_id: !!formData.id,
     status: entity.status,
     reserve_price: entity.reserve_price,
-    valuation_data_structure: entity.valuation_data ? Object.keys(entity.valuation_data) : 'none'
+    valuation_data_structure: entity.valuation_data ? Object.keys(entity.valuation_data) : 'none',
+    transformation_type: 'selective'
   });
   
   return entity;

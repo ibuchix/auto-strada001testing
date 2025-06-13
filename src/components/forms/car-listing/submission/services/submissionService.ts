@@ -1,7 +1,7 @@
 
 /**
- * Car Listing Submission Service - Option 2 Implementation
- * Updated: 2025-06-13 - Simplified to work with Edge Function that accepts JSON with image URLs
+ * Car Listing Submission Service - Option 2 Implementation with Better Error Handling
+ * Updated: 2025-06-13 - Added better JSON validation and error logging to prevent parse errors
  */
 
 import { CarListingFormData, CarEntity } from "@/types/forms";
@@ -20,6 +20,32 @@ export interface CreateListingResult {
 }
 
 /**
+ * Validate JSON data before sending to prevent parse errors
+ */
+const validateJsonData = (data: any): { isValid: boolean; error?: string } => {
+  try {
+    // Test if the data can be safely stringified and parsed
+    const jsonString = JSON.stringify(data);
+    JSON.parse(jsonString);
+    
+    // Check for problematic characters or patterns
+    if (jsonString.includes('--') || jsonString.includes('{{') || jsonString.includes('}}')) {
+      console.warn('JSON contains potentially problematic characters:', {
+        hasDoubleDash: jsonString.includes('--'),
+        hasCurlyBraces: jsonString.includes('{{') || jsonString.includes('}}')
+      });
+    }
+    
+    return { isValid: true };
+  } catch (error) {
+    return { 
+      isValid: false, 
+      error: error instanceof Error ? error.message : 'JSON validation failed' 
+    };
+  }
+};
+
+/**
  * Create a car listing with proper image handling - Option 2 Implementation
  * Frontend uploads images, Edge Function accepts JSON with URLs
  */
@@ -28,7 +54,7 @@ export const createCarListing = async (
   userId: string
 ): Promise<CreateListingResult> => {
   try {
-    console.log('Creating car listing - Option 2: Frontend uploads, Edge Function accepts URLs');
+    console.log('Creating car listing - Option 2 with selective transformation');
     
     // Step 1: Process and upload images first (frontend handles this)
     let processedRequiredPhotos: Record<string, string> = {};
@@ -52,19 +78,34 @@ export const createCarListing = async (
       console.log('Additional photos processed:', processedAdditionalPhotos.length);
     }
     
-    // Step 2: Prepare submission data with uploaded image URLs
+    // Step 2: Prepare submission data with uploaded image URLs using selective transformation
     const submissionData = prepareSubmission({
       ...formData,
       requiredPhotos: processedRequiredPhotos,
       additionalPhotos: processedAdditionalPhotos
     });
     
-    console.log('Submission data prepared with image URLs:', {
+    console.log('Submission data prepared with selective transformation:', {
       requiredPhotosCount: Object.keys(processedRequiredPhotos).length,
-      additionalPhotosCount: processedAdditionalPhotos.length
+      additionalPhotosCount: processedAdditionalPhotos.length,
+      hasReservePrice: !!submissionData.reserve_price,
+      transformationType: 'selective'
     });
     
-    // Step 3: Submit to database using simplified edge function with JSON
+    // Step 3: Validate JSON data before sending
+    const validation = validateJsonData({
+      carData: submissionData,
+      userId: userId
+    });
+    
+    if (!validation.isValid) {
+      console.error('JSON validation failed:', validation.error);
+      throw new Error(`Invalid JSON data: ${validation.error}`);
+    }
+    
+    console.log('JSON validation passed, sending to Edge Function');
+    
+    // Step 4: Submit to database using simplified edge function with validated JSON
     const { data, error } = await supabase.functions.invoke('create-car-listing', {
       body: {
         carData: submissionData,
