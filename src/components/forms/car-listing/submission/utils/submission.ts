@@ -2,6 +2,7 @@
 /**
  * Form submission utility functions  
  * Updated: 2025-05-30 - Phase 4: Fixed features data preservation and File object handling
+ * Updated: 2025-06-13 - Removed leatherSeats references to fix compilation errors
  */
 
 import { CarListingFormData, CarEntity, CarFeatures } from "@/types/forms";
@@ -119,12 +120,11 @@ const preserveValuationData = (valuationData: any) => {
  * Properly handle features data - ensure it's preserved correctly
  */
 const processFeatures = (features: any): CarFeatures => {
-  // Default features structure
+  // Default features structure - removed leatherSeats
   const defaultFeatures: CarFeatures = {
     airConditioning: false,
     bluetooth: false,
     cruiseControl: false,
-    leatherSeats: false,
     navigation: false,
     parkingSensors: false,
     sunroof: false,
@@ -141,12 +141,11 @@ const processFeatures = (features: any): CarFeatures => {
     return defaultFeatures;
   }
   
-  // Process each feature, ensuring boolean values
+  // Process each feature, ensuring boolean values - removed leatherSeats
   const processedFeatures: CarFeatures = {
     airConditioning: Boolean(features.airConditioning),
     bluetooth: Boolean(features.bluetooth),
     cruiseControl: Boolean(features.cruiseControl),
-    leatherSeats: Boolean(features.leatherSeats),
     navigation: Boolean(features.navigation),
     parkingSensors: Boolean(features.parkingSensors),
     sunroof: Boolean(features.sunroof),

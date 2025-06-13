@@ -6,6 +6,7 @@
  * Updated: 2025-05-30 - Fixed camelCase/snake_case field name issues
  * Updated: 2025-05-31 - Fixed TypeScript errors with field property types
  * Updated: 2025-06-01 - Fixed name property access and updatedAt handling
+ * Updated: 2025-06-13 - Removed leatherSeats references to fix compilation errors
  */
 
 import { CarListingFormData } from '@/types/forms';
