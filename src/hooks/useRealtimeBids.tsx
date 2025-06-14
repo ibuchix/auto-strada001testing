@@ -12,6 +12,7 @@
  * - 2024-12-19: Fixed TypeScript error with useChannelSubscription call
  * - 2024-12-20: Removed incorrect function call that was causing TS2554 error
  * - 2027-07-15: Enhanced reconnection handling with better visual feedback
+ * - 2025-06-14: Optimized logging and reduced console noise for better performance
  */
 
 import { useEffect, useState } from 'react';
@@ -47,20 +48,27 @@ export const useRealtimeBids = () => {
     });
   };
   
-  // Handle reconnection with exponential backoff
+  // Handle reconnection with exponential backoff and reduced logging
   const handleReconnect = () => {
     const maxReconnectAttempts = 5;
     if (reconnectAttempts < maxReconnectAttempts) {
       // Calculate backoff time: 1s, 2s, 4s, 8s, 16s
       const backoffTime = Math.pow(2, reconnectAttempts) * 1000;
       
-      toast.loading(`Attempting to reconnect in ${backoffTime/1000}s...`, {
-        id: 'reconnect-toast'
-      });
+      // Only show reconnection attempts in development or after multiple failures
+      if (process.env.NODE_ENV === 'development' || reconnectAttempts > 1) {
+        toast.loading(`Attempting to reconnect in ${backoffTime/1000}s...`, {
+          id: 'reconnect-toast'
+        });
+      }
       
       setTimeout(() => {
         toast.dismiss('reconnect-toast');
-        toast.loading('Reconnecting...');
+        
+        if (process.env.NODE_ENV === 'development' || reconnectAttempts > 1) {
+          toast.loading('Reconnecting...');
+        }
+        
         reconnect().then(() => {
           toast.success('Connection restored');
           setReconnectAttempts(0);
@@ -77,18 +85,23 @@ export const useRealtimeBids = () => {
     }
   };
   
-  // Show a warning when realtime is disconnected (but only once)
+  // Show a warning when realtime is disconnected (but only once and only if needed)
   useEffect(() => {
     if (!isConnected && !hasShownConnectionError) {
-      toast.error('Realtime connection unavailable', {
-        description: 'You may not receive bid updates in real-time',
-        duration: 5000,
-        action: {
-          label: 'Reconnect',
-          onClick: handleReconnect
-        }
-      });
-      setHasShownConnectionError(true);
+      // Only show error after a delay to avoid showing on initial load
+      const errorTimeout = setTimeout(() => {
+        toast.error('Realtime connection unavailable', {
+          description: 'You may not receive bid updates in real-time',
+          duration: 5000,
+          action: {
+            label: 'Reconnect',
+            onClick: handleReconnect
+          }
+        });
+        setHasShownConnectionError(true);
+      }, 2000); // 2 second delay
+      
+      return () => clearTimeout(errorTimeout);
     } else if (isConnected && hasShownConnectionError) {
       toast.success('Realtime connection restored', {
         duration: 3000

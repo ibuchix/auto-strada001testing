@@ -2,6 +2,7 @@
 /**
  * Secure Form Submit Handler Component
  * Created: 2025-05-30 - Enhanced security for form submissions
+ * Updated: 2025-06-14 - Fixed import to use correct submission service
  */
 
 import React, { useState } from "react";
@@ -13,7 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, Shield } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { validateCarListingData, checkRateLimit } from "@/services/securityValidationService";
-import { createCarListingDirect } from "./services/directSubmissionService";
+import { createCarListing } from "./services/submissionService";
 
 export interface SecureFormSubmitHandlerProps {
   onSuccess?: (data: any) => void;
@@ -54,7 +55,9 @@ export const SecureFormSubmitHandler: React.FC<SecureFormSubmitHandlerProps> = (
     try {
       setIsValidating(true);
       
-      console.log('Starting secure form submission with enhanced validation');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Starting secure form submission with enhanced validation');
+      }
       
       const currentUserId = userId || session?.user?.id;
       
@@ -91,7 +94,9 @@ export const SecureFormSubmitHandler: React.FC<SecureFormSubmitHandlerProps> = (
       setIsValidating(false);
       setIsSubmitting(true);
       
-      console.log('Validation passed, submitting with sanitized data');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Validation passed, submitting with sanitized data');
+      }
       
       // Use sanitized data for submission
       const sanitizedFormData = {
@@ -99,15 +104,17 @@ export const SecureFormSubmitHandler: React.FC<SecureFormSubmitHandlerProps> = (
         ...validationResult.sanitizedData
       };
       
-      // Submit using enhanced edge function
-      const result = await createCarListingDirect(sanitizedFormData, currentUserId);
+      // Submit using the correct JSON-based submission service
+      const result = await createCarListing(sanitizedFormData, currentUserId);
       
       if (!result.success) {
         throw new Error(result.error || 'Failed to create listing');
       }
       
       const newCarId = result.id!;
-      console.log('✓ Secure car listing created successfully:', newCarId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✓ Secure car listing created successfully:', newCarId);
+      }
       
       // Success notification
       if (showAlerts) {
