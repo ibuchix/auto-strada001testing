@@ -4,6 +4,7 @@
  * - 2025-06-14: Removed DealerSignup, Dealers, DealerDashboard, About, Contact, Sellers, SellMyCar, and Terms pages and their routes
  * - 2025-05-25: Implemented proper routing setup with BrowserRouter
  * - 2025-06-22: Removed BrowserRouter as it's now in main.tsx
+ * - 2025-06-22: Confirmed all deleted pages and their routes removed
  */
 
 import { useEffect } from 'react';
