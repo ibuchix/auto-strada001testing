@@ -1,7 +1,7 @@
 
 /**
  * Footer component
- * Updated: 2025-05-01 - Added new Auto-Strada logo
+ * Updated: 2025-06-14 - Removed links to deleted pages (DealerSignup, Dealers, DealerDashboard, About, Contact, Sellers, SellMyCar, Terms)
  */
 import { Link } from "react-router-dom";
 import { Facebook, Twitter, Instagram } from "lucide-react";
@@ -35,8 +35,7 @@ export const Footer = () => {
           <div>
             <h3 className="text-white font-semibold mb-4">About Auto-Strada</h3>
             <ul className="space-y-2">
-              <li><Link to="/about" className="hover:text-white transition-colors">About Us</Link></li>
-              <li><Link to="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+              {/* Deleted About Us and Contact links */}
             </ul>
           </div>
           
@@ -44,7 +43,7 @@ export const Footer = () => {
             <h3 className="text-white font-semibold mb-4">Selling your car</h3>
             <ul className="space-y-2">
               <li><Link to="/how-it-works" className="hover:text-white transition-colors">How it works</Link></li>
-              <li><Link to="/sell-my-car" className="hover:text-white transition-colors">Sell my car</Link></li>
+              {/* Sell my car link deleted */}
               <li><Link to="/faq" className="hover:text-white transition-colors">FAQ</Link></li>
             </ul>
           </div>
@@ -52,8 +51,8 @@ export const Footer = () => {
           <div>
             <h3 className="text-white font-semibold mb-4">For dealers</h3>
             <ul className="space-y-2">
-              <li><Link to="/dealer-signup" className="hover:text-white transition-colors">Auto-Strada for dealers</Link></li>
-              <li><Link to="/terms" className="hover:text-white transition-colors">Terms & Conditions</Link></li>
+              {/* Dealer signup page deleted */}
+              {/* Terms and Privacy links updated */}
               <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
@@ -65,7 +64,7 @@ export const Footer = () => {
               © Auto-Strada {new Date().getFullYear()}. All rights reserved.
             </div>
             <div className="flex space-x-4 text-sm">
-              <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
+              {/* Terms link deleted */}
               <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
             </div>
           </div>

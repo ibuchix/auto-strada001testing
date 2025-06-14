@@ -1,9 +1,7 @@
 
 /**
  * Navigation component
- * Updated: 2025-04-29 - Fixed auth hook usage and component prop types
- * Updated: 2025-05-04 - Removed diagnostic and valuation test links
- * Updated: 2025-05-01 - Added new Auto-Strada logo
+ * Updated: 2025-06-14 - Removed references to deleted pages in nav
  */
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
