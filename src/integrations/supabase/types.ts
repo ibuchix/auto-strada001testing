@@ -2217,7 +2217,7 @@ export type Database = {
         Returns: boolean
       }
       is_seller: {
-        Args: Record<PropertyKey, never> | { p_user_id?: string }
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       is_verified_seller: {
