@@ -1,6 +1,7 @@
 
 /**
  * Form submission utility functions
+ * Updated: 2025-06-15 - Enforce use of reserve price directly from valuation, remove all fallback calculations.
  * Updated: 2025-05-24 - COMPLETELY REMOVED DRAFT LOGIC - All submissions are immediately available
  * Updated: 2025-05-29 - REMOVED price field - using only reservePrice
  * Updated: 2025-06-13 - Removed leatherSeats references to fix compilation errors
@@ -17,11 +18,6 @@ const validateTransmission = (value: unknown): "manual" | "automatic" | "semi-au
 };
 
 // Helper functions for type conversion
-const toStringValue = (value: any): string => {
-  if (value === undefined || value === null) return '';
-  return String(value);
-};
-
 const toNumberValue = (value: any): number => {
   if (value === undefined || value === null) return 0;
   const num = Number(value);
@@ -43,10 +39,11 @@ export const prepareFormDataForApi = (data: CarListingFormData) => {
 };
 
 /**
- * Transforms form data into a database entity - ALWAYS immediately available
+ * Transforms form data into a database entity using only the reserve price from valuation.
+ * Updated: 2025-06-15 - No fallback: must use reservePrice from valuation as the single source of truth.
  */
 export const prepareSubmission = (formData: CarListingFormData): Partial<CarEntity> => {
-  // Ensure features property has all required fields - removed leatherSeats
+  // Ensure features property has all required fields
   const carFeatures: CarFeatures = {
     airConditioning: formData.features?.airConditioning || false,
     bluetooth: formData.features?.bluetooth || false,
@@ -61,18 +58,31 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     upgradedSound: formData.features?.upgradedSound || false,
     alloyWheels: formData.features?.alloyWheels || false,
   };
-  
+
   // Convert Date to string if needed
   const createdAt = typeof formData.created_at === 'string' 
     ? formData.created_at 
     : formData.created_at instanceof Date 
       ? formData.created_at.toISOString() 
       : new Date().toISOString();
-  
-  // Ensure transmission is one of the allowed types
+
+  // Ensure transmission is a valid type
   const transmissionValue = validateTransmission(formData.transmission);
-  
-  // Ensure all required fields are present with default values if needed - ALWAYS AVAILABLE
+
+  // STRICT: Extract reserve price only from valuation data or the field directly set from valuation
+  let finalReservePrice: number | null = null;
+  if (formData.valuationData && typeof formData.valuationData.reservePrice === 'number') {
+    finalReservePrice = formData.valuationData.reservePrice;
+  } else if (typeof formData.reservePrice === 'number') {
+    finalReservePrice = formData.reservePrice;
+  }
+
+  if (!finalReservePrice || finalReservePrice <= 0) {
+    // No valid reserve price from valuation—do not allow submission
+    throw new Error('Reserve price must be provided by valuation. Please re-do your valuation before submitting.');
+  }
+
+  // Build the entity object
   const entity: Partial<CarEntity> = {
     ...formData,
     id: formData.id || '',
@@ -80,18 +90,15 @@ export const prepareSubmission = (formData: CarListingFormData): Partial<CarEnti
     updated_at: new Date().toISOString(),
     status: 'available', // ALWAYS available
     is_draft: false, // NEVER draft
-    // Ensure required fields have values
     make: formData.make || '',
     model: formData.model || '',
     year: formData.year || 0,
-    reserve_price: formData.reservePrice || 0,
+    reserve_price: finalReservePrice,
     mileage: formData.mileage || 0,
     vin: formData.vin || '',
-    // Use validated transmission type
     transmission: transmissionValue,
-    // Use properly typed features
     features: carFeatures
   };
-  
+
   return entity;
 };
