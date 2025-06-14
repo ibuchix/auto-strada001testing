@@ -1,6 +1,8 @@
+
 /**
  * Form Content
  * Updated: 2025-06-12 - Reorganized section order and added RimPhotosSection
+ * Updated: 2025-06-20 - Integrated FormSuccessDialog to show after successful submission
  */
 
 import { VehicleDetailsSection } from "./sections/VehicleDetailsSection";
@@ -21,18 +23,22 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { FormContextBridge } from "./components/FormContextBridge";
+import { FormSuccessDialog } from "./submission/FormSuccessDialog";
 
 export const FormContent = ({ carId }: { carId?: string }) => {
   const auth = useAuth();
   const [authChecked, setAuthChecked] = useState(false);
   const [valuationLoaded, setValuationLoaded] = useState(false);
-  
+
+  // Success dialog state
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [lastCarId, setLastCarId] = useState<string | undefined>(undefined);
+
   const session = auth?.session;
   const isLoading = auth?.isLoading || false;
-  
   const { form } = useFormData();
   const hasOutstandingFinance = form?.watch("hasOutstandingFinance") || false;
-  
+
   // Load valuation data from localStorage and populate form
   useEffect(() => {
     if (form && !valuationLoaded) {
@@ -46,11 +52,11 @@ export const FormContent = ({ carId }: { carId?: string }) => {
             reservePrice: valuationData.reservePrice,
             valuation: valuationData.valuation
           });
-          
+
           // Set valuation data in form
           form.setValue('valuationData', valuationData);
           form.setValue('fromValuation', true);
-          
+
           // Set vehicle details
           if (valuationData.make) form.setValue('make', valuationData.make);
           if (valuationData.model) form.setValue('model', valuationData.model);
@@ -58,14 +64,14 @@ export const FormContent = ({ carId }: { carId?: string }) => {
           if (valuationData.mileage) form.setValue('mileage', parseInt(valuationData.mileage));
           if (valuationData.vin) form.setValue('vin', valuationData.vin);
           if (valuationData.transmission) form.setValue('transmission', valuationData.transmission);
-          
+
           // CRITICAL: Set reserve price from valuation data
           const reservePrice = valuationData.reservePrice || valuationData.valuation || 0;
           if (reservePrice > 0) {
             console.log('FormContent: Setting reserve price from valuation:', reservePrice);
             form.setValue('reservePrice', reservePrice, { shouldDirty: true, shouldTouch: true });
           }
-          
+
           setValuationLoaded(true);
         } else {
           console.log('FormContent: No valuation data found in localStorage');
@@ -77,7 +83,7 @@ export const FormContent = ({ carId }: { carId?: string }) => {
       }
     }
   }, [form, valuationLoaded]);
-  
+
   // Set authChecked state after a delay
   useEffect(() => {
     if (!isLoading) {
@@ -87,7 +93,7 @@ export const FormContent = ({ carId }: { carId?: string }) => {
       return () => clearTimeout(timer);
     }
   }, [isLoading]);
-  
+
   // Handle loading state
   if (isLoading || !authChecked || !valuationLoaded) {
     return <LoadingIndicator message="Loading your session and valuation data..." />;
@@ -124,40 +130,46 @@ export const FormContent = ({ carId }: { carId?: string }) => {
     );
   }
 
+  // Show the success dialog if flag is set
+  // Use lastCarId so we have access to the new car id after submission
+  // `FormSuccessDialog` should match the rest of your design system
+
   const handleSubmitSuccess = (carId: string) => {
     console.log("Form submitted successfully with car ID:", carId);
+    setLastCarId(carId);
+    setShowSuccessDialog(true);
     toast.success("Your car listing has been submitted successfully!", {
       description: "Our team will review your listing and get back to you soon."
     });
   };
-  
+
   const handleSubmitError = (error: Error) => {
     console.error("Error submitting form:", error);
     toast.error("There was an error submitting your listing", {
       description: error.message
     });
   };
-  
+
   return (
     <div className="space-y-8">
       {/* Basic Information */}
       <VehicleDetailsSection />
       <VehicleStatusSection />
-      
+
       {/* Show Finance Details Section if hasOutstandingFinance is true */}
       {hasOutstandingFinance && (
         <FinanceDetailsSection />
       )}
-      
+
       {/* Features and Photos - New Order */}
       <FeaturesSection />
       <PhotosSection carId={carId} />
       <RimPhotosSection />
       <AdditionalInfoSection />
-      
+
       {/* Seller Information */}
       <SellerDetailsSection />
-      
+
       <FormSection title="Review & Submit">
         <FormContextBridge>
           <FormSubmitHandler 
@@ -168,6 +180,13 @@ export const FormContent = ({ carId }: { carId?: string }) => {
           />
         </FormContextBridge>
       </FormSection>
+
+      {/* Success Dialog – appears after a successful submission */}
+      <FormSuccessDialog
+        open={showSuccessDialog}
+        onClose={() => setShowSuccessDialog(false)}
+        carId={lastCarId}
+      />
     </div>
   );
 };
