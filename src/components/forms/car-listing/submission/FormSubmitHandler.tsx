@@ -2,6 +2,7 @@
 /**
  * Form Submit Handler Component
  * Updated: 2025-06-13 - Updated to use JSON-based submission service instead of multipart
+ * Updated: 2025-06-15 - Changed: On successful submission, open success dialog with action button instead of auto-navigation
  */
 
 import React, { useState } from "react";
@@ -9,7 +10,6 @@ import { useFormContext } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { CarListingFormData } from "@/types/forms";
-import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { createCarListing } from "./services/submissionService";
@@ -44,7 +44,6 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
   
   const { handleSubmit, formState } = formContext;
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
   
   const auth = useAuth();
   const session = auth?.session;
@@ -114,14 +113,15 @@ export const FormSubmitHandler: React.FC<FormSubmitHandlerProps> = ({
         });
       }
       
-      // Handle success callbacks
+      // Show the success dialog (call onSuccess if available)
       if (onSuccess) {
         onSuccess(formData);
-      } else if (onSubmitSuccess) {
-        onSubmitSuccess(newCarId);
-      } else {
-        navigate("/dashboard/seller");
       }
+      // Optionally, call onSubmitSuccess if provided, though primary flow is onSuccess dialog
+      if (onSubmitSuccess) {
+        onSubmitSuccess(newCarId);
+      }
+      // DO NOT navigate automatically; dialog will handle navigation
       
       return true;
     } catch (error) {
