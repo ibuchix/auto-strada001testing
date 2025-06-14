@@ -2333,6 +2333,10 @@ export type Database = {
         Args: { nip_number: string }
         Returns: Json
       }
+      validate_vin: {
+        Args: { p_vin: string }
+        Returns: boolean
+      }
       verify_dealer: {
         Args: { p_dealer_id: string; p_admin_id: string; p_notes?: string }
         Returns: Json
