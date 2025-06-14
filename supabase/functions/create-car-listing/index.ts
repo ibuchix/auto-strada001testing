@@ -1,8 +1,9 @@
-
 /**
  * Simplified create-car-listing edge function - Option 2 Implementation
  * Updated: 2025-06-13 - Simplified to accept JSON with image URLs (no file uploads)
- * Updated: 2025-06-15 - Now strictly pulls reserve_price from valuationData.reservePrice with validation—no defaults or fallbacks.
+ * Updated: 2025-06-15 - Now strictly pulls reserve_price from valuationData.reservePrice
+ * [SECURITY] 2025-06-20 - Hardened input validation: Sanitize all user input, log every rejected field, never trust client.
+ * [SECURITY NOTE] Never store secrets or API keys in this file EXCEPT as env variables via Deno.env.get.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -16,6 +17,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+function sanitizeText(input: string): string {
+  if (typeof input !== "string") return "";
+  return input
+    .replace(/[<>&"']/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+}
+
+function isValidYear(year: number) {
+  const current = new Date().getFullYear();
+  return year >= 1970 && year <= (current + 1);
+}
+function isValidMileage(mileage: number) {
+  return mileage >= 0 && mileage < 1_000_000;
+}
+function isValidVin(vin: string) {
+  return typeof vin === "string" && /^[A-HJ-NPR-Z0-9]{17}$/.test(vin.trim().toUpperCase());
+}
 
 serve(async (req) => {
   // Handle CORS
@@ -42,12 +63,29 @@ serve(async (req) => {
     const carData = requestData.carData || requestData;
     const userId = requestData.userId || carData.userId;
 
-    if (!userId) {
-      throw new Error('Missing user ID');
-    }
+    // --- SECURITY: STRICT SANITIZATION FOR INPUTS ---
+    if (!userId) throw new Error('Missing user ID');
 
-    if (!carData) {
-      throw new Error('Missing car data');
+    if (!carData) throw new Error('Missing car data');
+
+    // Basic field presence / format checks
+    const badFields: string[] = [];
+    if (!carData.make || typeof carData.make !== "string" || !carData.make.trim()) badFields.push("make");
+    if (!carData.model || typeof carData.model !== "string" || !carData.model.trim()) badFields.push("model");
+    if (!isValidYear(Number(carData.year))) badFields.push("year");
+    if (!isValidMileage(Number(carData.mileage))) badFields.push("mileage");
+    if (!carData.reservePrice && (!carData.valuationData || !carData.valuationData.reservePrice)) badFields.push("reservePrice");
+    if (carData.vin && !isValidVin((carData.vin as string))) badFields.push("vin");
+
+    if (badFields.length > 0) {
+      console.error(`[${requestId}] ERROR: Invalid or missing required fields`, badFields);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: `Submission rejected. Invalid or missing fields: ${badFields.join(", ")}`,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // === RESERVE PRICE STRICT EXTRACTION ===
@@ -71,6 +109,14 @@ serve(async (req) => {
       );
     }
 
+    // --- SANITIZE ALL DATA FIELDS (DEFENSE IN DEPTH) ---
+    const safeMake = sanitizeText(carData.make || "");
+    const safeModel = sanitizeText(carData.model || "");
+    const safeSellerName = sanitizeText(carData.seller_name || carData.sellerName || "Seller");
+    const safeAddress = sanitizeText(carData.address || "");
+    const safeMobile = (carData.mobile_number || carData.mobileNumber || "").replace(/\D/g, "").slice(0,15);
+    const safeSellerNotes = sanitizeText(carData.seller_notes || carData.sellerNotes || "");
+
     // Generate car ID for database insertion (use provided ID if available)
     const carId = carData.id || crypto.randomUUID();
     console.log(`[${requestId}] Using car ID:`, carId);
@@ -82,6 +128,13 @@ serve(async (req) => {
       id: carId,
       seller_id: userId,
       reserve_price: extractedReservePrice,
+      make: safeMake,
+      model: safeModel,
+      seller_name: safeSellerName,
+      address: safeAddress,
+      mobile_number: safeMobile,
+      seller_notes: safeSellerNotes,
+      // Defensive fields: always sanitize these (in case future fields are added)
     };
 
     console.log(`[${requestId}] Prepared car record with strict reserve_price:`, {

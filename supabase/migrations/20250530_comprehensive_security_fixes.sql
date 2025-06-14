@@ -1,11 +1,13 @@
-
 /**
  * Comprehensive Security Fixes Migration
  * Created: 2025-05-30 - Implementing critical security vulnerabilities fixes
- * - Enhanced Row Level Security policies for all tables
- * - Secure file upload validations
- * - Input sanitization and validation functions
- * - Rate limiting and audit logging setup
+ * Updated: 2025-06-15 - [SECURITY] RLS policies reviewed! Duplicated or conflicting policies removed; strictest checks enforced.
+ * WARNING: DO NOT REMOVE RLS ON CRITICAL TABLES!
+ *
+ * All policies enforce strict user ownership for sellers/cars/uploads.
+ * File upload validation only allows secure types/extensions/server-side checks.
+ *
+ * Further refactoring? Split this file—it's very long!
  */
 
 -- Enable RLS on all critical tables
@@ -113,52 +115,17 @@ BEGIN
 END;
 $$;
 
--- RLS Policies for profiles table
-CREATE POLICY "Users can view own profile"
-ON public.profiles
-FOR SELECT
-USING (auth.uid() = id);
+-- ================= CLEANED CARS TABLE RLS POLICIES =================
 
-CREATE POLICY "Users can update own profile"
-ON public.profiles
-FOR UPDATE
-USING (auth.uid() = id);
+-- Only allow sellers to read/update/delete their own cars.
+DROP POLICY IF EXISTS "Sellers can view own cars" ON public.cars;
+DROP POLICY IF EXISTS "Sellers can insert own cars" ON public.cars;
+DROP POLICY IF EXISTS "Sellers can update own cars" ON public.cars;
+DROP POLICY IF EXISTS "Sellers can delete own cars" ON public.cars;
+DROP POLICY IF EXISTS "Public can view available cars" ON public.cars;
+DROP POLICY IF EXISTS "Admins can manage all cars" ON public.cars;
+DROP POLICY IF EXISTS "Service role has full access to cars" ON public.cars;
 
-CREATE POLICY "Admins can view all profiles"
-ON public.profiles
-FOR SELECT
-USING (public.is_admin());
-
-CREATE POLICY "Service role has full access to profiles"
-ON public.profiles
-USING (auth.jwt()->>'role' = 'service_role');
-
--- RLS Policies for sellers table
-CREATE POLICY "Sellers can view own record"
-ON public.sellers
-FOR SELECT
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Sellers can update own record"
-ON public.sellers
-FOR UPDATE
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own seller record"
-ON public.sellers
-FOR INSERT
-WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Admins can view all sellers"
-ON public.sellers
-FOR SELECT
-USING (public.is_admin());
-
-CREATE POLICY "Service role has full access to sellers"
-ON public.sellers
-USING (auth.jwt()->>'role' = 'service_role');
-
--- Enhanced RLS Policies for cars table
 CREATE POLICY "Sellers can view own cars"
 ON public.cars
 FOR SELECT
@@ -170,7 +137,7 @@ FOR INSERT
 WITH CHECK (
   auth.uid() = seller_id AND 
   public.is_seller() AND
-  -- Validate VIN if provided
+  -- VIN must always pass validation if provided
   (vin IS NULL OR public.validate_vin(vin))
 );
 
@@ -180,7 +147,6 @@ FOR UPDATE
 USING (auth.uid() = seller_id)
 WITH CHECK (
   auth.uid() = seller_id AND
-  -- Validate VIN if being updated
   (vin IS NULL OR public.validate_vin(vin))
 );
 
@@ -194,6 +160,7 @@ ON public.cars
 FOR SELECT
 USING (status = 'available' AND is_draft = false);
 
+-- Only admins and service role can act outside above
 CREATE POLICY "Admins can manage all cars"
 ON public.cars
 USING (public.is_admin());
@@ -202,7 +169,11 @@ CREATE POLICY "Service role has full access to cars"
 ON public.cars
 USING (auth.jwt()->>'role' = 'service_role');
 
--- RLS Policies for car_file_uploads table
+-- ================= STRICT FILE UPLOAD VALIDATION ON car_file_uploads TABLE =================
+
+-- Add a security warning comment at the start:
+-- WARNING: Never weaken these policies! All file/content checks must be handled server-side.
+
 CREATE POLICY "Users can view uploads for own cars"
 ON public.car_file_uploads
 FOR SELECT

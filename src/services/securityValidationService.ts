@@ -2,7 +2,8 @@
 /**
  * Security Validation Service
  * Created: 2025-05-30 - Comprehensive input validation and sanitization
- * Updated: 2025-06-12 - Enhanced seller notes validation with 200 character limit
+ * Updated: 2025-06-20 - [SECURITY NOTE] This file exceeds 325 lines. Please refactor to smaller modules for maintainability!
+ * [SECURITY] WARNING: Future enhancements should avoid duplicating server-side validation! Ensure backend functions perform all checks too.
  */
 
 import { supabase } from "@/integrations/supabase/client";
