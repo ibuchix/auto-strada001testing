@@ -1,10 +1,10 @@
-
 /**
  * Changes made:
  * - 2025-06-14: Removed DealerSignup, Dealers, DealerDashboard, About, Contact, Sellers, SellMyCar, and Terms pages and their routes
  * - 2025-05-25: Implemented proper routing setup with BrowserRouter
  * - 2025-06-22: Removed BrowserRouter as it's now in main.tsx
  * - 2025-06-22: Confirmed all deleted pages and their routes removed
+ * - 2025-06-22: Removed /dashboard/car/:carId route (CarDetailsPage)
  */
 
 import { useEffect } from 'react';
@@ -22,7 +22,7 @@ const PrivacyPage = lazy(() => import('./pages/Privacy'));
 const SellerRegistrationRepairPage = lazy(() => import('./pages/SellerRegistrationRepair'));
 const AuthPage = lazy(() => import('./pages/Auth'));
 const SellerDashboardPage = lazy(() => import('./pages/SellerDashboard'));
-const CarDetailsPage = lazy(() => import('./pages/CarDetails'));
+// Removed: const CarDetailsPage = lazy(() => import('./pages/CarDetails'));
 
 // Only import the diagnostic page in development mode
 const DiagnosticsPage = import.meta.env.DEV 
@@ -74,12 +74,7 @@ function App() {
             <SellerDashboardPage />
           </Suspense>
         } />
-        <Route path="/dashboard/car/:carId" element={
-          <Suspense fallback={<div>Loading...</div>}>
-            <CarDetailsPage />
-          </Suspense>
-        } />
-        {/* Conditionally render diagnostics route only in development */}
+        {/* Removed: <Route path="/dashboard/car/:carId" element={<Suspense>...</Suspense>} /> */}
         {import.meta.env.DEV && (
           <Route 
             path="/diagnostics" 
