@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - 2025-06-14: Removed DealerSignup, Dealers, DealerDashboard, About, Contact, Sellers, SellMyCar, and Terms pages and their routes
@@ -5,6 +6,7 @@
  * - 2025-06-22: Removed BrowserRouter as it's now in main.tsx
  * - 2025-06-22: Confirmed all deleted pages and their routes removed
  * - 2025-06-22: Removed /dashboard/car/:carId route (CarDetailsPage)
+ * - 2025-06-22: Restored SellMyCar page and route to support post-valuation listing flow
  */
 
 import { useEffect } from 'react';
@@ -23,6 +25,7 @@ const SellerRegistrationRepairPage = lazy(() => import('./pages/SellerRegistrati
 const AuthPage = lazy(() => import('./pages/Auth'));
 const SellerDashboardPage = lazy(() => import('./pages/SellerDashboard'));
 // Removed: const CarDetailsPage = lazy(() => import('./pages/CarDetails'));
+const SellMyCarPage = lazy(() => import('./pages/SellMyCar'));
 
 // Only import the diagnostic page in development mode
 const DiagnosticsPage = import.meta.env.DEV 
@@ -72,6 +75,11 @@ function App() {
         <Route path="/dashboard/seller" element={
           <Suspense fallback={<div>Loading...</div>}>
             <SellerDashboardPage />
+          </Suspense>
+        } />
+        <Route path="/sell-my-car" element={
+          <Suspense fallback={<div>Loading...</div>}>
+            <SellMyCarPage />
           </Suspense>
         } />
         {/* Removed: <Route path="/dashboard/car/:carId" element={<Suspense>...</Suspense>} /> */}
