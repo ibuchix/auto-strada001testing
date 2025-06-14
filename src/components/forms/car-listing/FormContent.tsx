@@ -3,6 +3,7 @@
  * Form Content
  * Updated: 2025-06-12 - Reorganized section order and added RimPhotosSection
  * Updated: 2025-06-20 - Integrated FormSuccessDialog to show after successful submission
+ * Updated: 2025-06-14 - Fixed import of FormSuccessDialog to resolve carId prop error
  */
 
 import { VehicleDetailsSection } from "./sections/VehicleDetailsSection";
@@ -23,7 +24,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { FormContextBridge } from "./components/FormContextBridge";
-import { FormSuccessDialog } from "./submission/FormSuccessDialog";
+import { FormSuccessDialog } from "./components/FormSuccessDialog"; // FIXED IMPORT
 
 export const FormContent = ({ carId }: { carId?: string }) => {
   const auth = useAuth();
@@ -184,9 +185,10 @@ export const FormContent = ({ carId }: { carId?: string }) => {
       {/* Success Dialog – appears after a successful submission */}
       <FormSuccessDialog
         open={showSuccessDialog}
-        onClose={() => setShowSuccessDialog(false)}
+        onOpenChange={setShowSuccessDialog}
         carId={lastCarId}
       />
     </div>
   );
 };
+
