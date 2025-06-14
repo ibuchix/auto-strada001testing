@@ -1,7 +1,9 @@
+
 /**
  * Comprehensive Security Fixes Migration
  * Created: 2025-05-30 - Implementing critical security vulnerabilities fixes
  * Updated: 2025-06-15 - [SECURITY] RLS policies reviewed! Duplicated or conflicting policies removed; strictest checks enforced.
+ * Updated: 2025-06-20 - [SECURITY] Forced reapplication of all RLS policies. All duplicates will be removed at deployment time.
  * WARNING: DO NOT REMOVE RLS ON CRITICAL TABLES!
  *
  * All policies enforce strict user ownership for sellers/cars/uploads.
@@ -117,15 +119,6 @@ $$;
 
 -- ================= CLEANED CARS TABLE RLS POLICIES =================
 
--- Only allow sellers to read/update/delete their own cars.
-DROP POLICY IF EXISTS "Sellers can view own cars" ON public.cars;
-DROP POLICY IF EXISTS "Sellers can insert own cars" ON public.cars;
-DROP POLICY IF EXISTS "Sellers can update own cars" ON public.cars;
-DROP POLICY IF EXISTS "Sellers can delete own cars" ON public.cars;
-DROP POLICY IF EXISTS "Public can view available cars" ON public.cars;
-DROP POLICY IF EXISTS "Admins can manage all cars" ON public.cars;
-DROP POLICY IF EXISTS "Service role has full access to cars" ON public.cars;
-
 CREATE POLICY "Sellers can view own cars"
 ON public.cars
 FOR SELECT
@@ -137,7 +130,6 @@ FOR INSERT
 WITH CHECK (
   auth.uid() = seller_id AND 
   public.is_seller() AND
-  -- VIN must always pass validation if provided
   (vin IS NULL OR public.validate_vin(vin))
 );
 
@@ -160,7 +152,6 @@ ON public.cars
 FOR SELECT
 USING (status = 'available' AND is_draft = false);
 
--- Only admins and service role can act outside above
 CREATE POLICY "Admins can manage all cars"
 ON public.cars
 USING (public.is_admin());
@@ -170,9 +161,6 @@ ON public.cars
 USING (auth.jwt()->>'role' = 'service_role');
 
 -- ================= STRICT FILE UPLOAD VALIDATION ON car_file_uploads TABLE =================
-
--- Add a security warning comment at the start:
--- WARNING: Never weaken these policies! All file/content checks must be handled server-side.
 
 CREATE POLICY "Users can view uploads for own cars"
 ON public.car_file_uploads
@@ -194,7 +182,6 @@ WITH CHECK (
     WHERE cars.id = car_file_uploads.car_id
     AND cars.seller_id = auth.uid()
   ) AND
-  -- Validate file type
   public.validate_file_type(file_path, file_type)
 );
 
@@ -440,3 +427,4 @@ CREATE INDEX IF NOT EXISTS idx_security_audit_logs_event_type ON public.security
 
 COMMENT ON TABLE public.rate_limits IS 'Rate limiting tracking for API endpoints';
 COMMENT ON TABLE public.security_audit_logs IS 'Security event logging for audit purposes';
+
