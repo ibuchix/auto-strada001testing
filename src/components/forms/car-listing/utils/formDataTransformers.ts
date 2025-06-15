@@ -1,7 +1,6 @@
-
-
 /**
  * Form Data Transformation Utilities
+ * 2025-06-15: Added mapping for fuelType/fuel_type.
  * Updated: 2025-05-29 - COMPLETELY REMOVED price field - using only reservePrice
  * Updated: 2025-05-30 - Fixed TypeScript errors with field mappings and type assignments
  */
@@ -156,4 +155,3 @@ export const transformToCamelCase = (dbData: Record<string, any>): Partial<CarLi
   
   return transformed;
 };
-

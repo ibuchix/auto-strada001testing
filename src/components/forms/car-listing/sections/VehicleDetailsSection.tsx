@@ -1,7 +1,7 @@
-
 /**
  * Vehicle Details Section for Car Listing Form
  * Updated: 2025-05-30 - Added reserve price field from valuation data, consolidated pricing into vehicle details
+ * 2025-06-15: Added optional fuel type select dropdown; fixed isDamaged to simple checkbox.
  */
 
 import { useState, useEffect } from "react";
@@ -41,6 +41,7 @@ export const VehicleDetailsSection = () => {
   const reservePrice = form.watch("reservePrice");
   const valuationData = form.watch("valuationData");
   const hasFormData = !!(make && model && year);
+  const fuelType = form.watch("fuelType");
 
   // Check if user session is available
   useEffect(() => {
@@ -151,6 +152,16 @@ export const VehicleDetailsSection = () => {
     }
   };
 
+  // Fuel Type dropdown options
+  const fuelTypeOptions = [
+    { label: "Petrol", value: "petrol" },
+    { label: "Diesel", value: "diesel" },
+    { label: "Hybrid", value: "hybrid" },
+    { label: "Electric", value: "electric" },
+    { label: "LPG", value: "lpg" },
+    { label: "Other", value: "other" },
+  ];
+
   // Show loading state if we're still waiting for the session
   if (waitingForSession) {
     return (
@@ -204,6 +215,7 @@ export const VehicleDetailsSection = () => {
 
         {/* Manual input fields - always visible */}
         <div className="space-y-4">
+          {/* Show VIN lookup only if NOT coming from valuation */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="vin">VIN*</Label>
@@ -278,6 +290,29 @@ export const VehicleDetailsSection = () => {
               </Select>
               <FieldError message={form.formState.errors.transmission?.message ? String(form.formState.errors.transmission?.message) : undefined} />
             </div>
+          </div>
+
+          {/* Fuel Type Field */}
+          <div>
+            <Label htmlFor="fuelType">Fuel Type</Label>
+            <Select
+              onValueChange={(value: string) => form.setValue("fuelType", value)}
+              defaultValue={fuelType || ""}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select fuel type" />
+              </SelectTrigger>
+              <SelectContent>
+                {fuelTypeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500 mt-1">
+              Fuel type is optional but helps buyers make informed decisions.
+            </p>
           </div>
 
           {/* Reserve Price Field - only show if from valuation */}

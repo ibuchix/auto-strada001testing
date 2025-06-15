@@ -1,4 +1,3 @@
-
 /**
  * Changes made:
  * - 2024-09-05: Created dashboard types for SellerDashboard refactoring
@@ -9,6 +8,7 @@
  * - 2025-05-08: Enhanced valuation_data interface with more detailed types
  * - 2025-05-29: REMOVED price and is_draft fields - using only reservePrice
  * - 2025-06-15: Added auction_scheduled field to CarListing for approval/scheduling clarity
+ * - 2025-06-15: Added fuel_type to CarListing for fuel type tracking
  */
 
 import { CarFeatures } from "@/types/forms";
@@ -61,4 +61,5 @@ export interface CarListing {
    * Added: 2025-06-15
    */
   auction_scheduled?: boolean;
+  fuel_type?: string; // Added 2025-06-15
 }

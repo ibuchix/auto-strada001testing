@@ -527,6 +527,7 @@ export type Database = {
           features: Json | null
           finance_amount: number | null
           form_metadata: Json | null
+          fuel_type: string | null
           has_private_plate: boolean | null
           has_service_history: boolean | null
           id: string
@@ -570,6 +571,7 @@ export type Database = {
           features?: Json | null
           finance_amount?: number | null
           form_metadata?: Json | null
+          fuel_type?: string | null
           has_private_plate?: boolean | null
           has_service_history?: boolean | null
           id?: string
@@ -613,6 +615,7 @@ export type Database = {
           features?: Json | null
           finance_amount?: number | null
           form_metadata?: Json | null
+          fuel_type?: string | null
           has_private_plate?: boolean | null
           has_service_history?: boolean | null
           id?: string
@@ -1818,6 +1821,7 @@ export type Database = {
           features: Json | null
           finance_amount: number | null
           form_metadata: Json | null
+          fuel_type: string | null
           has_private_plate: boolean | null
           has_service_history: boolean | null
           id: string
@@ -1881,6 +1885,7 @@ export type Database = {
           features: Json | null
           finance_amount: number | null
           form_metadata: Json | null
+          fuel_type: string | null
           has_private_plate: boolean | null
           has_service_history: boolean | null
           id: string
@@ -2179,6 +2184,7 @@ export type Database = {
           features: Json | null
           finance_amount: number | null
           form_metadata: Json | null
+          fuel_type: string | null
           has_private_plate: boolean | null
           has_service_history: boolean | null
           id: string
@@ -2225,6 +2231,7 @@ export type Database = {
           features: Json | null
           finance_amount: number | null
           form_metadata: Json | null
+          fuel_type: string | null
           has_private_plate: boolean | null
           has_service_history: boolean | null
           id: string
