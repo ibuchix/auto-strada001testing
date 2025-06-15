@@ -519,6 +519,7 @@ export type Database = {
           additional_photos: Json | null
           address: string | null
           auction_end_time: string | null
+          auction_scheduled: boolean
           auction_status: string | null
           awaiting_seller_decision: boolean
           created_at: string
@@ -561,6 +562,7 @@ export type Database = {
           additional_photos?: Json | null
           address?: string | null
           auction_end_time?: string | null
+          auction_scheduled?: boolean
           auction_status?: string | null
           awaiting_seller_decision?: boolean
           created_at?: string
@@ -603,6 +605,7 @@ export type Database = {
           additional_photos?: Json | null
           address?: string | null
           auction_end_time?: string | null
+          auction_scheduled?: boolean
           auction_status?: string | null
           awaiting_seller_decision?: boolean
           created_at?: string
@@ -1807,6 +1810,7 @@ export type Database = {
           additional_photos: Json | null
           address: string | null
           auction_end_time: string | null
+          auction_scheduled: boolean
           auction_status: string | null
           awaiting_seller_decision: boolean
           created_at: string
@@ -1869,6 +1873,7 @@ export type Database = {
           additional_photos: Json | null
           address: string | null
           auction_end_time: string | null
+          auction_scheduled: boolean
           auction_status: string | null
           awaiting_seller_decision: boolean
           created_at: string
@@ -2166,6 +2171,7 @@ export type Database = {
           additional_photos: Json | null
           address: string | null
           auction_end_time: string | null
+          auction_scheduled: boolean
           auction_status: string | null
           awaiting_seller_decision: boolean
           created_at: string
@@ -2211,6 +2217,7 @@ export type Database = {
           additional_photos: Json | null
           address: string | null
           auction_end_time: string | null
+          auction_scheduled: boolean
           auction_status: string | null
           awaiting_seller_decision: boolean
           created_at: string

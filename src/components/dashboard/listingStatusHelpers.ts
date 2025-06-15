@@ -2,14 +2,11 @@
 /**
  * Changes made:
  * - 2025-06-15: Created helper functions to compute dynamic listing lifecycle status for sellers.
+ * - 2025-06-15: Updated to support auction_scheduled logic for seller approval & scheduling clarity.
  */
 
 import { CarListing } from "@/types/dashboard";
 
-/**
- * Returns user-friendly status, color, and icon for seller journey stage.
- * Considers listing/auction/bids/decisions.
- */
 import {
   Clock,
   CheckCircle,
@@ -24,6 +21,7 @@ import {
 
 /**
  * Compute enhanced lifecycle status for a car listing.
+ * Handles new auction_scheduled field for waiting/approval vs scheduled clarity.
  */
 export function getListingLifecycleStatus(listing: CarListing) {
   // If the listing is under review
@@ -46,22 +44,30 @@ export function getListingLifecycleStatus(listing: CarListing) {
     };
   }
 
-  // Live/approved but not yet to auction
-  if (
-    (listing.status === "available" || listing.status === "approved") &&
-    (!listing.auction_status || listing.auction_status === "pending")
-  ) {
-    return {
-      icon: CheckCircle,
-      color: "bg-green-100 text-green-800 border-green-200",
-      title: "Approved & Live",
-      description: "Ready and awaiting auction scheduling"
-    };
+  // Approval/scheduling split — use auction_scheduled boolean
+  if (listing.status === "available") {
+    // Not scheduled yet: waiting for auction schedule; approved by admin but not scheduled by auction ops
+    if (!listing.auction_scheduled) {
+      return {
+        icon: Clock,
+        color: "bg-yellow-100 text-yellow-800 border-yellow-200",
+        title: "Waiting for Approval",
+        description: "Awaiting auction team to schedule your listing"
+      };
+    }
+    // Scheduled for auction but auction not started yet
+    if (listing.auction_scheduled && (!listing.auction_status || listing.auction_status === "pending")) {
+      return {
+        icon: CheckCircle,
+        color: "bg-green-100 text-green-800 border-green-200",
+        title: "Approved & Live",
+        description: "Auction date scheduled, pending auction start"
+      };
+    }
   }
 
   // Auction is active
   if (listing.auction_status === "active") {
-    // Time left
     let auctionInfo = "";
     if (listing.auction_end_time) {
       const end = new Date(listing.auction_end_time);
@@ -111,7 +117,6 @@ export function getListingLifecycleStatus(listing: CarListing) {
 
   // Auction ended, not sold (reserve not met)
   if (listing.auction_status === "ended" || listing.auction_status === "unsold") {
-    // If there's a current_bid vs reserve_price, show Reserve not met if needed
     let description = "Auction ended";
     if (
       typeof listing.current_bid === "number" &&
@@ -139,4 +144,3 @@ export function getListingLifecycleStatus(listing: CarListing) {
     description: "Complete your listing to submit for review"
   };
 }
-
