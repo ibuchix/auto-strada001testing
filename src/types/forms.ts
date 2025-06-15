@@ -1,6 +1,7 @@
 /**
  * Type definitions for car listing form data
  * - 2025-06-15: Added fuelType/fuel_type fields for car listing and entity
+ * - 2025-06-15: Added `fuel_type` to CarEntity interface for DB consistency and bug fix (TS2353)
  * - Updated 2025-05-20: Added last_saved field to match database schema
  * - Updated 2025-05-21: Fixed field naming inconsistencies (camelCase to snake_case)
  * - Updated 2025-05-22: Added ServiceHistoryFile type and additional missing fields
@@ -146,7 +147,7 @@ export interface RimPhotos {
 
 /**
  * Car Entity represents the database schema for car records
- * 2025-06-15: Added fuel_type to CarEntity interface
+ * - 2025-06-15: Added fuel_type to CarEntity interface
  */
 export interface CarEntity {
   id: string;
@@ -180,4 +181,11 @@ export interface CarEntity {
   required_photos?: Record<string, string>;
   form_metadata?: any;
   valuation_data?: any;
+  fuel_type?: string; // <-- Added this line to fix TS error and match DB
 }
+
+/**
+ * Auction Status
+ * - 2025-06-13: Added auctionStatus field to CarListingFormData
+ */
+export type AuctionStatus = 'open' | 'closed' | 'pending';
