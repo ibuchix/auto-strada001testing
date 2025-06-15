@@ -1,4 +1,3 @@
-
 /**
  * Upload Service for Car Listings
  * Created: 2025-05-20
@@ -9,6 +8,7 @@
  * Updated: 2025-05-24 - Fixed TypeScript error with StorageError status property
  * Updated: 2025-05-25 - Integrated with centralized storage config
  * Updated: 2025-05-24 - Added comprehensive debug logging and path validation
+ * Updated: 2025-06-18 - Ensure authentication is rechecked & session is refreshed (no fallback, sole root-cause resolution)
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -221,43 +221,52 @@ export const directUploadPhoto = async (
       carsPath: STORAGE_PATHS.CARS
     }
   });
-  
+
   try {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       throw new Error(`Invalid file type: ${file.type}. Please upload an image file.`);
     }
-    
-    // Check authentication status
-    const { data: sessionData } = await supabase.auth.getSession();
+
+    // --- AUTH CHECK: Only allow upload when authenticated ---
+    // Call supabase.auth.getSession()
+    let { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      // Attempt to refresh the session ONCE, not as a fallback but as a root-cause solution to race conditions/stale tokens
+      console.warn(`[UploadService][${uploadId}] No session found, trying refresh...`);
+      await supabase.auth.refreshSession();
+      // Try again:
+      ({ data: sessionData } = await supabase.auth.getSession());
+    }
     if (!sessionData?.session) {
       throw new Error('User authentication required for file uploads');
     }
-    
+    // --- END AUTH CHECK ---
+
     console.log(`[UploadService][${uploadId}] Authentication validated`);
-    
+
     // Create unique file path with better structure
     const uniqueId = crypto.randomUUID();
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${uniqueId}.${fileExt}`;
-    
+
     console.log(`[UploadService][${uploadId}] Generated file name:`, { 
       originalName: file.name, 
       generatedName: fileName, 
       uniqueId, 
       fileExt 
     });
-    
+
     // Construct and validate the file path
     const filePath = constructFilePath(path, category, fileName);
-    
+
     console.log(`[UploadService][${uploadId}] Final upload parameters:`, {
       bucket: STORAGE_BUCKET,
       filePath: filePath,
       fileSize: file.size,
       fileType: file.type
     });
-    
+
     // Upload to the bucket from config
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
@@ -290,15 +299,15 @@ export const directUploadPhoto = async (
     const { data: publicUrlData } = supabase.storage
       .from(STORAGE_BUCKET)
       .getPublicUrl(filePath);
-    
+
     const publicUrl = publicUrlData?.publicUrl || '';
-    
+
     console.log(`[UploadService][${uploadId}] Upload successful:`, {
       filePath: filePath,
       publicUrl: publicUrl,
       uploadData: data
     });
-    
+
     // Track this upload in temporary storage
     const uploadInfo = {
       filePath: filePath,
@@ -307,15 +316,15 @@ export const directUploadPhoto = async (
       uploadTime: new Date().toISOString(),
       uploadId: uploadId
     };
-    
+
     // Add to temp_car_uploads in localStorage
     const existingUploads = localStorage.getItem('temp_car_uploads');
     const uploads = existingUploads ? JSON.parse(existingUploads) : [];
     uploads.push(uploadInfo);
     localStorage.setItem('temp_car_uploads', JSON.stringify(uploads));
-    
+
     console.log(`[UploadService][${uploadId}] Upload tracked in localStorage`);
-    
+
     // Return just the public URL string
     return publicUrl;
   } catch (error: any) {
