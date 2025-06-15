@@ -199,6 +199,7 @@ export type Database = {
       }
       auction_results: {
         Row: {
+          admin_review_status: string | null
           auction_id: string | null
           bid_count: number | null
           bidding_activity_timeline: Json | null
@@ -208,10 +209,12 @@ export type Database = {
           highest_bid_dealer_id: string | null
           id: string
           sale_status: string | null
+          seller_decision: string | null
           total_bids: number | null
           unique_bidders: number | null
         }
         Insert: {
+          admin_review_status?: string | null
           auction_id?: string | null
           bid_count?: number | null
           bidding_activity_timeline?: Json | null
@@ -221,10 +224,12 @@ export type Database = {
           highest_bid_dealer_id?: string | null
           id?: string
           sale_status?: string | null
+          seller_decision?: string | null
           total_bids?: number | null
           unique_bidders?: number | null
         }
         Update: {
+          admin_review_status?: string | null
           auction_id?: string | null
           bid_count?: number | null
           bidding_activity_timeline?: Json | null
@@ -234,6 +239,7 @@ export type Database = {
           highest_bid_dealer_id?: string | null
           id?: string
           sale_status?: string | null
+          seller_decision?: string | null
           total_bids?: number | null
           unique_bidders?: number | null
         }
@@ -514,6 +520,7 @@ export type Database = {
           address: string | null
           auction_end_time: string | null
           auction_status: string | null
+          awaiting_seller_decision: boolean
           created_at: string
           current_bid: number | null
           features: Json | null
@@ -555,6 +562,7 @@ export type Database = {
           address?: string | null
           auction_end_time?: string | null
           auction_status?: string | null
+          awaiting_seller_decision?: boolean
           created_at?: string
           current_bid?: number | null
           features?: Json | null
@@ -596,6 +604,7 @@ export type Database = {
           address?: string | null
           auction_end_time?: string | null
           auction_status?: string | null
+          awaiting_seller_decision?: boolean
           created_at?: string
           current_bid?: number | null
           features?: Json | null
@@ -1406,6 +1415,74 @@ export type Database = {
           },
         ]
       }
+      seller_bid_decisions: {
+        Row: {
+          auction_result_id: string | null
+          car_id: string
+          created_at: string
+          decided_at: string
+          decision: string
+          highest_bid: number | null
+          highest_bid_dealer_id: string | null
+          id: string
+          seller_id: string
+          updated_at: string
+        }
+        Insert: {
+          auction_result_id?: string | null
+          car_id: string
+          created_at?: string
+          decided_at?: string
+          decision: string
+          highest_bid?: number | null
+          highest_bid_dealer_id?: string | null
+          id?: string
+          seller_id: string
+          updated_at?: string
+        }
+        Update: {
+          auction_result_id?: string | null
+          car_id?: string
+          created_at?: string
+          decided_at?: string
+          decision?: string
+          highest_bid?: number | null
+          highest_bid_dealer_id?: string | null
+          id?: string
+          seller_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_bid_decisions_auction_result_id_fkey"
+            columns: ["auction_result_id"]
+            isOneToOne: false
+            referencedRelation: "auction_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_bid_decisions_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_bid_decisions_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "cars_needing_images"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_bid_decisions_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "sellers"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       seller_performance_metrics: {
         Row: {
           active_listings: number
@@ -1731,6 +1808,7 @@ export type Database = {
           address: string | null
           auction_end_time: string | null
           auction_status: string | null
+          awaiting_seller_decision: boolean
           created_at: string
           current_bid: number | null
           features: Json | null
@@ -1792,6 +1870,7 @@ export type Database = {
           address: string | null
           auction_end_time: string | null
           auction_status: string | null
+          awaiting_seller_decision: boolean
           created_at: string
           current_bid: number | null
           features: Json | null
@@ -1970,6 +2049,7 @@ export type Database = {
       fetch_seller_auction_results: {
         Args: { p_seller_id?: string }
         Returns: {
+          admin_review_status: string | null
           auction_id: string | null
           bid_count: number | null
           bidding_activity_timeline: Json | null
@@ -1979,6 +2059,7 @@ export type Database = {
           highest_bid_dealer_id: string | null
           id: string
           sale_status: string | null
+          seller_decision: string | null
           total_bids: number | null
           unique_bidders: number | null
         }[]
@@ -2011,6 +2092,7 @@ export type Database = {
       get_auction_results_for_seller: {
         Args: { p_seller_id: string }
         Returns: {
+          admin_review_status: string | null
           auction_id: string | null
           bid_count: number | null
           bidding_activity_timeline: Json | null
@@ -2020,6 +2102,7 @@ export type Database = {
           highest_bid_dealer_id: string | null
           id: string
           sale_status: string | null
+          seller_decision: string | null
           total_bids: number | null
           unique_bidders: number | null
         }[]
@@ -2084,6 +2167,7 @@ export type Database = {
           address: string | null
           auction_end_time: string | null
           auction_status: string | null
+          awaiting_seller_decision: boolean
           created_at: string
           current_bid: number | null
           features: Json | null
@@ -2128,6 +2212,7 @@ export type Database = {
           address: string | null
           auction_end_time: string | null
           auction_status: string | null
+          awaiting_seller_decision: boolean
           created_at: string
           current_bid: number | null
           features: Json | null
