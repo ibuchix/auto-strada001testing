@@ -3,6 +3,7 @@
  * Component for uploading damage photos
  * Created: 2025-07-18
  * Updated: 2025-06-15 - Fix TypeError by using useFormData(), null-safe form context, defensive rendering
+ * Updated: 2025-06-15 - Fix DamageReport TS2322: only use allowed type, remove carId property
  */
 import React, { useState } from 'react';
 import { Camera, Plus, Trash } from 'lucide-react';
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useFormData } from '../context/FormDataContext'; // Use FormDataContext, not useFormContext
+import { useFormData } from '../context/FormDataContext';
 import { Alert } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { uploadPhoto } from '../photo-upload/services/photoStorageService';
@@ -28,14 +29,12 @@ export const DamagePhotosSection = () => {
   let form: ReturnType<typeof useFormData>['form'] | null = null;
   let formError = null;
   try {
-    // useFormData throws if not within provider, which is desired so we can catch and render fallback
     ({ form } = useFormData());
   } catch (e) {
     formError = e;
     console.error("DamagePhotosSection: No form context found!", e);
   }
 
-  // If there's no context, show a user error and don't crash
   if (!form) {
     return (
       <Card className="mb-4">
@@ -70,8 +69,6 @@ export const DamagePhotosSection = () => {
     }
     try {
       setIsUploading(true);
-
-      // Upload using the photoStorageService
       const category = `damage_${Date.now()}`;
       const photoUrl = await uploadPhoto(file, carId, category);
 
@@ -83,23 +80,22 @@ export const DamagePhotosSection = () => {
           location: currentLocation || 'Unspecified',
         };
 
-        // Update local state
         setDamagePhotos(prev => [...prev, newDamagePhoto]);
 
-        // Update form values
+        // Compose a valid DamageReport object (no carId, allowed "type")
         const damageReports = form.getValues('damageReports') || [];
         form.setValue('damageReports', [
           ...damageReports,
           {
+            id: newDamagePhoto.id,
             photo: photoUrl,
             description: currentDescription,
             location: currentLocation || 'Unspecified',
-            type: 'visual',
-            carId: carId,
+            type: 'other', // valid DamageType, can be changed according to your app
+            severity: 'minor', // set a default, or optionally pick by UI later
           },
         ], { shouldDirty: true });
 
-        // Reset form fields
         setCurrentDescription('');
         setCurrentLocation('');
       }
@@ -111,10 +107,7 @@ export const DamagePhotosSection = () => {
   };
 
   const removeDamagePhoto = (id: string) => {
-    // Update local state
     setDamagePhotos(prev => prev.filter(photo => photo.id !== id));
-
-    // Update form values
     const damageReports = form.getValues('damageReports') || [];
     const updatedReports = damageReports.filter((report: any) => report.id !== id);
     form.setValue('damageReports', updatedReports, { shouldDirty: true });
