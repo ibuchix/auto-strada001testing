@@ -26,22 +26,22 @@ CREATE INDEX IF NOT EXISTS idx_cars_awaiting_seller_decision ON public.cars(awai
 
 ALTER TABLE public.seller_bid_decisions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Sellers can insert their own bid decisions"
+CREATE POLICY "Sellers can insert their own bid decisions"
   ON public.seller_bid_decisions
   FOR INSERT
   WITH CHECK (seller_id = auth.uid());
 
-CREATE POLICY IF NOT EXISTS "Sellers can view their own bid decisions"
+CREATE POLICY "Sellers can view their own bid decisions"
   ON public.seller_bid_decisions
   FOR SELECT
   USING (seller_id = auth.uid());
 
-CREATE POLICY IF NOT EXISTS "Sellers can update their own bid decisions"
+CREATE POLICY "Sellers can update their own bid decisions"
   ON public.seller_bid_decisions
   FOR UPDATE
   USING (seller_id = auth.uid());
 
-CREATE POLICY IF NOT EXISTS "Sellers can delete their own bid decisions"
+CREATE POLICY "Sellers can delete their own bid decisions"
   ON public.seller_bid_decisions
   FOR DELETE
   USING (seller_id = auth.uid());
