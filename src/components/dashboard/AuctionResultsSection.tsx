@@ -2,6 +2,7 @@
 /**
  * Auction Results Section Component  
  * Updated: 2025-06-15 - Added seller bid decision dialog and action banner for auctions requiring a response
+ * 2025-06-15: Fixed CardDescription import bug.
  */
 
 import { useState } from 'react';
@@ -11,7 +12,8 @@ import {
   Card, 
   CardContent, 
   CardHeader, 
-  CardTitle 
+  CardTitle,
+  CardDescription // <-- Fix: Add this import
 } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
