@@ -3,6 +3,7 @@
  * Photos Upload Section Component
  * Created: 2025-06-17
  * Updated: 2025-06-12 - Removed additional photos and rim photos (moved to separate sections)
+ * Updated: 2025-06-15 - Fixed DamagePhotosSection import and removed root duplicate
  * 
  * Section focused only on required vehicle photos
  */
@@ -15,7 +16,7 @@ import { useFormData } from "../context/FormDataContext";
 import { useTemporaryFileUpload } from "@/hooks/useTemporaryFileUpload";
 import { RequiredPhotosGrid } from "../photo-upload/RequiredPhotosGrid";
 import { adaptTemporaryFileUploader, updateVehiclePhotos } from "../utilities/photoHelpers";
-import { DamagePhotosSection } from "./DamagePhotosSection";
+import { DamagePhotosSection } from "./DamagePhotosSection"; // <-- Use the correct path!
 import { SafeFormWrapper } from "../SafeFormWrapper";
 
 export const PhotosSection = ({ carId }: { carId?: string }) => {
