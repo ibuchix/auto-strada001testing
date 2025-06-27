@@ -6,6 +6,7 @@
  * Updated: 2025-05-23 - Fixed circular dependency issue with useSellerSession
  * Updated: 2025-06-20 - Enhanced error handling and fixed circular dependencies
  * Updated: 2025-06-21 - Fixed Hook invocation issue by ensuring all hooks are called unconditionally
+ * Updated: 2025-06-15(bounty) - Added types for authprovider component states: isloading, isSeller, isInitialized
  */
 
 import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from "react";
@@ -29,10 +30,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Initialize state hooks at the component level - never conditionally
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  const [isSeller, setIsSeller] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isSeller, setIsSeller] = useState<boolean>(false);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
   
   // Use the useSellerRoleCheck hook to get the checkSellerRole function
   const { checkSellerRole } = useSellerRoleCheck();

@@ -39,48 +39,48 @@ serve(async (req) => {
         persistSession: false
       }
     });
-    
+
     let carData: any;
     let userId: string;
     let requiredPhotos: Record<string, File> = {};
     let additionalPhotos: File[] = [];
-    
+
     const contentType = req.headers.get('content-type') || '';
     console.log(`[${requestId}] Content-Type:`, contentType);
-    
+
     if (contentType.includes('multipart/form-data')) {
       // Handle multipart form data with images
       console.log(`[${requestId}] Parsing multipart form data`);
-      
+
       const formData = await req.formData();
-      
+
       // Extract car data
       const carDataStr = formData.get('carData') as string;
       if (!carDataStr) {
         throw new Error('Missing car data in form submission');
       }
-      
+
       carData = JSON.parse(carDataStr);
       userId = formData.get('userId') as string || carData.userId;
-      
+
       if (!userId) {
         throw new Error('Missing user ID');
       }
-      
+
       // Extract required photos
       const requiredPhotoTypes = [
         'exterior_front', 'exterior_rear', 'exterior_left', 'exterior_right',
         'interior_front', 'dashboard', 'rim_front_left', 'rim_front_right',
         'rim_rear_left', 'rim_rear_right', 'engine_bay', 'interior_rear'
       ];
-      
+
       for (const photoType of requiredPhotoTypes) {
         const file = formData.get(`required_${photoType}`) as File;
         if (file && file.size > 0) {
           requiredPhotos[photoType] = file;
         }
       }
-      
+
       // Extract additional photos
       let additionalIndex = 0;
       while (true) {
@@ -89,18 +89,18 @@ serve(async (req) => {
         additionalPhotos.push(file);
         additionalIndex++;
       }
-      
+
     } else {
       // Handle JSON data (backward compatibility)
       const requestData = await req.json();
       carData = requestData.carData || requestData;
       userId = requestData.userId || carData.userId;
-      
+
       if (!userId) {
         throw new Error('Missing user ID');
       }
     }
-    
+
     console.log(`[${requestId}] Data extracted:`, {
       userId,
       requiredPhotosCount: Object.keys(requiredPhotos).length,
@@ -108,20 +108,20 @@ serve(async (req) => {
       hasCarData: !!carData,
       carDataKeys: Object.keys(carData || {})
     });
-    
+
     // Validate required fields
     if (!carData.make || !carData.model || !carData.year) {
       throw new Error('Missing required vehicle details (make, model, year)');
     }
-    
+
     if (!carData.reservePrice || carData.reservePrice <= 0) {
       throw new Error('Reserve price must be greater than 0');
     }
-    
+
     // Generate car ID for image uploads
     const carId = crypto.randomUUID();
     console.log(`[${requestId}] Generated car ID:`, carId);
-    
+
     // Upload required photos to storage
     const uploadedRequiredPhotos: Record<string, string> = {};
     for (const [photoType, file] of Object.entries(requiredPhotos)) {
@@ -132,7 +132,7 @@ serve(async (req) => {
         console.warn(`[${requestId}] Required photo upload failed:`, photoType, result.error);
       }
     }
-    
+
     // Upload additional photos to storage
     const uploadedAdditionalPhotos: string[] = [];
     for (let i = 0; i < additionalPhotos.length; i++) {
@@ -144,12 +144,12 @@ serve(async (req) => {
         console.warn(`[${requestId}] Additional photo upload failed:`, i, result.error);
       }
     }
-    
+
     console.log(`[${requestId}] Images uploaded:`, {
       requiredPhotosUploaded: Object.keys(uploadedRequiredPhotos).length,
       additionalPhotosUploaded: uploadedAdditionalPhotos.length
     });
-    
+
     // Prepare car data for security definer function
     const carRecord = {
       id: carId,
@@ -178,7 +178,13 @@ serve(async (req) => {
       valuation_data: carData.valuationData || null,
       status: 'available'
     };
-    
+
+    const { fileName: serviceHistoryfileName, documentUrl: serviceHistoryDocumentUrl }: {
+      documentUrl: string,
+      fileName: string
+    } = carData.serviceHistoryFiles;
+
+
     console.log(`[${requestId}] Prepared car record:`, {
       id: carRecord.id,
       make: carRecord.make,
@@ -187,57 +193,84 @@ serve(async (req) => {
       reserve_price: carRecord.reserve_price,
       seller_id: carRecord.seller_id
     });
-    
+
     // Use security definer function to bypass RLS
     console.log(`[${requestId}] Calling security definer function`);
-    
+
     const { data: functionResult, error: functionError } = await supabase
       .rpc('create_car_listing', {
         p_car_data: carRecord,
         p_user_id: userId
       });
-    
+
     console.log(`[${requestId}] Security definer function result:`, {
       functionResult,
       functionError: functionError?.message,
       functionResultType: typeof functionResult
     });
-    
+
     if (functionError) {
       // Clean up uploaded images on function call failure
       await cleanupUploadedImages(supabase, carId, [
         ...Object.values(uploadedRequiredPhotos),
         ...uploadedAdditionalPhotos
       ]);
-      
+
       console.error(`[${requestId}] Security definer function failed:`, functionError.message);
       throw new Error(`Failed to create car listing: ${functionError.message}`);
     }
-    
+
     // Extract car ID from the JSONB response with comprehensive checking
     let createdCarId: string | null = null;
-    
+
     if (functionResult && typeof functionResult === 'object') {
       console.log(`[${requestId}] Function result object keys:`, Object.keys(functionResult));
-      
+
       // Check if the function returned success
       if (functionResult.success === true) {
         createdCarId = functionResult.car_id;
-        
+
         console.log(`[${requestId}] Extracted car_id from function result:`, createdCarId);
-        
+
         // If still no car_id, fall back to the generated ID
         if (!createdCarId) {
           console.warn(`[${requestId}] No car_id in successful response, using generated ID as fallback`);
           createdCarId = carId;
         }
+
+        /* insert record into service-history table */
+        if (!serviceHistoryfileName || !serviceHistoryDocumentUrl) {
+          throw new Error("service history file object missing from request data");
+        }
+
+        const { error: serviceHistoryRecordError } = await supabase
+          .from("service_history")
+          .insert({
+            car_id: createdCarId,
+            document_url: serviceHistoryDocumentUrl,
+            description: serviceHistoryfileName
+          })
+
+
+        if (serviceHistoryRecordError) {
+          throw new Error("Unable to create service history record");
+        }
+
       } else {
         // Clean up uploaded images on function failure
         await cleanupUploadedImages(supabase, carId, [
           ...Object.values(uploadedRequiredPhotos),
           ...uploadedAdditionalPhotos
         ]);
-        
+
+        /* delete car service history file */
+        const { error: serviceFileRemoveError } = await supabase
+          .storage
+          .from('car-files')
+          .remove([serviceHistoryfileName]);
+
+        if (serviceFileRemoveError) throw new Error(`Failed to create car listing: ${functionResult.error || 'Unknown error from database function'}. Failed to delete service history file.`)
+
         console.error(`[${requestId}] Function returned failure:`, functionResult);
         throw new Error(`Failed to create car listing: ${functionResult.error || 'Unknown error from database function'}`);
       }
@@ -247,29 +280,50 @@ serve(async (req) => {
         result: functionResult,
         type: typeof functionResult
       });
-      
+
       // Clean up uploaded images
       await cleanupUploadedImages(supabase, carId, [
         ...Object.values(uploadedRequiredPhotos),
         ...uploadedAdditionalPhotos
       ]);
-      
+
+
+      /* delete car service history file */
+      if (serviceHistoryfileName) {
+        const { error: serviceFileRemoveError } = await supabase
+          .storage
+          .from('car-files')
+          .remove([serviceHistoryfileName]);
+
+          if(serviceFileRemoveError) throw new Error('Unexpected response from database function. Failed to delete service file or servcie file doesnt exist');
+      }
+
       throw new Error('Unexpected response from database function');
     }
-    
+
     if (!createdCarId) {
       // Clean up uploaded images if no car ID
       await cleanupUploadedImages(supabase, carId, [
         ...Object.values(uploadedRequiredPhotos),
         ...uploadedAdditionalPhotos
       ]);
-      
+
+      /* delete car service history file */
+      if (serviceHistoryfileName) {
+        const { error: serviceFileRemoveError } = await supabase
+          .storage
+          .from('car-files')
+          .remove([serviceHistoryfileName]);
+
+          if(serviceFileRemoveError) throw new Error('Failed to create car listing - no car ID returned from database. Failed to delete service file or servcie file doesnt exist');
+      }
+
       console.error(`[${requestId}] No car ID available after processing:`, functionResult);
       throw new Error('Failed to create car listing - no car ID returned from database');
     }
-    
+
     console.log(`[${requestId}] Car listing created successfully:`, createdCarId);
-    
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -283,10 +337,10 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
-    
+
   } catch (error) {
     console.error(`[${requestId}] Error:`, error instanceof Error ? error.message : 'Unknown error');
-    
+
     return new Response(
       JSON.stringify({
         success: false,
@@ -313,22 +367,22 @@ async function uploadImageToStorage(
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${photoType}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
     const filePath = `cars/${carId}/${fileName}`;
-    
+
     const { data, error } = await supabase.storage
       .from('car-images')
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: true
       });
-    
+
     if (error) {
       return { success: false, error: error.message };
     }
-    
+
     const { data: { publicUrl } } = supabase.storage
       .from('car-images')
       .getPublicUrl(filePath);
-    
+
     return { success: true, url: publicUrl };
   } catch (error) {
     return {
@@ -351,7 +405,7 @@ async function cleanupUploadedImages(
       const path = url.split('/storage/v1/object/public/car-images/')[1];
       return path;
     }).filter(Boolean);
-    
+
     if (filePaths.length > 0) {
       await supabase.storage
         .from('car-images')

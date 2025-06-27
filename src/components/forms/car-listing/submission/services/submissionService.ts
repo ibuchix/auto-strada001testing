@@ -12,6 +12,7 @@ import {
   processRequiredPhotos, 
   processAdditionalPhotos 
 } from "@/services/supabase/imageUploadService";
+import { uploadTempServiceHistoryFile, uploadTempServiceHistoryFileType } from "@/services/supabase/serviceHistoryFileUploadService";
 
 export interface CreateListingResult {
   success: boolean;
@@ -33,6 +34,7 @@ export const createCarListing = async (
     // Step 1: Process and upload images first
     let processedRequiredPhotos: Record<string, string> = {};
     let processedAdditionalPhotos: string[] = [];
+    let storedTempServiceFileData: uploadTempServiceHistoryFileType | null;
     
     if (formData.requiredPhotos) {
       console.log('Processing required photos...');
@@ -51,12 +53,19 @@ export const createCarListing = async (
       );
       console.log('Additional photos processed:', processedAdditionalPhotos.length);
     }
+
+    /* process and upload service history file to a temp storagge 'car-file/services-history/temp' and return the public url */
+    if(formData.serviceHistoryFiles && formData.serviceHistoryFiles instanceof File){
+      console.log("Uploading service history document to temp dir.")
+      storedTempServiceFileData = await uploadTempServiceHistoryFile(formData.serviceHistoryFiles);
+    }
     
     // Step 2: Prepare submission data with uploaded image URLs
     const submissionData = prepareSubmission({
       ...formData,
       requiredPhotos: processedRequiredPhotos,
-      additionalPhotos: processedAdditionalPhotos
+      additionalPhotos: processedAdditionalPhotos,  
+      serviceHistoryFiles: storedTempServiceFileData
     });
     
     console.log('Submission data prepared with image URLs');

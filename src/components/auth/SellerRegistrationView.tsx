@@ -5,6 +5,7 @@
  * - 2024-06-27: Redesigned for modern appearance with card-based layout
  * - 2024-11-14: Added status message display during registration process
  * - 2024-12-18: Enhanced with better loading states and progress feedback
+ * - Updated 2025-06-15 (bounty): added username field for interface SellerRegistrationViewProps.onSubmit(params)
  */
 
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Loader2, CheckCircle } from "lucide-react";
 
 interface SellerRegistrationViewProps {
-  onSubmit: (email: string, password: string) => void;
+  onSubmit: (username:string, email: string, password: string) => void;
   onBack: () => void;
   isLoading: boolean;
   registrationStep?: 'initial' | 'processing' | 'complete';

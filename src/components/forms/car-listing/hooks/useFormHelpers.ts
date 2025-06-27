@@ -5,10 +5,12 @@
  * Updated: 2025-05-25 - Fixed field naming consistency issues
  * Updated: 2025-05-26 - Fixed DEFAULT_VALUES object for consistent camelCase usage
  * Updated: 2025-05-29 - REMOVED price field - using only reservePrice
+ * Updated: 2025-06-16 - imported TransmissionType and ServiceHistoryType, used it to assert default values for transmission and serviceHistory 
+ * values in getInitialFormValues and getFormDefaults
  */
 
 import { DEFAULT_VALUES } from "../constants/defaultValues";
-import { CarListingFormData } from "@/types/forms";
+import { CarListingFormData, ServiceHistoryType, TransmissionType } from "@/types/forms";
 import { validateCarOwnership } from '@/utils/carOwnershipUtils';
 import { useAuth } from '@/components/AuthProvider';
 import { toast } from 'sonner';
@@ -19,8 +21,8 @@ export const getInitialFormValues = (): Partial<CarListingFormData> => {
   return {
     ...DEFAULT_VALUES,
     // Ensure proper typing for enum values
-    transmission: DEFAULT_VALUES.transmission as "manual" | "automatic" | "semi-automatic",
-    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType as "full" | "partial" | "none"
+    transmission: DEFAULT_VALUES.transmission as TransmissionType,
+    serviceHistoryType: DEFAULT_VALUES.serviceHistoryType as ServiceHistoryType
   };
 };
 
@@ -38,7 +40,7 @@ export const getFormDefaults = (): Partial<CarListingFormData> => {
     mileage: 0,
     vin: "",
     reservePrice: 0,
-    transmission: "manual" as "manual" | "automatic" | "semi-automatic",
+    transmission: "manual" as TransmissionType,
     features: {
       airConditioning: false,
       bluetooth: false,
@@ -58,7 +60,7 @@ export const getFormDefaults = (): Partial<CarListingFormData> => {
       laneDepartureWarning: false
     },
     sellerId: "",
-    serviceHistoryType: "none" as "none" | "partial" | "full",
+    serviceHistoryType: "none" as ServiceHistoryType,
     fromValuation: false
   };
 };

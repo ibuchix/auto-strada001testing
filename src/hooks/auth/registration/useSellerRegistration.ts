@@ -19,7 +19,6 @@ import { tryRpcRegistration } from "./utils/rpcUtils";
  */
 export const useSellerRegistration = () => {
   const [isLoading, setIsLoading] = useState(false);
-
   /**
    * Register a user as a seller by creating a seller record
    * and updating the user's role in metadata and profiles
@@ -36,14 +35,14 @@ export const useSellerRegistration = () => {
 
       // First try using the RPC function (bypasses RLS)
       const rpcResult = await tryRpcRegistration(supabase, userId);
-      
+
       if (rpcResult.success) {
         toast.success("Registered as seller successfully");
         return true;
       }
-      
+
       // If RPC fails, try the direct approach
-      
+
       // Step 1: Create a record in the sellers table
       const { error: sellerError } = await supabase
         .from("sellers")
@@ -61,13 +60,13 @@ export const useSellerRegistration = () => {
           console.log("Seller record already exists for user:", userId);
         } else {
           console.error("Failed to create seller record:", sellerError);
-          
+
           // Special case for permission denied - try RPC again with no arguments
           if (sellerError.code === '42501' || sellerError.message.includes('permission denied')) {
             console.log("Permission denied error, trying no-argument RPC function");
-            
+
             const { error: rpcError } = await supabase.rpc('ensure_seller_registration');
-            
+
             if (rpcError) {
               console.error("Failed to use ensure_seller_registration:", rpcError);
               throw new Error(`Failed to register seller via any method: ${sellerError.message}`);
@@ -105,7 +104,7 @@ export const useSellerRegistration = () => {
 
       console.log("Successfully registered user as seller:", userId);
       toast.success("Registered as seller successfully");
-      
+
       return true;
     } catch (error: any) {
       console.error("Error in seller registration:", error);

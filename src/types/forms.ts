@@ -11,7 +11,41 @@
  * - Updated 2025-05-30: Fixed numberOfKeys type to be number | string for compatibility
  * - Updated 2025-06-01: Added name property for test compatibility
  * - Updated 2025-05-29: REMOVED price field - using only reservePrice (single pricing model)
+ * - Updated(bounty): ln-17|col-1 = created types Transmission and ServiceHistoryType to enforce enum from the database listing_service_type
  */
+
+
+const ServiceHistoryList = {
+  none: "none",
+  full: "full",
+  partial: "partial"
+} as const;
+
+export type ServiceHistoryType = keyof typeof ServiceHistoryList
+export type ServiceHistoryLabel = (typeof ServiceHistoryList)[ServiceHistoryType];
+
+export const ServiceHistoryLabels: Record<ServiceHistoryType, string> = {
+  none: "None",
+  full: "Full",
+  partial: "Partial"
+};
+
+const TransmissionTypeList = {
+  manual: "manual",
+  automatic: "automatic",
+  semiAutomatic: "semi-automatic"
+} as const;
+
+export type TransmissionTypeKey = keyof typeof TransmissionTypeList
+export type TransmissionType = (typeof TransmissionTypeList)[TransmissionTypeKey];
+
+export const TransmissionTypeLabels: Record<TransmissionTypeKey, string> = {
+   manual: "manual",
+  automatic: "automatic",
+  semiAutomatic: "semi-automatic"
+};
+
+
 export interface CarListingFormData {
   id?: string;
   make?: string;
@@ -36,7 +70,7 @@ export interface CarListingFormData {
   numberOfKeys?: number | string;
   hasServiceHistory?: boolean;
   title?: string;
-  transmission?: string;
+  transmission?: TransmissionType;
   images?: string[];
   status?: string;
   auctionStatus?: string;
@@ -47,7 +81,7 @@ export interface CarListingFormData {
   address?: string;
   sellerName?: string;
   name?: string;
-  serviceHistoryType?: string;
+  serviceHistoryType?: ServiceHistoryType;
   seatMaterial?: string;
   lastSaved?: string;
   serviceHistoryCount?: number;
@@ -72,7 +106,10 @@ export interface CarListingFormData {
   hasWarningLights?: boolean;
   conditionRating?: number;
   contactEmail?: string;
-  serviceHistoryFiles?: ServiceHistoryFile[];
+  serviceHistoryFiles?: File | {
+        documentUrl: string,
+        fileName: string
+    };
   
   // New fields added for consistency with database schema
   warningLightPhotos?: string[];

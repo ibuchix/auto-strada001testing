@@ -5,6 +5,11 @@
  * - 2024-06-27: Enhanced form with better styling and visual feedback
  * - 2024-06-28: Added email confirmation field for better validation
  * - 2024-07-06: Enhanced password validation and improved error messages
+ * - Updated 2025-06-15 (bounty): Included zod validation for username, 
+ * added username field for interface SellerRegistrationFormProps.onSubmit(params),
+ * added username to useForm hook defaultValues object,
+ * added username param to custom handleSubmit function signature,
+ * added Form field for username
  */
 
 import { useForm } from "react-hook-form";
@@ -24,6 +29,10 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 const formSchema = z.object({
+  username: z.string()
+    .min(3, "Username must be at least 3 characters.")
+    .max(20, "Username must not exceed 20 characters.")
+    .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores."),
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
@@ -48,7 +57,7 @@ const formSchema = z.object({
 export type SellerFormData = z.infer<typeof formSchema>;
 
 interface SellerRegistrationFormProps {
-  onSubmit: (email: string, password: string) => void;
+  onSubmit: (username: string, email: string, password: string) => void;
   isLoading: boolean;
 }
 
@@ -62,6 +71,7 @@ export const SellerRegistrationForm = ({
   const form = useForm<SellerFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      username:"",
       email: "",
       confirmEmail: "",
       password: "",
@@ -70,7 +80,7 @@ export const SellerRegistrationForm = ({
   });
 
   const handleSubmit = (values: SellerFormData) => {
-    onSubmit(values.email, values.password);
+    onSubmit(values.username, values.email, values.password);
   };
 
   return (
@@ -79,6 +89,25 @@ export const SellerRegistrationForm = ({
         onSubmit={form.handleSubmit(handleSubmit)}
         className="space-y-5"
       >
+        <FormField
+          control={form.control}
+          name="username"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-body font-medium">Username</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="Enter your username" 
+                  type="text" 
+                  className="h-12 focus-visible:ring-primary/30"
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage className="text-[#DC143C]" />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={form.control}
           name="email"

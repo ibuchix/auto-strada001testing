@@ -12,10 +12,18 @@ import { FormSection } from "../FormSection";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useFormData } from "../context/FormDataContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { FieldError } from "@/components/errors/FieldError";
+import { ServiceHistoryLabels, ServiceHistoryType } from "@/types/forms";
+import { Value } from "@radix-ui/react-select";
+import { Input } from "@/components/ui/input";
+import { Controller } from "react-hook-form";
+import { ChangeEvent } from "react";
 
 export const VehicleStatusSection = () => {
   const { form } = useFormData();
-  
+  console.log(form)
   return (
     <FormSection title="Vehicle Status">
       <CardHeader>
@@ -24,7 +32,7 @@ export const VehicleStatusSection = () => {
           Information about the current status of your vehicle
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent>
         <div className="grid grid-cols-1 gap-y-6">
           {/* Is the vehicle damaged? */}
@@ -50,7 +58,7 @@ export const VehicleStatusSection = () => {
               </FormItem>
             )}
           />
-          
+
           {/* Is the vehicle registered in Poland? */}
           <FormField
             control={form.control}
@@ -74,7 +82,7 @@ export const VehicleStatusSection = () => {
               </FormItem>
             )}
           />
-          
+
           {/* Does the vehicle have a private plate? */}
           <FormField
             control={form.control}
@@ -98,7 +106,7 @@ export const VehicleStatusSection = () => {
               </FormItem>
             )}
           />
-          
+
           {/* Does the vehicle have outstanding finance? */}
           <FormField
             control={form.control}
@@ -128,7 +136,7 @@ export const VehicleStatusSection = () => {
               </FormItem>
             )}
           />
-          
+
           {/* Does the vehicle have service history? */}
           <FormField
             control={form.control}
@@ -152,6 +160,100 @@ export const VehicleStatusSection = () => {
               </FormItem>
             )}
           />
+          {/* vehicle service history detail */}
+          <div>
+            <Label htmlFor="serviceHistoryType">Service history</Label>
+            <Select
+              onValueChange={(value: ServiceHistoryType) => form.setValue("serviceHistoryType", value)}
+              defaultValue={form.watch("serviceHistoryType")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select service history type" />
+              </SelectTrigger>
+              <SelectContent>
+                {
+                  Object.entries(ServiceHistoryLabels).map(([value, label]) => (<SelectItem value={value}>{label}</SelectItem>))
+                }
+              </SelectContent>
+            </Select>
+            <FieldError message={form.formState.errors.serviceHistoryType?.message ? String(form.formState.errors.serviceHistoryType?.message) : undefined} />
+          </div>
+
+          {/* Service history's file upload if service history is full or partial*/}
+          {
+            (form.getValues('serviceHistoryType') === 'full' || form.getValues('serviceHistoryType') === 'partial') && (
+              <Controller
+                name="serviceHistoryFiles"
+                control={form.control}
+                rules={{
+                  required: {
+                    value: true,
+                    message: "Service history document is required",
+                  },
+                }}
+                render={({ field: { onChange, value, ...rest } }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <div>
+                        <FormLabel htmlFor="serviceHistoryFiles">
+                          Service history file
+                        </FormLabel>
+
+                        <Input
+                          id="serviceHistoryFiles"
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                            const file = e.target.files?.[0];
+                            const maxFileSize = 10 * 1024 * 1024; // 10MB
+                            const allowedTypes = [
+                              "application/pdf",
+                              "application/msword", // .doc
+                              "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+                            ];
+
+                            if (!file) {
+                              onChange(null);
+                              return;
+                            }
+
+                            if (!allowedTypes.includes(file.type)) {
+                              form.setError("serviceHistoryFiles", {
+                                type: "manual",
+                                message: "File must be a document (PDF, DOC, DOCX)",
+                              });
+                              return;
+                            }
+
+                            if (file.size > maxFileSize) {
+                              form.setError("serviceHistoryFiles", {
+                                type: "manual",
+                                message: "File must be less than 10MB",
+                              });
+                              return;
+                            }
+
+                            // Clear any previous error
+                            form.clearErrors("serviceHistoryFiles");
+
+                            // File is valid
+                            onChange(file);
+                          }}
+                          {...rest}
+                        />
+
+                        <FieldError
+                          message={
+                            form.formState.errors.serviceHistoryFiles?.message
+                          }
+                        />
+                      </div>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            )
+          }
         </div>
       </CardContent>
     </FormSection>
