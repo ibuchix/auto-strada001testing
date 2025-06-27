@@ -2,6 +2,7 @@
 /**
  * Transforms and normalizes car data
  * Updated: 2025-05-05 - Fixed TypeScript errors with features
+ * Updated: 2025-06-13 - Removed leatherSeats references to fix compilation errors
  */
 
 import { CarListingFormData, CarFeatures } from "@/types/forms";
@@ -10,13 +11,12 @@ import { CarListingFormData, CarFeatures } from "@/types/forms";
  * Transforms server car data into the form's expected format
  */
 export function transformCarDataForForm(carData: any): CarListingFormData {
-  // Create a features object with all required properties
+  // Create a features object with all required properties - removed leatherSeats
   const features: CarFeatures = {
     // Required core properties
     airConditioning: false,
     bluetooth: false,
     cruiseControl: false,
-    leatherSeats: false,
     navigation: false,
     parkingSensors: false,
     sunroof: false,

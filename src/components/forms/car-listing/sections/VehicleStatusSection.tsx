@@ -1,10 +1,10 @@
 
 /**
  * Vehicle Status Section
- * Updated: 2025-05-04 - Updated to handle finance state properly
+ * Updated: 2025-06-12 - Added warning lights question and reorganized status questions
  * 
  * Section for collecting vehicle status information including damage, registration,
- * private plate, and outstanding finance status.
+ * private plate, outstanding finance status, and warning lights.
  */
 
 import { FormField, FormItem, FormLabel, FormControl, FormDescription } from "@/components/ui/form";
@@ -254,6 +254,30 @@ export const VehicleStatusSection = () => {
               />
             )
           }
+
+          {/* Are there warning lights on the dashboard? */}
+          <FormField
+            control={form.control}
+            name="hasWarningLights"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>
+                    Are there any warning lights on the dashboard?
+                  </FormLabel>
+                  <FormDescription>
+                    Check this if any warning lights are currently displayed on your dashboard
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
+          />
         </div>
       </CardContent>
     </FormSection>

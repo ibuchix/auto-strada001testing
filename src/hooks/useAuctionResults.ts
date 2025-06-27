@@ -5,6 +5,7 @@
  * - 2024-09-22: Fixed interface export and useOptimizedQuery parameter format
  * - 2024-09-23: Fixed query parameter format to match updated useOptimizedQuery
  * - 2024-10-16: Updated to use updated useOptimizedQuery function with proper parameter syntax
+ * - 2025-06-12: Added reserve_price to AuctionResult interface to fix TypeScript errors
  */
 
 import { Session } from "@supabase/supabase-js";
@@ -26,6 +27,7 @@ export interface AuctionResult {
   model?: string;
   year?: number;
   auction_end_time?: string;
+  reserve_price?: number; // Added reserve_price property
 }
 
 export const useAuctionResults = (session: Session | null) => {

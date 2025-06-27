@@ -8,6 +8,7 @@
  * - Updated price validation minimum value to 100
  * - Integrated with carSchema from utils/validation/carSchema
  * - 2025-05-29: Updated to use reservePrice instead of removed price field
+ * - 2025-06-12: Added seller notes validation with 200 character limit
  */
 
 import { CarListingFormData } from "@/types/forms";
@@ -89,6 +90,11 @@ export const getCarFormValidationErrors = (formData: CarListingFormData): string
   // Damage reports validation
   if (formData.isDamaged && (!formData.damageReports || formData.damageReports.length === 0)) {
     errors.push("Damage reports are required when car is marked as damaged");
+  }
+  
+  // Seller notes validation
+  if (formData.sellerNotes && formData.sellerNotes.length > 200) {
+    errors.push("Seller notes cannot exceed 200 characters");
   }
   
   return errors;

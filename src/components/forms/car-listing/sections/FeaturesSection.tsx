@@ -3,6 +3,7 @@
  * FeaturesSection Component
  * Updated: 2025-05-04 - Fixed TypeScript error with proper initialization of CarFeatures
  * Updated: 2025-05-24 - Updated to use camelCase field names consistently
+ * Updated: 2025-06-13 - Removed leather seats option (duplicate of seat material dropdown)
  */
 
 import { useFormData } from "../context/FormDataContext";
@@ -22,7 +23,6 @@ export const FeaturesSection = () => {
         airConditioning: false,
         bluetooth: false,
         cruiseControl: false,
-        leatherSeats: false,
         navigation: false,
         parkingSensors: false,
         sunroof: false,
@@ -92,22 +92,6 @@ export const FeaturesSection = () => {
                 />
               </FormControl>
               <FormLabel className="font-normal">Cruise Control</FormLabel>
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="features.leatherSeats"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <FormLabel className="font-normal">Leather Seats</FormLabel>
             </FormItem>
           )}
         />

@@ -4,6 +4,7 @@
  * - Updated imports to use special components for manual valuation
  * - Fixed component props to pass form to components that need it
  * - Added FormProvider wrapper for components that expect React Hook Form context
+ * - Fixed import path for AdditionalInfoSection to point to sections directory
  */
 
 import { Form } from "@/components/ui/form";
@@ -16,7 +17,7 @@ import { ServiceHistorySection } from "./components/ServiceHistorySection";
 import { SellerNotesSection as CarListingSellerNotesSection } from "../car-listing/SellerNotesSection";
 import { VehicleStatusSection } from "./components/VehicleStatusSection";
 import { FeaturesSection as CarListingFeaturesSection } from "../car-listing/FeaturesSection";
-import { AdditionalInfoSection as CarListingAdditionalInfoSection } from "../car-listing/AdditionalInfoSection";
+import { AdditionalInfoSection as CarListingAdditionalInfoSection } from "../car-listing/sections/AdditionalInfoSection";
 import { FormHeader } from "./components/FormHeader";
 import { SubmitButton } from "./components/SubmitButton";
 import { useManualValuationForm } from "./hooks/useManualValuationForm";

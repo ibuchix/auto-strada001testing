@@ -1,13 +1,8 @@
 
 /**
  * Changes made:
- * - 2024-06-30: Added component comment for clarity
- * - 2024-06-30: Updated to properly display seller dashboard link on mobile
- * - 2024-07-01: Removed Dealers link and simplified mobile navigation per new requirements
- * - 2024-07-02: Fixed Dashboard link appearance in mobile navigation
- * - 2025-04-29: Updated props to match NavLinks component requirements
+ * - 2025-06-14: Removed references to deleted pages in mobile navigation
  */
-
 import { NavLinks } from "./NavLinks";
 
 interface MobileNavProps {

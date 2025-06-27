@@ -2,6 +2,7 @@
 /**
  * Updated: 2025-05-29 - Fixed database queries to use reserve_price instead of removed price column
  * Updated: 2025-05-29 - Added getSellerAuctionResults method
+ * Updated: 2025-06-12 - Added reserve_price to auction results query
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -41,7 +42,8 @@ export const auctionService = {
             make,
             model,
             year,
-            auction_end_time
+            auction_end_time,
+            reserve_price
           )
         `)
         .eq('cars.seller_id', sellerId)

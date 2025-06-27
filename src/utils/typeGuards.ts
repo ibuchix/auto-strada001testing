@@ -1,3 +1,4 @@
+
 /**
  * Changes made:
  * - Added missing CarFeatures properties (bluetooth, sunroof, alloyWheels)
@@ -6,6 +7,7 @@
  * - 2025-05-10: Updated getDefaultCarFeatures to include all required properties
  * - 2025-05-10: Fixed instanceof check in isCarEntity function
  * - Updated: 2025-05-29 - Updated type guards to use reservePrice instead of removed price field
+ * - Updated: 2025-06-13 - Removed leatherSeats references to fix compilation errors
  */
 
 import { CarFeatures, CarEntity, CarListingFormData } from "@/types/forms";
@@ -25,7 +27,6 @@ export const isCarFeatures = (obj: unknown): obj is CarFeatures => {
     typeof features.alloyWheels === 'boolean' &&
     typeof features.airConditioning === 'boolean' &&
     typeof features.cruiseControl === 'boolean' &&
-    typeof features.leatherSeats === 'boolean' &&
     typeof features.navigation === 'boolean' &&
     typeof features.parkingSensors === 'boolean'
   );
@@ -42,7 +43,6 @@ export const getDefaultCarFeatures = (): CarFeatures => ({
   alloyWheels: false,
   airConditioning: false,
   cruiseControl: false,
-  leatherSeats: false,
   navigation: false,
   parkingSensors: false
 });
